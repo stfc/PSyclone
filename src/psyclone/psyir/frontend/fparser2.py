@@ -2047,18 +2047,20 @@ class Fparser2Reader():
                                      visibility=visibility,
                                      is_constant=has_constant_value,
                                      initial_value=init_expr)
-                except ValueError:
-                    # Error setting initial value have to be raised as
-                    # NotImplementedError in order to create an UnsupportedType
-                    # Therefore, the Error doesn't need raise_from or message
-                    # pylint: disable=raise-missing-from
-                    if tag:
-                        raise InternalError(
-                            f"The fparser2 frontend does not support "
-                            f"declarations where the routine name is of "
-                            f"UnsupportedType, but found this case in "
-                            f"'{sym_name}'.")
-                    raise NotImplementedError()
+                except ValueError as error:
+                    # DataSymbol can raise a ValueError in a number of ways.
+                    # We check for the ones that come from valid Fortran
+                    # that we aren't supporting and raise NotImplementedError
+                    # for those.
+                    if not isinstance(
+                            datatype,
+                            (ScalarType, ArrayType, UnsupportedType)):
+                        raise NotImplementedError
+                    # Otherwise we have an invalid Fortran declaration.
+                    raise InternalError(
+                        f"Invalid variable declaration "
+                        f"found in _process_decln for "
+                        f"'{sym_name}'.") from error
                 symbol_table.add(sym, tag=tag)
 
             if init_expr:
@@ -2523,10 +2525,11 @@ class Fparser2Reader():
                         # the tag to reintroduce it to the new symbol.
                         tag = None
                         try:
-                            routine_sym = parent.symbol_table.lookup_with_tag(
-                                "own_routine_symbol")
-                            if routine_sym.name.lower() == symbol_name:
-                                parent.symbol_table.remove(routine_sym)
+                            routine_name = parent.name
+                            if routine_name.lower() == symbol_name:
+                                parent.symbol_table.remove(
+                                        parent.symbol_table.lookup(
+                                            routine_name))
                                 tag = "own_routine_symbol"  # Keep the tag
                         except KeyError:
                             pass
@@ -2548,7 +2551,6 @@ class Fparser2Reader():
                                     visibility=vis,
                                     initial_value=init),
                                 tag=tag)
-
                         except KeyError as err:
                             if len(orig_children) == 1:
                                 raise SymbolError(
@@ -2849,7 +2851,6 @@ class Fparser2Reader():
                     parent.addchild(psy_child)
                 # If psy_child is not initialised but it didn't produce a
                 # NotImplementedError, it means it is safe to ignore it.
-
         # Complete any unfinished code-block
         self.nodes_to_code_block(parent, code_block_nodes, message)
 
@@ -5338,7 +5339,6 @@ class Fparser2Reader():
                         # Remove the RoutineSymbol ready to replace it with a
                         # DataSymbol.
                         routine.symbol_table.remove(symbol)
-                        keep_tag = "own_routine_symbol"
 
                 if return_name not in routine.symbol_table:
                     # There is no existing declaration for the symbol returned

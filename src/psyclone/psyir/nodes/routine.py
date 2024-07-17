@@ -389,7 +389,8 @@ class Routine(Schedule, CommentableMixin):
         if not isinstance(node, Routine):
             raise TypeError(
                 f"The argument node in method replace_with in the Routine "
-                f"class should be a Routine but found '{type(node).__name__}'.")
+                f"class should be a Routine but found '{type(node).__name__}'."
+            )
         if not self.parent:
             raise GenerationError(
                 "This node should have a parent if its replace_with method "
@@ -405,17 +406,13 @@ class Routine(Schedule, CommentableMixin):
                 "Routine class should be the same as the Routine being "
                 "replaced.")
         # We want to not use the childrenList update information.
-        index = self.position
-        node._parent_node = self._parent_node
-        node._has_constructor_parent = False
-        self._parent_node = None
-        self._has_constructor_parent = False
+        node._symbol_in_table = self._symbol_in_table
         # Just calling node._parent_node.children.__setitem__ attempt
         # to update the _parent of the replacements. Due to the nature
         # of the replace_with and symbol functionality on Routines, this
         # will not work. Instead we use the list.__setitem__ method to
         # update this directly.
-        list.__setitem__(node._parent_node.children, index, node)
+        super().replace_with(node, keep_name_in_context=keep_name_in_context)
 
 
 # For automatic documentation generation

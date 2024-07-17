@@ -49,6 +49,7 @@ from psyclone.domain.lfric import LFRicKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import CodeBlock, Reference, Schedule
+from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
 from psyclone.tests.utilities import get_base_path, get_invoke
 
@@ -321,11 +322,22 @@ def test_get_non_local_read_write_info_errors(capsys):
     routine = cntr.get_routine_psyir("testkern_import_symbols_code")
     # Remove the kernel routine from the PSyIR.
     routine.detach()
+
     rw_info = ReadWriteInfo()
     ctu.get_non_local_read_write_info(schedule, rw_info)
     out, _ = capsys.readouterr()
     assert (f"Could not get PSyIR for Routine 'testkern_import_symbols_code' "
-            f"from module '{kernels[0].module_name}'" in out)
+            f"from module '{kernels[0].module_name}' as no possible" in out)
+
+    # Add a RoutineSymbol back into the symbol table to mimic a CodeBlock
+    # representing the routine.
+    cntr.symbol_table.add(RoutineSymbol("testkern_import_symbols_code"))
+    rw_info = ReadWriteInfo()
+    ctu.get_non_local_read_write_info(schedule, rw_info)
+    out, _ = capsys.readouterr()
+    assert (f"Could not get PSyIR for Routine 'testkern_import_symbols_code' "
+            f"from module '{kernels[0].module_name}' -" in out)
+
     # Remove the module Container from the PSyIR.
     cntr.detach()
     ctu.get_non_local_read_write_info(schedule, rw_info)
@@ -397,6 +409,10 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
     minfo = mod_man.get_module_info("module_with_var_mod")
     cntr = minfo.get_psyir()
     cntr.get_routine_psyir("module_subroutine").detach()
+    # Since the Routine detach removes the routine symbol, we add a
+    # Routine symbol back in. This mimics the behaviour of having a
+    # CodeBlock representing this Routine
+    cntr.symbol_table.add(RoutineSymbol("module_subroutine"))
     todo = [('routine', 'module_with_var_mod',
              Signature("module_subroutine"), info)]
     ctu._resolve_calls_and_unknowns(todo, rw_info)

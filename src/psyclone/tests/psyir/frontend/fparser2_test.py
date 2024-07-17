@@ -848,7 +848,6 @@ def test_process_declarations():
     # Check we catch duplicated symbols
     reader = FortranStringReader("integer :: i2")
     fparser2spec = Specification_Part(reader).content[0]
-    print("---")
     with pytest.raises(SymbolError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Symbol 'i2' already present in SymbolTable with a defined "
@@ -1113,10 +1112,10 @@ def test_process_unsupported_declarations(fortran_reader):
     assert ssym.initial_value.symbol.name == "fbsp"
 
 
-def test_unsupported_decln_function_type(fortran_reader):
+def test_unsupported_decln(fortran_reader):
     '''
     Check that the frontend raises the expected error if it hits trouble
-    while creating a DataSymbol representing the return value of a function.
+    while creating a DataSymbol.
 
     '''
     code = '''
@@ -1130,8 +1129,30 @@ def test_unsupported_decln_function_type(fortran_reader):
     '''
     with pytest.raises(InternalError) as err:
         _ = fortran_reader.psyir_from_source(code)
-    assert ("declarations where the routine name is of UnsupportedType, but "
-            "found this case in 'problem'" in str(err.value))
+    assert ("Invalid variable declaration found in _process_decln for "
+            "'problem'" in str(err.value))
+
+
+def test_unsupported_decln_structure_type(fortran_reader):
+    '''
+    Check that the frontend generated code for unsupported values when
+    creating a DataSymbol.
+    '''
+    code = '''
+    module my_mod
+    use some_other_mod
+    contains
+    subroutine my_sub
+       type(some_type), parameter :: x = func()
+    end subroutine my_sub
+    end module my_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine.symbol_table.lookup('x').datatype,
+                      UnsupportedFortranType)
+    assert (routine.symbol_table.lookup('x').datatype.declaration ==
+            "TYPE(some_type), PARAMETER :: x = func()")
 
 
 @pytest.mark.usefixtures("f2008_parser")

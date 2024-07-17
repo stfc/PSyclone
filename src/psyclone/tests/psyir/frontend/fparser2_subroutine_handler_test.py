@@ -276,9 +276,6 @@ def test_function_result_suffix(fortran_reader, fortran_writer,
     assert (routines[0].return_symbol is
             routines[0].symbol_table.lookup("my_val"))
     print(psyir.children[0].symbol_table)
-    for sym in psyir.children[0].children[0].symbol_table.symbols:
-        print(sym)
-#    print(psyir.children[0].children[0].symbol_table.symbols)
     result = fortran_writer(psyir)
     assert expected in result
 
