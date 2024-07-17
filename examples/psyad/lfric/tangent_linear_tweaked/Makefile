@@ -57,8 +57,8 @@ ${ADJ_KERNEL_FILE}: ${TL_KERNEL_FILE}
 
 transform:
 	# All of these files need modifying after being processed by
-	# PSyAD (as they already have manual tweaks) so they all go
-	# into the the adjoint_partial directory.
+	# PSyAD (as they already have manual tweaks) so place them
+	# into the 'adjoint_partial' directory.
 	$(MAKE) single -e TL_KERNEL_NAME=tl_kinetic_energy_gradient_kernel ACTIVE_VAR_LIST="r_u ru_e ke_at_quad res_dot_product mul2 u_at_quad u_e u"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_moist_dyn_gas_kernel ACTIVE_VAR_LIST="moist_dyn_gas mr_v mr_v_at_dof"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_project_eos_pressure_kernel ACTIVE_VAR_LIST="exner rho exner_e r_exner exner_at_quad rho_at_quad rho_e tmp2 theta theta_vd_e theta_vd_at_quad moist_dyn_gas"

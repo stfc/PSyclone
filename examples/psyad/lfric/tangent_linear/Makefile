@@ -64,8 +64,11 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=poly1d_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=poly2d_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=apply_helmholtz_operator_kernel ACTIVE_VAR_LIST="y x"
-	# The following files no not need any modification after PSyAD processing so
-	# go straight into the adjoint directory.
+	# PSyAD does not work for this kernel as-is. Compare with the version
+	# in ../tangent_linear_tweaked.
+	# $(MAKE) single -e TL_KERNEL_NAME=poly_adv_update_kernel ACTIVE_VAR_LIST="tracer reconstruction dtdy dtdx advective"
+	# The following files do not need any modification after PSyAD processing so
+	# are placed in the 'adjoint' directory.
 	$(MAKE) single -e TL_KERNEL_NAME=transpose_matrix_vector_kernel ACTIVE_VAR_LIST="lhs lhs_e x_e x" OUT_DIR="../adjoint"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_hydrostatic_kernel ACTIVE_VAR_LIST="r_u exner theta grad_term exner_at_quad theta_v_at_quad res_dot_product grad_theta_v_at_quad theta_v_e exner_e moist_dyn_tot moist_dyn_gas" OUT_DIR="../adjoint"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_moist_dyn_mass_kernel ACTIVE_VAR_LIST="moist_dyn_tot mr_v mr_cl mr_r mr_ci mr_s mr_g mr_v_at_dof mr_cl_at_dof mr_r_at_dof mr_ci_at_dof mr_s_at_dof mr_g_at_dof" OUT_DIR="../adjoint"
