@@ -36,7 +36,7 @@
 
 EXAMPLES=$(sort $(wildcard eg*))
 
-include ../top_level.mk
+include ../../top_level.mk
 
 transform:
 	@echo "No transformation supported for xdsl/pw_advection"

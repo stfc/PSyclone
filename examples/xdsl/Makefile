@@ -32,7 +32,17 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified: M. Jamieson, EPCC
 
 EXAMPLES=$(sort $(wildcard eg*))
 
 include ../top_level.mk
+
+transform:
+        @echo "No transformation supported for xdsl"
+
+compile: transform
+        @echo "No compilation supported for xdsl"
+
+run: compile
+        @echo "No run targets for xdsl"
