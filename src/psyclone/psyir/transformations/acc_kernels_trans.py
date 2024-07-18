@@ -102,13 +102,51 @@ class ACCKernelsTrans(RegionTrans):
         if not options:
             options = {}
         default_present = options.get("default_present", False)
+        async_queue = options.get("async_queue", False)
+
+        # check
+        self.check_async_queue(node, async_queue)
 
         # Create a directive containing the nodes in node_list and insert it.
         directive = ACCKernelsDirective(
             parent=parent, children=[node.detach() for node in node_list],
-            default_present=default_present)
+            default_present=default_present, async_queue=async_queue)
 
         parent.children.insert(start_index, directive)
+
+    def check_async_queue(self, nodes, async_queue):
+        '''
+        Common function to check that all parent data directives have
+        the same async queue.
+
+        :param node: a node or list of nodes in the PSyIR to enclose.
+        :type nodes: (a list of) :py:class:`psyclone.psyir.nodes.Node`
+
+        :param async_queue: The async queue to expect in parents.
+        :type async_queue: \
+            Optional[bool,int,:py:class: psyclone.core.Reference]
+        '''
+
+        # check type
+        if (async_queue is not None and
+           not isinstance(async_queue, (int, Reference))):
+            raise TypeError(f"Invalid async_queue value, expect Reference or "
+                            f"integer or None or False, got : {async_queue}")
+
+        # handle list
+        if not isinstance(nodes, list):
+            nodes = [nodes]
+
+        directive_cls = (ACCDataDirective)
+        for node in nodes:
+            parent = node.ancestor(directive_cls)
+            if parent is not None:
+                if async_queue is not None:
+                    if async_queue != parent.async_queue:
+                        raise TransformationError(
+                            'Try to make an ACCKernelTrans with async_queue '
+                            'different than the one in parent data directive '
+                            '!')
 
     def validate(self, nodes, options=None):
         # pylint: disable=signature-differs
@@ -124,6 +162,7 @@ class ACCKernelsTrans(RegionTrans):
         :param bool options["disable_loop_check"]: whether to disable the
             check that the supplied region contains 1 or more loops. Default
             is False (i.e. the check is enabled).
+        :param int options["async_queue"]: use the specified async stream.
 
         :raises NotImplementedError: if the supplied Nodes belong to
             a GOInvokeSchedule.
