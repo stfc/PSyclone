@@ -1130,6 +1130,7 @@ class Fparser2Reader():
             Fortran2003.Where_Construct: self._where_construct_handler,
             Fortran2003.Where_Stmt: self._where_construct_handler,
             Fortran2003.Call_Stmt: self._call_handler,
+            Fortran2003.Function_Reference: self._call_handler,
             Fortran2003.Subroutine_Subprogram: self._subroutine_handler,
             Fortran2003.Module: self._module_handler,
             Fortran2003.Main_Program: self._main_program_handler,
@@ -5087,6 +5088,13 @@ class Fparser2Reader():
 
         '''
         call = Call(parent=parent)
+        # TODO fparser/#447 For now `null()` is treated as a
+        # `Function_Reference` by fparser, instead of an
+        # `Intrinsic_Function_Reference` so we redirect to the correct
+        # handler for fparser2 tests to pass. This should be removed once
+        # fparser2 is fixed.
+        if str(node.items[0]).lower() == "null" and node.items[1] is None:
+            return self._intrinsic_handler(node, parent)
         self.process_nodes(parent=call, nodes=[node.items[0]])
         routine = call.children[0]
         # If it's a plain reference, promote the symbol to a RoutineSymbol
