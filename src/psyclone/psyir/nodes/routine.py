@@ -333,12 +333,11 @@ class Routine(Schedule, CommentableMixin):
         if not isinstance(value, DataSymbol):
             raise TypeError(f"Routine return-symbol should be a DataSymbol "
                             f"but found '{type(value).__name__}'.")
-        if (value not in self.symbol_table.datasymbols and
-                value.name != self.name):
+        if (value not in self.symbol_table.datasymbols):
             raise KeyError(
                 f"For a symbol to be a return-symbol, it must be present in "
-                f"the symbol table of the Routine or share a name with the "
-                f"routine but '{value.name}' does neither.")
+                f"the symbol table of the Routine "
+                f"but '{value.name}' is not.")
         self._return_symbol = value
 
         # If the symbol isn't yet in the symbol table then we need to

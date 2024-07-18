@@ -2023,19 +2023,6 @@ class Fparser2Reader():
                                    is_constant=has_constant_value,
                                    initial_value=init_expr)
                 else:
-                    routine_ancestor = scope.ancestor(Routine)
-                    if (routine_ancestor and
-                            routine_ancestor.return_symbol is sym):
-                        # In case it is its own function routine
-                        # symbol, Fortran will declare it inside the
-                        # function as a DataSymbol.  Remove the
-                        # RoutineSymbol in order to free the exact
-                        # name for the DataSymbol.
-                        symbol_table.remove(sym)
-                        # And trigger the exception path but keeping
-                        # the same tag
-                        tag = "own_routine_symbol"
-                        raise KeyError
                     if not sym.is_unresolved:
                         raise SymbolError(
                             f"Symbol '{sym_name}' already present in "
@@ -2530,7 +2517,6 @@ class Fparser2Reader():
                                 parent.symbol_table.remove(
                                         parent.symbol_table.lookup(
                                             routine_name))
-                                tag = "own_routine_symbol"  # Keep the tag
                         except KeyError:
                             pass
 
@@ -5328,18 +5314,6 @@ class Fparser2Reader():
                 # Ensure that we have an explicit declaration for the symbol
                 # returned by the function.
                 keep_tag = None
-                if return_name in routine.symbol_table:
-                    symbol = routine.symbol_table.lookup(return_name)
-                    # If the symbol table still contains a RoutineSymbol
-                    # for the function name (rather than a DataSymbol)
-                    # then there is no explicit declaration within the
-                    # function of the variable used to hold the return
-                    # value.
-                    if isinstance(symbol, RoutineSymbol):
-                        # Remove the RoutineSymbol ready to replace it with a
-                        # DataSymbol.
-                        routine.symbol_table.remove(symbol)
-
                 if return_name not in routine.symbol_table:
                     # There is no existing declaration for the symbol returned
                     # by the function (because it is specified by the prefix

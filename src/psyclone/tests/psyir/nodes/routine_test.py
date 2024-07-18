@@ -41,6 +41,7 @@
 
 import pytest
 
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (Assignment, Literal, FileContainer,
                                   Reference, Routine, ScopingNode)
 from psyclone.psyir.symbols import (REAL_TYPE, DataSymbol,
@@ -121,8 +122,7 @@ def test_routine_return_symbol_setter():
     with pytest.raises(KeyError) as err:
         node.return_symbol = sym
     assert ("For a symbol to be a return-symbol, it must be present in the "
-            "symbol table of the Routine or share a name with the routine "
-            "but 'result' does neither." in
+            "symbol table of the Routine but \'result\' is not." in
             str(err.value))
     node.symbol_table.add(sym)
     node.return_symbol = sym
@@ -252,3 +252,48 @@ def test_routine_copy():
     assert routine2.symbol_table.node is routine2
     assert routine2.return_symbol in routine2.symbol_table.symbols
     assert routine2.return_symbol not in routine.symbol_table.symbols
+
+
+def test_routine_replace_with(fortran_reader):
+    '''Test that the replace_with method correctly replaces the Routine
+    with another Routine. '''
+
+    code = '''subroutine a()
+    end subroutine a'''
+    psyir = fortran_reader.psyir_from_source(code)
+    rout = psyir.walk(Routine)[0]
+
+    with pytest.raises(TypeError) as excinfo:
+        rout.replace_with(123)
+    assert ("The argument node in method replace_with in the Routine "
+            "class should be a Routine but found 'int'." in str(excinfo.value))
+
+    rout2 = Routine("a")
+    with pytest.raises(GenerationError) as excinfo:
+        rout2.replace_with(rout)
+    assert ("This node should have a parent if its replace_with method is "
+            "called." in str(excinfo.value))
+
+    code2 = '''subroutine a()
+    end subroutine a'''
+    psyir2 = fortran_reader.psyir_from_source(code2)
+    rout2 = psyir2.walk(Routine)[0]
+
+    with pytest.raises(GenerationError) as excinfo:
+        rout.replace_with(rout2)
+    assert ("The parent of argument node in method replace_with in the "
+            "Routine class should be None but found 'FileContainer'."
+            in str(excinfo.value))
+
+    rout2 = Routine("a")
+    with pytest.raises(GenerationError) as excinfo:
+        rout.replace_with(rout2)
+    assert ("The symbol of argument node in method replace_with in the "
+            "Routine class should be the same as the Routine being "
+            "replaced." in str(excinfo.value))
+
+    rout2 = Routine("a", symbol=rout._symbol)
+
+    rout.replace_with(rout2)
+    assert rout.parent is None
+    assert rout2.parent is psyir

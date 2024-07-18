@@ -36,7 +36,6 @@
 
 ''' This module contains the ScopingNode implementation.'''
 
-from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import RoutineSymbol, SymbolTable
@@ -112,7 +111,6 @@ class ScopingNode(Node):
         # We have to import Routine here to avoid a circular dependency.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.routine import Routine
-        symbols_to_fix = []
         for node in other.walk(Routine):
             try:
                 if isinstance(self._symbol_table.lookup(node.name),
@@ -123,13 +121,10 @@ class ScopingNode(Node):
                 pass
             except ValueError:
                 # If remove fails for the RoutineSymbol then we have to force
-                # the removal of the symbol. Any references to this symbol
-                # will be fixed later.
+                # the removal of the symbol.
                 symbol = self._symbol_table.lookup(node.name)
                 norm_name = self._symbol_table._normalize(symbol.name)
-                symbols_to_fix.append(
-                        self._symbol_table._symbols.pop(norm_name)
-                )
+                self._symbol_table._symbols.pop(norm_name)
 
         super(ScopingNode, self)._refine_copy(other)
         # pylint: disable=protected-access
@@ -154,14 +149,6 @@ class ScopingNode(Node):
                 if node.variable in other.symbol_table.symbols:
                     node.variable = self.symbol_table.lookup(
                         node.variable.name)
-
-        # Fix the Calls which now have broken links to the symbols they call.
-        all_calls = self.walk(Call)
-        for call in all_calls:
-            if call.routine.symbol in symbols_to_fix:
-                print(call.routine.ancestor(type(self)))
-                print(self)
-                assert False
 
     @property
     def symbol_table(self):
