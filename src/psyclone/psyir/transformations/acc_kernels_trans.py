@@ -42,8 +42,8 @@ import re
 
 from psyclone import psyGen
 from psyclone.psyir.nodes import (
-    ACCKernelsDirective, Assignment, Call, CodeBlock, Loop, PSyDataNode,
-    Reference, Return, Routine, Statement, WhileLoop)
+    ACCDataDirective, ACCKernelsDirective, Assignment, Call, CodeBlock, Loop,
+    PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
 from psyclone.psyir.symbols import UnsupportedFortranType
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (

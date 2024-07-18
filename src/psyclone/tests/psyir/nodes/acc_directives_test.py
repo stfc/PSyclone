@@ -47,18 +47,10 @@ from psyclone.errors import GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import ACCRoutineDirective, \
-    ACCKernelsDirective, Schedule, ACCUpdateDirective, ACCLoopDirective, \
-    ACCWaitDirective, Routine, ACCParallelDirective, ACCEnterDataDirective
-from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.nodes.array_reference import ArrayReference, \
-    Literal, INTEGER_TYPE
+from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.acc_directives import ACCAsyncMixin
-from psyclone.psyir.symbols import SymbolTable, Symbol, DataSymbol, \
-    DeferredType
-from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
-    ACCKernelsTrans, TransformationError
-from psyclone.psyir.nodes import (ACCKernelsDirective,
+from psyclone.psyir.nodes import (ACCEnterDataDirective,
+                                  ACCKernelsDirective,
                                   ACCLoopDirective,
                                   ACCParallelDirective,
                                   ACCRegionDirective,
@@ -71,8 +63,8 @@ from psyclone.psyir.nodes import (ACCKernelsDirective,
                                   Return,
                                   Routine)
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import (
+    Symbol, SymbolTable, DataSymbol, INTEGER_TYPE, UnresolvedType)
 from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (
     ACCDataTrans, ACCEnterDataTrans, ACCLoopTrans,
@@ -444,7 +436,7 @@ def test_acckernelsdirective_gencode(default_present):
                           Reference(Symbol('stream1')),
                           ArrayReference.create(DataSymbol(
                               'stream2',
-                              DeferredType()),
+                              UnresolvedType()),
                               [Literal("1", INTEGER_TYPE)]
                             )
                         ])
