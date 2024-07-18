@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyir.nodes import Container
 from psyclone.tests.utilities import get_base_path, get_invoke
 
-API = "gocean1.0"
+API = "gocean"
 
 
 def test_gosched_parent():

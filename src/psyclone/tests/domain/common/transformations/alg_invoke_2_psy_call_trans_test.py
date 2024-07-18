@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,11 +68,12 @@ def check_call(call, routine_name, container_name, args_info):
                    str | :py:class:`psyclone.psyir.nodes.BinaryOperation`]]
 
     '''
-    assert isinstance(call.routine, RoutineSymbol)
+    assert isinstance(call.routine.symbol, RoutineSymbol)
     assert call.routine.name == routine_name
-    assert call.routine.is_import
-    assert call.routine.interface.container_symbol.name == container_name
-    args = call.children
+    assert call.routine.symbol.is_import
+    assert (call.routine.symbol.interface.container_symbol.name ==
+            container_name)
+    args = call.arguments
     assert len(args) == len(args_info)
     for idx, arg_info in enumerate(args_info):
         arg_type = arg_info[0]
@@ -95,12 +96,14 @@ def test_abstract():
     '''Test that AlgInvoke2PSyCallTrans is abstract.'''
     with pytest.raises(TypeError) as info:
         _ = AlgInvoke2PSyCallTrans()
-    # Split assert tests as earlier versions of Python output
-    # 'methods' even if there is only one whilst later versions of
-    # Python output 'method'.
-    assert ("Can't instantiate abstract class AlgInvoke2PSyCallTrans with "
-            "abstract method" in str(info.value))
-    assert "get_arguments" in str(info.value)
+    # Python >= 3.9 spots that 'method' should be singular. Prior to this it
+    # was plural. Python >= 3.12 tweaks the error message yet again to mention
+    # the lack of an implementation and to quote the method name.
+    # We split the check to accomodate for this.
+    assert ("Can't instantiate abstract class AlgInvoke2PSyCallTrans with"
+            in str(info.value))
+    assert ("abstract method" in str(info.value))
+    assert ("get_arguments" in str(info.value))
 
 
 # pylint: enable=abstract-class-instantiated
@@ -119,7 +122,7 @@ def test_ai2psycall_validate_argtype():
 
 def test_ai2psycall_validate_no_invoke_sym(fortran_reader):
     '''Check that the validate() method raises the expected exception when
-    no invoke symbol is found in the PSyIR. Use
+    no 'invoke' symbol is found in the PSyIR. Use
     GOceanAlgInvoke2PSyCallTrans as AlgInvoke2PSyCallTrans is
     abstract.
 
@@ -136,8 +139,8 @@ def test_ai2psycall_validate_no_invoke_sym(fortran_reader):
     AlgTrans().apply(psyir)
     invoke = psyir.children[0].children[0]
     symbol_table = invoke.scope.symbol_table
-    invoke_symbol = symbol_table.lookup("invoke")
-    symbol_table.remove(invoke_symbol)
+    # We can't use table.remove() here because it checks for calls.
+    symbol_table._symbols.pop("invoke")
     trans = GOceanAlgInvoke2PSyCallTrans()
 
     with pytest.raises(InternalError) as info:
@@ -168,7 +171,7 @@ def test_ai2psycall_apply(fortran_reader):
     assert psyir.walk(AlgorithmInvokeCall) == []
     calls = psyir.walk(Call)
     assert len(calls) == 1
-    assert isinstance(calls[0].routine, RoutineSymbol)
+    assert isinstance(calls[0].routine.symbol, RoutineSymbol)
     assert calls[0].routine.name == "invoke_0_kern"
 
 
@@ -196,6 +199,23 @@ def test_ai2psycall_apply_error(fortran_reader):
             "'kern' is of type 'BinaryOperation'." in str(info.value))
 
 
+def test_ai2psycall_invalid_name(fortran_reader):
+    '''Check that an invalid invoke name is rejected by the transformation.'''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field(10)\n"
+        "  integer :: i\n"
+        "  call invoke(kern(field), name='invalid name')\n"
+        "end subroutine alg1\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    with pytest.raises(TransformationError) as err:
+        AlgTrans().apply(psyir)
+    assert ("Problem with invoke name: Invalid Fortran "
+            "name 'invalid name' found" in str(err.value))
+
+
 def test_ai2psycall_apply_expr(fortran_reader):
     '''Check that the apply() method deals correctly with simple
     associative expressions, i.e. i+1 is the same as 1+i. Use
@@ -217,7 +237,7 @@ def test_ai2psycall_apply_expr(fortran_reader):
     invoke = subroutine.children[0]
     trans = GOceanAlgInvoke2PSyCallTrans()
     trans.apply(invoke)
-    assert len(subroutine.children[0].children) == 1
+    assert len(subroutine.children[0].arguments) == 1
 
 
 def test_ai2psycall_apply_single(fortran_reader):
@@ -281,7 +301,7 @@ def test_aipsycall_apply_multi(fortran_reader):
         "  call invoke(kern1(field1), kern2(field1), kern3(field2(i)), &\n"
         "              kern1(field2(I)), kern2(field2( j )), &\n"
         "              kern3(field2(j+1)), kern1(1.0_r_def), &\n"
-        "              name=\"multi kern invoke\")\n"
+        "              name=\"multi_kern_invoke\")\n"
         "end subroutine alg1\n")
     psyir = fortran_reader.psyir_from_source(code)
     AlgTrans().apply(psyir)
@@ -364,10 +384,10 @@ def test_ai2psycall_apply_multi_invoke(fortran_reader):
     assert "invoke" not in call2.scope.symbol_table._symbols
 
     assert call1.routine.name == "invoke_0_kern1_1"
-    assert call1.routine.interface.container_symbol.name == "psy_alg1_1"
+    assert call1.routine.symbol.interface.container_symbol.name == "psy_alg1_1"
 
     assert call2.routine.name == "invoke_1_kern2"
-    assert call2.routine.interface.container_symbol.name == "psy_alg1_1"
+    assert call2.routine.symbol.interface.container_symbol.name == "psy_alg1_1"
 
 
 def test_ai2psycall_apply_invoke_symbols(fortran_reader):

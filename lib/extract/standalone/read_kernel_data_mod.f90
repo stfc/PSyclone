@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2022-2023, Science and Technology Facilities Council.
+! Copyright (c) 2022-2024, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,9 @@ module read_kernel_data_mod
     contains
 
         ! The various procedures used
-        procedure :: OpenRead
+        procedure :: OpenReadFileName
+        procedure :: OpenReadModuleRegion
+
 
         procedure :: ReadScalarChar
         procedure :: ReadArray1dChar
@@ -147,7 +149,7 @@ contains
     !! @param[in] module_name The name of the module of the instrumented
     !!            region.
     !! @param[in] region_name The name of the instrumented region.
-    subroutine OpenRead(this, module_name, region_name)
+    subroutine OpenReadModuleRegion(this, module_name, region_name)
 
         implicit none
 
@@ -160,7 +162,29 @@ contains
              form="unformatted", status="old",               &
              file=module_name//"-"//region_name//".binary")
 
-    end subroutine OpenRead
+    end subroutine OpenReadModuleRegion
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine is called to open a binary file for reading. The
+    !! filename is specified explicitly (as opposed to be based on module-name
+    !! and region name in OpenReadModuleRegion). This is used by a driver
+    !! program that will read a binary file previously created by the
+    !! PSyData API.
+    !! @param[in,out] this The instance of the ReadKernelDataType.
+    !! @param[in] file_name The name of the binary file to open.
+    subroutine OpenReadFileName(this, file_name)
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target :: this
+        character(*), intent(in)                         :: file_name
+        integer :: retval
+
+        open(newunit=this%unit_number, access='sequential',  &
+             form="unformatted", status="old",               &
+             file=file_name)
+
+    end subroutine OpenReadFileName
 
 
     ! -------------------------------------------------------------------------

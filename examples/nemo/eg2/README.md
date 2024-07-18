@@ -12,11 +12,11 @@ file with the ../scripts/ OpenMP scripts.
 Once you have installed PSyclone, these scripts may be run by doing:
 
 ```sh
-psyclone -api "nemo" -s ./omp_levels_trans.py traldf_iso.F90
+psyclone -s ./omp_levels_trans.py traldf_iso.F90
 ```
 or
 ```sh
-psyclone -api nemo -s ../scripts/omp_[cpu|gpu]_trans.py ../code/traldf_iso.f90
+psyclone -s ../scripts/omp_[cpu|gpu]_trans.py ../code/traldf_iso.f90
 ```
 
 `traldf_iso.F90`, is an unmodified NEMO ocean model routine. This code
@@ -30,7 +30,7 @@ the generated Fortran code with the OpenMP directives added.
 
 BSD 3-Clause License
 
-Copyright (c) 2018-2022, Science and Technology Facilities Council
+Copyright (c) 2018-2024, Science and Technology Facilities Council
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

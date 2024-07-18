@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,8 +42,14 @@
 
 # ----------- Default "make" values, can be overwritten by the user -----------
 # Compiler and compiler flags
-F90 ?= gfortran
 F90FLAGS ?=
+ifeq ($(MPI), yes)
+       F90 ?= mpif90
+else
+       F90 ?= gfortran
+       F90FLAGS += -DNO_MPI
+endif
+
 # Path to the PSyclone wrapper libraries. It defaults to the relative path to
 # the top-level 'lib' directory. Overwrite for a custom location.
 PSYDATA_LIB_DIR ?= ./../..
@@ -57,7 +63,7 @@ PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
 default: extract_standalone_base.o psy_data_base.o read_kernel_data_mod.o
 
-process: extract_standalone_base.f90
+process: extract_standalone_base.F90
 
 .PHONY: default process all clean allclean
 
@@ -76,8 +82,8 @@ extract_standalone_base.o: psy_data_base.o
 psy_data_base.f90:	$(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
-extract_standalone_base.f90:	extract_standalone_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_standalone_base.f90
+extract_standalone_base.F90:	extract_standalone_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_standalone_base.F90
 
 read_kernel_data_mod.f90:	read_kernel_data_mod.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > read_kernel_data_mod.f90
@@ -87,8 +93,11 @@ read_kernel_data_mod.f90:	read_kernel_data_mod.jinja Makefile
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
+%.o: %.F90
+	$(F90) $(F90FLAGS) -c $<
+
 clean:
-	rm -f extract_standalone_base.f90 psy_data_base.f90
+	rm -f extract_standalone_base.F90 psy_data_base.f90
 	rm -f *.o *.mod
 
 allclean:

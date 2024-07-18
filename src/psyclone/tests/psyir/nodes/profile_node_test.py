@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,13 +37,12 @@
 
 ''' Module containing pytest tests for the ProfileNode. '''
 
-from __future__ import absolute_import
 import pytest
 from fparser.two import Fortran2003
 from psyclone.psyir.nodes import (ProfileNode, Literal, Assignment, CodeBlock,
                                   Reference, Return, KernelSchedule, Loop)
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE, \
-    ContainerSymbol, DataTypeSymbol, UnknownFortranType, ImportInterface
+    ContainerSymbol, DataTypeSymbol, UnsupportedFortranType, ImportInterface
 from psyclone.profiler import Profiler
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
@@ -54,7 +53,7 @@ def teardown_function():
     any automatic profiling set. This is necessary in case of a test failure
     to make sure any further tests will not be run with profiling enabled.
     '''
-    Profiler.set_options([])
+    Profiler._options = []
 
 
 def test_profile_node_constructor():
@@ -89,10 +88,10 @@ def test_profile_node_create():
     assert type_sym.interface.container_symbol is csym
     # A symbol of derived type to contain the profiling data. As it must
     # have the (unsupported) 'save' and 'target' attributes, it has to be of
-    # UnknownFortranType.
+    # UnsupportedFortranType.
     dsym = table.lookup("profile_psy_data")
     assert isinstance(dsym, DataSymbol)
-    assert isinstance(dsym.datatype, UnknownFortranType)
+    assert isinstance(dsym.datatype, UnsupportedFortranType)
     assert (dsym.datatype.declaration ==
             "type(profile_PSyDataType), save, target :: profile_psy_data")
 
@@ -117,7 +116,7 @@ def test_lower_to_lang_level_single_node():
     a single ProfileNode.
 
     '''
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], api="nemo")
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
         symbol_type=DataSymbol, datatype=REAL_TYPE)
@@ -155,7 +154,7 @@ def test_lower_named_profile_node():
     a ProfileNode has pre-set names for the module and region.
 
     '''
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], api="nemo")
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
         symbol_type=DataSymbol, datatype=REAL_TYPE)
@@ -179,8 +178,8 @@ def test_lower_to_lang_level_multi_node():
 
     '''
     # We use a GOcean example containing multiple kernel calls
-    Profiler.set_options([Profiler.KERNELS])
-    _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0",
+    Profiler.set_options([Profiler.KERNELS], api="gocean")
+    _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean",
                            idx=0)
     sched = invoke.schedule
     table = sched.symbol_table
@@ -193,11 +192,13 @@ def test_lower_to_lang_level_multi_node():
     cblocks = sched.walk(CodeBlock)
     ptree = cblocks[0].get_ast_nodes
     code = str(ptree[0]).lower()
-    assert "call profile_psy_data % prestart(\"invoke_0\", \"r0\"" in code
+    assert ("call profile_psy_data % prestart(\"psy_single_invoke_two_"
+            "kernels\", \"invoke_0-r0\"" in code)
     assert cblocks[0].annotations == ["psy-data-start"]
     assert cblocks[1].annotations == []
     ptree = cblocks[2].get_ast_nodes
     code = str(ptree[0]).lower()
-    assert "call profile_psy_data_1 % prestart(\"invoke_0\", \"r1\"" in code
+    assert ("call profile_psy_data_1 % prestart(\"psy_single_invoke_two_"
+            "kernels\", \"invoke_0-r1\"" in code)
     assert cblocks[2].annotations == ["psy-data-start"]
     assert cblocks[3].annotations == []

@@ -51,6 +51,10 @@ specified using the environment variables ``$LIB_TMPLT_DIR`` and
 the [``lib/extract/netcdf``](./../) and top-level [``lib``](./../../../)
 directories.
 
+In order to support MPI in extraction (which means each process will write
+its own output data by appending its rank to the filename), set the environment
+variable ``MPI=yes`` before starting the build process.
+
 The compilation process will create the wrapper library
 ``lib_extract.a``.
 
@@ -83,7 +87,7 @@ or you have to explicitly provide the required paths and options).
 
 BSD 3-Clause License
 
-Copyright (c) 2023, Science and Technology Facilities Council.
+Copyright (c) 2023-2024, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

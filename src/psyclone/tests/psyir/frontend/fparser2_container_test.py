@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,12 +32,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the container generation in the fparser2 PSyIR
     front-end. '''
 
-from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -45,8 +45,8 @@ from fparser.two import Fortran2003
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyir.nodes import Container, KernelSchedule
-from psyclone.psyir.symbols import Symbol, RoutineSymbol, SymbolError
+from psyclone.psyir.nodes import Container, FileContainer, KernelSchedule
+from psyclone.psyir.symbols import Symbol, RoutineSymbol
 
 
 def test_generate_container(parser):
@@ -56,6 +56,7 @@ def test_generate_container(parser):
     module dummy_mod
         use mod1
         use mod2, only: var1
+        implicit none
         real :: modvar1
     contains
         subroutine dummy_code(f1, f2, f3)
@@ -135,10 +136,12 @@ def test_generate_container_routine_names(parser):
     assert isinstance(sub, RoutineSymbol)
 
 
-def test_access_stmt_no_unqualified_use_error(parser):
-    ''' Check that we raise the expected error if an undeclared symbol is
-    listed in an access statement and there are no unqualified use
-    statements to bring it into scope. '''
+def test_access_stmt_no_unqualified_use(parser):
+    '''Check that no error is raised if an undeclared symbol is listed in
+    an access statement and there are no unqualified use statements to
+    bring it into scope. This is now the job of the back-end.
+
+    '''
     processor = Fparser2Reader()
     reader = FortranStringReader(
         "module modulename\n"
@@ -147,10 +150,7 @@ def test_access_stmt_no_unqualified_use_error(parser):
         "public var3\n"
         "end module modulename")
     fparser2spec = parser(reader)
-    with pytest.raises(SymbolError) as err:
-        processor.generate_container(fparser2spec)
-    assert ("module 'modulename': 'var3' is listed in an accessibility "
-            "statement as being" in str(err.value))
+    processor.generate_container(fparser2spec)
 
 
 def test_default_public_container(parser):
@@ -339,3 +339,42 @@ def test_broken_access_spec(parser):
     with pytest.raises(InternalError) as err:
         processor.process_declarations(fake_parent, fparser2spec.children, [])
     assert "Unexpected Access Spec attribute 'not-private'" in str(err.value)
+
+
+def test_unsupported_implicit_part(parser):
+    '''
+    Test that an unsupported implicit statment results in the expected error.
+    '''
+    fake_parent = FileContainer("dummy")
+    processor = Fparser2Reader()
+    code = '''\
+      module my_modulename
+        implicit real (a-h,o-z)
+        integer, private :: var3
+      end module my_modulename'''
+    reader = FortranStringReader(code)
+    fparser2spec = parser(reader).children[0].children[1]
+    with pytest.raises(NotImplementedError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.children, [])
+    assert ("implicit variable declarations not supported but found "
+            "'IMPLICIT REAL(A - H, O - Z)'" in str(err.value))
+
+
+def test_unsupported_format_stmt(parser):
+    '''
+    Test that an unsupported format statement appearing in the implicit-part
+    of a specification-part in a module results in the expected error.
+    '''
+    fake_parent = FileContainer("dummy")
+    processor = Fparser2Reader()
+    code = '''\
+      module my_modulename
+5       FORMAT (1E12.4, I10)
+        integer, private :: var3
+      end module my_modulename'''
+    reader = FortranStringReader(code)
+    fparser2spec = parser(reader).children[0].children[1]
+    with pytest.raises(NotImplementedError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.children, [])
+    assert ("Error processing implicit-part: Format statements are not "
+            "supported but found 'FORMAT(1E12.4, I10)'" in str(err.value))

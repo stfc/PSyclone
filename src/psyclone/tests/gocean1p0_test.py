@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,34 +45,26 @@ import re
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.parse.algorithm import Arg, parse
-from psyclone.parse.kernel import Descriptor
+from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import PSyFactory
 from psyclone.gocean1p0 import (GOKern, GOLoop, GOKernelArgument,
-                                GOKernelArguments, GOKernelGridArgument,
-                                GOBuiltInCallFactory)
+                                GOKernelGridArgument, GOBuiltInCallFactory)
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.tests.gocean_build import GOceanBuild
-from psyclone.psyir.nodes import (Node, StructureReference, Member,
-                                  StructureMember, Reference, Literal)
-from psyclone.psyir.symbols import (
-    ContainerSymbol, ImportInterface, SymbolTable,
-    INTEGER_TYPE, DataTypeSymbol, ScalarType)
+from psyclone.psyir.symbols import ContainerSymbol, ImportInterface
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 
-API = "gocean1.0"
+API = "gocean"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "gocean1p0")
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use gocean1.0 as API.'''
-    Config.get().api = "gocean1.0"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use gocean as API.'''
+    Config.get().api = "gocean"
 
 
 def test_field(tmpdir, dist_mem):
@@ -1083,35 +1075,6 @@ def test_find_grid_access(monkeypatch):
     assert arg is None
 
 
-def test_raw_arg_list_error(monkeypatch):
-    ''' Test that we raise an internal error in the
-    GOKernelArguments.raw_arg_list method if there's no argument from which
-    to get the grid properties. '''
-    _, invoke = get_invoke("test19.1_sw_offset_cf_updated_one_invoke.f90",
-                           API, idx=0)
-    schedule = invoke.schedule
-    kern = schedule.coded_kernels()[0]
-    assert isinstance(kern, GOKern)
-    raw_list = kern.arguments.raw_arg_list()
-    assert raw_list == ['i', 'j', 'z_fld%data', 'p_fld%data', 'u_fld%data',
-                        'v_fld%data', 'p_fld%grid%dx', 'p_fld%grid%dy']
-    # Now monkeypatch find_grid_access()
-    monkeypatch.setattr(kern.arguments, "find_grid_access", lambda: None)
-    kern.arguments._raw_arg_list = None
-    with pytest.raises(GenerationError) as err:
-        _ = kern.arguments.raw_arg_list()
-    assert ("kernel compute_z_code requires grid property dx but does not "
-            "have any arguments that are fields" in str(err.value))
-    # Now monkeypatch one of the kernel arguments so that it has an
-    # unrecognised type
-    monkeypatch.setattr(kern.arguments._args[0]._arg, "_argument_type",
-                        "broken")
-    with pytest.raises(InternalError) as err:
-        _ = kern.arguments.raw_arg_list()
-    assert ("Kernel compute_z_code, argument z_fld has unrecognised type: "
-            "'broken'" in str(err.value))
-
-
 def test_invalid_access_type():
     ''' Test that we raise an internal error if we try to assign
     an invalid access type (string instead of AccessType) in
@@ -1153,7 +1116,7 @@ def test00p1_kernel_wrong_meta_arg_count():
               join(os.path.dirname(os.path.abspath(__file__)),
                    "test_files", "gocean1p0",
                    "test00.1_invoke_kernel_wrong_meta_arg_count.f90"),
-              api="gocean1.0")
+              api="gocean")
 
 
 def test00p1_invoke_kernel_using_const_scalar():
@@ -1161,7 +1124,7 @@ def test00p1_invoke_kernel_using_const_scalar():
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "test_files", "gocean1p0",
                             "test00.1_invoke_kernel_using_const_scalar.f90")
-    _, invoke_info = parse(filename, api="gocean1.0")
+    _, invoke_info = parse(filename, api="gocean")
     out = str(PSyFactory(API).create(invoke_info).gen)
     # Old versions of PSyclone tried to declare '0' as a variable:
     # REAL(KIND=wp), intent(inout) :: 0
@@ -1180,7 +1143,7 @@ def test00p2_kernel_invalid_meta_args():
               join(os.path.dirname(os.path.abspath(__file__)),
                    "test_files", "gocean1p0",
                    "test00.2_invoke_kernel_invalid_meta_args.f90"),
-              api="gocean1.0")
+              api="gocean")
 
 
 def test00p3_kern_invalid_meta_arg_type():
@@ -1234,7 +1197,7 @@ def test03_kernel_missing_index_offset():
         parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "test_files", "gocean1p0",
                            "test03_invoke_kernel_missing_offset.f90"),
-              api="gocean1.0")
+              api="gocean")
 
 
 def test04_kernel_invalid_index_offset():
@@ -1244,7 +1207,7 @@ def test04_kernel_invalid_index_offset():
         parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "test_files", "gocean1p0",
                            "test04_invoke_kernel_invalid_offset.f90"),
-              api="gocean1.0")
+              api="gocean")
 
 
 def test05_kernel_missing_iterates_over():
@@ -1255,7 +1218,7 @@ def test05_kernel_missing_iterates_over():
               join(os.path.dirname(os.path.abspath(__file__)),
                    "test_files", "gocean1p0",
                    "test05_invoke_kernel_missing_iterates_over.f90"),
-              api="gocean1.0")
+              api="gocean")
 
 
 def test05p1_kernel_invalid_iterates_over():
@@ -1266,7 +1229,7 @@ def test05p1_kernel_invalid_iterates_over():
               join(os.path.dirname(os.path.abspath(__file__)),
                    "test_files", "gocean1p0",
                    "test05.1_invoke_kernel_invalid_iterates_over.f90"),
-              api="gocean1.0")
+              api="gocean")
 
 
 def test05p1_kernel_add_iteration_spaces(tmpdir):
@@ -1329,7 +1292,7 @@ def test06_kernel_invalid_access():
         parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "test_files", "gocean1p0",
                            "test06_invoke_kernel_wrong_access.f90"),
-              api="gocean1.0")
+              api="gocean")
     assert ("compute_cu: argument access is given as 'wrong' but must be one "
             "of ['go_read', 'go_readwrite', 'go_write']" in str(err.value))
 
@@ -1342,7 +1305,7 @@ def test07_kernel_wrong_gridpt_type():
         parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "test_files", "gocean1p0",
                            "test07_invoke_kernel_wrong_gridpt_type.f90"),
-              api="gocean1.0")
+              api="gocean")
 
 
 def test08_kernel_invalid_grid_property():
@@ -1353,7 +1316,7 @@ def test08_kernel_invalid_grid_property():
               join(os.path.dirname(os.path.abspath(__file__)),
                    "test_files", "gocean1p0",
                    "test08_invoke_kernel_invalid_grid_property.f90"),
-              api="gocean1.0")
+              api="gocean")
     assert "Meta-data error in kernel compute_cu: un-recognised grid " \
            "property 'grid_area_wrong' requested." in str(err.value)
 
@@ -1379,7 +1342,7 @@ def test08p1_kernel_without_fld_args():
         parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "test_files", "gocean1p0",
                            "test08.1_invoke_kernel_no_fld_args.f90"),
-              api="gocean1.0")
+              api="gocean")
 
 
 def test09_kernel_missing_stencil_prop():
@@ -1391,7 +1354,7 @@ def test09_kernel_missing_stencil_prop():
         parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "test_files", "gocean1p0",
                            "test09_invoke_kernel_missing_stencil.f90"),
-              api="gocean1.0")
+              api="gocean")
 
 
 def test10_kernel_invalid_stencil_prop():
@@ -1403,7 +1366,7 @@ def test10_kernel_invalid_stencil_prop():
         parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "test_files", "gocean1p0",
                            "test10_invoke_kernel_invalid_stencil.f90"),
-              api="gocean1.0")
+              api="gocean")
 
 
 def test13_kernel_invalid_fortran():
@@ -1413,7 +1376,7 @@ def test13_kernel_invalid_fortran():
         parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "test_files", "gocean1p0",
                            "test13_invoke_kernel_invalid_fortran.f90"),
-              api="gocean1.0")
+              api="gocean")
 
 
 def test14_no_builtins():

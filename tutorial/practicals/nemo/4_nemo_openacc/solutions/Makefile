@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,9 +39,9 @@
 .PHONY: clean transform
 
 transform:
-	${MAKE} -C ../ psy_1.f90
-	${MAKE} TRANS_SCRIPT=solutions/kernels_trans.py -C ../ psy_2.f90
-	${MAKE} TRANS_SCRIPT=solutions/collapse_trans.py -C ../ psy_openacc.f90
+	${MAKE} -C ../ output_1.f90
+	${MAKE} TRANS_SCRIPT=solutions/kernels_trans.py -C ../ output_2.f90
+	${MAKE} TRANS_SCRIPT=solutions/collapse_trans.py -C ../ output_openacc.f90
 
 clean:
 	${MAKE} -C ../ clean

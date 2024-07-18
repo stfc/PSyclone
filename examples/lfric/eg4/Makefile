@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,16 +41,16 @@ include ../../common.mk
 transform: serial dm backends
 
 serial:
-	${PSYCLONE} -nodm solver_mod.x90
+	${PSYCLONE} -api lfric -nodm solver_mod.x90
 
 dm:
-	${PSYCLONE} solver_mod.x90
+	${PSYCLONE} -api lfric solver_mod.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg4"
 
 backends:
-	${PSYCLONE} -s ./backends_transform.py -nodm solver_mod.x90
+	${PSYCLONE} -api lfric -s ./backends_transform.py -nodm solver_mod.x90
 
 run: compile
 	@echo "No run targets for lfric/eg4"

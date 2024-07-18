@@ -89,10 +89,10 @@ library, you should see:
  ...
  profile_PSyDataInit called
  ...
- PreStart called for module 'psy_test' region 'invoke_0:r0'
- PostEnd called for module 'psy_test' region 'invoke_0:r0'
- PreStart called for module 'psy_test' region 'invoke_1_update_field:update_field_code:r0'
- PostEnd called for module 'psy_test' region 'invoke_1_update_field:update_field_code:r0'
+ PreStart called for module 'psy_test' region 'invoke_0-r0'
+ PostEnd called for module 'psy_test' region 'invoke_0-r0'
+ PreStart called for module 'psy_test' region 'invoke_1_update_field-r0'
+ PostEnd called for module 'psy_test' region 'invoke_1_update_field-r0'
  ...  
  profile_PSyDataShutdown called
 ```
@@ -103,7 +103,7 @@ library, you should see:
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2023, Science and Technology Facilities Council.
+Copyright (c) 2020-2024, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

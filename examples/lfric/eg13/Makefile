@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ GENERATED_FILES = alg.f90 psy.f90 dg_matrix_vector_kernel_?_mod.f90 \
   matrix_vector_kernel_?_mod.f90
 
 transform:
-	${PSYCLONE} -s ./kernel_constants.py \
+	${PSYCLONE} -api lfric -s ./kernel_constants.py \
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
   -oalg alg.f90 -opsy psy.f90
 

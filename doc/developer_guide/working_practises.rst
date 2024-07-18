@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -343,7 +343,7 @@ file ``transformation.py`` uses::
         For example:
 
         >>> from psyclone.parse.algorithm import parse
-        >>> api = "gocean1.0"
+        >>> api = "gocean"
         >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
         ...
         >>> dtrans.apply(schedule)
@@ -388,6 +388,13 @@ and --f90 and --f90flags), e.g.::
 
   > pytest --compileopencl --f90=<opencl-compiler> --f90flags="<opencl-specific flags>"
 
+If you want to test OpenMP code created by PSyclone, you must add the relevant
+openmp flag to --f90flags (`-qopenmp` for intel, `-fopenmp` for gfortran). In addition
+the OpenMP tasking tests currently only support compilation testing with intel
+compilers, e.g.::
+
+  > pytest --compile --f90=ifort --f90flags="-qopenmp"
+
 
 Infrastructure libraries
 ++++++++++++++++++++++++
@@ -399,11 +406,11 @@ functions from the LFRic infrastructure is included in
 are requested, the stub files are automatically compiled to create the required
 .mod files. 
 
-For the gocean1.0 domain a complete copy of the dl_esm_inf library is included 
+For the gocean domain a complete copy of the dl_esm_inf library is included 
 as a submodule in ``<PSYCLONEHOME>/external/dl_esm_inf``. Before running tests
 with compilation, make sure this submodule is up-to-date (see
 :ref:`dev-installation`). The test process will compile dl_esm_inf
-automatically, and all PSyclone gocean1.0 compilation tests will reference
+automatically, and all PSyclone gocean compilation tests will reference
 these files.
 
 If you  run the tests in parallel (see :ref:`parallel_execution` section) each
@@ -417,10 +424,7 @@ Occasionally the code that is to be compiled as part of a test may depend
 upon some piece of code that is not a Kernel or part of one of the supported
 infrastructure libraries. In order to support this, the ``code_compiles``
 method of ``psyclone.tests.utilities.Compile`` allows the user to supply a
-list of additional files upon which kernels depend:
-
-.. automethod:: psyclone.tests.utilities.Compile.code_compiles
-
+list of additional files upon which kernels depend.
 These files must be located in the same directory as the kernels.
 
 Continuous Integration
@@ -435,26 +439,22 @@ triggered whenever there is a push to a pull-request on the repository
 and consists of five main checks performed, in order of increasing
 computational cost (so that we 'fail fast'):
 
- 1. All links within all MarkDown files are checked. Those links to skip
-    (because they are e.g. password protected) are specified in the
-    ``PSyclone/.github/workflows/mlc_config.json`` configuration file.
-
- 2. All examples in the Developer Guide are checked for correctness by
+ 1. All examples in the Developer Guide are checked for correctness by
     running ``make doctest``.
 
- 3. The code base, examples and tutorials are lint'ed with flake8.
+ 2. The code base, examples and tutorials are lint'ed with flake8.
     (Configuration of flake8 is performed in ``setup.cfg``.)
 
- 4. All links within the Sphinx documentation (rst files) are checked (see
+ 3. All links within the Sphinx documentation (rst files) are checked (see
     note below);
 
- 5. All of the examples are tested (for Python versions 3.7, 3.8 and 3.11)
+ 4. All of the examples are tested (for Python versions 3.7, 3.8 and 3.12)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
     The ``transform`` target is run 2-way parallel (``-j 2``).
 
- 6. The full test suite is run for Python versions 3.7, 3.8 and 3.11 but
+ 5. The full test suite is run for Python versions 3.7, 3.8 and 3.12 but
     without the compilation checks. ``pytest`` is passed the ``-n auto`` flag
     so that it will run the tests in parallel on as many cores as are
     available (currently 2 on GHA instances).
@@ -484,7 +484,7 @@ and therefore the line described above must be commented out again
 before making a release.
 
 A single run of the test suite on GitHub Actions uses
-approximately 20 minutes of CPU time and we run the test suite on three
+approximately 15 minutes of CPU time and we run the test suite on three
 different versions of Python. Therefore, it is good practise to avoid
 triggering the tests unnecessarily (e.g. when we know that a certain commit
 won't pass). This may be achieved by including the "[skip ci]" tag (without
@@ -492,6 +492,14 @@ the quotes) in the associated commit message.
 
 Link checking
 -------------
+
+Link checking for all of the MarkDown files is performed using the
+linkspector GitHub Action which has its own workflow file,
+``linkspector.yml``. Those links to skip (because they are e.g. password
+protected) are specified in the ``PSyclone/.github/linkspector.yml``
+configuration file. That file also ensures that links to the PSyclone
+documentation are always checked against the 'latest' version on
+ReadTheDocs rather than 'stable'.
 
 The link checking performed for the Sphinx documentation
 uses Sphinx's `linkcheck` functionality. Some URLs are excluded from
@@ -519,7 +527,7 @@ provides the `\:ref_guide\:` role. (The source for this
 plugin may be found in the ``PSyclone/docs/_ext/apilinks.py`` file.) The format
 to use when adding a link to the Reference Guide is then, e.g.::
 
-  :ref_guide:`anchor text psyclone.psyir.symbols.html#psyclone.psyir.symbols.UnknownType`
+  :ref_guide:`anchor text psyclone.psyir.symbols.html#psyclone.psyir.symbols.UnsupportedType`
 
 The URL to prepend to the supplied target is set via a new Sphinx
 configuration variable named ``ref_guide_base`` in the ``conf.py``
@@ -581,6 +589,16 @@ the LFRic model (available in the self-hosted runner). Two tests are performed:
     the ``examples/lfric/scripts/everything_everywhere_all_at_once.py`` script
     and then compiled and run 6-way parallel using OpenMP threading.
 
+Some of the LFRic and NEMO integration tests also store, and upload, their
+performance results
+`into a Github Gist <https://gist.github.com/a4049a0fc0a0a11651a5ce6a04d76160>`_.
+These results can track the performance improvements and degradations that
+psyclone scripts suffered from each change for LFRic and NEMO applications.
+However, one must note that the test runner does not have exclusive access to
+the testing system, and some results may be impacted by other users using the
+system at the same time.
+
+
 Performance
 ===========
 
@@ -614,10 +632,9 @@ returns a string and only executes the function if the ``str`` method
 is called for the class. This will not be the case for the above code
 as the exception string is not used.
 
-This approach is currently used in the ``CreateNemoKernelTrans``
-transformation and internally in the ``TransformationError`` exception
-(so that this transformation does not accidentally cause the string to
-be evaluated).
+This approach is currently used internally in the ``TransformationError``
+exception (so that this transformation does not accidentally cause the
+string to be evaluated).
 
 If a transformation is used in the way described above and PSyclone
 subsequently runs more slowly it is recommended that the ``LazyString``

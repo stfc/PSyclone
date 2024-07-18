@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022 and Technology Facilities Council.
+# Copyright (c) 2017-2024 and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 ''' Fortran code-generation library. This wraps the f2py fortran parser to
     provide routines which can be used to generate fortran code. '''
 
-from __future__ import absolute_import, print_function
 import abc
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
@@ -48,6 +47,7 @@ from fparser.one.parsefortran import FortranParser
 # cannot be used for imports (as that involves looking for the
 # specified name in sys.modules).
 from fparser import one as fparser1
+from psyclone.configuration import Config
 from psyclone.errors import InternalError
 
 # Module-wide utility methods
@@ -550,11 +550,15 @@ class PSyIRGen(BaseGen):
         # Import FortranWriter here to avoid circular-dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.fortran import FortranWriter
+        # We need the Config object in order to see whether or not to disable
+        # the validation performed in the PSyIR backend.
+        config = Config.get()
 
         # Use the PSyIR Fortran backend to generate Fortran code of the
         # supplied PSyIR tree and pass the resulting code to the fparser1
         # Fortran parser.
-        fortran_writer = FortranWriter()
+        fortran_writer = FortranWriter(
+            check_global_constraints=config.backend_checks_enabled)
         reader = FortranStringReader(fortran_writer(content),
                                      ignore_comments=False)
         # Set reader as free form, strict
@@ -1375,14 +1379,15 @@ class DoGen(BaseGen):
         if position is None:
             position = ["auto"]
 
-        if position[0] == "auto" and bubble_up:
+        if position[0] == "auto" and bubble_up:  # pragma: no cover
             # There's currently no case where a bubbled-up statement
             # will live within a do loop so bubble it up again.
             self.parent.add(content, bubble_up=True)
             return
 
         if position[0] == "auto" or position[0] == "append":
-            if position[0] == "auto" and bubble_up_type(content):
+            if (position[0] == "auto" and
+                    bubble_up_type(content)):  # pragma: no cover
                 # use and declaration statements cannot appear in a do loop
                 # so pass on to parent
                 self.parent.add(content, bubble_up=True)

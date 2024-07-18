@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -37,8 +37,8 @@
 ..          L. Turner, Met Office
 
 
-The PSyclone Internal Representation (PSyIR)
-############################################
+The PSyclone Intermediate Representation (PSyIR)
+################################################
 
 The PSyclone Intermediate Representation (PSyIR) is a language-independent
 Intermediate Representation that PSyclone uses to represent the PSy (Parallel
@@ -381,23 +381,25 @@ with `return_type` set to `None` and `is_program` set to `False`.
 Control-Flow Nodes
 ------------------
 
-The PSyIR has four control flow nodes: `IfBlock`, `Loop`, `WhileLoop` and
-`Call`. These nodes represent the canonical structure with which
+The PSyIR has four control flow nodes: `IfBlock`, `Loop`, `WhileLoop`
+and `Call`. These nodes represent the canonical structure with which
 conditional branching constructs, iteration constructs and accesses to
 other blocks of code are built. Additional language-specific syntax
 for branching and iteration will be normalised to use these same
 constructs.  For example, Fortran has the additional branching
-constructs `ELSE IF` and `CASE`: when a Fortran code is translated
-into the PSyIR, PSyclone will build a semantically equivalent
-implementation using `IfBlock` nodes.  Similarly, Fortran also has the
-`WHERE` construct and statement which are represented in the PSyIR
-with a combination of `Loop` and `IfBlock` nodes. Such nodes in the
-new tree structure are annotated with information to enable the
-original language-specific syntax to be recreated if required (see
-below).  See the full `IfBlock` API in the :ref_guide:`IfBlock reference
-guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.IfBlock`. The
-PSyIR also supports the concept of named arguments for `Call` nodes,
-see the :ref:`named_arguments-label` section for more details.
+constructs `ELSE IF`, `SELECT CASE` and `SELECT TYPE`: when a Fortran code is
+translated into the PSyIR, PSyclone will build a semantically
+equivalent implementation using `IfBlock` nodes (and an additional
+`CodeBlock` containing `SELECT TYPE` in the case of `SELECT TYPE`).
+Similarly, Fortran also has the `WHERE` construct and statement which
+are represented in the PSyIR with a combination of `Loop` and
+`IfBlock` nodes. Such nodes in the new tree structure are annotated
+with information to enable the original language-specific syntax to be
+recreated if required (see below).  See the full `IfBlock` API in the
+:ref_guide:`IfBlock reference guide
+psyclone.psyir.nodes.html#psyclone.psyir.nodes.IfBlock`. The PSyIR
+also supports the concept of named arguments for `Call` nodes, see the
+:ref:`named_arguments-label` section for more details.
 
 .. note:: A Call node (like the CodeBlock) inherits from both
           Statement and DataNode because it can be found in Schedules
@@ -425,6 +427,10 @@ Annotation           Node types         Origin
 `was_case`           `IfBlock`          Fortran `select case` construct
 `was_where`          `Loop`, `IfBlock`  Fortran `where` construct
 `was_unconditional`  `WhileLoop`        Fortran `do` loop with no condition
+`was_type_is`        `IfBlock`          Fortran `type is` construct within
+                                        a `select type` construct
+`was_class_is`       `IfBlock`          Fortran `class is` construct within
+                                        a `select type` construct
 ===================  =================  ===================================
 
 .. note:: A `Loop` may currently only be given the `was_single_stmt`
@@ -497,9 +503,9 @@ See the full Range API in the
 Operation Nodes
 ---------------
 
-Arithmetic operations and various intrinsic/query functions are represented
-in the PSyIR by sub-classes of the `Operation` node. The operations are
-classified according to the number of operands:
+Arithmetic and logic operations are represented in the PSyIR by sub-classes
+of the `Operation` node. The operations are classified according to the number
+of operands:
 
 - Those having one operand are represented by
   `psyclone.psyir.nodes.UnaryOperation` nodes,
@@ -507,26 +513,11 @@ classified according to the number of operands:
 - those having two operands are represented by
   `psyclone.psyir.nodes.BinaryOperation` nodes.
 
-- and those having more than two or a variable number of operands are
-  represented by `psyclone.psyir.nodes.NaryOperation` nodes.
-
 See the documentation for each Operation class in the
 :ref_guide:`Operation psyclone.psyir.nodes.html#psyclone.psyir.nodes.Operation`,
-:ref_guide:`UnaryOperation psyclone.psyir.nodes.html#psyclone.psyir.nodes.UnaryOperation`,
-:ref_guide:`BinaryOperation psyclone.psyir.nodes.html#psyclone.psyir.nodes.BinaryOperation` and
-:ref_guide:`NaryOperation psyclone.psyir.nodes.html#psyclone.psyir.nodes.NaryOperation`
+:ref_guide:`UnaryOperation psyclone.psyir.nodes.html#psyclone.psyir.nodes.UnaryOperation` and
+:ref_guide:`BinaryOperation psyclone.psyir.nodes.html#psyclone.psyir.nodes.BinaryOperation`
 sections of the reference guide.
-
-Note that where an intrinsic (such as
-Fortran's `MAX`) can have a variable number of arguments, the class
-used to represent it in the PSyIR is determined by the actual number
-of arguments in a particular instance. e.g. `MAX(var1, var2)` would be
-represented by a `psyclone.psyir.nodes.BinaryOperation` but `MAX(var1,
-var2, var3)` would be represented by a
-`psyclone.psyir.nodes.NaryOperation`.
-
-The PSyIR supports the concept of named arguments for operation
-nodes, see the :ref:`named_arguments-label` section for more details.
 
 .. note:: Similar to Fortran, the PSyIR has two comparison operators, one for
         booleans (EQV) and one for non-booleans (EQ). These are not
@@ -536,7 +527,40 @@ nodes, see the :ref:`named_arguments-label` section for more details.
         datatype of the operands (e.g. in the select-case canonicalisation).
         A solution to this is to create an abstract interface with appropriate
         implementations for each possible datatype.
-            
+
+Data Type of an Operation Node
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Table 7.2 of the Fortran2008 standard specifies the rules governing
+the types of operands and their results. The PSyIR follows these rules
+with the exception that there is no support for symbols of complex
+(imaginary) type (see
+`#1590 <https://github.com/stfc/PSyclone/issues/1590>`_). For unary operations,
+the type of the result is just that of the operand.  For a numeric,
+binary operation, these rules boil down to saying that if either argument
+is real then the result is real but if both arguments are integer then the
+result is integer. 
+
+If the precisions of the operands are the same, then the result must
+also be of that precision. Otherwise, Section 7.1.9.3 of the Fortran2008
+standard says that the precision of the result is the greater of the two.
+In the PSyIR, if both precisions are instances of `ScalarType.Precision` or
+`int` then this permits the precision of the result to be determined.
+Otherwise, the result is given a precision of `ScalarType.Precision.UNDEFINED`.
+
+For comparison operations (e.g. `<`, `==`), the intrinsic type of the
+result is always boolean. If either or both operands are arrays, then
+the result is a boolean array.
+
+The PSyIR type system includes support for those situations where
+PSyclone is not able to fully understand a variable declaration.
+In such cases, the type is an instance of `UnsupportedFortranType` which
+stores both the original declaration and, optionally, a `partial_datatype`
+holding the aspects of the type that can be represented in the PSyIR.
+The presence of a `partial_datatype` implies that we fully understand
+the intrinsic type. Given this and an array shape, it is always possible
+to determine the result of a numerical operation involving such a type.
+
 
 IntrinsicCall Nodes
 -------------------
@@ -544,57 +568,21 @@ IntrinsicCall Nodes
 PSyIR `IntrinsicCall` nodes (see :ref_guide:`IntrinsicCall
 psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall`) capture
 all PSyIR intrinsics that are not expressed as language symbols (`+`,`-`,`*`
-etc). The latter are captured as `Operation` nodes. At the moment some
-intrinsics that should be captured as `IntrinsicCall` nodes are
-captured as `Operation` nodes (for example `sin` and `cos`). These
-will be migrated to being captured as `IntrinsicCall` nodes in the
-near future. Supported `IntrinsicCall` intrinsics are listed in the
-`IntrinsicCall.Intrinsic` enumeration within the class:
+etc). The latter are captured as `Operation` nodes. At the moment the
+available PSyIR `IntrinsicCall` match those of the `Fortran 2018 standard
+<https://fortranwiki.org/fortran/show/Intrinsic+procedures>`_
+In addition to Fortran Intrinsics, special Fortran statements such as:
+`ALLOCATE`, `DEALLOCATE` and `NULLIFY` are also PSyIR IntrinsicCalls.
 
-+--------------+------------------------------+--------------------------------+
-| Name         | Positional arguments         | Optional arguments             |
-+--------------+------------------------------+------+-------------------------+
-| ALLOCATE     | One or more Reference or     | stat | Reference to an integer |
-|              | ArrayReferences to which     |      | variable which will hold|
-|              | memory will be allocated.    |      | return status.          |
-|              |                              +------+-------------------------+
-|              |                              | mold | Reference to an array   |
-|              |                              |      | which is used to specify|
-|              |                              |      | the dimensions of the   |
-|              |                              |      | allocated object.       |
-|              |                              +------+-------------------------+
-|              |                              |source| Reference to an array   |
-|              |                              |      | which is used to specify|
-|              |                              |      | both the dimensions &   |
-|              |                              |      | initial value(s) of the |
-|              |                              |      | allocated object.       |
-|              |                              +------+-------------------------+
-|              |                              |errmsg| Reference to a character|
-|              |                              |      | variable which will     |
-|              |                              |      | contain an error message|
-|              |                              |      | should the operation    |
-|              |                              |      | fail.                   |
-+--------------+------------------------------+------+-------------------------+
-| DEALLOCATE   | One or more References.      | stat | Reference which will    |
-|              |                              |      | hold return status.     |
-+--------------+------------------------------+------+-------------------------+
-| RANDOM_NUMBER| A single Reference which will|                                |
-|              | be filled with pseudo-random |                                |
-|              | numbers in the range         |                                |
-|              | [0.0, 1.0].                  |                                |
-+--------------+------------------------------+------+-------------------------+
-| SUM, MAXVAL, | A single DataNode.           | dim  | A DataNode specifying   |
-| MINVAL       |                              |      | one of the supplied     |
-|              |                              |      | array's dimensions.     |
-|              |                              +------+-------------------------+
-|              |                              | mask | A DataNode indicating   |
-|              |                              |      | on which elements to    |
-|              |                              |      | apply the function.     |
-+--------------+------------------------------+------+-------------------------+
-| HUGE, TINY   | A single Reference or        |                                |
-|              | Literal.                     |                                |
-+--------------+------------------------------+--------------------------------+
 
+IntrinsicCalls, like Calls, have properties to inform if the call is to a
+pure, elemental, inquiry (does not touch the first argument data) function
+or is available on a GPU device.
+
+`SUM`, `PRODUCT`, `LBOUND`, and `UBOUND` are not documented as having
+support on GPUs according to the current Nvidia documentation, however we
+have confirmed them experimentally and so PSyclone treats them as
+available on GPU devices.
 
 CodeBlock Node
 --------------
@@ -702,9 +690,7 @@ psyclone.psyir.nodes.html#psyclone.psyir.nodes.Directive`.
 Named arguments
 ---------------
 
-The `Call` node and the three subclasses of the `Operation` node
-(`UnaryOperation`, `BinaryOperation` and `NaryOperation`) all support
-named arguments.
+The `Call` node (and its sub-classes) support named arguments.
 
 The argument names are provided by the `argument_names` property. This
 property returns a list of names. The first entry in the list refers
@@ -752,10 +738,9 @@ re-ordered; an argument that has replaced a named argument will not be
 a named argument; an inserted argument will not be a named argument,
 and the name of a deleted named argument will be removed.
 
-Making a copy of the `Call` node or one of the three subclasses of
-Operation nodes (`UnaryOperation`, `BinaryOperation` or
-`NaryOperation`) also causes problems with consistency between the
-internal `_argument_names` list and the arguments. The reason for this
+Making a copy of the `Call` node also causes problems with consistency
+between the internal `_argument_names` list and the arguments.
+The reason for this
 is that the arguments get copied and therefore have a different `id`,
 whereas the `id`s in the internal `_argument_names` list are simply
 copied. To solve this problem, the `copy()` method is specialised to
@@ -854,7 +839,7 @@ Data Type of a Structure Access
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 In order to get the actual data type of a structure reference, PSyclone
 needs to have access to the declaration of all structures involved
-in the accessor expression. However, these are often DeferredType if the
+in the accessor expression. However, these are often UnresolvedType if the
 module where they are declared has not been processed. In the case of
 some domain-API arguments added by PSyclone to a kernel call (e.g. the
 indices in GOcean, or additional field information in LFRic), the type
@@ -901,7 +886,7 @@ class, for example:
         ''' Example node '''
 
     mynode = MyNode()
-    mynode.preceding_comment = "A preceding comment"
+    mynode.preceding_comment = "A multi-line\n preceding comment"
     mynode.inline_comment = "An inline comment"
 
 From the language-level PSyIR nodes, Container, Routine and Statement have
@@ -931,7 +916,7 @@ PSy-layer concepts
   sub-classed in all of the domains supported by PSyclone. This then allows
   the class to be configured with a list of valid loop 'types'. For instance,
   the GOcean sub-class, `GOLoop`, has "inner" and "outer" while the LFRic
-  (dynamo0.3) sub-class, `DynLoop`, has "dofs", "colours", "colour", ""
+  sub-class, `LFRicLoop`, has "dofs", "colours", "colour", ""
   and "null". The default loop type (iterating over cells) is here
   indicated by the empty string. The concept of a "null" loop type is
   currently required because the dependency analysis that determines the
@@ -939,7 +924,7 @@ PSy-layer concepts
   result, every `Kernel` call must be associated with a `Loop` node.
   However, the LFRic domain has support for kernels which operate on the
   'domain' and thus do not require a loop over cells or dofs in the
-  generated PSy layer. Supporting a `DynLoop` of "null" type allows us
+  generated PSy layer. Supporting an `LFRicLoop` of "null" type allows us
   to retain the dependence-analysis functionality within the `Loop`
   while not actually producing a loop in the generated code. When
   `#1148 <https://github.com/stfc/PSyclone/issues/1148>`_ is tackled,
@@ -1084,7 +1069,7 @@ correspond to and how the arguments relate to each other (they just
 output strings).
 
 The logic and declaration of kernel variables is handled separately by
-the ``gen_stub`` method in ``DynKern`` and the ``gen_code`` method in
+the ``gen_stub`` method in ``LFRicKern`` and the ``gen_code`` method in
 ``LFRicInvoke``. In both cases these methods make use of the subclasses
 of ``LFRicCollection`` to declare variables.
 

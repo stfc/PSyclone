@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 file. Some tests for this file are in parse_test.py. This file adds
 tests for code that is not covered there.'''
 
-from __future__ import absolute_import
 import os
 
 import pytest
@@ -49,7 +48,7 @@ from fparser.two.Fortran2003 import Part_Ref, Structure_Constructor, \
 from fparser.two.parser import ParserFactory
 from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg, \
-    parse, FileInfo
+    parse, AlgFileInfo
 from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.errors import InternalError
 
@@ -73,18 +72,18 @@ def test_parse_kernel_paths():
     '''
     alg_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
     # No argument
-    parse(alg_name, api="dynamo0.3")
+    parse(alg_name, api="lfric")
     # None argument
-    parse(alg_name, api="dynamo0.3", kernel_paths=None)
+    parse(alg_name, api="lfric", kernel_paths=None)
     # Empty list
-    parse(alg_name, api="dynamo0.3", kernel_paths=[])
+    parse(alg_name, api="lfric", kernel_paths=[])
     # Invalid path
     with pytest.raises(ParseError) as info:
-        parse(alg_name, api="dynamo0.3", kernel_paths=["invalid"])
+        parse(alg_name, api="lfric", kernel_paths=["invalid"])
     assert ("Supplied kernel search path does not exist or cannot be read"
             in str(info.value))
     # Multiple kernel paths
-    parse(alg_name, api="dynamo0.3", kernel_paths=[
+    parse(alg_name, api="lfric", kernel_paths=[
         LFRIC_BASE_PATH, GOCEAN_BASE_PATH])
 
 # class Parser() tests
@@ -96,22 +95,21 @@ def test_parser_init_kernel_paths():
 
     '''
     # No argument
-    parser = Parser()
+    parser = Parser("lfric")
     assert parser._kernel_paths == []
     # None argument
-    parser = Parser(kernel_paths=None)
+    parser = Parser("lfric", kernel_paths=None)
     assert parser._kernel_paths == []
     # Empty list
-    parser = Parser(kernel_paths=[])
+    parser = Parser("lfric", kernel_paths=[])
     assert parser._kernel_paths == []
     # Multiple kernel paths
     paths = [LFRIC_BASE_PATH, GOCEAN_BASE_PATH]
-    parser = Parser(kernel_paths=paths)
+    parser = Parser("lfric", kernel_paths=paths)
     assert parser._kernel_paths == paths
 
 
 # Parser.parse() method tests
-
 
 def test_parser_parse_linelength():
     '''Check that the parse() method in the Parser() class raises an
@@ -120,46 +118,30 @@ def test_parser_parse_linelength():
     True and does not raise an exception by default.
 
     '''
-    parser = Parser()
+    parser = Parser(api="lfric")
     parser.parse(os.path.join(LFRIC_BASE_PATH, "13_alg_long_line.f90"))
 
-    parser = Parser(line_length=True)
+    parser = Parser(api="lfric", line_length=True)
     with pytest.raises(ParseError) as info:
         parser.parse(os.path.join(LFRIC_BASE_PATH, "13_alg_long_line.f90"))
     assert ("the file does not conform to the specified 132 line length "
             "limit" in str(info.value))
 
 
-def test_parser_parse_nemo():
-    '''Check that the parse() method in the Parser() class returns the
-    expected results (None, and an fparser2 ast) when using the NEMO
-    API. We actually use an LFRic algorithm file here but it does not
-    matter as we are only parsing the code.
-
-    '''
-    parser = Parser(api="nemo")
-    res1, res2 = parser.parse(os.path.join(
-        LFRIC_BASE_PATH, "1_single_invoke.f90"))
-    assert res1 is None
-    assert isinstance(res2, Program)
-    assert "PROGRAM single_invoke" in str(res2)
-
-
 def test_parser_parse():
     '''Check that the parse() method in the Parser() class returns the
-    expected results (fparser2 ast and a FileInfo instance) when using
-    an API other than the NEMO API. Also test that the filename is
-    stored in _alg_filename.
+    expected results (fparser2 ast and a AlgFileInfo instance) when using
+    a PSyKAl API. Also test that the filename is stored in _alg_filename.
 
     '''
-    parser = Parser(api="dynamo0.3")
+    parser = Parser(api="lfric")
     assert parser._alg_filename is None
     res1, res2 = parser.parse(os.path.join(
         LFRIC_BASE_PATH, "1_single_invoke.f90"))
     assert "1_single_invoke.f90" in parser._alg_filename
     assert isinstance(res1, Program)
     assert "PROGRAM single_invoke" in str(res1)
-    assert isinstance(res2, FileInfo)
+    assert isinstance(res2, AlgFileInfo)
     assert res2.name == "single_invoke"
 
 # Parser.invoke_info() method tests
@@ -171,9 +153,9 @@ def test_parser_invokeinfo_nocode(tmpdir):
     etc.) is found in the supplied fparser2 tree.
 
     '''
-    parser = Parser()
+    parser = Parser("lfric")
     alg_filename = str(tmpdir.join("empty.f90"))
-    with open(alg_filename, "w") as ffile:
+    with open(alg_filename, "w", encoding="utf-8") as ffile:
         ffile.write("")
     alg_parse_tree = parse_fp2(alg_filename)
     with pytest.raises(ParseError) as info:
@@ -188,9 +170,9 @@ def test_parser_invokeinfo_first(tmpdir):
     supplied fparser2 tree.
 
     '''
-    parser = Parser()
+    parser = Parser("lfric")
     alg_filename = str(tmpdir.join("two_routines.f90"))
-    with open(alg_filename, "w") as ffile:
+    with open(alg_filename, "w", encoding="utf-8") as ffile:
         ffile.write(
             "subroutine first()\n"
             "end subroutine first\n"
@@ -198,7 +180,7 @@ def test_parser_invokeinfo_first(tmpdir):
             "end subroutine second\n")
     alg_parse_tree = parse_fp2(alg_filename)
     res = parser.invoke_info(alg_parse_tree)
-    assert isinstance(res, FileInfo)
+    assert isinstance(res, AlgFileInfo)
     assert res.name == "first"
 
 
@@ -212,13 +194,13 @@ def test_parser_invokeinfo_containers(tmpdir, code, name):
     with program, module, subroutine and function.
 
     '''
-    parser = Parser()
+    parser = Parser("lfric")
     alg_filename = str(tmpdir.join("container.f90"))
-    with open(alg_filename, "w") as ffile:
+    with open(alg_filename, "w", encoding="utf-8") as ffile:
         ffile.write(code)
     alg_parse_tree = parse_fp2(alg_filename)
     res = parser.invoke_info(alg_parse_tree)
-    assert isinstance(res, FileInfo)
+    assert isinstance(res, AlgFileInfo)
     assert res.name == name
 
 
@@ -232,7 +214,7 @@ def test_parser_invokeinfo_datatypes():
 
     '''
     alg_filename = os.path.join(LFRIC_BASE_PATH, "10_operator.f90")
-    parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
+    parser = Parser(api="lfric", kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     info = parser.invoke_info(alg_parse_tree)
     args = info.calls[0].kcalls[0].args
@@ -256,7 +238,7 @@ def test_parser_invokeinfo_datatypes_mixed():
     '''
     alg_filename = os.path.join(
         LFRIC_BASE_PATH, "26.8_mixed_precision_args.f90")
-    parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
+    parser = Parser(api="lfric", kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     info = parser.invoke_info(alg_parse_tree)
     args0 = info.calls[0].kcalls[0].args
@@ -287,7 +269,7 @@ def test_parser_invokeinfo_datatypes_self():
     '''
     alg_filename = os.path.join(
         LFRIC_BASE_PATH, "26.2_mixed_precision_self.f90")
-    parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
+    parser = Parser(api="lfric", kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     info = parser.invoke_info(alg_parse_tree)
     args = info.calls[0].kcalls[0].args
@@ -308,7 +290,7 @@ def test_parser_invokeinfo_use_error():
     '''
     alg_filename = os.path.join(
         LFRIC_BASE_PATH, "26.4_mixed_precision_use.f90")
-    parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
+    parser = Parser(api="lfric", kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     info = parser.invoke_info(alg_parse_tree)
     args = info.calls[0].kcalls[0].args
@@ -328,7 +310,7 @@ def test_parser_invokeinfo_structure_error():
     '''
     alg_filename = os.path.join(
         LFRIC_BASE_PATH, "26.5_mixed_precision_structure.f90")
-    parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
+    parser = Parser(api="lfric", kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     info = parser.invoke_info(alg_parse_tree)
     args = info.calls[0].kcalls[0].args
@@ -346,7 +328,7 @@ def test_parser_invokeinfo_internalerror():
     '''
     alg_filename = os.path.join(
         LFRIC_BASE_PATH, "26.1_mixed_precision.f90")
-    parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
+    parser = Parser(api="lfric", kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     # Modify parse tree to make it invalid
     alg_parse_tree.children[0].children[1].children[5].items = ["hello"]
@@ -370,7 +352,7 @@ def test_parser_invokeinfo_datatypes_clash():
     '''
     alg_filename = os.path.join(
         LFRIC_BASE_PATH, "26.3_mixed_precision_error.f90")
-    parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
+    parser = Parser(api="lfric", kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     with pytest.raises(NotImplementedError) as info:
         parser.invoke_info(alg_parse_tree)
@@ -393,7 +375,7 @@ def test_parser_createinvokecall():
         "call invoke(name=\"dummy\", setval_c(a,1.0), setval_c(a,1), "
         "setval_c(a,b), setval_c(a%c, b), setval_c(self%a, 1.0), "
         "setval_c(self%a, b))")
-    parser = Parser()
+    parser = Parser(api="lfric")
     _ = parser.create_invoke_call(statement)
 
 
@@ -403,7 +385,7 @@ def test_parser_createinvokecall_error():
 
     '''
     statement = Call_Stmt("call invoke(0.0)")
-    tmp = Parser()
+    tmp = Parser("lfric")
     with pytest.raises(ParseError) as excinfo:
         _ = tmp.create_invoke_call(statement)
     assert (
@@ -424,7 +406,7 @@ def test_parser_codedkernelcall_kernel_paths():
     invoke_call = parse_tree.children[0].children[2].children[0]
     invoke_argument = invoke_call.children[1].children[0]
     kernel_name, args = get_kernel(invoke_argument, alg_filename, {})
-    parser = Parser()
+    parser = Parser(api="lfric")
     parser._alg_filename = alg_filename
     use_statement = parse_tree.children[0].children[1].children[2]
     parser.update_arg_to_module_map(use_statement)
@@ -448,7 +430,7 @@ def test_parser_updateargtomodulemap_invalid():
     raised.
 
     '''
-    tmp = Parser()
+    tmp = Parser("lfric")
     with pytest.raises(InternalError) as excinfo:
         tmp.update_arg_to_module_map("invalid")
     assert "Expected a use statement but found instance of" \
@@ -460,7 +442,7 @@ def test_parser_caseinsensitive1():
     statement is case insensitive.
 
     '''
-    parser = Parser()
+    parser = Parser("lfric")
     use = Use_Stmt("use my_mod, only : SETVAL_X")
     parser.update_arg_to_module_map(use)
     with pytest.raises(ParseError) as excinfo:
@@ -474,7 +456,7 @@ def test_parser_caseinsensitive2(monkeypatch):
     statement is case insensitive.
 
     '''
-    parser = Parser()
+    parser = Parser("lfric")
     use = Use_Stmt("use testkern_mod, only : TESTKERN_TYPE")
     parser.update_arg_to_module_map(use)
 
@@ -499,6 +481,13 @@ def test_parser_caseinsensitive2(monkeypatch):
     assert str(excinfo.value) == "test_parser_caseinsensitive2"
 
 # function get_invoke_label() tests
+
+
+def test_getinvokelabel_lowercase():
+    '''Test that 'get_invoke_label' converts to lowercase.'''
+    parse_tree = Actual_Arg_Spec("name='HeartOfGold'")
+    label = get_invoke_label(parse_tree, "dummy.f90")
+    assert label == "heartofgold"
 
 
 def test_getinvokelabel_invalid_tree():
@@ -528,6 +517,16 @@ def test_getinvokelabel_invalid_items(monkeypatch):
     assert (
         "Expected the Fortran argument to have two items but found "
         "'3'.") in str(excinfo.value)
+
+
+def test_getinvokelabel_whitespace():
+    '''Test that an invoke label containing whitespace is rejected.'''
+    parse_tree = Actual_Arg_Spec("name='my name'")
+    with pytest.raises(ParseError) as err:
+        _ = get_invoke_label(parse_tree, "dummy.f90")
+    assert ("get_invoke_label the (optional) name of an invoke must be a "
+            "string containing a valid Fortran name (with no whitespace) but "
+            "got 'my name' in file dummy.f90" in str(err.value))
 
 # function get_kernel() tests
 
@@ -723,7 +722,7 @@ def test_getkernel_proc_component_collection():
     returns it in the expected way.
 
     '''
-    parser = Parser(api="dynamo0.3")
+    parser = Parser(api="lfric")
     _, info = parser.parse(os.path.join(
         LFRIC_BASE_PATH, "1.6.2_single_invoke_1_int_from_derived_type.f90"))
     collection_arg = info.calls[0].kcalls[0].args[1]

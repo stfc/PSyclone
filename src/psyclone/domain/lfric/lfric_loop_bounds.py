@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,6 @@
 ''' This module provides the LFRicLoopBounds Class that handles all variables
     required for specifying loop limits within an LFRic PSy-layer routine.'''
 
-# Imports
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicCollection
 from psyclone.f2pygen import AssignGen, CommentGen, DeclGen
@@ -80,7 +79,7 @@ class LFRicLoopBounds(LFRicCollection):
 
         sym_table = self._invoke.schedule.symbol_table
         config = Config.get()
-        api_config = config.api_conf("dynamo0.3")
+        api_config = config.api_conf("lfric")
 
         for idx, loop in enumerate(loops):
 

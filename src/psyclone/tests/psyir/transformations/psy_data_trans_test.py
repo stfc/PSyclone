@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,6 @@
 
 ''' Module containing tests for generating PSyData hooks'''
 
-from __future__ import absolute_import
-
 import pytest
 
 from psyclone.configuration import Config
@@ -63,7 +61,7 @@ def test_psy_data_trans_basic():
     '''Check basic functionality: node names, schedule view.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     schedule = invoke.schedule
 
     data_trans = PSyDataTrans()
@@ -93,7 +91,7 @@ def test_class_definitions(fortran_writer):
     '''
 
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0)
+                           "gocean", idx=0)
     schedule = invoke.schedule
 
     data_trans = PSyDataTrans()
@@ -165,15 +163,15 @@ def test_psy_data_get_unique_region_names():
         in str(err.value)
 
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0)
+                           "gocean", idx=0)
     region_name = data_trans.get_unique_region_name(invoke.schedule, {})
     assert region_name == ('psy_single_invoke_different_iterates_over',
-                           'invoke_0:r0')
+                           'invoke_0-r0')
 
     region_name = data_trans.\
         get_unique_region_name([invoke.schedule[0]], {})
     assert region_name == ('psy_single_invoke_different_iterates_over',
-                           'invoke_0:compute_cv_code:r0')
+                           'invoke_0-compute_cv_code-r0')
 
 
 # -----------------------------------------------------------------------------

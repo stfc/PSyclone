@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -407,7 +407,7 @@ def test_builtinfactory_metadataerror(monkeypatch):
 
     '''
     monkeypatch.setattr(fpapi, "parse", None)
-    factory = BuiltInKernelTypeFactory()
+    factory = BuiltInKernelTypeFactory("lfric")
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(builtins.keys(), fname, "setval_c")
     assert "Failed to parse the meta-data for PSyclone built-ins" \

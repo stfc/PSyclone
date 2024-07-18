@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,16 +39,14 @@
 quadrature in the LFRic API '''
 
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynBasisFunctions, \
-    qr_basis_alloc_args
+from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernMetadata
+from psyclone.dynamo0p3 import DynBasisFunctions, qr_basis_alloc_args
 from psyclone.errors import InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import KernelCall, parse
@@ -58,15 +56,13 @@ from psyclone.tests.lfric_build import LFRicBuild
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
-API = "dynamo0.3"
+API = "lfric"
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
 
 
 def test_field_xyoz(tmpdir):
@@ -109,6 +105,10 @@ def test_field_xyoz(tmpdir):
         "weights_z_qr(:) => null()\n"
         "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
@@ -121,9 +121,13 @@ def test_field_xyoz(tmpdir):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      f2_proxy = f2%get_proxy()\n"
+        "      f2_data => f2_proxy%data\n"
         "      m1_proxy = m1%get_proxy()\n"
+        "      m1_data => m1_proxy%data\n"
         "      m2_proxy = m2%get_proxy()\n"
+        "      m2_data => m2_proxy%data\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -199,23 +203,18 @@ def test_field_xyoz(tmpdir):
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f1_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
-        "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
-        "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, "
+        "      DO cell = loop0_start, loop0_stop, 1\n"
+        "        CALL testkern_qr_code(nlayers, f1_data, f2_data, "
+        "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
@@ -267,8 +266,8 @@ def test_edge_qr(tmpdir, dist_mem):
         "      call qr%compute_function(diff_basis, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n" in gen_code)
 
-    assert ("call testkern_qr_edges_code(nlayers, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, a, m2_proxy%data, istp, "
+    assert ("call testkern_qr_edges_code(nlayers, f1_data, "
+            "f2_data, m1_data, a, m2_data, istp, "
             "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, "
             "map_w2(:,cell), diff_basis_w2_qr, ndf_w3, undf_w3, "
             "map_w3(:,cell), basis_w3_qr, diff_basis_w3_qr, nedges_qr, "
@@ -310,6 +309,10 @@ def test_face_qr(tmpdir, dist_mem):
         "      REAL(KIND=r_def), pointer :: weights_xyz_qr(:,:) => null()\n"
         "      INTEGER(KIND=i_def) np_xyz_qr, nfaces_qr\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      TYPE(quadrature_face_proxy_type) qr_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
@@ -322,9 +325,13 @@ def test_face_qr(tmpdir, dist_mem):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      f2_proxy = f2%get_proxy()\n"
+        "      f2_data => f2_proxy%data\n"
         "      m1_proxy = m1%get_proxy()\n"
+        "      m1_data => m1_proxy%data\n"
         "      m2_proxy = m2%get_proxy()\n"
+        "      m2_data => m2_proxy%data\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -403,19 +410,15 @@ def test_face_qr(tmpdir, dist_mem):
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f1_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL m1_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL m2_proxy%halo_exchange(depth=1)\n"
-            "      END IF\n"
-            "      !\n")
+            "      END IF\n")
     else:
         init_output2 += (
             "      loop0_stop = f1_proxy%vspace%get_ncell()\n"
@@ -424,11 +427,9 @@ def test_face_qr(tmpdir, dist_mem):
     assert init_output2 in generated_code
 
     compute_output = (
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
-        "        CALL testkern_qr_faces_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, "
-        "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+        "      DO cell = loop0_start, loop0_stop, 1\n"
+        "        CALL testkern_qr_faces_code(nlayers, f1_data, f2_data, "
+        "m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, nfaces_qr, np_xyz_qr, weights_xyz_qr)\n"
@@ -500,8 +501,8 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
             "diff_dim_w3, ndf_w3, diff_basis_w3_qr_edge)\n" in gen_code)
     # Check that the kernel call itself is correct
     assert (
-        "CALL testkern_2qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
-        "m1_proxy%data, m2_proxy%data, "
+        "CALL testkern_2qr_code(nlayers, f1_data, f2_data, "
+        "m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr_face, basis_w1_qr_edge, "
         "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr_face, "
         "diff_basis_w2_qr_edge, "
@@ -517,9 +518,9 @@ def test_field_qr_deref(tmpdir):
     component of a derived type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.1_single_invoke_qr_deref.f90"),
-                           api="dynamo0.3")
+                           api="lfric")
     for dist_mem in [True, False]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory("lfric",
                          distributed_memory=dist_mem).create(invoke_info)
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -589,7 +590,7 @@ def test_dynbasisfunctions(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
     call = sched.children[0].loop_body[0]
-    assert isinstance(call, DynKern)
+    assert isinstance(call, LFRicKern)
     monkeypatch.setattr(call, "_eval_shapes", ["not-a-shape"])
     with pytest.raises(InternalError) as err:
         _ = DynBasisFunctions(invoke)
@@ -606,7 +607,7 @@ def test_dynbasisfns_setup(monkeypatch):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     call = sched.children[0].loop_body[0]
-    assert isinstance(call, DynKern)
+    assert isinstance(call, LFRicKern)
     dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
     # Now we've created a DynBasisFunctions object, monkeypatch the call
     # to have the wrong shape and try and call setup_basis_fns_for_call()
@@ -618,7 +619,7 @@ def test_dynbasisfns_setup(monkeypatch):
     # something that is not a Kernel call
     with pytest.raises(InternalError) as err:
         dinf._setup_basis_fns_for_call("call")
-    assert "Expected a DynKern object but got: " in str(err.value)
+    assert "Expected a LFRicKern object but got: " in str(err.value)
 
 
 def test_dynbasisfns_initialise(monkeypatch):
@@ -679,7 +680,7 @@ def test_dynbasisfns_dealloc(monkeypatch):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     call = sched.children[0].loop_body[0]
-    assert isinstance(call, DynKern)
+    assert isinstance(call, LFRicKern)
     dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
     mod = ModuleGen(name="testmodule")
     # Supply an invalid type for one of the basis functions
@@ -690,14 +691,14 @@ def test_dynbasisfns_dealloc(monkeypatch):
             "one of 'basis' or 'diff-basis'" in str(err.value))
 
 
-def test_dynkern_setup(monkeypatch):
-    ''' Check that internal-consistency checks in DynKern._setup() work
+def test_lfrickern_setup(monkeypatch):
+    ''' Check that internal-consistency checks in LFRicKern._setup() work
     as expected. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
-    # Get hold of a DynKern object
+    # Get hold of a LFRicKern object
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[4].loop_body[0]
     # Monkeypatch a couple of __init__ routines so that we can get past
@@ -708,12 +709,12 @@ def test_dynkern_setup(monkeypatch):
                         lambda me, mname, ktype, args: None)
     # Break the shape of the quadrature for this kernel
     monkeypatch.setattr(kern, "_eval_shapes", value=["gh_wrong_shape"])
-    # Rather than try and mock-up a DynKernMetadata object, it's easier
+    # Rather than try and mock-up a LFRicKernMetadata object, it's easier
     # to make one properly by parsing the kernel code.
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr_mod.F90"),
                       ignore_comments=False)
     name = "testkern_qr_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     # Finally, call the _setup() method
     with pytest.raises(InternalError) as excinfo:
         kern._setup(dkm, "my module", None, None)
@@ -773,8 +774,8 @@ def test_qr_basis_stub():
 
     '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     output = (
@@ -884,11 +885,11 @@ def test_qr_basis_stub():
 
 def test_stub_basis_wrong_shape(monkeypatch):
     ''' Check that stub generation for a kernel requiring basis functions
-    for quadrature raises the correct errors if the kernel meta-data is
+    for quadrature raises the correct errors if the kernel metadata is
     broken '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",
                         value=["gh_quadrature_wrong"])
@@ -911,14 +912,14 @@ def test_stub_basis_wrong_shape(monkeypatch):
 
 def test_stub_dbasis_wrong_shape(monkeypatch):
     ''' Check that stub generation for a kernel requiring differential basis
-    functions for quadrature raises the correct errors if the kernel meta-data
+    functions for quadrature raises the correct errors if the kernel metadata
     is broken '''
-    # Change meta-data to specify differential basis functions
+    # Change metadata to specify differential basis functions
     diff_basis = BASIS.replace("gh_basis", "gh_diff_basis")
 
     ast = fpapi.parse(diff_basis, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",
                         value=["gh_quadrature_wrong"])

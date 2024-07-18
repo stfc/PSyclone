@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,28 +32,27 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by: L. Turner, Met Office
 
 ''' Module containing pytest fixtures for the LFRic-specific tests. '''
 
 import pytest
 from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKern
+from psyclone.domain.lfric import LFRicKern
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 
 
 @pytest.fixture(scope="module", autouse=True)
 def api_setup_fixture():
-    '''Make sure that all tests here use LFRic (Dynamo0.3) as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use LFRic as API.'''
+    Config.get().api = "lfric"
 
 
-@pytest.fixture(name="dynkern", scope="module")
-def dynkern_fixture():
+@pytest.fixture(name="lfrickern", scope="module")
+def lfrickern_fixture():
     '''
-    :returns: a DynKern object created from example metadata.
-    :rtype: :py:class:`psyclone.dynamo0p3.DynKern`
+    :returns: a LFRicKern object created from example metadata.
+    :rtype: :py:class:`psyclone.domain.lfric.LFRicKern`
     '''
     mdata_code = '''
 module testkern_field_mod
@@ -87,19 +86,19 @@ end module testkern_field_mod
     # Once we switch over to using fparser2 (#1631) then this fixture may
     # need to ensure that fparser2 is initialised correctly.
     kernel_metadata = get_kernel_parse_tree(mdata_code)
-    ktype = KernelTypeFactory(api="dynamo0.3").create(
+    ktype = KernelTypeFactory(api="lfric").create(
         kernel_metadata, name="testkern_field_type")
-    kern = DynKern()
+    kern = LFRicKern()
     kern.load_meta(ktype)
     return kern
 
 
-@pytest.fixture(name="dynkern_op", scope="module")
-def dynkern_op_fixture():
+@pytest.fixture(name="lfrickern_op", scope="module")
+def lfrickern_op_fixture():
     '''
-    :returns: a DynKern object created from example metadata that includes \
+    :returns: a LFRicKern object created from example metadata that includes \
               an operator argument.
-    :rtype: :py:class:`psyclone.dynamo0p3.DynKern`
+    :rtype: :py:class:`psyclone.domain.lfric.LFRicKern`
     '''
     mdata_code = '''
 module testkern_field_mod
@@ -130,8 +129,8 @@ end module testkern_field_mod
     # Once we switch over to using fparser2 (#1631) then this fixture may
     # need to ensure that fparser2 is initialised correctly.
     kernel_metadata = get_kernel_parse_tree(mdata_code)
-    ktype = KernelTypeFactory(api="dynamo0.3").create(
+    ktype = KernelTypeFactory(api="lfric").create(
         kernel_metadata, name="testkern_field_type")
-    kern = DynKern()
+    kern = LFRicKern()
     kern.load_meta(ktype)
     return kern

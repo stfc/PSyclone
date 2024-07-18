@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,8 +42,9 @@ Routine directive. PSyclone can apply this transformation script via its
 '''
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyGen import CodedKern
+from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (
-    ACCEnterDataTrans, ACCKernelsTrans, ACCRoutineTrans, Dynamo0p3ColourTrans)
+    ACCEnterDataTrans, ACCRoutineTrans, Dynamo0p3ColourTrans)
 
 
 def trans(psy):

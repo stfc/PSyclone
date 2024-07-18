@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,23 +45,20 @@ import fparser
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernMetadata
 from psyclone.errors import GenerationError
 from psyclone.gen_kernel_stub import generate
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
 
 
 def test_kernel_stub_invalid_iteration_space():
@@ -70,8 +67,8 @@ def test_kernel_stub_invalid_iteration_space():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_dofs_mod.f90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
@@ -126,13 +123,6 @@ def test_stub_generate_working():
     assert SIMPLE in str(result)
 
 
-def test_stub_generate_working_noapi():
-    ''' check that the stub generate produces the expected output when
-    we use the default api (which should be dynamo0.3)'''
-    result = generate(os.path.join(BASE_PATH, "testkern_simple_mod.f90"))
-    assert SIMPLE in str(result)
-
-
 # Fields : intent
 INTENT = '''
 module dummy_mod
@@ -155,25 +145,26 @@ end module dummy_mod
 
 def test_load_meta_wrong_type():
     ''' Test that the load_meta function raises an appropriate error
-    if the meta-data contains an un-recognised type. '''
+    if the metadata contains an un-recognised type. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(INTENT, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    # Break the meta-data
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
+    # Break the metadata
     metadata.arg_descriptors[0]._argument_type = "gh_hedge"
     with pytest.raises(GenerationError) as excinfo:
         kernel.load_meta(metadata)
     const = LFRicConstants()
-    assert (f"DynKern.load_meta() expected one of {const.VALID_ARG_TYPE_NAMES}"
-            f" but found 'gh_hedge'" in str(excinfo.value))
+    assert (f"LFRicKern.load_meta() expected one of "
+            f"{const.VALID_ARG_TYPE_NAMES} but found "
+            f"'gh_hedge'" in str(excinfo.value))
 
 
 def test_intent():
     ''' test that field intent is generated correctly for kernel stubs '''
     ast = fpapi.parse(INTENT, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
@@ -235,8 +226,8 @@ def test_spaces():
 
     '''
     ast = fpapi.parse(SPACES, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     output = (
@@ -348,8 +339,8 @@ def test_any_spaces():
 
     '''
     ast = fpapi.parse(ANY_SPACES, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     output = (
@@ -407,8 +398,8 @@ end module dummy_mod
 def test_vectors():
     ''' test that field vectors are handled correctly for kernel stubs '''
     ast = fpapi.parse(VECTORS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
@@ -439,7 +430,7 @@ def test_arg_descriptor_vec_str():
     expected when we have a vector quantity. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(VECTORS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
     expected_output = (
@@ -458,8 +449,8 @@ def test_enforce_bc_kernel_stub_gen():
     '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
@@ -493,8 +484,8 @@ def test_enforce_op_bc_kernel_stub_gen():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "enforce_operator_bc_kernel_mod.F90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     output = (
@@ -526,8 +517,8 @@ def test_multi_qr_stub_gen():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_2qr_mod.F90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     assert ("SUBROUTINE testkern_2qr_code(nlayers, field_1_w1, field_2_w2, "
@@ -570,8 +561,8 @@ def test_qr_plus_eval_stub_gen():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_qr_eval_mod.F90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen_code = str(kernel.gen_stub)
     assert (
@@ -628,8 +619,8 @@ def test_sub_name():
     name. In this case we append "_code to the name and _mod to the
     kernel name.'''
     ast = fpapi.parse(SUB_NAME, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (

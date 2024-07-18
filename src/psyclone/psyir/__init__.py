@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 
-'''PSyclone Internal Representation module. Contains all nodes for the PSyIR,
-tools and basic transformations (in subdirectories).
+'''PSyclone Intermediate Representation module. Contains all nodes for the
+PSyIR, tools and basic transformations (in subdirectories).
 '''
 
 __all__ = []

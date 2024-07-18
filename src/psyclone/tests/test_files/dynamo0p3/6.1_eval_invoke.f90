@@ -1,5 +1,5 @@
 !-------------------------------------------------------------------------------
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2024, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -38,8 +38,8 @@ program eval_invoke
 
   implicit none
 
-  type(field_type) :: f0, f1
+  type(field_type) :: f0, cmap
 
-  call invoke( testkern_eval_type(f0, f1) )
+  call invoke( testkern_eval_type(f0, cmap) )
 
 end program eval_invoke

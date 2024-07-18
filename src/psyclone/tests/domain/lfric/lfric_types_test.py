@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,13 +34,15 @@
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified S. Siso, STFC Daresbury Lab
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified by O. Brunt, Met Office
 
 '''Test that the LFRic-specific PSyIR classes are created and declared
 correctly'''
 
 import pytest
 
-from psyclone.domain.lfric import LFRicConstants, LFRicTypes
+from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicTypes
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     ImportInterface, ScalarType, AutomaticInterface, ArgumentInterface, \
@@ -84,9 +86,10 @@ def test_constants_mod():
     created correctly.
 
     '''
+    api_config = Config.get().api_conf("lfric")
     module = LFRicTypes("constants_mod")
     assert isinstance(module, ContainerSymbol)
-    symbol_list = list(LFRicConstants().PRECISION_MAP.keys())
+    symbol_list = list(api_config.precision_map.keys())
     for symbol_name in symbol_list:
         symbol = LFRicTypes(symbol_name.upper())
         # pylint: disable=no-member
@@ -143,8 +146,8 @@ def test_scalar_literals():
     assert isinstance(LFRicTypes("LFRicDimension")("3"),
                       lfric_dim_class)
     with pytest.raises(ValueError) as info:
-        LFRicTypes("LFRicDimension")("2")
-    assert ("An LFRic dimension object must be '1' or '3', but found '2'."
+        LFRicTypes("LFRicDimension")("4")
+    assert ("An LFRic dimension object must be '1', '2' or '3', but found '4'."
             in str(info.value))
     # LFRIC_SCALAR_DIMENSION instance
     assert isinstance(LFRicTypes("LFRIC_SCALAR_DIMENSION"), lfric_dim_class)
@@ -327,8 +330,8 @@ def test_arrays(data_type_name, symbol_name, scalar_type_name,
         if isinstance(dim.upper, Literal):
             assert dim.upper.value == str(dims[idx])
         elif isinstance(dim.upper, Reference):
-            assert dim.upper is dims[idx]
-            assert dim.upper.symbol is dims[idx].symbol
+            assert dim.upper == dims[idx]
+            assert dim.upper.symbol == dims[idx].symbol
         else:
             assert False, "unexpected type of dimension found"
     # Wrong number of dims

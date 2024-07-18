@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2023, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,6 @@ API-agnostic tests for various transformation classes.
 import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
     OMPDoDirective, OMPLoopDirective, Routine
@@ -103,6 +102,16 @@ def test_accparallel():
     ''' Generic tests for the ACCParallelTrans class '''
     acct = ACCParallelTrans()
     assert acct.name == "ACCParallelTrans"
+    assert acct._default_present is True
+
+    acct = ACCParallelTrans(default_present=False)
+    assert acct.name == "ACCParallelTrans"
+    assert acct._default_present is False
+
+    with pytest.raises(TypeError) as err:
+        _ = ACCParallelTrans(default_present=3)
+    assert ("The provided 'default_present' argument must be a boolean, "
+            "but found '3'." in str(err.value))
 
 
 def test_accenterdata():
@@ -110,18 +119,6 @@ def test_accenterdata():
     acct = ACCEnterDataTrans()
     assert acct.name == "ACCEnterDataTrans"
     assert str(acct) == "Adds an OpenACC 'enter data' directive"
-
-
-def test_accenterdata_internalerr(monkeypatch):
-    ''' Check that the ACCEnterDataTrans.apply() method raises an internal
-    error if the validate method fails to throw out an invalid type of
-    Schedule. '''
-    acct = ACCEnterDataTrans()
-    monkeypatch.setattr(acct, "validate", lambda sched, options: None)
-    with pytest.raises(InternalError) as err:
-        acct.apply("Not a schedule")
-    assert ("validate() has not rejected an (unsupported) schedule"
-            in str(err.value))
 
 
 def test_omptaskloop_no_collapse():
@@ -188,11 +185,11 @@ def test_omptaskloop_apply(monkeypatch):
     taskloop's inbuilt value. Use the gocean API.
     '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
+                           api="gocean")
     taskloop = OMPTaskloopTrans()
     master = OMPMasterTrans()
     parallel = OMPParallelTrans()
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -229,7 +226,7 @@ def test_omptaskloop_apply(monkeypatch):
     assert taskloop._nogroup is False
     with pytest.raises(TransformationError) as excinfo:
         _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
-                               "single_invoke.f90"), api="gocean1.0")
+                               "single_invoke.f90"), api="gocean")
         schedule = psy.invokes.invoke_list[0].schedule
         taskloop.apply(schedule[0], {"nogroup": True})
     assert "Fake error" in str(excinfo.value)
@@ -244,8 +241,8 @@ def test_ompdeclaretargettrans(sample_psyir, fortran_writer):
     loop = sample_psyir.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
         ompdeclaretargettrans.apply(loop)
-    assert ("The OMPDeclareTargetTrans must be applied to a Routine, but "
-            "found: 'Loop'." in str(err.value))
+    assert ("The OMPDeclareTargetTrans must be applied to a sub-class of Kern "
+            "or Routine but got 'Loop'." in str(err.value))
 
     # Insert a OMPDeclareTarget on a Routine
     routine = sample_psyir.walk(Routine)[0]
@@ -274,27 +271,16 @@ def test_ompdeclaretargettrans_with_globals(sample_psyir, parser):
     routine = sample_psyir.walk(Routine)[0]
     ref1 = sample_psyir.walk(Reference)[0]
 
-    # Symbol not defined in the symbol table will be considered global
-    ref1.symbol = DataSymbol("new_symbol", INTEGER_TYPE)
-    with pytest.raises(TransformationError) as err:
-        ompdeclaretargettrans.apply(routine)
-    assert ("Kernel 'my_subroutine' contains accesses to data (variable "
-            "'new_symbol') that are not present in the Symbol Table(s) within "
-            "the scope of this routine. Cannot transform such a kernel."
-            in str(err.value))
-
-    # If it is local but comes from an import it is also a global
-    routine.symbol_table.add(ref1.symbol)
+    # Symbols that come from an import can not be in the GPU
     ref1.symbol.interface = ImportInterface(ContainerSymbol('my_mod'))
     with pytest.raises(TransformationError) as err:
         ompdeclaretargettrans.apply(routine)
-    assert ("The Symbol Table for kernel 'my_subroutine' contains the "
-            "following symbol(s) with imported interface: ['new_symbol']. "
-            "If these symbols represent data then they must first be "
-            "converted to kernel arguments using the KernelImportsToArguments "
-            "transformation. If the symbols represent external routines then "
-            "PSyclone cannot currently transform this kernel for execution on "
-            "an OpenMP target." in str(err.value))
+    assert ("routine 'my_subroutine' accesses the symbol 'a: DataSymbol<Array"
+            "<Scalar<INTEGER, UNDEFINED>, shape=[10, 10]>, "
+            "Import(container='my_mod')>' which is imported. If this symbol "
+            "represents data then it must first be converted to a routine "
+            "argument using the KernelImportsToArguments transformation."
+            in str(err.value))
 
     # If the symbol is inside a CodeBlock it is also captured
     reader = FortranStringReader('''
@@ -307,9 +293,11 @@ def test_ompdeclaretargettrans_with_globals(sample_psyir, parser):
     ref1.replace_with(block)
     with pytest.raises(TransformationError) as err:
         ompdeclaretargettrans.apply(routine)
-    assert ("Kernel 'my_subroutine' contains accesses to data (variable "
-            "'not_declared1') that are not present in the Symbol Table(s) "
-            "within the scope of this routine. Cannot transform such a kernel."
+    assert ("routine 'my_subroutine' accesses the symbol 'a: DataSymbol<Array<"
+            "Scalar<INTEGER, UNDEFINED>, shape=[10, 10]>, "
+            "Import(container='my_mod')>' which is imported. If this symbol "
+            "represents data then it must first be converted to a routine "
+            "argument using the KernelImportsToArguments transformation."
             in str(err.value))
 
 
@@ -401,15 +389,11 @@ def test_parallellooptrans_validate_dependencies(fortran_reader):
         omplooptrans.validate(loops[0])
     assert ("Transformation Error: Dependency analysis failed with the "
             "following messages:\nError: The write access to 'zwt(ji,jj,jk)' "
-            "and to 'zwt(ji,jj,jk - 1)' are dependent and cannot be "
-            "parallelised" in str(err.value))
+            "and the read access to 'zwt(ji,jj,jk - 1)' are dependent and "
+            "cannot be parallelised. Variable: 'zwt'." in str(err.value))
 
     # However, the inner loop can be parallelised because the dependency is
     # just with 'jk' and it is not modified in the inner loops
-    omplooptrans.validate(loops[1])
-
-    # Check if there is missing symbol information it still validates
-    del loops[1].ancestor(Routine).symbol_table._symbols['zws']
     omplooptrans.validate(loops[1])
 
     # Reductions also indicate a data dependency that needs to be handled, so
@@ -439,8 +423,7 @@ def test_parallellooptrans_validate_dependencies(fortran_reader):
             enddo
           enddo
         enddo''')
-    assert not DependencyTools().can_loop_be_parallelised(
-                    loops[0], only_nested_loops=False)
+    assert not DependencyTools().can_loop_be_parallelised(loops[0])
     omplooptrans.validate(loops[0])
 
 
@@ -687,18 +670,17 @@ def test_ompsingle_invalid_nowait():
 def test_ompsingle_nested():
     ''' Tests to check OMPSingle rejects being applied to another OMPSingle '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
+                           api="gocean")
     single = OMPSingleTrans()
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
     single.apply(schedule[0])
     with pytest.raises(TransformationError) as err:
         single.apply(schedule[0])
-    assert ("Transformation Error: Nodes of type 'OMPSingleDirective' cannot"
-            " be enclosed by a OMPSingleTrans transformation"
-            in str(err.value))
+    assert ("Nodes of type 'OMPSingleDirective' cannot be enclosed by a "
+            "OMPSingleTrans transformation" in str(err.value))
 
 
 # Tests for OMPMasterTrans
@@ -714,9 +696,9 @@ def test_ompmaster_nested():
     OMPMasterTrans'''
 
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
+                           api="gocean")
     master = OMPMasterTrans()
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -727,9 +709,8 @@ def test_ompmaster_nested():
     assert schedule[0].dir_body[0] is node
     with pytest.raises(TransformationError) as err:
         master.apply(schedule[0])
-    assert ("Transformation Error: Nodes of type 'OMPMasterDirective' cannot"
-            " be enclosed by a OMPMasterTrans transformation"
-            in str(err.value))
+    assert ("Nodes of type 'OMPMasterDirective' cannot be enclosed by a "
+            "OMPMasterTrans transformation" in str(err.value))
 
 
 # Tests for ProfileTrans
@@ -749,7 +730,7 @@ def test_profile_trans_name(options):
     set to None.
 
     '''
-    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
+    _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
     if options:

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''A transformation script that adds profiling information.
 
@@ -41,40 +41,25 @@ README.md in the top-level psyclone directory.
 
 Once you have psyclone installed, this may be used by doing:
 
- $ psyclone -api nemo -s ./profile_trans.py some_source_file.f90
-
-This should produce a lot of output, ending with generated
-Fortran. Note that the Fortran source files provided to PSyclone must
-have already been preprocessed (if required).
+ $ psyclone -s ./profile_trans.py some_source_file.f90
 
 '''
 
-from __future__ import print_function, absolute_import
 from psyclone.psyir.transformations import ProfileTrans
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Routine
 
 
-def trans(psy):
-    '''A PSyclone-script compliant transformation function. Adds
-    profiling to an invoke.
+def trans(psyir):
+    ''' Adds profiling to each Routine.
 
-    :param psy: The PSy layer object to apply transformations to.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
-    # Since "Backslashes may not appear inside the expression
-    # portions of f-strings" via PEP 498, use chr(10) for '\n'
-    print(f"Invokes found:\n"
-          f"{chr(10).join([str(name) for name in psy.invokes.names])}\n")
 
     p_trans = ProfileTrans()
 
-    for invoke in psy.invokes.invoke_list:
+    for subroutine in psyir.walk(Routine):
+        p_trans.apply(subroutine)
 
-        sched = invoke.schedule
-        if not sched:
-            print("Invoke {invoke.name} has no Schedule! Skipping...")
-            continue
-
-        # Enclose all children of the schedule within a single profile region
-        p_trans.apply(sched.children)
-        print(sched.view())
+    # Display PSyIR tree
+    print(psyir.view())

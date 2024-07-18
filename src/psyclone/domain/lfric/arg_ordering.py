@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements the base class for managing arguments to
@@ -47,6 +47,8 @@ from psyclone.core import AccessType, Signature
 # a circular dependency.
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
+from psyclone.domain.lfric.metadata_to_arguments_rules import (
+    MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
 from psyclone.psyir.symbols import ScalarType
@@ -65,24 +67,16 @@ class ArgOrdering:
     a list.
 
     :param kern: the kernel call object to use.
-    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     '''
     def __init__(self, kern):
+        # TODO #2503: This reference will not survive some tree modifications
         self._kern = kern
         self._generate_called = False
-        # If available, get an existing symbol table to create unique names
-        # and symbols required for PSyIR. Otherwise just create a new
-        # symbol table (required for stub generation atm).
-        invoke_sched = None
-        if kern:
-            invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
-        # This pylint does not work when I put it in the else branch :(
-        # pylint: disable=import-outside-toplevel
-        if invoke_sched:
-            self._symtab = invoke_sched.symbol_table
-        else:
-            self._symtab = LFRicSymbolTable()
+
+        # TODO #2503: This reference will not survive some tree modifications
+        self._forced_symtab = None
 
         # TODO #1934 Completely remove the usage of strings, instead
         # use the PSyIR representation.
@@ -91,6 +85,27 @@ class ArgOrdering:
         # This stores the PSyIR representation of the arguments
         self._psyir_arglist = []
         self._arg_index_to_metadata_index = {}
+
+    @property
+    def _symtab(self):
+        ''' Provide a reference to the associate Invoke SymbolTable, usually
+        following the `self._kernel.ancestor(InvokeSchedule)._symbol_table`
+        path unless a _forced_symtab has been provided.
+
+        If no symbol table is available it creates a temporary symbol table
+        for the operation to suceed but it will not be preserved.
+
+        Note: This could be improved by TODO #2503
+
+        :returns: the associate invoke symbol table.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
+        if self._forced_symtab:
+            return self._forced_symtab
+        elif self._kern and self._kern.ancestor(psyGen.InvokeSchedule):
+            return self._kern.ancestor(psyGen.InvokeSchedule).symbol_table
+        else:
+            return LFRicSymbolTable()
 
     def psyir_append(self, node):
         '''Appends a PSyIR node to the PSyIR argument list.
@@ -408,8 +423,7 @@ class ArgOrdering:
                     if arg.descriptor.stencil['type'] == "xory1d":
                         # if "xory1d is specified then the actual
                         # direction must be passed from the Algorithm layer.
-                        self.stencil_unknown_direction(arg,
-                                                       var_accesses)
+                        self.stencil_unknown_direction(arg, var_accesses)
                     # stencil information that is always passed from the
                     # Algorithm layer.
                     if arg.descriptor.stencil['type'] == "cross2d":
@@ -466,8 +480,8 @@ class ArgOrdering:
                     self.diff_basis(unique_fs, var_accesses=var_accesses)
             # Fix for boundary_dofs array to the boundary condition
             # kernel (enforce_bc_kernel) arguments
-            if self._kern.name.lower() == "enforce_bc_code" and \
-               unique_fs.orig_name.lower() == "any_space_1":
+            if (MetadataToArgumentsRules.bc_kern_regex.match(self._kern.name)
+                    and unique_fs.orig_name.lower() == "any_space_1"):
                 self.field_bcs_kernel(unique_fs, var_accesses=var_accesses)
 
         # Add boundary dofs array to the operator boundary condition

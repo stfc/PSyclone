@@ -27,6 +27,10 @@ it in their own directory (to allow for the required data types to be
 supported). The API-specific implementations do not link with the compiled
 version in this directory.
 
+In order to support MPI in extraction (which means each process will write
+its own output data by appending its rank to the filename), set the environment
+variable ``MPI=yes``.
+
 ## [``dl_esm_inf``](./dl_esm_inf) directory
 
 Contains the NetCDF-extract, PSyData-API-based, wrapper library for the
@@ -46,7 +50,7 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2021, Science and Technology Facilities Council.
+Copyright (c) 2020-2024, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

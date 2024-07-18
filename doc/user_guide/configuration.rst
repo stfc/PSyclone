@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2022, Science and Technology Facilities Council
+.. Copyright (c) 2018-2024, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ is in the ``PSyclone/config`` directory of the PSyclone
 distribution.
 
 At execution-time, the user can specify a custom configuration file to
-be used. This can either be done with the ``--config`` command line
+be used. This can either be done with the ``--config`` command-line
 option, or by specifying the (full path to the) configuration file
 to use via the ``PSYCLONE_CONFIG`` environment variable. If the specified
 configuration file is not found then PSyclone will fall back to
@@ -89,8 +89,6 @@ section e.g.:
 ::
 
     [DEFAULT]
-    DEFAULTAPI = dynamo0.3
-    DEFAULTSTUBAPI = dynamo0.3
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
     REPROD_PAD_SIZE = 8
@@ -98,23 +96,36 @@ section e.g.:
     VALID_PSY_DATA_PREFIXES = profile, extract
 
 and an optional API specific section, for example for the
-``dynamo0.3`` section:
+``lfric`` section:
 ::
 
-   [dynamo0.3]
+   [lfric]
    access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                     gh_inc: inc, gh_readinc: readinc, gh_sum: sum
    COMPUTE_ANNEXED_DOFS = false
    supported_fortran_datatypes = real, integer, logical
    default_kind = real: r_def, integer: i_def, logical: l_def
+   precision_map = i_def: 4,
+                   l_def: 1,
+                   r_def: 8,
+                   r_double: 8,
+                   r_ncdf: 8,
+                   r_quad: 16,
+                   r_second: 8,
+                   r_single: 4,
+                   r_solver: 4,
+                   r_tran: 8,
+                   r_bl: 8,
+                   r_phys: 8,
+                   r_um: 8
    RUN_TIME_CHECKS = false
    NUM_ANY_SPACE = 10
    NUM_ANY_DISCONTINUOUS_SPACE = 10
 
-or for ``gocean1.0``:
+or for ``gocean``:
 ::
 
-   [gocean1.0]
+   [gocean]
    access_mapping = go_read:read, go_write:write, go_readwrite:readwrite
    grid-properties = go_grid_xstop: {0}%%grid%%subdomain%%internal%%xstop: scalar,
                   go_grid_ystop: {0}%%grid%%subdomain%%internal%%ystop: scalar,
@@ -128,47 +139,40 @@ including "true/false", "yes/no" and "1/0". See
 https://docs.python.org/3/library/configparser.html#supported-datatypes
 for more details.
 
+.. _config-default-section:
+
 ``DEFAULT`` Section
 ^^^^^^^^^^^^^^^^^^^
 
 This section contains entries that are, in principle, applicable to all APIs
 supported by PSyclone.
 
-.. tabularcolumns:: |l|L|
+.. tabularcolumns:: |l|L|l|
 
-======================= =======================================================
-Entry                   Description
-======================= =======================================================
-DEFAULTAPI              The API that PSyclone assumes an Algorithm/Kernel
-                        conforms to if no API is specified. Must be one of the
-                        APIs supported by PSyclone ("dynamo0.3", "gocean1.0"
-                        and "nemo"). If there is no
-                        API specified and there is only one API-specific
-                        section in the config file loaded, this API will be
-                        used. This value can be overwritten by the command
-                        line option '-api'. If there is no API entry in the
-                        config file, and '-api' is not specified on the 
-                        command line, "dynamo0.3" is used as default.
-DEFAULTSTUBAPI          The API that the kernel-stub generator assumes by
-                        default. Must be one of the stub-APIs supported by
-                        PSyclone ("dynamo0.3" only at this stage).
-DISTRIBUTED_MEMORY      Whether or not to generate code for distributed-memory
+======================= ======================================================= ===========
+Entry                   Description                                             Type
+======================= ======================================================= ===========
+DISTRIBUTED_MEMORY      Whether or not to generate code for distributed-memory  bool
                         parallelism by default.  Note that this is currently
                         only supported for the LFRic (Dynamo 0.3) API.
-REPRODUCIBLE_REDUCTIONS Whether or not to generate code for reproducible OpenMP
+REPRODUCIBLE_REDUCTIONS Whether or not to generate code for reproducible OpenMP bool
                         reductions (see :ref:`openmp-reductions`) by default.
-REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,
+REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,  int
                         this setting controls the amount of padding used
                         between elements of the array in which each thread
                         accumulates its local reduction. (This prevents false
                         sharing of cache lines by different threads.)
-PSYIR_ROOT_NAME         The root for generated PSyIR symbol names if one is not
+PSYIR_ROOT_NAME         The root for generated PSyIR symbol names if one is not str
                         supplied when creating a symbol. Defaults to
                         "psyir_tmp".
-VALID_PSY_DATA_PREFIXES Which class prefixes are permitted in any
+VALID_PSY_DATA_PREFIXES Which class prefixes are permitted in any               list of str
                         PSyData-related transformations. See :ref:`psy_data`
                         for details.
-======================= =======================================================
+BACKEND_CHECKS_ENABLED  Optional (defaults to True). Whether or not the PSyIR   bool
+                        backend should validate the tree that it is passed.
+                        Can be overridden by the ``--backend`` command-line
+                        flag (see :ref:`backend-options`).
+======================= ======================================================= ===========
 
 Common Sections
 ^^^^^^^^^^^^^^^
@@ -199,7 +203,7 @@ access_mapping          This field defines the strings that are used by a
 ======================= =======================================================
 
 
-``dynamo0.3`` Section
+``lfric`` Section
 ^^^^^^^^^^^^^^^^^^^^^
 
 This section contains configuration options that are only applicable when
@@ -221,6 +225,9 @@ default_kind                Captures the default kinds (precisions) for the
                             supported Fortran data types in LFRic, see
                             :ref:`lfric-datatype-kind`.
 
+precision_map               Captures the value of the actual precisions in
+                            bytes, see :ref:`lfric-precision-map`
+                            
 RUN_TIME_CHECKS             Specifies whether to generate run-time validation
                             checks, see :ref:`lfric-run-time-checks`.
 
@@ -232,7 +239,7 @@ NUM_ANY_DISCONTINUOUS_SPACE Sets the number of ``ANY_DISCONTINUOUS_SPACE``
                             :ref:`lfric-num-any-spaces`.
 =========================== ===================================================
 
-``gocean1.0`` Section
+``gocean`` Section
 ^^^^^^^^^^^^^^^^^^^^^
 This section contains configuration options that are only applicable when
 using the Gocean 1.0 API.
@@ -244,66 +251,11 @@ Entry                   Description
 ======================= =======================================================
 iteration-spaces        This contains definitions of additional iteration spaces
                         used by PSyclone. A detailed description can be found
-                        in the :ref:`gocean1.0-configuration-iteration-spaces`
+                        in the :ref:`gocean-configuration-iteration-spaces`
                         section of the GOcean1.0 chapter.
 
 grid-properties         This key contains definitions to access various grid
                         properties. A detailed description can be found
-                        in the :ref:`gocean1.0-configuration-grid-properties`
+                        in the :ref:`gocean-configuration-grid-properties`
                         section of the GOcean1.0 chapter.
 ======================= =======================================================
-
-``NEMO`` Section
-^^^^^^^^^^^^^^^^^^^^^
-This section contains configuration options that are only applicable when
-using the NEMO API.
-
-.. tabularcolumns:: |l|L|
-
-======================= =======================================================
-Entry                   Description
-======================= =======================================================
-mapping-TYPE            This declares a mapping for a certain loop level,
-                        specified as TYPE. Each value must have three key:value
-                        pairs. A value can be empty if it is not required or
-                        not known, but the key must still be specified. 
-                        The required keys are:
-
-                        ``var``: the variable name that indicates
-                        the loop level,
-
-                        ``start``: the first loop iteration, and
-
-                        ``stop``: the last loop iteration.
-
-                        Each loop detected by the NEMO API will be given one of
-                        the TYPE values specified in the configuration file.
-                        See the example below for more details.
-
-index-order             Specifies the order in which loops are created when
-                        converting an implicit loop to an explicit loop.
-                        All values in this comma-separated list must have a
-                        corresponding ``mapping-TYPE`` value defined.
-======================= =======================================================
-
-Below we show an example of the NEMO section of a PSyclone configuration file.
-Note how the values in ``index-order`` have corresponding mapping entries, e.g.
-``mapping-lon``, ``mapping-lat`` etc.::
-
-    mapping-lon = var: ji, start: 1, stop: jpi
-    mapping-lat = var: jj, start: 1, stop: jpj
-    mapping-levels = var: jk, start: 1, stop: jpk
-    mapping-tracers = var: jt, start: 1, stop:
-    mapping-unknown = var: , start: 1, stop:
-
-    index-order = lon, lat, levels, tracers
-
-If a NEMO loop then uses ``Do jj=...``, PSyclone will give this loop the type
-'lat', because the loop uses the variable name specified in the configuration file
-for a loop of type 'lat'.
-The loop type can be accessed using ``loop.loop_type``, i.e. in this example
-it will be ``loop.loop_type == 'lat'``.
-
-The entry ``mapping-unknown`` has an empty value for the key 'var'. This means
-that the type 'unknown'  will be used for any loop that can not be mapped
-using any of the other variable names in the configuration file.

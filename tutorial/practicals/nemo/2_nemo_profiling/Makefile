@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified J. Henrichs, Bureau of Meteorology
+# Modified: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 
 include ../../../common.mk
 
@@ -49,21 +50,18 @@ NAME = ./tra_adv.exe
 # Use gfortran by default
 F90 ?= gfortran
 
-$(NAME): $(KERNELS) psy.o runner.o
+$(NAME): $(KERNELS) output.o runner.o
 	$(F90) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
 
-psy.f90: tra_adv_mod.F90
-	$(PSYCLONE) --profile invokes -api nemo \
-                     -opsy psy.f90 -l output tra_adv_mod.F90
-#	$(PSYCLONE) -s ./profile_trans.py -api nemo \
-#                     -opsy psy.f90 -l output tra_adv_mod.F90
+output.f90: tra_adv_mod.F90
+	$(PSYCLONE) --profile routines -o output.f90 -l output tra_adv_mod.F90
 
 # Make sure the infrastructure library is compiled, so the mods are found
 $(KERNELS): $(INF_LIB)
 
-# Creating psy.o and runner.o requires that the profiling lib be compiled
-psy.o: ${PROFILE_LIB}
-runner.o: psy.o ${PROFILE_LIB}
+# Creating output.o and runner.o requires that the profiling lib be compiled
+output.o: ${PROFILE_LIB}
+runner.o: output.o ${PROFILE_LIB}
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -I $(PROFILE_DIR) -c $< -o $@
@@ -72,23 +70,21 @@ ${PROFILE_LIB}:
 	${MAKE} -C ${PROFILE_DIR}
 
 clean:
-	rm -f psy.f90 psy_*.f90 *.o *.mod $(NAME) output.dat solutions/*.o
+	rm -f output.f90 output_*.f90 *.o *.mod $(NAME) output.dat solutions/*.o
 
 allclean: clean
 	${MAKE} -C ${PROFILE_DIR} allclean
 
 transform:
 	# Use different output filenames so this doesn't interfere
-	# with building the binary (which uses psy.f90)
-	$(PSYCLONE) --profile invokes -api nemo \
-                     -opsy psy_1.f90 -l output tra_adv_mod.F90
-	$(PSYCLONE) -s ./profile_trans.py -api nemo \
-                     -opsy psy_2.f90 -l output tra_adv_mod.F90
-	$(PSYCLONE) -s ./solutions/named_profile_trans.py -api nemo \
-                     -opsy psy_3.f90 -l output tra_adv_mod.F90
+	# with building the binary (which uses output.f90)
+	$(PSYCLONE) --profile routines -o output_1.f90 -l output tra_adv_mod.F90
+	$(PSYCLONE) -s ./profile_trans.py -o output_2.f90 -l output tra_adv_mod.F90
+	$(PSYCLONE) -s ./solutions/named_profile_trans.py \
+                     -o output_3.f90 -l output tra_adv_mod.F90
 
-compile: transform $(KERNELS) psy.o solutions/runner.o
-	$(F90) $(KERNELS) psy.o solutions/runner.o -o $(NAME) \
+compile: transform $(KERNELS) output.o solutions/runner.o
+	$(F90) $(KERNELS) output.o solutions/runner.o -o $(NAME) \
 	       -L$(PROFILE_DIR) $(PROFILE_LINK)
 
 # Only used for the compile CI target to compile the solution file

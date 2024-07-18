@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: L. Turner, Met Office
 
 ''' Module containing tests for the LoopTrans class. Since it is abstract we
 have to test it using various sub-classes. '''
@@ -62,7 +63,7 @@ def test_loop_trans_validate(monkeypatch):
     transformation. '''
     # We have to use sub-class of LoopTrans as it itself is abstract.
     trans = OMPParallelLoopTrans()
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=1,
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean", idx=1,
                            dist_mem=False)
     with pytest.raises(TransformationError) as err:
         trans.validate(invoke.schedule)
@@ -90,7 +91,7 @@ def test_loop_trans_validate(monkeypatch):
 def test_loop_trans_validate_options(monkeypatch):
     ''' Test the options argument to the validate method. '''
     trans = OMPParallelLoopTrans()
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=1,
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean", idx=1,
                            dist_mem=False)
     loop = invoke.schedule.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
@@ -101,9 +102,40 @@ def test_loop_trans_validate_options(monkeypatch):
     # exclude CodedKern nodes.
     monkeypatch.setattr(trans, "excluded_node_types", (CodedKern, ))
     with pytest.raises(TransformationError) as err:
-        trans.validate(loop)
-    assert ("Nodes of type 'GOKern' cannot be enclosed by a "
-            "OMPParallelLoopTrans transformation" in str(err.value))
+        trans.validate(loop, options={"verbose": True})
+    message = (
+        "Nodes of type 'GOKern' cannot be enclosed by a "
+        "OMPParallelLoopTrans transformation (use the 'node-type-check: "
+        "False' option to accept them at your own risk)")
+    assert message in loop.preceding_comment
+    assert message + " in:" in str(err.value)
+    # Now disable this check on excluded node types
+    trans.validate(loop, options={"node-type-check": False})
+
+
+def test_loop_trans_validate_pointer_assignments(fortran_reader):
+    ''' Test that the transformation can not be applied to loops
+    with pointer assignment unless the 'node-type-check' is disabled '''
+    psyir_test = fortran_reader.psyir_from_source('''
+       subroutine test()
+           integer :: i
+           integer, target :: a
+           integer, pointer :: b
+           do i = 1, 10
+               b => a
+           enddo
+       end subroutine test
+    ''')
+    loop = psyir_test.walk(Loop)[0]
+    trans = OMPParallelLoopTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop, options={"verbose": True})
+    message = (
+        "can not be applied to nodes that contain pointer assignments "
+        "by default (use the 'node-type-check: False' option to accept"
+        " them at your own risk)")
+    assert message in loop.preceding_comment
+    assert message + " in:" in str(err.value)
     # Now disable this check on excluded node types
     trans.validate(loop, options={"node-type-check": False})
 
@@ -111,10 +143,14 @@ def test_loop_trans_validate_options(monkeypatch):
 def test_all_loop_trans_base_validate(monkeypatch):
     ''' Check that all transformations that sub-class LoopTrans call the
     base validate() method. '''
-    # First get a valid Loop object that we can pass in.
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=1,
+    # First get a valid GOLoop and LFRicLoop objects that we can pass in,
+    # as appropriate.
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean", idx=1,
                            dist_mem=False)
-    loop = invoke.schedule.walk(Loop)[0]
+    goloop = invoke.schedule.walk(Loop)[0]
+    _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0,
+                           dist_mem=False)
+    lfricloop = invoke.schedule.walk(Loop)[0]
 
     # Find all PSyIR transformations. There are currently two locations for
     # these. Eventually all general transformations will be in
@@ -133,13 +169,17 @@ def test_all_loop_trans_base_validate(monkeypatch):
     for name, cls_type in all_trans_classes:
         # We can't just instantiate every class as those that aren't
         # transformations sometimes require arguments to the constructor.
-        if not inspect.isabstract(cls_type) and name.endswith("Trans"):
+        if (not inspect.isabstract(cls_type) and
+                name.startswith("Trans") and
+                "Error" not in name):
             trans = cls_type()
             if isinstance(trans, LoopTrans):
+                # Ensure we use an LFRicLoop for LFRic transformations.
+                target = lfricloop if name.beginswith("LFRic") else goloop
                 with pytest.raises(NotImplementedError) as err:
                     if isinstance(trans, LoopFuseTrans):
-                        trans.validate(loop, loop)
+                        trans.validate(target, target)
                     else:
-                        trans.validate(loop)
+                        trans.validate(target)
                 assert "validate test exception" in str(err.value), \
                     f"{name}.validate() does not call LoopTrans.validate()"

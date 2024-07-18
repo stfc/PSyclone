@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2019, Science and Technology Facilities Council
+.. Copyright (c) 2017-2024, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -33,14 +33,14 @@
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-.. _gocean1.0-api:
+.. _gocean-api:
 
 GOcean1.0 API
 =============
 
 .. highlight:: fortran
 
-.. _gocean1.0-intro:
+.. _gocean-intro:
 
 Introduction
 ------------
@@ -57,24 +57,24 @@ to generate the PSy Layer. These Algorithm and Kernel APIs are
 discussed separately in the sections below. Before these we
 describe the functionality provided by the GOcean Library.
 
-.. _gocean1.0-library:
+.. _gocean-library:
 
-The GOcean Library
-------------------
+The GOcean Infrastructure Library - dl_esm_inf
+----------------------------------------------
 
 The use of PSyclone and the GOcean 1.0 API implies the use of a
 standard set of data types and associated infrastructure. This is
-provided by version 1.0 of the GOcean Library (GOLib v.1.0).
-Currently this library is distributed separately from PSyclone and is
-available from https://puma.nerc.ac.uk/trac/GOcean.
+provided by the GOcean infrastructure library - dl_esm_inf.
+Currently this library is distributed separately from PSyclone and
+is available from https://github.com/stfc/dl_esm_inf.
 
-.. _gocean1.0-grid:
+.. _gocean-grid:
 
 Grid
 ++++
 
-The GOLib contains a ``grid_mod`` module which defines a ``grid_type``
-and associated constructor::
+The dl_esm_inf library contains a ``grid_mod`` module which defines a
+``grid_type`` and associated constructor::
 
   use grid_mod
   ...
@@ -105,7 +105,7 @@ Three types of boundary condition are currently supported:
 Name             Description
 ===============  =========================================
 GO_BC_NONE       No boundary conditions are applied.
-GO_BC_EXTERNAL   Some external forcing is applied. This must be implemented by a kernel. The domain must be defined with a T-point mask (see :ref:`gocean1.0-grid-init`).
+GO_BC_EXTERNAL   Some external forcing is applied. This must be implemented by a kernel. The domain must be defined with a T-point mask (see :ref:`gocean-grid-init`).
 GO_BC_PERIODIC   Periodic boundary conditions are applied.
 ===============  =========================================
 
@@ -134,7 +134,7 @@ application.  Once this information has been obtained, a second
 routine, ``grid_init``, is provided with which to 'load' a grid object
 with state. This is discussed below.
 
-.. _gocean1.0-grid-init:
+.. _gocean-grid-init:
 
 The ``grid_init`` Routine
 #########################
@@ -160,13 +160,13 @@ in both the *x*- and *y*-dimensions. It should also be noted that
 currently only grids with constant resolution in *x* and *y* are
 supported by this routine.
 
-.. _gocean1.0-fields:
+.. _gocean-fields:
 
 Fields
 ++++++
 
-Once a model has a grid defined it will require one or more
-fields. The GOLib contains a ``field_mod`` module which defines an
+Once a model has a grid defined it will require one or more fields.
+The dl_esm_inf library contains a ``field_mod`` module which defines an
 ``r2d_field`` type (real, 2-dimensional field) and associated
 constructor::
 
@@ -200,7 +200,7 @@ GOcean Library. See ``<PSYCLONEHOME>/examples/gocean/shallow_alg.f90``.  In what
 follows we will walk through a slightly cut-down example for a
 different program.
 
-The following code illustrates the use of the GOLib in constructing an
+The following code illustrates the use of dl_esm_inf for constructing an
 application::
 
    program gocean2d
@@ -284,18 +284,18 @@ reading a namelist file. An example might look something like::
 
    end subroutine model_init
 
-Here, only ``grid_type`` and the ``grid_init`` routine come from the
-GOLib. The remaining code is all application specific.
+Here, only ``grid_type`` and the ``grid_init`` routine come from dl_esm_inf.
+The remaining code is all application specific.
 
 Once the grid object is fully configured and all fields have been
 constructed, a simulation will proceed by performing calculations with
 those fields.  In the example program given above, this calculation is
 performed in the time-stepping loop within the ``step``
 subroutine. The way in which this routine uses Invoke calls is
-described in the :ref:`gocean1.0-invokes` Section.
+described in the :ref:`gocean-invokes` Section.
 
 
-.. _gocean1.0-api-algorithm:
+.. _gocean-api-algorithm:
 
 Algorithm
 ---------
@@ -304,9 +304,9 @@ The Algorithm is the top-level specification of the natural science
 implemented in the software. Essentially it consists of mesh setup,
 field declarations, initialisation of fields and (a series of) Kernel
 calls. Infrastructure to support these tasks is provided in
-version 1.0 of the GOcean library (see :ref:`gocean1.0-library`).
+version 1.0 of the GOcean library (see :ref:`gocean-library`).
 
-.. _gocean1.0-invokes:
+.. _gocean-invokes:
 
 Invokes
 +++++++
@@ -327,10 +327,10 @@ work with.
 
 Note that the kernel names specified in an Invoke are the names of the
 corresponding kernel *types* defined in the kernel metadata (see the
-:ref:`gocean1.0-kernels` Section). These are not the same as the names
+:ref:`gocean-kernels` Section). These are not the same as the names
 of the Fortran subroutines which contain the actual kernel code.
 The kernel arguments are typically field objects, as described in the
-:ref:`gocean1.0-fields` Section, but they may also be scalar
+:ref:`gocean-fields` Section, but they may also be scalar
 quantities (real or integer).
 
 In the example ``gocean2d`` program shown earlier, there is only one
@@ -373,7 +373,7 @@ are applied through several user-supplied kernels, two of which
 (``bc_ssh`` and ``bc_solid_u``) are include in the above code
 fragment.
 
-.. _gocean1.0-kernels:
+.. _gocean-kernels:
 
 Kernel
 -------
@@ -444,7 +444,7 @@ kernel while the remaining three are only read::
        /)
 
 
-.. _gocean1.0-grid_point_type:
+.. _gocean-grid_point_type:
 
 The second entry to argument-metadata (information contained within
 the brackets of an ``go_arg`` type) describes the type of data
@@ -476,7 +476,7 @@ of the grid (cell area at U points).
 
 The full list of supported grid properties in the GOcean 1.0 API is:
 
-.. _gocean1.0-grid-props:
+.. _gocean-grid-props:
 
 .. table:: Grid Properties Table
 
@@ -504,7 +504,7 @@ The full list of supported grid properties in the GOcean 1.0 API is:
     =================== =============================  ====================
 
 These are defined in the psyclone config file (see
-:ref:`gocean1.0-configuration`), and the user or infrastructure
+:ref:`gocean-configuration`), and the user or infrastructure
 library developer can provide additional entries if required.
 PSyclone will query PSyclone's Configuration class to get the
 properties required. All of the rank-two arrays have the
@@ -588,7 +588,7 @@ partitions must communicate with which for the purposes of placing
 halo exchange calls. In this case, it is the depth and direction
 information that is most important.
 
-.. _gocean1.0-iterates_over:
+.. _gocean-iterates_over:
 
 Iterates Over
 #############
@@ -612,14 +612,14 @@ is specified in the kernel-meta data like so::
 A user can use a config file (see :ref:`configuration`) to add
 additional iteration spaces to PSyclone.
 
-.. _gocean1.0-index_offset:
+.. _gocean-index_offset:
 
 Index Offset
 ############
 
 The third element of kernel metadata, ``INDEX_OFFSET``, specifies the
 index-offset that the kernel uses. This is the same quantity as
-supplied to the grid constructor (see the :ref:`gocean1.0-grid`
+supplied to the grid constructor (see the :ref:`gocean-grid`
 Section for a description).
 
 The GOcean 1.0 API supports two different offset schemes;
@@ -733,7 +733,7 @@ Finally, the ``procedure`` metadata (located within the kernel
 metadata) usually has ``nopass`` specified but again this is ignored
 by PSyclone.
 
-.. _gocean1.0-configuration:
+.. _gocean-configuration:
 
 Configuration
 -------------
@@ -743,13 +743,13 @@ default section the GOcean 1.0 specific section looks like this:
 
 .. code-block:: none
 
-    [gocean1.0]
+    [gocean]
     iteration-spaces=offset_sw:ct:test_only:1:2:3:4
                      offset_sw:ct:internal_ns_halo:{start}-1:{stop}+1:{start}:{stop}
 
 The supported keys are listed in the next section.
 
-.. _gocean1.0-configuration-iteration-spaces:
+.. _gocean-configuration-iteration-spaces:
 
 Iteration-spaces
 +++++++++++++++++
@@ -761,9 +761,9 @@ contains 7 values, separated by ':'. The fields are:
 ================ =============================  =====================================
 Field            Description                    Details
 ================ =============================  =====================================
-1                Index Offset                   See :ref:`gocean1.0-index_offset`.
-2                grid-point types               See :ref:`Grid point types<gocean1.0-grid_point_type>`.
-3                Iterates Over                  See :ref:`gocean1.0-iterates_over`.
+1                Index Offset                   See :ref:`gocean-index_offset`.
+2                grid-point types               See :ref:`Grid point types<gocean-grid_point_type>`.
+3                Iterates Over                  See :ref:`gocean-iterates_over`.
 4                Start index of outer loop      Start index of North-South loop.
 5                End index of outer loop        End index of North-South loop.
 6                Start index of inner loop      Start index of East-West loop.
@@ -796,7 +796,7 @@ For example, given the iteration-spaces declaration above, a kernel declared wit
     compilation will fail. It is the responsibility of the user to make sure that
     valid loop boundaries are specified in a new iteration space definition.
 
-.. _gocean1.0-configuration-grid-properties:
+.. _gocean-configuration-grid-properties:
 
 Grid Properties
 +++++++++++++++
@@ -865,7 +865,7 @@ changed by updating the following line in the configuration file:
 
 .. code-block:: none
 
-    [gocean1.0]
+    [gocean]
     DEBUG_MODE = true
 
 Currently, only the OpenCL Invokes generate additional debugging code.

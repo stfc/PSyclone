@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2023, Science and Technology Facilities Council
+.. Copyright (c) 2017-2024, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -41,9 +41,9 @@ Transformations
 ===============
 
 As discussed in the previous section, transformations can be applied
-to PSyclone's internal representation (PSyIR) to modify it. Typically
-transformations will be used to optimise the Algorithm, PSy and/or
-Kernel layer(s) for a particular architecture, however transformations
+to the PSyIR to modify it. Typically transformations will be used to
+optimise the provided source file, or the PSy and/or Kernel layer(s)
+in the PSyKAl DSLs, for a particular architecture. However, transformations
 could be added for other reasons, such as to aid debugging or for
 performance monitoring.
 
@@ -147,7 +147,7 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation assumes that the ABS Operator acts on
+.. warning:: This transformation assumes that the ABS Intrinsic acts on
              PSyIR Real scalar data and does not check that this is
              not the case. Once issue #658 is on master then this
              limitation can be fixed.
@@ -166,7 +166,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.ACCKernelsTrans
+.. autoclass:: psyclone.psyir.transformations.ACCKernelsTrans
     :noindex:
     :members: apply
 
@@ -184,7 +184,19 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.psyir.transformations.ArrayRange2LoopTrans
+.. autoclass:: psyclone.psyir.transformations.AllArrayAccess2LoopTrans
+    :members: apply
+    :noindex:
+  
+####
+
+.. autoclass:: psyclone.psyir.transformations.ArrayAccess2LoopTrans
+    :members: apply
+    :noindex:
+  
+####
+
+.. autoclass:: psyclone.psyir.transformations.ArrayAssignment2LoopsTrans
     :members: apply
     :noindex:
   
@@ -275,10 +287,16 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation assumes that the MAX Operator acts on
+.. warning:: This transformation assumes that the MAX Intrinsic acts on
              PSyIR Real scalar data and does not check that this is
              not the case. Once issue #658 is on master then this
              limitation can be fixed.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Maxval2LoopTrans
+      :members: apply
+      :noindex:
 
 ####
 
@@ -286,10 +304,16 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation assumes that the MIN Operator acts on
+.. warning:: This transformation assumes that the MIN Intrinsic acts on
              PSyIR Real scalar data and does not check that this is
              not the case. Once issue #658 is on master then this
              limitation can be fixed.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Minval2LoopTrans
+      :members: apply
+      :noindex:
 
 ####
 
@@ -388,9 +412,21 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.OMPTaskTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.OMPTaskwaitTrans
     :members: apply
     :noindex:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Product2LoopTrans
+      :members: apply
+      :noindex:
 
 ####
 
@@ -424,14 +460,14 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation assumes that the SIGN Operator acts
+.. warning:: This transformation assumes that the SIGN Intrinsic acts
              on PSyIR Real scalar data and does not check whether or not
              this is the case. Once issue #658 is on master then this
              limitation can be fixed.
 
 ####
 
-.. autoclass:: psyclone.psyir.transformations.Sum2CodeTrans
+.. autoclass:: psyclone.psyir.transformations.Sum2LoopTrans
       :members: apply
       :noindex:
 
@@ -440,11 +476,9 @@ can be found in the API-specific sections).
 Algorithm-layer
 ---------------
 
-The gocean1.0 API supports the transformation of the algorithm
-layer. In the future the LFRic (dynamo0.3) API will also support
-this. However, this is not relevant to the nemo API as it does not
-have the concept of an algorithm layer (just PSy and Kernel
-layers). The ability to transformation the algorithm layer is new and
+The gocean API supports the transformation of the algorithm
+layer. In the future the LFRic API will also support this.
+The ability to transformation the algorithm layer is new and
 at this time no relevant transformations have been developed.
 
 Kernels
@@ -622,8 +656,8 @@ code. This allows us to generate a "vanilla" PSy layer. For example::
     >>> ast = parser(reader)
     >>> invoke_info = Parser().invoke_info(ast)
 
-    # This example uses the LFRic (dynamo0.3) API
-    >>> api = "dynamo0.3"
+    # This example uses the LFRic API
+    >>> api = "lfric"
 
     # Create the PSy-layer object using the invokeInfo
     >>> psy = PSyFactory(api, distributed_memory=False).create(invoke_info)
@@ -637,7 +671,7 @@ code. This allows us to generate a "vanilla" PSy layer. For example::
         CONTAINS
         SUBROUTINE invoke_0(field)
           TYPE(field_type), intent(in) :: field
-          INTEGER df
+          INTEGER(KIND=i_def) df
           INTEGER(KIND=i_def) loop0_start, loop0_stop
           TYPE(field_proxy_type) field_proxy
           INTEGER(KIND=i_def) undf_aspc1_field
@@ -712,7 +746,7 @@ layer code appropriately. By default this script will generate
 example::
 
     > psyclone algspec.f90
-    > psyclone -oalg alg.f90 -opsy psy.f90 -api dynamo0.3 algspec.f90
+    > psyclone -oalg alg.f90 -opsy psy.f90 -api lfric algspec.f90
 
 The **psyclone** script has an optional **-s** flag which allows the
 user to specify a script file to modify the PSy layer as
@@ -761,7 +795,7 @@ below does the same thing as the example in the
     ...     ol.apply(schedule.children[0])
     ...     return psy
 
-In the gocean1.0 API (and in the future the lfric (dynamo0.3) API) an
+In the gocean API (and in the future the lfric API) an
 optional **trans_alg** function may also be supplied. This function
 accepts **PSyIR** (representing the algorithm layer) as an argument and
 returns **PSyIR** i.e.:

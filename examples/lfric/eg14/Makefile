@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -87,7 +87,7 @@ transform:
 # Instruct PSyclone to automatically put profiling calipers around every
 # invoke.
 %_psy.f90: %.x90
-	${PSYCLONE} -dm -s ./acc_parallel.py  --profile invokes \
+	${PSYCLONE} -api lfric -dm -s ./acc_parallel.py  --profile invokes \
 	-opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 testkern_w0_kernel_0_mod.f90: main_psy.f90

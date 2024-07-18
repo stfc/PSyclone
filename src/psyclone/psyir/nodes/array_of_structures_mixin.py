@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,6 @@
 ''' This module contains the implementation of the abstract
     ArrayOfStructuresMixin. '''
 
-from __future__ import absolute_import
-
 import abc
 
 from psyclone.core import Signature
@@ -48,16 +46,16 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.ranges import Range
+from psyclone.psyir.nodes.structure_accessor_mixin import (
+    StructureAccessorMixin)
 from psyclone.errors import InternalError
 
 
-class ArrayOfStructuresMixin(ArrayMixin, metaclass=abc.ABCMeta):
+class ArrayOfStructuresMixin(ArrayMixin,  StructureAccessorMixin,
+                             metaclass=abc.ABCMeta):
     '''
-    Abstract class used to extend the ArrayMixin class with functionality
-    common to Nodes that represent accesses to arrays of structures. The
-    primary difference is that the first child of such Nodes must be an
-    instance of Member. Subsequent children then represent the array-index
-    expressions.
+    Abstract class that combines the ArrayMixin and the StructureAccessorMixin.
+    As such, it has a member (as child 0) and indices (starting from child 1)
 
     '''
     @staticmethod
@@ -76,6 +74,29 @@ class ArrayOfStructuresMixin(ArrayMixin, metaclass=abc.ABCMeta):
             return isinstance(child, Member)
         # All subsequent children must be array-index expressions
         return isinstance(child, (DataNode, Range))
+
+    def index_of(self, node):
+        '''
+        If the given node is one of the index expressions of the array, it
+        returns the zero-indexed dimension of the array that it belongs to.
+        Note that this is different to `node.position` because
+        ArraysOfStructures have a Member child, and it is different from
+        `array.indices.index(node)` because that would use the equality
+        operator, but sibling indices may be equal and provide unexpected
+        results.
+
+        :param node: the node to get the index of.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: the index of the given node in the array.
+        :rtype: int
+
+        :raises ValueError: if node is not an index of the array.
+
+        '''
+        if node.parent is self:
+            return node.position - 1  # -1 to account for the member child
+        raise ValueError(f"'{node}' is not a child of '{self}'")
 
     @property
     def indices(self):

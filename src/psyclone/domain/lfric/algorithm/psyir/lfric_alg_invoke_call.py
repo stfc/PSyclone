@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,12 +39,13 @@
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall
 from psyclone.domain.lfric.algorithm.psyir.lfric_kernel_functor import (
     LFRicFunctor, LFRicBuiltinFunctor)
+from psyclone.psyir.nodes import Reference
 
 
 class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
     '''An invoke call from the LFRic Algorithm layer.'''
 
-    _children_valid_format = "[LFRicFunctor]*"
+    _children_valid_format = "Reference, [LFRicFunctor]*"
     _text_name = "LFRicAlgorithmInvokeCall"
 
     @staticmethod
@@ -58,6 +59,8 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         :rtype: bool
 
         '''
+        if position == 0:
+            return isinstance(child, Reference)
         return isinstance(child, LFRicFunctor)
 
     @staticmethod
@@ -74,8 +77,8 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         :rtype: str
 
         '''
-        if (len(self.children) == 1 and
-                isinstance(self.children[0], LFRicBuiltinFunctor)):
+        if (len(self.arguments) == 1 and
+                isinstance(self.arguments[0], LFRicBuiltinFunctor)):
             # By default the name of the kernel is added if there is
             # only one functor. However we don't add this in LFRic if
             # the functor is a builtin.

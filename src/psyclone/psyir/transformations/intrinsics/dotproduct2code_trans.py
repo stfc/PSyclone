@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council
+# Copyright (c) 2022-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,15 +43,14 @@ better than the intrinsic.
 
 # pylint: disable=too-many-locals
 
-from __future__ import absolute_import
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Loop, Literal, ArrayReference, Range, Routine
+    Loop, Literal, ArrayReference, Range, Routine, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType, ScalarType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
-    Operator2CodeTrans
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
+    Intrinsic2CodeTrans
 
 
 def _get_array_bound(vector1, vector2):
@@ -100,17 +99,17 @@ def _get_array_bound(vector1, vector2):
     # array so use the LBOUND and UBOUND intrinsics.
     symbol = vector1.symbol
     my_dim = symbol.shape[0]
-    lower_bound = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, Reference(symbol),
-        Literal("1", INTEGER_TYPE))
-    upper_bound = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(symbol),
-        Literal("1", INTEGER_TYPE))
+    lower_bound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
+    upper_bound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
     step = Literal("1", INTEGER_TYPE)
     return (lower_bound, upper_bound, step)
 
 
-class DotProduct2CodeTrans(Operator2CodeTrans):
+class DotProduct2CodeTrans(Intrinsic2CodeTrans):
     '''Provides a transformation from a PSyIR DOT_PRODUCT Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
@@ -135,7 +134,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.psyir.nodes import BinaryOperation
+    >>> from psyclone.psyir.nodes import IntrinsicCall
     >>> from psyclone.psyir.transformations import DotProduct2CodeTrans
     >>> code = ("subroutine dot_product_test(v1,v2)\\n"
     ...         "real,intent(in) :: v1(10), v2(10)\\n"
@@ -144,7 +143,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
     ...         "end subroutine\\n")
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> trans = DotProduct2CodeTrans()
-    >>> trans.apply(psyir.walk(BinaryOperation)[0])
+    >>> trans.apply(psyir.walk(IntrinsicCall)[0])
     >>> print(FortranWriter()(psyir))
     subroutine dot_product_test(v1, v2)
       real, dimension(10), intent(in) :: v1
@@ -165,9 +164,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
     '''
     def __init__(self):
         super().__init__()
-        self._operator_name = "DOTPRODUCT"
-        self._classes = (BinaryOperation,)
-        self._operators = (BinaryOperation.Operator.DOT_PRODUCT,)
+        self._intrinsic = IntrinsicCall.Intrinsic.DOT_PRODUCT
 
     def validate(self, node, options=None):
         '''Perform checks to ensure that it is valid to apply the
@@ -205,7 +202,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                     f"arguments are plain arrays, but found "
                     f"{arg.debug_string()} in {node.debug_string()}.")
 
-        for arg in node.children:
+        for arg in node.arguments:
             # The argument should be a 1D array if the argument does
             # not provide any array slice information (i.e. it is a
             # Reference)
@@ -249,7 +246,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
 
         # Both arguments should be real (as other intrinsic datatypes
         # are not supported).
-        for arg in node.children:
+        for arg in node.arguments:
             if arg.symbol.datatype.intrinsic != ScalarType.Intrinsic.REAL:
                 raise TransformationError(
                     f"The DotProduct2CodeTrans transformation only supports "
@@ -270,11 +267,11 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
         :type options: dict of str:str or None
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         assignment = node.ancestor(Assignment)
-        vector1 = node.children[0]
-        vector2 = node.children[1]
+        vector1 = node.arguments[0]
+        vector2 = node.arguments[1]
         symbol_table = node.ancestor(Routine).symbol_table
 
         # Create new i loop iterator.

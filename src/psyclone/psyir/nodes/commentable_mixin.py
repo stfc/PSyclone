@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,19 @@ class CommentableMixin:
             raise TypeError(f"The preceding_comment must be a string but"
                             f" found '{type(comment).__name__}'.")
         self._preceding_comment = comment
+
+    def append_preceding_comment(self, comment):
+        '''
+        :param str comment: comment to append after an newline in this
+            statement-preceding comment.
+        '''
+        if not isinstance(comment, str):
+            raise TypeError(f"The preceding_comment must be a string but"
+                            f" found '{type(comment).__name__}'.")
+        if self._preceding_comment:
+            self._preceding_comment = f"{self._preceding_comment}\n{comment}"
+        else:
+            self._preceding_comment = comment
 
     @property
     def inline_comment(self):

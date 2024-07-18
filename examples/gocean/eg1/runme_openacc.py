@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     from psyclone.psyGen import PSyFactory, TransInfo
     from psyclone.psyir.backend.fortran import FortranWriter
 
-    API = "gocean1.0"
+    API = "gocean"
     _, INVOKEINFO = parse("shallow_alg.f90", api=API)
     PSY = PSyFactory(API, distributed_memory=False).create(INVOKEINFO)
     fwriter = FortranWriter()

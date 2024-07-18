@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@ support. Transforms an LFRic tangent linear kernel to its adjoint.
 '''
 import logging
 
+from psyclone.configuration import Config, LFRIC_API_NAMES
 from psyclone.errors import InternalError
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyad.domain.common import (find_container, create_adjoint_name,
@@ -52,7 +53,7 @@ from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     Call, Container, BinaryOperation, IntrinsicCall, ArrayReference, Range
 from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
-    INTEGER_TYPE, DeferredType, UnknownType
+    INTEGER_TYPE, UnresolvedType, UnsupportedType
 
 
 #: The extent we will allocate to each dimension of arrays used in the
@@ -68,29 +69,28 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     and returns its adjoint encoded as a string along with (if requested)
     a test harness, also encoded as a string.
 
-    :param str tl_fortran_str: Fortran implementation of a tangent-linear \
+    :param str tl_fortran_str: Fortran implementation of a tangent-linear
         kernel.
     :param List[str] active_variables: list of active variable names.
     :param Optional[str] api: the PSyclone API in use, if any.
-    :param Optional[bool] create_test: whether or not to create test code for \
+    :param Optional[bool] create_test: whether or not to create test code for
         the adjoint kernel.
-    :param Optional[int] coord_arg_index: the (1-based) index of the kernel \
-        argument holding the mesh coordinates (if any). Only applies to the \
-        LFRic (dynamo0.3) API.
-    :param Optional[int] panel_id_arg_index: the (1-based) index of the kernel\
-        argument holding the panel IDs (if any). Only applies to the LFRic \
-        (dynamo0.3) API.
+    :param Optional[int] coord_arg_index: the (1-based) index of the kernel
+        argument holding the mesh coordinates (if any). Only applies to the
+        LFRic API.
+    :param Optional[int] panel_id_arg_index: the (1-based) index of the kernel
+        argument holding the panel IDs (if any). Only applies to the LFRic
+        API.
 
-    :returns: a 2-tuple consisting of a string containing the Fortran \
-        implementation of the supplied tangent-linear kernel and (if \
-        requested) a string containing the Fortran implementation of a test \
+    :returns: a 2-tuple consisting of a string containing the Fortran
+        implementation of the supplied tangent-linear kernel and (if
+        requested) a string containing the Fortran implementation of a test
         harness for the adjoint kernel.
     :rtype: Tuple[str, str]
 
     :raises NotImplementedError: if the tangent-linear code is a function.
     :raises NotImplementedError: if an unsupported API is specified.
-    :raises NotImplementedError: if test-harness generation is requested for \
-                                 the LFRic API.
+
     '''
     logger = logging.getLogger(__name__)
     logger.debug(tl_fortran_str)
@@ -124,7 +124,8 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
         if create_test:
             test_psyir = generate_adjoint_test(tl_psyir, ad_psyir,
                                                active_variables)
-    elif api == "dynamo0.3":
+    elif api in LFRIC_API_NAMES:
+        Config.get().api = api
         ad_psyir = generate_lfric_adjoint(tl_psyir, active_variables)
         if create_test:
             test_psyir = generate_lfric_adjoint_harness(tl_psyir,
@@ -133,7 +134,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     else:
         raise NotImplementedError(
             f"PSyAD only supports generic routines/programs or LFRic "
-            f"(dynamo0.3) kernels but got API '{api}'")
+            f"kernels but got API '{api}'")
 
     writer = FortranWriter()
 
@@ -263,12 +264,12 @@ def _add_precision_symbol(symbol, table):
     :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     :raises TypeError: if the supplied symbol is not of the correct type.
-    :raises NotImplementedError: if the supplied symbol is not local or \
+    :raises NotImplementedError: if the supplied symbol is not local or
                                  explicitly imported.
 
     '''
-    # A precision symbol must be of integer, deferred or unknown type.
-    if not (isinstance(symbol.datatype, (DeferredType, UnknownType)) or
+    # A precision symbol must be of Integer, Unresolved or Unsupported type.
+    if not (isinstance(symbol.datatype, (UnresolvedType, UnsupportedType)) or
             isinstance(symbol.datatype, ScalarType) and
             symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER):
         raise TypeError(
@@ -292,7 +293,9 @@ def _add_precision_symbol(symbol, table):
         kind_symbol = symbol.copy()
         kind_symbol.interface = ImportInterface(kind_contr_sym)
         table.add(kind_symbol)
-    elif symbol.is_automatic or symbol.is_modulevar or symbol.is_constant:
+    elif not (symbol.is_unresolved or symbol.is_argument):
+        # The symbol is declared somewhere within a parent scope and is not an
+        # argument.
         table.add(symbol.copy())
     else:
         raise NotImplementedError(
@@ -669,20 +672,20 @@ def _create_array_inner_product(result, array1, array2, table):
     # Generate a Range object for each dimension of each array
     for idx in range(len(array1.datatype.shape)):
         idx_literal = Literal(str(idx+1), INTEGER_TYPE)
-        lbound1 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                         Reference(array1),
-                                         idx_literal.copy())
-        ubound1 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                         Reference(array1),
-                                         idx_literal.copy())
+        lbound1 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.LBOUND,
+            [Reference(array1), ("dim", idx_literal.copy())])
+        ubound1 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(array1), ("dim", idx_literal.copy())])
         ranges1.append(Range.create(lbound1, ubound1))
 
-        lbound2 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                         Reference(array2),
-                                         idx_literal.copy())
-        ubound2 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                         Reference(array2),
-                                         idx_literal.copy())
+        lbound2 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.LBOUND,
+            [Reference(array2), ("dim", idx_literal.copy())])
+        ubound2 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(array2), ("dim", idx_literal.copy())])
         ranges2.append(Range.create(lbound2, ubound2))
 
     # Use these Ranges to create references for all elements of both arrays

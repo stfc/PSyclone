@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,16 +59,17 @@ def create_structure_symbol(table):
 
     '''
     region_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("ny", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("domain", symbols.DataTypeSymbol("dom_type", symbols.DeferredType()),
-         symbols.Symbol.Visibility.PUBLIC)])
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None),
+        ("ny", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None),
+        ("domain", symbols.DataTypeSymbol("dom_type",
+                                          symbols.UnresolvedType()),
+         symbols.Symbol.Visibility.PUBLIC, None)])
     region_type_sym = symbols.DataTypeSymbol("grid_type", region_type)
     region_array_type = symbols.ArrayType(region_type_sym, [2, 2])
     grid_type = symbols.StructureType.create([
-        ("dx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("area", region_type_sym, symbols.Symbol.Visibility.PUBLIC),
-        ("levels", region_array_type, symbols.Symbol.Visibility.PUBLIC)])
+        ("dx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None),
+        ("area", region_type_sym, symbols.Symbol.Visibility.PUBLIC, None),
+        ("levels", region_array_type, symbols.Symbol.Visibility.PUBLIC, None)])
     grid_type_sym = symbols.DataTypeSymbol("grid_type", grid_type)
     grid_var = symbols.DataSymbol("grid", grid_type_sym)
     table.add(grid_type_sym)
@@ -142,5 +143,6 @@ def test_sm_member_property():
     smem_ref._children = ["wrong"]
     with pytest.raises(InternalError) as err:
         _ = smem_ref.member
-    assert ("StructureMember malformed or incomplete. The first child must "
-            "be an instance of Member, but found 'str'" in str(err.value))
+    assert ("StructureMember malformed or incomplete. It must have a first "
+            "child that must be a (sub-class of) Member, but found:"
+            in str(err.value))

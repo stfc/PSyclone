@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council
+# Copyright (c) 2021-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,8 +46,8 @@ from sympy.parsing.sympy_parser import parse_expr
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
-from psyclone.psyir.nodes import (BinaryOperation, DataNode, NaryOperation,
-                                  Range, Reference, UnaryOperation)
+from psyclone.psyir.nodes import (
+    DataNode, Range, Reference, IntrinsicCall, Call)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, SymbolTable)
 
 
@@ -133,25 +133,22 @@ class SymPyWriter(FortranWriter):
         # The set of intrinsic Fortran operations that need a rename or
         # are case sensitive in SymPy:
         self._intrinsic = set()
-        self._op_to_str = {}
+        self._intrinsic_to_str = {}
 
-        # Create the mapping of special operators/functions to the
-        # name SymPy expects.
-        for operator, op_str in [(NaryOperation.Operator.MAX, "Max"),
-                                 (BinaryOperation.Operator.MAX, "Max"),
-                                 (NaryOperation.Operator.MIN, "Min"),
-                                 (BinaryOperation.Operator.MIN, "Min"),
-                                 (UnaryOperation.Operator.FLOOR, "floor"),
-                                 (UnaryOperation.Operator.TRANSPOSE,
-                                  "transpose"),
-                                 (BinaryOperation.Operator.REM, "Mod"),
-                                 # exp is needed for a test case only, in
-                                 # general the maths functions can just be
-                                 # handled as unknown SymPy functions.
-                                 (UnaryOperation.Operator.EXP, "exp"),
-                                 ]:
-            self._intrinsic.add(op_str)
-            self._op_to_str[operator] = op_str
+        # Create the mapping of intrinsics to the name SymPy expects.
+        for intr, intr_str in [(IntrinsicCall.Intrinsic.MAX, "Max"),
+                               (IntrinsicCall.Intrinsic.MIN, "Min"),
+                               (IntrinsicCall.Intrinsic.FLOOR, "floor"),
+                               (IntrinsicCall.Intrinsic.TRANSPOSE,
+                                "transpose"),
+                               (IntrinsicCall.Intrinsic.MOD, "Mod"),
+                               # exp is needed for a test case only, in
+                               # general the maths functions can just be
+                               # handled as unknown sympy functions.
+                               (IntrinsicCall.Intrinsic.EXP, "exp"),
+                               ]:
+            self._intrinsic.add(intr_str)
+            self._intrinsic_to_str[intr] = intr_str
 
     # -------------------------------------------------------------------------
     def __new__(cls, *expressions):
@@ -291,7 +288,13 @@ class SymPyWriter(FortranWriter):
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
         # (an array).
         for expr in list_of_expressions:
+            # TODO #2542. References should be iterated with the
+            # reference_acess method when its issues are fixed.
             for ref in expr.walk(Reference):
+                if (isinstance(ref.parent, Call) and
+                        ref.parent.children[0] is ref):
+                    continue
+
                 name = ref.name
                 # The reserved Python keywords do not have tags, so they
                 # will not be found.
@@ -547,48 +550,43 @@ class SymPyWriter(FortranWriter):
         # information can be ignored.
         return node.value
 
-    # -------------------------------------------------------------------------
-    def get_operator(self, operator):
-        '''Determine the operator that is equivalent to the provided
-        PSyIR operator. This implementation checks for certain functions
-        that SymPy supports: Max, Min, Mod, etc. These functions must be
-        spelled with a capital first letter, otherwise SymPy will handle
-        them as unknown functions. If none of these special operators
-        are given, the base implementation is called (which will return
-        the Fortran syntax).
+    def intrinsiccall_node(self, node):
+        ''' This method is called when an IntrinsicCall instance is found in
+        the PSyIR tree. The Sympy backend will use the exact sympy name for
+        some math intrinsics (listed in _intrinsic_to_str) and will remove
+        named arguments.
 
-        :param operator: a PSyIR operator.
-        :type operator: :py:class:`psyclone.psyir.nodes.Operation.Operator`
+        :param node: an IntrinsicCall PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
-        :returns: the operator as string.
+        :returns: the SymPy representation for the Intrinsic.
         :rtype: str
 
-        :raises KeyError: if the supplied operator is not known.
-
         '''
+        # Sympy does not support argument names, remove them for now
+        if any(node.argument_names):
+            # TODO #2302: This is not totally right without canonical intrinsic
+            # positions for arguments. One alternative is to refuse it with:
+            # raise VisitorError(
+            #     f"Named arguments are not supported by SymPy but found: "
+            #     f"'{node.debug_string()}'.")
+            # but this leaves sympy comparisons almost always giving false when
+            # out of order arguments are rare, so instead we ignore it for now.
 
+            # It makes a copy (of the parent because if matters to the call
+            # visitor) because we don't want to delete the original arg names
+            parent = node.parent.copy()
+            node = parent.children[node.position]
+            for idx in range(len(node.argument_names)):
+                # pylint: disable=protected-access
+                node._argument_names[idx] = (node._argument_names[idx][0],
+                                             None)
         try:
-            return self._op_to_str[operator]
+            name = self._intrinsic_to_str[node.intrinsic]
+            args = self._gen_arguments(node)
+            return f"{self._nindent}{name}({args})"
         except KeyError:
-            return super().get_operator(operator)
-
-    # -------------------------------------------------------------------------
-    def is_intrinsic(self, operator):
-        '''Determine whether the supplied operator is an intrinsic
-        function (i.e. needs to be used as `f(a,b)`) or not (i.e. used
-        as `a + b`). This tests for known SymPy names of these functions
-        (e.g. Max), and otherwise calls the function in the base class.
-
-        :param str operator: the supplied operator.
-
-        :returns: true if the supplied operator is an
-            intrinsic and false otherwise.
-
-        '''
-        if operator in self._intrinsic:
-            return True
-
-        return super().is_intrinsic(operator)
+            return super().call_node(node)
 
     # -------------------------------------------------------------------------
     def reference_node(self, node):
@@ -608,7 +606,12 @@ class SymPyWriter(FortranWriter):
         # Support renaming a symbol (e.g. if it is a reserved Python name).
         # Look up with the name as tag, which will return the symbol with
         # a unique name (e.g. lambda --> lambda_1):
-        name = self._symbol_table.lookup_with_tag(node.name).name
+        try:
+            name = self._symbol_table.lookup_with_tag(node.name).name
+        except KeyError:
+            # If the tag did not exist it means that this symbol has not
+            # been re-named, and we can use it as is.
+            name = node.name
         if not node.is_array:
             # This reference is not an array, just return the name
             return name
@@ -684,7 +687,7 @@ class SymPyWriter(FortranWriter):
 
         '''
         if node.parent and node.parent.is_lower_bound(
-                node.parent.indices.index(node)):
+                node.parent.index_of(node)):
             # The range starts for the first element in this
             # dimension, so use the generic name for lower bound:
             start = self.lower_bound
@@ -692,7 +695,7 @@ class SymPyWriter(FortranWriter):
             start = self._visit(node.start)
 
         if node.parent and node.parent.is_upper_bound(
-                node.parent.indices.index(node)):
+                node.parent.index_of(node)):
             # The range ends with the last element in this
             # dimension, so use the generic name for the upper bound:
             stop = self.upper_bound

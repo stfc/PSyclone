@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,18 +32,23 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified A. B. G. Chalk, STFC Datesbury Lab
+# Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified R. W. Ford, STFC Daresbury Lab
+# Modified S. Siso, STFC Daresbury Lab
 
 ''' Module containing pytest tests for the handling of the DO
 construct in the PSyIR fparser2 frontend. '''
 
 
-import pytest
+from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
+from fparser.two.utils import walk
 
-from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Assignment, BinaryOperation, CodeBlock, \
-                                 Literal, Loop, Routine, Schedule, WhileLoop
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import (
+    Assignment, BinaryOperation, CodeBlock, Literal, Loop, Routine, Schedule,
+    WhileLoop, Reference)
+from psyclone.psyir.symbols import DataSymbol, ScalarType, INTEGER_TYPE
 from psyclone.tests.utilities import Compile
 
 
@@ -169,8 +174,12 @@ END PROGRAM my_test'''
 
 
 def test_undeclared_loop_var(fortran_reader):
-    '''Check that the do handler raises the expected error if an undeclared
-    loop variable is encountered.
+    '''Check that the do handler defaults the loop var to an integer if
+    the declaration of the loop variable can't be found. This may be
+    because it is declared in another module or in some code that
+    can't be parsed by the parser. One result of this is that a loop
+    variable that really is not declared will be accepted by PSyclone
+    and determined to be an integer.
 
     '''
     code = '''
@@ -179,10 +188,12 @@ def test_undeclared_loop_var(fortran_reader):
         end do
       end subroutine test
     '''
-    with pytest.raises(InternalError) as err:
-        _ = fortran_reader.psyir_from_source(code)
-    assert ("Loop-variable name 'i' is not declared and there are no "
-            "unqualified use statements" in str(err.value))
+    result = fortran_reader.psyir_from_source(code)
+    i_var = result.children[0].symbol_table.lookup("i")
+    assert isinstance(i_var, DataSymbol)
+    assert isinstance(i_var.datatype, ScalarType)
+    assert i_var.datatype.intrinsic is ScalarType.Intrinsic.INTEGER
+    assert i_var.datatype.precision is ScalarType.Precision.UNDEFINED
 
 
 def test_do_inside_while(fortran_reader, fortran_writer, tmpdir):
@@ -227,19 +238,27 @@ def test_do_inside_while(fortran_reader, fortran_writer, tmpdir):
 
   i = 0
   do while (.true.)
+    ! PSyclone CodeBlock (unsupported code) reason:
+    !  - Unsupported statement: Write_Stmt
     WRITE(iu_stdout, '(A)') 'Enter units followed by lower and upper \
 limits and increment:'
     do while (.true.)
+      ! PSyclone CodeBlock (unsupported code) reason:
+      !  - Unsupported statement: Exit_Stmt
       EXIT
     end do
     range_bands = 3
     if (range_bands + i > 3 .AND. range_bands + i < 15) then
+      ! PSyclone CodeBlock (unsupported code) reason:
+      !  - Unsupported statement: Cycle_Stmt
       CYCLE
     end if
     do j = 1, range_bands, 1
       i = i + 1
     enddo
     if (i > 15) then
+      ! PSyclone CodeBlock (unsupported code) reason:
+      !  - Unsupported statement: Exit_Stmt
       EXIT
     end if
   end do
@@ -248,3 +267,103 @@ end subroutine test_subroutine
 '''
     assert correct == output
     assert Compile(tmpdir).string_compiles(output)
+
+
+def test_do_concurrent(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the loop handler correctly identifies do concurrent loops '''
+
+    # Single do concurrent loop
+    code = '''
+    subroutine test
+      integer, parameter :: N =10, M=20
+      integer, dimension(N,M) :: array
+      integer i
+
+      do concurrent(i=1:N)
+        array(i,5) = 1
+      end do
+    end subroutine test
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    assert len(loops) == 1
+    assert loops[0].variable.name == "i"
+    assert loops[0].start_expr == Literal("1", INTEGER_TYPE)
+    assert isinstance(loops[0].stop_expr, Reference)
+    assert loops[0].stop_expr.symbol.name == "n"
+    assert loops[0].step_expr == Literal("1", INTEGER_TYPE)
+
+    # Do concurrent with nested loops and step values
+    code = '''
+    subroutine test
+      integer, parameter :: N =10, M=20
+      integer, dimension(N,M) :: array
+      integer i, j
+
+      do concurrent(i=1:N:3, j=1:M:2)
+        array(i,j) = 1
+      end do
+    end subroutine test
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    assert len(loops) == 2
+    output = fortran_writer(psyir)
+    assert """
+  do i = 1, n, 3
+    do j = 1, m, 2
+      array(i,j) = 1
+    enddo
+  enddo""" in output
+    assert Compile(tmpdir).string_compiles(output)
+
+    # Do concurrent mixed with regular do and dependencies between them
+    code = '''
+    subroutine test
+      integer, parameter :: N =10, M=20
+      integer, dimension(N,M,N,M) :: array
+      integer i, j, k, f
+
+      do concurrent(i=1:N:3, j=1:M:2)
+        do k = 1, i
+          do concurrent(f=1:i:k)
+            array(i,j,k,f) = 1
+          end do
+        end do
+      end do
+    end subroutine test
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    assert len(loops) == 4
+    output = fortran_writer(psyir)
+    assert """
+  do i = 1, n, 3
+    do j = 1, m, 2
+      do k = 1, i, 1
+        do f = 1, i, k
+          array(i,j,k,f) = 1
+        enddo
+      enddo
+    enddo
+  enddo""" in output
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_unsupported_loop(parser):
+    '''Test that loops with unsupported LoopCtrl are put in a CodeBlock'''
+    code = ("program test\n"
+            "do i = 1, 10\n"
+            "  a(i) = i\n"
+            "enddo\n"
+            "end program test\n")
+    reader = FortranStringReader(code)
+    ast = parser(reader)
+    ctrl = walk(ast, Fortran2003.Loop_Control)
+    ctrl[0].items = (None, None, None, None)  # Make an unsupported Loop
+
+    processor = Fparser2Reader()
+    program = ast.children[0]
+    psyir = processor._main_program_handler(program, None)
+    assert not psyir.walk(Loop)
+    assert psyir.walk(CodeBlock)

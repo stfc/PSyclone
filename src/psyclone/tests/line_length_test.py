@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -454,7 +454,7 @@ def test_long_line_continuator():
                                                    abspath(__file__)),
                                    "test_files", "dynamo0p3",
                                    "13.2_alg_long_line_continuator.f90"),
-                      api="dynamo0.3")
+                      api="lfric")
     input_string = str(alg)
     fll = FortLineLength()
     _ = fll.process(input_string)

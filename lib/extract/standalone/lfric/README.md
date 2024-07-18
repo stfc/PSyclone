@@ -39,6 +39,21 @@ environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 [Fortran compiler](./../../../README.md#compilation) and flags to use. They
 default to ``gfortran`` and the empty string.
 
+The library can be compiled with MPI support, which will add the process rank
+to each output filename, by setting ``MPI=yes``:
+
+```shell
+MPI=yes make
+```
+
+It uses ``NO_MPI`` as a preprocessor directive, which is what the LFRic build
+environment uses, so the source files can be copied into the LFRic build, and
+will automatically be using MPI (or not), depending on compilation options used
+for LFRic. In order to support MPI in extraction (which means each process will write
+its own output data by appending its rank to the filename), set the environment
+variable ``MPI=yes`` before starting the build process (which will make sure
+that ``NO_MPI`` is not set).
+
 By default the ``Makefile`` links with the pared-down
 LFRic infrastructure located in a clone of PSyclone repository,
 ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
@@ -91,7 +106,7 @@ $(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/standalone/lfric -l_extract \
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2022, Science and Technology Facilities Council.
+Copyright (c) 2020-2024, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
