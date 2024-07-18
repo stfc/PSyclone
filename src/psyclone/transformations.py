@@ -2649,16 +2649,6 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
                     f"parallelism. Should be one of "
                     f"{ACCRoutineDirective.SUPPORTED_PARALLELISM}")
 
-        # handle default empty option
-        if options is None:
-            options = {}
-
-        # extract async
-        async_queue = options.get('async_queue', False)
-
-        # check
-        self.check_async_queue(node, async_queue)
-
 
 class ACCDataTrans(RegionTrans):
     '''

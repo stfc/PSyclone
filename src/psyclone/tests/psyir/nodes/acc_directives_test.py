@@ -49,26 +49,18 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.acc_directives import ACCAsyncMixin
-from psyclone.psyir.nodes import (ACCEnterDataDirective,
-                                  ACCKernelsDirective,
-                                  ACCLoopDirective,
-                                  ACCParallelDirective,
-                                  ACCRegionDirective,
-                                  ACCRoutineDirective,
-                                  ACCUpdateDirective,
-                                  ACCAtomicDirective,
-                                  Assignment,
-                                  Literal,
-                                  Reference,
-                                  Return,
-                                  Routine)
+from psyclone.psyir.nodes import (
+    ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective,
+    ACCParallelDirective, ACCRegionDirective, ACCRoutineDirective,
+    ACCUpdateDirective, ACCAtomicDirective, ACCWaitDirective, Assignment,
+    Literal, Reference, Return, Routine, Schedule)
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.symbols import (
     Symbol, SymbolTable, DataSymbol, INTEGER_TYPE, UnresolvedType)
 from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (
     ACCDataTrans, ACCEnterDataTrans, ACCLoopTrans,
-    ACCParallelTrans, ACCRoutineTrans)
+    ACCParallelTrans, ACCRoutineTrans, TransformationError)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -227,28 +219,29 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
 # (3/4) Method gen_code
 def test_accenterdatadirective_gencode_3_async():
     '''Test that we can add the async directive on enter data.'''
+    API = "lfric"
     acc_trans = ACCKernelsTrans()
     acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(distributed_memory=False, api=API).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     acc_trans.apply(sched.children, options={"async_queue": 3})
     acc_enter_trans.apply(sched, options={"async_queue": 3})
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(f1_proxy,f1_proxy%data,"
-        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
-        "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "      !$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,map_w1,"
+        "map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
         "undf_w1,undf_w2,undf_w3) async(3)\n" in code)
 
 
 # (3/4) Method gen_code
 def test_accenterdatadirective_gencode_3_async_error():
     '''Test that we can add the async directive on enter data.'''
+    API = "lfric"
     acc_trans = ACCKernelsTrans()
     acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(distributed_memory=False, api=API).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     acc_trans.apply(sched.children)
     with pytest.raises(TransformationError) as error:
@@ -445,8 +438,9 @@ def test_acckernelsdirective_gencode_async_queue(async_queue):
     generates the expected code. Use the dynamo0.3 API.
 
     '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    API = "lfric"
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(distributed_memory=False, api=API).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
 
     trans = ACCKernelsTrans()
@@ -468,7 +462,7 @@ def test_acckernelsdirective_gencode_async_queue(async_queue):
         string = " async(stream1)"
     assert (
         f"      !$acc kernels{string}\n"
-        f"      DO cell=loop0_start,loop0_stop\n" in code)
+        f"      DO cell = loop0_start, loop0_stop, 1\n" in code)
     assert (
         "      END DO\n"
         "      !$acc end kernels\n" in code)
@@ -662,9 +656,9 @@ def test_accwaitdirective_begin_string():
 
 def test_accwaitdirective_gencode():
     '''Test gen code of ACCWaitDirective'''
-
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    API = "lfric"
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(distributed_memory=False, api=API).create(info)
     routines = psy.container.walk(Routine)
     routines[0].children.append(ACCWaitDirective(1))
     code = str(psy.gen)
