@@ -340,12 +340,6 @@ class Routine(Schedule, CommentableMixin):
                 f"but '{value.name}' is not.")
         self._return_symbol = value
 
-        # If the symbol isn't yet in the symbol table then we need to
-        # add the return value to the symbol table (as its a symbol that
-        # can be used in the PSyIR).
-        if value not in self.symbol_table.datasymbols:
-            self.symbol_table.add(value)
-
     def _refine_copy(self, other):
         ''' Refine the object attributes when a shallow copy is not the most
         appropriate operation during a call to the copy() method.
