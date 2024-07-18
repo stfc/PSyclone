@@ -37,23 +37,21 @@
 ''' Module containing tests for the LoopTrans class. Since it is abstract we
 have to test it using various sub-classes. '''
 
-from __future__ import absolute_import
 import inspect
 import pytest
-from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
-    TransformationError
+from psyclone.psyir.transformations import (
+    LoopFuseTrans, LoopTrans, OMPLoopTrans, TransformationError)
 from psyclone.psyir.nodes import Loop
 from psyclone.psyGen import CodedKern
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import OMPParallelLoopTrans
 from psyclone import transformations, psyir
 
 
 def test_loop_trans_name():
     ''' Check that the name method works as expected. '''
     # We have to use sub-classes of LoopTrans as it itself is abstract.
-    trans1 = OMPParallelLoopTrans()
-    assert trans1.name == "OMPParallelLoopTrans"
+    trans1 = OMPLoopTrans(omp_directive="paralleldo")
+    assert trans1.name == "OMPLoopTrans"
     trans2 = LoopFuseTrans()
     assert trans2.name == "LoopFuseTrans"
 
@@ -62,12 +60,12 @@ def test_loop_trans_validate(monkeypatch):
     ''' Test the validation checks on the loop node provided to the
     transformation. '''
     # We have to use sub-class of LoopTrans as it itself is abstract.
-    trans = OMPParallelLoopTrans()
+    trans = OMPLoopTrans(omp_directive="paralleldo")
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean", idx=1,
                            dist_mem=False)
     with pytest.raises(TransformationError) as err:
         trans.validate(invoke.schedule)
-    assert ("Target of OMPParallelLoopTrans transformation must be a sub-"
+    assert ("Target of OMPLoopTrans transformation must be a sub-"
             "class of Loop but got 'GOInvokeSchedule'" in str(err.value))
     # Check that validate is OK with a valid loop
     loop = invoke.schedule.walk(Loop)[0]
@@ -76,21 +74,21 @@ def test_loop_trans_validate(monkeypatch):
     monkeypatch.setattr(loop, "_loop_type", "null")
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
-    assert ("Cannot apply a OMPParallelLoopTrans transformation to a "
+    assert ("Cannot apply a OMPLoopTrans transformation to a "
             "'null' loop" in str(err.value))
     monkeypatch.undo()
     # Break the contents of the loop
     loop.children = loop.pop_all_children()[0:1]
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
-    assert ("Error in OMPParallelLoopTrans transformation. The target loop "
+    assert ("Error in OMPLoopTrans transformation. The target loop "
             "must have four children but found:" in
             str(err.value))
 
 
 def test_loop_trans_validate_options(monkeypatch):
     ''' Test the options argument to the validate method. '''
-    trans = OMPParallelLoopTrans()
+    trans = OMPLoopTrans(omp_directive="paralleldo")
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean", idx=1,
                            dist_mem=False)
     loop = invoke.schedule.walk(Loop)[0]
@@ -105,7 +103,7 @@ def test_loop_trans_validate_options(monkeypatch):
         trans.validate(loop, options={"verbose": True})
     message = (
         "Nodes of type 'GOKern' cannot be enclosed by a "
-        "OMPParallelLoopTrans transformation (use the 'node-type-check: "
+        "OMPLoopTrans transformation (use the 'node-type-check: "
         "False' option to accept them at your own risk)")
     assert message in loop.preceding_comment
     assert message + " in:" in str(err.value)
@@ -127,7 +125,7 @@ def test_loop_trans_validate_pointer_assignments(fortran_reader):
        end subroutine test
     ''')
     loop = psyir_test.walk(Loop)[0]
-    trans = OMPParallelLoopTrans()
+    trans = OMPLoopTrans(omp_directive="paralleldo")
     with pytest.raises(TransformationError) as err:
         trans.validate(loop, options={"verbose": True})
     message = (

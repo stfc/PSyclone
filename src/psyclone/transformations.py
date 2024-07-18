@@ -679,70 +679,11 @@ class ACCLoopTrans(ParallelLoopTrans):
         super().apply(node, options)
 
 
-class OMPParallelLoopTrans(OMPLoopTrans):
-
-    ''' Adds an OpenMP PARALLEL DO directive to a loop.
-
-        For example:
-
-        >>> from psyclone.parse.algorithm import parse
-        >>> from psyclone.psyGen import PSyFactory
-        >>> ast, invokeInfo = parse("dynamo.F90")
-        >>> psy = PSyFactory("lfric").create(invokeInfo)
-        >>> schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
-        >>> # Uncomment the following line to see a text view of the schedule
-        >>> # print(schedule.view())
-        >>>
-        >>> from psyclone.transformations import OMPParallelLoopTrans
-        >>> trans = OMPParallelLoopTrans()
-        >>> trans.apply(schedule.children[0])
-        >>> # Uncomment the following line to see a text view of the schedule
-        >>> # print(schedule.view())
-
-    '''
-    def __str__(self):
-        return "Add an 'OpenMP PARALLEL DO' directive"
-
-    def apply(self, node, options=None):
-        ''' Apply an OMPParallelLoop Transformation to the supplied node
-        (which must be a Loop). In the generated code this corresponds to
-        wrapping the Loop with directives:
-
-        .. code-block:: fortran
-
-          !$OMP PARALLEL DO ...
-          do ...
-            ...
-          end do
-          !$OMP END PARALLEL DO
-
-        :param node: the node (loop) to which to apply the transformation.
-        :type node: :py:class:`psyclone.f2pygen.DoGen`
-        :param options: a dictionary with options for transformations\
-                        and validation.
-        :type options: Optional[Dict[str, Any]]
-        '''
-        self.validate(node, options=options)
-
-        # keep a reference to the node's original parent and its index as these
-        # are required and will change when we change the node's location
-        node_parent = node.parent
-        node_position = node.position
-
-        # add our OpenMP loop directive setting its parent to the node's
-        # parent and its children to the node
-        directive = OMPParallelDoDirective(children=[node.detach()],
-                                           omp_schedule=self.omp_schedule)
-
-        # add the OpenMP loop directive as a child of the node's parent
-        node_parent.addchild(directive, index=node_position)
-
-
-class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
+class DynamoOMPParallelLoopTrans(OMPLoopTrans):
 
     ''' Dynamo-specific OpenMP loop transformation. Adds Dynamo specific
         validity checks. Actual transformation is done by the
-        :py:class:`base class <OMPParallelLoopTrans>`.
+        :py:class:`base class <OMPLoopTrans>`.
 
         :param str omp_directive: choose which OpenMP loop directive to use.
             Defaults to "do".
@@ -797,12 +738,12 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         super().validate(node, options=local_options)
 
 
-class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
+class GOceanOMPParallelLoopTrans(OMPLoopTrans):
 
     '''GOcean specific OpenMP Do loop transformation. Adds GOcean
        specific validity checks (that supplied Loop is an inner or outer
        loop). Actual transformation is done by
-       :py:class:`base class <OMPParallelLoopTrans>`.
+       :py:class:`base class <OMPLoopTrans>`.
 
         :param str omp_directive: choose which OpenMP loop directive to use. \
             Defaults to "do".
@@ -820,7 +761,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
     def apply(self, node, options=None):
         ''' Perform GOcean-specific loop validity checks then call
-        :py:meth:`OMPParallelLoopTrans.apply`.
+        :py:meth:`OMPLoopTrans.apply`.
 
         :param node: a Loop node from an AST.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
@@ -840,7 +781,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
                 "Error in "+self.name+" transformation.  The requested loop"
                 " is not of type inner or outer.")
 
-        OMPParallelLoopTrans.apply(self, node)
+        super().apply(self, node)
 
 
 class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
@@ -2920,7 +2861,6 @@ __all__ = [
    "MoveTrans",
    "OMPLoopTrans",
    "OMPMasterTrans",
-   "OMPParallelLoopTrans",
    "OMPParallelTrans",
    "OMPSingleTrans",
    "ParallelRegionTrans",

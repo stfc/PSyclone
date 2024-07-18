@@ -38,16 +38,13 @@
 ''' Module containing tests for NanTestTrans and NanTestNode
 '''
 
-from __future__ import absolute_import
-
 import pytest
 
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import colored, Node, NanTestNode, Schedule
-from psyclone.psyir.transformations import (NanTestTrans,
-                                            TransformationError)
+from psyclone.psyir.transformations import (
+    NanTestTrans, OMPLoopTrans, TransformationError)
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import OMPParallelLoopTrans
 
 
 # --------------------------------------------------------------------------- #
@@ -114,7 +111,7 @@ def test_invalid_apply():
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0)
     nan_test = NanTestTrans()
-    omp = OMPParallelLoopTrans()
+    omp = OMPLoopTrans(omp_directive="paralleldo")
     omp.apply(invoke.schedule[0])
     with pytest.raises(TransformationError) as err:
         nan_test.apply(invoke.schedule[0].dir_body[0],

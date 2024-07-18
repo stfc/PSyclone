@@ -50,10 +50,10 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE, \
     ImportInterface, ContainerSymbol
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
-    TransformationError
+    TransformationError, OMPLoopTrans
 from psyclone.tests.utilities import get_invoke, Compile
 from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
-    ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans, OMPParallelTrans, \
+    ACCParallelTrans, OMPLoopTrans, OMPParallelTrans, \
     OMPSingleTrans, OMPMasterTrans, OMPTaskloopTrans, OMPDeclareTargetTrans
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -453,7 +453,7 @@ def test_omplooptrans_apply_firstprivate(fortran_reader, fortran_writer,
                 enddo
             end subroutine
         end module my_mod''')
-    omplooptrans = OMPParallelLoopTrans()
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop)
     expected = '''\
@@ -502,7 +502,7 @@ def test_omplooptrans_apply_firstprivate_fail(fortran_reader):
               enddo
             enddo
         end subroutine''')
-    omplooptrans = OMPParallelLoopTrans()
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
     try:
         omplooptrans.apply(loop)
@@ -628,9 +628,9 @@ def test_parallelregion_refuse_codeblock():
 
 def test_parallellooptrans_refuse_codeblock():
     ''' Check that ParallelLoopTrans.validate() rejects a loop nest that
-    encloses a CodeBlock. We have to use OMPParallelLoopTrans as
+    encloses a CodeBlock. We have to use OMPLoopTrans as
     ParallelLoopTrans is abstract. '''
-    otrans = OMPParallelLoopTrans()
+    otrans = OMPLoopTrans(omp_directive="paralleldo")
     # Construct a valid Loop in the PSyIR with a CodeBlock in its body
     parent = Loop.create(DataSymbol("ji", INTEGER_TYPE),
                          Literal("1", INTEGER_TYPE),
@@ -641,7 +641,7 @@ def test_parallellooptrans_refuse_codeblock():
     with pytest.raises(TransformationError) as err:
         otrans.validate(parent)
     assert ("Nodes of type 'CodeBlock' cannot be enclosed "
-            "by a OMPParallelLoopTrans transformation" in str(err.value))
+            "by a OMPLoopTrans transformation" in str(err.value))
 
 
 # Tests for OMPSingleTrans
