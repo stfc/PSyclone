@@ -146,7 +146,7 @@ def test_profile_invokes_gocean1p0(fortran_writer):
                   "use profile_psy_data_mod, ONLY : profile_PSyDataType.*"
                   r"TYPE\(profile_PsyDataType\), save, target :: profile_"
                   r"psy_data.*call profile_psy_data % PreStart\(\"psy_single_"
-                  r"invoke_different_iterates_over\", \"invoke_0:r0\", 0, "
+                  r"invoke_different_iterates_over\", \"invoke_0-r0\", 0, "
                   r"0\).*"
                   "do j.*"
                   "do i.*"
@@ -175,7 +175,7 @@ def test_profile_invokes_gocean1p0(fortran_writer):
                   r"TYPE\(profile_PSyDataType\), save, target :: "
                   "profile_psy_data.*"
                   r"call profile_psy_data % PreStart\(\"psy_single_invoke_two"
-                  r"_kernels\", \"invoke_0:r0\", 0, 0\).*"
+                  r"_kernels\", \"invoke_0-r0\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
@@ -217,7 +217,7 @@ def test_unique_region_names(fortran_writer):
                   "profile_psy_data.*"
                   r"call profile_psy_data.*% PreStart\(\"psy_single_invoke_two"
                   r"_kernels\", "
-                  r"\"invoke_0:compute_cu_code:r0\", 0, 0\).*"
+                  r"\"invoke_0-r0\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call compute_cu_code.*"
@@ -225,7 +225,7 @@ def test_unique_region_names(fortran_writer):
                   "end.*"
                   r"call profile_psy_data.*% PostEnd.*"
                   r"call profile_psy_data.*% PreStart\(\"psy_single_invoke_"
-                  r"two_kernels\", \"invoke_0:compute_cu_code:r1\", 0, 0\).*"
+                  r"two_kernels\", \"invoke_0-r1\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call compute_cu_code.*"
@@ -233,6 +233,7 @@ def test_unique_region_names(fortran_writer):
                   "end.*"
                   r"call profile_psy_data.*% PostEnd")
 
+    print(code)
     assert re.search(correct_re, code, re.I) is not None
 
 
@@ -263,7 +264,7 @@ def test_profile_kernels_gocean1p0(fortran_writer):
                   r"TYPE\(profile_PSyDataType\), save, target :: "
                   "profile_psy_data.*"
                   r"call (?P<profile1>\w*) % PreStart\(\"psy_single_invoke_two"
-                  r"_kernels\", \"invoke_0:compute_cu_code:r0\", 0, 0\).*"
+                  r"_kernels\", \"invoke_0-compute_cu_code-r0\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
@@ -271,7 +272,7 @@ def test_profile_kernels_gocean1p0(fortran_writer):
                   "end.*"
                   r"call (?P=profile1) % PostEnd.*"
                   r"call (?P<profile2>\w*) % PreStart\(\"psy_single_invoke_two"
-                  r"_kernels\", \"invoke_0:time_smooth_code:r1\", 0, 0\).*"
+                  r"_kernels\", \"invoke_0-time_smooth_code-r1\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
@@ -323,7 +324,7 @@ def test_profile_invokes_dynamo0p3(fortran_writer):
                   r"TYPE\(profile_PSyDataType\), save, target :: "
                   "profile_psy_data.*"
                   r"call profile_psy_data % PreStart\(\"single_invoke_psy\", "
-                  r"\"invoke_0_testkern_type:testkern_code:r0\", 0, 0\).*"
+                  r"\"invoke_0_testkern_type-testkern_code-r0\", 0, 0\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
@@ -344,7 +345,7 @@ def test_profile_invokes_dynamo0p3(fortran_writer):
                   r"TYPE\(profile_PSyDataType\), save, target :: "
                   "profile_psy_data.*"
                   r"call profile_psy_data % PreStart\(\"multi_invoke_psy\", "
-                  r"\"invoke_0:r0.*\", 0, 0\).*"
+                  r"\"invoke_0-r0.*\", 0, 0\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
@@ -362,7 +363,7 @@ def test_profile_invokes_dynamo0p3(fortran_writer):
     assert "TYPE(profile_PSyDataType), save, target :: profile_psy_data" \
         in code
     assert "CALL profile_psy_data % PreStart(\"single_invoke_psy\", "\
-           "\"invoke_0:x_plus_y:r0\", 0, 0)" in code
+           "\"invoke_0-x_plus_y-r0\", 0, 0)" in code
     assert "CALL profile_psy_data % PostEnd" in code
 
     Profiler._options = []
@@ -387,7 +388,7 @@ def test_profile_kernels_dynamo0p3(fortran_writer):
                   r"TYPE\(profile_PSyDataType\), target, save :: "
                   "profile_psy_data.*"
                   r"call profile_psy_data%PreStart\(\"single_invoke_psy\", "
-                  r"\"invoke_0_testkern_type:testkern_code:r0.*\", 0, 0\).*"
+                  r"\"invoke_0_testkern_type-testkern_code-r0.*\", 0, 0\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
@@ -408,13 +409,13 @@ def test_profile_kernels_dynamo0p3(fortran_writer):
                   r"TYPE\(profile_PSyDataType\), target, save :: "
                   r"(?P<profile1>\w*) .*"
                   r"call (?P=profile1)%PreStart\(\"multi_invoke_psy\", "
-                  r"\"invoke_0:testkern_code:r0\", 0, 0\).*"
+                  r"\"invoke_0-testkern_code-r0\", 0, 0\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
                   r"call (?P=profile1)%PostEnd.*"
                   r"call (?P=profile2)%PreStart\(\"multi_invoke_psy\", "
-                  r"\"invoke_0:testkern_code:r1\", 0, 0\).*"
+                  r"\"invoke_0-testkern_code-r1\", 0, 0\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
@@ -444,7 +445,7 @@ def test_profile_fused_kernels_dynamo0p3(fortran_writer):
     Profiler.add_profile_nodes(invoke.schedule, Loop)
     code = fortran_writer(invoke.schedule)
     expected = '''\
-  CALL profile_psy_data % PreStart("multi_invoke_psy", "invoke_0:r0", 0, 0)
+  CALL profile_psy_data % PreStart("multi_invoke_psy", "invoke_0-r0", 0, 0)
   do cell = loop0_start, loop0_stop, 1
     call testkern_code(nlayers, a, f1_data, f2_data, m1_data, m2_data, \
 ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
@@ -495,7 +496,7 @@ def test_profile_kernels_in_directive_dynamo0p3(fortran_writer):
     code = fortran_writer(invoke.schedule)
     expected = '''\
   CALL profile_psy_data % PreStart("single_invoke_w3_psy", \
-"invoke_0_testkern_w3_type:testkern_w3_code:r0", 0, 0)
+"invoke_0_testkern_w3_type-testkern_w3_code-r0", 0, 0)
   !$acc kernels
   do cell = loop0_start, loop0_stop, 1
 '''
@@ -636,21 +637,21 @@ def test_region(fortran_writer):
     prt.apply(schedule[1:3])
     result = fortran_writer(invoke.schedule)
     assert ("CALL profile_psy_data % PreStart(\"multi_functions_multi_invokes_"
-            "psy\", \"invoke_0:r0\", 0, 0)" in result)
+            "psy\", \"invoke_0-r0\", 0, 0)" in result)
     assert ("CALL profile_psy_data_1 % PreStart(\"multi_functions_multi_"
-            "invokes_psy\", \"invoke_0:r1\", 0, 0)" in result)
+            "invokes_psy\", \"invoke_0-r1\", 0, 0)" in result)
     # Make nested profiles.
     prt.apply(schedule[1].psy_data_body[1])
     prt.apply(schedule)
     result = fortran_writer(invoke.schedule)
     assert ("CALL profile_psy_data_3 % PreStart(\"multi_functions_multi_"
-            "invokes_psy\", \"invoke_0:r0\", 0, 0)" in result)
+            "invokes_psy\", \"invoke_0-r0\", 0, 0)" in result)
     assert ("CALL profile_psy_data % PreStart(\"multi_functions_multi_"
-            "invokes_psy\", \"invoke_0:r1\", 0, 0)" in result)
+            "invokes_psy\", \"invoke_0-r1\", 0, 0)" in result)
     assert ("CALL profile_psy_data_1 % PreStart(\"multi_functions_multi_"
-            "invokes_psy\", \"invoke_0:r2\", 0, 0)" in result)
+            "invokes_psy\", \"invoke_0-r2\", 0, 0)" in result)
     assert ("CALL profile_psy_data_2 % PreStart(\"multi_functions_multi_"
-            "invokes_psy\", \"invoke_0:testkern_code:r3\", 0, 0)" in result)
+            "invokes_psy\", \"invoke_0-testkern_code-r3\", 0, 0)" in result)
 
 
 # -----------------------------------------------------------------------------
@@ -684,13 +685,13 @@ def test_multi_prefix_profile(fortran_writer, monkeypatch):
     assert ("      ! Call kernels and communication routines\n"
             "      !\n"
             "      CALL tool1_psy_data % PreStart(\"multi_functions_multi_"
-            "invokes_psy\", \"invoke_0:r0\", 0, 0)\n"
+            "invokes_psy\", \"invoke_0-r0\", 0, 0)\n"
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n" in result)
     assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in result
     assert "loop2_stop = mesh%get_last_halo_cell(1)\n" in result
     assert ("      CALL tool1_psy_data%PostEnd\n"
             "      CALL profile_psy_data%PreStart(\"multi_functions_multi_"
-            "invokes_psy\", \"invoke_0:r1\", 0, 0)\n"
+            "invokes_psy\", \"invoke_0-r1\", 0, 0)\n"
             "      DO cell = loop0_start, loop0_stop, 1\n" in result)
     assert ("      CALL f1_proxy%set_dirty()\n"
             "      !\n"
@@ -718,7 +719,7 @@ def test_omp_transform(fortran_writer):
 
     correct = (
         "  CALL profile_psy_data % PreStart(\"psy_test27_loop_swap\", "
-        "\"invoke_loop1:bc_ssh_code:r0\", 0, 0)\n"
+        "\"invoke_loop1-bc_ssh_code-r0\", 0, 0)\n"
         "  !$omp parallel default(shared), private(i,j)\n"
         "  !$omp do schedule(static)\n"
         "  do j = t%internal%ystart, t%internal%ystop, 1\n"
@@ -730,7 +731,7 @@ def test_omp_transform(fortran_writer):
         "  !$omp end parallel\n"
         "  CALL profile_psy_data % PostEnd")
     code = fortran_writer(invoke.schedule)
-    assert correct in code
+    assert correct == code
 
     # Now add another profile node between the omp parallel and omp do
     # directives:
@@ -740,10 +741,10 @@ def test_omp_transform(fortran_writer):
 
     correct = '''
   CALL profile_psy_data % PreStart(\"psy_test27_loop_swap\", \
-"invoke_loop1:bc_ssh_code:r0", 0, 0)
+"invoke_loop1-bc_ssh_code-r0", 0, 0)
   !$omp parallel default(shared), private(i,j)
   CALL profile_psy_data_1 % PreStart("psy_test27_loop_swap", \
-"invoke_loop1:bc_ssh_code:r1", 0, 0)
+"invoke_loop1-bc_ssh_code-r1", 0, 0)
   !$omp do schedule(static)
   do j = t%internal%ystart, t%internal%ystop, 1
     do i = t%internal%xstart, t%internal%xstop, 1
