@@ -637,7 +637,7 @@ def test_accwaitdirective_init():
     assert directive4.wait_queue == Reference(Symbol("variable_name"))
 
     with pytest.raises(TypeError) as error:
-        directive5 = ACCWaitDirective(3.5)
+        _ = ACCWaitDirective(3.5)
     assert 'Invalid value type as wait_group' in str(error)
 
 
@@ -731,13 +731,14 @@ def test_directives_async_queue(directive_type):
 def test_mixin_constructor_error():
     '''
     Check constructor with an unexpected value type (float instead of int)
+
     '''
+    asyncMixin = ACCAsyncMixin(3.5)
 
     with pytest.raises(TypeError) as error:
-        asyncMixin = ACCAsyncMixin(3.5)
-        value = asyncMixin._build_async_string()
-    assert "Invalid async_queue value, expect Reference or integer or None " \
-           "or bool, got : 3.5" in str(error)
+        _ = asyncMixin._build_async_string()
+    assert ("Invalid async_queue value, expect Reference or integer or None "
+            "or bool, got : 3.5" in str(error))
 
 
 def test_accdatadirective_update_data_movement_clauses(fortran_reader,

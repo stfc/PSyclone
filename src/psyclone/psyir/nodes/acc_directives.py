@@ -45,7 +45,6 @@ nodes.'''
 
 import abc
 
-from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.core import Signature
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
@@ -59,9 +58,7 @@ from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
-from psyclone.core.signature import Signature
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.symbols import ScalarType
