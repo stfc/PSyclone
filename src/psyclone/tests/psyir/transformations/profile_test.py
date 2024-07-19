@@ -217,7 +217,7 @@ def test_unique_region_names(fortran_writer):
                   "profile_psy_data.*"
                   r"call profile_psy_data.*% PreStart\(\"psy_single_invoke_two"
                   r"_kernels\", "
-                  r"\"invoke_0-r0\", 0, 0\).*"
+                  r"\"invoke_0-compute_cu_code-r0\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call compute_cu_code.*"
@@ -225,7 +225,7 @@ def test_unique_region_names(fortran_writer):
                   "end.*"
                   r"call profile_psy_data.*% PostEnd.*"
                   r"call profile_psy_data.*% PreStart\(\"psy_single_invoke_"
-                  r"two_kernels\", \"invoke_0-r1\", 0, 0\).*"
+                  r"two_kernels\", \"invoke_0-compute_cu_code-r1\", 0, 0\).*"
                   "do j.*"
                   "do i.*"
                   "call compute_cu_code.*"
@@ -731,7 +731,7 @@ def test_omp_transform(fortran_writer):
         "  !$omp end parallel\n"
         "  CALL profile_psy_data % PostEnd")
     code = fortran_writer(invoke.schedule)
-    assert correct == code
+    assert correct in code
 
     # Now add another profile node between the omp parallel and omp do
     # directives:

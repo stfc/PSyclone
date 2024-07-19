@@ -747,9 +747,6 @@ class PSyDataNode(Statement):
             return CodeBlock([fp2_node], CodeBlock.Structure.STATEMENT,
                              annotations=annotations)
 
-        for child in self.children:
-            child.lower_to_language_level()
-
         routine_schedule = self.ancestor(Routine)
         if routine_schedule is None:
             raise GenerationError(
@@ -771,6 +768,14 @@ class PSyDataNode(Statement):
         if self._region_name:
             region_name = self._region_name
         else:
+            from psyclone.psyGen import Kern
+            kerns = self.walk(Kern)
+            if len(kerns) == 1:
+                # This PSyData region only has one kernel within it,
+                # so append the kernel name.
+                region_name = f"{kerns[0].name}-"
+            else:
+                region_name = ""
             # Create a name for this region by finding where this PSyDataNode
             # is in the list of PSyDataNodes in this Invoke. We allow for any
             # previously lowered PSyDataNodes by checking for CodeBlocks with
@@ -781,16 +786,18 @@ class PSyDataNode(Statement):
                 if (isinstance(node, PSyDataNode) or
                         "psy-data-start" in node.annotations):
                     region_idx += 1
+            region_name = f"{region_name}r{region_idx}"
             # If the routine name is not used as 'module name' (in case of a
             # subroutine outside of any modules), add the routine name
             # to the region. Otherwise just use the number
             if module_name != routine_schedule.name:
-                region_name = f"{routine_schedule.name}-r{region_idx}"
-            else:
-                region_name = f"r{region_idx}"
+                region_name = f"{routine_schedule.name}-{region_name}"
 
         if not options:
             options = {}
+
+        for child in self.children:
+            child.lower_to_language_level()
 
         symbol_table = self.scope.symbol_table
         pre_variable_list = \
