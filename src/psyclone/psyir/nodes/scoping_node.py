@@ -89,6 +89,32 @@ class ScopingNode(Node):
         ''' Refine the object attributes when a shallow copy is not the most
         appropriate operation during a call to the copy() method.
 
+        This method creates a deep copy of the SymbolTable associated with
+        the `other` scoping node and then calls `replace_symbols_using` to
+        update all Symbols referenced in the tree below this node.
+
+        .. warning::
+
+          Since `replace_symbols_using` only uses symbol *names*, this won't
+          get the correct symbol if the PSyIR has symbols shadowed in nested
+          scopes, e.g.:
+
+          .. code-block::
+
+              subroutine test
+                integer :: a
+                integer :: b = 1
+                if condition then
+                  ! PSyIR declares a shadowed, locally-scoped a'
+                  a' = 1
+                  if condition2 then
+                    ! PSyIR declares a shadowed, locally-scoped b'
+                    b' = 2
+                    a = a' + b'
+
+          Here, the final assignment will end up being `a' = a' + b'` and
+          thus the semantics of the code are changed. TODO #2666.
+
         :param other: object we are copying from.
         :type other: :py:class:`psyclone.psyir.node.Node`
 

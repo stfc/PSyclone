@@ -256,21 +256,6 @@ class Reference(DataNode):
         supplied table with matching names. If there is no match for a given
         Symbol then it is left unchanged.
 
-        .. note:
-            Since we only use symbol names here, this won't get the correct
-            symbol if we have symbols shadowed in nested scopes, e.g.:
-
-            subroutine test
-              integer :: a
-              integer :: b = 1
-              if condition
-                ! PSyIR declares a shadowed locally-scoped a'
-                a' = 1
-                if condition2
-                  ! PSyIR declares a shadowed locally-scoped b'
-                  b' = 2
-                  a = a' + b'
-
         :param table: the symbol table in which to look up replacement symbols.
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 

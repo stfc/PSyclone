@@ -242,7 +242,8 @@ method:
 
 .. automethod:: psyclone.psyir.symbols.Symbol.replace_symbols_using
 
-All PSyIR `Node` classes also implement this method. In this case, it
+All PSyIR `Node` classes also implement this method and call it when a
+`copy` operation is performed on the tree. The implementation in `Node`
 walks down the PSyIR tree and updates any Symbols using those in the supplied
 table. As the PSyIR supports nested scopes,  each `ScopingNode` is associated
 with a new symbol table. Therefore, the implementation within this class

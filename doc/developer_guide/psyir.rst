@@ -257,6 +257,43 @@ relationship.
 Methods like ``node.detach()``, ``node.copy()`` and ``node.pop_all_children()``
 can be used to move or replicate existing children into different nodes. 
 
+Tree Copying
+============
+
+The ability to create a deep-copy of a PSyIR tree is used heavily in PSyclone,
+primarily by the PSyIR backends. (This is because those backends often need
+to modify the tree while ensuring that the one provided by the caller remains
+unchanged.) As mentioned in the previous section, the ``node.copy()`` method
+provides this functionality:
+
+.. automethod:: psyclone.psyir.nodes.Node.copy
+
+As part of this copy operation, all Symbols referred to in the new tree must
+also be replaced with their equivalents from the symbol tables in the new tree.
+The ``copy`` method performs this by calling ``Node.replace_symbols_using()``.
+
+.. warning::
+
+    Since `replace_symbols_using` only uses symbol *names*, this won't
+    get the correct symbol if the PSyIR has symbols shadowed in nested
+    scopes, e.g.:
+
+    .. code-block::
+
+      subroutine test
+        integer :: a
+        integer :: b = 1
+        if condition then
+          ! PSyIR declares a shadowed, locally-scoped a'
+          a' = 1
+          if condition2 then
+            ! PSyIR declares a shadowed, locally-scoped b'
+            b' = 2
+            a = a' + b'
+
+    Here, the final assignment will end up being `a' = a' + b'` and
+    thus the semantics of the code are changed. This is Issue #2666.
+
 .. _update_signals_label:
 
 Dynamic Tree Updates
