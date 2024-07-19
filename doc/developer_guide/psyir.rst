@@ -270,29 +270,10 @@ provides this functionality:
 
 As part of this copy operation, all Symbols referred to in the new tree must
 also be replaced with their equivalents from the symbol tables in the new tree.
-The ``copy`` method performs this by calling ``Node.replace_symbols_using()``.
+Since these symbol tables are associated with instances of ``ScopingNode``, it
+is ``ScopingNode._refine_copy`` which handles this:
 
-.. warning::
-
-    Since `replace_symbols_using` only uses symbol *names*, this won't
-    get the correct symbol if the PSyIR has symbols shadowed in nested
-    scopes, e.g.:
-
-    .. code-block::
-
-      subroutine test
-        integer :: a
-        integer :: b = 1
-        if condition then
-          ! PSyIR declares a shadowed, locally-scoped a'
-          a' = 1
-          if condition2 then
-            ! PSyIR declares a shadowed, locally-scoped b'
-            b' = 2
-            a = a' + b'
-
-    Here, the final assignment will end up being `a' = a' + b'` and
-    thus the semantics of the code are changed. This is Issue #2666.
+.. automethod:: psyclone.psyir.nodes.ScopingNode._refine_copy
 
 .. _update_signals_label:
 
