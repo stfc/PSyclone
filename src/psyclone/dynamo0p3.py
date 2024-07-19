@@ -549,11 +549,16 @@ class LFRicMeshProperties(LFRicCollection):
                 # This is an integer:
                 self._symbol_table.find_or_create_integer_symbol(
                     name_lower, tag=name_lower)
-            else:
-                # E.g.: adjacent_face
-                self._symbol_table.find_or_create_array(
-                    name_lower, 2, ScalarType.Intrinsic.INTEGER,
+            elif name_lower == "adjacent_face":
+                self._symbol_table.find_or_create(
+                    name_lower, symbol_type=DataSymbol,
+                    datatype = UnsupportedFortranType(
+                        "integer(kind=i_def), pointer :: adjacent_face(:,:) "
+                        "=> null()"
+                    ),
                     tag=name_lower)
+            else:
+                raise InternalError()
 
     def kern_args(self, stub=False, var_accesses=None,
                   kern_call_arg_list=None):
@@ -746,12 +751,12 @@ class LFRicMeshProperties(LFRicCollection):
                 dimension = self._symbol_table.\
                     find_or_create_integer_symbol("nfaces_re_h",
                                                   tag="nfaces_re_h").name
-                parent.add(
-                    DeclGen(
-                        parent, datatype="integer",
-                        kind=api_config.default_kind["integer"],
-                        dimension=dimension,
-                        intent="in", entity_decls=[adj_face]))
+                # parent.add(
+                #     DeclGen(
+                #         parent, datatype="integer",
+                #         kind=api_config.default_kind["integer"],
+                #         dimension=dimension,
+                #         intent="in", entity_decls=[adj_face]))
             elif prop == MeshProperty.NCELL_2D:
                 ncell_2d = self._symbol_table.find_or_create_integer_symbol(
                     "ncell_2d", tag="ncell_2d")
@@ -806,6 +811,7 @@ class LFRicMeshProperties(LFRicCollection):
 
         mesh = self._symbol_table.find_or_create_tag("mesh")
 
+        init_cursor = cursor
         for prop in self._properties:
             if prop == MeshProperty.ADJACENT_FACE:
                 adj_face = self._symbol_table.find_or_create_tag(
@@ -848,6 +854,8 @@ class LFRicMeshProperties(LFRicCollection):
                     f"Found unsupported mesh property '{str(prop)}' when "
                     f"generating initialisation code. Only members of the "
                     f"MeshProperty Enum are permitted ({list(MeshProperty)})")
+        self._invoke._schedule[init_cursor].append_preceding_comment(
+            "Initialise mesh properties")
 
         if need_colour_halo_limits:
             lhs = self._symbol_table.find_or_create_tag(
@@ -918,8 +926,7 @@ class DynReferenceElement(LFRicCollection):
         symtab = self._symbol_table
 
         # Create and store a name for the reference element object
-        self._ref_elem_name = \
-            symtab.find_or_create_tag("reference_element").name
+        self._ref_elem_symbol = symtab.find_or_create_tag("reference_element")
 
         # Initialise names for the properties of the reference element object:
         # Number of horizontal/vertical/all faces,
@@ -1092,6 +1099,17 @@ class DynReferenceElement(LFRicCollection):
 
         refelem_type = const.REFELEMENT_TYPE_MAP["refelement"]["type"]
         refelem_mod = const.REFELEMENT_TYPE_MAP["refelement"]["module"]
+        mod = ContainerSymbol(refelem_mod)
+        self._symbol_table.add(mod)
+        self._symbol_table.add(
+            DataTypeSymbol(refelem_type, datatype=StructureType(),
+                           interface=ImportInterface(mod)))
+        self._ref_elem_symbol.specialise(
+               DataSymbol,
+               datatype=UnsupportedFortranType(
+                   f"class({refelem_type}), pointer :: "
+                   f"{self._ref_elem_symbol.name} => null()"))
+
         # parent.add(UseGen(parent, name=refelem_mod, only=True,
         #                   funcnames=[refelem_type]))
         # parent.add(
@@ -1111,8 +1129,8 @@ class DynReferenceElement(LFRicCollection):
         array_decls = [f"{sym.name}(:,:)"
                        for sym in self._arg_properties.keys()]
         my_kind = api_config.default_kind["real"]
-        parent.add(DeclGen(parent, datatype="real", kind=my_kind,
-                           allocatable=True, entity_decls=array_decls))
+        # parent.add(DeclGen(parent, datatype="real", kind=my_kind,
+        #                    allocatable=True, entity_decls=array_decls))
         # Ensure the necessary kind parameter is imported.
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
         const_mod_uses = self._invoke.invokes.psy.infrastructure_modules[
@@ -1180,8 +1198,7 @@ class DynReferenceElement(LFRicCollection):
         mesh_obj = self._symbol_table.find_or_create_tag("mesh")
         # parent.add(AssignGen(parent, pointer=True, lhs=self._ref_elem_name,
         #                      rhs=mesh_obj_name+"%get_reference_element()"))
-        ref_element = self._symbol_table.lookup(self._ref_elem_name)
-        print(ref_element.name)
+        ref_element = self._ref_elem_symbol
         stmt = Assignment.create(
                 lhs=Reference(ref_element),
                 rhs=Call.create(
@@ -1305,7 +1322,7 @@ class DynReferenceElement(LFRicCollection):
             stmt = Call.create(
                 StructureReference.create(
                     ref_element,
-                    ["get_ourwards_normals_to_faces"]))
+                    ["get_outward_normals_to_faces"]))
             stmt.addchild(Reference(self._face_out_normals_symbol))
             self._invoke.schedule.addchild(stmt, cursor)
             cursor += 1
@@ -4098,10 +4115,13 @@ class DynBasisFunctions(LFRicCollection):
             names = [f"{name}_{qr_arg_name}"
                      for name in self.qr_weight_vars[qr_type]]
             decl_list = [
-                symbol_table.find_or_create_array(name, 2,
-                                                  ScalarType.Intrinsic.REAL,
-                                                  tag=name).name
-                + "(:,:) => null()" for name in names]
+                symbol_table.find_or_create(
+                    name, symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(
+                        f"real(kind=r_def), pointer, dimension(:,:) :: {name}"
+                        f" => null()\n"
+                    ),
+                    tag=name).name for name in names]
             const = LFRicConstants()
             datatype = const.QUADRATURE_TYPE_MAP[quadrature_name]["intrinsic"]
             kind = const.QUADRATURE_TYPE_MAP[quadrature_name]["kind"]

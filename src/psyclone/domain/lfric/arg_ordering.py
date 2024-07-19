@@ -233,16 +233,17 @@ class ArgOrdering:
         if not tag:
             tag = array_name
         if not symbol:
-            symbol = self._symtab.find_or_create_array(
-                                        array_name,
-                                        len(indices),
-                                        intrinsic_type,
-                                        tag)
-            # symbol = self._symtab.find_or_create(
-            #     array_name, symbol_type=DataSymbol,
-            #     datatype=ArrayType(
-            #         ScalarType(intrinsic_type, 4),
-            #         [ArrayType.Extent.DEFERRED for _ in indices]))
+            # symbol = self._symtab.find_or_create_array(
+            #                             array_name,
+            #                             len(indices),
+            #                             intrinsic_type,
+            #                             tag)
+            from psyclone.domain.lfric import LFRicTypes
+            symbol = self._symtab.find_or_create(
+                array_name, symbol_type=DataSymbol,
+                datatype=ArrayType(
+                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                    [ArrayType.Extent.DEFERRED for _ in indices]))
         else:
             if symbol.name != array_name:
                 raise InternalError(f"Specified symbol '{symbol.name}' has a "
