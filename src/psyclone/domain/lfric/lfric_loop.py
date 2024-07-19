@@ -130,11 +130,16 @@ class LFRicLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        from psyclone.psyGen import zero_reduction_variables
+        if not self.is_openmp_parallel():
+            calls = self.reductions()
+            zero_reduction_variables(calls)
+
         # Set halo clean/dirty for all fields that are modified
         if Config.get().distributed_memory:
             if self._loop_type != "colour":
                 if self.unique_modified_args("gh_field"):
-                    self.gen_mark_halos_clean_dirty(None)
+                    self.gen_mark_halos_clean_dirty()
 
         if self._loop_type != "null":
             # This is not a 'domain' loop (i.e. there is a real loop). First
@@ -1048,14 +1053,10 @@ class LFRicLoop(PSyLoop):
 
         parent.add(CommentGen(parent, ""))
 
-    def gen_mark_halos_clean_dirty(self, parent):
+    def gen_mark_halos_clean_dirty(self):
         '''
         Generates the necessary code to mark halo regions for all modified
         fields as clean or dirty following execution of this loop.
-
-        :param parent: the node in the f2pygen AST to which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
         '''
         # Set halo clean/dirty for all fields that are modified
         fields = self.unique_modified_args("gh_field")
@@ -1102,14 +1103,23 @@ class LFRicLoop(PSyLoop):
                     cursor += 1
                     insert_loc.addchild(call, cursor)
 
-            if cursor > init_cursor:
-                # This is the first one
-                insert_loc[init_cursor + 1].preceding_comment = (
-                    "Set halos dirty/clean for fields modified in the above "
-                    "loop(s)")
-                if cursor < len(insert_loc.children) - 1:
-                    insert_loc[cursor + 1].preceding_comment = (
-                        "End of set dirty/clean section for above loop(s)")
+            # if cursor > init_cursor:
+            #     if (len(insert_loc.children) > init_cursor + 2 and
+            #           insert_loc[init_cursor + 2].preceding_comment.\
+            #                 startswith("Set halos dirty")):
+            #         # If a "Set halo dirty" block was already started, put
+            #         # this one inside
+            #         insert_loc[init_cursor + 1].detach()
+            #         insert_loc.addchild(call, )
+            #             insert_loc[init_cursor + 2], insert_loc[init_cursor + 1]
+            #     else:
+            #         # Otherwise create a new block
+            #         insert_loc[init_cursor + 1].preceding_comment = (
+            #             "Set halos dirty/clean for fields modified in the above "
+            #             "loop(s)")
+            #         # if cursor < len(insert_loc.children) - 1:
+            #         #     insert_loc[cursor + 1].preceding_comment = (
+            #         #         "End of set dirty/clean section for above loop(s)")
 
             # Now set appropriate parts of the halo clean where
             # redundant computation has been performed.

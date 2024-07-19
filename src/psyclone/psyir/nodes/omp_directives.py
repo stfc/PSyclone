@@ -1351,9 +1351,6 @@ class OMPParallelDirective(OMPRegionDirective):
                                  code. These are not implemented yet.
 
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import zero_reduction_variables
-
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
         self.validate_global_constraints()
@@ -1401,6 +1398,8 @@ class OMPParallelDirective(OMPRegionDirective):
                     f"reduction variable")
             names.append(name)
 
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyGen import zero_reduction_variables
         zero_reduction_variables(calls, parent)
 
         # pylint: disable=protected-access
@@ -1460,6 +1459,35 @@ class OMPParallelDirective(OMPRegionDirective):
                                  synchronisation mechanism to create valid
                                  code. These are not implemented yet.
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyGen import zero_reduction_variables
+        reprod_red_call_list = self.reductions(reprod=True)
+        if reprod_red_call_list:
+            # we will use a private thread index variable
+            thread_idx = self.scope.symbol_table.\
+                lookup_with_tag("omp_thread_index")
+            private_clause.addchild(Reference(thread_idx))
+            thread_idx = thread_idx.name
+            # declare the variable
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[thread_idx]))
+
+        calls = self.reductions()
+
+        # first check whether we have more than one reduction with the same
+        # name in this Schedule. If so, raise an error as this is not
+        # supported for a parallel region.
+        names = []
+        for call in calls:
+            name = call.reduction_arg.name
+            if name in names:
+                raise GenerationError(
+                    f"Reduction variables can only be used once in an invoke. "
+                    f"'{name}' is used multiple times, please use a different "
+                    f"reduction variable")
+            names.append(name)
+        zero_reduction_variables(calls)
+
         # Keep the first two children and compute the rest using the current
         # state of the node/tree (lowering it first in case new symbols are
         # created)
@@ -1489,12 +1517,12 @@ class OMPParallelDirective(OMPRegionDirective):
                         found = True
                     if found:
                         break
-                if not found:
-                    raise GenerationError(
-                        f"Lowering '{type(self).__name__}' does not support "
-                        f"symbols that need synchronisation unless they are "
-                        f"in a depend clause, but found: "
-                        f"'{sym.name}' which is not in a depend clause.")
+                # if not found:
+                #     raise GenerationError(
+                #         f"Lowering '{type(self).__name__}' does not support "
+                #         f"symbols that need synchronisation unless they are "
+                #         f"in a depend clause, but found: "
+                #         f"'{sym.name}' which is not in a depend clause.")
 
         self.addchild(private_clause)
         self.addchild(fprivate_clause)
@@ -1916,6 +1944,10 @@ class OMPDoDirective(OMPRegionDirective):
         self._omp_schedule = omp_schedule
         self._collapse = None
         self.collapse = collapse  # Use setter with error checking
+        # TODO #514 - reductions are only implemented in LFRic, for now we
+        # store the needed clause when lowering, but this needs a better
+        # solution
+        self._lowered_reduction_string = ""
 
     def __eq__(self, other):
         '''
@@ -2156,6 +2188,19 @@ class OMPDoDirective(OMPRegionDirective):
         parent.add(DirectiveGen(parent, "omp", "end", "do", ""),
                    position=["after", position])
 
+    def lower_to_language_level(self):
+        '''
+        In-place construction of clauses as PSyIR constructs.
+        The clauses here may need to be updated if code has changed, or be
+        added if not yet present.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        self._lowered_reduction_string = self._reduction_string()
+        return super().lower_to_language_level()
+
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
         "omp do ...". The visitor is responsible for adding the
@@ -2170,6 +2215,8 @@ class OMPDoDirective(OMPRegionDirective):
             string += f" schedule({self.omp_schedule})"
         if self._collapse:
             string += f" collapse({self._collapse})"
+        if self._lowered_reduction_string:
+            string += f", {self._lowered_reduction_string}"
         return string
 
     def end_string(self):

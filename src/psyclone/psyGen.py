@@ -52,12 +52,12 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CommentGen,
                               DeclGen, DeallocateGen, DoGen, UseGen, PSyIRGen)
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (ArrayReference, Call, Container, Literal,
-                                  Loop, Node, OMPDoDirective, Reference,
-                                  Routine, Schedule, Statement)
+from psyclone.psyir.nodes import (
+    ArrayReference, Call, Container, Literal, Loop, Node, OMPDoDirective,
+    Reference, Directive, Routine, Schedule, Statement, Assignment)
 from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
                                     ContainerSymbol, DataSymbol,
-                                    UnresolvedType,
+                                    UnresolvedType, REAL_TYPE,
                                     ImportInterface, INTEGER_TYPE,
                                     RoutineSymbol, Symbol)
 from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
@@ -94,16 +94,21 @@ def object_index(alist, item):
     raise ValueError(f"Item '{item}' not found in list: {alist}")
 
 
-def zero_reduction_variables(red_call_list, parent):
+def zero_reduction_variables(red_call_list):
     '''zero all reduction variables associated with the calls in the call
     list'''
     if red_call_list:
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Zero summation variables"))
-        parent.add(CommentGen(parent, ""))
+        # parent.add(CommentGen(parent, ""))
+        # parent.add(CommentGen(parent, " Zero summation variables"))
+        # parent.add(CommentGen(parent, ""))
+        first = True
         for call in red_call_list:
-            call.zero_reduction_variable(parent)
-        parent.add(CommentGen(parent, ""))
+            node = call.zero_reduction_variable()
+            if first:
+                node.append_preceding_comment(
+                    "Zero summation variables")
+
+        # parent.add(CommentGen(parent, ""))
 
 
 def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
@@ -1131,15 +1136,11 @@ class Kern(Statement):
         # with the PSy-layer generation or relevant transformation.
         return "l_" + self.reduction_arg.name
 
-    def zero_reduction_variable(self, parent, position=None):
+    def zero_reduction_variable(self):
         '''
         Generate code to zero the reduction variable and to zero the local
         reduction variable if one exists. The latter is used for reproducible
         reductions, if specified.
-
-        :param parent: the Node in the AST to which to add new code.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        :param str position: where to position the new code in the AST.
 
         :raises GenerationError: if the variable to zero is not a scalar.
         :raises GenerationError: if the reprod_pad_size (read from the \
@@ -1148,9 +1149,7 @@ class Kern(Statement):
                                  neither 'real' nor 'integer'.
 
         '''
-        if not position:
-            position = ["auto"]
-        var_name = self._reduction_arg.name
+        variable_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
         var_arg = self._reduction_arg
         # Check for a non-scalar argument
@@ -1162,8 +1161,10 @@ class Kern(Statement):
         var_data_type = var_arg.intrinsic_type
         if var_data_type == "real":
             data_value = "0.0"
+            data_type = REAL_TYPE
         elif var_data_type == "integer":
             data_value = "0"
+            data_type = INTEGER_TYPE
         else:
             raise GenerationError(
                 f"Kern.zero_reduction_variable() should be either a 'real' or "
@@ -1171,14 +1172,26 @@ class Kern(Statement):
                 f"'{var_arg.intrinsic_type}'.")
         # Retrieve the precision information (if set) and append it
         # to the initial reduction value
-        if var_arg.precision:
-            kind_type = var_arg.precision
-            zero_sum_variable = "_".join([data_value, kind_type])
-        else:
-            kind_type = ""
-            zero_sum_variable = data_value
-        parent.add(AssignGen(parent, lhs=var_name, rhs=zero_sum_variable),
-                   position=position)
+        # if var_arg.precision:
+        #     kind_type = var_arg.precision
+        #     zero_sum_init_val = "_".join([data_value, kind_type])
+        # else:
+        #     kind_type = ""
+        #     zero_sum_init_val = data_value
+        variable = self.scope.symbol_table.lookup(variable_name)
+        from psyclone.domain.common.psylayer import PSyLoop
+        insert_loc = self.ancestor(PSyLoop)
+        # If it has ancestor directive keep going up
+        while isinstance(insert_loc.parent.parent, Directive):
+            insert_loc = insert_loc.parent.parent
+        cursor = insert_loc.position
+        insert_loc = insert_loc.parent
+        new_node = Assignment.create(
+                        lhs=Reference(variable),
+                        rhs=Literal(data_value, data_type))
+        insert_loc.addchild(new_node, cursor)
+        # parent.add(AssignGen(parent, lhs=var_name, rhs=zero_sum_variable),
+        #            position=position)
         if self.reprod_reduction:
             parent.add(DeclGen(parent, datatype=var_data_type,
                                entity_decls=[local_var_name],
@@ -1196,6 +1209,7 @@ class Kern(Statement):
                                    "," + nthreads + ")"), position=position)
             parent.add(AssignGen(parent, lhs=local_var_name,
                                  rhs=zero_sum_variable), position=position)
+        return new_node
 
     def reduction_sum_loop(self, parent):
         '''
