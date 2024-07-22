@@ -529,9 +529,10 @@ def test_reference_replace_symbols_using():
     ref.replace_symbols_using(table)
     assert ref.symbol is asym2
     assert ref.symbol.datatype.precision is wp
-    # Check that the update is performed on the Symbol properties too.
+    # Check that the update does not recurse into the Symbol properties (as
+    # that is handled by the SymbolTable).
     wp2 = wp.copy()
     table.add(wp2)
     ref.replace_symbols_using(table)
     assert ref.symbol is asym2
-    assert ref.symbol.datatype.precision is wp2
+    assert ref.symbol.datatype.precision is wp
