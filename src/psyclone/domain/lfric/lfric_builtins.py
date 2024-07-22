@@ -37,7 +37,7 @@
 # Modified by R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
 ''' This module implements the support for 'built-in' operations in the
-    PSyclone LFRic (Dynamo 0.3) API. Each supported built-in is implemented
+    PSyclone LFRic API. Each supported built-in is implemented
     as a different Python class, all inheriting from the LFRicBuiltIn class.
     The LFRicBuiltInCallFactory creates the Python object required for
     a given built-in call. '''
@@ -74,7 +74,7 @@ def get_lowercase_builtin_map(builtin_map_capitalised_dict):
     :param builtin_map_capitalised_dict: a dictionary of built-in names.
     :type builtin_map_capitalised_dict: dict of str
 
-    :returns: a dictionary of lowercase Fortran built-in names as keys \
+    :returns: a dictionary of lowercase Fortran built-in names as keys
               and case-sensitive Python built-in names as values.
     :rtype: dict of str
 
@@ -2459,7 +2459,8 @@ class LFRicSignXKern(LFRicBuiltIn):
 
     def __str__(self):
         return (f"Built-in: {self._case_name} (sign of "
-                f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field, "
+                f"applied to a scalar argument)")
 
     def lower_to_language_level(self):
         '''
