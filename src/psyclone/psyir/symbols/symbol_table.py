@@ -56,17 +56,10 @@ from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
-class _Default:
-    '''
-    A mutable class used to provide a unique default value to methods within
-    the SymbolTable class. This enables us to determine when the user has
-    supplied a value of 'None' for arguments that have a default value.
-
-    :param Any value: a value associated with this instance.
-
-    '''
-    def __init__(self, value):
-        self.value = value
+# Used to provide a unique default value for methods within the
+# SymbolTable class.  This enables us to determine when the user has
+# supplied a value of 'None' for arguments that have a default value.
+DEFAULT_SENTINEL = object()
 
 
 class SymbolTable():
@@ -947,7 +940,7 @@ class SymbolTable():
         self._argument_list = argument_symbols[:]
 
     def lookup(self, name, visibility=None, scope_limit=None,
-               default=_Default(1)):
+               default=DEFAULT_SENTINEL):
         '''Look up a symbol in the symbol table. The lookup can be limited
         by visibility (e.g. just show public methods) or by scope_limit (e.g.
         just show symbols up to a certain scope).
@@ -963,10 +956,12 @@ class SymbolTable():
             otherwise ancestors of the scope_limit node are not
             searched.
         :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
-        :param Any default: an optional quantity to return if the named symbol
-                            cannot be found.
+        :param Any default: an optional value to return if the named symbol
+                            cannot be found (otherwise, a KeyError is raised).
 
         :returns: the symbol with the given name and, if specified, visibility.
+                  If no match is found and 'default' is supplied then that
+                  value is returned.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if the name argument is not a string.
