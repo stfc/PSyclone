@@ -264,9 +264,7 @@ class Reference(DataNode):
             self.symbol = table.lookup(self.symbol.name)
         except KeyError:
             pass
-        # Ensure any references to Symbols within the Symbol definition (e.g.
-        # datatype or initial_value) are also updated.
-        self.symbol.replace_symbols_using(table)
+
         # Walk on down the tree.
         super().replace_symbols_using(table)
 
