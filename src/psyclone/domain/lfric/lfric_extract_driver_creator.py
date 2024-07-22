@@ -53,6 +53,7 @@ from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   IntrinsicCall, Literal, Reference,
                                   Routine, StructureReference)
@@ -186,7 +187,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
     @staticmethod
     def _make_valid_unit_name(name):
         '''Valid program or routine names are restricted to 63 characters,
-        and no special characters like ':'.
+        and no special characters like '-' (which is used when adding
+        invoke and region numbers).
 
         :param str name: a proposed unit name.
 
@@ -195,7 +197,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         :rtype: str
 
         '''
-        return name.replace(":", "")[:63]
+        return name.replace("-", "")[:63]
 
     # -------------------------------------------------------------------------
     def _get_proxy_name_mapping(self, schedule):
@@ -734,6 +736,89 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                     interface=ImportInterface(constant_mod))
 
     # -------------------------------------------------------------------------
+    def _add_command_line_handler(self, program, psy_data_var, module_name,
+                                  region_name):
+        '''
+        This function adds code to handle the command line. For now an
+        alternative filename (to the default one that is hard-coded by
+        the created driver) can be specified, which allows the driver to
+        be used with different files, e.g. several dumps from one run, and/or
+        a separate file from each process. It will also add the code to
+        open the input file using the read_kernel_data routine from the
+        extraction library.
+
+        :param program: The driver PSyIR.
+        :type program: :py:class:`psyclone.psyir.nodes.Routine`
+        :param psy_data_var: the symbol of the PSyDataExtraction type.
+        :type psy_data_var: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param str module_name: the name of the module, used to create the
+            implicit default kernel dump file name.
+        :param str region_name: the name of the region, used to create the
+            implicit default kernel dump file name.
+
+        '''
+        # pylint: disable=too-many-locals
+        program_symbol_table = program.symbol_table
+
+        # PSyIR does not support allocatable strings, so create the two
+        # variables we need in a loop.
+        # TODO #2137: The UnsupportedFortranType could be reused for all
+        #             variables once this is fixed.
+        for str_name in ["psydata_filename", "psydata_arg"]:
+            str_unique_name = \
+                program_symbol_table.next_available_name(str_name)
+            str_type = UnsupportedFortranType(
+                f"character(:), allocatable :: {str_unique_name}")
+            sym = DataTypeSymbol(str_unique_name, str_type)
+            program_symbol_table.add(sym)
+            if str_name == "psydata_filename":
+                psydata_filename = str_unique_name
+            else:
+                psydata_arg = str_unique_name
+
+        psydata_len = \
+            program_symbol_table.find_or_create("psydata_len",
+                                                symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE).name
+        psydata_i = \
+            program_symbol_table.find_or_create("psydata_i",
+                                                symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE).name
+        # We can only parse one statement at a time, so start with the
+        # command line handling:
+        code = f"""
+        do {psydata_i}=1,command_argument_count()
+           call get_command_argument({psydata_i}, length={psydata_len})
+           allocate(character({psydata_len})::{psydata_arg})
+           call get_command_argument({psydata_i}, {psydata_arg}, &
+                                     length={psydata_len})
+           if ({psydata_arg} == "--update") then
+              ! For later to allow marking fields as being updated
+           else
+              allocate(character({psydata_len})::{psydata_filename})
+              {psydata_filename} = {psydata_arg}
+           endif
+           deallocate({psydata_arg})
+        enddo
+        """
+        command_line = \
+            FortranReader().psyir_from_statement(code, program_symbol_table)
+        program.children.insert(0, command_line)
+
+        # Now add the handling of the filename parameter
+        code = f"""
+        if (allocated({psydata_filename})) then
+           call {psy_data_var.name}%OpenReadFileName({psydata_filename})
+        else
+           call {psy_data_var.name}%OpenReadModuleRegion('{module_name}', &
+                                                         '{region_name}')
+        endif
+        """
+        filename_test = \
+            FortranReader().psyir_from_statement(code, program_symbol_table)
+        program.children.insert(1, filename_test)
+
+    # -------------------------------------------------------------------------
     def create(self, nodes, read_write_info, prefix, postfix, region_name):
         # pylint: disable=too-many-arguments
         '''This function uses the PSyIR to create a stand-alone driver
@@ -810,11 +895,21 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
         schedule_copy = invoke_sched.copy()
 
-        # TODO #1992: if required, the following code will
-        # remove halo exchange nodes from the driver.
-        # halo_nodes = schedule_copy.walk(HaloExchange)
-        # for halo_node in halo_nodes:
-        #     halo_node.parent.children.remove(halo_node)
+        # Halo exchanges are not allowed to be included in an exchange region,
+        # so there can never be a HaloExchange node here. But if it should be
+        # useful to include them (e.g. for performance testing of several
+        # kernels), the following code will remove the halo exchange nodes
+        # from the PSyIR to allow creation of a driver (but which would likely
+        # fail due to the missing halo updates).
+        # all_halos = schedule_copy.walk(HaloExchange)[:]
+        # if all_halos:
+        #     print(f"Driver creation warning: There are {len(all_halos)} "
+        #           f"halo exchanges that will be removed.")
+        #     print("The created driver will very likely not reproduce the "
+        #           "results of the original code.")
+        #     for halo in all_halos:
+        #         parent = halo.parent
+        #         parent.children.remove(halo)
 
         original_symbol_table = invoke_sched.symbol_table
         proxy_name_mapping = self._get_proxy_name_mapping(schedule_copy)
@@ -851,13 +946,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                                    symbol_type=DataSymbol,
                                                    datatype=psy_data_type)
 
-        # Provide the module and region name to the OpenRead method, which
-        # will reconstruct the name of the data file to read.
-        module_str = Literal(module_name, CHARACTER_TYPE)
-        region_str = Literal(local_name, CHARACTER_TYPE)
-        self.add_call(program, f"{psy_data.name}%OpenRead",
-                      [module_str, region_str])
-
+        self._add_command_line_handler(program, psy_data, module_name,
+                                       local_name)
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    original_symbol_table,
                                                    read_write_info, postfix)
