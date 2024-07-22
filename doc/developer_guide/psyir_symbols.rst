@@ -225,11 +225,11 @@ is not entirely straightforward. Every `Symbol` has the `copy` method:
 
 .. automethod:: psyclone.psyir.symbols.Symbol.copy
 
-This ensures that the precision and initial-value properties are copied
-appropriately (e.g. new PSyIR nodes constructed) but any Symbols
-referred to by those properties remain unchanged.
+This ensures that the precision and initial-value PSyIR sub-trees are
+copied appropriately while any Symbols referred to inside those nodes remain
+unchanged (and therefore can still be used in the same scope).
 
-When performing a deep copy of a PSyIR tree, obviously all Symbols will
+However, when performing a *deep* copy of a PSyIR tree, all Symbols will
 need to be replaced with their equivalents in the new tree. The
 `SymbolTable.deep_copy()` method:
 

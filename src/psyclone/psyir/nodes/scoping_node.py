@@ -126,6 +126,10 @@ class ScopingNode(Node):
 
         # Now we've updated the symbol table, walk back down the tree and
         # update any Symbols.
+        # Since this will get called from every ScopingNode in the tree, there
+        # could be a lot of repeated walks back down the tree. If this becomes
+        # a performance issue we could keep track of the depth of the recursive
+        # call to _refine_copy and only do this call when that depth is zero.
         self.replace_symbols_using(self._symbol_table)
 
     def replace_symbols_using(self, table):

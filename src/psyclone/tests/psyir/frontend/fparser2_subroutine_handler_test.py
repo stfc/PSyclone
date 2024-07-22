@@ -207,11 +207,11 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
         f"  function my_fUnc()\n"
         f"    {basic_type} :: my_fUnc\n"
         f"\n"
-        f"    my_func = {rhs_val}\n"
+        f"    my_fUnc = {rhs_val}\n"
         f"\n"
         f"  end function my_fUnc\n"
         f"\n"
-        f"end module a\n").lower()
+        f"end module a\n")
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir, FileContainer)
     module = psyir.children[0]
@@ -221,7 +221,7 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
     return_sym = routine.return_symbol
     assert isinstance(return_sym, DataSymbol)
     assert return_sym.datatype.intrinsic == TYPE_MAP_FROM_FORTRAN[basic_type]
-    result = fortran_writer(psyir).lower()
+    result = fortran_writer(psyir)
     assert result == expected
     # Also check that the "own_routine_symbol" tag is maintained
     assert (routine.symbol_table.lookup_with_tag("own_routine_symbol")
