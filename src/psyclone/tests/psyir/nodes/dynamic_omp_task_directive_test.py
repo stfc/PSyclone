@@ -3487,3 +3487,101 @@ def test_lowering_containing_kern_error():
     assert ("Attempted to lower to OMPTaskDirective node, but the "
             "node contains a Kern which must be inlined first."
             in str(excinfo.value))
+
+
+def test_omp_task_directive_full_step_input_access_with_otter(
+        fortran_reader, fortran_writer, tmpdir
+        ):
+    ''' Test the code generation makes the correct Otter code.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A
+        integer, dimension(11, 10) :: B
+        integer :: i
+        integer :: j
+        integer :: k
+        do i = 1, 10
+            do j = 1, 10
+                A(j, i) = k
+                A(j, i) = B(j, i+1) + k
+            end do
+        end do
+        do i = 1, 10
+            A(j, i) = k
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective(enable_otter=True)
+    tdir2 = DynamicOMPTaskDirective(enable_otter=True)
+    loops = tree.walk(Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    loop = loops[2]
+    parent = loop.parent
+    loop.detach()
+    tdir2.children[0].addchild(loop)
+    parent.addchild(tdir2)
+    strans.apply(tdir2.parent.children[:])
+    ptrans.apply(loop.parent.parent.parent.parent)
+#    strans.apply(loops[0])
+#    ptrans.apply(loops[0].parent.parent)
+    correct = '''use iso_c_binding, only : c_bool, c_null_ptr, c_ptr
+  use otter_task_graph, only : fortran_otterSynchroniseTasks, \
+fortran_otterTaskEnd, fortran_otterTaskInitialise, fortran_otterTaskStart, \
+otter_add_to_pool, otter_endpoint_enter, otter_endpoint_leave
+  logical(kind=c_bool), parameter :: c_true = .true._c_bool
+  integer, dimension(10,10) :: a
+  integer, dimension(11,10) :: b
+  integer :: i
+  integer :: j
+  integer :: k
+  type(c_ptr) :: otter_task
+  CHARACTER(LEN=150) :: otter_task_id
+
+  !$omp parallel default(shared), private(i,j,otter_task)
+  !$omp single
+  do i = 1, 10, 1
+    WRITE(otter_task_id, "(A19, I0.5, A1, I0.8)") "my_subroutine_task_", \
+0, "_", i
+    otter_task = fortran_otterTaskInitialise(c_null_ptr, -1, \
+otter_add_to_pool, c_true, __FILE__, 'my_subroutine_1', __LINE__, \
+otter_task_id)
+    !$omp task private(j), firstprivate(i,otter_task,otter_task_id), \
+shared(a,b), depend(in: k,b(:,i + 1)), depend(out: a(:,i))
+    otter_task = fortran_otterTaskStart(otter_task, __FILE__, otter_task_id, \
+__LINE__)
+    do j = 1, 10, 1
+      a(j,i) = k
+      a(j,i) = b(j,i + 1) + k
+    enddo
+    call fortran_otterTaskEnd(otter_task, __FILE__, otter_task_id, __LINE__)
+    !$omp end task
+  enddo
+  WRITE(otter_task_id, "(A19, I0.5)") "my_subroutine_task_", 1
+  otter_task = fortran_otterTaskInitialise(c_null_ptr, -1, otter_add_to_pool, \
+c_true, __FILE__, 'my_subroutine_2', __LINE__, otter_task_id)
+  call fortran_otterSynchroniseTasks(c_null_ptr, 1, otter_endpoint_enter)
+  !$omp taskwait
+  call fortran_otterSynchroniseTasks(c_null_ptr, 1, otter_endpoint_leave)
+  !$omp task private(i), firstprivate(j,otter_task,otter_task_id), shared(a), \
+depend(in: k), depend(out: a(j,:))
+  otter_task = fortran_otterTaskStart(otter_task, __FILE__, otter_task_id, \
+__LINE__)
+  do i = 1, 10, 1
+    a(j,i) = k
+  enddo
+  call fortran_otterTaskEnd(otter_task, __FILE__, otter_task_id, __LINE__)
+  !$omp end task
+  call fortran_otterSynchroniseTasks(c_null_ptr, 1, otter_endpoint_enter)
+  !$omp taskwait
+  call fortran_otterSynchroniseTasks(c_null_ptr, 1, otter_endpoint_leave)
+  !$omp end single
+  !$omp end parallel'''
+    assert correct in fortran_writer(tree)
+    assert Compile(tmpdir).string_compiles(fortran_writer(tree))
