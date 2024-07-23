@@ -89,16 +89,13 @@ def trans(psyir):
 
         enhance_tree_information(subroutine)
 
-        # TODO #2082: bug in hoisting statements in loops with CodeBlocks
-        enable_hoisting = subroutine.name != "sto_par_init"
-
         normalise_loops(
                 subroutine,
                 hoist_local_arrays=True,
                 convert_array_notation=True,
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
-                hoist_expressions=enable_hoisting
+                hoist_expressions=True
         )
 
         # For performance in lib_fortran, mark serial routines as GPU-enabled
