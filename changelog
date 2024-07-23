@@ -177,6 +177,10 @@
 	updated symbols (including in attributes that are not directly in the
 	tree).
 
+	62) PR #2662 for #2082. Fixes HoistTrans so that it checks for
+	possible side-effects. Also now removes the parent Loop if the hoist means
+	it no longer has a body.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
