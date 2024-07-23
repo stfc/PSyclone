@@ -940,7 +940,7 @@ class SymbolTable():
         self._argument_list = argument_symbols[:]
 
     def lookup(self, name, visibility=None, scope_limit=None,
-               default=DEFAULT_SENTINEL):
+               otherwise=DEFAULT_SENTINEL):
         '''Look up a symbol in the symbol table. The lookup can be limited
         by visibility (e.g. just show public methods) or by scope_limit (e.g.
         just show symbols up to a certain scope).
@@ -956,11 +956,11 @@ class SymbolTable():
             otherwise ancestors of the scope_limit node are not
             searched.
         :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
-        :param Any default: an optional value to return if the named symbol
-                            cannot be found (otherwise, a KeyError is raised).
+        :param Any otherwise: an optional value to return if the named symbol
+            cannot be found (rather than raising a KeyError).
 
         :returns: the symbol with the given name and, if specified, visibility.
-                  If no match is found and 'default' is supplied then that
+                  If no match is found and 'otherwise' is supplied then that
                   value is returned.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
@@ -969,7 +969,7 @@ class SymbolTable():
                              not have the specified visibility.
         :raises TypeError: if the visibility argument has the wrong type.
         :raises KeyError: if the given name is not in the Symbol Table and
-                          `default` is not supplied.
+                          `otherwise` is not supplied.
 
         '''
         if not isinstance(name, str):
@@ -1003,11 +1003,11 @@ class SymbolTable():
                         f" match with the requested visibility: {vis_names}")
             return symbol
         except KeyError as err:
-            if default is SymbolTable.lookup.__defaults__[-1]:
-                # No default value supplied so we raise an exception.
+            if otherwise is DEFAULT_SENTINEL:
+                # No 'otherwise' value supplied so we raise an exception.
                 raise KeyError(f"Could not find '{name}' in the Symbol "
                                f"Table.") from err
-            return default
+            return otherwise
 
     def lookup_with_tag(self, tag, scope_limit=None):
         '''Look up a symbol by its tag. The lookup can be limited by

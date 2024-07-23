@@ -1316,8 +1316,8 @@ def test_lookup_scope_limit():
 
 
 def test_lookup_default_value():
-    '''Test that the lookup() method returns the supplied (optional) default
-    value of a Symbol cannot be found.
+    '''Test that the lookup() method returns the supplied (optional)
+    'otherwise' value if a Symbol cannot be found.
 
     '''
     table = symbols.SymbolTable()
@@ -1326,14 +1326,14 @@ def test_lookup_default_value():
     assert "Could not find 'missing'" in str(err.value)
     # The most common use case is to allow None to be returned rather than
     # raising an error.
-    sym = table.lookup("missing", default=None)
+    sym = table.lookup("missing", otherwise=None)
     assert sym is None
-    # But any other default value can be specified.
-    sym = table.lookup("missing", default=symbols.Symbol("missing"))
+    # But any other alternative value can be specified.
+    sym = table.lookup("missing", otherwise=symbols.Symbol("missing"))
     assert sym.name == "missing"
     # The presence of other, optional arguments doesn't alter anything.
     sym = table.lookup("missing", visibility=symbols.Symbol.Visibility.PUBLIC,
-                       default=1)
+                       otherwise=1)
     assert sym == 1
 
 
