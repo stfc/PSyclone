@@ -94,9 +94,6 @@ explicitly listed may be assumed to be unsupported):
 |                      |                    |expressions;        |
 |                      |                    |Assumed-size arrays |
 +----------------------+--------------------+--------------------+
-|                      |Initialisation      |                    |
-|                      |expressions         |                    |
-+----------------------+--------------------+--------------------+
 |                      |INTENT, PARAMETER,  |VOLATILE, VALUE,    |
 |                      |SAVE                |POINTER             |
 +----------------------+--------------------+--------------------+
@@ -105,8 +102,8 @@ explicitly listed may be assumed to be unsupported):
 +----------------------+--------------------+--------------------+
 |                      |PUBLIC, PRIVATE     |                    |
 +----------------------+--------------------+--------------------+
-|                      |Data statements     |                    |
-|                      |(limited)           |                    |
+|Initialisation        |Data statements     |                    |
+|expressions           |(limited)           |                    |
 +----------------------+--------------------+--------------------+
 |Imports/globals       |USE with ONLY and   |User-defined        |
 |                      |renaming            |operators           |
