@@ -160,11 +160,26 @@
 	PSyData API (e.g. when profiling).
 
 	57) PR #2647 for #1992. Adds MPI support to PSyKE. Each rank will write
-    its own output file(s). The generated driver has been extended so that
-    the name of the file to use can be specified on the command line.
+	its own output file(s). The generated driver has been extended so that
+	the name of the file to use can be specified on the command line.
 
 	58) PR #2637 for #2138. Add Fortran frontend support to parser array
 	declarations with expressions in their shape dimensions.
+
+	59) PR #2649 towards #2586. Adds support for pointer assignments of
+	the form `var =[>] this[%...]%procedure(...)`.
+
+	60) PR #2645 towards #2585. Add an optional "otherwise" argument to
+	the SymbolTalbe lookup method.
+
+	61) PR #2633 for #2125. Introduces the "replace_symbols_using" method
+	to guarantee that PSyIR trees after a copy have references to the
+	updated symbols (including in attributes that are not directly in the
+	tree).
+
+	62) PR #2662 for #2082. Fixes HoistTrans so that it checks for
+	possible side-effects. Also now removes the parent Loop if the hoist means
+	it no longer has a body.
 
 release 2.5.0 14th of February 2024
 

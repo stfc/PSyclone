@@ -152,7 +152,7 @@ def test_typed_symbol_scalar_array():
 
 
 def test_typed_symbol_copy():
-    '''Test that the TypedSymbol copy method produces a faithful separate copy
+    '''Test that the TypedSymbol copy method produces a faithful, separate copy
     of the original symbol.
 
     '''
@@ -163,6 +163,7 @@ def test_typed_symbol_copy():
     # Check the new symbol has the same properties as the original
     assert symbol.name == new_symbol.name
     assert symbol.datatype == new_symbol.datatype
+    assert symbol.datatype is not new_symbol.datatype
     assert symbol.shape == new_symbol.shape
 
     # Change the properties of the new symbol and check the original
