@@ -35,87 +35,60 @@
 # -----------------------------------------------------------------------------
 
 '''Tests Fortran data statements in the fparser2 PSyIR front-end. Data
-statements are represented as an UnsupportedFortranType. The tests
+statements are represented as an UnsupportedFortranType, but any variable
+in a data statement should get a StaticInterface. The tests
 here cover a few variations of the data statement, in case that at
 some stage we need more information.
 '''
 
 import pytest
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import Specification_Part
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import UnsupportedFortranType
+from psyclone.psyir.symbols import (DataSymbol, StaticInterface,
+                                    UnresolvedType, UnsupportedFortranType)
 
 
-@pytest.mark.usefixtures("f2008_parser")
-def test_simple_data_statement():
+def test_simple_data_statement(fortran_reader):
     ''' Test that data statements are correctly captured. '''
 
-    # Create a dummy test routine
-    routine = Routine("test_routine")
-    symtab = routine.symbol_table
-    processor = Fparser2Reader()
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test()
+            integer :: a, b, c
+            data a/1/, b/2/, c/3/
+        end subroutine test
+      ''')
 
-    # Test with a single namelist
-    reader = FortranStringReader('''
-        data a /1/''')
-    fparser2spec = Specification_Part(reader)
-    processor.process_declarations(routine, fparser2spec.content, [])
+    routine = psyir.walk(Routine)[0]
+    symtab = routine.symbol_table
+    assert isinstance(symtab.lookup("a").interface, StaticInterface)
+    assert isinstance(symtab.lookup("b").interface, StaticInterface)
+    assert isinstance(symtab.lookup("c").interface, StaticInterface)
+
+    # There is a data_stmt in the symbol table:
+    data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
+    assert isinstance(data.datatype, UnsupportedFortranType)
+    assert data.datatype.declaration == "DATA a / 1 /, b / 2 /, c / 3 /"
+
+    # Test with a single data statement
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test()
+            integer :: a
+            data a/1/
+        end subroutine test
+      ''')
+
+    routine = psyir.walk(Routine)[0]
+    symtab = routine.symbol_table
+
     # There is a data_stmt in the symbol table:
     data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
     assert isinstance(data.datatype, UnsupportedFortranType)
     assert data.datatype.declaration == "DATA a / 1 /"
 
 
-@pytest.mark.usefixtures("f2008_parser")
-def test_multiple_data_statement():
-    ''' Test that data statements are correctly captured. '''
+def test_multiple_data_statement(fortran_reader):
+    ''' Test that multiple data statements are correctly captured. '''
 
-    # Create a dummy test routine
-    routine = Routine("test_routine")
-    symtab = routine.symbol_table
-    processor = Fparser2Reader()
-
-    # Test with a single namelist
-    reader = FortranStringReader('''
-        data a /1/, b/2/, c/3/''')
-    fparser2spec = Specification_Part(reader)
-    processor.process_declarations(routine, fparser2spec.content, [])
-    # There is a data_stmt in the symbol table:
-    data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
-    assert isinstance(data.datatype, UnsupportedFortranType)
-    assert data.datatype.declaration == "DATA a / 1 /, b / 2 /, c / 3 /"
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_data_statement_implicit_loop():
-    ''' Test that z data statement with an implicit loops is correctly
-    captured. '''
-
-    # Create a dummy test routine
-    routine = Routine("test_routine")
-    symtab = routine.symbol_table
-    processor = Fparser2Reader()
-
-    # Test with a single namelist
-    reader = FortranStringReader(
-        "DATA (es(ies),ies=    0, 5) / 0.966483e-02,0.966483e-02,"
-        "0.984279e-02,0.100240e-01,0.102082e-01,0.103957e-01/")
-    fparser2spec = Specification_Part(reader)
-    processor.process_declarations(routine, fparser2spec.content, [])
-    # There is a data_stmt in the symbol table:
-    data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
-    assert isinstance(data.datatype, UnsupportedFortranType)
-    assert (data.datatype.declaration == "DATA (es(ies), ies = 0, 5) / "
-            "0.966483E-02, 0.966483E-02, 0.984279E-02, 0.100240E-01, "
-            "0.102082E-01, 0.103957E-01 /")
-
-
-def test_data_statement_backend(fortran_reader, fortran_writer):
-    '''Test the full process: parsing source code with data statements,
-    converting them to PSyIR, and writing the out as Fortran.'''
-
+    # Test with multiple initialisations
     psyir = fortran_reader.psyir_from_source('''
         subroutine test()
             integer :: a, b, c(5)
@@ -123,6 +96,127 @@ def test_data_statement_backend(fortran_reader, fortran_writer):
             data (c(i), i=1,5) / 5, 4, 3, 2, 1/
         end subroutine test
       ''')
-    code = fortran_writer(psyir)
-    assert "DATA a / 1 /, b / 2 /" in code
-    assert "DATA (c(i), i = 1, 5) / 5, 4, 3, 2, 1 /" in code
+
+    routine = psyir.walk(Routine)[0]
+    symtab = routine.symbol_table
+    assert isinstance(symtab.lookup("a").interface, StaticInterface)
+    assert isinstance(symtab.lookup("b").interface, StaticInterface)
+    assert isinstance(symtab.lookup("c").interface, StaticInterface)
+
+    # There is a data_stmt in the symbol table:
+    data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
+    assert isinstance(data.datatype, UnsupportedFortranType)
+    assert data.datatype.declaration == "DATA a / 1 /, b / 2 /"
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_data_statement_implicit_loop(fortran_reader):
+    ''' Test that a data statement with an implicit loop is correctly
+    captured. '''
+
+    # Test with a single data statement with an implicit loop
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test()
+            integer :: c(5)
+            data (c(i), i=1,5) / 5, 4, 3, 2, 1/
+        end subroutine test
+      ''')
+    routine = psyir.walk(Routine)[0]
+    symtab = routine.symbol_table
+
+    assert isinstance(symtab.lookup("c").interface, StaticInterface)
+    # There is a data_stmt in the symbol table:
+    data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
+    assert isinstance(data.datatype, UnsupportedFortranType)
+    assert (data.datatype.declaration ==
+            "DATA (c(i), i = 1, 5) / 5, 4, 3, 2, 1 /")
+
+
+def test_data_statement_nested_implicit_loop(fortran_reader):
+    ''' Test that a data statement with an implicit loop is correctly
+    captured. '''
+
+    # Test with a single data statement with an implicit loop
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test()
+            integer :: c(5, 5)
+            data ((c(i,j), i=j+1, 5), j=1, 5) / 10 * 1.0 /
+        end subroutine test
+      ''')
+    routine = psyir.walk(Routine)[0]
+    symtab = routine.symbol_table
+
+    assert isinstance(symtab.lookup("c").interface, StaticInterface)
+    # There is a data_stmt in the symbol table:
+    data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
+    assert isinstance(data.datatype, UnsupportedFortranType)
+    assert (data.datatype.declaration ==
+            "DATA ((c(i, j), i = j + 1, 5), j = 1, 5) / 10 * 1.0 /")
+
+
+def test_data_statement_derived_type(fortran_reader):
+    ''' Test that a data statement with a derived type work
+    as expected. '''
+
+    # Test a derived type, initialised with a derived type:
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test()
+            type :: mytype
+               integer :: a, b
+            end type mytype
+            type(mytype) :: t
+            data t / mytype(1, 2) /
+        end subroutine test
+      ''')
+    routine = psyir.walk(Routine)[0]
+    symtab = routine.symbol_table
+
+    assert isinstance(symtab.lookup("t").interface, StaticInterface)
+    # There is a data_stmt in the symbol table:
+    data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
+    assert isinstance(data.datatype, UnsupportedFortranType)
+    assert data.datatype.declaration == "DATA t / mytype(1, 2) /"
+
+    # Test a derived type initialised component-wise
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test()
+            type :: mytype
+               integer :: a, b
+            end type mytype
+            type(mytype) :: t
+            data t%a, t%b / 1, 2 /
+        end subroutine test
+      ''')
+    routine = psyir.walk(Routine)[0]
+    symtab = routine.symbol_table
+
+    assert isinstance(symtab.lookup("t").interface, StaticInterface)
+    # There is a data_stmt in the symbol table:
+    data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
+    assert isinstance(data.datatype, UnsupportedFortranType)
+    assert data.datatype.declaration == "DATA t % a, t % b / 1, 2 /"
+
+
+def test_data_statement_undeclared_var(fortran_reader):
+    ''' Test that a data statement for a variable that is otherwise
+    not declared works as expected. '''
+
+    # Test a derived type, initialised with a derived type:
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test()
+            data a / 1 /
+        end subroutine test
+      ''')
+    routine = psyir.walk(Routine)[0]
+    symtab = routine.symbol_table
+
+    # The code should create an UnresolvedType with a static interface:
+    sym_a = symtab.lookup("a")
+    assert isinstance(sym_a, DataSymbol)
+    assert isinstance(sym_a.datatype, UnresolvedType)
+    assert isinstance(sym_a.interface, StaticInterface)
+
+    # Check that the data statement is included as well:
+    data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
+    assert isinstance(data.datatype, UnsupportedFortranType)
+    assert data.datatype.declaration == "DATA a / 1 /"
