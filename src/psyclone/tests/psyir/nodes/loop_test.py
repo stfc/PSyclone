@@ -194,6 +194,36 @@ def test_loop_node_str(monkeypatch):
     assert loop.node_str(colour=True) == "yes[variable='i']"
     assert loop.node_str(colour=False) == "no[variable='i']"
 
+    # And with loop_type rules
+    Loop.set_loop_type_inference_rules({"i-loop": {"variable": "i"}})
+    out = loop.node_str()
+    assert "yes[variable='i', loop_type='i-loop']" in out
+    Loop.set_loop_type_inference_rules({})
+
+
+def test_loop_replace_symbols_using():
+    '''Test the replace_symbols_using() method of Loop.'''
+    loop = make_loop()
+    assert loop.variable.name == "i"
+    # Create a symbol table containing a replacement symbol.
+    table = SymbolTable()
+    new_i = table.new_symbol("i", symbol_type=DataSymbol,
+                             datatype=INTEGER_TYPE)
+    assert loop.variable is not new_i
+    loop.replace_symbols_using(table)
+    # Loop variable should have been updated.
+    assert loop.variable is new_i
+    # Check that the method has recursed to the children too.
+    assert loop.loop_body[0].rhs.symbol is new_i
+    # Test when the Loop doesn't have the _variable property set.
+    loop = Loop()
+    loop.addchild(Literal("0", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("2", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("1", INTEGER_SINGLE_TYPE))
+    loop.addchild(Schedule(parent=loop))
+    assert not loop._variable
+    loop.replace_symbols_using(table)
+
 
 def test_loop_str():
     '''Test the __str__ property of Loop.'''
@@ -201,6 +231,12 @@ def test_loop_str():
     out = str(loop)
     assert "Loop[variable:'i']\n" in out
     assert "End Loop" in out
+
+    # And with loop_type rules
+    Loop.set_loop_type_inference_rules({"i-loop": {"variable": "i"}})
+    out = str(loop)
+    assert "Loop[variable:'i', loop_type:'i-loop']\n" in out
+    Loop.set_loop_type_inference_rules({})
 
 
 def test_loop_independent_iterations():

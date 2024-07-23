@@ -31,17 +31,26 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, STFC Daresbury Lab
-#          A. R. Porter, STFC Daresbury Lab
-#          S. Siso, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
-'''Transformations module for NEMO.
+'''A transformation script that simply prints the PSyIR of the input file
+to stdout. No actual transformations are performed.
+
+In order to use this script you must first install PSyclone. See
+README.md in the top-level psyclone directory.
+
+Once you have psyclone installed, this may be used by doing:
+
+ $ psyclone -s ./view_trans.py some_source_file.f90 -o /dev/null
+
 '''
 
-from psyclone.domain.nemo.transformations.create_nemo_invoke_schedule_trans \
-    import CreateNemoInvokeScheduleTrans
-from psyclone.domain.nemo.transformations.create_nemo_psy_trans \
-    import CreateNemoPSyTrans
 
-__all__ = ['CreateNemoInvokeScheduleTrans',
-           'CreateNemoPSyTrans']
+def trans(psyir):
+    ''' Prints the PSyIR of the input file to stdout.
+
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    '''
+    print(psyir.view())

@@ -39,7 +39,6 @@
 of an Invoke into a stand-alone application."
 '''
 
-from psyclone.configuration import Config
 from psyclone.psyGen import BuiltIn, Kern, HaloExchange, GlobalSum
 from psyclone.psyir.nodes import (CodeBlock, ExtractNode, Loop, Schedule,
                                   Directive, OMPParallelDirective,
@@ -145,7 +144,6 @@ class ExtractTrans(PSyDataTrans):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if distributed memory is configured.
         :raises TransformationError: if transformation is applied to a \
                                      Kernel or a BuiltIn call without its \
                                      parent Loop.
@@ -158,18 +156,6 @@ class ExtractTrans(PSyDataTrans):
         '''
 
         # Check ExtractTrans specific constraints.
-
-        # Extracting distributed memory code is not supported due to
-        # generation of infrastructure calls to set halos dirty or clean.
-        # This constraint covers the presence of HaloExchange and
-        # GlobalSum classes as they are only generated when distributed
-        # memory is enabled. But in case of the Nemo API, we don't even
-        # support distributed memory, so ignore the setting of distributed
-        # memory in this case:
-        config = Config.get()
-        if config.distributed_memory and config.api != "":
-            raise TransformationError(
-                f"Error in {self.name}: Distributed memory is not supported.")
 
         # Check constraints not covered by excluded_node_types for
         # individual Nodes in node_list.

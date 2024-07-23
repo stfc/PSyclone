@@ -52,23 +52,8 @@ class FileContainer(Container):
     _text_name = "FileContainer"
     _colour = "yellow"
 
-    # The FileContainer name attribute is currently ignored by the
-    # PSyIR frontend and backend and does not have any utility for
-    # now, so we ignore it in the __str__ and node_str representations.
     def __str__(self):
-        return "FileContainer[]\n"
-
-    def node_str(self, colour=True):
-        '''
-        Returns the name of this node with appropriate control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return self.coloured_name(colour) + "[]"
+        return f"FileContainer[name='{self.name}']\n"
 
 
 # For AutoAPI documentation generation

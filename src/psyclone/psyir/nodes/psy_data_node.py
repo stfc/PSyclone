@@ -52,10 +52,12 @@ from psyclone.core import Signature
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.routine import Routine
+from psyclone.psyir.nodes.container import Container
+from psyclone.psyir.nodes.file_container import FileContainer
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.symbols import (SymbolTable, DataTypeSymbol, DataSymbol,
                                     ContainerSymbol, UnresolvedType, Symbol,
                                     UnsupportedFortranType, ImportInterface)
@@ -180,7 +182,6 @@ class PSyDataNode(Statement):
         # TODO: #1394 Fix code duplication between
         # PSyDataTrans and this PSyDataNode
         name = options.get("region_name", None)
-
         if name:
             # pylint: disable=too-many-boolean-expressions
             if not isinstance(name, tuple) or not len(name) == 2 or \
@@ -570,7 +571,7 @@ class PSyDataNode(Statement):
             if len(kerns) == 1:
                 # This PSyData region only has one kernel within it,
                 # so append the kernel name.
-                region_name += f":{kerns[0].name}"
+                region_name += f"-{kerns[0].name}"
             # Add a region index to ensure uniqueness when there are
             # multiple regions in an invoke.
             psy_data_nodes = self.root.walk(PSyDataNode)
@@ -581,7 +582,7 @@ class PSyDataNode(Statement):
                 if node is self:
                     idx = index
                     break
-            region_name += f":r{idx}"
+            region_name += f"-r{idx}"
 
         if not options:
             options = {}
@@ -767,10 +768,16 @@ class PSyDataNode(Statement):
                 f"lowering but '{self}' is not.")
 
         self.generate_symbols(routine_schedule.symbol_table)
-
         module_name = self._module_name
         if module_name is None:
-            module_name = routine_schedule.name
+            container = routine_schedule.ancestor(Container)
+            # If the current code is inside a module use the module name,
+            # otherwise (e.g. subroutine outside of any module) use the
+            # routine name as 'module_name'
+            if container and not isinstance(container, FileContainer):
+                module_name = container.name
+            else:
+                module_name = routine_schedule.name
 
         if self._region_name:
             region_name = self._region_name
@@ -785,7 +792,13 @@ class PSyDataNode(Statement):
                 if (isinstance(node, PSyDataNode) or
                         "psy-data-start" in node.annotations):
                     region_idx += 1
-            region_name = f"r{region_idx}"
+            # If the routine name is not used as 'module name' (in case of a
+            # subroutine outside of any modules), add the routine name
+            # to the region. Otherwise just use the number
+            if module_name != routine_schedule.name:
+                region_name = f"{routine_schedule.name}-r{region_idx}"
+            else:
+                region_name = f"r{region_idx}"
 
         if not options:
             options = {}
