@@ -440,6 +440,7 @@ def test_symbol_array_handling():
     svinfo = SingleVariableAccessInfo(Signature("a"))
     assert not asym.is_array_access("i", svinfo)
 
+
 def test_symbol_replace_symbols_using():
     '''Test the replace_symbols_using() method in Symbol.'''
     interf = DefaultModuleInterface()
