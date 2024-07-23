@@ -131,8 +131,10 @@ def test_call_tree_compute_all_non_locals_non_kernel():
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_call_tree_generic_functions():
-    '''Test handling of generic functions. Each function must be
-    visited (until PSyclone properly resolves generic interfaces)
+    '''Test handling of generic functions. Each function specified in a
+    generic interface must be visited, since PSyclone might not always be
+    able to determine the right function to be called due to missing type
+    information.
     '''
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
     mod_man = ModuleManager.get()
