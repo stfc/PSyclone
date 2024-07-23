@@ -298,16 +298,31 @@ class DataSymbol(TypedSymbol):
         original will not be affected so the copy will not be referred
         to by any other object.
 
+        N.B. any other Symbols referenced in either the datatype or the
+        initial_value properties of the original symbol will remain unchanged
+        in the copied object. See the `replace_symbols_using` method.
+
         :returns: An object with the same properties as this symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         if self.initial_value is not None:
+            # Ensure any initial-value expression is also copied. Any Symbols
+            # that are referenced will be the same objects as in the original
+            # expression.
             new_init_value = self.initial_value.copy()
         else:
             new_init_value = None
-        return DataSymbol(self.name, self.datatype, visibility=self.visibility,
-                          interface=self.interface,
+        if self.is_array:
+            # Ensure any References in the shape definition of an ArrayType
+            # are also copied. They will still point to the
+            # same Symbols as the original.
+            new_datatype = self.datatype.copy()
+        else:
+            new_datatype = self.datatype
+        return DataSymbol(self.name, new_datatype,
+                          visibility=self.visibility,
+                          interface=self.interface.copy(),
                           is_constant=self.is_constant,
                           initial_value=new_init_value)
 
@@ -327,3 +342,19 @@ class DataSymbol(TypedSymbol):
         super().copy_properties(symbol_in)
         self._is_constant = symbol_in.is_constant
         self._initial_value = symbol_in.initial_value
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        super().replace_symbols_using(table)
+
+        # Ensure any Symbols referenced in the initial value are updated.
+        if self.initial_value:
+            self.initial_value.replace_symbols_using(table)
