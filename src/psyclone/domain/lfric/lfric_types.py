@@ -160,11 +160,14 @@ class LFRicTypes:
         # Generate LFRic module symbols from definitions
         for module_info in modules:
             module_name = module_info.name.lower()
-            # Create the module (using a PSyIR ContainerSymbol)
+            # Create the module (using a PSyIR ContainerSymbol).
+            # TODO #2659 - this ContainerSymbol should be added to
+            # a SymbolTable!
             LFRicTypes._name_to_class[module_name] = \
                 ContainerSymbol(module_info.name)
             # Create the variables specified by the module (using
-            # PSyIR DataSymbols)
+            # PSyIR DataSymbols). TODO #2659 - these DataSymbols should
+            # be added to a SymbolTable!
             for module_var in module_info.vars:
                 var_name = module_var.upper()
                 interface = ImportInterface(LFRicTypes(module_name))
