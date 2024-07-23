@@ -60,7 +60,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
     # It is clearer to use 'symbol_table' here rather than 'info'
     # pylint: disable=arguments-renamed
     @classmethod
-    def _initialise(cls, symbol_table):
+    def _initialise(cls, symbol_table=None):
         '''Initialise any additional state for this class.
 
         :param symbol_table: the symbol table that the kernel
@@ -74,12 +74,12 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         '''
         # TODO: Should this be an LFRicSymbolTable?
-        if symbol_table is None:
+        if not symbol_table:
             symbol_table = symbols.SymbolTable()
         elif not isinstance(symbol_table, symbols.SymbolTable):
             raise TypeError(
-                f"Expecting the optional info argument to be a symbol table "
-                f"but found {type(symbol_table).__name__}.")
+                f"Expecting the optional 'symbol_table' argument to be a "
+                f"SymbolTable but found {type(symbol_table).__name__}.")
         # We could use super()._initialise(symbol_table) here but it is simpler
         # to just set the value of _info directly and it avoids pylint
         # complaining.

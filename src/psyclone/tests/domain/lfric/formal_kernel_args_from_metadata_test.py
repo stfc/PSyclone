@@ -140,7 +140,22 @@ def check_common_cma_symbols(fs1, fs2):
     return cls
 
 
-# TODO test _initialise
+def test_fkafm_initialise():
+    '''Test the _initialise() method.'''
+    cls = lfric.FormalKernelArgsFromMetadata
+    # No table supplied - one is created.
+    cls._initialise()
+    assert isinstance(cls._info, symbols.SymbolTable)
+    # Table supplied.
+    new_table = symbols.SymbolTable()
+    cls._initialise(new_table)
+    assert cls._info is new_table
+    # Wrong type of argument.
+    with pytest.raises(TypeError) as err:
+        cls._initialise("table")
+    assert ("Expecting the optional 'symbol_table' argument to be a "
+            "SymbolTable but found str" in str(err.value))
+
 
 def test_cell_position():
     ''' Test _cell_position method. '''
