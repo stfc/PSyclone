@@ -169,6 +169,9 @@
 	59) PR #2649 towards #2586. Adds support for pointer assignments of
 	the form `var =[>] this[%...]%procedure(...)`.
 
+	60) PR #2645 for #2585. Add an optional "otherwise" argument to
+	the SymbolTalbe lookup method.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
