@@ -315,7 +315,7 @@ class LFRicKernMetadata(KernelType):
         self._validate_inter_grid()
 
         # Perform checks for a kernel with operates_on == domain
-        self._validate_operates_on_dof_or_domain(need_evaluator)
+        self._validate_operates_on_domain(need_evaluator)
 
     def _validate_inter_grid(self):
         '''
@@ -567,24 +567,17 @@ class LFRicKernMetadata(KernelType):
             f"An LFRic kernel cannot update more than one CMA (column-wise) "
             f"operator but kernel '{self.name}' updates {write_count}.")
 
-    def _validate_operates_on_dof_or_domain(self, need_evaluator):
+    def _validate_operates_on_domain(self, need_evaluator):
         '''
-        Check whether a kernel that has operates_on == domain or
-        operates_on == dof obeys the rules for the LFRic API.
-
-        These two kernel types are combined becuase they share lots of
+        Check whether a kernel that has operates_on == domain obeys
+        the rules for the LFRic API.
 
         :raises ParseError: if the kernel metadata does not obey the rules
                             for an LFRic kernel with operates_on = domain.
         '''
-        if self.iterates_over not in ["dof", "domain"]:
+        if self.iterates_over != "domain":
             return
-        if self.iterates_over == 'domain':
-            keyphrase = 'the domain'
-        elif self.iterates_over == 'dof':
-            keyphrase = 'a dof'
 
-        # Common checks between dof and domain kernels
         const = LFRicConstants()
         # A kernel which operates on the 'domain' is currently restricted
         # to only accepting scalar and field arguments.
@@ -592,68 +585,36 @@ class LFRicKernMetadata(KernelType):
         for arg in self._arg_descriptors:
             if arg.argument_type not in valid_arg_types:
                 raise ParseError(
-                    f"In the LFRic API a kernel which operates on {keyphrase} "
-                    f"is only permitted to accept scalar and field arguments "
+                    f"In the LFRic API a kernel which operates on the 'domain'"
+                    f" is only permitted to accept scalar and field arguments "
                     f"but the metadata for kernel '{self.name}' includes an "
                     f"argument of type '{arg.argument_type}'")
 
         if need_evaluator:
             raise ParseError(
-                f"In the LFRic API a kernel that operates on {keyphrase} "
+                f"In the LFRic API a kernel that operates on the 'domain' "
                 f"cannot be passed basis/differential basis functions but the "
                 f"metadata for kernel '{self.name}' contains an entry for "
                 f"'meta_funcs'")
 
         if self.reference_element.properties:
             raise ParseError(
-                f"Kernel '{self.name}' operates on {keyphrase} but requests "
+                f"Kernel '{self.name}' operates on the domain but requests "
                 f"properties of the reference element "
                 f"({self.reference_element.properties}). This is not "
                 f"permitted in the LFRic API.")
 
         if self.mesh.properties:
             raise ParseError(
-                f"Kernel '{self.name}' operates on {keyphrase} but requests "
+                f"Kernel '{self.name}' operates on the domain but requests "
                 f"properties of the mesh ({self.mesh.properties}). This is "
                 f"not permitted in the LFRic API.")
 
         if self._is_intergrid:
             raise ParseError(
-                f"Kernel '{self.name}' operates on {keyphrase} but has fields "
+                f"Kernel '{self.name}' operates on the domain but has fields "
                 f"on different mesh resolutions (inter-grid). This is not "
                 f"permitted in the LFRic API.")
-
-        # dof kernel specific checks
-        if self.iterates_over == 'dof':
-
-            # Check function spaces are the same
-            # list out all function spaces
-            arg_fs_names = []
-            for descriptor in self._arg_descriptors:
-                arg_fs_names.extend(descriptor.function_spaces)
-            print("FS NAMES: ", arg_fs_names)
-            # dof kernels should only have one function space so a set of fs
-            # names should be of length 1
-            if len(set(arg_fs_names)) > 1:
-                raise ParseError(
-                    f"Kernel '{self.name}' operates on a dof but has "
-                    f"fields on different function spaces. This is not "
-                    f"permitted in the LFRic API.")
-
-            # Check at least one field in metadata
-            # list out all arg types
-            arg_types = []
-            for arg in self._arg_descriptors:
-                arg_types.append(arg.argument_type)
-            print("ARG TYPES: ", arg_types)
-            # check field in arg types
-            if not set(const.VALID_FIELD_NAMES) <= set(arg_types):
-                raise ParseError(
-                    f"In the LFRic API, a kernel that operates on {keyphrase} "
-                    f"must have at least one field argument but found none "
-                    f"for the kernel '{self.name}'."
-                    f""
-                    f"{const.VALID_FIELD_NAMES} not in {arg_types}")
 
     @property
     def func_descriptors(self):
