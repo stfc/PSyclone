@@ -300,16 +300,6 @@ def insert_explicit_loop_parallelism(
                 " 'nlay_i' or 'nlay_s'.")
             continue
 
-        # If we see one such ice linearised loop, we assume
-        # calls/codeblocks are not a problem (they are not)
-        # if any(ref.symbol.name in ('npti',)
-        #            for ref in loop.stop_expr.walk(Reference)):
-        #     opts = {"force": True}
-
-        # pnd_lev requires manual privatisation of ztmp
-        if any(name in routine_name for name in ('tab_', 'pnd_')):
-            opts = {"ignore_dependencies_for": "ztmp"}
-
         try:
             # First check that the region_directive is feasible for this region
             if region_directive_trans:
