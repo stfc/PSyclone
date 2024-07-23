@@ -35,7 +35,7 @@
 from __future__ import print_function
 import sys
 from psyclone.psyir.nodes.routine import Routine
-from psyclone.psyir.backend.xdsl import xDSLWriter
+from backend.xdsl import xDSLWriter
 from xdsl.printer import Printer
 from xdsl.dialects.builtin import ModuleOp
 
