@@ -425,7 +425,7 @@ def test_cw_loop(fortran_reader):
     code = '''
         module test
         contains
-        subroutine tmp()
+        subroutine tmp(b)
           integer :: i, a
           integer, dimension(:) :: b
           do i = 1, 20, 2

@@ -226,3 +226,42 @@ def test_asr_datatype():
         ssym, [one.copy()], ["data"])
     assert isinstance(asref3.datatype, symbols.ArrayType)
     assert len(asref3.datatype.shape) == 2
+
+
+def test_aos_ref_replace_symbols_using(component_symbol):
+    '''Test the replace_symbols_using() method successfully recurses down
+    from an ArrayOfStructuresReference. The implementation itself is in
+    Reference but we have a test here as it's a complex case.
+
+    '''
+    i64 = symbols.DataSymbol("i64", symbols.INTEGER_DOUBLE_TYPE)
+    itype = symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER, i64)
+    int_one = nodes.Literal("1", itype)
+    idx = symbols.DataSymbol("idx", symbols.INTEGER_TYPE)
+    asref = nodes.ArrayOfStructuresReference.create(
+        component_symbol, [int_one.copy()],
+        ["region", ("startx", [nodes.Reference(idx)])])
+    table = symbols.SymbolTable()
+    asref.replace_symbols_using(table)
+    # No matching symbols in table so should have no changes.
+    assert asref.symbol is component_symbol
+    assert asref.indices[0].datatype.precision is i64
+    assert asref.member.member.indices[0].symbol is idx
+    # Add a copy of the base symbol to the table.
+    newcs = component_symbol.copy()
+    table.add(newcs)
+    asref.replace_symbols_using(table)
+    assert asref.symbol is newcs
+    # Other symbols remain unchanged.
+    assert asref.indices[0].datatype.precision is i64
+    assert asref.member.member.indices[0].symbol is idx
+    # Add copies of the index and precision symbols.
+    newidx = idx.copy()
+    table.add(newidx)
+    newi64 = i64.copy()
+    table.add(newi64)
+    asref.replace_symbols_using(table)
+    # Everything should refer to the new symbols now.
+    assert asref.symbol is newcs
+    assert asref.indices[0].datatype.precision is newi64
+    assert asref.member.member.indices[0].symbol is newidx
