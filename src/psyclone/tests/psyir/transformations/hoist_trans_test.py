@@ -436,7 +436,7 @@ def test_validate_checks_for_side_effects(fortran_reader):
     assert ("The supplied assignment should not have side effects, but "
             "we can't prove this for 'zanm =" in str(err.value))
 
-    # The same but with a pure Call (a IntrinsicCall in this case) succeeds
+    # The same but with a pure Call (an IntrinsicCall in this case) succeeds
     psyir = fortran_reader.psyir_from_source(
         '''
         subroutine test()
@@ -450,6 +450,10 @@ def test_validate_checks_for_side_effects(fortran_reader):
     assignment = loop.loop_body[0]
     hoist_trans = HoistTrans()
     hoist_trans.apply(assignment)
+    # Now the assignment is outside and the loop removed because it had no
+    # more children
+    assert psyir.children[0][0] is assignment
+    assert loop not in psyir.children[0]
 
 
 def test_apply_remove_emtpy_loops(fortran_reader, fortran_writer):

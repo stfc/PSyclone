@@ -50,7 +50,8 @@ from psyclone.psyir.transformations.transformation_error \
 
 class HoistTrans(Transformation):
     '''This transformation takes an assignment and moves it outside of
-    its parent loop if it is valid to do so. For example:
+    its parent loop if it is valid to do so. If as a result the loop body
+    becomes empty, the loop will be removed altogether. For example:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
@@ -114,7 +115,7 @@ class HoistTrans(Transformation):
         loop.parent.children.insert(loop.position, node)
 
         # Remove loop if no more children are left.
-        if len(loop.loop_body.children) == 0:
+        if not loop.loop_body.children:
             loop.detach()
 
     def validate(self, node, options=None):
@@ -166,8 +167,8 @@ class HoistTrans(Transformation):
                 continue  # Pure calls are fine
             raise TransformationError(
                 f"The supplied assignment should not have side effects, but "
-                f"we can't prove this for '{node.debug_string()}' since it has"
-                f" Calls or CodeBlocks")
+                f"we can't prove this for '{node.debug_string()}' since it "
+                f"contains Calls or CodeBlocks")
 
         # Check dependency issues that might prevent hoisting:
         self._validate_dependencies(node, parent_loop)
