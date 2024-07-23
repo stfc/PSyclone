@@ -57,7 +57,7 @@ from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
 # Used to provide a unique default value for methods within the
-# SymbolTable class.  This enables us to determine when the user has
+# SymbolTable class. This enables us to determine when the user has
 # supplied a value of 'None' for arguments that have a default value.
 DEFAULT_SENTINEL = object()
 
