@@ -243,7 +243,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 # perfectly nested, so stop searching. If there is no child,
                 # we have an empty loop and we also stop here.
                 if len(next_loop.loop_body.children) != 1:
-                    if (next_loop.loop_body and
+                    if (next_loop.loop_body.children and
                             isinstance(next_loop.loop_body[0], Loop)):
                         next_loop.loop_body[0].append_preceding_comment(
                             "Loop cannot be collapsed because it has siblings")
