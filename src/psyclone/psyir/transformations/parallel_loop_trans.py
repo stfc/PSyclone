@@ -91,21 +91,20 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             (default), it won't collapse. If it's a bool and is True, it will
             collapse as much as possible. If it's an integer, it will attempt
             to collapse until the specified number of loops (if they exist and
-            are safe to collapse them). The options 'ignore_dependencies_for'
-            and 'force' also affect the collapse applicabilty analysis.
+            are safe to collapse). The options 'ignore_dependencies_for'
+            and 'force' also affect the collapse applicability.
         :param bool options["force"]: whether to force parallelisation of the
             target loop (i.e. ignore any dependence analysis).
         :param list[str] options["ignore_dependencies_for"]: whether to ignore
             some symbol names from the dependence analysis checks.
         :param bool options["sequential"]: whether this is a sequential loop.
-        :param bool options["verbose"]: whether report the reasons the validate
-            and collapse steps have failed.
+        :param bool options["verbose"]: whether to report the reasons the
+            validate and collapse steps have failed.
 
+        :raises TypeError: if 'collapse' is not an int or a bool.
+        :raises TypeError: if 'ignore_dependencies_for' is not a list of str.
         :raises TransformationError: if the given loop iterates over a
                 colours (LFRic domain) iteration space.
-        :raises TransformationError: if 'collapse' is not an int or a bool.
-        :raises TransformationError: if 'ignore_dependencies_for' is not a
-                list of str.
         :raises TransformationError: if there is a data dependency that
                 prevents the parallelisation of the loop and the provided
                 options don't disregard them.
@@ -134,7 +133,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         # loop nest has at least that number of loops in it
         if collapse:
             if not isinstance(collapse, (int, bool)):
-                raise TransformationError(
+                raise TypeError(
                     f"The 'collapse' argument must be an integer or a bool but"
                     f" got an object of type {type(collapse)}")
 
@@ -146,9 +145,9 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             if (not isinstance(ignore_dependencies_for, Iterable) or
                     isinstance(ignore_dependencies_for, str) or not all(
                     isinstance(v, str) for v in ignore_dependencies_for)):
-                raise TransformationError(
+                raise TypeError(
                     f"The 'ignore_dependencies_for' option must be an Iterable"
-                    f" object containing containing str representing the "
+                    f" object containing str representing the "
                     f"symbols to ignore, but got '{ignore_dependencies_for}'.")
 
         dep_tools = DependencyTools()
@@ -166,7 +165,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     continue
                 all_msg_str = [str(message) for message in
                                dep_tools.get_all_messages()]
-                messages = ("Loop can not be parallelised "
+                messages = ("Loop cannot be parallelised "
                             "because the dependency analysis reported:\n" +
                             "\n".join(all_msg_str))
                 if verbose:
@@ -207,8 +206,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :param list[str] options["ignore_dependencies_for"]: whether to ignore
             some symbol names from the dependence analysis checks.
         :param bool options["sequential"]: whether this is a sequential loop.
-        :param bool options["verbose"]: whether report the reasons the validate
-            and collapse steps have failed.
+        :param bool options["verbose"]: whether to report the reasons the
+            validate and collapse steps have failed.
 
         '''
         if not options:
@@ -240,32 +239,35 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     if num_collapsable_loops >= collapse:
                         break
 
-                # If it has more than one children, the next loop will not be
+                # If it has more than one child, the next loop will not be
                 # perfectly nested, so stop searching. If there is no child,
-                # we have an empty loop (which would cause a crash when
-                # accessing the child next)
+                # we have an empty loop and we also stop here.
                 if len(next_loop.loop_body.children) != 1:
+                    if (next_loop.loop_body and
+                            isinstance(next_loop.loop_body[0], Loop)):
+                        next_loop.loop_body[0].append_preceding_comment(
+                            "Loop cannot be collapsed because it has siblings")
                     break
 
-                next_loop = next_loop.loop_body.children[0]
+                next_loop = next_loop.loop_body[0]
                 if not isinstance(next_loop, Loop):
                     break
 
                 # If it is a loop dependent on a previous iteration variable
                 # (e.g. a triangular iteration space), it can not be collapsed
-                dependent_of_previous_variable = False
+                dependent_on_previous_variable = False
                 for bound in (next_loop.start_expr, next_loop.stop_expr,
                               next_loop.step_expr):
                     for ref in bound.walk(Reference):
                         if ref.symbol in previous_iteration_variables:
-                            dependent_of_previous_variable = ref.symbol
+                            dependent_on_previous_variable = ref.symbol
                             break
-                if dependent_of_previous_variable:
+                if dependent_on_previous_variable:
                     if verbose:
-                        next_loop.preceding_comment = (
-                            f"Loop can not be collapsed because one of the "
+                        next_loop.append_preceding_comment(
+                            f"Loop cannot be collapsed because one of the "
                             f"bounds depends on the previous iteration variab"
-                            f"le '{dependent_of_previous_variable.name}'")
+                            f"le '{dependent_on_previous_variable.name}'")
                     break
 
                 # Check that the next loop has no loop-carried dependencies

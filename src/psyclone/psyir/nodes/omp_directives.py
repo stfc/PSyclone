@@ -2546,7 +2546,7 @@ class OMPLoopDirective(OMPRegionDirective):
                 f"OMPParallelDirective, but '{self}' is not.")
 
         # If there is a collapse clause, there must be as many immediately
-        # nested loops as the collapse value (minus itself)
+        # nested loops as the collapse value
         if self._collapse:
             cursor = self.dir_body.children[0]
             for depth in range(self._collapse):

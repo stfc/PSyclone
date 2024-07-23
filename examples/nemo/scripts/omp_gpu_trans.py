@@ -90,7 +90,7 @@ def trans(psyir):
         enhance_tree_information(subroutine)
 
         # TODO #2082: bug in hoisting statements in loops with CodeBlocks
-        enable_hoisting = False if subroutine.name == "sto_par_init" else True
+        enable_hoisting = subroutine.name != "sto_par_init"
 
         normalise_loops(
                 subroutine,

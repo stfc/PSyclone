@@ -91,13 +91,16 @@ class OMPTargetTrans(RegionTrans):
         # pylint: disable=signature-differs
         '''
         Check that we can safely enclose the supplied node or list of nodes
-        within OpenACC kernels ... end kernels directives.
+        within an OpenMPTargetDirective.
 
         :param node: the PSyIR node or nodes to enclose in the OpenMP
                       target region.
         :type node: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+
+        :raises TransformationError: if it contains calls to routines that
+            are not available in the accelerator device.
         '''
         node_list = self.get_node_list(node)
         super().validate(node, options)
@@ -106,8 +109,8 @@ class OMPTargetTrans(RegionTrans):
                 if not call.is_available_on_device():
                     raise TransformationError(
                         f"'{call.routine.name}' is not available on the "
-                        f"accelerator device, and therefore it can not "
-                        f"be enclosed in a OMP target region.")
+                        f"accelerator device, and therefore it cannot "
+                        f"be called from within an OMP Target region.")
 
     def apply(self, node, options=None):
         ''' Insert an OMPTargetDirective before the provided node or list

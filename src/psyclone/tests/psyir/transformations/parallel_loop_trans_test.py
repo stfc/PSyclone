@@ -100,17 +100,16 @@ def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader,
     trans = ParaTrans()
     with pytest.raises(TransformationError) as err:
         trans.validate(loop, options={"verbose": True})
-    assert ("Loop can not be parallelised because the dependency analysis "
+    assert ("Loop cannot be parallelised because the dependency analysis "
             "reported:\nWarning: Variable 'sum' is read first, which indicates"
             " a reduction. Variable: 'sum'.") in str(err.value)
     # With the verbose option, the dependency issue will be log as a comment
-    print(fortran_writer(psyir))
-    assert ("! PSyclone: Loop can not be parallelised because the dependency"
+    assert ("! PSyclone: Loop cannot be parallelised because the dependency"
             " analysis reported:" in fortran_writer(psyir))
-    with pytest.raises(TransformationError) as err:
+    with pytest.raises(TypeError) as err:
         trans.validate(loop, {"ignore_dependencies_for": "sum"})
     assert ("The 'ignore_dependencies_for' option must be an Iterable object "
-            "containing containing str representing the symbols to ignore, but"
+            "containing str representing the symbols to ignore, but"
             " got 'sum'.") in str(err.value)
     # Set the ignore_dependencies_for option to ignore "sum"
     trans.validate(loop, {"ignore_dependencies_for": ["sum"]})
@@ -164,8 +163,8 @@ def test_paralooptrans_collapse_options(fortran_reader, fortran_writer):
           integer, dimension(10) :: map
 
           do i = 1, 10  ! This loop is iteration independent
-            do j = 1, 10  ! This loop has a loop-carried dependency in var1
-              do k = 1, j  ! This loop bounds depend on previous indices
+            do j = 1, 10  ! This loop has a loop-carried dependency in var
+              do k = 1, j  ! This loop bound depends on previous indices
                 var(i,j,k) = var(i, map(j), k)
               end do
             end do
@@ -203,7 +202,7 @@ enddo
 !$omp parallel do collapse(2) default(shared), private(i,j,k)
 do i = 1, 10, 1
   do j = 1, 10, 1
-    ! Loop can not be collapsed because one of the bounds depends on the \
+    ! Loop cannot be collapsed because one of the bounds depends on the \
 previous iteration variable 'j'
     do k = 1, j, 1
       var(i,j,k) = var(i,map(j),k)
@@ -218,7 +217,7 @@ enddo
 !$omp parallel do collapse(2) default(shared), private(i,j,k)
 do i = 1, 10, 1
   do j = 1, 10, 1
-    ! Loop can not be collapsed because one of the bounds depends on the \
+    ! Loop cannot be collapsed because one of the bounds depends on the \
 previous iteration variable 'j'
     do k = 1, j, 1
       var(i,j,k) = var(i,map(j),k)
@@ -228,8 +227,7 @@ enddo
 ''' in fortran_writer(test_loop.parent.parent)
 
     # Also it won't collapse if the loop inside is not perfectly nested,
-    # regardless of the force option, but we consider this expected and
-    # verbose won't log the reason.
+    # regardless of the force option.
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_sub()
           integer :: i, j, k
@@ -249,11 +247,11 @@ enddo
     trans = ParaTrans()
     test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
     trans.apply(test_loop, {"collapse": True, "verbose": True, "force": True})
-    print(fortran_writer(test_loop.parent.parent))
     assert '''\
 !$omp parallel do collapse(2) default(shared), private(i,j,k)
 do i = 1, 10, 1
   do j = 1, 10, 1
+    ! Loop cannot be collapsed because it has siblings
     do k = 1, 10, 1
       var(i,j,k) = var(i,map(j),k)
     enddo
@@ -288,7 +286,7 @@ def test_paralooptrans_validate_collapse(fortran_reader):
     loop = psyir.walk(Loop)[0]
     trans = ParaTrans()
     # Check that we reject non-integer collapse arguments
-    with pytest.raises(TransformationError) as err:
+    with pytest.raises(TypeError) as err:
         trans.validate(loop, {"collapse": loop})
     assert ("The 'collapse' argument must be an integer or a bool but got an"
             " object of type" in str(err.value))

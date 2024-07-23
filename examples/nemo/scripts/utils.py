@@ -268,8 +268,8 @@ def insert_explicit_loop_parallelism(
 
         if ('dyn_spg' in routine_name and len(loop.walk(Loop)) > 2):
             loop.append_preceding_comment(
-                "PSyclone: Loop not parallelised because its in 'dyn_spg' and "
-                "its not the inner loop")
+                "PSyclone: Loop not parallelised because it is in 'dyn_spg' "
+                "and is not the inner loop")
             continue
 
         # Skip if it is an array operation loop on an ice routine if along the

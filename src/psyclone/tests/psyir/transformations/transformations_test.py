@@ -145,7 +145,7 @@ def test_accparalleltrans_validate(fortran_reader):
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[0])
     assert ("'myfunc' is not available on the accelerator device, and "
-            "therefore it can not be enclosed in a ACC parallel region."
+            "therefore it cannot be called from within an ACC parallel region."
             in str(err.value))
 
     with pytest.raises(TransformationError) as err:

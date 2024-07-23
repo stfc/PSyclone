@@ -767,6 +767,7 @@ class DependencyTools():
         loop_vars = [loop.variable.name for loop in loop.walk(Loop)]
 
         result = True
+        symbol_table = loop.scope.symbol_table
         # Now check all variables used in the loop
         for signature, var_info in var_accesses.items():
             # This string contains derived type information, e.g.
@@ -785,7 +786,6 @@ class DependencyTools():
             except AttributeError:
                 # If its a node without a symbol, look it up
                 var_name = signature.var_name
-                symbol_table = loop.scope.symbol_table
                 symbol = symbol_table.lookup(var_name)
 
             # TODO #1270 - the is_array_access function might be moved

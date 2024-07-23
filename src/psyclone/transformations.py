@@ -1626,8 +1626,8 @@ class ACCParallelTrans(ParallelRegionTrans):
                 if not call.is_available_on_device():
                     raise TransformationError(
                         f"'{call.routine.name}' is not available on the "
-                        f"accelerator device, and therefore it can not "
-                        f"be enclosed in a ACC parallel region.")
+                        f"accelerator device, and therefore it cannot "
+                        f"be called from within an ACC parallel region.")
 
     def apply(self, target_nodes, options=None):
         '''
