@@ -72,14 +72,14 @@ class SymbolTable():
     default visibility is not specified then it defaults to
     Symbol.Visbility.PUBLIC.
 
-    :param node: reference to the Schedule or Container to which this \
+    :param node: reference to the Schedule or Container to which this
         symbol table belongs.
-    :type node: :py:class:`psyclone.psyir.nodes.Schedule`, \
-        :py:class:`psyclone.psyir.nodes.Container` or NoneType
-    :param default_visibility: optional default visibility value for this \
+    :type node: Optional[:py:class:`psyclone.psyir.nodes.Schedule` |
+                         :py:class:`psyclone.psyir.nodes.Container`]
+    :param default_visibility: optional default visibility value for this
         symbol table, if not provided it defaults to PUBLIC visibility.
-    :type default_visibillity: \
-        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+    :type default_visibillity: Optional[
+        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
 
     :raises TypeError: if node argument is not a Schedule or a Container.
 
@@ -151,14 +151,12 @@ class SymbolTable():
         '''If this symbol table is enclosed in another scope, return the
         symbol table of the next outer scope. Otherwise return None.
 
-        :param scope_limit: optional Node which limits the symbol \
-            search space to the symbol tables of the nodes within the \
-            given scope. If it is None (the default), the whole \
-            scope (all symbol tables in ancestor nodes) is searched \
-            otherwise ancestors of the scope_limit node are not \
-            searched.
-        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
-            `NoneType`
+        :param scope_limit: optional Node which limits the symbol search
+            space to the symbol tables of the nodes within the given scope.
+            If it is None (the default), the whole scope (all symbol tables
+            in ancestor nodes) is searched otherwise ancestors of the
+            scope_limit node are not searched.
+        :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: the 'parent' SymbolTable of the current SymbolTable (i.e.
                   the one that encloses this one in the PSyIR hierarchy).
@@ -290,24 +288,10 @@ class SymbolTable():
         for tag, symbol in self._tags.items():
             new_st._tags[tag] = new_st.lookup(symbol.name)
 
-        # Fix the container links for imported symbols
-        for symbol in new_st.imported_symbols:
-            name = symbol.interface.container_symbol.name
-            orig_name = symbol.interface.orig_name
-            new_container = new_st.lookup(name)
-            symbol.interface = ImportInterface(new_container,
-                                               orig_name=orig_name)
-
-        # Fix the references to RoutineSymbols within any
-        # GenericInterfaceSymbols.
+        # Update any references to Symbols within Symbols (initial values,
+        # precision etc.)
         for symbol in new_st.symbols:
-            if not isinstance(symbol, GenericInterfaceSymbol):
-                continue
-            new_routines = []
-            for routine in symbol.routines:
-                new_routines.append((new_st.lookup(routine.symbol.name),
-                                     routine.from_container))
-            symbol.routines = new_routines
+            symbol.replace_symbols_using(new_st)
 
         # Set the default visibility
         new_st._default_visibility = self.default_visibility
