@@ -184,7 +184,9 @@ def test_paralooptrans_collapse_options(fortran_reader, fortran_writer):
 !$omp parallel do collapse(1) default(shared), private(i,j,k)
 do i = 1, 10, 1
   ! Error: The write access to 'var(i,j,k)' and the read access to 'var(i,\
-map(j),k)' are dependent and cannot be parallelised. Variable: 'var'.
+map(j),k)' are dependent and cannot be parallelised. Variable: 'var'. \
+Consider using the "ignore_dependencies_for" transformation option if this \
+is a false dependency.
   do j = 1, 10, 1
     do k = 1, j, 1
       var(i,j,k) = var(i,map(j),k)

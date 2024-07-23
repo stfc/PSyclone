@@ -163,11 +163,13 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             for message in dep_tools.get_all_messages():
                 if message.code == DTCode.WARN_SCALAR_WRITTEN_ONCE:
                     continue
-                all_msg_str = [str(message) for message in
-                               dep_tools.get_all_messages()]
-                messages = ("Loop cannot be parallelised "
-                            "because the dependency analysis reported:\n" +
-                            "\n".join(all_msg_str))
+                all_msg_str = "\n".join([str(m) for m in
+                                         dep_tools.get_all_messages()])
+                messages = (f"Loop cannot be parallelised because the "
+                            f"dependency analysis reported:\n{all_msg_str}\n"
+                            f"Consider using the \"ignore_dependencies_for\""
+                            f" transformation option if this is a false "
+                            f"dependency.")
                 if verbose:
                     node.append_preceding_comment(f"PSyclone: {messages}")
                 raise TransformationError(messages)
@@ -279,7 +281,10 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                         if verbose:
                             msgs = dtools.get_all_messages()
                             next_loop.preceding_comment = (
-                                "\n".join([str(m) for m in msgs]))
+                                "\n".join([str(m) for m in msgs]) +
+                                " Consider using the \"ignore_dependencies_"
+                                "for\" transformation option if this is a "
+                                "false dependency.")
                         break
         else:
             num_collapsable_loops = None
