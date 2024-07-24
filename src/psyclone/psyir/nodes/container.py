@@ -286,8 +286,8 @@ class Container(ScopingNode, CommentableMixin):
             return [name]
 
         raise TypeError(
-            f"Expected '{name}' to correspond to either a RoutineSymbol or"
-            f" a GenericInterfaceSymbol but found '{type(rsym).__name__}'")
+            f"Expected '{name}' to correspond to a RoutineSymbol, a "
+            f"GenericInterfaceSymbol or an imported Symbol but found: {rsym}")
 
 
 # For AutoAPI documentation generation

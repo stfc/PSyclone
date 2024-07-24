@@ -356,6 +356,7 @@ def test_container_resolve_routine(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_source('''
 module a_mod
+    use some_mod, only: its_a_routine_really
     interface a_facade
       module procedure :: brick_frontage, porticoed
       procedure :: wattle_and_daub
@@ -383,11 +384,14 @@ end module a_mod
     assert set(routines) == set(["brick_frontage",
                                  "porticoed",
                                  "wattle_and_daub"])
+    # An imported Symbol
+    routines = cntr.resolve_routine("its_a_routine_really")
+    assert routines == ["its_a_routine_really"]
     # Something that is a DataSymbol.
     with pytest.raises(TypeError) as err:
         cntr.resolve_routine("not_a_routine")
-    assert ("Expected 'not_a_routine' to correspond to either a RoutineSymbol"
-            " or a GenericInterfaceSymbol but found 'DataSymbol'"
-            in str(err.value))
+    assert ("Expected 'not_a_routine' to correspond to a RoutineSymbol, a "
+            "GenericInterfaceSymbol or an imported Symbol but found: "
+            "not_a_routine: DataSymbol" in str(err.value))
     # A name not present in the Container.
     assert cntr.resolve_routine("missing") == []
