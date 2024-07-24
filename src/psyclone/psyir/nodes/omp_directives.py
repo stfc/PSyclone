@@ -74,7 +74,9 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.while_loop import WhileLoop
-from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
+from psyclone.psyir.symbols import (
+    INTEGER_TYPE, ScalarType, DataSymbol, ImportInterface, ContainerSymbol,
+    RoutineSymbol)
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -126,6 +128,10 @@ class OMPRegionDirective(OMPDirective, RegionDirective, metaclass=abc.ABCMeta):
         const = Config.get().api_conf().get_constants()
         for call in self.kernels():
             for arg in call.arguments.args:
+                if call.reprod_reduction:
+                    # In this case we do the reduction serially instead of
+                    # using an OpenMP clause
+                    continue
                 if arg.argument_type in const.VALID_SCALAR_NAMES:
                     if arg.descriptor.access == reduction_type:
                         if arg.name not in result:
@@ -1459,25 +1465,12 @@ class OMPParallelDirective(OMPRegionDirective):
                                  synchronisation mechanism to create valid
                                  code. These are not implemented yet.
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import zero_reduction_variables
-        reprod_red_call_list = self.reductions(reprod=True)
-        if reprod_red_call_list:
-            # we will use a private thread index variable
-            thread_idx = self.scope.symbol_table.\
-                lookup_with_tag("omp_thread_index")
-            private_clause.addchild(Reference(thread_idx))
-            thread_idx = thread_idx.name
-            # declare the variable
-            parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=[thread_idx]))
-
-        calls = self.reductions()
 
         # first check whether we have more than one reduction with the same
         # name in this Schedule. If so, raise an error as this is not
         # supported for a parallel region.
         names = []
+        calls = self.reductions()
         for call in calls:
             name = call.reduction_arg.name
             if name in names:
@@ -1486,7 +1479,32 @@ class OMPParallelDirective(OMPRegionDirective):
                     f"'{name}' is used multiple times, please use a different "
                     f"reduction variable")
             names.append(name)
+
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyGen import zero_reduction_variables
         zero_reduction_variables(calls)
+
+        # Reproducible reduction will be done serially by accumulating the
+        # partial results in an array indexed by the thread index
+        reprod_red_call_list = self.reductions(reprod=True)
+        if reprod_red_call_list:
+            # Use a private thread index variable
+            omp_lib = self.scope.symbol_table.find_or_create(
+                "omp_lib", symbol_type=ContainerSymbol)
+            omp_get_thread_num = self.scope.symbol_table.find_or_create(
+                "omp_get_thread_num", symbol_type=RoutineSymbol,
+                interface=ImportInterface(omp_lib))
+            thread_idx = self.scope.symbol_table.find_or_create(
+                "th_idx", symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE)
+            assignment = Assignment.create(
+                lhs=Reference(thread_idx),
+                rhs=BinaryOperation.create(
+                        BinaryOperation.Operator.ADD,
+                        Call.create(omp_get_thread_num),
+                        Literal("1", INTEGER_TYPE))
+            )
+            self.dir_body.addchild(assignment, 0)
 
         # Keep the first two children and compute the rest using the current
         # state of the node/tree (lowering it first in case new symbols are
@@ -1498,6 +1516,8 @@ class OMPParallelDirective(OMPRegionDirective):
         # Create data sharing clauses (order alphabetically to make generation
         # reproducible)
         private, fprivate, need_sync = self.infer_sharing_attributes()
+        if reprod_red_call_list:
+            private.add(thread_idx)
         private_clause = OMPPrivateClause.create(
                             sorted(private, key=lambda x: x.name))
         fprivate_clause = OMPFirstprivateClause.create(
@@ -1526,6 +1546,16 @@ class OMPParallelDirective(OMPRegionDirective):
 
         self.addchild(private_clause)
         self.addchild(fprivate_clause)
+
+        # Now finishe the reproducible reductions
+        if reprod_red_call_list:
+            # parent.add(CommentGen(parent, ""))
+            # parent.add(CommentGen(parent, " sum the partial results "
+            #                       "sequentially"))
+            # parent.add(CommentGen(parent, ""))
+            for call in reprod_red_call_list:
+                call.reduction_sum_loop()
+        
         return self
 
     def begin_string(self):

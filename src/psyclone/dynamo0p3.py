@@ -4588,6 +4588,40 @@ class DynGlobalSum(GlobalSum):
         parent.add(AssignGen(parent, lhs=sum_name+"%value", rhs=name))
         parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
 
+    def lower_to_language_level(self):
+        '''
+        :returns: this node lowered to language-level PSyIR.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+
+        # Get the name strings to use
+        name = self._scalar.name
+        type_name = self._scalar.data_type
+        mod_name = self._scalar.module_name
+
+        # Get the symbols from the given names
+        symtab = self.ancestor(InvokeSchedule).symbol_table
+        sum_mod = symtab.find_or_create(mod_name, symbol_type=ContainerSymbol)
+        sum_type = symtab.find_or_create(type_name,
+                                         symbol_type=DataTypeSymbol,
+                                         datatype=UnresolvedType(),
+                                         interface=ImportInterface(sum_mod))
+        sum_name = symtab.find_or_create_tag("global_sum",
+                                             symbol_type=DataSymbol,
+                                             datatype=sum_type)
+        tmp_var = symtab.lookup(name)
+
+        # Create the assignments
+        assign1 = Assignment.create(
+            lhs=StructureReference.create(sum_name, ["value"]),
+            rhs=Reference(tmp_var)
+        )
+        self.parent.addchild(assign1, self.position)
+        assign2 = Assignment.create(
+            lhs=Reference(tmp_var),
+            rhs=Call.create(StructureReference.create(sum_name, ["get_sum"]))
+        )
+        return self.replace_with(assign2)
 
 def _create_depth_list(halo_info_list, sym_table):
     '''Halo exchanges may have more than one dependency. This method

@@ -54,7 +54,8 @@ from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Container, Literal, Loop, Node, OMPDoDirective,
-    Reference, Directive, Routine, Schedule, Statement, Assignment)
+    Reference, Directive, Routine, Schedule, Statement, Assignment,
+    IntrinsicCall)
 from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
                                     ContainerSymbol, DataSymbol,
                                     UnresolvedType, REAL_TYPE,
@@ -1172,12 +1173,12 @@ class Kern(Statement):
                 f"'{var_arg.intrinsic_type}'.")
         # Retrieve the precision information (if set) and append it
         # to the initial reduction value
-        # if var_arg.precision:
-        #     kind_type = var_arg.precision
-        #     zero_sum_init_val = "_".join([data_value, kind_type])
-        # else:
-        #     kind_type = ""
-        #     zero_sum_init_val = data_value
+        if var_arg.precision:
+            kind_type = var_arg.precision
+            # zero_sum_init_val = "_".join([data_value, kind_type])
+        else:
+            kind_type = ""
+            # zero_sum_init_val = data_value
         variable = self.scope.symbol_table.lookup(variable_name)
         from psyclone.domain.common.psylayer import PSyLoop
         insert_loc = self.ancestor(PSyLoop)
@@ -1190,38 +1191,55 @@ class Kern(Statement):
                         lhs=Reference(variable),
                         rhs=Literal(data_value, data_type))
         insert_loc.addchild(new_node, cursor)
+        cursor += 1
         # parent.add(AssignGen(parent, lhs=var_name, rhs=zero_sum_variable),
         #            position=position)
+
         if self.reprod_reduction:
-            parent.add(DeclGen(parent, datatype=var_data_type,
-                               entity_decls=[local_var_name],
-                               allocatable=True, kind=kind_type,
-                               dimension=":,:"))
+            local_var = self.scope.symbol_table.find_or_create_tag(
+                local_var_name, symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(
+                    f"{data_type}({kind_type}), allocatable, dimension(:,:) "
+                    f":: {local_var_name}"
+                ))
             nthreads = \
-                self.scope.symbol_table.lookup_with_tag("omp_num_threads").name
+                self.scope.symbol_table.lookup_with_tag("omp_num_threads")
+        #     parent.add(DeclGen(parent, datatype=var_data_type,
+        #                        entity_decls=[local_var_name],
+        #                        allocatable=True, kind=kind_type,
+        #                        dimension=":,:"))
             if Config.get().reprod_pad_size < 1:
                 raise GenerationError(
                     f"REPROD_PAD_SIZE in {Config.get().filename} should be a "
                     f"positive integer, but it is set to "
                     f"'{Config.get().reprod_pad_size}'.")
-            pad_size = str(Config.get().reprod_pad_size)
-            parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
-                                   "," + nthreads + ")"), position=position)
-            parent.add(AssignGen(parent, lhs=local_var_name,
-                                 rhs=zero_sum_variable), position=position)
+            pad_size = Literal(str(Config.get().reprod_pad_size), INTEGER_TYPE)
+            alloc = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.ALLOCATE,
+                [ArrayReference.create(local_var,
+                                       [pad_size, Reference(nthreads)])])
+            insert_loc.addchild(alloc, cursor)
+            cursor += 1
+
+            assign = Assignment.create(
+                lhs=Reference(local_var),
+                rhs=Literal(data_value, data_type)
+            )
+            insert_loc.addchild(assign, cursor)
+        #     parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
+        #                            "," + nthreads + ")"), position=position)
+
+        #     parent.add(AssignGen(parent, lhs=local_var_name,
+        #                          rhs=zero_sum_variable), position=position)
         return new_node
 
-    def reduction_sum_loop(self, parent):
+    def reduction_sum_loop(self):
         '''
         Generate the appropriate code to place after the end parallel
         region.
 
-        :param parent: the Node in the f2pygen AST to which to add new code.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
         :raises GenerationError: for an unsupported reduction access in \
                                  LFRicBuiltIn.
-
         '''
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
