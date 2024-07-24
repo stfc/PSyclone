@@ -384,7 +384,8 @@ def test_datasymbol_copy():
     of the original symbol.
 
     '''
-    array_type = ArrayType(REAL_SINGLE_TYPE, [1, 2])
+    nelem = DataSymbol("nelem", INTEGER_SINGLE_TYPE)
+    array_type = ArrayType(REAL_SINGLE_TYPE, [1, Reference(nelem)])
     symbol = DataSymbol("myname", array_type, initial_value=None,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
@@ -393,6 +394,8 @@ def test_datasymbol_copy():
     # Check the new symbol has the same properties as the original
     assert symbol.name == new_symbol.name
     assert symbol.datatype == new_symbol.datatype
+    assert symbol.shape[1].upper is not new_symbol.shape[1].upper
+    assert symbol.shape[1].upper.symbol is new_symbol.shape[1].upper.symbol
     assert symbol.shape == new_symbol.shape
     assert symbol.initial_value == new_symbol.initial_value
     assert symbol.is_constant == new_symbol.is_constant
@@ -422,13 +425,13 @@ def test_datasymbol_copy():
             ScalarType.Precision.UNDEFINED)
     assert isinstance(symbol.shape[1], ArrayType.ArrayBounds)
     assert isinstance(symbol.shape[1].lower, Literal)
-    assert isinstance(symbol.shape[1].upper, Literal)
     assert symbol.shape[1].lower.value == "1"
-    assert symbol.shape[1].upper.value == "2"
+    assert isinstance(symbol.shape[1].upper, Reference)
+    assert symbol.shape[1].upper.symbol is nelem
     assert (symbol.shape[1].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
     assert (symbol.shape[1].upper.datatype.precision ==
-            ScalarType.Precision.UNDEFINED)
+            ScalarType.Precision.SINGLE)
     assert symbol.initial_value is None
 
     # Now check initial_value
@@ -440,17 +443,25 @@ def test_datasymbol_copy():
             ScalarType.Intrinsic.INTEGER)
     assert (symbol.shape[0].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
-    assert isinstance(symbol.shape[1].upper, Literal)
-    assert symbol.shape[1].upper.value == "2"
+    assert isinstance(symbol.shape[1].upper, Reference)
+    assert symbol.shape[1].upper.symbol is nelem
     assert (symbol.shape[1].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
     assert (symbol.shape[1].upper.datatype.precision ==
-            ScalarType.Precision.UNDEFINED)
+            ScalarType.Precision.SINGLE)
     assert symbol.initial_value is None
 
+    new_symbol.initial_value = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, Reference(nelem), Reference(nelem))
     new_new_symbol = new_symbol.copy()
-    assert new_symbol.initial_value == new_new_symbol.initial_value
+    assert isinstance(new_new_symbol.initial_value, BinaryOperation)
     assert new_symbol.initial_value is not new_new_symbol.initial_value
+    for child_idx in [0, 1]:
+        # References must be new.
+        assert (new_new_symbol.initial_value.children[child_idx] is not
+                new_symbol.initial_value.children[child_idx])
+        # Symbols referred to are unchanged.
+        assert new_new_symbol.initial_value.children[child_idx].symbol is nelem
 
 
 def test_datasymbol_copy_properties():

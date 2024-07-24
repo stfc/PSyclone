@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import (ArrayReference, Assignment, colored,
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     UnresolvedType, ImportInterface,
                                     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
-                                    REAL_TYPE, ScalarType, Symbol,
+                                    REAL_TYPE, ScalarType, Symbol, SymbolTable,
                                     UnresolvedInterface)
 
 
@@ -508,3 +508,31 @@ def test_reference_previous_access_with_codeblock(fortran_reader):
     if a.previous_access() is not codeblock:
         pytest.xfail("#2271 Codeblocks don't currently support "
                      "reference_accesses")
+
+
+def test_reference_replace_symbols_using():
+    '''Test the replace_symbols_using() method correctly updates the Symbol
+    to which the Reference refers.
+
+    '''
+    wp = DataSymbol("wp", INTEGER_SINGLE_TYPE)
+    stype = ScalarType(ScalarType.Intrinsic.REAL, wp)
+    asym = DataSymbol("asym", stype)
+    ref = Reference(asym)
+    table = SymbolTable()
+    ref.replace_symbols_using(table)
+    # Empty table so no change.
+    assert ref.symbol is asym
+    assert ref.symbol.datatype.precision is wp
+    asym2 = asym.copy()
+    table.add(asym2)
+    ref.replace_symbols_using(table)
+    assert ref.symbol is asym2
+    assert ref.symbol.datatype.precision is wp
+    # Check that the update does not recurse into the Symbol properties (as
+    # that is handled by the SymbolTable).
+    wp2 = wp.copy()
+    table.add(wp2)
+    ref.replace_symbols_using(table)
+    assert ref.symbol is asym2
+    assert ref.symbol.datatype.precision is wp
