@@ -350,16 +350,20 @@ class PSyDataNode(Statement):
         # PSyData names as tags to ensure we don't attempt to add them more
         # than once if multiple transformations are applied.
         for sym in self.imported_symbols:
-            existing_sym = symbol_table.symbols_dict.get(sym.name, None)
-            if not existing_sym:
+            existing_sym = symbol_table.lookup(sym.name, otherwise=None)
+            if existing_sym:
+                if not (existing_sym.is_import and
+                        existing_sym.interface.container_symbol is csym):
+                    raise InternalError(
+                        f"Cannot add PSyData symbol '{sym.name}' because it "
+                        f"already exists but is not imported from "
+                        f"'{csym.name}'")
+            else:
                 symbol_table.find_or_create_tag(
                     sym.name, symbol_type=sym.symbol_type,
                     interface=ImportInterface(csym),
                     datatype=UnresolvedType())
-            else:
-                if (not existing_sym.is_import or
-                        existing_sym.interface.container_symbol is not csym):
-                    raise InternalError("hohoho")
+
         # Store the name of the PSyData variable that is used for this
         # PSyDataNode. This allows the variable name to be shown in str
         # (and also, calling create_name in gen() would result in the name
