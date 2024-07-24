@@ -284,21 +284,21 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         Creates the type of directive needed for this sub-class of
         transformation.
 
-        :param children: list of Nodes that will be the children of \
+        :param children: list of Nodes that will be the children of
                          the created directive.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param int collapse: currently un-used but required to keep \
+        :param int collapse: currently un-used but required to keep
                              interface the same as in base class.
         :returns: the new node representing the directive in the AST.
         :rtype: :py:class:`psyclone.psyir.nodes.OMPTaskloopDirective`
 
         :raises NotImplementedError: if a collapse argument is supplied
         '''
-        # TODO 1370: OpenMP loop functions don't support collapse
+        # TODO 2672: OpenMP loop functions don't support collapse
         if collapse:
             raise NotImplementedError(
                 "The COLLAPSE clause is not yet supported for "
-                "'!$omp taskloop' directives.")
+                "'!$omp taskloop' directives (#2672).")
         _directive = OMPTaskloopDirective(children=children,
                                           grainsize=self.omp_grainsize,
                                           num_tasks=self.omp_num_tasks,
