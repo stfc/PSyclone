@@ -102,8 +102,11 @@ explicitly listed may be assumed to be unsupported):
 +----------------------+--------------------+--------------------+
 |                      |PUBLIC, PRIVATE     |                    |
 +----------------------+--------------------+--------------------+
-|Initialisation        |Data statements     |                    |
-|expressions           |(limited)           |                    |
+|Initialisation        |Explicit            |                    |
+|expressions           |initialisation      |                    |
++----------------------+--------------------+--------------------+
+|                      |Data statements     |                    |
+|                      |(limited)           |                    |
 +----------------------+--------------------+--------------------+
 |Imports/globals       |USE with ONLY and   |User-defined        |
 |                      |renaming            |operators           |

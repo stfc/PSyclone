@@ -52,6 +52,7 @@ def test_simple_data_statement(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source('''
         subroutine test()
+            implicit none
             integer :: a, b, c
             data a/1/, b/2/, c/3/
         end subroutine test
@@ -71,6 +72,7 @@ def test_simple_data_statement(fortran_reader):
     # Test with a single data statement
     psyir = fortran_reader.psyir_from_source('''
         subroutine test()
+            implicit none
             integer :: a
             data a/1/
         end subroutine test
@@ -91,7 +93,8 @@ def test_multiple_data_statement(fortran_reader):
     # Test with multiple initialisations
     psyir = fortran_reader.psyir_from_source('''
         subroutine test()
-            integer :: a, b, c(5)
+            implicit none
+            integer :: a, b, c(5), i
             data a/1/, b/2/
             data (c(i), i=1,5) / 5, 4, 3, 2, 1/
         end subroutine test
@@ -117,7 +120,8 @@ def test_data_statement_implicit_loop(fortran_reader):
     # Test with a single data statement with an implicit loop
     psyir = fortran_reader.psyir_from_source('''
         subroutine test()
-            integer :: c(5)
+            implicit none
+            integer :: c(5), i
             data (c(i), i=1,5) / 5, 4, 3, 2, 1/
         end subroutine test
       ''')
@@ -139,7 +143,8 @@ def test_data_statement_nested_implicit_loop(fortran_reader):
     # Test with a single data statement with an implicit loop
     psyir = fortran_reader.psyir_from_source('''
         subroutine test()
-            integer :: c(5, 5)
+            implicit none
+            integer :: c(5, 5), i, j
             data ((c(i,j), i=j+1, 5), j=1, 5) / 10 * 1.0 /
         end subroutine test
       ''')
@@ -161,6 +166,7 @@ def test_data_statement_derived_type(fortran_reader):
     # Test a derived type, initialised with a derived type:
     psyir = fortran_reader.psyir_from_source('''
         subroutine test()
+            implicit none
             type :: mytype
                integer :: a, b
             end type mytype
@@ -180,6 +186,7 @@ def test_data_statement_derived_type(fortran_reader):
     # Test a derived type initialised component-wise
     psyir = fortran_reader.psyir_from_source('''
         subroutine test()
+            implicit none
             type :: mytype
                integer :: a, b
             end type mytype
@@ -201,7 +208,6 @@ def test_data_statement_undeclared_var(fortran_reader):
     ''' Test that a data statement for a variable that is otherwise
     not declared works as expected. '''
 
-    # Test a derived type, initialised with a derived type:
     psyir = fortran_reader.psyir_from_source('''
         subroutine test()
             data a / 1 /

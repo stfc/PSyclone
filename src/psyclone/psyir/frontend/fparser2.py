@@ -2645,8 +2645,8 @@ class Fparser2Reader():
 
         # Check for data statements. While data statements are only partially
         # supported (they are turned into UnsupportedFortranTypes), all
-        # symbols in data statements get the static attribute set.
-        self._process_data_statement(nodes, parent)
+        # symbols in data statements get a static interface.
+        self._process_data_statements(nodes, parent)
 
         if visibility_map is not None:
             # Check for symbols named in an access statement but not explicitly
@@ -2727,7 +2727,7 @@ class Fparser2Reader():
                     f"declarations are not supported.") from err
 
     @staticmethod
-    def _process_data_statement(nodes, psyir_parent):
+    def _process_data_statements(nodes, psyir_parent):
         '''Limited support for data statements: they will be converted
         to UnsupportedFortranTypes, and added to the symbol table
         using an internal PSyclone name. The complexity of data
@@ -2737,7 +2737,8 @@ class Fparser2Reader():
         :param nodes: fparser2 AST nodes containing declaration statements.
         :type nodes: List[:py:class:`fparser.two.utils.Base`]
         :param psyir_parent: the PSyIR Node with a symbol table in which to
-            add the data statements and update the symbols interfaces.
+            add the data statements and update the interfaces of the symbols
+            used in the data statement.
         :type psyir_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
         '''
 
