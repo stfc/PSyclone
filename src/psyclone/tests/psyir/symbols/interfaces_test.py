@@ -175,20 +175,25 @@ def test_importinterface_container_symbol_getter_setter():
     assert import_interface.orig_name == "orig_name"
 
 
-def test_importinterface_copy():
-    ''' Test the copy() method of ImportInterface. '''
+def test_importinterface_copy_eq():
+    ''' Test the copy() and __eq__ methods of ImportInterface. '''
     csym = ContainerSymbol("my_mod")
     import_interface = ImportInterface(csym)
     new_interface = import_interface.copy()
+    assert new_interface == import_interface
     assert new_interface is not import_interface
     assert new_interface.container_symbol is csym
     assert new_interface.orig_name is None
     new_interface.container_symbol = ContainerSymbol("other_mod")
     assert import_interface.container_symbol is csym
+    assert new_interface != import_interface
 
     import_interface = ImportInterface(csym, orig_name="orig_name")
     new_interface = import_interface.copy()
     assert new_interface.orig_name == "orig_name"
+    assert new_interface == import_interface
+    new_interface._orig_name = "something"
+    assert new_interface != import_interface
 
 
 def test_argumentinterface_init():
@@ -239,14 +244,17 @@ def test_argumentinterface_str():
     assert str(argument_interface) == "Argument(Access.WRITE)"
 
 
-def test_argumentinterface_copy():
-    ''' Test the copy() method of ArgumentInterface. '''
+def test_argumentinterface_copy_eq():
+    ''' Test the copy() and __eq__ methods of ArgumentInterface. '''
     arg_interface = ArgumentInterface(access=ArgumentInterface.Access.WRITE)
     new_interface = arg_interface.copy()
     assert new_interface.access == ArgumentInterface.Access.WRITE
+    assert arg_interface == new_interface
     # Check that we can modify the copy without affecting the original
     new_interface.access = ArgumentInterface.Access.READ
     assert arg_interface.access == ArgumentInterface.Access.WRITE
+    assert arg_interface != new_interface
+    assert arg_interface != 2
 
 
 def test_preprocessorinterface():

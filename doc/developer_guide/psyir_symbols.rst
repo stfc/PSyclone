@@ -120,10 +120,6 @@ explicitly listed may be assumed to be unsupported):
 |                      |PRIVATE             |                    |
 +----------------------+--------------------+--------------------+
 
-.. warning:: Checking for equality between Type objects is currently
-	     only implemented for ``ScalarType``. This will be
-	     completed in #1799.
-
 It was decided to include datatype intrinsic as an attribute of ScalarType
 rather than subclassing. So, for example, a 4-byte real scalar is
 defined like this:
@@ -222,6 +218,42 @@ possible that these should reflect a global view. One issue is that
 the `__contains__` method has no mechanism to pass a `scope_limit`
 optional argument. This would probably require a separate `setter` and
 `getter` to specify whether to check ancestors or not.
+
+Copying Symbols and Symbol Tables
+=================================
+
+Since Symbols can contain PSyIR nodes and other Symbols (e.g. as part
+of the definition of their precision or initial value), creating copies
+is not entirely straightforward. Every `Symbol` has the `copy` method:
+
+.. automethod:: psyclone.psyir.symbols.Symbol.copy
+
+This ensures that the precision and initial-value PSyIR sub-trees are
+copied appropriately while any Symbols referred to inside those nodes remain
+unchanged (and therefore can still be used in the same scope).
+
+However, when performing a *deep* copy of a PSyIR tree, all Symbols will
+need to be replaced with their equivalents in the new tree. The
+`SymbolTable.deep_copy()` method:
+
+.. automethod:: psyclone.psyir.symbols.SymbolTable.deep_copy
+
+handles this by first creating shallow copies of all Symbols in the
+table and then ensuring that each is updated to refer to Symbols in
+the new scope. This is achieved with the `replace_symbols_using`
+method:
+
+.. automethod:: psyclone.psyir.symbols.Symbol.replace_symbols_using
+
+All PSyIR `Node` classes also implement this method and call it when a
+`copy` operation is performed on the tree. The implementation in `Node`
+walks down the PSyIR tree and updates any Symbols using those in the supplied
+table. As the PSyIR supports nested scopes,  each `ScopingNode` is associated
+with a new symbol table. Therefore, the implementation within this class
+is slightly different:
+
+.. automethod:: psyclone.psyir.nodes.ScopingNode.replace_symbols_using
+
 
 Specialising Symbols
 ====================
