@@ -1434,7 +1434,7 @@ def test_view():
                       "  func: RoutineSymbol<Scalar<REAL, UNDEFINED>, "
                       "pure=unknown, elemental=unknown>\n")
 
-    Routine("func", symbol_table=sym_table_2)
+    Routine.create("func", symbol_table=sym_table_2)
     output = sym_table_2.view()
     assert "Symbol Table of Routine 'func':\n" in output
     assert "DataSymbol:\n" in output

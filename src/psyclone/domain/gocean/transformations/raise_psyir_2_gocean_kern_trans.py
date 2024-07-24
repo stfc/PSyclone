@@ -240,9 +240,8 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         # The validate() method has already checked that the routine exists.
         # pylint: disable=undefined-loop-variable
         gotable = GOSymbolTable.create_from_table(routine.symbol_table)
-        gokernsched = GOKernelSchedule(metadata.procedure_name,
-                                       symbol_table=gotable.detach(),
-                                       symbol=routine.symbol)
+        gokernsched = GOKernelSchedule(routine.symbol,
+                                       symbol_table=gotable.detach())
         for child in routine.pop_all_children():
             gokernsched.addchild(child)
         routine.replace_with(gokernsched)

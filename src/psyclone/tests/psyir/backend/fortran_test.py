@@ -864,7 +864,7 @@ def test_fw_filecontainer_2(fortran_writer):
 
     '''
     container = Container("mod_name")
-    routine = Routine("sub_name")
+    routine = Routine.create("sub_name")
     file_container = FileContainer.create(
         "None", SymbolTable(), [container, routine])
     result = fortran_writer(file_container)
@@ -1839,7 +1839,7 @@ def test_fw_comments(fortran_writer):
     ''' Test the generation of Fortran from PSyIR with comments. '''
 
     container = Container("my_container")
-    routine = Routine("my_routine")
+    routine = Routine.create("my_routine")
     container.addchild(routine)
     statement1 = Return()
     statement2 = Return()

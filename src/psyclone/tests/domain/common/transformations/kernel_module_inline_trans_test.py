@@ -187,7 +187,7 @@ def test_validate_name_clashes():
 
     # Check that if a subroutine with the same name already exists and it is
     # not identical, it fails.
-    schedule.parent.addchild(Routine("ru_code"))
+    schedule.parent.addchild(Routine.create("ru_code"))
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(coded_kern)
     assert ("Cannot inline subroutine 'ru_code' because another, different, "

@@ -893,7 +893,7 @@ def _process_routine_symbols(module_ast, container, symbol_table,
         rsymbol = RoutineSymbol(name, sym_type, visibility=vis,
                                 is_pure=is_pure, is_elemental=is_elemental,
                                 interface=DefaultModuleInterface())
-        routine_obj = Routine(name, is_program=False, symbol=rsymbol)
+        routine_obj = Routine(rsymbol, is_program=False)
         container.addchild(routine_obj)
 
 
@@ -5254,7 +5254,7 @@ class Fparser2Reader():
                 routine = routine_node
                 break
         if routine is None:
-            routine = Routine(name, parent=parent)
+            routine = Routine.create(name)
             # We add this to the parent so the finally of the next block
             # can safe call detach on the routine. This handles the case
             # where an error occurs which should result in a codeblock, but
@@ -5410,7 +5410,7 @@ class Fparser2Reader():
             pass
 
         name = node.children[0].children[1].string
-        routine = Routine(name, parent=parent, is_program=True)
+        routine = Routine.create(name, is_program=True)
         routine._ast = node
 
         try:

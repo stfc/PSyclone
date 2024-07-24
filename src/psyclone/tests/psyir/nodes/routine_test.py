@@ -42,7 +42,7 @@
 import pytest
 
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes import (Assignment, Literal, FileContainer,
+from psyclone.psyir.nodes import (Assignment, Literal,
                                   Reference, Routine, ScopingNode)
 from psyclone.psyir.symbols import (REAL_TYPE, DataSymbol,
                                     SymbolTable, RoutineSymbol)
@@ -51,14 +51,15 @@ from psyclone.tests.utilities import check_links
 
 def test_routine_constructor():
     ''' Check the constructor and associated type checking. '''
-    fc = FileContainer("test_file.f90")
+    symbol = RoutineSymbol("hello")
     with pytest.raises(TypeError) as err:
         Routine(1)
-    assert "must be a str but got" in str(err.value)
+    assert ("Routine argument 'symbol' must be present and must be a "
+            "RoutineSymbol but got 'int'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        Routine("hello", is_program=1, parent=fc)
+        Routine(symbol, is_program=1)
     assert "'is_program' must be a bool" in str(err.value)
-    node = Routine("hello", parent=fc)
+    node = Routine(symbol)
     assert node.name == "hello"
     assert isinstance(node._symbol, RoutineSymbol)
     assert node._symbol.name == "hello"
@@ -66,8 +67,7 @@ def test_routine_constructor():
 
 def test_routine_properties():
     ''' Check the various properties of the Routine class. '''
-    fc = FileContainer("test_file.f90")
-    node1 = Routine("hello", parent=fc)
+    node1 = Routine.create("hello")
     assert node1.dag_name == "routine_hello_0"
     assert node1.return_symbol is None
     assert node1.is_program is False
@@ -76,10 +76,10 @@ def test_routine_properties():
     node1.addchild(Assignment())
     assert "Routine[name:'hello']:\nAssignment" in str(node1)
 
-    node2 = Routine("bonjour", parent=fc)
+    node2 = Routine.create("bonjour")
     assert node2.is_program is False
 
-    node3 = Routine("gutentag", is_program=True, parent=fc)
+    node3 = Routine.create("gutentag", is_program=True)
     assert node3.is_program
 
 
@@ -87,8 +87,7 @@ def test_routine_name_setter():
     ''' Check the name setter property of the Routine class updates its
     name and its associated Routine symbol. '''
 
-    fc = FileContainer("test_file.f90")
-    node = Routine("hello", parent=fc)
+    node = Routine.create("hello")
     # The constructor has an implicit name setter
     # Check the associated RoutineSymbol has been created
     assert "hello" == node._symbol.name
@@ -111,8 +110,7 @@ def test_routine_return_symbol_setter():
     values.
 
     '''
-    fc = FileContainer("test_file.f90")
-    node = Routine("hello", parent=fc)
+    node = Routine.create("hello")
     assert node.return_symbol is None
     with pytest.raises(TypeError) as err:
         node.return_symbol = "wrong"
@@ -268,7 +266,7 @@ def test_routine_replace_with(fortran_reader):
     assert ("The argument node in method replace_with in the Routine "
             "class should be a Routine but found 'int'." in str(excinfo.value))
 
-    rout2 = Routine("a")
+    rout2 = Routine.create("a")
     with pytest.raises(GenerationError) as excinfo:
         rout2.replace_with(rout)
     assert ("This node should have a parent if its replace_with method is "
@@ -285,14 +283,14 @@ def test_routine_replace_with(fortran_reader):
             "Routine class should be None but found 'FileContainer'."
             in str(excinfo.value))
 
-    rout2 = Routine("a")
+    rout2 = Routine.create("a")
     with pytest.raises(GenerationError) as excinfo:
         rout.replace_with(rout2)
     assert ("The symbol of argument node in method replace_with in the "
             "Routine class should be the same as the Routine being "
             "replaced." in str(excinfo.value))
 
-    rout2 = Routine("a", symbol=rout._symbol)
+    rout2 = Routine(symbol=rout._symbol)
 
     rout.replace_with(rout2)
     assert rout.parent is None

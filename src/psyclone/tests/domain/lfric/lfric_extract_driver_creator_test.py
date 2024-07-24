@@ -98,7 +98,7 @@ def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
     ctu = CallTreeUtils()
     rw_info = ctu.get_in_out_parameters([invoke.schedule[0]],
                                         collect_non_local_symbols=True)
-    new_routine = Routine("driver_test")
+    new_routine = Routine.create("driver_test")
     for mod_name, sig in rw_info.set_of_all_used_vars:
         if not mod_name:
             new_routine.symbol_table.find_or_create_tag(
@@ -179,7 +179,7 @@ def test_lfric_driver_add_call(fortran_writer):
     '''Tests that adding a call detects errors and adds calls
     with and without parameters as expected.
     '''
-    program = Routine("routine", is_program=True)
+    program = Routine.create("routine", is_program=True)
     program.symbol_table.find_or_create_tag("test")
     driver_creator = LFRicExtractDriverCreator()
     with pytest.raises(TypeError) as err:
@@ -201,7 +201,7 @@ def test_lfric_driver_add_call(fortran_writer):
 def test_lfric_driver_import_modules():
     '''Tests that adding a call detects errors as expected.
     '''
-    program = Routine("routine", is_program=True)
+    program = Routine.create("routine", is_program=True)
     _, invoke = get_invoke("8_vector_field_2.f90", API,
                            dist_mem=False, idx=0)
 
@@ -242,7 +242,7 @@ def test_lfric_driver_import_modules_no_import_interface(fortran_reader):
     sched = psyir.walk(Schedule)[0]
     sched.lower_to_language_level()
     driver_creator = LFRicExtractDriverCreator()
-    program = Routine("routine", is_program=True)
+    program = Routine.create("routine", is_program=True)
     driver_creator._import_modules(program.scope.symbol_table, sched)
     # No symbols should be in the symbol table after
     # calling `import_modules`.

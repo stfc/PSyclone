@@ -55,7 +55,8 @@ class LFRicInvokeSchedule(InvokeSchedule):
     specific factories for creating kernel and infrastructure calls
     to the base class so it creates the ones we require.
 
-    :param str name: name of the Invoke.
+    :param symbol: symbol representing the Invoke.
+    :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
     :param arg: list of KernelCalls parsed from the algorithm layer.
     :type arg: list of :py:class:`psyclone.parse.algorithm.KernelCall`
     :param reserved_names: optional list of names that are not allowed in the
@@ -65,11 +66,17 @@ class LFRicInvokeSchedule(InvokeSchedule):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
+    # Rather than passing an LFRicSymbolTable we should use the functionality
+    # in scoping node to determine the type of this symbol table. This also
+    # avoids collision due to Routine.create passing the symbol_table kwarg
+    # to this function.
+    _symbol_table_class = LFRicSymbolTable
 
-    def __init__(self, name, arg, reserved_names=None, parent=None):
-        super().__init__(name, LFRicKernCallFactory,
+    def __init__(self, symbol, arg, reserved_names=None, parent=None,
+                 **kwargs):
+        super().__init__(symbol, LFRicKernCallFactory,
                          LFRicBuiltInCallFactory, arg, reserved_names,
-                         parent=parent, symbol_table=LFRicSymbolTable())
+                         parent=parent, **kwargs)
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this node.

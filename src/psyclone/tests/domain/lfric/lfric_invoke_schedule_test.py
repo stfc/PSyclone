@@ -39,6 +39,7 @@ import os
 from psyclone.domain.lfric import LFRicSymbolTable, LFRicInvokeSchedule
 from psyclone.parse.algorithm import parse
 from psyclone.psyir.nodes import Container, colored
+from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyGen import PSyFactory
 
 
@@ -54,12 +55,13 @@ def test_lfricinvsched_parent():
                                         "1.0.1_single_named_invoke.f90"),
                            api=TEST_API)
     kcalls = invoke_info.calls[0].kcalls
+    symbol = RoutineSymbol("my_sched")
     # With no parent specified
-    dsched = LFRicInvokeSchedule("my_sched", kcalls)
+    dsched = LFRicInvokeSchedule(symbol, kcalls)
     assert dsched.parent is None
     # With a parent
     fake_parent = Container("my_mod", symbol_table=LFRicSymbolTable())
-    dsched2 = LFRicInvokeSchedule("my_sched", kcalls, parent=fake_parent)
+    dsched2 = LFRicInvokeSchedule(symbol, kcalls, parent=fake_parent)
     assert dsched2.parent is fake_parent
 
 
@@ -80,7 +82,7 @@ def test_lfricinvsched_node_str_coloured():
     # distributed_memory set to True
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     # Create a plain LFRicInvokeSchedule
-    sched = LFRicInvokeSchedule('name', None, None)
+    sched = LFRicInvokeSchedule.create('name', arg=None)
     # Manually supply it with an Invoke object created with the LFRic API.
     sched.invoke = psy.invokes.invoke_list[0]
     output = sched.node_str()
@@ -104,7 +106,7 @@ def test_lfricinvsched_node_str_colourless():
                            api="lfric")
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     # Create a plain LFRicInvokeSchedule
-    sched = LFRicInvokeSchedule('name', None, None)
+    sched = LFRicInvokeSchedule.create('name', arg=None)
     # Manually supply it with an Invoke object created with the LFRic API.
     sched.invoke = psy.invokes.invoke_list[0]
 

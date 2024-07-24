@@ -243,7 +243,7 @@ def test_multiple_access_stmt_error(parser):
 def test_broken_access_spec(parser):
     ''' Check that we raise the expected InternalError if the parse tree for
     an access-spec on a variable declaration is broken. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader(
         "module modulename\n"

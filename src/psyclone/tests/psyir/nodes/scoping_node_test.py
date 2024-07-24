@@ -115,7 +115,7 @@ def test_scoping_node_copy_hierarchy(fortran_writer):
     parent_node = Container("module")
     symbol_b = parent_node.symbol_table.new_symbol(
         "b", symbol_type=DataSymbol, datatype=ArrayType(INTEGER_TYPE, [5]))
-    schedule = Routine("routine")
+    schedule = Routine.create("routine")
     parent_node.addchild(schedule)
     symbol_a = schedule.symbol_table.new_symbol(
         "a", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
@@ -202,7 +202,7 @@ def test_scoping_node_copy_loop(fortran_writer, tmpdir):
 
     '''
     # Create the PSyIR for a Routine containing a simple loop
-    schedule = Routine("routine")
+    schedule = Routine.create("routine")
     symbol_table = schedule.scope.symbol_table
     loop_var = symbol_table.new_symbol(root_name="idx",
                                        symbol_type=DataSymbol,

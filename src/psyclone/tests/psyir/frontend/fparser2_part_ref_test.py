@@ -57,7 +57,7 @@ def test_handling_part_ref():
     reader = FortranStringReader("x(2)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0]
 
-    fake_parent = KernelSchedule('kernel')
+    fake_parent = KernelSchedule.create('kernel')
     fake_parent.symbol_table.add(DataSymbol('x', INTEGER_TYPE))
 
     processor = Fparser2Reader()
@@ -82,7 +82,7 @@ def test_handling_part_ref_expression():
     reader = FortranStringReader("x(i+3,j-4,(z*5)+1)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0]
 
-    fake_parent = KernelSchedule('assign')
+    fake_parent = KernelSchedule.create('assign')
     array_type = ArrayType(INTEGER_TYPE, [10, 10, 10])
     fake_parent.symbol_table.add(DataSymbol('x', array_type))
     fake_parent.symbol_table.add(DataSymbol('i', INTEGER_TYPE))

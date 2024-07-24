@@ -44,8 +44,7 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, NoType, \
-        DefaultModuleInterface
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 
 
@@ -54,15 +53,14 @@ class Routine(Schedule, CommentableMixin):
     A sub-class of a Schedule that represents a subroutine, function or
     program unit.
 
-    :param str name: the name of this routine.
+    :param symbol: the Symbol used to represent this Routine in its Container.
+                   If it is not supplied a RoutineSymbol will be created with
+                   default arguments instead.
+    :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
     :param Optional[bool] is_program: whether this Routine represents the
                                       entry point into a program (e.g.
                                       Fortran Program or C main()). Default is
                                       False.
-    :param symbol: the Symbol used to represent this Routine in its Container.
-                   If it is not supplied a RoutineSymbol will be created with
-                   default arguments instead.
-    :type symbol: Optional[:py:class:`psyclone.psyir.symbols.RoutineSymbol`]
     :param kwargs: additional keyword arguments provided to the super class.
     :type kwargs: unwrapped dict.
 
@@ -73,10 +71,14 @@ class Routine(Schedule, CommentableMixin):
     _children_valid_format = "[Statement]*"
     _text_name = "Routine"
 
-    def __init__(self, name, is_program=False, symbol=None,
+    def __init__(self, symbol, is_program=False,
                  symbol_tag=None, **kwargs):
         # These attributes need to be set before anything, as the _symbol
         # is required for setting the _parent, which is overriden by Routine
+        if not isinstance(symbol, RoutineSymbol):
+            raise TypeError(f"Routine argument 'symbol' must be present and "
+                            f"must be a RoutineSymbol but got "
+                            f"'{type(symbol).__name__}'")
         self._symbol = symbol
         self._symbol_tag = symbol_tag
         self._symbol_in_table = False
@@ -88,13 +90,6 @@ class Routine(Schedule, CommentableMixin):
             raise TypeError(f"Routine argument 'is_program' must be a bool "
                             f"but got '{type(is_program).__name__}'")
         self._is_program = is_program
-
-        # Symbol is set-up by the name setter property.
-        # name property is taken from the symbol.
-        # We do this last to avoid any other errors resulting in a
-        # symbol in a SymbolTable that we shouldn't have.
-        self._has_set_name = False
-        self.name = name
 
     def __eq__(self, other):
         '''
@@ -115,8 +110,8 @@ class Routine(Schedule, CommentableMixin):
         return is_eq
 
     @classmethod
-    def create(cls, name, symbol_table, children, is_program=False,
-               symbol=None, return_symbol_name=None):
+    def create(cls, name, symbol_table=None, children=None, is_program=False,
+               symbol=None, return_symbol_name=None, **kwargs):
         # pylint: disable=too-many-arguments
         '''Create an instance of the supplied class given a name, a symbol
         table and a list of child nodes. This is implemented as a classmethod
@@ -125,9 +120,9 @@ class Routine(Schedule, CommentableMixin):
 
         :param str name: the name of the Routine (or subclass).
         :param symbol_table: the symbol table associated with this Routine.
-        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :type symbol_table: Optional[:py:class:`psyclone.psyGen.SymbolTable`]
         :param children: a list of PSyIR nodes contained in the Routine.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+        :type children: Optional[list of :py:class:`psyclone.psyir.nodes.Node`]
         :param Optional[bool] is_program: whether this Routine represents the
                                           entry point into a program (e.g.
                                           Fortran Program or C main()). Default
@@ -142,7 +137,7 @@ class Routine(Schedule, CommentableMixin):
             supplied symbol table.
 
         :returns: an instance of `cls`.
-        :rtype: :py:class:`psyclone.psyGen.Routine` or subclass
+        :rtype: :py:class:`psyclone.psyir.nodes.Routine` or subclass
 
         :raises TypeError: if the arguments to the create method \
             are not of the expected type.
@@ -152,11 +147,13 @@ class Routine(Schedule, CommentableMixin):
             raise TypeError(
                 f"name argument in create method of Routine class "
                 f"should be a string but found '{type(name).__name__}'.")
-        if not isinstance(symbol_table, SymbolTable):
+        if symbol_table and not isinstance(symbol_table, SymbolTable):
             raise TypeError(
                 f"symbol_table argument in create method of Routine class "
                 f"should be a SymbolTable but found "
                 f"'{type(symbol_table).__name__}'.")
+        if not children:
+            children = []
         if not isinstance(children, list):
             raise TypeError(
                 f"children argument in create method of Routine class "
@@ -167,9 +164,15 @@ class Routine(Schedule, CommentableMixin):
                     f"child of children argument in create method of "
                     f"Routine class should be a PSyIR Node but "
                     f"found '{type(child).__name__}'.")
-
-        routine = cls(name, is_program=is_program, symbol_table=symbol_table,
-                      symbol=symbol)
+        if symbol is not None and symbol.name != name:
+            raise ValueError(
+                f"name argument and symbol argument in create method "
+                f"of Routine class should be the same, but found "
+                f"{name} and {symbol.name}.")
+        if symbol is None:
+            symbol = RoutineSymbol(name)
+        routine = cls(symbol, is_program=is_program, symbol_table=symbol_table,
+                      **kwargs)
         routine.children = children
         if return_symbol_name:
             routine.return_symbol = routine.symbol_table.lookup(
@@ -256,35 +259,7 @@ class Routine(Schedule, CommentableMixin):
         if not isinstance(new_name, str):
             raise TypeError(f"Routine name must be a str but got "
                             f"'{type(new_name).__name__}'")
-        # TODO #1200 The name is duplicated in the _name attribute and the
-        # symbol.name that there is in the local symbol table. This setter
-        # updates both but note that a better solution is needed because
-        # renaming the symbol_table symbol alone would make it inconsistent.
-        if not self._has_set_name:
-            # If the parent container exists and contains a RoutineSymbol
-            # to this Routine, then we create a copy of that RoutineSymbol
-            # to store as own_routine_symbol. This ensures we copy any
-            # properties of the Routine (such as elemental or impure)
-            # into the RoutineSymbol.
-            # TODO #2592 - this can be improved when we add the _symbol
-            # property to Routine.
-            if self._symbol is None:
-                self._symbol = RoutineSymbol(
-                        new_name, NoType(), interface=DefaultModuleInterface()
-                               )
-            if self._parent:
-                self.parent.symbol_table.add(self._symbol, self._symbol_tag)
-                self._symbol_in_table = True
-
-            # Since the constructor can not mark methods as functions directly
-            # the symbol will always start being NoType and must be updated
-            # if a return_value type is provided.
-            self._has_set_name = True
-        elif self.name != new_name:
-            # TODO #2592: When we rename the symbol we should also update
-            # the parent container's RoutineSymbol's name to reflect this
-            # change. This will be simplfied when we have Routine._symbol.name
-            # as a single source of truth.
+        if self.name != new_name:
             symbol = self._symbol
             container_sym_tab = symbol.find_symbol_table(self)
             if container_sym_tab is not None:
