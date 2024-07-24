@@ -279,8 +279,7 @@ class KernelModuleInlineTrans(Transformation):
 
         if not existing_symbol:
             # If it doesn't exist already, module-inline the subroutine by
-            # inserting the relevant code into the tree. The Routine now
-            # automatically places its symbol into the symbol table.
+            # inserting the relevant code into the tree.
             node.ancestor(Container).addchild(code_to_inline.detach())
         else:
             # The routine symbol already exist, and we know from the validation

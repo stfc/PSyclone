@@ -242,7 +242,7 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         gotable = GOSymbolTable.create_from_table(routine.symbol_table)
         gokernsched = GOKernelSchedule(metadata.procedure_name,
                                        symbol_table=gotable.detach(),
-                                       symbol=routine._symbol)
+                                       symbol=routine.symbol)
         for child in routine.pop_all_children():
             gokernsched.addchild(child)
         routine.replace_with(gokernsched)

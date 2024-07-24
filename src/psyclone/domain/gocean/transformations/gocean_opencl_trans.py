@@ -933,6 +933,7 @@ class GOOpenCLTrans(Transformation):
             pass
 
         # Create the new Routine
+        sub_name = node.symbol_table.next_available_name(sub_name)
         argsetter = Routine(sub_name, symbol_tag=sub_name)
         arg_list = []
 

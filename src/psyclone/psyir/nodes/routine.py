@@ -301,6 +301,14 @@ class Routine(Schedule, CommentableMixin):
         return result
 
     @property
+    def symbol(self):
+        '''
+        :returns: the RoutineSymbol corresponding to this Routine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol` or NoneType
+        '''
+        return self._symbol
+
+    @property
     def is_program(self):
         '''
         :returns: whether this Routine represents the entry point into a \

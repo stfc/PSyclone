@@ -48,7 +48,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
     :param routines: the routines that this interface provides access to.
     :type routines: list[tuple[
                              :py:class:`psyclone.psyir.symbols.RoutineSymbol`,
-                             bool]
+                             bool]]
     :param kwargs: additional keyword arguments provided by
                    :py:class:`psyclone.psyir.symbols.TypedSymbol`
     :type kwargs: unwrapped dict.
