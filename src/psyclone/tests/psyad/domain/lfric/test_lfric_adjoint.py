@@ -52,7 +52,6 @@ from psyclone.psyad.domain.lfric.lfric_adjoint import (
     _update_access_metadata, _check_or_add_access_symbol)
 from psyclone.psyir.symbols import (
     DataSymbol, ArgumentInterface, INTEGER_TYPE, REAL_TYPE)
-from psyclone.psyir.transformations import TransformationError
 
 
 def test_generate_lfric_adjoint_no_container_error(fortran_reader):
@@ -89,7 +88,8 @@ end module test_mod
 """)
     with pytest.raises(InternalError) as err:
         generate_lfric_adjoint(psyir, ["var1", "var2"])
-    assert "The supplied PSyIR does not contain any routines" in str(err.value)
+    assert ("The supplied PSyIR does not contain any kernel metadata"
+            in str(err.value))
 
 
 MULTI_ROUTINE_CODE = (
@@ -186,19 +186,15 @@ SINGLE_ROUTINE_CODE = (
     "end module test_mod")
 
 
-def test_generate_lfric_adjoint_no_metadata(fortran_reader):
+def test_generate_lfric_adjoint_no_name_convention(fortran_reader):
     '''Check that the expected error is raised when the metadata has an
-    unexpected name (i.e. does not conform to the LFRic coding
-    standards).
+    unexpected name.
 
     '''
     psyir = fortran_reader.psyir_from_source(
         SINGLE_ROUTINE_CODE.replace("test_type", "wrong_name"))
-    with pytest.raises(TransformationError) as err:
-        generate_lfric_adjoint(psyir, ["var1", "var2"])
-    assert ("The metadata name 'test_type' provided to the transformation "
-            "does not correspond to a symbol in the supplied PSyIR."
-            in str(err.value))
+    adj_psyir = generate_lfric_adjoint(psyir, ["var1", "var2"])
+    assert adj_psyir
 
 
 def test_generate_lfric_adjoint_type_and_procedure_names(
