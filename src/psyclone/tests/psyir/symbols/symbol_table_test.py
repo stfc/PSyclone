@@ -46,7 +46,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
-    CodeBlock, Container, KernelSchedule,
+    BinaryOperation, CodeBlock, Container, IntrinsicCall, KernelSchedule,
     Literal, Reference, Assignment, Routine, Schedule)
 from psyclone.psyir import symbols
 
@@ -56,7 +56,7 @@ def create_hierarchy():
     symbol in each symbol table.
 
     :returns: two symbol tables created in a hierarchy.
-    :rtype: (:py:class:`psyclone.psyir.symbols.SymbolTable`, \
+    :rtype: (:py:class:`psyclone.psyir.symbols.SymbolTable`,
         :py:class:`psyclone.psyir.symbols.SymbolTable`)
 
     '''
@@ -1230,7 +1230,7 @@ def test_lookup_1():
         str(error.value)
 
 
-def test_lookup_2():
+def test_lookup_vis_filtering():
     '''Test the visibility argument filtering functionality of the
     lookup() method.
 
@@ -1271,7 +1271,7 @@ def test_lookup_2():
             "searching for symbol 'var2'" in str(err.value))
 
 
-def test_lookup_3():
+def test_lookup_name_type_error():
     '''Check that lookup() in the SymbolTable class raises the expected
     exception if the name argument has the wrong type.
 
@@ -1284,7 +1284,7 @@ def test_lookup_3():
             "but found 'DataSymbol'." in str(info.value))
 
 
-def test_lookup_4():
+def test_lookup_scope_limit():
     '''Check that lookup() in the SymbolTable class behaves as
     expected with the scope_limit argument.
 
@@ -1313,6 +1313,28 @@ def test_lookup_4():
             container_symbol_table.lookup(symbol1.name, **arg)
         assert ("Could not find 'symbol1' in the Symbol Table."
                 in str(info.value))
+
+
+def test_lookup_default_value():
+    '''Test that the lookup() method returns the supplied (optional)
+    'otherwise' value if a Symbol cannot be found.
+
+    '''
+    table = symbols.SymbolTable()
+    with pytest.raises(KeyError) as err:
+        table.lookup("missing")
+    assert "Could not find 'missing'" in str(err.value)
+    # The most common use case is to allow None to be returned rather than
+    # raising an error.
+    sym = table.lookup("missing", otherwise=None)
+    assert sym is None
+    # But any other alternative value can be specified.
+    sym = table.lookup("missing", otherwise=symbols.Symbol("missing"))
+    assert sym.name == "missing"
+    # The presence of other, optional arguments doesn't alter anything.
+    sym = table.lookup("missing", visibility=symbols.Symbol.Visibility.PUBLIC,
+                       otherwise=1)
+    assert sym == 1
 
 
 def test_lookup_with_tag_1():
@@ -2053,24 +2075,70 @@ def test_shallow_copy():
 
 def test_deep_copy():
     ''' Tests the SymbolTable deep copy generates a new SymbolTable with
-    new identical copies of the symbols in the original symbol table'''
+    new, identical copies of the symbols in the original symbol table'''
 
     # Create an initial SymbolTable
     symtab = symbols.SymbolTable(
         default_visibility=symbols.Symbol.Visibility.PRIVATE)
     Schedule(symbol_table=symtab)
     mod = symbols.ContainerSymbol("my_mod")
+    symtab.add(mod)
     sym1 = symbols.DataSymbol("symbol1", symbols.INTEGER_TYPE,
                               interface=symbols.ArgumentInterface(
                                   symbols.ArgumentInterface.Access.READ))
+    symtab.add(sym1)
     sym2 = symbols.Symbol(
         "symbol2",
         interface=symbols.ImportInterface(mod, orig_name="altsym2"))
-    sym3 = symbols.DataSymbol("symbol3", symbols.INTEGER_TYPE)
-    symtab.add(mod)
-    symtab.add(sym1)
     symtab.add(sym2, tag="tag1")
+    sym3 = symbols.DataSymbol("symbol3", symbols.INTEGER_TYPE)
     symtab.add(sym3)
+    # Shape containing References.
+    sym4 = symbols.DataSymbol("symbol4",
+                              symbols.ArrayType(symbols.REAL_TYPE,
+                                                [Reference(sym1)]))
+    symtab.add(sym4)
+    # Shape with an attribute rather than bounds.
+    sym4a = symbols.DataSymbol(
+        "sym4a",
+        symbols.ArrayType(symbols.REAL_TYPE,
+                          [symbols.ArrayType.Extent.ATTRIBUTE]))
+    symtab.add(sym4a)
+    other_sym = symbols.DataSymbol("other_sym", symbols.UnresolvedType())
+    # Shape with a reference to an unresolved Symbol.
+    sym4b = symbols.DataSymbol(
+        "sym4b",
+        symbols.ArrayType(symbols.REAL_TYPE,
+                          [Reference(other_sym)]))
+    symtab.add(sym4b)
+    maxcall = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                   [Reference(sym1), Reference(sym3)])
+    binop = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                   Literal("3", symbols.INTEGER_TYPE), maxcall)
+    sym4c = symbols.DataSymbol(
+        "sym4c", symbols.ArrayType(symbols.REAL_TYPE, [binop]))
+    symtab.add(sym4c)
+    # Initial value containing References.
+    sym5 = symbols.DataSymbol(
+        "symbol5", symbols.INTEGER_TYPE,
+        initial_value=BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                             Reference(sym1), Reference(sym2)))
+    symtab.add(sym5)
+    dpsym = symbols.DataSymbol("dp", symbols.REAL_DOUBLE_TYPE)
+    symtab.add(dpsym)
+    icall = IntrinsicCall.create(IntrinsicCall.Intrinsic.KIND,
+                                 [Reference(dpsym)])
+    wp = symbols.DataSymbol("wp", symbols.INTEGER_TYPE,
+                            initial_value=icall)
+    symtab.add(wp)
+    # Initial value containing a Reference to an unresolved Symbol.
+    sym5a = symbols.DataSymbol(
+        "sym5a",
+        symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER, wp),
+        initial_value=BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                             Reference(sym1),
+                                             Reference(other_sym)))
+    symtab.add(sym5a)
     symtab.specify_argument_list([sym1])
     rsym = symbols.RoutineSymbol("my_sub")
     gisym = symbols.GenericInterfaceSymbol("generic_sub", [(rsym, False)])
@@ -2113,6 +2181,45 @@ def test_deep_copy():
     assert gisym2.routines[0].symbol is rsym2
     assert (gisym2.routines[0].from_container ==
             gisym.routines[0].from_container)
+
+    # Check that the dimensioning symbol has been updated.
+    newsym4 = symtab2.lookup("symbol4")
+    assert newsym4.datatype.shape[0].upper.symbol.name == "symbol1"
+    assert newsym4.datatype.shape[0].upper.symbol is not sym1
+    newsym1 = symtab2.lookup("symbol1")
+    assert newsym4.datatype.shape[0].upper.symbol is newsym1
+    assert newsym1.is_argument
+    newsym4a = symtab2.lookup("sym4a")
+    assert newsym4a.datatype.shape[0] == symbols.ArrayType.Extent.ATTRIBUTE
+    # Check that the original declaration still uses the original
+    # dimensioning symbol.
+    assert sym4.datatype.shape[0].upper.symbol is sym1
+    newsym4b = symtab2.lookup("sym4b")
+    # Check that the reference to an unresolved symbol is unchanged.
+    assert newsym4b.datatype.shape[0].upper.symbol is other_sym
+    # Repeat check when array bound is given by an expression.
+    newsym4c = symtab2.lookup("sym4c")
+    assert isinstance(newsym4c.datatype.shape[0].upper, BinaryOperation)
+    for ref in newsym4c.datatype.shape[0].upper.walk(Reference):
+        if not isinstance(ref.symbol, symbols.RoutineSymbol):
+            assert ref.symbol in symtab2.symbols
+            assert ref.symbol not in symtab.symbols
+
+    # Check that initial-value expressions are updated correctly.
+    newsym5 = symtab2.lookup("symbol5")
+    newsym2 = symtab2.lookup("symbol2")
+    assert isinstance(newsym5.initial_value, BinaryOperation)
+    assert newsym5.initial_value.children[0].symbol is newsym1
+    assert newsym5.initial_value.children[1].symbol is newsym2
+    assert sym5.initial_value.children[0].symbol is sym1
+    assert sym5.initial_value.children[1].symbol is sym2
+    newsym5a = symtab2.lookup("sym5a")
+    assert newsym5a.initial_value.children[1].symbol is other_sym
+    # Check that precision value has been updated.
+    new_wp = symtab2.lookup("wp")
+    new_dp = symtab2.lookup("dp")
+    assert newsym5a.datatype.precision is new_wp
+    assert new_wp.initial_value.arguments[0].symbol is new_dp
 
     # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table

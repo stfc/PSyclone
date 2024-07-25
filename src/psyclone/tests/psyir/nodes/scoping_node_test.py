@@ -102,6 +102,29 @@ def test_scoping_node_copy():
     assert new_schedule[0].rhs.symbol in new_schedule.symbol_table.symbols
 
 
+def test_scoping_node_replace_symbols():
+    '''Test the replace_symbols_using() method.'''
+    sched = Routine.create("my_sub")
+    table = SymbolTable()
+    # Should do nothing but be happy.
+    sched.replace_symbols_using(table)
+    cont = Container("my_mod")
+    cont.addchild(sched)
+    sched.replace_symbols_using(cont.symbol_table)
+    # A ScopingNode that is not within a scoping region.
+    isym = DataSymbol("idx", INTEGER_TYPE)
+    loop = Loop.create(isym,
+                       Literal("1", INTEGER_TYPE),
+                       Literal("10", INTEGER_TYPE), Literal("1", INTEGER_TYPE),
+                       [])
+    # Ensure a Symbol accessed below the ScopingNode is updated.
+    loop.loop_body.addchild(Assignment.create(Reference(isym),
+                                              Literal("1", INTEGER_TYPE)))
+    table.add(isym.copy())
+    loop.loop_body.replace_symbols_using(table)
+    assert loop.loop_body[0].lhs.symbol is table.lookup(isym.name)
+
+
 def test_scoping_node_copy_hierarchy(fortran_writer):
     ''' Test that the ScopingNode copy() method creates a new symbol table
     with copied symbols and updates the children references.

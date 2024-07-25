@@ -38,7 +38,7 @@
 
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import RoutineSymbol, SymbolTable
+from psyclone.psyir.symbols import RoutineSymbol, SymbolError, SymbolTable
 
 
 class ScopingNode(Node):
@@ -54,7 +54,7 @@ class ScopingNode(Node):
     :param parent: the parent node of this node in the PSyIR.
     :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
     :param symbol_table: attach the given symbol table to the new node.
-    :type symbol_table: \
+    :type symbol_table:
             Optional[:py:class:`psyclone.psyir.symbols.SymbolTable`]
 
     '''
@@ -94,6 +94,32 @@ class ScopingNode(Node):
     def _refine_copy(self, other):
         ''' Refine the object attributes when a shallow copy is not the most
         appropriate operation during a call to the copy() method.
+
+        This method creates a deep copy of the SymbolTable associated with
+        the `other` scoping node and then calls `replace_symbols_using` to
+        update all Symbols referenced in the tree below this node.
+
+        .. warning::
+
+          Since `replace_symbols_using` only uses symbol *names*, this won't
+          get the correct symbol if the PSyIR has symbols shadowed in nested
+          scopes, e.g.:
+
+          .. code-block::
+
+              subroutine test
+                integer :: a
+                integer :: b = 1
+                if condition then
+                  ! PSyIR declares a shadowed, locally-scoped a'
+                  a' = 1
+                  if condition2 then
+                    ! PSyIR declares a shadowed, locally-scoped b'
+                    b' = 2
+                    a = a' + b'
+
+          Here, the final assignment will end up being `a' = a' + b'` and
+          thus the semantics of the code are changed. TODO #2666.
 
         :param other: object we are copying from.
         :type other: :py:class:`psyclone.psyir.node.Node`
@@ -149,6 +175,41 @@ class ScopingNode(Node):
                 if node.variable in other.symbol_table.symbols:
                     node.variable = self.symbol_table.lookup(
                         node.variable.name)
+
+        # Now we've updated the symbol table, walk back down the tree and
+        # update any Symbols.
+        # Since this will get called from every ScopingNode in the tree, there
+        # could be a lot of repeated walks back down the tree. If this becomes
+        # a performance issue we could keep track of the depth of the recursive
+        # call to _refine_copy and only do this call when that depth is zero.
+        self.replace_symbols_using(self._symbol_table)
+
+    def replace_symbols_using(self, table):
+        '''
+        Update any Symbols referenced by this Node (and its descendants) with
+        those in the supplied table with matching names. If there is no match
+        for a given Symbol then it is left unchanged.
+
+        Since this is a ScopingNode, it is associated with a symbol table.
+        Therefore, if the supplied table is the one for the scope containing
+        this node (if any), the one passed to the child nodes is updated to be
+        the one associated with this node.
+
+        :param table: the symbol table in which to look up replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        next_table = table
+        if self.parent:
+            try:
+                # If this node is not within a scope we get a SymbolError
+                if table is self.parent.scope.symbol_table:
+                    next_table = self.symbol_table
+            except SymbolError:
+                pass
+
+        for child in self.children:
+            child.replace_symbols_using(next_table)
 
     @property
     def symbol_table(self):
