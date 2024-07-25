@@ -54,7 +54,7 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import count_lines, get_invoke
+from psyclone.tests.utilities import Compile, count_lines, get_invoke
 
 
 def test_module_inline_constructor_and_str():
@@ -722,28 +722,6 @@ def test_module_inline_with_interfaces(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_mod_inline_validate_no_container(fortran_reader):
-    '''
-    Test that validation fails when the Call is within a Program (i.e.
-    without an enclosing module).
-
-    '''
-    intrans = KernelModuleInlineTrans()
-    code = '''\
-    program my_prog
-      use my_mod, only: my_sub
-      real, dimension(10) :: a
-      call my_sub(a)
-    end program my_prog
-    '''
-    prog_psyir = fortran_reader.psyir_from_source(code)
-    call = prog_psyir.walk(Call)[0]
-    with pytest.raises(TransformationError) as err:
-        intrans.validate(call)
-    assert ("must be within a Container (Fortran module) but "
-            "routine 'my_sub' is not" in str(err.value))
-
-
 def test_psyir_mod_inline_fail_to_get_psyir(fortran_reader):
     '''
     Test that the validate() method raises the expected error if the
@@ -880,3 +858,50 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     assert ("Cannot module-inline call to 'broken' because its name does not "
             "match that of the callee: 'my_other_sub'. TODO #924."
             in str(err.value))
+
+
+def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
+                                 monkeypatch):
+    '''
+    Test that the transformation works when the Call is within a Program (i.e.
+    without an enclosing module).
+
+    '''
+    # Create the module containing the subroutine definition, write it to
+    # file and set the search path so that PSyclone can find it.
+    path = str(tmpdir)
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
+
+    with open(os.path.join(path, "my_mod.f90"),
+              "w", encoding="utf-8") as mfile:
+        mfile.write('''\
+    module my_mod
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = 1.0
+      end subroutine my_sub
+    end module my_mod
+    ''')
+
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    program my_prog
+      use my_mod, only: my_sub
+      real, dimension(10) :: a
+      call my_sub(a)
+    end program my_prog
+    '''
+    prog_psyir = fortran_reader.psyir_from_source(code)
+    assert len(prog_psyir.children) == 1
+    call = prog_psyir.walk(Call)[0]
+
+    intrans.apply(call)
+
+    assert len(prog_psyir.children) == 2
+    assert set(child.name for child in prog_psyir.children) == {"my_sub",
+                                                                "my_prog"}
+    # Now that we've 'privatised' the target of the call, the code can be
+    # compiled standalone.
+    output = fortran_writer(prog_psyir)
+    assert Compile(tmpdir).string_compiles(output)

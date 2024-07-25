@@ -93,8 +93,6 @@ class KernelModuleInlineTrans(Transformation):
 
         :raises TransformationError: if the target node is not a sub-class of
             psyGen.CodedKern or psyir.nodes.Call or is an IntrinsicCall.
-        :raises TransformationError: if the target node is not within a
-            Container (Fortran module).
         :raises TransformationError: if there is no explicit import of the
             called Routine and there is already a Routine of that name in the
             parent Container.
@@ -126,13 +124,6 @@ class KernelModuleInlineTrans(Transformation):
                 f"'{type(node).__name__}'")
 
         parent_container = node.ancestor(Container)
-        if not parent_container or isinstance(parent_container, FileContainer):
-            # We can't do 'module inlining' if there is no parent module.
-            # (Although we could if we extended the PSyIR to know about
-            # file scope.)
-            raise TransformationError(
-                f"Target of a {self.name} must be within a Container (Fortran "
-                f"module) but {kern_or_call} '{kname}' is not.")
 
         # Check that the associated Routine isn't already present in the
         # Container. Strictly speaking, we should check that the interface of
