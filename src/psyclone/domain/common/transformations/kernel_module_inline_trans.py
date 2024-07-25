@@ -48,7 +48,7 @@ from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
     IntrinsicSymbol, RoutineSymbol, Symbol)
 from psyclone.psyir.nodes import (
-    Container, FileContainer, Reference, Routine, ScopingNode,
+    Container, Reference, Routine, ScopingNode,
     Literal, CodeBlock, Call, IntrinsicCall)
 
 
