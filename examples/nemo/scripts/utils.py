@@ -170,6 +170,8 @@ def inline_calls(schedule):
     '''
     excluding = ["ctl_stop", "ctl_warn", "eos", "iom_", "hist", "mpi_",
                  "timing_", "oasis_"]
+    ignore_codeblocks = ["bdy_dyn3d_frs", "bdy_dyn3d_spe", "bdy_dyn3d_zro",
+                         "bdy_dyn3d_zgrad"]
     mod_inline_trans = KernelModuleInlineTrans()
     inline_trans = InlineTrans()
     all_calls = schedule.walk(Call)
@@ -189,7 +191,11 @@ def inline_calls(schedule):
                 print(f"Module inline of '{name}' failed:\n{err}")
                 continue
         try:
-            inline_trans.apply(call)
+            options = {}
+            if name in ignore_codeblocks:
+                options["force"] = True
+                print(f"Forcing inlining of '{name}'")
+            inline_trans.apply(call, options=options)
             print(f"Inlined routine '{name}'")
         except TransformationError as err:
             print(f"Inlining of '{name}' failed:\n{err}")
