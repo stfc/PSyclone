@@ -163,6 +163,15 @@ def test_routine_create_invalid():
         "child of children argument in create method of Routine class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
+    # provided symbol and name do not match.
+    rsym = RoutineSymbol("other_name")
+    with pytest.raises(ValueError) as excinfo:
+        Routine.create("mod_name", symbol_table, symbol=rsym)
+    assert (
+        "name argument and symbol argument's name in create "
+        "method of Routine class should be the same, but found 'mod_name' and"
+        " 'other_name'." in str(excinfo.value))
+
 
 def test_routine_create():
     '''Test that the create method correctly creates a Routine instance. '''
