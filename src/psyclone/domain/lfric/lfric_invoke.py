@@ -47,6 +47,8 @@ from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen, SubroutineGen,
                               UseGen)
 from psyclone.psyGen import Invoke
+from psyclone.psyir.nodes import Assignment, Reference, Call
+from psyclone.psyir.symbols import ContainerSymbol, RoutineSymbol, ImportInterface
 
 
 class LFRicInvoke(Invoke):
@@ -295,6 +297,42 @@ class LFRicInvoke(Invoke):
         if cursor is None:
             import pdb; pdb.set_trace()
 
+        if self.schedule.reductions(reprod=True):
+            # We have at least one reproducible reduction so we need
+            # to know the number of OpenMP threads
+            symtab = self.schedule.symbol_table
+            nthreads = symtab.lookup_with_tag("omp_num_threads")
+            omp_lib = symtab.find_or_create("omp_lib",
+                                            symbol_type=ContainerSymbol)
+            omp_get_max_threads = symtab.find_or_create(
+                "omp_get_max_threads", symbol_type=RoutineSymbol,
+                interface=ImportInterface(omp_lib))
+            # thread_idx = self.scope.symbol_table.find_or_create(
+            #     "th_idx", symbol_type=DataSymbol,
+            #     datatype=INTEGER_TYPE)
+
+            assignment = Assignment.create(
+                lhs=Reference(nthreads),
+                rhs=Call.create(omp_get_max_threads))
+            assignment.append_preceding_comment(
+                "Determine the number of OpenMP threads")
+            self.schedule.addchild(assignment, 0)
+            cursor += 1
+
+            # invoke_sub.add(UseGen(invoke_sub, name="omp_lib", only=True,
+            #                       funcnames=[omp_function_name]))
+            # # Note: There is no assigned kind for 'integer' 'nthreads' as this
+            # # would imply assigning 'kind' to 'th_idx' and other elements of
+            # # the OMPParallelDirective
+            # invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+            #                        entity_decls=[nthreads_name]))
+            # invoke_sub.add(CommentGen(invoke_sub, ""))
+            # invoke_sub.add(CommentGen(
+            #     invoke_sub, " Determine the number of OpenMP threads"))
+            # invoke_sub.add(CommentGen(invoke_sub, ""))
+            # invoke_sub.add(AssignGen(invoke_sub, lhs=nthreads_name,
+            #                          rhs=omp_function_name+"()"))
+            
         # Now that all initialisation is done, add the comment before
         # the start of the kernels
         if Config.get().distributed_memory:

@@ -1199,8 +1199,8 @@ class Kern(Statement):
             local_var = self.scope.symbol_table.find_or_create_tag(
                 local_var_name, symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
-                    f"{data_type}({kind_type}), allocatable, dimension(:,:) "
-                    f":: {local_var_name}"
+                    f"{var_data_type}(kind={kind_type}), allocatable, "
+                    f"dimension(:,:) :: {local_var_name}"
                 ))
             nthreads = \
                 self.scope.symbol_table.lookup_with_tag("omp_num_threads")
