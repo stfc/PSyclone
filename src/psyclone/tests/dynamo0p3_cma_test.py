@@ -55,6 +55,7 @@ from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir import nodes, symbols
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1362,15 +1363,19 @@ def test_cma_asm_with_field_stub_gen(fortran_writer):
     psyir = generate(os.path.join(BASE_PATH,
                                   "columnwise_op_asm_field_kernel_mod.F90"),
                      api=TEST_API)
-    result = fortran_writer(psyir)
-
+    routine = psyir.walk(nodes.Routine)[0]
+    assert routine.name == "columnwise_op_asm_field_kernel_code"
+    table = routine.symbol_table
+    assert [sym.name for sym in table.argument_list] == [
+        "cell", "nlayers", "ncell_2d", "field_1_aspc1_field_1",
+        "op_2_ncell_3d", "op_2", "cma_op_3", "nrow_cma_op_3", "ncol_cma_op_3",
+        "bandwidth_cma_op_3", "alpha_cma_op_3", "beta_cma_op_3",
+        "gamma_m_cma_op_3", "gamma_p_cma_op_3",
+        "ndf_aspc1_field_1", "undf_aspc1_field_1", "map_aspc1_field_1",
+        "cbanded_map_aspc1_field_1", "ndf_aspc2_op_2", "cbanded_map_aspc2_op_2"]
+    cmod = table.lookup("constants_mod")
+    assert isinstance(cmd, symbols.ContainerSymbol)
     expected = (
-        "  subroutine columnwise_op_asm_field_kernel_code(cell, nlayers, "
-        "ncell_2d, field_1_aspc1_field_1, op_2_ncell_3d, op_2, cma_op_3, "
-        "nrow_cma_op_3, ncol_cma_op_3, bandwidth_cma_op_3, alpha_cma_op_3, "
-        "beta_cma_op_3, gamma_m_cma_op_3, gamma_p_cma_op_3, "
-        "ndf_aspc1_field_1, undf_aspc1_field_1, map_aspc1_field_1, "
-        "cbanded_map_aspc1_field_1, ndf_aspc2_op_2, cbanded_map_aspc2_op_2)\n"
         "    use constants_mod, only : i_def, r_def\n"
         "    integer(kind=i_def), intent(in) :: cell\n"
         "    integer(kind=i_def), intent(in) :: nlayers\n"
