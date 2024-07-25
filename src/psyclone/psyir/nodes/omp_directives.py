@@ -1506,6 +1506,15 @@ class OMPParallelDirective(OMPRegionDirective):
             )
             self.dir_body.addchild(assignment, 0)
 
+        # Now finish the reproducible reductions
+        if reprod_red_call_list:
+            # parent.add(CommentGen(parent, ""))
+            # parent.add(CommentGen(parent, " sum the partial results "
+            #                       "sequentially"))
+            # parent.add(CommentGen(parent, ""))
+            for call in reprod_red_call_list:
+                call.reduction_sum_loop()
+
         # Keep the first two children and compute the rest using the current
         # state of the node/tree (lowering it first in case new symbols are
         # created)
@@ -1547,15 +1556,6 @@ class OMPParallelDirective(OMPRegionDirective):
         self.addchild(private_clause)
         self.addchild(fprivate_clause)
 
-        # Now finishe the reproducible reductions
-        if reprod_red_call_list:
-            # parent.add(CommentGen(parent, ""))
-            # parent.add(CommentGen(parent, " sum the partial results "
-            #                       "sequentially"))
-            # parent.add(CommentGen(parent, ""))
-            for call in reprod_red_call_list:
-                call.reduction_sum_loop()
-        
         return self
 
     def begin_string(self):
@@ -2406,6 +2406,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         '''
         # Calling the super() explicitly to avoid confusion
         # with the multiple-inheritance
+        self._lowered_reduction_string = self._reduction_string()
         OMPParallelDirective.lower_to_language_level(self)
         self.addchild(OMPScheduleClause(self._omp_schedule))
         return self
@@ -2422,7 +2423,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         string = f"omp {self._directive_string}"
         if self._collapse:
             string += f" collapse({self._collapse})"
-        string += self._reduction_string()
+        if self._lowered_reduction_string:
+            string += f" {self._lowered_reduction_string}"
         return string
 
     def end_string(self):

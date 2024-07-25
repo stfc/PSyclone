@@ -55,7 +55,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Container, Literal, Loop, Node, OMPDoDirective,
     Reference, Directive, Routine, Schedule, Statement, Assignment,
-    IntrinsicCall)
+    IntrinsicCall, BinaryOperation, OMPParallelDirective)
 from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
                                     ContainerSymbol, DataSymbol,
                                     UnresolvedType, REAL_TYPE,
@@ -1262,13 +1262,30 @@ class Kern(Statement):
                 f"LFRicBuiltIn:reduction_sum_loop(). Expected one of "
                 f"{api_strings}.") from err
         symtab = self.scope.symbol_table
-        thread_idx = symtab.lookup_with_tag("omp_thread_index").name
-        nthreads = symtab.lookup_with_tag("omp_num_threads").name
-        do_loop = DoGen(parent, thread_idx, "1", nthreads)
-        do_loop.add(AssignGen(do_loop, lhs=var_name, rhs=var_name +
-                              reduction_operator + local_var_ref))
-        parent.add(do_loop)
-        parent.add(DeallocateGen(parent, local_var_name))
+        thread_idx = symtab.lookup_with_tag("omp_thread_index")
+        nthreads = symtab.lookup_with_tag("omp_num_threads")
+        do_loop = Loop.create(thread_idx,
+                    start=Literal("1", INTEGER_TYPE),
+                    stop=Reference(nthreads),
+                    step=Literal("1", INTEGER_TYPE),
+                    children=[])
+        directive = self.ancestor(OMPParallelDirective)
+        directive.parent.addchild(do_loop, directive.position+1)
+        var_symbol = self.scope.symbol_table.lookup(var_name)
+        local_symbol = self.scope.symbol_table.lookup(local_var_name)
+        do_loop.loop_body.addchild(Assignment.create(
+           lhs=Reference(var_symbol),
+           rhs=BinaryOperation.create(
+               BinaryOperation.Operator.ADD,
+               Reference(var_symbol),
+               ArrayReference.create(local_symbol,[Literal("1", INTEGER_TYPE),
+                                                   Reference(thread_idx)]))))
+        do_loop.append_preceding_comment(
+                    "sum the partial results sequentially")
+        do_loop.parent.addchild(
+                IntrinsicCall.create(IntrinsicCall.Intrinsic.DEALLOCATE,
+                                     [Reference(local_symbol)]),
+                do_loop.position+1)
 
     def _reduction_reference(self):
         '''
