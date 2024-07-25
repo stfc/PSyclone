@@ -1512,7 +1512,7 @@ class OMPParallelDirective(OMPRegionDirective):
             # parent.add(CommentGen(parent, " sum the partial results "
             #                       "sequentially"))
             # parent.add(CommentGen(parent, ""))
-            for call in reprod_red_call_list:
+            for call in reversed(reprod_red_call_list):
                 call.reduction_sum_loop()
 
         # Keep the first two children and compute the rest using the current

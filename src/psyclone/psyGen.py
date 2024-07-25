@@ -108,6 +108,7 @@ def zero_reduction_variables(red_call_list):
             if first:
                 node.append_preceding_comment(
                     "Zero summation variables")
+                first = False
 
         # parent.add(CommentGen(parent, ""))
 

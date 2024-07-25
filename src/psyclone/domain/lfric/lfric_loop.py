@@ -646,7 +646,8 @@ class LFRicLoop(PSyLoop):
                         ["get_last_halo_cell"]
                     )
                 )
-                result.addchild(Literal(f"{halo_index}", INTEGER_TYPE))
+                if halo_index:
+                    result.addchild(Literal(f"{halo_index}", INTEGER_TYPE))
                 return result
             raise GenerationError(
                 "'cell_halo' is not a valid loop upper bound for "
@@ -1155,7 +1156,7 @@ class LFRicLoop(PSyLoop):
             elif hwa.max_depth:
                 # halo accesses(s) is/are to the full halo
                 # depth (-1 if continuous)
-                hd_sybol = sym_table.lookup_with_tag("max_halo_depth_mesh")
+                hd_symbol = sym_table.lookup_with_tag("max_halo_depth_mesh")
                 halo_depth = Reference(hd_symbol)
 
                 if hwa.dirty_outer:

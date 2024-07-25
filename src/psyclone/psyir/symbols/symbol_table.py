@@ -925,10 +925,6 @@ class SymbolTable():
         self._validate_arg_list(argument_symbols)
         self._argument_list = argument_symbols[:]
 
-    def append_argument(self, new_argument):
-        new_arg_list = self._argument_list + [new_argument]
-        self.specify_argument_list(new_arg_list)
-
     def lookup(self, name, visibility=None, scope_limit=None,
                otherwise=DEFAULT_SENTINEL):
         '''Look up a symbol in the symbol table. The lookup can be limited
@@ -1270,6 +1266,10 @@ class SymbolTable():
             # we have an InternalError.
             raise InternalError(str(err.args)) from err
 
+    # def append_argument(self, new_argument):
+    #     new_arg_list = self._argument_list + [new_argument]
+    #     self.specify_argument_list(new_arg_list)
+
     def append_argument(self, argument):
         '''
         Append a new argument to the argument list and add it in the symbol
@@ -1294,7 +1294,8 @@ class SymbolTable():
                 "argument.")
 
         self._argument_list.append(argument)
-        self.add(argument)
+        if argument not in self.get_symbols().values():
+            self.add(argument)
 
         try:
             self._validate_arg_list(self._argument_list)
