@@ -689,7 +689,7 @@ code. This allows us to generate a "vanilla" PSy layer. For example::
           loop0_start = 1
           loop0_stop = undf_aspc1_field
           !
-          ! Call our kernels
+          ! Call kernels
           !
           DO df=loop0_start,loop0_stop
             field_proxy%data(df) = 0.0

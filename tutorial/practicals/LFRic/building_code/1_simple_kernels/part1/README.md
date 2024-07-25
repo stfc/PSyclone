@@ -227,7 +227,7 @@ argument lists for each kernel:
 
 ```fortran
       !
-      ! Call our kernels
+      ! Call kernels
       !
       DO cell=1,field_w0_proxy%vspace%get_ncell()
         !

@@ -132,7 +132,7 @@ def test_field(tmpdir):
         "      loop0_start = 1\n"
         "      loop0_stop = f1_proxy%vspace%get_ncell()\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels\n"
         "      !\n"
         "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL testkern_code(nlayers, a, f1_data, f2_data, "
@@ -263,7 +263,7 @@ def test_field_deref(tmpdir, dist_mem):
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()\n" in generated_code
         output = (
-            "      ! Call our kernels\n"
+            "      ! Call kernels\n"
             "      !\n"
             "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code

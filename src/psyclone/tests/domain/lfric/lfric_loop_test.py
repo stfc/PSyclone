@@ -724,7 +724,7 @@ def test_itn_space_write_w2broken_w1(dist_mem, tmpdir):
     else:
         assert "loop0_stop = m2_proxy%vspace%get_ncell()\n" in generated_code
         output = (
-            "      ! Call our kernels\n"
+            "      ! Call kernels\n"
             "      !\n"
             "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
@@ -758,7 +758,7 @@ def test_itn_space_fld_and_op_writers(tmpdir):
             assert ("loop0_stop = op1_proxy%fs_from%get_ncell()\n" in
                     generated_code)
             output = (
-                "      ! Call our kernels\n"
+                "      ! Call kernels\n"
                 "      !\n"
                 "      DO cell = loop0_start, loop0_stop, 1")
             assert output in generated_code
@@ -792,7 +792,7 @@ def test_itn_space_any_any_discontinuous(dist_mem, tmpdir):
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()" in generated_code
         output = (
-            "      ! Call our kernels\n"
+            "      ! Call kernels\n"
             "      !\n"
             "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
@@ -826,7 +826,7 @@ def test_itn_space_any_w2trace(dist_mem, tmpdir):
         # that might be).
         assert "loop0_stop = f2_proxy%vspace%get_ncell()" in generated_code
         output = (
-            "      ! Call our kernels\n"
+            "      ! Call kernels\n"
             "      !\n"
             "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code

@@ -3136,7 +3136,7 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "    loop0_start = 1\n"
             "    loop0_stop = f1_proxy%vspace%get_ncell()\n"
             "\n"
-            "    ! Call our kernels\n"
+            "    ! Call kernels\n"
             "    do cell = loop0_start, loop0_stop, 1\n"
             "      call testkern_multi_anyw2_code(nlayers, "
             "f1_data, f2_data, f3_data, ndf_any_w2, "

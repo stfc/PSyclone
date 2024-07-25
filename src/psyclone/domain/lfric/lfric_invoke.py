@@ -302,7 +302,7 @@ class LFRicInvoke(Invoke):
                 "Call kernels and communication routines")
         else:
             self.schedule[cursor].preceding_comment = (
-                "Call our kernels")
+                "Call kernels")
 
         # Deallocate any basis arrays
         cursor = self.evaluators.deallocate(cursor)
@@ -378,7 +378,7 @@ class LFRicInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub, " Call kernels and "
                                       "communication routines"))
         else:
-            invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
+            invoke_sub.add(CommentGen(invoke_sub, " Call kernels"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
 
         # Add content from the schedule

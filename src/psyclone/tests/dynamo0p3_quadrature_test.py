@@ -423,7 +423,7 @@ def test_face_qr(tmpdir, dist_mem):
         init_output2 += (
             "      loop0_stop = f1_proxy%vspace%get_ncell()\n"
             "      !\n"
-            "      ! Call our kernels\n")
+            "      ! Call kernels\n")
     assert init_output2 in generated_code
 
     compute_output = (

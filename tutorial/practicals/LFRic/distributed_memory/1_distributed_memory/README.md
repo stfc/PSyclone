@@ -98,7 +98,7 @@ Take a look at the generated psy-layer Fortran code:
 As you will see, there is quite a bit of lookup code generated which
 extracts the appropriate values from the infrastructure and the data
 objects passed from the algorithm layer, however, the code performing
-the looping (after the `Call our kernels` comment) is relatively short
+the looping (after the `Call kernels` comment) is relatively short
 and concise.
 
 You should see that the upper bound for the builtin kernel loop is the
