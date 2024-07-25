@@ -147,9 +147,30 @@ class GenericInterfaceSymbol(RoutineSymbol):
         '''
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
-        return type(self)(self.name, self.routines, datatype=self.datatype,
+        return type(self)(self.name, self.routines[:],
+                          datatype=self.datatype.copy(),
                           visibility=self.visibility,
-                          interface=self.interface)
+                          interface=self.interface.copy())
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        # Construct a new list of RoutineSymbols.
+        new_routines = []
+        for routine in self.routines:
+            try:
+                new_rt = table.lookup(routine.symbol.name)
+            except KeyError:
+                new_rt = routine.symbol
+            new_routines.append((new_rt, routine.from_container))
+        self.routines = new_routines
 
 
 # For Sphinx AutoAPI documentation generation

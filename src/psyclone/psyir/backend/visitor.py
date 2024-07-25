@@ -302,7 +302,9 @@ class PSyIRVisitor():
             # set so we ignore it and continue on down to any children.
             results = []
             for child in node.children:
-                results.append(self._visit(child))
+                result = self._visit(child)
+                if result is not None:
+                    results.append(result)
             return "".join(results)
 
         raise VisitorError(

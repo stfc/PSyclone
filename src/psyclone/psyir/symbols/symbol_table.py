@@ -56,6 +56,12 @@ from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
+# Used to provide a unique default value for methods within the
+# SymbolTable class. This enables us to determine when the user has
+# supplied a value of 'None' for arguments that have a default value.
+DEFAULT_SENTINEL = object()
+
+
 class SymbolTable():
     # pylint: disable=too-many-public-methods
     '''Encapsulates the symbol table and provides methods to add new
@@ -66,14 +72,14 @@ class SymbolTable():
     default visibility is not specified then it defaults to
     Symbol.Visbility.PUBLIC.
 
-    :param node: reference to the Schedule or Container to which this \
+    :param node: reference to the Schedule or Container to which this
         symbol table belongs.
-    :type node: :py:class:`psyclone.psyir.nodes.Schedule`, \
-        :py:class:`psyclone.psyir.nodes.Container` or NoneType
-    :param default_visibility: optional default visibility value for this \
+    :type node: Optional[:py:class:`psyclone.psyir.nodes.Schedule` |
+                         :py:class:`psyclone.psyir.nodes.Container`]
+    :param default_visibility: optional default visibility value for this
         symbol table, if not provided it defaults to PUBLIC visibility.
-    :type default_visibillity: \
-        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+    :type default_visibillity: Optional[
+        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
 
     :raises TypeError: if node argument is not a Schedule or a Container.
 
@@ -145,14 +151,12 @@ class SymbolTable():
         '''If this symbol table is enclosed in another scope, return the
         symbol table of the next outer scope. Otherwise return None.
 
-        :param scope_limit: optional Node which limits the symbol \
-            search space to the symbol tables of the nodes within the \
-            given scope. If it is None (the default), the whole \
-            scope (all symbol tables in ancestor nodes) is searched \
-            otherwise ancestors of the scope_limit node are not \
-            searched.
-        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
-            `NoneType`
+        :param scope_limit: optional Node which limits the symbol search
+            space to the symbol tables of the nodes within the given scope.
+            If it is None (the default), the whole scope (all symbol tables
+            in ancestor nodes) is searched otherwise ancestors of the
+            scope_limit node are not searched.
+        :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: the 'parent' SymbolTable of the current SymbolTable (i.e.
                   the one that encloses this one in the PSyIR hierarchy).
@@ -284,24 +288,10 @@ class SymbolTable():
         for tag, symbol in self._tags.items():
             new_st._tags[tag] = new_st.lookup(symbol.name)
 
-        # Fix the container links for imported symbols
-        for symbol in new_st.imported_symbols:
-            name = symbol.interface.container_symbol.name
-            orig_name = symbol.interface.orig_name
-            new_container = new_st.lookup(name)
-            symbol.interface = ImportInterface(new_container,
-                                               orig_name=orig_name)
-
-        # Fix the references to RoutineSymbols within any
-        # GenericInterfaceSymbols.
+        # Update any references to Symbols within Symbols (initial values,
+        # precision etc.)
         for symbol in new_st.symbols:
-            if not isinstance(symbol, GenericInterfaceSymbol):
-                continue
-            new_routines = []
-            for routine in symbol.routines:
-                new_routines.append((new_st.lookup(routine.symbol.name),
-                                     routine.from_container))
-            symbol.routines = new_routines
+            symbol.replace_symbols_using(new_st)
 
         # Set the default visibility
         new_st._default_visibility = self.default_visibility
@@ -939,32 +929,37 @@ class SymbolTable():
         new_arg_list = self._argument_list + [new_argument]
         self.specify_argument_list(new_arg_list)
 
-    def lookup(self, name, visibility=None, scope_limit=None):
+    def lookup(self, name, visibility=None, scope_limit=None,
+               otherwise=DEFAULT_SENTINEL):
         '''Look up a symbol in the symbol table. The lookup can be limited
         by visibility (e.g. just show public methods) or by scope_limit (e.g.
         just show symbols up to a certain scope).
 
         :param str name: name of the symbol.
-        :param visibilty: the visibility or list of visibilities that the \
+        :param visibilty: the visibility or list of visibilities that the
                           symbol must have.
         :type visibility: [list of] :py:class:`psyclone.symbols.Visibility`
-        :param scope_limit: optional Node which limits the symbol \
-            search space to the symbol tables of the nodes within the \
-            given scope. If it is None (the default), the whole \
-            scope (all symbol tables in ancestor nodes) is searched \
-            otherwise ancestors of the scope_limit node are not \
+        :param scope_limit: optional Node which limits the symbol
+            search space to the symbol tables of the nodes within the
+            given scope. If it is None (the default), the whole
+            scope (all symbol tables in ancestor nodes) is searched
+            otherwise ancestors of the scope_limit node are not
             searched.
-        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
-            `NoneType`
+        :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :param Any otherwise: an optional value to return if the named symbol
+            cannot be found (rather than raising a KeyError).
 
         :returns: the symbol with the given name and, if specified, visibility.
+                  If no match is found and 'otherwise' is supplied then that
+                  value is returned.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if the name argument is not a string.
-        :raises SymbolError: if the name exists in the Symbol Table but does \
+        :raises SymbolError: if the name exists in the Symbol Table but does
                              not have the specified visibility.
         :raises TypeError: if the visibility argument has the wrong type.
-        :raises KeyError: if the given name is not in the Symbol Table.
+        :raises KeyError: if the given name is not in the Symbol Table and
+                          `otherwise` is not supplied.
 
         '''
         if not isinstance(name, str):
@@ -998,8 +993,11 @@ class SymbolTable():
                         f" match with the requested visibility: {vis_names}")
             return symbol
         except KeyError as err:
-            raise KeyError(f"Could not find '{name}' in the Symbol Table.") \
-                from err
+            if otherwise is DEFAULT_SENTINEL:
+                # No 'otherwise' value supplied so we raise an exception.
+                raise KeyError(f"Could not find '{name}' in the Symbol "
+                               f"Table.") from err
+            return otherwise
 
     def lookup_with_tag(self, tag, scope_limit=None):
         '''Look up a symbol by its tag. The lookup can be limited by
