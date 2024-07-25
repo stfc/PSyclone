@@ -153,7 +153,7 @@ class KernelModuleInlineTrans(Transformation):
             ) from error
 
         # We do not support kernels that use symbols representing global
-        # variables declared in its own parent module (we would need to
+        # variables declared in their own parent module (we would need to
         # create new imports to this module for those, and we don't do
         # this yet).
         # These can only be found in References, Calls and CodeBlocks
@@ -162,27 +162,23 @@ class KernelModuleInlineTrans(Transformation):
             if isinstance(symbol, IntrinsicSymbol):
                 continue
             if not symbol.is_import:
-                try:
-                    var.scope.symbol_table.lookup(
-                        symbol.name, scope_limit=kernel_schedule)
-                except KeyError as err:
+                _tmp = var.scope.symbol_table.lookup(
+                    symbol.name, scope_limit=kernel_schedule, otherwise=None)
+                if not _tmp:
                     raise TransformationError(
                         f"{kern_or_call} '{kname}' contains accesses to "
                         f"'{symbol.name}' which is declared in the same "
-                        f"module scope. Cannot inline such a {kern_or_call}."
-                    ) from err
+                        f"module scope. Cannot inline such a {kern_or_call}.")
         for block in kernel_schedule.walk(CodeBlock):
             for name in block.get_symbol_names():
-                try:
-                    # Is this quantity declared within the kernel?
-                    block.scope.symbol_table.lookup(
-                        name, scope_limit=kernel_schedule)
-                except KeyError as err:
+                # Is this quantity declared within the kernel?
+                sym = block.scope.symbol_table.lookup(
+                    name, scope_limit=kernel_schedule, otherwise=None)
+                if not sym:
                     # It isn't declared in the kernel.
-                    try:
-                        # Can we find the corresponding symbol at all?
-                        sym = block.scope.symbol_table.lookup(name)
-                    except KeyError:
+                    # Can we find the corresponding symbol at all?
+                    sym = block.scope.symbol_table.lookup(name, otherwise=None)
+                    if not sym:
                         raise TransformationError(
                             f"{kern_or_call} '{kname}' contains accesses to "
                             f"'{name}' in a CodeBlock but the origin of this "
@@ -194,7 +190,7 @@ class KernelModuleInlineTrans(Transformation):
                             f"{kern_or_call} '{kname}' contains accesses to "
                             f"'{name}' in a CodeBlock that is declared in the "
                             f"same module scope. Cannot inline such a "
-                            f"{kern_or_call}.") from err
+                            f"{kern_or_call}.")
 
         # We can't transform subroutines that shadow top-level symbol module
         # names, because we won't be able to bring this into the subroutine
@@ -202,21 +198,18 @@ class KernelModuleInlineTrans(Transformation):
         for scope in kernel_schedule.walk(ScopingNode):
             for symbol in scope.symbol_table.symbols:
                 for mod in symtab.containersymbols:
-                    if symbol.name == mod.name and not \
-                            isinstance(symbol, ContainerSymbol):
+                    if (symbol.name == mod.name and
+                            not isinstance(symbol, ContainerSymbol)):
                         raise TransformationError(
-                            f"{kern_or_call} '{kname}' cannot "
-                            f"be module-inlined because the subroutine shadows"
-                            f" the symbol name of the module container "
+                            f"{kern_or_call} '{kname}' cannot be module-"
+                            f"inlined because the subroutine shadows the "
+                            f"symbol name of the module container "
                             f"'{symbol.name}'.")
 
         # If the symbol already exist at the call site it must be referring
         # to a Routine
-        try:
-            existing_symbol = node.scope.symbol_table.lookup(
-                kernel_schedule.name)
-        except KeyError:
-            existing_symbol = None
+        existing_symbol = node.scope.symbol_table.lookup(kernel_schedule.name,
+                                                         otherwise=None)
         if existing_symbol and not isinstance(existing_symbol, RoutineSymbol):
             raise TransformationError(
                 f"Cannot module-inline {kern_or_call} '{kname}' because "

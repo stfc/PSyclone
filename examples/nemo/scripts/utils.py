@@ -161,11 +161,15 @@ def inline_calls(schedule):
 
     where each step is dependent upon the success of the previous one.
 
+    TODO #924 - this could be InlineAllCallsTrans.apply(schedule,
+                                                        excluding={})
+
     :param schedule: the schedule in which to search for Calls.
     :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
 
     '''
-    excluding = ["ctl_stop", "ctl_warn", "eos", "iom_", "hist", "mpi_"]
+    excluding = ["ctl_stop", "ctl_warn", "eos", "iom_", "hist", "mpi_",
+                 "timing_", "oasis_"]
     mod_inline_trans = KernelModuleInlineTrans()
     inline_trans = InlineTrans()
     all_calls = schedule.walk(Call)
@@ -180,11 +184,13 @@ def inline_calls(schedule):
         if rsym.is_import:
             try:
                 mod_inline_trans.apply(call)
+                print(f"Module-inlined routine '{name}'")
             except TransformationError as err:
                 print(f"Module inline of '{name}' failed:\n{err}")
                 continue
         try:
             inline_trans.apply(call)
+            print(f"Inlined routine '{name}'")
         except TransformationError as err:
             print(f"Inlining of '{name}' failed:\n{err}")
             continue
