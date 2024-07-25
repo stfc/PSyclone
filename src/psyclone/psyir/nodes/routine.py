@@ -166,9 +166,9 @@ class Routine(Schedule, CommentableMixin):
                     f"found '{type(child).__name__}'.")
         if symbol is not None and symbol.name != name:
             raise ValueError(
-                f"name argument and symbol argument in create method "
+                f"name argument and symbol argument's name in create method "
                 f"of Routine class should be the same, but found "
-                f"{name} and {symbol.name}.")
+                f"'{name}' and '{symbol.name}'.")
         if symbol is None:
             symbol = RoutineSymbol(name)
         routine = cls(symbol, is_program=is_program, symbol_table=symbol_table,
