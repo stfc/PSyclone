@@ -74,10 +74,10 @@ end program test
             "source is not within a module)." in str(err.value))
 
 
-def test_generate_lfric_adjoint_no_routines_error(fortran_reader):
+def test_generate_lfric_adjoint_no_metadata_error(fortran_reader):
     '''
     Check that generate_lfric_adjoint raises the expected error when
-    provided with PSyIR that does not contain any Routines.
+    provided with PSyIR that does not contain any kernel metadata.
 
     '''
     psyir = fortran_reader.psyir_from_source("""\
@@ -92,22 +92,45 @@ end module test_mod
             in str(err.value))
 
 
-MULTI_ROUTINE_CODE = (
-    "module test_mod\n"
-    "  implicit none\n"
-    "  use kernel_mod\n"
-    "  use argument_mod\n"
+METADATA = (
     "  type, extends(kernel_type) :: test_type\n"
     "     type(arg_type), dimension(2) :: meta_args = (/  &\n"
     "          arg_type(gh_field,  gh_real, gh_inc, w0),  &\n"
     "          arg_type(gh_field,  gh_real, gh_read, w0)  &\n"
     "          /)\n"
     "     integer :: operates_on = cell_column\n"
-    "  end type test_type\n"
-    "  public test_code\n"
-    "  interface test_code\n"
-    "    module procedure :: test_code_r4, test_code_r8\n"
-    "  end interface test_code\n"
+    "  end type test_type\n")
+
+
+def test_generate_lfric_adjoint_no_routines_error(fortran_reader):
+    '''
+    Check that generate_lfric_adjoint raises the expected error when
+    provided with PSyIR that does not contain any Routines.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(f"""\
+module test_mod
+  implicit none
+  integer :: var1
+  {METADATA}
+end module test_mod
+""")
+    with pytest.raises(InternalError) as err:
+        generate_lfric_adjoint(psyir, ["var1", "var2"])
+    assert ("The supplied PSyIR does not contain any routines"
+            in str(err.value))
+
+
+MULTI_ROUTINE_CODE = (
+    f"module test_mod\n"
+    f"  implicit none\n"
+    f"  use kernel_mod\n"
+    f"  use argument_mod\n"
+    f"{METADATA}"
+    f"  public test_code\n"
+    f"  interface test_code\n"
+    f"    module procedure :: test_code_r4, test_code_r8\n"
+    f"  end interface test_code\n"
     # Include a second interface that also references the two subroutines.
     "  interface another_interface\n"
     "    module procedure :: test_code_r8, test_code_r4\n"
