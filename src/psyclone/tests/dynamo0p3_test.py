@@ -307,23 +307,6 @@ def test_unnecessary_shape():
             "no basis or differential basis functions are required"
             in str(excinfo.value))
 
-
-def test_kernel_call_invalid_iteration_space():
-    ''' Check that we raise an exception if we attempt to generate kernel
-    call for a kernel with an unsupported iteration space.
-
-    '''
-    _, invoke_info = parse(os.path.join(
-        BASE_PATH, "1.14_single_invoke_dofs.f90"), api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = psy.gen
-    assert ("The LFRic API supports calls to user-supplied kernels that "
-            "operate on one of ['cell_column', 'domain'], but "
-            "kernel 'testkern_dofs_code' operates on 'dof'."
-            in str(excinfo.value))
-
-
 def test_any_space_1(tmpdir):
     ''' Tests that any_space is implemented correctly in the PSy
     layer. Includes more than one type of any_space declaration
