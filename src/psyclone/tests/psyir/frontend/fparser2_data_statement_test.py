@@ -210,6 +210,8 @@ def test_data_statement_undeclared_var(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source('''
         subroutine test()
+            implicit none
+            integer :: a
             data a / 1 /
         end subroutine test
       ''')
