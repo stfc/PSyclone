@@ -1635,14 +1635,27 @@ class DynCellIterators(LFRicCollection):
     def __init__(self, kern_or_invoke):
         super().__init__(kern_or_invoke)
 
-        self._nlayers_name = self._symbol_table.find_or_create_tag(
-            "nlayers", symbol_type=LFRicTypes("MeshHeightDataSymbol")).name
-
-        # Store a reference to the first field/operator object that
-        # we can use to look-up nlayers in the PSy layer.
+        # Each kernel needs an 'nlayers' obtained from the first written
+        # field/operator argument.
         if not self._invoke:
+            self._nlayers_names = {
+                self._symbol_table.find_or_create_tag(
+                    "nlayers",
+                    symbol_type=LFRicTypes("MeshHeightDataSymbol")).name}
             # We're not generating a PSy layer so we're done here.
             return
+
+        self._nlayers_names = {}
+        for kern in self._invoke.schedule.walk(LFRicKern):
+            if kern.iterates_over not in ["cell_column", "domain"]:
+                # Only user-supplied kernels that operate on either the domain
+                # or cell-columns require nlayers.
+                continue
+            arg = kern.arguments.iteration_space_arg()
+            self._nlayers_names[self._symbol_table.find_or_create_tag(
+                f"nlayers_{arg.name}",
+                symbol_type=LFRicTypes("MeshHeightDataSymbol")).name] = arg
+
         first_var = None
         for var in self._invoke.psy_unique_vars:
             if not var.is_scalar:
@@ -1663,12 +1676,14 @@ class DynCellIterators(LFRicCollection):
         '''
         api_config = Config.get().api_conf("lfric")
 
-        # We only need the number of layers in the mesh if we are calling
-        # one or more kernels that operate on cell-columns.
-        if not self._dofs_only:
+        # Declare the number of layers in the mesh for each kernel that
+        # operates on cell-columns or the domain.
+        name_list = list(self._nlayers_names.keys())
+        if name_list:
+            name_list.sort()  # Purely for test reproducibility.
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
-                               entity_decls=[self._nlayers_name]))
+                               entity_decls=name_list))
 
     def _stub_declarations(self, parent):
         '''
@@ -1684,24 +1699,29 @@ class DynCellIterators(LFRicCollection):
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[self._nlayers_name]))
+                               intent="in",
+                               entity_decls=list(self._nlayers_names)))
 
     def initialise(self, parent):
         '''
-        Look-up the number of vertical layers in the mesh in the PSy layer.
+        Look-up the number of vertical layers in the mesh for each user-
+        supplied kernel that operates on cell columns.
 
         :param parent: the f2pygen node representing the PSy-layer routine.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        if not self._dofs_only:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Initialise number of layers"))
-            parent.add(CommentGen(parent, ""))
+        if not self._nlayers_names:
+            return
+
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " Initialise number of layers"))
+        parent.add(CommentGen(parent, ""))
+        for name, var in self._nlayers_names.items():
             parent.add(AssignGen(
-                parent, lhs=self._nlayers_name,
-                rhs=self._first_var.proxy_name_indexed + "%" +
-                self._first_var.ref_name() + "%get_nlayers()"))
+                parent, lhs=name,
+                rhs=(f"{var.proxy_name_indexed}%{var.ref_name()}%"
+                     f"get_nlayers()")))
 
 
 class DynLMAOperators(LFRicCollection):
