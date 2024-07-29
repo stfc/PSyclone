@@ -100,37 +100,3 @@ def find_container(psyir):
     raise GenerationError(
         "The supplied PSyIR contains more than two Containers. This is not "
         "a valid LFRic kernel.")
-
-
-def metadata_name_from_module_name(module_name):
-    '''Utility that returns the expected kernel metadata name given the
-    kernel module name for an LFRic kernel. It is possible to infer
-    this as LFRic requires the names to be written in a particular
-    form.
-
-    :param str module_name: the name of the kernel module.
-
-    :returns: the expected name of the kernel metadata.
-    :rtype: str
-
-    :except TypeError: if the module_name argument is not the expected
-        type.
-    :except GenerationError: if the module name does not conform to
-        the LFRic kernel naming conventions.
-
-    '''
-    if not isinstance(module_name, str):
-        raise TypeError(
-            f"Expected the module_name argument to the "
-            f"metadata_name_from_module_name utility to be a string, but "
-            f"found '{type(module_name).__name__}'.")
-
-    len_mod = len("_mod")
-    if module_name.lower().endswith("_mod") and len(module_name) > len_mod:
-        root_name = module_name[:-len_mod]
-    else:
-        raise GenerationError(
-            f"LFRic module names should end with \"_mod\", with at least "
-            f"one preceding character, but found a module called "
-            f"'{module_name}'.")
-    return f"{root_name}_type"
