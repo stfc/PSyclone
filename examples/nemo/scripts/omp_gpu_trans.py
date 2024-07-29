@@ -120,7 +120,10 @@ def trans(psyir):
                 # Skip if an outer loop is already parallelised
                 if loop.ancestor(Directive):
                     continue
-                omp_loop_trans.apply(loop, options={"force": True})
+                try:
+                    omp_loop_trans.apply(loop, options={"force": True})
+                except TransformationError:
+                    continue
                 omp_target_trans.apply(loop.parent.parent)
                 assigns = loop.walk(Assignment)
                 if len(assigns) == 1 and assigns[0].lhs.symbol.name == "zmax":
