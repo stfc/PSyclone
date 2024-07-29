@@ -52,15 +52,24 @@ class Routine(Schedule, CommentableMixin):
     '''
     A sub-class of a Schedule that represents a subroutine, function or
     program unit.
+    
+    .. note::
+       The provided symbol cannot belong to any ancestor scope. This is due to
+       PSyclone being unable to determine why the symbol is already contained
+       within a symbol table, e.g. another Routine already corresponding
+       to the symbol within the scope. If this Routine is created outside of
+       a scope, then it is valid for the symbol to exist within a scope, e.g.
+       when creating a new Routine to replace an existing routine within a
+       scope using `replace_with`.
 
     :param symbol: the Symbol used to represent this Routine in its Container.
-                   If it is not supplied a RoutineSymbol will be created with
-                   default arguments instead.
     :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
     :param Optional[bool] is_program: whether this Routine represents the
                                       entry point into a program (e.g.
                                       Fortran Program or C main()). Default is
                                       False.
+    :param str symbol_tag: The tag used for this Routine's symbol when
+                           storing it in symbol tables.
     :param kwargs: additional keyword arguments provided to the super class.
     :type kwargs: unwrapped dict.
 
@@ -82,6 +91,8 @@ class Routine(Schedule, CommentableMixin):
         self._symbol = symbol
         self._symbol_tag = symbol_tag
         self._symbol_in_table = False
+        # Since _parent is a property for Routine, the actual node pointed
+        # to by _parent is stored in the _parent_node variable.
         self._parent_node = None
         super().__init__(**kwargs)
 
@@ -111,7 +122,7 @@ class Routine(Schedule, CommentableMixin):
 
     @classmethod
     def create(cls, name, symbol_table=None, children=None, is_program=False,
-               symbol=None, return_symbol_name=None, **kwargs):
+               symbol=None, return_symbol_name=None, symbol_tag=None):
         # pylint: disable=too-many-arguments
         '''Create an instance of the supplied class given a name, a symbol
         table and a list of child nodes. This is implemented as a classmethod
@@ -132,14 +143,16 @@ class Routine(Schedule, CommentableMixin):
                        will be created with default arguments instead.
         :type symbol: Optional[
                       :py:class:`psyclone.psyir.symbols.RoutineSymbol`]
-        :param str return_symbol_name: name of the symbol that holds the \
-            return value of this routine (if any). Must be present in the \
+        :param str return_symbol_name: name of the symbol that holds the
+            return value of this routine (if any). Must be present in the
             supplied symbol table.
+        :param str symbol_tag: The tag used for this Routine's symbol when
+                               storing it in symbol tables.
 
         :returns: an instance of `cls`.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine` or subclass
 
-        :raises TypeError: if the arguments to the create method \
+        :raises TypeError: if the arguments to the create method
             are not of the expected type.
 
         '''
@@ -172,7 +185,7 @@ class Routine(Schedule, CommentableMixin):
         if symbol is None:
             symbol = RoutineSymbol(name)
         routine = cls(symbol, is_program=is_program, symbol_table=symbol_table,
-                      **kwargs)
+                      symbol_tag=symbol_tag)
         routine.children = children
         if return_symbol_name:
             routine.return_symbol = routine.symbol_table.lookup(
@@ -381,13 +394,10 @@ class Routine(Schedule, CommentableMixin):
                 "The symbol of argument node in method replace_with in the "
                 "Routine class should be the same as the Routine being "
                 "replaced.")
-        # We want to not use the childrenList update information.
+        # Set the symbol_in_table status so when using the _parent setter
+        # we don't attempt to overwrite the symbol, as its already in the
+        # symbol table.
         node._symbol_in_table = self._symbol_in_table
-        # Just calling node._parent_node.children.__setitem__ attempt
-        # to update the _parent of the replacements. Due to the nature
-        # of the replace_with and symbol functionality on Routines, this
-        # will not work. Instead we use the list.__setitem__ method to
-        # update this directly.
         super().replace_with(node, keep_name_in_context=keep_name_in_context)
 
 

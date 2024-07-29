@@ -218,7 +218,7 @@ class GOInvoke(Invoke):
     '''
     def __init__(self, alg_invocation, idx, invokes):
         # for pyreverse
-        self._schedule = GOInvokeSchedule.create('name', alg_calls=None)
+        self._schedule = GOInvokeSchedule.create('name')
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
 
         if Config.get().distributed_memory:
@@ -312,8 +312,10 @@ class GOInvokeSchedule(InvokeSchedule):
 
     :param symbol: RoutineSymbol representing the Invoke.
     :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
-    :param alg_calls: list of KernelCalls parsed from the algorithm layer.
-    :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param alg_calls: optional list of KernelCalls parsed from the algorithm
+                      layer.
+    :type alg_calls: Optional[list of
+                              :py:class:`psyclone.parse.algorithm.KernelCall`]
     :param reserved_names: optional list of names that are not allowed in the \
                            new InvokeSchedule SymbolTable.
     :type reserved_names: list of str
@@ -324,8 +326,10 @@ class GOInvokeSchedule(InvokeSchedule):
     # Textual description of the node.
     _text_name = "GOInvokeSchedule"
 
-    def __init__(self, name, alg_calls, reserved_names=None, parent=None,
+    def __init__(self, name, alg_calls=None, reserved_names=None, parent=None,
                  **kwargs):
+        if not alg_calls:
+            alg_calls = []
         InvokeSchedule.__init__(self, name, GOKernCallFactory,
                                 GOBuiltInCallFactory,
                                 alg_calls, reserved_names, parent=parent,

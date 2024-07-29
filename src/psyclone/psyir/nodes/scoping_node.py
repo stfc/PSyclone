@@ -64,6 +64,10 @@ class ScopingNode(Node):
     def __init__(self, children=None, parent=None, symbol_table=None):
         self._symbol_table = None
 
+        # As Routines (a ScopingNode subclass) add their own symbol
+        # into their parent's symbol table its necessary to ensure
+        # that the _symbol_table exists before we add the children
+        # to the Node (which happens in the super constructor).
         if symbol_table is not None:
             # Attach the provided symbol table to this scope
             symbol_table.attach(self)
@@ -71,10 +75,6 @@ class ScopingNode(Node):
             # Create a new symbol table attached to this scope
             self._symbol_table = self._symbol_table_class(self)
 
-        # As Routines add their own symbol into their parent's symbol
-        # table its necessary to ensure that the _symbol_table exists
-        # before we add the children to the Node (which happens in the
-        # super constructor).
         super().__init__(children=children, parent=parent)
 
     def __eq__(self, other):
@@ -141,40 +141,20 @@ class ScopingNode(Node):
             try:
                 if isinstance(self._symbol_table.lookup(node.name),
                               RoutineSymbol):
-                    self._symbol_table.remove(
-                            self._symbol_table.lookup(node.name))
+                    # We have to force the removal of the symbol.
+                    symbol = self._symbol_table.lookup(node.name)
+                    norm_name = self._symbol_table._normalize(symbol.name)
+                    self._symbol_table._symbols.pop(norm_name)
+                    # If the symbol had a tag, it should be disassociated
+                    for tag, tagged_symbol in list(
+                            self._symbol_table._tags.items()):
+                        if symbol is tagged_symbol:
+                            del self._symbol_table._tags[tag]
             except KeyError:
                 pass
-            except ValueError:
-                # If remove fails for the RoutineSymbol then we have to force
-                # the removal of the symbol.
-                symbol = self._symbol_table.lookup(node.name)
-                norm_name = self._symbol_table._normalize(symbol.name)
-                self._symbol_table._symbols.pop(norm_name)
 
         super(ScopingNode, self)._refine_copy(other)
         # pylint: disable=protected-access
-
-        # Update of children references to point to the equivalent symbols in
-        # the new symbol table attached to self.
-        # TODO #1377 Unfortunately Loop nodes currently store the associated
-        # loop variable in a `_variable` property rather than as a child so we
-        # must handle those separately. Also, in the LFRic API a Loop does not
-        # initially have the `_variable` property set which means that calling
-        # the `variable` getter causes an error (because it checks the
-        # internal-consistency of the Loop node). We therefore have to check
-        # the value of the 'private' `_variable` for now.
-        # We have to import Loop here to avoid a circular dependency.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.loop import Loop
-        for node in self.walk((Reference, Loop)):
-            if isinstance(node, Reference):
-                if node.symbol in other.symbol_table.symbols:
-                    node.symbol = self.symbol_table.lookup(node.symbol.name)
-            if isinstance(node, Loop) and node._variable:
-                if node.variable in other.symbol_table.symbols:
-                    node.variable = self.symbol_table.lookup(
-                        node.variable.name)
 
         # Now we've updated the symbol table, walk back down the tree and
         # update any Symbols.

@@ -82,7 +82,7 @@ def test_lfricinvsched_node_str_coloured():
     # distributed_memory set to True
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     # Create a plain LFRicInvokeSchedule
-    sched = LFRicInvokeSchedule.create('name', arg=None)
+    sched = LFRicInvokeSchedule.create('name')
     # Manually supply it with an Invoke object created with the LFRic API.
     sched.invoke = psy.invokes.invoke_list[0]
     output = sched.node_str()
@@ -106,7 +106,7 @@ def test_lfricinvsched_node_str_colourless():
                            api="lfric")
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     # Create a plain LFRicInvokeSchedule
-    sched = LFRicInvokeSchedule.create('name', arg=None)
+    sched = LFRicInvokeSchedule.create('name')
     # Manually supply it with an Invoke object created with the LFRic API.
     sched.invoke = psy.invokes.invoke_list[0]
 
