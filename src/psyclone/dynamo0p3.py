@@ -1717,7 +1717,11 @@ class DynCellIterators(LFRicCollection):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Initialise number of layers"))
         parent.add(CommentGen(parent, ""))
-        for name, var in self._nlayers_names.items():
+        # Sort for test reproducibility
+        sorted_names = list(self._nlayers_names.keys())
+        sorted_names.sort()
+        for name in sorted_names:
+            var = self._nlayers_names[name]
             parent.add(AssignGen(
                 parent, lhs=name,
                 rhs=(f"{var.proxy_name_indexed}%{var.ref_name()}%"
