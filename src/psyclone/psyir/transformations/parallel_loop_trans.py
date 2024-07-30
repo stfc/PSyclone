@@ -171,7 +171,15 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                             f" transformation option if this is a false "
                             f"dependency.")
                 if verbose:
-                    node.append_preceding_comment(f"PSyclone: {messages}")
+                    # This message can get quite long, we will skip it if an
+                    # ancestor loop already has the exact same message
+                    cursor = node.ancestor(Loop)
+                    while cursor:
+                        if messages in cursor.preceding_comment:
+                            break
+                        cursor = cursor.ancestor(Loop)
+                    if not cursor:
+                        node.append_preceding_comment(f"PSyclone: {messages}")
                 raise TransformationError(messages)
 
     def apply(self, node, options=None):
