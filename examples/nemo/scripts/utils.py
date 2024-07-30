@@ -300,6 +300,17 @@ def insert_explicit_loop_parallelism(
                 " 'nlay_i' or 'nlay_s'.")
             continue
 
+        # If we have a region_trans this is already tested
+        if not region_directive_trans:
+            not_pure = [call.routine.name for call in loop.walk(Call)
+                        if not call.is_pure]
+            if not_pure:
+                loop.append_preceding_comment(
+                    f"PSyclone: Loop not parallelised because it cannot "
+                    f"guarantee that the following calls are pure: "
+                    f"{set(not_pure)}")
+                continue
+
         try:
             # First check that the region_directive is feasible for this region
             if region_directive_trans:
@@ -311,9 +322,11 @@ def insert_explicit_loop_parallelism(
             # And if successful, the region directive on top.
             if region_directive_trans:
                 region_directive_trans.apply(loop.parent.parent)
-        except TransformationError as err:
-            # This loop can not be transformed, proceed to next loop
-            loop.append_preceding_comment(f"PSyclone: {err.value}")
+        except TransformationError:
+            # This loop cannot be transformed, proceed to next loop.
+            # The parallelisation restrictions will be explained with a comment
+            # associted to the loop in the generated output.
+            continue
 
 
 def add_profiling(children):
