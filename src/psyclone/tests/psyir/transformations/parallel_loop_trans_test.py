@@ -92,7 +92,8 @@ def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader,
     '''
     Test that the 'ignore_dependencies_for' option allows the validate check to
     succeed even when the dependency analysis finds a possible loop-carried
-    dependency, but the user guarantees that it's a false dependency.
+    dependency, but the user guarantees that it's a false dependency. It also
+    checks that the appopriate comments are added when dependencies are found.
 
     '''
     psyir = fortran_reader.psyir_from_source(CODE)
@@ -103,9 +104,24 @@ def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader,
     assert ("Loop cannot be parallelised because the dependency analysis "
             "reported:\nWarning: Variable 'sum' is read first, which indicates"
             " a reduction. Variable: 'sum'.") in str(err.value)
-    # With the verbose option, the dependency issue will be log as a comment
-    assert ("! PSyclone: Loop cannot be parallelised because the dependency"
-            " analysis reported:" in fortran_writer(psyir))
+    # With the verbose option, the dependency will be reported in a comment
+    assert ("PSyclone: Loop cannot be parallelised because the dependency"
+            " analysis reported:" in loop.preceding_comment)
+
+    # Test that the inner loop does not log again the same error message
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop.loop_body[0], options={"verbose": True})
+    assert ("PSyclone: Loop cannot be parallelised because the dependency"
+            not in loop.loop_body[0].preceding_comment)
+
+    # But if it's not already in an ancestor, it adds the comment there
+    loop.preceding_comment = ""
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop.loop_body[0], options={"verbose": True})
+    assert ("PSyclone: Loop cannot be parallelised because the dependency"
+            in loop.loop_body[0].preceding_comment)
+
+    # Now use the 'ignore_dependencies_for' option
     with pytest.raises(TypeError) as err:
         trans.validate(loop, {"ignore_dependencies_for": "sum"})
     assert ("The 'ignore_dependencies_for' option must be an Iterable object "
