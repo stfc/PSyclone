@@ -80,14 +80,14 @@ jobs:
       run: |
         # Set up environment
         source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
-        spack install lfric-build-environment%gcc@14 ^openmpi%gcc@14
+        spack load lfric-build-environment%gcc@14
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=${HOME}/LFRic/lfric_apps
         cd ${LFRIC_DIR}
         # Clean previous version and compile again
-        rm -rf appplications/gungho_model/working
+        rm -rf applications/gungho_model/working
         ./build/local_build.py -a gungho_model -v
         # Run
         cd applications/gungho_model/example
@@ -120,7 +120,7 @@ jobs:
       run: |
         # Set up environment
         source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
-        spack install lfric-build-environment%gcc@14 ^openmpi%gcc@14
+        spack load lfric-build-environment%gcc@14
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -131,7 +131,7 @@ jobs:
         mkdir -p applications/gungho_model/optimisation/psyclone-test
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
-        rm -rf appplications/gungho_model/working
+        rm -rf applications/gungho_model/working
         ./build/local_build.py -a gungho_model -p psyclone-test -v
         # Run
         cd applications/gungho_model/example
