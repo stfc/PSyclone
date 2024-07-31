@@ -39,7 +39,7 @@
 import pytest
 from fparser import api as fpapi
 
-from psyclone.domain.lfric import LFRicSymbolTable, LFRicConstants, LFRicTypes
+from psyclone.domain.lfric import LFRicSymbolTable, LFRicTypes
 from psyclone.domain.lfric.algorithm import (
     LFRicBuiltinFunctor, LFRicAlg, LFRicBuiltinFunctorFactory,
     LFRicKernelFunctor)
@@ -59,12 +59,6 @@ from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE, BOOLEAN_TYPE,
                                     ArrayType, DataTypeSymbol, UnresolvedType,
                                     INTEGER_TYPE, ContainerSymbol,
                                     ImportInterface, ScalarType, SymbolTable)
-
-
-@pytest.fixture(name="type_map", scope="module")
-def lfric_consts_fixture():
-    '''pytest fixture that returns the DATA_TYPE_MAP from LFRicConstants.'''
-    return LFRicConstants().DATA_TYPE_MAP
 
 
 # _compute_lfric_inner_products
@@ -369,7 +363,6 @@ def test_init_scalar_value(monkeypatch):
 
 
 # _validate_geom_arg
-
 def test_validate_geom_arg():
     '''
     Tests for the _validate_geom_arg method.
@@ -687,10 +680,10 @@ def test_generate_lfric_adjoint_harness_operator(fortran_reader,
     psyir = generate_lfric_adjoint_harness(tl_psyir)
     gen = fortran_writer(psyir)
     assert "type(operator_type) :: op\n" in gen
-    assert ("vector_space_w0_ptr => function_space_collection % get_fs(mesh, "
-            "element_order, w0)\n" in gen)
-    assert ("vector_space_w3_ptr => function_space_collection % get_fs(mesh, "
-            "element_order, w3)\n" in gen)
+    assert ("vector_space_w0_ptr => function_space_collection%get_fs(mesh,"
+            "element_order,w0)\n" in gen)
+    assert ("vector_space_w3_ptr => function_space_collection%get_fs(mesh,"
+            "element_order,w3)\n" in gen)
     # Initialise takes the *to* and *from* spaces as arguments in that order.
     assert ("call op%initialise(vector_space_w3_ptr, vector_space_w0_ptr)"
             in gen)

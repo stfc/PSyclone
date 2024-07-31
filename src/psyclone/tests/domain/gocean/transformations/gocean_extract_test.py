@@ -56,7 +56,7 @@ from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.utilities import get_invoke
 
 # API names
-GOCEAN_API = "gocean1.0"
+GOCEAN_API = "gocean"
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -101,19 +101,6 @@ def test_gocean_extract_trans():
     assert str(etrans) == "Create a sub-tree of the PSyIR that has a " \
                           "node of type ExtractNode at its root."
     assert etrans.name == "GOceanExtractTrans"
-
-
-# -----------------------------------------------------------------------------
-def test_gocean_extract_distributed_memory():
-    '''Test that distributed memory must be disabled.'''
-
-    _, invoke = get_invoke("single_invoke_three_kernels.f90",
-                           GOCEAN_API, idx=0, dist_mem=True)
-    etrans = GOceanExtractTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        etrans.apply(invoke.schedule.children[3])
-    assert ("Error in GOceanExtractTrans: Distributed memory is "
-            "not supported.") in str(excinfo.value)
 
 
 # -----------------------------------------------------------------------------
@@ -238,7 +225,7 @@ def test_single_node_ompparalleldo_gocean1p0():
     code = str(psy.gen)
     output = """
       CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-      """"invoke_0:compute_cv_code:r0", 6, 3)
+      """"invoke_0-compute_cv_code-r0", 6, 3)
       CALL extract_psy_data % PreDeclareVariable("cv_fld%internal%xstart", """ \
                                                """cv_fld % internal % xstart)
       CALL extract_psy_data % PreDeclareVariable("cv_fld%internal%xstop", """ \
@@ -310,7 +297,7 @@ def test_single_node_ompparalleldo_gocean1p0_const_loop():
     code = str(psy.gen)
     output = """
       CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-      """"invoke_0:compute_cv_code:r0", 4, 3)
+      """"invoke_0-compute_cv_code-r0", 4, 3)
       CALL extract_psy_data % PreDeclareVariable("istop", istop)
       CALL extract_psy_data % PreDeclareVariable("jstop", jstop)
       CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
@@ -373,7 +360,7 @@ def test_node_list_ompparallel_gocean1p0():
     code = str(psy.gen)
     output = """
       CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-      """"invoke_0:r0", 5, 4)
+      """"invoke_0-r0", 5, 4)
       CALL extract_psy_data % PreDeclareVariable("istop", istop)
       CALL extract_psy_data % PreDeclareVariable("jstop", jstop)
       CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
@@ -444,7 +431,7 @@ def test_driver_generation_flag(create_driver):
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
-                  "kernel:compute_kernel_code:r0.f90")
+                  "kernel-compute_kernel_code-r0.f90")
     # When create_driver is None, as a default no driver should be created.
     # Since "None or False" is "False", this simple test can be used in all
     # three cases.
@@ -469,7 +456,7 @@ def test_driver_loop_variables():
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
-                  "kernel:compute_kernel_code:r0.f90")
+                  "kernel-compute_kernel_code-r0.f90")
 
     assert driver.is_file()
 
@@ -522,7 +509,7 @@ def test_driver_scalars(fortran_writer):
     # Now test the created driver:
     # ----------------------------
     driver_name = ("driver-psy_single_invoke_scalar_float_test-"
-                   "invoke_0_bc_ssh:bc_ssh_code:r0.f90")
+                   "invoke_0_bc_ssh-bc_ssh_code-r0.f90")
     with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
@@ -531,7 +518,7 @@ def test_driver_scalars(fortran_writer):
                       'type(extract_psydatatype) extract_psy_data',
                       'INTEGER :: xstop',
                       'REAL(KIND=8) :: a_scalar',
-                      'CALL extract_psy_data%OpenRead("'
+                      'CALL extract_psy_data%OpenReadModuleRegion("'
                       'kernel_scalar_float", "bc_ssh_code")',
                       'CALL extract_psy_data%ReadVariable("a_scalar", '
                       'a_scalar)']
@@ -584,16 +571,16 @@ def test_driver_grid_properties(fortran_writer):
     # Now test the created driver:
     # ----------------------------
     driver_name = ("driver-psy_single_invoke_scalar_float_test-"
-                   "invoke_0_bc_ssh:bc_ssh_code:r0.f90")
+                   "invoke_0_bc_ssh-bc_ssh_code-r0.f90")
     with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
     expected_lines = ['integer :: ssh_fld_grid_subdomain_internal_xstop',
                       'integer, allocatable, dimension(:,:) :: '
                       'ssh_fld_grid_tmask',
-                      'call extract_psy_data%OpenRead(',
+                      'call extract_psy_data%OpenReadModuleRegion(',
                       '\'psy_single_invoke_scalar_float_test\', '
-                      '\'invoke_0_bc_ssh:bc_ssh_code:r0\')',
+                      '\'invoke_0_bc_ssh-bc_ssh_code-r0\')',
                       'call extract_psy_data%ReadVariable('
                       '\'ssh_fld%grid%subdomain%internal%xstop\', '
                       'ssh_fld_grid_subdomain_internal_xstop)',
@@ -633,13 +620,13 @@ def test_rename_region():
     driver_name = "driver-main-update.f90"
     with open(driver_name, "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
-    assert ("call extract_psy_data%OpenRead('main', 'update')"
+    assert ("call extract_psy_data%OpenReadModuleRegion('main', 'update')"
             in driver_code)
 
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
-def test_change_prefix(monkeypatch):
+def test_change_prefix(monkeypatch, dist_mem):
     '''
     This tests that the prefix of a gocean extract transformation
     can be changed, and that the new prefix is also used in the
@@ -649,7 +636,7 @@ def test_change_prefix(monkeypatch):
     # Use tmpdir so that the driver is created in tmp
 
     psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90",
-                             GOCEAN_API, idx=0, dist_mem=False)
+                             GOCEAN_API, idx=0, dist_mem=dist_mem)
 
     # In order to use a different prefix, this prefix needs to be valid.
     # So monkeypatch the valid prefix names in the config object:
@@ -670,4 +657,5 @@ def test_change_prefix(monkeypatch):
     driver_name = "driver-main-update.f90"
     with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
-    assert "call NEW_psy_data%OpenRead('main', 'update')" in driver_code
+    assert ("call NEW_psy_data%OpenReadModuleRegion('main', 'update')"
+            in driver_code)

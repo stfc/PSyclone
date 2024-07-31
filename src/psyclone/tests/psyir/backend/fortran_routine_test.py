@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the Routine node handler in the
@@ -42,6 +43,7 @@ import pytest
 
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir import nodes, symbols
+from psyclone.psyir.nodes import Routine
 from psyclone.tests.utilities import Compile
 
 
@@ -353,3 +355,116 @@ def test_fw_routine_flatten_tables_unresolved_sym(fortran_reader,
     # The calls to iom_put() should be unaffected.
     assert "call iom_put(ii)" in output
     assert "call iom_put(b)" in output
+
+
+def test_fw_routine_prefixes(fortran_reader, fortran_writer):
+    '''
+        Test the pure, impure and elemental routine prefixes.
+    '''
+    code = '''module test
+    contains
+    elemental subroutine sub()
+    end subroutine sub
+    end module test'''
+    container = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(container)
+    routine = container.walk(Routine)[0]
+    rsym = routine.symbol_table.lookup_with_tag("own_routine_symbol",
+                                                scope_limit=routine)
+    assert rsym.is_elemental
+    assert rsym.is_pure is None
+    assert "elemental" in output
+    # elemental => pure unless impure specified.
+    assert "impure" not in output
+
+    code = '''module test
+    contains
+    pure subroutine sub()
+    end subroutine sub
+    end module test'''
+    container = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(container)
+    routine = container.walk(Routine)[0]
+    rsym = routine.symbol_table.lookup_with_tag("own_routine_symbol",
+                                                scope_limit=routine)
+    assert not rsym.is_elemental
+    assert rsym.is_pure
+    assert "pure" in output
+
+    code = '''module test
+    contains
+    impure elemental subroutine sub()
+    end subroutine sub
+    end module test'''
+    container = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(container)
+    routine = container.walk(Routine)[0]
+    rsym = routine.symbol_table.lookup_with_tag("own_routine_symbol",
+                                                scope_limit=routine)
+    assert rsym.is_elemental
+    assert not rsym.is_pure
+    assert "impure elemental" in output
+
+    # Test this also works for functions
+    code = '''module test
+    contains
+    elemental function sub(val1, val2)
+        real :: sub
+        real :: val1
+        real :: val2
+        sub = val1 - val2
+    end function
+    end module
+    '''
+    container = fortran_reader.psyir_from_source(code)
+    routine = container.walk(Routine)[0]
+    rsym = routine.parent.scope.symbol_table.lookup(routine.name)
+    assert rsym.is_elemental
+    output = fortran_writer(container)
+    assert "elemental function" in output
+
+    code = '''module test
+    contains
+    impure elemental function sub(val1, val2)
+        real :: sub
+        real :: val1
+        real :: val2
+        sub = val1 - val2
+    end function
+    end module
+    '''
+    container = fortran_reader.psyir_from_source(code)
+    routine = container.walk(Routine)[0]
+    rsym = routine.parent.scope.symbol_table.lookup(routine.name)
+    assert rsym.is_elemental
+    assert not rsym.is_pure
+    output = fortran_writer(container)
+    assert "impure elemental function" in output
+
+    code = '''module test
+    contains
+    real impure elemental function sub(val1, val2)
+        real :: val1, val2
+        sub = val1 - val2
+    end function
+    end module
+    '''
+    container = fortran_reader.psyir_from_source(code)
+    routine = container.walk(Routine)[0]
+    assert rsym.is_elemental
+    assert not rsym.is_pure
+    output = fortran_writer(container)
+    # PSyclone doesn't output with the type as part of the function
+    # declaration
+    assert "impure elemental function" in output
+
+
+def test_fw_routine_prefixes_nomodule(fortran_reader, fortran_writer):
+    '''
+        Test for routine prefixes outside of a module.
+    '''
+    code = '''impure elemental subroutine sub()
+    end subroutine sub'''
+    container = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(container)
+    assert "impure elemental subroutine sub" in output

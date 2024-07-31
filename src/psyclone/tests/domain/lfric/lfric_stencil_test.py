@@ -59,7 +59,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../..", "test_files", "dynamo0p3")
 
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 STENCIL_CODE = '''
 module stencil_mod

@@ -46,7 +46,7 @@ use the helmholtz file provided in the `../code` directory, not the
 one in the same directory as this `README.md` file.
 
 ```bash
-    $ psyclone -oalg /dev/null -opsy psy.f90 -s ./omp_script.py ../code/helmholtz_solver_alg_mod.x90
+    $ psyclone --psykal-dsl lfric -oalg /dev/null -opsy psy.f90 -s ./omp_script.py ../code/helmholtz_solver_alg_mod.x90
 ```
 
 From the psy-layer PSyIR that is output to the screen you should see
@@ -240,7 +240,7 @@ call.
 From this directory run:
 
 ```bash
-    $ psyclone -oalg /dev/null -opsy psy.f90 -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
+    $ psyclone --psykal-dsl lfric -oalg /dev/null -opsy psy.f90 -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
 ```
 
 The `-d` option tells PSyclone where to look for the kernel code(s). You
@@ -312,7 +312,7 @@ The `reductions()` method in a loop node is handy here!
 If you rerun:
 
 ```bash
-    $ psyclone -oalg /dev/null -opsy psy.f90 -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
+    $ psyclone --psykal-dsl lfric -oalg /dev/null -opsy psy.f90 -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
 ```
 
 You should see that the psy-layer PSyIR that is output to the screen
@@ -368,7 +368,7 @@ select to use this configuration file by adding `--config psyclone.cfg`
 to the `psyclone` command i.e.
 
 ```bash
-    $ psyclone -oalg /dev/null -opsy psy.f90 -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code --config psyclone.cfg
+    $ psyclone --psykal-dsl lfric -oalg /dev/null -opsy psy.f90 -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code --config psyclone.cfg
 ```
 
 Notice that you could also set `REPRODUCIBLE_REDUCTIONS` to `true` in the

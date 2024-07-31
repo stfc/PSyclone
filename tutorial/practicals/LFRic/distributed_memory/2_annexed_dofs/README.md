@@ -16,7 +16,7 @@ subsequent commands in this file assume that you are in the same
 directory as this `README.md` file):
 
 ```bash
-    $ psyclone -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
+    $ psyclone --psykal-dsl lfric -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
 ```
 
 When we apply the annexed dofs optimisation, it will remove at least
@@ -50,10 +50,9 @@ Open this file in your favourite editor. You will see that it has a
 general (`default`) section for settings that are common to all APIs and
 subsequent, separate sections for each of the APIs.
 
-We are using the API called `dynamo0.3`. Note, this is a historical
-name which will be changed to `lfric` in the future.
+We are using the API called `lfric`.
 
-Find the `dynamo0.3` section and the `COMPUTE_ANNEXED_DOFS` option
+Find the `lfric` section and the `COMPUTE_ANNEXED_DOFS` option
 within that section.
 
 This option is set to `false` by default so change this value to
@@ -77,7 +76,7 @@ modified. Let's also save the generated psy-layer code to a different
 file.
 
 ```bash
-    $ psyclone -oalg /dev/null -opsy psy_annexed.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
+    $ psyclone --psykal-dsl lfric -oalg /dev/null -opsy psy_annexed.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
 ```
 
 ## Differences ##

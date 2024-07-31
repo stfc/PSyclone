@@ -31,12 +31,12 @@ The binary can be executed using ``example_openacc`` without additional paramete
 ./example_openacc
  Mesh has           5 layers.
  profile_PSyDataInit called
- PreStart called for module 'main_psy' region 'invoke_initialise_fields:r0'
- PostEnd called for module 'main_psy' region 'invoke_initialise_fields:r0'
+ PreStart called for module 'main_psy' region 'invoke_initialise_fields-r0'
+ PostEnd called for module 'main_psy' region 'invoke_initialise_fields-r0'
  PreStart called for module 'main_psy' region '
- invoke_testkern_w0:testkern_w0_code:r1'
+ invoke_testkern_w0-testkern_w0_code-r1'
  PostEnd called for module 'main_psy' region '
- invoke_testkern_w0:testkern_w0_code:r1'
+ invoke_testkern_w0-testkern_w0_code-r1'
  ...
 20230807214504.374+0100:INFO : Min/max minmax of field1 =   0.30084014E+00  0.17067212E+01
 20230807214504.374+0100:INFO : Min/max minmax of field2 =   0.21098316E-03  0.21098316E-03

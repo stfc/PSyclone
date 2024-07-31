@@ -35,6 +35,7 @@
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
+#          J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
 ''' This module contains the SymbolTable implementation. '''
@@ -55,6 +56,12 @@ from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
+# Used to provide a unique default value for methods within the
+# SymbolTable class. This enables us to determine when the user has
+# supplied a value of 'None' for arguments that have a default value.
+DEFAULT_SENTINEL = object()
+
+
 class SymbolTable():
     # pylint: disable=too-many-public-methods
     '''Encapsulates the symbol table and provides methods to add new
@@ -65,14 +72,14 @@ class SymbolTable():
     default visibility is not specified then it defaults to
     Symbol.Visbility.PUBLIC.
 
-    :param node: reference to the Schedule or Container to which this \
+    :param node: reference to the Schedule or Container to which this
         symbol table belongs.
-    :type node: :py:class:`psyclone.psyir.nodes.Schedule`, \
-        :py:class:`psyclone.psyir.nodes.Container` or NoneType
-    :param default_visibility: optional default visibility value for this \
+    :type node: Optional[:py:class:`psyclone.psyir.nodes.Schedule` |
+                         :py:class:`psyclone.psyir.nodes.Container`]
+    :param default_visibility: optional default visibility value for this
         symbol table, if not provided it defaults to PUBLIC visibility.
-    :type default_visibillity: \
-        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+    :type default_visibillity: Optional[
+        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
 
     :raises TypeError: if node argument is not a Schedule or a Container.
 
@@ -144,14 +151,12 @@ class SymbolTable():
         '''If this symbol table is enclosed in another scope, return the
         symbol table of the next outer scope. Otherwise return None.
 
-        :param scope_limit: optional Node which limits the symbol \
-            search space to the symbol tables of the nodes within the \
-            given scope. If it is None (the default), the whole \
-            scope (all symbol tables in ancestor nodes) is searched \
-            otherwise ancestors of the scope_limit node are not \
-            searched.
-        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
-            `NoneType`
+        :param scope_limit: optional Node which limits the symbol search
+            space to the symbol tables of the nodes within the given scope.
+            If it is None (the default), the whole scope (all symbol tables
+            in ancestor nodes) is searched otherwise ancestors of the
+            scope_limit node are not searched.
+        :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: the 'parent' SymbolTable of the current SymbolTable (i.e.
                   the one that encloses this one in the PSyIR hierarchy).
@@ -283,24 +288,10 @@ class SymbolTable():
         for tag, symbol in self._tags.items():
             new_st._tags[tag] = new_st.lookup(symbol.name)
 
-        # Fix the container links for imported symbols
-        for symbol in new_st.imported_symbols:
-            name = symbol.interface.container_symbol.name
-            orig_name = symbol.interface.orig_name
-            new_container = new_st.lookup(name)
-            symbol.interface = ImportInterface(new_container,
-                                               orig_name=orig_name)
-
-        # Fix the references to RoutineSymbols within any
-        # GenericInterfaceSymbols.
+        # Update any references to Symbols within Symbols (initial values,
+        # precision etc.)
         for symbol in new_st.symbols:
-            if not isinstance(symbol, GenericInterfaceSymbol):
-                continue
-            new_routines = []
-            for routine in symbol.routines:
-                new_routines.append((new_st.lookup(routine.symbol.name),
-                                     routine.from_container))
-            symbol.routines = new_routines
+            symbol.replace_symbols_using(new_st)
 
         # Set the default visibility
         new_st._default_visibility = self.default_visibility
@@ -932,32 +923,37 @@ class SymbolTable():
         self._validate_arg_list(argument_symbols)
         self._argument_list = argument_symbols[:]
 
-    def lookup(self, name, visibility=None, scope_limit=None):
+    def lookup(self, name, visibility=None, scope_limit=None,
+               otherwise=DEFAULT_SENTINEL):
         '''Look up a symbol in the symbol table. The lookup can be limited
         by visibility (e.g. just show public methods) or by scope_limit (e.g.
         just show symbols up to a certain scope).
 
         :param str name: name of the symbol.
-        :param visibilty: the visibility or list of visibilities that the \
+        :param visibilty: the visibility or list of visibilities that the
                           symbol must have.
         :type visibility: [list of] :py:class:`psyclone.symbols.Visibility`
-        :param scope_limit: optional Node which limits the symbol \
-            search space to the symbol tables of the nodes within the \
-            given scope. If it is None (the default), the whole \
-            scope (all symbol tables in ancestor nodes) is searched \
-            otherwise ancestors of the scope_limit node are not \
+        :param scope_limit: optional Node which limits the symbol
+            search space to the symbol tables of the nodes within the
+            given scope. If it is None (the default), the whole
+            scope (all symbol tables in ancestor nodes) is searched
+            otherwise ancestors of the scope_limit node are not
             searched.
-        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
-            `NoneType`
+        :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :param Any otherwise: an optional value to return if the named symbol
+            cannot be found (rather than raising a KeyError).
 
         :returns: the symbol with the given name and, if specified, visibility.
+                  If no match is found and 'otherwise' is supplied then that
+                  value is returned.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if the name argument is not a string.
-        :raises SymbolError: if the name exists in the Symbol Table but does \
+        :raises SymbolError: if the name exists in the Symbol Table but does
                              not have the specified visibility.
         :raises TypeError: if the visibility argument has the wrong type.
-        :raises KeyError: if the given name is not in the Symbol Table.
+        :raises KeyError: if the given name is not in the Symbol Table and
+                          `otherwise` is not supplied.
 
         '''
         if not isinstance(name, str):
@@ -991,8 +987,11 @@ class SymbolTable():
                         f" match with the requested visibility: {vis_names}")
             return symbol
         except KeyError as err:
-            raise KeyError(f"Could not find '{name}' in the Symbol Table.") \
-                from err
+            if otherwise is DEFAULT_SENTINEL:
+                # No 'otherwise' value supplied so we raise an exception.
+                raise KeyError(f"Could not find '{name}' in the Symbol "
+                               f"Table.") from err
+            return otherwise
 
     def lookup_with_tag(self, tag, scope_limit=None):
         '''Look up a symbol by its tag. The lookup can be limited by
@@ -1211,8 +1210,8 @@ class SymbolTable():
         :returns: ordered list of arguments.
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-        :raises InternalError: if the entries of the SymbolTable are not \
-            self-consistent.
+        :raises InternalError: if the entries of the SymbolTable are not
+                               self-consistent.
 
         '''
         try:
@@ -1224,6 +1223,81 @@ class SymbolTable():
             raise InternalError(str(err.args)) from err
         return self._argument_list
 
+    def insert_argument(self, index, argument):
+        '''
+        Insert a new argument at a given index in the argument list and add
+        it in the symbol table itself.
+
+        :param int index: the position in the argument list where the new
+                      argument should be inserted.
+        :param argument: the new argument to add to the list.
+        :type argument: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises InternalError: if the entries of the SymbolTable are not
+                               self-consistent.
+        :raises TypeError: if the supplied index is not an integer.
+        :raises TypeError: if the supplied argument is not a DataSymbol.
+        :raises ValueError: if the supplied argument is not marked as a
+                            kernel argument.
+        '''
+        if not isinstance(index, int):
+            raise TypeError(
+                f"Expected an integer index for the position at which to "
+                f"insert the argument but found '{type(index).__name__}'.")
+        if not isinstance(argument, DataSymbol):
+            raise TypeError(
+                f"Expected a DataSymbol for the argument to insert but found "
+                f"'{type(argument).__name__}'.")
+        if not argument.is_argument:
+            raise ValueError(
+                f"DataSymbol '{argument.name}' is not marked as a kernel "
+                "argument.")
+
+        self._argument_list.insert(index, argument)
+        self.add(argument)
+
+        try:
+            self._validate_arg_list(self._argument_list)
+            self._validate_non_args()
+        except ValueError as err:
+            # If the SymbolTable is inconsistent at this point then
+            # we have an InternalError.
+            raise InternalError(str(err.args)) from err
+
+    def append_argument(self, argument):
+        '''
+        Append a new argument to the argument list and add it in the symbol
+        table itself.
+
+        :param argument: the new argument to add to the list.
+        :type argument: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises InternalError: if the entries of the SymbolTable are not
+                               self-consistent.
+        :raises TypeError: if the supplied argument is not a DataSymbol.
+        :raises ValueError: if the supplied argument is not marked as a
+                            kernel argument.
+        '''
+        if not isinstance(argument, DataSymbol):
+            raise TypeError(
+                f"Expected a DataSymbol for the argument to insert but found "
+                f"'{type(argument).__name__}'.")
+        if not argument.is_argument:
+            raise ValueError(
+                f"DataSymbol '{argument.name}' is not marked as a kernel "
+                "argument.")
+
+        self._argument_list.append(argument)
+        self.add(argument)
+
+        try:
+            self._validate_arg_list(self._argument_list)
+            self._validate_non_args()
+        except ValueError as err:
+            # If the SymbolTable is inconsistent at this point then
+            # we have an InternalError.
+            raise InternalError(str(err.args)) from err
+
     @staticmethod
     def _validate_arg_list(arg_list):
         '''
@@ -1232,20 +1306,21 @@ class SymbolTable():
         :param arg_list: the proposed kernel arguments.
         :type param_list: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-        :raises TypeError: if any item in the supplied list is not a \
-            DataSymbol.
-        :raises ValueError: if any of the symbols does not have an argument \
-            interface.
+        :raises TypeError: if any item in the supplied list is not a
+                           DataSymbol.
+        :raises ValueError: if any of the symbols does not have an argument
+                            interface.
 
         '''
         for symbol in arg_list:
             if not isinstance(symbol, DataSymbol):
                 raise TypeError(f"Expected a list of DataSymbols but found an "
-                                f"object of type '{type(symbol)}'.")
+                                f"object of type '{type(symbol).__name__}'.")
             if not symbol.is_argument:
                 raise ValueError(
                     f"DataSymbol '{symbol}' is listed as a kernel argument "
-                    f"but has an interface of type '{type(symbol.interface)}' "
+                    f"but has an interface of type "
+                    f"'{type(symbol.interface).__name__}' "
                     f"rather than ArgumentInterface")
 
     def _validate_non_args(self):
@@ -1253,8 +1328,8 @@ class SymbolTable():
         Performs internal consistency checks on the current entries in the
         SymbolTable that do not represent kernel arguments.
 
-        :raises ValueError: if a symbol that is not in the argument list \
-            has an argument interface.
+        :raises ValueError: if a symbol that is not in the argument list
+                            has an argument interface.
 
         '''
         for symbol in self.datasymbols:
@@ -1798,7 +1873,19 @@ class SymbolTable():
         header += ":"
         header += "\n" + "-" * len(header) + "\n"
 
-        return header + "\n".join(map(str, self._symbols.values())) + "\n"
+        # Unique types of symbols, alpha-sorted.
+        symbol_types = list({type(symbol)
+                             for symbol in self._symbols.values()})
+        symbol_types.sort(key=lambda t: t.__name__)
+        for symbol_type in symbol_types:
+            header += symbol_type.__name__ + ":\n"
+            # _symbols is an OrderDict so these are alpha-sorted.
+            for symbol in self._symbols.values():
+                # pylint: disable=unidiomatic-typecheck
+                if type(symbol) is symbol_type:
+                    header += f"  {symbol}\n"
+
+        return header
 
     @property
     def scope(self):

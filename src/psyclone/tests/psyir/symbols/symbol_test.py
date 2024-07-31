@@ -320,7 +320,7 @@ def test_get_external_symbol(monkeypatch):
 
     def fake_import(name):
         raise SymbolError("Oh dear")
-    monkeypatch.setattr(other_container._interface, "import_container",
+    monkeypatch.setattr(other_container._interface, "get_container",
                         fake_import)
     with pytest.raises(SymbolError) as err:
         bsym.get_external_symbol()
@@ -398,3 +398,26 @@ def test_symbol_array_handling():
     # A generic symbol (no datatype) without an explicit array access
     # expression is not considered to have array access.
     assert not asym.is_array_access()
+
+
+def test_symbol_replace_symbols_using():
+    '''Test the replace_symbols_using() method in Symbol.'''
+    interf = DefaultModuleInterface()
+    asym = Symbol("a", interface=interf)
+    table = SymbolTable()
+    # No symbols in table and nothing to update.
+    asym.replace_symbols_using(table)
+    assert asym.interface is interf
+    cont = ContainerSymbol("genesis")
+    binterf = ImportInterface(cont, orig_name="e")
+    bsym = Symbol("b", interface=binterf)
+    # No symbols in table.
+    bsym.replace_symbols_using(table)
+    assert bsym.interface is binterf
+    assert bsym.interface.container_symbol is cont
+    # Add a new ContainerSymbol to the table.
+    cont2 = cont.copy()
+    table.add(cont2)
+    bsym.replace_symbols_using(table)
+    assert bsym.interface is not binterf
+    assert bsym.interface.container_symbol is cont2

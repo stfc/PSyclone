@@ -50,21 +50,12 @@ TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
                          "test_files", "dynamo0p3")
 
 
-def test_default_api():
-    ''' Check that parse() picks up the default API if none is specified
-    by the caller. We do this simply by checking that it returns OK
-    having parsed some dynamo0.3 code. '''
-    _, invoke_info = parse(
-        os.path.join(TEST_PATH, "1_single_invoke.f90"))
-    assert len(invoke_info.calls) == 1
-
-
 def test_continuators_kernel():
     '''Tests that an input kernel file with long lines that already has
        continuators to make the code conform to the line length limit
        does not cause an error. '''
     _, _ = parse(os.path.join(TEST_PATH, "1.1.0_single_invoke_xyoz_qr.f90"),
-                 api="dynamo0.3", line_length=True)
+                 api="lfric", line_length=True)
 
 
 def test_continuators_algorithm():
@@ -72,7 +63,7 @@ def test_continuators_algorithm():
        continuators to make the code conform to the line length limit
        does not cause an error. '''
     _, _ = parse(os.path.join(TEST_PATH, "13.2_alg_long_line_continuator.f90"),
-                 api="dynamo0.3", line_length=True)
+                 api="lfric", line_length=True)
 
 
 def test_get_builtin_defs_wrong_api():
@@ -92,19 +83,10 @@ def test_kerneltypefactory_wrong_api():
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
 
 
-def test_kerneltypefactory_default_api():
-    ''' Check that the KernelTypeFactory correctly defaults to using
-    the default API '''
-    from psyclone.configuration import Config
-    _config = Config.get()
-    factory = KernelTypeFactory(api="")
-    assert factory._type == _config.default_api
-
-
 def test_kerntypefactory_create_broken_type():
     ''' Check that we raise an error if the KernelTypeFactory.create()
     method encounters an unrecognised API. '''
-    factory = KernelTypeFactory(api="")
+    factory = KernelTypeFactory(api="lfric")
     # Deliberately break the 'type' (API) of this factory
     factory._type = "invalid_api"
     test_builtin_name = "aX_plus_Y"
@@ -121,7 +103,7 @@ def test_broken_builtin_metadata():
     # The file containing broken meta-data for the built-ins
     test_builtin_name = "aX_plus_Y"
     defs_file = os.path.join(TEST_PATH, "broken_builtins_mod.f90")
-    factory = BuiltInKernelTypeFactory(api="dynamo0.3")
+    factory = BuiltInKernelTypeFactory(api="lfric")
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(lfric_builtins.BUILTIN_MAP,
                            defs_file, name=test_builtin_name.lower())
@@ -133,7 +115,7 @@ def test_unrecognised_builtin():
     ''' Check that we raise an error if we call the BuiltInKernelTypeFactory
     with an unrecognised built-in name '''
     from psyclone.domain.lfric import lfric_builtins
-    factory = BuiltInKernelTypeFactory()
+    factory = BuiltInKernelTypeFactory("lfric")
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(lfric_builtins.BUILTIN_MAP,
                            None,
@@ -148,7 +130,7 @@ def test_builtin_with_use():
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(
             os.path.join(TEST_PATH, "15.12.2_builtin_with_use.f90"),
-            api="dynamo0.3")
+            api="lfric")
     assert ("A built-in cannot be named in a use statement but "
             "'setval_c' is used from module 'fake_builtin_mod' in "
             in str(excinfo.value))
@@ -160,7 +142,7 @@ def test_too_many_names_invoke():
     with pytest.raises(ParseError) as err:
         _, _ = parse(
             os.path.join(TEST_PATH, "1.0.2_many_named_invoke.f90"),
-            api="dynamo0.3")
+            api="lfric")
     assert "An invoke must contain one or zero " in str(err.value)
     assert "1.0.2_many_named_invoke.f90" in str(err.value)
 
@@ -171,7 +153,7 @@ def test_wrong_named_invoke():
     with pytest.raises(ParseError) as err:
         _, _ = parse(
             os.path.join(TEST_PATH, "1.0.3_wrong_named_arg_invoke.f90"),
-            api="dynamo0.3")
+            api="lfric")
     assert ("Expected named identifier to be 'name' but found "
             "'not_a_name'" in str(err.value))
 
@@ -182,7 +164,7 @@ def test_wrong_type_named_invoke():
     with pytest.raises(ParseError) as err:
         _, _ = parse(
             os.path.join(TEST_PATH, "1.0.4_wrong_type_named_arg_invoke.f90"),
-            api="dynamo0.3")
+            api="lfric")
     assert ("The (optional) name of an invoke must be specified as a "
             "string" in str(err.value))
     assert "1.0.4_wrong_type_named_arg_invoke.f90" in str(err.value)
@@ -194,7 +176,7 @@ def test_invalid_named_invoke():
     with pytest.raises(ParseError) as err:
         _, _ = parse(
             os.path.join(TEST_PATH, "1.0.6_invoke_name_invalid_chars.f90"),
-            api="dynamo0.3")
+            api="lfric")
     assert ("the (optional) name of an invoke must be a string containing a "
             "valid Fortran name (with no whitespace) but "
             "got 'jack(1)' " in str(err.value))
@@ -207,7 +189,7 @@ def test_duplicate_named_invoke():
     with pytest.raises(ParseError) as err:
         _, _ = parse(os.path.join(
             TEST_PATH, "3.3_multi_functions_multi_invokes_name_clash.f90"),
-                     api="dynamo0.3")
+                     api="lfric")
     assert ("Found multiple named invoke()'s with the same label ('jack') "
             "when parsing " in str(err.value))
     assert "3.3_multi_functions_multi_invokes_name_clash.f90" in str(err.value)
@@ -220,7 +202,7 @@ def test_duplicate_named_invoke_case():
     with pytest.raises(ParseError) as err:
         _, _ = parse(os.path.join(
             TEST_PATH, "3.4_multi_invoke_name_clash_case_insensitive.f90"),
-                     api="dynamo0.3")
+                     api="lfric")
     assert ("Found multiple named invoke()'s with the same label ('jack') "
             "when parsing " in str(err.value))
     assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err.value)

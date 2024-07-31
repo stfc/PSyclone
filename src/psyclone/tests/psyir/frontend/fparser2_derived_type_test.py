@@ -553,3 +553,27 @@ def test_derived_type_codeblocks(f2008_parser):
     cblocks = sched.walk(CodeBlock)
     assert len(cblocks) == 1
     assert isinstance(cblocks[0].parent, Assignment)
+
+
+def test_array_of_derived_type_pointer(f2008_parser):
+    ''' Test that the frontend handles structure accesses to pointers.
+    Note that expressions which end with array accessor syntax are
+    not currently supported.
+    '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader("subroutine my_sub()\n"
+                                 "  use some_mod\n"
+                                 "  var%myptr => ptr\n"
+                                 "  var2(1)%myptr => ptr\n"
+                                 "  ptab_ptr(kfld)%pt4d(1:1,1:1) => ptab\n"
+                                 "end subroutine my_sub\n")
+    fparser2spec = f2008_parser(reader)
+    sched = processor.generate_psyir(fparser2spec)
+
+    # The LHS expression type depend on its content (if supported)
+    assignments = sched.children[0].children
+    assert assignments[0].is_pointer
+    assert isinstance(assignments[0].lhs, StructureReference)
+    assert assignments[1].is_pointer
+    assert isinstance(assignments[1].lhs, ArrayOfStructuresReference)
+    assert isinstance(assignments[2], CodeBlock)

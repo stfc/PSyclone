@@ -7,7 +7,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020, Science and Technology Facilities
+! Modifications copyright (c) 2020-2024, Science and Technology Facilities
 ! Council.
 ! All rights reserved.
 !
@@ -44,9 +44,7 @@ contains
 
 subroutine tra_adv()
    USE iso_c_binding, only: C_INT64_T
-   ! The below should be e.g. wp = KIND(1.0d0) but PSyclone does not support
-   ! the KIND intrinsic yet: TODO #585.
-   INTEGER, PARAMETER :: wp = 8
+   INTEGER, PARAMETER :: wp = KIND(1.0d0)
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) :: t3sn, t3ns, t3ew, t3we
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:)   :: tsn 
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:)   :: pun, pvn, pwn
@@ -73,11 +71,13 @@ subroutine tra_adv()
    CALL get_environment_variable("IT", env)
    READ ( env, '(i10)' ) it
 
-   IF(jpi < 1) STOP 'Width of grid, JPI, must be > 0'
-   IF(jpj < 1) STOP 'Height of grid, JPJ, must be > 0'
-   IF(jpk < 1) STOP 'Depth of grid, JPK, must be > 0'
-   IF(it < 1) STOP  'Number of iterations, IT, must be > 0'
-   
+   IF(jpi < 1 .or. jpj < 1 .or. jpk < 1 .or. it < 1)THEN
+      WRITE (*, "('Domain size (JPI * JPJ * JPK) and number of iterations (IT) " &
+           //"must be set ',/'using environment variables, e.g.:',/'   "         &
+           //"JPI=100 JPJ=100 JPK=30 IT=10 ./tra_adv.exe')")
+      STOP
+   END IF
+
    WRITE (*, "('Tracer-advection Mini-app:')")
    WRITE (*, "('Domain is ', I4, 'x', I4, ' grid points')") jpi, jpj
    WRITE (*, "('Performing ', I4, ' iterations')") it

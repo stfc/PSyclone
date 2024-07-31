@@ -224,8 +224,8 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
     result = fortran_writer(psyir)
     assert result == expected
     # Also check that the "own_routine_symbol" tag is maintained
-    assert routine.symbol_table.lookup_with_tag("own_routine_symbol") \
-        is return_sym
+    assert (routine.symbol_table.lookup_with_tag("own_routine_symbol")
+            is return_sym)
 
 
 FN1_IN = ("  function my_func() result(my_val)\n"
@@ -374,7 +374,7 @@ def test_function_unsupported_derived_type(fortran_reader):
 
 
 @pytest.mark.parametrize("fn_prefix", ["elemental", "pure", "impure",
-                                       "pure elemental"])
+                                       "pure elemental", "impure elemental"])
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
 def test_supported_prefix(fortran_reader, fn_prefix, routine_type):
     '''Check that the frontend correctly handles a routine with the various
@@ -393,7 +393,12 @@ def test_supported_prefix(fortran_reader, fn_prefix, routine_type):
     rsym = routine.parent.scope.symbol_table.lookup("my_func")
     assert isinstance(rsym, RoutineSymbol)
     assert rsym.is_elemental is ("elemental" in fn_prefix)
-    assert rsym.is_pure is fn_prefix.startswith("pure")
+    if fn_prefix.startswith("pure"):
+        assert rsym.is_pure
+    elif "impure" in fn_prefix:
+        assert not rsym.is_pure
+    else:
+        assert rsym.is_pure is None
 
 
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])

@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified by A. R. Porter and S. Siso, STFC Daresbury Lab,
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 # Modified by J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
@@ -41,7 +42,6 @@
 
 from collections import OrderedDict
 import pytest
-from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
     FortranWriter, precedence
@@ -60,8 +60,6 @@ from psyclone.psyir.symbols import (
     UnsupportedType, UnsupportedFortranType, DataTypeSymbol, StructureType)
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
-from psyclone.psyGen import PSyFactory
-from psyclone.nemo import NemoInvokeSchedule
 
 
 def test_gen_intent():
@@ -582,6 +580,10 @@ def test_fw_gen_use(fortran_writer):
     assert "use my_module, only : dummy1=>orig_name, my_sub" not in result
     assert "use my_module\n" in result
 
+    container_symbol.is_intrinsic = True
+    result = fortran_writer.gen_use(container_symbol, symbol_table)
+    assert "use, intrinsic :: my_module" in result
+
     # container2 has no symbols associated with it and has not been marked
     # as having a wildcard import. It should therefore result in a USE
     # with an empty 'ONLY' list (which serves to keep the module in scope
@@ -890,7 +892,16 @@ def test_fw_filecontainer_error1(fortran_writer):
         _ = fortran_writer(file_container)
     assert (
         "In the Fortran backend, a file container should not have any "
-        "symbols associated with it, but found 1." in str(info.value))
+        "symbols associated with it other than RoutineSymbols, but found "
+        "x: Symbol<Automatic>." in str(info.value))
+
+    # Check that a routine symbol is fine.
+    symbol_table = SymbolTable()
+    routine_symbol = RoutineSymbol("mysub")
+    symbol_table.add(routine_symbol)
+    file_container = FileContainer.create("None", symbol_table, [])
+    output = fortran_writer(file_container)
+    assert "mysub" not in output
 
 
 def test_fw_filecontainer_error2(fortran_writer):
@@ -1259,7 +1270,7 @@ def test_fw_range(fortran_writer):
     assert result == "a(:,:b + c:3)"
 
     array_type = ArrayType(REAL_TYPE, [10, 10, 10])
-    symbol = DataSymbol("a", array_type)
+    symbol.datatype = array_type
     array = ArrayReference.create(
         symbol,
         [Range.create(dim1_bound_start, dim1_bound_stop.copy()),
@@ -1593,42 +1604,6 @@ def test_fw_codeblock_3(fortran_writer):
         _ = fortran_writer.codeblock_node(code_block)
     assert ("Unsupported CodeBlock Structure 'unsupported' found."
             in str(excinfo.value))
-
-
-def get_nemo_schedule(parser, code):
-    '''Utility function that returns the first schedule for a code with
-    the nemo api.
-
-    :param parser: the parser class.
-    :type parser: :py:class:`fparser.two.Fortran2003.Program`
-    :param str code: the code as a string.
-
-    :returns: the first schedule in the supplied code.
-    :rtype: :py:class:`psyclone.nemo.NemoInvokeSchedule`
-
-    '''
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    return psy.invokes.invoke_list[0].schedule
-
-
-def test_fw_nemoinvokeschedule(fortran_writer, parser):
-    '''Check that the FortranWriter class nemoinvokeschedule accepts the
-    NemoInvokeSchedule node and prints the expected code (from any
-    children of the node as the node itself simply calls its
-    children).
-
-    '''
-    code = (
-        "program test\n"
-        "  integer :: a\n"
-        "  a=1\n"
-        "end program test\n")
-    schedule = get_nemo_schedule(parser, code)
-    assert isinstance(schedule, NemoInvokeSchedule)
-    result = fortran_writer(schedule)
-    assert "a = 1\n" in result
 
 
 def test_fw_query_intrinsics(fortran_reader, fortran_writer, tmpdir):
@@ -2010,3 +1985,27 @@ def test_componenttype_initialisation(fortran_reader, fortran_writer):
         "    integer, public :: i = 1\n"
         "    integer, public :: j\n"
         "  end type my_type\n" in result)
+
+
+def test_pointer_assignments(fortran_reader, fortran_writer):
+    ''' That assignments are produced by the Fortran backend, respecting the
+    is_pointer attribute.
+    '''
+    test_module = '''
+    subroutine mysub()
+        use other_symbols
+        integer, target :: a = 1
+        integer, pointer :: b => null()
+
+        a = 4
+        b => a
+        field(3,c)%pointer => b
+    end subroutine
+    '''
+    file_container = fortran_reader.psyir_from_source(test_module)
+    code = fortran_writer(file_container)
+    assert not file_container.walk(CodeBlock)
+    assert len(file_container.walk(Assignment)) == 3
+    assert "a = 4" in code
+    assert "b => a" in code
+    assert "field(3,c)%pointer => b" in code

@@ -123,6 +123,33 @@ def test_where_broken_tree():
 
 
 @pytest.mark.usefixtures("parser")
+def test_where_unknown_selector_type():
+    ''' Check that we create the expected CodeBlock if we can't resolve the
+    resulting shape of an array expression.
+
+    '''
+    fake_parent, fparser2spec = process_where(
+        "WHERE (ptsu(myfunc(), :, :) /= 0._wp)\n"
+        "  z1_st(myfunc(), :, :) = 1._wp / ptsu(myfunc(), :, :)\n"
+        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "z1_st"])
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [fparser2spec])
+    assert isinstance(fake_parent.children[0], CodeBlock)
+    assert ("We can not get the resulting shape of the expression: "
+            "ptsu(myfunc(),:,:)" in fake_parent.children[0].preceding_comment)
+
+    fake_parent, fparser2spec = process_where(
+        "WHERE (ptsu(:, :, :) /= 0._wp)\n"
+        "  z1_st(myfunc(), :, :) = 1._wp / ptsu(myfunc(), :, :)\n"
+        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "z1_st"])
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [fparser2spec])
+    assert isinstance(fake_parent.children[0], CodeBlock)
+    assert ("We can not get the resulting shape of the expression: "
+            "z1_st(myfunc(),:,:)" in fake_parent.children[0].preceding_comment)
+
+
+@pytest.mark.usefixtures("parser")
 def test_elsewhere_broken_tree():
     ''' Check that we raise the expected exceptions if the fparser2 parse
     tree containing an ELSEWHERE does not have the correct structure.
@@ -212,7 +239,7 @@ def test_where_array_notation_rank():
     array_type = ArrayType(REAL_TYPE, [10])
     my_array = ArrayReference.create(
         DataSymbol("my_array", array_type),
-        [Range.create(Literal("1", INTEGER_TYPE),
+        [Range.create(Literal("2", INTEGER_TYPE),
                       Literal("10", INTEGER_TYPE))])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
@@ -397,9 +424,6 @@ def test_where_mask_starting_value(fortran_reader, fortran_writer):
     Check handling of a case where the mask array is indexed from values other
     than unity.
 
-    # TODO #949 - we can't currently take advantage of any knowledge of the
-    # declared lower bounds of arrays because the fparser2 frontend doesn't yet
-    # capture this information (we get an UnsupportedFortranType).
     '''
     code = '''\
     program my_sub
@@ -418,23 +442,17 @@ def test_where_mask_starting_value(fortran_reader, fortran_writer):
 '''
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
-    print(output)
     expected = '''\
-  do widx2 = 1, SIZE(picefr, dim=2), 1
-    do widx1 = 1, SIZE(picefr, dim=1), 1
-      if (picefr(LBOUND(picefr, dim=1) + widx1 - 1,\
-LBOUND(picefr, dim=2) + widx2 - 1) > 1.e-10) then
-        zevap_ice(LBOUND(zevap_ice, dim=1) + widx1 - 1,\
-LBOUND(zevap_ice, dim=2) + widx2 - 1,1) = \
-snow(LBOUND(snow, dim=1) + widx1 - 1,3,LBOUND(snow, dim=3) + widx2 - 1) * \
+  do widx2 = 1, 5 - (-5) + 1, 1
+    do widx1 = 1, 5 - (-5) + 1, 1
+      if (picefr(-5 + widx1 - 1,-5 + widx2 - 1) > 1.e-10) then
+        zevap_ice(widx1,widx2,1) = snow(-2 + widx1 - 1,3,-3 + widx2 - 1) * \
 frcv(jpr_ievp)%z3(LBOUND(frcv(jpr_ievp)%z3, dim=1) + widx1 - 1,\
 LBOUND(frcv(jpr_ievp)%z3, dim=2) + widx2 - 1,1) / \
-picefr(LBOUND(picefr, dim=1) + widx1 - 1,LBOUND(picefr, dim=2) + widx2 - 1)
+picefr(-5 + widx1 - 1,-5 + widx2 - 1)
       else
-        zevap_ice(LBOUND(zevap_ice, dim=1) + widx1 - 1,\
-LBOUND(zevap_ice, dim=2) + widx2 - 1,1) = \
-snow(LBOUND(snow, dim=1) + widx1 - 1,map(jpl),\
-LBOUND(snow, dim=3) + widx2 - 1) + slush(-22 + widx1 - 1,jpl,-32 + widx2 - 1)
+        zevap_ice(widx1,widx2,1) = snow(-2 + widx1 - 1,map(jpl),\
+-3 + widx2 - 1) + slush(-22 + widx1 - 1,jpl,-32 + widx2 - 1)
 '''
     assert expected in output
 
@@ -467,6 +485,37 @@ def test_where_mask_is_slice(fortran_reader, fortran_writer):
     # If the lower bound of the slice is unity then we can use the loop
     # index directly.
     assert "if (picefr(widx1,jstart + widx2 - 1) > 4.e-10)" in out
+
+
+def test_where_mask_is_slice_lower_limit(fortran_reader, fortran_writer):
+    '''
+    Check that the correct loop bounds and index expressions are created
+    when the mask expression uses a slice and the array itself is a formal
+    argument with a specified lower bound and no explicit upper bound.
+    '''
+    code = '''\
+    subroutine my_sub(picefr)
+      use some_mod
+      real, dimension(3:,2:) :: picefr
+      WHERE( picefr(:4,jstart:) > 1.e-10 )
+        zevap_ice(:,:,1) = frcv(jpr_ievp)%z3(:,:,1) / picefr(:,:)
+      ELSEWHERE ( picefr(4:5,jstart:) > 4.e-10)
+        zevap_ice(:,:,1) = 0.0
+      END WHERE
+    end subroutine my_sub
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    out = fortran_writer(psyir)
+    # Check that created loops have the correct number of iterations
+    assert "do widx2 = 1, UBOUND(picefr, dim=2) - jstart + 1, 1" in out
+    assert "do widx1 = 1, 4 - LBOUND(picefr, dim=1) + 1, 1" in out
+    # Check that the indexing into the mask expression uses the lower bounds
+    # specified in the original slice.
+    assert ("if (picefr(LBOUND(picefr, dim=1) + widx1 - 1,"
+            "jstart + widx2 - 1) > 1.e-10)" in out)
+    assert ("zevap_ice(LBOUND(zevap_ice, dim=1) + widx1 - 1,"
+            "LBOUND(zevap_ice, dim=2) + widx2 - 1,1) = 0.0" in out)
+    assert "if (picefr(4 + widx1 - 1,jstart + widx2 - 1) > 4.e-10)" in out
 
 
 def test_where_body_containing_sum_with_dim(fortran_reader, fortran_writer):
