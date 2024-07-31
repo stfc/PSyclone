@@ -129,7 +129,7 @@ def test_dof_kernel_no_field():
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     assert ("In the LFRic API a kernel which operates on 'dof' is only "
-             "permitted to accept scalar and field arguments but the "
-             "metadata for kernel 'testkern_dofs_type' includes an "
-             "argument of type 'gh_operator'"
+            "permitted to accept scalar and field arguments but the "
+            "metadata for kernel 'testkern_dofs_type' includes an "
+            "argument of type 'gh_operator'"
             in str(excinfo.value))
