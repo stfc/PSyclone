@@ -819,13 +819,6 @@ def test_gen_access_stmts(fortran_writer):
     symbol_table.default_visibility = Symbol.Visibility.PRIVATE
     code = fortran_writer.gen_access_stmts(symbol_table)
     assert code.strip() == "public :: my_sub1, some_var"
-    # Check that we don't generate an accessibility statement for a
-    # RoutineSymbol tagged with 'own_routine_symbol'
-    symbol_table.add(RoutineSymbol("my_routine",
-                                   visibility=Symbol.Visibility.PUBLIC),
-                     tag='own_routine_symbol')
-    code = fortran_writer.gen_access_stmts(symbol_table)
-    assert "my_routine" not in code
     # Accessibility should also be generated for a GenericInterfaceSymbol.
     symbol_table.add(GenericInterfaceSymbol("overloaded", [(sub2, True)]))
     code = fortran_writer.gen_access_stmts(symbol_table)

@@ -785,23 +785,11 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-        # Find the symbol that represents itself, this one will not need
-        # an accessibility statement
-        try:
-            itself = symbol_table.lookup_with_tag('own_routine_symbol')
-        except KeyError:
-            itself = None
-
         public_symbols = []
         private_symbols = []
         for symbol in symbol_table.symbols:
             if (isinstance(symbol, RoutineSymbol) or
                     symbol.is_unresolved or symbol.is_import):
-
-                # Skip the symbol representing the routine where these
-                # declarations belong
-                if isinstance(symbol, RoutineSymbol) and symbol is itself:
-                    continue
 
                 # It doesn't matter whether this symbol has a local or import
                 # interface - its accessibility in *this* context is determined
@@ -1214,14 +1202,7 @@ class FortranWriter(LanguageWriter):
 
             for schedule in node.walk(Schedule):
                 sched_table = schedule.symbol_table
-                # We can't declare a routine inside itself so make sure we
-                # skip any RoutineSymbol representing this routine.
-                try:
-                    rsym = sched_table.lookup_with_tag("own_routine_symbol")
-                    skip = [rsym] if isinstance(rsym, RoutineSymbol) else []
-                except KeyError:
-                    skip = []
-                whole_routine_scope.merge(sched_table, skip)
+                whole_routine_scope.merge(sched_table)
                 if schedule is node:
                     # Replace the Routine's symbol table as soon as we've
                     # merged it into the new one. This ensures that the new
