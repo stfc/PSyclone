@@ -2749,6 +2749,7 @@ def test_mesh_mod(tmpdir):
 # When we add build tests we should test that we can we get the mesh
 # object from an operator
 
+
 def test_operator_gh_sum_invalid():
     ''' Tests that an error is raised when an operator is specified with
     access type 'gh_sum'. '''
