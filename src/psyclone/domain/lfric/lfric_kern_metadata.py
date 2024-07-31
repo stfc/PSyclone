@@ -624,7 +624,7 @@ class LFRicKernMetadata(KernelType):
         # list out all function spaces
         arg_fs_names = []
         for arg in self._arg_descriptors:
-            arg_fs_names.append(arg.function_spaces)
+            arg_fs_names.extend(arg.function_spaces)
         # dof kernels should only have one function space so a set of fs
         # names should be of length 1
         if len(set(arg_fs_names)) > 1:
