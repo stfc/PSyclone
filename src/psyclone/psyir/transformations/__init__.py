@@ -45,13 +45,14 @@ transformations and base classes.
 # produces an ImportError due to cyclic dependencies
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.psyir.transformations.acc_kernels_trans import ACCKernelsTrans
 from psyclone.psyir.transformations.acc_update_trans import ACCUpdateTrans
 from psyclone.psyir.transformations.allarrayaccess2loop_trans import \
     AllArrayAccess2LoopTrans
 from psyclone.psyir.transformations.arrayaccess2loop_trans import \
     ArrayAccess2LoopTrans
-from psyclone.psyir.transformations.arrayrange2loop_trans import \
-    ArrayRange2LoopTrans
+from psyclone.psyir.transformations.arrayassignment2loops_trans import \
+    ArrayAssignment2LoopsTrans
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
@@ -106,10 +107,11 @@ from psyclone.psyir.transformations.reference2arrayrange_trans import \
 
 
 # For AutoAPI documentation generation
-__all__ = ['ACCUpdateTrans',
+__all__ = ['ACCKernelsTrans',
+           'ACCUpdateTrans',
            'AllArrayAccess2LoopTrans',
            'ArrayAccess2LoopTrans',
-           'ArrayRange2LoopTrans',
+           'ArrayAssignment2LoopsTrans',
            'ChunkLoopTrans',
            'ExtractTrans',
            'FoldConditionalReturnExpressionsTrans',

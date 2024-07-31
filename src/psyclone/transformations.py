@@ -48,20 +48,18 @@ import abc
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import (KernCallArgList, LFRicConstants, LFRicKern,
-                                   LFRicLoop)
-from psyclone.dynamo0p3 import (LFRicHaloExchangeEnd, LFRicHaloExchangeStart,
-                                DynInvokeSchedule)
+from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
+                                   LFRicInvokeSchedule, LFRicKern, LFRicLoop)
+from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
-from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
                              BuiltIn)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
-    ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective, Assignment,
-    Call, CodeBlock, Directive, Loop, Node, OMPDeclareTargetDirective,
-    OMPDirective, OMPMasterDirective,
+    ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
+    Call, CodeBlock, Directive, Loop, Node,
+    OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
     Return, Routine, Schedule)
@@ -69,15 +67,15 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DataSymbol, UnresolvedType, INTEGER_TYPE, ScalarType,
-    Symbol, SymbolError)
+    ArgumentInterface, DataSymbol, UnresolvedType, INTEGER_TYPE,
+    ScalarType, Symbol, SymbolError)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
-from psyclone.psyir.transformations.parallel_loop_trans import \
-    ParallelLoopTrans
+from psyclone.psyir.transformations.parallel_loop_trans import (
+    ParallelLoopTrans)
 from psyclone.psyir.transformations.region_trans import RegionTrans
-from psyclone.psyir.transformations.transformation_error import \
-    TransformationError
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 
 
 def check_intergrid(node):
@@ -125,7 +123,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
 
     >>> from pysclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -286,21 +284,21 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         Creates the type of directive needed for this sub-class of
         transformation.
 
-        :param children: list of Nodes that will be the children of \
+        :param children: list of Nodes that will be the children of
                          the created directive.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param int collapse: currently un-used but required to keep \
+        :param int collapse: currently un-used but required to keep
                              interface the same as in base class.
         :returns: the new node representing the directive in the AST.
         :rtype: :py:class:`psyclone.psyir.nodes.OMPTaskloopDirective`
 
         :raises NotImplementedError: if a collapse argument is supplied
         '''
-        # TODO 1370: OpenMP loop functions don't support collapse
+        # TODO 2672: OpenMP loop functions don't support collapse
         if collapse:
             raise NotImplementedError(
                 "The COLLAPSE clause is not yet supported for "
-                "'!$omp taskloop' directives.")
+                "'!$omp taskloop' directives (#2672).")
         _directive = OMPTaskloopDirective(children=children,
                                           grainsize=self.omp_grainsize,
                                           num_tasks=self.omp_num_tasks,
@@ -381,7 +379,9 @@ class MarkRoutineForGPUMixin:
         :raises TransformationError: if it is a kernel but without an
                                      associated PSyIR.
         :raises TransformationError: if any of the symbols in the kernel are
-                                     accessed via a module use statement.
+                                     accessed via a module use statement (and
+                                     are not compile-time constants).
+        :raises TransformationError: if the routine contains any CodeBlocks.
         :raises TransformationError: if the kernel contains any calls to other
                                      routines.
         '''
@@ -426,7 +426,7 @@ class MarkRoutineForGPUMixin:
                 # resolve_type does nothing if the Symbol type is known.
                 try:
                     ref.symbol.resolve_type()
-                except SymbolError:
+                except (SymbolError, FileNotFoundError):
                     # TODO #11 - log that we failed to resolve this Symbol.
                     pass
                 if (isinstance(ref.symbol, DataSymbol) and
@@ -576,7 +576,7 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -688,7 +688,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         >>> from psyclone.parse.algorithm import parse
         >>> from psyclone.psyGen import PSyFactory
         >>> ast, invokeInfo = parse("dynamo.F90")
-        >>> psy = PSyFactory("dynamo0.3").create(invokeInfo)
+        >>> psy = PSyFactory("lfric").create(invokeInfo)
         >>> schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
         >>> # Uncomment the following line to see a text view of the schedule
         >>> # print(schedule.view())
@@ -1049,7 +1049,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
     >>> import os
     >>> import pytest
     >>>
-    >>> TEST_API = "dynamo0.3"
+    >>> TEST_API = "lfric"
     >>> _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
     >>>              "tests", "test_files", "dynamo0p3",
     >>>              "4.6_multikernel_invokes.f90"),
@@ -1089,7 +1089,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         return "Split a Dynamo 0.3 loop over cells into colours"
 
     def apply(self, node, options=None):
-        '''Performs Dynamo0.3-specific error checking and then uses the parent
+        '''Performs LFRic-specific error checking and then uses the parent
         class to convert the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
         loop is over cells of that colour.
@@ -1217,6 +1217,7 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
             children of the same parent (siblings).
 
         '''
+        node_list = self.get_node_list(node_list)
         if isinstance(node_list[0], InvokeSchedule):
             raise TransformationError(
                 f"A {self.name} transformation cannot be applied to an "
@@ -1289,7 +1290,7 @@ class OMPSingleTrans(ParallelRegionTrans):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -1421,7 +1422,7 @@ class OMPMasterTrans(ParallelRegionTrans):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -1474,7 +1475,7 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -1612,6 +1613,7 @@ class ACCParallelTrans(ParallelRegionTrans):
             inserted directive should include the default_present clause.
 
         '''
+        node_list = self.get_node_list(node_list)
         super().validate(node_list, options)
         if options is not None and "default_present" in options:
             if not isinstance(options["default_present"], bool):
@@ -1619,6 +1621,13 @@ class ACCParallelTrans(ParallelRegionTrans):
                     f"The provided 'default_present' option must be a "
                     f"boolean, but found '{options['default_present']}'."
                 )
+        for node in node_list:
+            for call in node.walk(Call):
+                if not call.is_available_on_device():
+                    raise TransformationError(
+                        f"'{call.routine.name}' is not available on the "
+                        f"accelerator device, and therefore it cannot "
+                        f"be called from within an ACC parallel region.")
 
     def apply(self, target_nodes, options=None):
         '''
@@ -1670,7 +1679,7 @@ class MoveTrans(Transformation):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> ast,invokeInfo=parse("dynamo.F90")
-    >>> psy=PSyFactory("dynamo0.3").create(invokeInfo)
+    >>> psy=PSyFactory("lfric").create(invokeInfo)
     >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
@@ -1806,7 +1815,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             :py:class:`psyclone.psyir.nodes.Directive`.
         :raises TransformationError: if the parent of the loop is not a\
             :py:class:`psyclone.psyir.nodes.Loop` or a\
-            :py:class:`psyclone.psyGen.DynInvokeSchedule`.
+            :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
         :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyir.nodes.Loop` but the original loop does\
             not iterate over 'colour'.
@@ -1815,7 +1824,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             iterate over 'colours'.
         :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyir.nodes.Loop` but the parent's parent is\
-            not a :py:class:`psyclone.psyGen.DynInvokeSchedule`.
+            not a :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
         :raises TransformationError: if this transformation is applied\
             when distributed memory is not switched on.
         :raises TransformationError: if the loop does not iterate over\
@@ -1860,12 +1869,13 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                 f"method the supplied loop is sits beneath a directive of "
                 f"type {type(dir_node)}. Redundant computation must be applied"
                 f" before directives are added.")
-        if not (isinstance(node.parent, DynInvokeSchedule) or
+        if not (isinstance(node.parent, LFRicInvokeSchedule) or
                 isinstance(node.parent.parent, Loop)):
             raise TransformationError(
                 f"In the Dynamo0p3RedundantComputation transformation "
                 f"apply method the parent of the supplied loop must be the "
-                f"DynInvokeSchedule, or a Loop, but found {type(node.parent)}")
+                f"LFRicInvokeSchedule, or a Loop, but found "
+                f"{type(node.parent)}")
         if isinstance(node.parent.parent, Loop):
             if node.loop_type != "colour":
                 raise TransformationError(
@@ -1879,12 +1889,12 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                     f"apply method, if the parent of the supplied Loop is "
                     f"also a Loop then the parent must iterate over "
                     f"'colours', but found '{node.parent.parent.loop_type}'")
-            if not isinstance(node.parent.parent.parent, DynInvokeSchedule):
+            if not isinstance(node.parent.parent.parent, LFRicInvokeSchedule):
                 raise TransformationError(
                     f"In the Dynamo0p3RedundantComputation transformation "
                     f"apply method, if the parent of the supplied Loop is "
                     f"also a Loop then the parent's parent must be the "
-                    f"DynInvokeSchedule, but found {type(node.parent)}")
+                    f"LFRicInvokeSchedule, but found {type(node.parent)}")
         if not Config.get().distributed_memory:
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
@@ -1994,7 +2004,7 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "dynamo0.3"
+    >>> api = "lfric"
     >>> ast, invokeInfo = parse("file.f90", api=api)
     >>> psy=PSyFactory(api).create(invokeInfo)
     >>> schedule = psy.invokes.get('invoke_0').schedule
@@ -2080,7 +2090,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "dynamo0.3"
+    >>> api = "lfric"
     >>> ast, invokeInfo = parse("file.f90", api=api)
     >>> psy=PSyFactory(api).create(invokeInfo)
     >>> schedule = psy.invokes.get('invoke_0').schedule
@@ -2393,7 +2403,7 @@ class ACCEnterDataTrans(Transformation):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -2449,7 +2459,7 @@ class ACCEnterDataTrans(Transformation):
         self.validate(sched, options)
 
         # pylint: disable=import-outside-toplevel
-        if isinstance(sched, DynInvokeSchedule):
+        if isinstance(sched, LFRicInvokeSchedule):
             from psyclone.dynamo0p3 import DynACCEnterDataDirective as \
                 AccEnterDataDir
         elif isinstance(sched, GOInvokeSchedule):
@@ -2512,7 +2522,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -2527,14 +2537,6 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
     >>> rtrans.apply(kern)
 
     '''
-    @property
-    def name(self):
-        '''
-        :returns: the name of this transformation class.
-        :rtype: str
-        '''
-        return "ACCRoutineTrans"
-
     def apply(self, node, options=None):
         '''
         Add the '!$acc routine' OpenACC directive into the code of the
@@ -2542,10 +2544,15 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         in the supplied Routine.
 
         :param node: the kernel call or routine implementation to transform.
-        :type node: :py:class:`psyclone.psyGen.Kern` or \
+        :type node: :py:class:`psyclone.psyGen.Kern` |
                     :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["force"]: whether to allow routines with
+            CodeBlocks to run on the GPU.
+        :param str options["parallelism"]: the level of parallelism that the
+            target routine (or a callee) exposes. One of "seq" (the default),
+            "vector", "worker" or "gang".
 
         '''
         # Check that we can safely apply this transformation
@@ -2564,7 +2571,10 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         for child in routine.children:
             if isinstance(child, ACCRoutineDirective):
                 return  # The routine is already marked with ACCRoutine
-        routine.children.insert(0, ACCRoutineDirective())
+
+        para = options.get("parallelism", "seq") if options else "seq"
+
+        routine.children.insert(0, ACCRoutineDirective(parallelism=para))
 
     def validate(self, node, options=None):
         '''
@@ -2582,128 +2592,26 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
         :raises TransformationError: if it is a kernel but without an
-                                     associated PSyIR.
+            associated PSyIR.
         :raises TransformationError: if any of the symbols in the kernel are
-                                     accessed via a module use statement.
+            accessed via a module use statement.
         :raises TransformationError: if the kernel contains any calls to other
-                                     routines.
+            routines.
+        :raises TransformationError: if the 'parallelism' option is supplied
+            but is not a recognised level of parallelism.
+
         '''
         super().validate(node, options)
 
         self.validate_it_can_run_on_gpu(node, options)
 
-
-class ACCKernelsTrans(RegionTrans):
-    '''
-    Enclose a sub-set of nodes from a Schedule within an OpenACC kernels
-    region (i.e. within "!$acc kernels" ... "!$acc end kernels" directives).
-
-    For example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "nemo"
-    >>> ast, invokeInfo = parse(NEMO_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>>
-    >>> from psyclone.transformations import ACCKernelsTrans
-    >>> ktrans = ACCKernelsTrans()
-    >>>
-    >>> schedule = psy.invokes.get('tra_adv').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>> kernels = schedule.children[9]
-    >>> # Transform the kernel
-    >>> ktrans.apply(kernels)
-
-    '''
-    excluded_node_types = (CodeBlock, Return, PSyDataNode,
-                           psyGen.HaloExchange)
-
-    @property
-    def name(self):
-        '''
-        :returns: the name of this transformation class.
-        :rtype: str
-        '''
-        return "ACCKernelsTrans"
-
-    def apply(self, node, options=None):
-        '''
-        Enclose the supplied list of PSyIR nodes within an OpenACC
-        Kernels region.
-
-        :param node: a node or list of nodes in the PSyIR to enclose.
-        :type node: (a list of) :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["default_present"]: whether or not the kernels \
-            region should have the 'default present' attribute (indicating \
-            that data is already on the accelerator). When using managed \
-            memory this option should be False.
-
-        '''
-        # Ensure we are always working with a list of nodes, even if only
-        # one was supplied via the `node` argument.
-        node_list = self.get_node_list(node)
-
-        self.validate(node_list, options)
-
-        parent = node_list[0].parent
-        start_index = node_list[0].position
-
-        if not options:
-            options = {}
-        default_present = options.get("default_present", False)
-
-        # Create a directive containing the nodes in node_list and insert it.
-        directive = ACCKernelsDirective(
-            parent=parent, children=[node.detach() for node in node_list],
-            default_present=default_present)
-
-        parent.children.insert(start_index, directive)
-
-    def validate(self, nodes, options):
-        # pylint: disable=signature-differs
-        '''
-        Check that we can safely enclose the supplied node or list of nodes
-        within OpenACC kernels ... end kernels directives.
-
-        :param nodes: the proposed PSyIR node or nodes to enclose in the \
-                      kernels region.
-        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-
-        :raises NotImplementedError: if the supplied Nodes belong to \
-                                     a GOInvokeSchedule.
-        :raises TransformationError: if there are no Loops within the \
-                                     proposed region.
-
-        '''
-        # Ensure we are always working with a list of nodes, even if only
-        # one was supplied via the `nodes` argument.
-        node_list = self.get_node_list(nodes)
-
-        # Check that the front-end is valid
-        sched = node_list[0].ancestor((NemoInvokeSchedule, DynInvokeSchedule))
-        if not sched:
-            raise NotImplementedError(
-                "OpenACC kernels regions are currently only supported for the "
-                "nemo and dynamo0.3 front-ends")
-        super().validate(node_list, options)
-
-        # Check that we have at least one loop or array range within
-        # the proposed region
-        for node in node_list:
-            if (any(assign for assign in node.walk(Assignment)
-                    if assign.is_array_assignment) or node.walk(Loop)):
-                break
-        else:
-            # Branch executed if loop does not exit with a break
-            raise TransformationError(
-                "A kernels transformation must enclose at least one loop or "
-                "array range but none were found.")
+        if options and "parallelism" in options:
+            para = options["parallelism"]
+            if para not in ACCRoutineDirective.SUPPORTED_PARALLELISM:
+                raise TransformationError(
+                    f"{self.name}: '{para}' is not a supported level of "
+                    f"parallelism. Should be one of "
+                    f"{ACCRoutineDirective.SUPPORTED_PARALLELISM}")
 
 
 class ACCDataTrans(RegionTrans):
@@ -2713,17 +2621,15 @@ class ACCDataTrans(RegionTrans):
 
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "nemo"
-    >>> ast, invokeInfo = parse(NEMO_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.psyir.frontend import FortranReader
+    >>> psyir = FortranReader().psyir_from_source(NEMO_SOURCE_FILE)
     >>>
-    >>> from psyclone.transformations import ACCKernelsTrans, ACCDataTrans
+    >>> from psyclone.transformations import ACCDataTrans
+    >>> from psyclone.psyir.transformations import ACCKernelsTrans
     >>> ktrans = ACCKernelsTrans()
     >>> dtrans = ACCDataTrans()
     >>>
-    >>> schedule = psy.invokes.get('tra_adv').schedule
+    >>> schedule = psyir.children[0]
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
     >>>
@@ -3007,7 +2913,6 @@ class KernelImportsToArguments(Transformation):
 __all__ = [
    "ACCEnterDataTrans",
    "ACCDataTrans",
-   "ACCKernelsTrans",
    "ACCLoopTrans",
    "ACCParallelTrans",
    "ACCRoutineTrans",

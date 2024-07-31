@@ -85,7 +85,7 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
     >>> from psyclone.domain.lfric.transformations import \
             RaisePSyIR2LFRicKernTrans
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> config = Config.get().api_conf("dynamo0.3")
+    >>> config = Config.get().api_conf("lfric")
     >>> CODE = ("""
     ... MODULE example
     ... TYPE, EXTENDS(kernel_type) :: compute_cu
