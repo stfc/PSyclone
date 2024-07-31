@@ -52,7 +52,7 @@ class Routine(Schedule, CommentableMixin):
     '''
     A sub-class of a Schedule that represents a subroutine, function or
     program unit.
-    
+
     .. note::
        The provided symbol cannot belong to any ancestor scope. This is due to
        PSyclone being unable to determine why the symbol is already contained

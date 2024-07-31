@@ -37,7 +37,6 @@
 ''' This module contains the ScopingNode implementation.'''
 
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import RoutineSymbol, SymbolError, SymbolTable
 
 
