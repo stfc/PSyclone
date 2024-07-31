@@ -38,7 +38,6 @@
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
 
-import copy
 import os
 import pytest
 
@@ -46,27 +45,8 @@ import fparser
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
-                                   LFRicConstants, LFRicKern,
-                                   LFRicKernMetadata, LFRicLoop)
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import (DynACCEnterDataDirective,
-                                DynBoundaryConditions, DynCellIterators,
-                                DynGlobalSum, DynKernelArguments, DynProxies,
-                                HaloReadAccess, KernCallArgList)
-from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
-from psyclone.f2pygen import ModuleGen
-from psyclone.gen_kernel_stub import generate
-from psyclone.parse.algorithm import Arg, parse
+from psyclone.domain.lfric import LFRicKernMetadata
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
-from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
-                                  Reference, Routine)
-from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
-                                    UnsupportedFortranType)
-from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.psyir.backend.visitor import VisitorError
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -86,6 +66,7 @@ def setup():
     Config.get().api = "dynamo0.3"
     yield
     Config._instance = None
+
 
 CODE = '''
         module testkern_dofs_mod
@@ -107,6 +88,7 @@ CODE = '''
         end module testkern_dofs_mod
         '''
 
+
 def test_dof_kernel_mixed_function_spaces():
     ''' Check that we raise an exception if we attempt to generate kernel
     call for a dof kernel with non-homogenous function spaces.
@@ -124,7 +106,12 @@ def test_dof_kernel_mixed_function_spaces():
             "permitted in the LFRic API."
             in str(excinfo.value))
 
+
 def test_dof_kernel_no_field():
+    ''' Check that we raise an exception if we attempt to generate kernel
+    call for a dof kernel with no metadata arguments of 'gh_field' type.
+
+    '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Remove the need for basis or diff-basis functions
     code = CODE.replace(

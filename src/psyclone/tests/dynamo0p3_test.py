@@ -307,6 +307,7 @@ def test_unnecessary_shape():
             "no basis or differential basis functions are required"
             in str(excinfo.value))
 
+
 def test_any_space_1(tmpdir):
     ''' Tests that any_space is implemented correctly in the PSy
     layer. Includes more than one type of any_space declaration
@@ -2748,7 +2749,6 @@ def test_mesh_mod(tmpdir):
 
 # When we add build tests we should test that we can we get the mesh
 # object from an operator
-
 
 def test_operator_gh_sum_invalid():
     ''' Tests that an error is raised when an operator is specified with

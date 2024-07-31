@@ -623,8 +623,8 @@ class LFRicKernMetadata(KernelType):
         # Check function spaces are the same
         # list out all function spaces
         arg_fs_names = []
-        for descriptor in self._arg_descriptors:
-            arg_fs_names.extend(descriptor.function_spaces)
+        for arg in self._arg_descriptors:
+            arg_fs_names.append(arg.function_spaces)
         # dof kernels should only have one function space so a set of fs
         # names should be of length 1
         if len(set(arg_fs_names)) > 1:
@@ -632,7 +632,6 @@ class LFRicKernMetadata(KernelType):
                 f"Kernel '{self.name}' operates on 'dof' but has "
                 f"fields on different function spaces. This is not "
                 f"permitted in the LFRic API.")
-
 
     def _validate_only_scalars_and_fields(self):
         const = LFRicConstants()
