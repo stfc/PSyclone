@@ -39,7 +39,7 @@ include ../../../common.mk
 
 .PHONY: clean allclean transform compile run
 
-# We use the PSyData simple_timing implementation since it has no
+# By default we use the PSyData simple_timing implementation since it has no
 # dependencies.
 PROFILE_WRAPPER_DIR ?= ../../../../lib/profiling/simple_timing
 PROFILE_WRAPPER_LIB ?= ${PROFILE_WRAPPER_DIR}/libsimple_timing.a
@@ -50,22 +50,23 @@ PROFILE_DIR ?=
 PROFILE_LIB ?= 
 PROFILE_LINK ?=
 
-# For dl_timer
+# For dl_timer:
+#
 # NOTE: dl_timer *requires* an initialisation call to be added
 #       to runner.f90:
 #         use profile_psy_data_mod, only : profile_PSyDataInit
 #         call profile_PSyDataInit()
+#
 # (git clone https://bitbucket.org/apeg/dl_timer.git
-#  cd dl_timer; . compiler_setup/gnu_setup.sh; make dm_lib)
-#PROFILE_WRAPPER_DIR = ../../../../lib/profiling/dl_timer
-#PROFILE_WRAPPER_LIB = ${PROFILE_WRAPPER_DIR}/libdl_timer_psy.a
-#PROFILE_WRAPPER_LINK = ${PROFILE_WRAPPER_LIB}
-#PROFILE_DIR = ../../../../../dl_timer
-#PROFILE_LIB = ${PROFILE_DIR}/libdl_timer_mpi.a
-#PROFILE_LINK = ${PROFILE_LIB}
-# Since we've built the distributed-memory version of dl_timer
-# ('dm_lib') we need to ensure the executable is linked with MPI.
-#F90 = mpif90
+#  cd dl_timer; . compiler_setup/gnu_setup.sh; make sm_lib)
+#PROFILE_WRAPPER_DIR ?= ../../../../lib/profiling/dl_timer
+#PROFILE_WRAPPER_LIB ?= ${PROFILE_WRAPPER_DIR}/libdl_timer_psy.a
+#PROFILE_WRAPPER_LINK ?= ${PROFILE_WRAPPER_LIB}
+#PROFILE_DIR ?= ../../../../../dl_timer
+#PROFILE_LIB ?= ${PROFILE_DIR}/libdl_timer_omp.a
+# Since we've built the shared-memory version of dl_timer
+# ('sm_lib' above) we need to ensure the executable is linked with OpenMP.
+#PROFILE_LINK ?= -fopenmp ${PROFILE_LIB}
 
 NAME = ./tra_adv.exe
 

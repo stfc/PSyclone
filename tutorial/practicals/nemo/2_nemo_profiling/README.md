@@ -203,7 +203,7 @@ transformation script to perform finer-grained profiling.
    git clone https://bitbucket.org/apeg/dl_timer.git
    cd dl_timer
    . compiler_setup/gnu.sh
-   make dm_lib
+   make sm_lib
    ```
    and then update the
    various `PROFILE_*` variables in the Makefile in this tutorial directory
