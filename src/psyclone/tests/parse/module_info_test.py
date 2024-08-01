@@ -41,7 +41,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.errors import InternalError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse import FileInfo, ModuleInfo, ModuleInfoError, ModuleManager
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import RoutineSymbol
@@ -119,10 +119,9 @@ contains
   end function broken
 end module my_mod''')
     mod_info = ModuleInfo("my_mod", FileInfo(filepath))
-    psyir = mod_info.get_psyir()
-    assert psyir is None
-    out, _ = capsys.readouterr()
-    assert "Error trying to create PSyIR for " in out
+    with pytest.raises(GenerationError) as excinfo:
+        psyir = mod_info.get_psyir()
+    assert "Can't add routine 'broken' into" in str(excinfo.value)
 
     # Check that we handle the case where get_parse_tree() returns None.
     # The simplest way to do this is to monkeypatch.
