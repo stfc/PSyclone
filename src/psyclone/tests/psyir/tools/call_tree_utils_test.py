@@ -130,6 +130,35 @@ def test_call_tree_compute_all_non_locals_non_kernel():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
+def test_call_tree_generic_functions():
+    '''Test handling of generic functions. Each function specified in a
+    generic interface must be visited, since PSyclone might not always be
+    able to determine the right function to be called due to missing type
+    information.
+    '''
+    test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(test_dir)
+    mod_info_call_tree = mod_man.get_module_info("module_call_tree_mod")
+    # First make sure we get indeed all three functions (even though
+    # one of the functions does not exist, which is required for testing
+    # exceptions):
+    all_names = (mod_info_call_tree.get_psyir().
+                 resolve_routine("generic_function"))
+    assert all_names == ["real_func", "double_func", "integer_func"]
+
+    ctu = CallTreeUtils()
+    mod_info = mod_man.get_module_info("module_calling_generic_function")
+    todo = ctu.get_non_local_symbols(mod_info.get_psyir())
+    rw_info = ReadWriteInfo()
+    ctu._resolve_calls_and_unknowns(todo, rw_info)
+    assert (set(rw_info.read_list) ==
+            set([('module_call_tree_mod', Signature("module_var_real")),
+                 ('module_call_tree_mod', Signature("module_var_double"))]))
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_call_tree_compute_all_non_locals_kernel():
     '''This tests the handling of (LFRic-specific) kernels and builtins. This
     example contains an explicit kernel and a builtin, so both will be tested.

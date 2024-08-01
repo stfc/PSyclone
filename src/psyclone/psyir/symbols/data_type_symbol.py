@@ -68,13 +68,13 @@ class DataTypeSymbol(Symbol):
         original will not be affected so the copy will not be referred
         to by any other object.
 
-        :returns: A symbol object with the same properties as this \
+        :returns: A symbol object with the same properties as this
                   symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.TypeSymbol`
 
         '''
         return type(self)(self.name, self.datatype, visibility=self.visibility,
-                          interface=self.interface)
+                          interface=self.interface.copy())
 
     def __str__(self):
         return f"{self.name}: {type(self).__name__}"
