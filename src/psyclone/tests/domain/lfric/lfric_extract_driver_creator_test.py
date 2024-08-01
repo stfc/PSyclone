@@ -288,7 +288,8 @@ def test_lfric_driver_simple_test():
                  "call extract_psy_data%ReadVariable('ndf_w1', ndf_w1)",
                  "call extract_psy_data%ReadVariable('ndf_w2', ndf_w2)",
                  "call extract_psy_data%ReadVariable('ndf_w3', ndf_w3)",
-                 "call extract_psy_data%ReadVariable('nlayers', nlayers)",
+                 "call extract_psy_data%ReadVariable('nlayers_x_ptr_vector', "
+                 "nlayers_x_ptr_vector)",
                  "call extract_psy_data%ReadVariable('"
                  "self_vec_type_vector_data', self_vec_type_vector_data)",
                  "call extract_psy_data%ReadVariable('undf_w1', undf_w1)",

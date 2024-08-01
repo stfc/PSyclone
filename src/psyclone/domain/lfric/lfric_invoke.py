@@ -97,7 +97,7 @@ class LFRicInvoke(Invoke):
                                         DynLMAOperators, DynReferenceElement,
                                         DynCMAOperators, DynBasisFunctions,
                                         DynMeshes, DynBoundaryConditions,
-                                        DynProxies, DynCellIterators,
+                                        DynProxies, LFRicCellIterators,
                                         LFRicMeshProperties)
         from psyclone.domain.lfric import (LFRicLoopBounds, LFRicRunTimeChecks,
                                            LFRicScalarArgs, LFRicFields,
@@ -144,7 +144,7 @@ class LFRicInvoke(Invoke):
         self.run_time_checks = LFRicRunTimeChecks(self)
 
         # Information required by kernels that operate on cell-columns
-        self.cell_iterators = DynCellIterators(self)
+        self.cell_iterators = LFRicCellIterators(self)
 
         # Information on the required properties of the reference element
         self.reference_element_properties = DynReferenceElement(self)

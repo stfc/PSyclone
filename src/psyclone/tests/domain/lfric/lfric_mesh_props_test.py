@@ -245,7 +245,7 @@ def test_mesh_gen(tmpdir):
     assert "adjacent_face => mesh%get_adjacent_face()" in gen
     assert "nfaces_re_v" not in gen
     # The kernel call
-    assert ("call testkern_mesh_prop_code(nlayers, a, f1_data, "
+    assert ("call testkern_mesh_prop_code(nlayers_f1, a, f1_data, "
             "ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, "
             "adjacent_face(:,cell))" in gen)
 
@@ -268,10 +268,10 @@ def test_duplicate_mesh_gen(tmpdir):
         "nfaces_re_h = reference_element%get_number_horizontal_faces()") == 1
     assert "nfaces_re_v" not in gen
     assert gen.count("adjacent_face => mesh%get_adjacent_face()") == 1
-    assert ("call testkern_mesh_prop_code(nlayers, a, f1_data, "
+    assert ("call testkern_mesh_prop_code(nlayers_f1, a, f1_data, "
             "ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, "
             "adjacent_face(:,cell)" in gen)
-    assert ("call testkern_mesh_prop_code(nlayers, b, f2_data, "
+    assert ("call testkern_mesh_prop_code(nlayers_f2, b, f2_data, "
             "ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, "
             "adjacent_face(:,cell))" in gen)
 
@@ -295,7 +295,7 @@ def test_mesh_prop_plus_ref_elem_gen(tmpdir):
         "normals_to_horiz_faces)\n"
         "      call reference_element%get_normals_to_vertical_faces("
         "normals_to_vert_faces)\n" in gen)
-    assert ("call testkern_mesh_ref_elem_props_code(nlayers, a, "
+    assert ("call testkern_mesh_ref_elem_props_code(nlayers_f1, a, "
             "f1_data, ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, "
             "nfaces_re_v, normals_to_horiz_faces, normals_to_vert_faces, "
             "adjacent_face(:,cell))" in gen)
@@ -331,7 +331,7 @@ def test_mesh_plus_face_quad_gen(tmpdir):
             "      !\n"
             "      adjacent_face => mesh%get_adjacent_face()" in gen)
 
-    assert ("call testkern_mesh_prop_face_qr_code(nlayers, a, f1_data, "
+    assert ("call testkern_mesh_prop_face_qr_code(nlayers_f1, a, f1_data, "
             "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, "
             "nfaces_re_h, adjacent_face(:,cell), "
             "nfaces_qr, np_xyz_qr, weights_xyz_qr)" in gen)
@@ -369,12 +369,12 @@ def test_multi_kernel_mesh_props(tmpdir):
         in gen)
     assert "adjacent_face => mesh%get_adjacent_face()" in gen
     # Call to kernel requiring props of the reference element & adjacent faces
-    assert ("call testkern_mesh_ref_elem_props_code(nlayers, a, f1_data,"
+    assert ("call testkern_mesh_ref_elem_props_code(nlayers_f1, a, f1_data,"
             " ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces, "
             "adjacent_face(:,cell))" in gen)
     # Call to kernel requiring adjacent faces and face quadrature
-    assert ("call testkern_mesh_prop_face_qr_code(nlayers, a, f2_data, "
+    assert ("call testkern_mesh_prop_face_qr_code(nlayers_f2, a, f2_data, "
             "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, nfaces_re_h, "
             "adjacent_face(:,cell), nfaces_qr, np_xyz_qr, weights_xyz_qr)"
             in gen)

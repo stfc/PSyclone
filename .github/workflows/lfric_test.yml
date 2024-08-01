@@ -87,7 +87,7 @@ jobs:
         export LFRIC_DIR=${HOME}/LFRic/lfric_apps
         cd ${LFRIC_DIR}
         # Clean previous version and compile again
-        rm -rf appplications/gungho_model/working
+        rm -rf applications/gungho_model/working
         ./build/local_build.py -a gungho_model
         # Run
         cd applications/gungho_model/example
@@ -131,7 +131,7 @@ jobs:
         mkdir -p applications/gungho_model/optimisation/psyclone-test
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
-        rm -rf appplications/gungho_model/working
+        rm -rf applications/gungho_model/working
         ./build/local_build.py -a gungho_model -p psyclone-test
         # Run
         cd applications/gungho_model/example

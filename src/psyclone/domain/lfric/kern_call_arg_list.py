@@ -218,15 +218,16 @@ class KernCallArgList(ArgOrdering):
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
+        :type var_accesses:
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         if self._kern.iterates_over not in ["cell_column", "domain"]:
             return
-        nlayers_symbol = self.append_integer_reference("nlayers")
+        name = f"nlayers_{self._kern.arguments.iteration_space_arg().name}"
+        nlayers_symbol = self.append_integer_reference(name, tag=name)
         self.append(nlayers_symbol.name, var_accesses)
         self._nlayers_positions.append(self.num_args)
 
