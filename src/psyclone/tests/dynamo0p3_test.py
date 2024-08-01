@@ -52,7 +52,7 @@ from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
                                    LFRicKernMetadata, LFRicLoop)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import (DynACCEnterDataDirective,
-                                DynBoundaryConditions, DynCellIterators,
+                                DynBoundaryConditions, LFRicCellIterators,
                                 DynGlobalSum, DynKernelArguments, DynProxies,
                                 HaloReadAccess, KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
@@ -3676,8 +3676,8 @@ def test_lfriccollection_err2(monkeypatch):
         in str(err.value)
 
 
-def test_dyncelliterators_err(monkeypatch):
-    ''' Check that the DynCellIterators constructor raises the expected
+def test_lfriccelliterators_err(monkeypatch):
+    ''' Check that the LFRicCellIterators constructor raises the expected
     error if it fails to find any field or operator arguments. '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
@@ -3690,7 +3690,7 @@ def test_dyncelliterators_err(monkeypatch):
     monkeypatch.setattr(invoke, "_psy_unique_vars",
                         [invoke._psy_unique_vars[0]])
     with pytest.raises(GenerationError) as err:
-        _ = DynCellIterators(invoke)
+        _ = LFRicCellIterators(invoke)
     assert ("Cannot create an Invoke with no field/operator arguments."
             in str(err.value))
 

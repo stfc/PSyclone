@@ -36,8 +36,8 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone Dynamo 0.3 API by 1)
-    specialising the required base classes in parser.py (KernelType) and
+''' This module implements the PSyclone LFRic API by 1) specialising the
+    required base classes in parser.py (KernelType) and
     adding a new class (DynFuncDescriptor03) to capture function descriptor
     metadata and 2) specialising the required base classes in psyGen.py
     (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
@@ -1620,24 +1620,24 @@ class DynProxies(LFRicCollection):
                         f"handled in DynProxies.initialise()")
 
 
-class DynCellIterators(LFRicCollection):
+class LFRicCellIterators(LFRicCollection):
     '''
     Handles all entities required by kernels that operate on cell-columns.
 
-    :param kern_or_invoke: the Kernel or Invoke for which to manage cell \
+    :param kern_or_invoke: the Kernel or Invoke for which to manage cell
                            iterators.
-    :type kern_or_invoke: :py:class:`psyclone.domain.lfric.LFRicKern` or \
+    :type kern_or_invoke: :py:class:`psyclone.domain.lfric.LFRicKern` |
                           :py:class:`psyclone.dynamo0p3.LFRicInvoke`
 
-    : raises GenerationError: if an Invoke has no field or operator arguments.
+    :raises GenerationError: if an Invoke has no field or operator arguments.
 
     '''
     def __init__(self, kern_or_invoke):
         super().__init__(kern_or_invoke)
 
-        # Each kernel needs an 'nlayers' obtained from the first written
-        # field/operator argument.
         if not self._invoke:
+            # We are dealing with a single Kernel so there is only one
+            # 'nlayers' variable.
             self._nlayers_names = {
                 self._symbol_table.find_or_create_tag(
                     "nlayers",
@@ -1645,6 +1645,8 @@ class DynCellIterators(LFRicCollection):
             # We're not generating a PSy layer so we're done here.
             return
 
+        # Each kernel needs an 'nlayers' obtained from the first written
+        # field/operator argument.
         self._nlayers_names = {}
         for kern in self._invoke.schedule.walk(LFRicKern):
             if kern.iterates_over not in ["cell_column", "domain"]:
@@ -6240,7 +6242,7 @@ __all__ = [
     'DynamoPSy',
     'DynFunctionSpaces',
     'DynProxies',
-    'DynCellIterators',
+    'LFRicCellIterators',
     'DynLMAOperators',
     'DynCMAOperators',
     'DynMeshes',
