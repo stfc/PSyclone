@@ -326,11 +326,11 @@ class GOInvokeSchedule(InvokeSchedule):
     # Textual description of the node.
     _text_name = "GOInvokeSchedule"
 
-    def __init__(self, name, alg_calls=None, reserved_names=None, parent=None,
-                 **kwargs):
+    def __init__(self, symbol, alg_calls=None, reserved_names=None,
+                 parent=None, **kwargs):
         if not alg_calls:
             alg_calls = []
-        InvokeSchedule.__init__(self, name, GOKernCallFactory,
+        InvokeSchedule.__init__(self, symbol, GOKernCallFactory,
                                 GOBuiltInCallFactory,
                                 alg_calls, reserved_names, parent=parent,
                                 **kwargs)

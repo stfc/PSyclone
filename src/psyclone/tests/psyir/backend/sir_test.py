@@ -228,9 +228,6 @@ def test_sirwriter_node_1():
     class Unsupported(ScopingNode):
         '''A PSyIR node that will not be supported by the SIR writer but
         accepts any children inside.'''
-        def __init__(self):
-            super().__init__()
-
         @staticmethod
         def _validate_child(_1, _2):
             return True

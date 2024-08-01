@@ -42,8 +42,9 @@
 import pytest
 
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes import (Assignment, Literal,
-                                  Reference, Routine, ScopingNode)
+from psyclone.psyir.nodes import (Assignment, CodeBlock, Container,
+                                  Literal, Reference, Routine,
+                                  ScopingNode)
 from psyclone.psyir.symbols import (REAL_TYPE, DataSymbol,
                                     SymbolTable, RoutineSymbol)
 from psyclone.tests.utilities import check_links
@@ -162,15 +163,6 @@ def test_routine_create_invalid():
     assert (
         "child of children argument in create method of Routine class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
-
-    # provided symbol and name do not match.
-    rsym = RoutineSymbol("other_name")
-    with pytest.raises(ValueError) as excinfo:
-        Routine.create("mod_name", symbol_table, symbol=rsym)
-    assert (
-        "name argument and symbol argument's name in create "
-        "method of Routine class should be the same, but found 'mod_name' and"
-        " 'other_name'." in str(excinfo.value))
 
 
 def test_routine_create():
@@ -304,3 +296,43 @@ def test_routine_replace_with(fortran_reader):
     rout.replace_with(rout2)
     assert rout.parent is None
     assert rout2.parent is psyir
+
+
+def test_routine_illegal_parent(fortran_reader):
+    ''' Test the cases where we're attempting to add a routine into
+     a scope we aren't allowed. '''
+    code = '''module my_mod
+    contains
+        subroutine routine()
+        end subroutine routine
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    module = psyir.walk(Container)[1]
+    alt_routine = Routine.create("routine")
+    with pytest.raises(GenerationError) as excinfo:
+        module.addchild(alt_routine)
+    assert ("Can't add routine 'routine' into a scope that already contains "
+            "a symbol with the same name." in str(excinfo.value))
+
+    alt_routine = Routine(module.symbol_table.lookup("routine"))
+    with pytest.raises(GenerationError) as excinfo:
+        module.addchild(alt_routine)
+    assert ("Can't add routine 'routine' into a scope that already contains "
+            "a Routine with that name." in str(excinfo.value))
+
+    # Need a CodeBlock routine
+    code = '''module my_mod
+    contains
+        recursive subroutine routine()
+        end subroutine routine
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    module = psyir.walk(Container)[1]
+    print(module.children[0])
+    assert isinstance(module.children[0], CodeBlock)
+    alt_routine = Routine(module.symbol_table.lookup("routine"))
+    with pytest.raises(GenerationError) as excinfo:
+        module.addchild(alt_routine)
+    assert ("Can't add routine 'routine' into a scope that already contains "
+            "a CodeBlock representing a routine with that name."
+            in str(excinfo.value))

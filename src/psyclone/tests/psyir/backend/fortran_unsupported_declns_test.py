@@ -87,9 +87,8 @@ def test_fw_unsupported_interface_decln(tmpdir, fortran_writer):
     code = fortran_writer(container)
     assert interface_code in code
     assert "private :: eos\n" in code
-    container.symbol_table.add(
-        RoutineSymbol("my_sub", visibility=Symbol.Visibility.PUBLIC))
     code = fortran_writer(container)
+    container.addchild(Routine.create("my_sub", SymbolTable(), []))
     assert "private :: eos\n" in code
     # Default visibility is public so there should be no explicit 'public ::'
     # statements.
@@ -106,7 +105,6 @@ def test_fw_unsupported_interface_decln(tmpdir, fortran_writer):
     # Routines add their own symbols into the Container's symbol table
     container.addchild(Routine.create("eos1d", eos1d_table, []))
     container.addchild(Routine.create("eos2d", SymbolTable(), []))
-    container.addchild(Routine.create("my_sub", SymbolTable(), []))
     assert Compile(tmpdir).string_compiles(fortran_writer(container))
 
 

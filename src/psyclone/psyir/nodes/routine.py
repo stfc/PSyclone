@@ -40,7 +40,11 @@
 
 ''' This module contains the Routine node implementation.'''
 
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
+
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.schedule import Schedule
@@ -122,7 +126,7 @@ class Routine(Schedule, CommentableMixin):
 
     @classmethod
     def create(cls, name, symbol_table=None, children=None, is_program=False,
-               symbol=None, return_symbol_name=None, symbol_tag=None):
+               return_symbol_name=None, symbol_tag=None):
         # pylint: disable=too-many-arguments
         '''Create an instance of the supplied class given a name, a symbol
         table and a list of child nodes. This is implemented as a classmethod
@@ -138,11 +142,6 @@ class Routine(Schedule, CommentableMixin):
                                           entry point into a program (e.g.
                                           Fortran Program or C main()). Default
                                           is False.
-        :param symbol: the Symbol used to represent this Routine in its
-                       Container. If it is not supplied a RoutineSymbol
-                       will be created with default arguments instead.
-        :type symbol: Optional[
-                      :py:class:`psyclone.psyir.symbols.RoutineSymbol`]
         :param str return_symbol_name: name of the symbol that holds the
             return value of this routine (if any). Must be present in the
             supplied symbol table.
@@ -177,13 +176,8 @@ class Routine(Schedule, CommentableMixin):
                     f"child of children argument in create method of "
                     f"Routine class should be a PSyIR Node but "
                     f"found '{type(child).__name__}'.")
-        if symbol is not None and symbol.name != name:
-            raise ValueError(
-                f"name argument and symbol argument's name in create method "
-                f"of Routine class should be the same, but found "
-                f"'{name}' and '{symbol.name}'.")
-        if symbol is None:
-            symbol = RoutineSymbol(name)
+
+        symbol = RoutineSymbol(name)
         routine = cls(symbol, is_program=is_program, symbol_table=symbol_table,
                       symbol_tag=symbol_tag)
         routine.children = children
@@ -235,8 +229,47 @@ class Routine(Schedule, CommentableMixin):
                     parent.symbol_table.add(self._symbol, self._symbol_tag)
                     self._symbol_in_table = True
             else:
-                parent.symbol_table.add(self._symbol, self._symbol_tag)
-                self._symbol_in_table = True
+                # The symbol may also be in scope, if it is then we check
+                # whether the scope already has a Routine or CodeBlock
+                # with this name and error if so.
+                try:
+                    sym = parent.symbol_table.lookup(self.name)
+                    # If the found symbol is not the symbol used to initialise
+                    # this Routine then we raise an error, as we won't be able
+                    # to add it to the parent.
+                    if sym is not self._symbol:
+                        raise GenerationError(
+                                f"Can't add routine '{self.name}' into a "
+                                f"scope that already contains a symbol with "
+                                f"the same name.")
+                    # Check that the scope doens't contain a Routine or
+                    # CodeBlock representing a Routine with this name.
+                    routines = parent.walk(Routine)
+                    for routine in routines:
+                        # Ignore itself.
+                        if routine is self:
+                            continue
+                        if routine.name == self.name:
+                            raise GenerationError(
+                                    f"Can't add routine '{self.name}' into a "
+                                    f"scope that already contains a Routine "
+                                    f"with that name.")
+                    codeblocks = parent.walk(CodeBlock)
+                    for codeblock in codeblocks:
+                        routines = walk(codeblock.get_ast_nodes,
+                                        (Fortran2003.Subroutine_Subprogram,
+                                         Fortran2003.Function_Subprogram))
+                        for routine in routines:
+                            name = str(routine.children[0].children[1])
+                            if name == self.name:
+                                raise GenerationError(
+                                        f"Can't add routine '{self.name}' into"
+                                        f" a scope that already contains a "
+                                        f"CodeBlock representing a routine "
+                                        f"with that name.")
+                except KeyError:
+                    parent.symbol_table.add(self._symbol, self._symbol_tag)
+                    self._symbol_in_table = True
 
     @property
     def dag_name(self):
