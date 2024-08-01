@@ -132,11 +132,11 @@ jobs:
         export NV_ACC_POOL_THRESHOLD=75
         make run-openmp_gpu |& tee output.txt
         # Check the output is as expected for the first 6 digits (if not exit with error message)
-        tail -n 1 output.txt | grep -q " it :      10"  || echo "Error: 'it :      10' not found!" & false
-        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || echo "Error: '|ssh|_max:  0.259483' not found!" & false
-        tail -n 1 output.txt | grep -q "|U|_max:  0.458515" || echo "Error: '|U|_max:  0.458515' not found!" & false
-        tail -n 1 output.txt | grep -q "S_min:  0.482686" || echo "Error: 'S_min:  0.482686' not found!" & false
-        tail -n 1 output.txt | grep -q "S_max:  0.407622" || echo "Error: 'S_max:  0.407622' not found!" & false
+        tail -n 1 output.txt | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
+        tail -n 1 output.txt | grep -q "|U|_max:  0.458515" || (echo "Error: '|U|_max:  0.458515' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_min:  0.482686" || (echo "Error: 'S_min:  0.482686' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_max:  0.407622" || (echo "Error: 'S_max:  0.407622' not found!" & false)
         export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openmp_gpu
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
@@ -163,11 +163,11 @@ jobs:
         export NV_ACC_POOL_THRESHOLD=75
         make run-openacc_kernels |& tee output.txt
         # Check the output is as expected for the first 6 digits (if not exit with error message)
-        tail -n 1 output.txt | grep -q " it :      10"  || echo "Error: 'it :      10' not found!" & false
-        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || echo "Error: '|ssh|_max:  0.259483' not found!" & false
-        tail -n 1 output.txt | grep -q "|U|_max:  0.458515" || echo "Error: '|U|_max:  0.458515' not found!" & false
-        tail -n 1 output.txt | grep -q "S_min:  0.482686" || echo "Error: 'S_min:  0.482686' not found!" & false
-        tail -n 1 output.txt | grep -q "S_max:  0.407622" || echo "Error: 'S_max:  0.407622' not found!" & false
+        tail -n 1 output.txt | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
+        tail -n 1 output.txt | grep -q "|U|_max:  0.458515" || (echo "Error: '|U|_max:  0.458515' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_min:  0.482686" || (echo "Error: 'S_min:  0.482686' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_max:  0.407622" || (echo "Error: 'S_max:  0.407622' not found!" & false)
         export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openacc_kernels_gpu
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
@@ -193,13 +193,12 @@ jobs:
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j 4 compile-openacc_loops
         export NV_ACC_POOL_THRESHOLD=75
         make run-openacc_loops |& tee output.txt
-        # Check the output is as expected for the first 6 digits
         # Check the output is as expected for the first 6 digits (if not exit with error message)
-        tail -n 1 output.txt | grep -q " it :      10"  || echo "Error: 'it :      10' not found!" & false
-        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || echo "Error: '|ssh|_max:  0.259483' not found!" & false
-        tail -n 1 output.txt | grep -q "|U|_max:  0.458515" || echo "Error: '|U|_max:  0.458515' not found!" & false
-        tail -n 1 output.txt | grep -q "S_min:  0.482686" || echo "Error: 'S_min:  0.482686' not found!" & false
-        tail -n 1 output.txt | grep -q "S_max:  0.407622" || echo "Error: 'S_max:  0.407622' not found!" & false
+        tail -n 1 output.txt | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
+        tail -n 1 output.txt | grep -q "|U|_max:  0.458515" || (echo "Error: '|U|_max:  0.458515' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_min:  0.482686" || (echo "Error: 'S_min:  0.482686' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_max:  0.407622" || (echo "Error: 'S_max:  0.407622' not found!" & false)
         export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openacc_loops_gpu
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
@@ -234,11 +233,11 @@ jobs:
         export OMP_NUM_THREADS=4
         make run-openmp_cpu |& tee output.txt
         # Check the output is as expected for the first 6 digits
-        tail -n 1 output.txt | grep -q " it :      10" || echo "Error: 'it :      10' not found!" & false
-        tail -n 1 output.txt | grep -q "|ssh|_max:  0.199714" || echo "Error: '|ssh|_max:  0.199714' not found!" & false
-        tail -n 1 output.txt | grep -q "|U|_max:  0.148409" || echo "Error: '|U|_max:  0.148409' not found!" & false
-        tail -n 1 output.txt | grep -q "S_min:  0.108530" || echo "Error: 'S_min:  0.108530' not found!" & false
-        tail -n 1 output.txt | grep -q "S_max:  0.404045" || echo "Error: 'S_max:  0.404045' not found!" & false
+        tail -n 1 output.txt | grep -q " it :      10" || (echo "Error: 'it :      10' not found!" & false)
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.199714" || (echo "Error: '|ssh|_max:  0.199714' not found!" & false)
+        tail -n 1 output.txt | grep -q "|U|_max:  0.148409" || (echo "Error: '|U|_max:  0.148409' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_min:  0.108530" || (echo "Error: 'S_min:  0.108530' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_max:  0.404045" || (echo "Error: 'S_max:  0.404045' not found!" & false)
         export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo  $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openmp_cpu
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
