@@ -47,7 +47,7 @@ PROFILE_WRAPPER_LINK ?= ${PROFILE_WRAPPER_LIB}
 # There's no separate library for 'simple_timing' - its functionality
 # is incorporated in the PSyData wrapper.
 PROFILE_DIR ?=
-PROFILE_LIB ?= 
+PROFILE_LIB ?=
 PROFILE_LINK ?=
 
 # For dl_timer:
