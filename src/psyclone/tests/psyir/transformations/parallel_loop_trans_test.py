@@ -87,6 +87,37 @@ def test_paralooptrans_validate_force(fortran_reader):
     trans.validate(loop, {"force": True})
 
 
+def test_paralooptrans_validate_pure_calls(fortran_reader):
+    ''' Test that the validation checks for calls that are not guaranteed
+    to be pure unless the 'force' option is provided.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          use other, only: my_sub
+          integer :: i
+          real :: var(10) = 1
+
+          do i = LBOUND(var), UBOUND(var)  ! Inquiry calls are pure
+            var(i) = max(i, 3)             ! max is pure
+            call my_sub(i)                 ! purity is unknown
+          end do
+        end subroutine my_sub''')
+
+    loop = psyir.walk(Loop)[0]
+    trans = ParaTrans()
+    # Check that we reject non-integer collapse arguments
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop, {"verbose": True})
+    assert ("Loop cannot be parallelised because it cannot guarantee that "
+            "the following calls are pure: {'my_sub'}" in str(err.value))
+
+    # Check that forcing the transformation or setting it to "pure" let the
+    # validation pass
+    trans.validate(loop.copy(), {"force": True})
+    loop.scope.symbol_table.lookup("my_sub").is_pure = True
+    trans.validate(loop)
+
+
 def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader,
                                                         fortran_writer):
     '''

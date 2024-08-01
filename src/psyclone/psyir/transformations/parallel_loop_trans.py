@@ -45,7 +45,7 @@ from psyclone import psyGen
 from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import Loop, Reference
+from psyclone.psyir.nodes import Loop, Reference, Call
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -104,10 +104,13 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :raises TypeError: if 'collapse' is not an int or a bool.
         :raises TypeError: if 'ignore_dependencies_for' is not a list of str.
         :raises TransformationError: if the given loop iterates over a
-                colours (LFRic domain) iteration space.
+            colours (LFRic domain) iteration space.
+        :raises TransformationError: if the given loops calls a procedure that
+            is not guaranteed to be pure (and therefore could have dependencies
+            beyond the specified by the arguments intent)
         :raises TransformationError: if there is a data dependency that
-                prevents the parallelisation of the loop and the provided
-                options don't disregard them.
+            prevents the parallelisation of the loop and the provided
+            options don't disregard them.
 
         '''
         # Check that the supplied node is a Loop and does not contain any
@@ -118,7 +121,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             options = {}
         verbose = options.get("verbose", False)
         collapse = options.get("collapse", False)
-        ignore_dep_analysis = options.get("force", False)
+        force = options.get("force", False)
         ignore_dependencies_for = options.get("ignore_dependencies_for", [])
         sequential = options.get("sequential", False)
 
@@ -137,9 +140,23 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     f"The 'collapse' argument must be an integer or a bool but"
                     f" got an object of type {type(collapse)}")
 
-        # Check that there are no loop-carried dependencies
-        if sequential or ignore_dep_analysis:
+        # If it's sequential or we 'force' the transformation, the validations
+        # below this point are skipped
+        if sequential or force:
             return
+
+        # Check that all calls inside the loop are pure, and therefore all its
+        # dependencies given by the intent of its arguments
+        not_pure = [call.routine.name for call in node.walk(Call)
+                    if not call.is_pure]
+        if not_pure:
+            message = (
+                f"Loop cannot be parallelised because it cannot "
+                f"guarantee that the following calls are pure: "
+                f"{set(not_pure)}")
+            if verbose:
+                node.append_preceding_comment(message)
+            raise TransformationError(message)
 
         if ignore_dependencies_for:
             if (not isinstance(ignore_dependencies_for, Iterable) or
