@@ -56,7 +56,9 @@ tutorial:
    decorates the target loop with an `OMP PARALLEL DO` directive.
 
  * it blindly applies the transformation to each loop over vertical levels
-   that is an *immediate child* of the Routine.
+   that is an *immediate child* of the Routine. (This is *NOT* a
+   recommended approach and you will improve upon this as part of the
+   tutorial.)
 
 Note that in this tutorial, we will only be applying OpenMP
 parallelisation to the loops over vertical levels. This is because, in

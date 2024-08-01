@@ -33,9 +33,10 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-'''A simple transformation script for the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
+'''A *very* simple transformation script which acts as a starting point for
+the tutorial on the introduction of OpenMP with PSyclone. In order to use it
+you must first install PSyclone. See README.md in the top-level psyclone
+directory.
 
 Once you have PSyclone installed, this script may be used by doing:
 
@@ -57,6 +58,9 @@ Loop.set_loop_type_inference_rules({"levels": {"variable": "jk"},
 def trans(psyir):
     ''' Parallelise the provided file by making all loops over vertical (jk)
     levels OpenMP parallel.
+
+    NOTE: this is a deliberately poor implementation. You will improve upon
+    it as a part of the tutorial.
 
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
