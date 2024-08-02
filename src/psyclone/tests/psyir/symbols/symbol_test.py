@@ -331,7 +331,7 @@ def test_get_external_symbol(monkeypatch):
             "'some_mod': PSyclone SymbolTable error: Oh dear" in
             str(err.value))
     # Monkeypatch to pretend that we fail to get a Container object.
-    monkeypatch.setattr(other_container, "container", lambda: None)
+    monkeypatch.setattr(other_container, "find_container_psyir", lambda: None)
     with pytest.raises(SymbolError) as err:
         bsym.get_external_symbol()
     assert ("trying to resolve the properties of symbol 'b' in module "

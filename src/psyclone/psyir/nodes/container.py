@@ -171,8 +171,8 @@ class Container(ScopingNode, CommentableMixin):
     def __str__(self):
         return f"Container[{self.name}]\n"
 
-    def get_routine_psyir(self, name, allow_private=False,
-                          check_wildcard_imports=False):
+    def find_routine_psyir(self, name, allow_private=False,
+                           check_wildcard_imports=False):
         '''
         Searches the Container for a definition of the named routine with
         appropriate visibility.
@@ -243,14 +243,15 @@ class Container(ScopingNode, CommentableMixin):
             # Find the definition of the container.
             container = None
             try:
-                container = child_cntr_sym.container(local_node=self)
+                container = child_cntr_sym.find_container_psyir(
+                    local_node=self)
             except (SymbolError, FileNotFoundError):
                 pass
             if not container:
                 # TODO #11 log that we didn't find the Container from which
                 # the routine is imported.
                 return None
-            return container.get_routine_psyir(rname)
+            return container.find_routine_psyir(rname)
 
         # We may not have found a RoutineSymbol yet or we have but don't know
         # where it comes from. Look in any wildcard imports.
@@ -268,11 +269,12 @@ class Container(ScopingNode, CommentableMixin):
             if child_cntr_sym.wildcard_import:
                 # Find the definition of the container.
                 try:
-                    container = child_cntr_sym.container(local_node=self)
+                    container = child_cntr_sym.find_container_psyir(
+                        local_node=self)
                 except (SymbolError, FileNotFoundError):
                     continue
                 # Recurse down to this container (but go no deeper).
-                result = container.get_routine_psyir(
+                result = container.find_routine_psyir(
                     rname, check_wildcard_imports=False)
                 if result:
                     return result

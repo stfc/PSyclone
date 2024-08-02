@@ -755,7 +755,7 @@ end module my_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     container = psyir.children[0]
-    routine = container.get_routine_psyir("bottom")
+    routine = container.find_routine_psyir("bottom")
     rsym = container.symbol_table.lookup(routine.name)
     # Ensure the type of this RoutineSymbol is UnsupportedFortranType.
     rsym.datatype = UnsupportedFortranType("integer, pointer :: fval")

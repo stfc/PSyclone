@@ -214,7 +214,7 @@ class Symbol():
         csym = self.interface.container_symbol
 
         try:
-            container = csym.container()
+            container = csym.find_container_psyir()
             if not container:
                 raise SymbolError(
                     f"Error trying to resolve the properties of symbol "

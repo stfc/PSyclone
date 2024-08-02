@@ -115,7 +115,7 @@ def test_containersymbol_specialise_and_process_arguments():
     # It could use the container import infrastructure (in this case it fails
     # because it does not exist)
     with pytest.raises(SymbolError) as error:
-        _ = sym1.container()
+        _ = sym1.find_container_psyir()
     assert "not found" in str(error.value)
 
     # Now with a wildcard_import argument
@@ -164,14 +164,14 @@ def test_containersymbol_resolve_external_container(monkeypatch):
     # At the beginning the reference is never resolved (lazy evaluation)
     assert not sym._reference
 
-    # When container is invoked the reference is resolved
-    assert sym.container() == "MockContainer"
+    # When find_container_psyir is invoked, the reference is resolved
+    assert sym.find_container_psyir() == "MockContainer"
     assert sym._reference == "MockContainer"
 
     # Check that subsequent invocations do not update the container reference
     monkeypatch.setattr(sym._interface, "get_container",
                         staticmethod(lambda x: "OtherContainer"))
-    assert sym.container() == "MockContainer"
+    assert sym.find_container_psyir() == "MockContainer"
 
 
 def test_containersymbol_generic_interface():

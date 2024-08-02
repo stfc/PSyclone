@@ -495,7 +495,7 @@ class Call(Statement, DataNode):
                     if container_symbol.wildcard_import:
                         wildcard_names.append(container_symbol.name)
                         try:
-                            container = container_symbol.container(
+                            container = container_symbol.find_container_psyir(
                                 local_node=self)
                         except SymbolError:
                             container = None
@@ -505,7 +505,7 @@ class Call(Statement, DataNode):
                             continue
                         routines = []
                         for name in container.resolve_routine(rsym.name):
-                            psyir = container.get_routine_psyir(name)
+                            psyir = container.find_routine_psyir(name)
                             if psyir:
                                 routines.append(psyir)
                         if routines:
@@ -542,7 +542,7 @@ class Call(Statement, DataNode):
             while cursor.is_import:
                 csym = cursor.interface.container_symbol
                 try:
-                    container = csym.container(local_node=self)
+                    container = csym.find_container_psyir(local_node=self)
                 except SymbolError:
                     raise NotImplementedError(
                         f"RoutineSymbol '{rsym.name}' is imported from "
@@ -582,7 +582,7 @@ class Call(Statement, DataNode):
         if isinstance(container, Container):
             routines = []
             for name in container.resolve_routine(rsym.name):
-                psyir = container.get_routine_psyir(
+                psyir = container.find_routine_psyir(
                     name, allow_private=can_be_private)
                 if psyir:
                     routines.append(psyir)
