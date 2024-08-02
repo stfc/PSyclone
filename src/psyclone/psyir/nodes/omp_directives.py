@@ -1480,6 +1480,14 @@ class OMPParallelDirective(OMPRegionDirective):
                     f"reduction variable")
             names.append(name)
 
+        first_type = type(self.dir_body[0])
+        for child in self.dir_body.children:
+            if first_type != type(child):
+                raise NotImplementedError("Cannot correctly generate code"
+                                          " for an OpenMP parallel region"
+                                          " containing children of "
+                                          "different types")
+
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import zero_reduction_variables
         zero_reduction_variables(calls)
