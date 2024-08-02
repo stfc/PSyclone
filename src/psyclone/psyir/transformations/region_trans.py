@@ -168,7 +168,7 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
         if options.get("node-type-check", True):
             for child in node_list:
                 for bad in child.walk(self.excluded_node_types):
-                    # Ideally we'd just use `wrong.debug_string()` always
+                    # Ideally we'd just use `bad.debug_string()` always
                     # but this sometimes causes errors if nodes do their
                     # own validation (rather than relying on the backend),
                     # e.g. ACCEnterDataDirective.begin_string().
