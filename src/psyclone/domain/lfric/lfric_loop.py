@@ -660,7 +660,8 @@ class LFRicLoop(PSyLoop):
                         [self.field.ref_name(), "get_last_dof_halo"]
                     )
                 )
-                result.addchild(Literal(f"{halo_index}", INTEGER_TYPE))
+                if halo_index:
+                    result.addchild(Literal(f"{halo_index}", INTEGER_TYPE))
                 return result
                 # return (f"{self.field.proxy_name_indexed}%"
                 #         f"{self.field.ref_name()}%get_last_dof_halo("
@@ -1136,8 +1137,11 @@ class LFRicLoop(PSyLoop):
                         for index in range(1, field.vector_size+1):
                             set_clean = Call.create(
                                 ArrayOfStructuresReference.create(
-                                    field_symbol, index, ["set_clean"]))
-                            set_clean.addchild(Literal(str(halo_depth), INTEGER_TYPE))
+                                    field_symbol,
+                                    [Literal(str(index), INTEGER_TYPE)],
+                                    ["set_clean"]))
+                            set_clean.addchild(Literal(str(halo_depth),
+                                                       INTEGER_TYPE))
                             cursor += 1
                             insert_loc.addchild(set_clean, cursor)
                             # parent.add(CallGen(
@@ -1162,9 +1166,8 @@ class LFRicLoop(PSyLoop):
                 if hwa.dirty_outer:
                     # a continuous field iterating over cells leaves the
                     # outermost halo dirty
-                    halo_depth = BinaryOperation
                     halo_depth = BinaryOperation.create(
-                        BinaryOperation.Operator.MINUS,
+                        BinaryOperation.Operator.SUB,
                         halo_depth, Literal("1", INTEGER_TYPE))
                 if field.vector_size > 1:
                     # the range function below returns values from 1 to the
@@ -1172,8 +1175,10 @@ class LFRicLoop(PSyLoop):
                     for index in range(1, field.vector_size+1):
                         set_clean = Call.create(
                             ArrayOfStructuresReference.create(
-                                field_symbol, index, ["set_clean"]))
-                        set_clean.addchild(halo_depth)
+                                field_symbol,
+                                [Literal(str(index), INTEGER_TYPE)],
+                                ["set_clean"]))
+                        set_clean.addchild(halo_depth.copy())
                         cursor += 1
                         insert_loc.addchild(set_clean, cursor)
                         # call = CallGen(parent,

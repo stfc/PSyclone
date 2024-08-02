@@ -3626,15 +3626,14 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                  "rhs": "f1_data(df) * f2_data(df)",
                  "builtin": "! Built-in: X_innerproduct_Y (real-valued fields)"
                  },
-                {"var": "bsum", "lvar": "l_bsum", "loop_idx": "2",
+                {"var": "bsum", "lvar": "l_bsum", "loop_idx": "3",
                  "rhs": "f2_data(df)",
                  "builtin": "! Built-in: sum_X (sum a real-valued field)"}]:
             assert (
                 "    " + names["var"] + " = 0.0\n"
                 "    ALLOCATE(" + names["lvar"] + "(8,nthreads))\n"
-                "    " + names["lvar"] + " = 0.0\n"
-                "\n"
-                "    ! Call kernels and communication routines\n"
+                "    " + names["lvar"] + " = 0.0\n") in code
+            assert (
                 "    !$omp parallel default(shared), private(df,th_idx)\n"
                 "    th_idx = omp_get_thread_num() + 1\n"
                 "    !$omp do schedule(static)\n"
@@ -3667,14 +3666,13 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                  "builtin": "! Built-in: X_innerproduct_Y (real-valued fields)"
                  },
                 {"var": "bsum", "lvar": "l_bsum",
-                 "loop_idx": "2", "rhs": "f2_data(df)",
+                 "loop_idx": "3", "rhs": "f2_data(df)",
                  "builtin": "! Built-in: sum_X (sum a real-valued field)"}]:
-            print(code)
             assert (
                 "    " + names["var"] + " = 0.0\n"
                 "    ALLOCATE(" + names["lvar"] + "(8,nthreads))\n"
                 "    " + names["lvar"] + " = 0.0\n") in code
-            assert (
+            expected = (
                 "    !$omp parallel default(shared), private(df,th_idx)\n"
                 "    th_idx = omp_get_thread_num() + 1\n"
                 "    !$omp do schedule(static)\n"
@@ -3692,7 +3690,9 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 "      " + names["var"] + " = " + names["var"] + " + " +
                 names["lvar"] + "(1,th_idx)\n"
                 "    enddo\n"
-                "    DEALLOCATE(" + names["lvar"] + ")\n") in code
+                "    DEALLOCATE(" + names["lvar"] + ")\n")
+            assert expected in code
+
 
 
 def test_reprod_view(monkeypatch, annexed, dist_mem):
@@ -4137,8 +4137,8 @@ def test_rc_continuous_depth():
         assert f"call {field_name}_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
     assert "do cell = loop0_start, loop0_stop" in result
-    assert ("      call f1_proxy%set_dirty()\n"
-            "      call f1_proxy%set_clean(2)") in result
+    assert ("    call f1_proxy%set_dirty()\n"
+            "    call f1_proxy%set_clean(2)") in result
 
 
 def test_rc_continuous_no_depth():
@@ -4157,19 +4157,19 @@ def test_rc_continuous_no_depth():
     rc_trans.apply(loop)
     result = str(psy.gen)
 
-    assert ("      if (f1_proxy%is_dirty(depth=max_halo_depth_mesh - 1)) then"
+    assert ("    if (f1_proxy%is_dirty(depth=max_halo_depth_mesh - 1)) then"
             "\n"
-            "        call f1_proxy%halo_exchange(depth=max_halo_depth_mesh"
+            "      call f1_proxy%halo_exchange(depth=max_halo_depth_mesh"
             " - 1)" in result)
     for fname in ["f2", "m1", "m2"]:
-        assert (f"      if ({fname}_proxy%is_dirty(depth=max_halo_depth_mesh"
+        assert (f"    if ({fname}_proxy%is_dirty(depth=max_halo_depth_mesh"
                 f")) then\n"
-                f"        call {fname}_proxy%halo_exchange(depth=max_halo_"
+                f"      call {fname}_proxy%halo_exchange(depth=max_halo_"
                 f"depth_mesh)" in result)
     assert "loop0_stop = mesh%get_last_halo_cell()" in result
     assert "do cell = loop0_start, loop0_stop" in result
-    assert ("      call f1_proxy%set_dirty()\n"
-            "      call f1_proxy%set_clean(max_halo_depth_mesh-1)") in result
+    assert ("    call f1_proxy%set_dirty()\n"
+            "    call f1_proxy%set_clean(max_halo_depth_mesh - 1)") in result
 
 
 def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
@@ -4700,7 +4700,7 @@ def test_rc_vector_no_depth(tmpdir):
     for idx in range(1, 4):
         assert f"call chi_proxy({idx})%set_dirty()" in result
     for idx in range(1, 4):
-        assert (f"call chi_proxy({idx})%set_clean(max_halo_depth_mesh-1)"
+        assert (f"call chi_proxy({idx})%set_clean(max_halo_depth_mesh - 1)"
                 in result)
 
 
@@ -4717,7 +4717,7 @@ def test_rc_no_halo_decrease():
     rc_trans = Dynamo0p3RedundantComputationTrans()
     # First, change the size of the f2 halo exchange to 3 by performing
     # redundant computation in the first loop
-    loop = schedule.children[4]
+    loop = schedule.walk(Loop)[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
     assert "if (f2_proxy%is_dirty(depth=3)) then" in result
@@ -4725,7 +4725,7 @@ def test_rc_no_halo_decrease():
     assert "if (m2_proxy%is_dirty(depth=3)) then" in result
     # Second, try to change the size of the f2 halo exchange to 2 by
     # performing redundant computation in the second loop
-    loop = schedule.children[5]
+    loop = schedule.walk(Loop)[1]
     rc_trans.apply(loop, {"depth": 2})
     result = str(psy.gen)
     assert "if (f2_proxy%is_dirty(depth=3)) then" in result
@@ -4740,7 +4740,7 @@ def test_rc_no_halo_decrease():
     assert "if (m2_proxy%is_dirty(depth=3)) then" in result
     # Fourth, try to change the size of the f2 halo exchange to 4 by
     # performing redundant computation in the first loop
-    loop = schedule.children[4]
+    loop = schedule.walk(Loop)[0]
     rc_trans.apply(loop, {"depth": 4})
     result = str(psy.gen)
     assert "if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then" in result
@@ -4833,7 +4833,7 @@ def test_rc_remove_halo_exchange(tmpdir, monkeypatch):
     schedule = invoke.schedule
     #
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[0]
+    loop = schedule.walk(Loop)[0]
     rc_trans.apply(loop, {"depth": 1})
     result = str(psy.gen)
     assert "call f1_proxy%halo_exchange(depth=1)" not in result
@@ -4841,7 +4841,7 @@ def test_rc_remove_halo_exchange(tmpdir, monkeypatch):
     assert "if (m1_proxy%is_dirty(depth=1)) then" in result
     assert "call m1_proxy%halo_exchange(depth=1)" in result
     #
-    loop = schedule.children[1]
+    loop = schedule.walk(Loop)[1]
     rc_trans.apply(loop, {"depth": 1})
     result = str(psy.gen)
     assert "call f1_proxy%halo_exchange(depth=1)" not in result
@@ -4871,7 +4871,7 @@ def test_rc_max_remove_halo_exchange(tmpdir):
     assert "call f3_proxy%halo_exchange(depth=1)" in result
     assert "if (f3_proxy%is_dirty(depth=1)) then" in result
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[4]
+    loop = schedule.walk(Loop)[0]
     rc_trans.apply(loop)
     result = str(psy.gen)
 
@@ -4885,7 +4885,7 @@ def test_rc_max_remove_halo_exchange(tmpdir):
     assert "if (f3_proxy%is_dirty(depth=1)) then" in result
     #
     assert "call f4_proxy%halo_exchange(depth=1)" in result
-    loop = schedule.children[5]
+    loop = schedule.walk(Loop)[-1]
     rc_trans.apply(loop)
     result = str(psy.gen)
     # f4 halo exchange is removed as it is redundantly computed to the
@@ -5604,28 +5604,28 @@ def test_rc_max_colour(tmpdir):
 
     result = str(psy.gen)
     assert (
-        "      if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
-        "        call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      end if\n"
-        "      if (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
-        "        call m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      end if\n"
-        "      if (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
-        "        call m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      end if\n" in result)
-    assert "      cmap => mesh%get_colour_map()\n" in result
+        "    if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "      call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "    end if\n"
+        "    if (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "      call m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "    end if\n"
+        "    if (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "      call m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "    end if\n" in result)
+    assert "    cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
     assert ("last_halo_cell_all_colours = "
             "mesh%get_last_halo_cell_all_colours()" in result)
     assert (
-        "      do colour = loop0_start, loop0_stop, 1\n"
-        "        do cell = loop1_start, last_halo_cell_all_colours(colour,"
+        "    do colour = loop0_start, loop0_stop, 1\n"
+        "      do cell = loop1_start, last_halo_cell_all_colours(colour,"
         "max_halo_depth_mesh), 1\n"
         in result)
 
     assert (
-        "      call f1_proxy%set_dirty()\n"
-        "      call f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "    call f1_proxy%set_dirty()\n"
+        "    call f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5733,27 +5733,27 @@ def test_rc_then_colour2(tmpdir):
     result = str(psy.gen)
 
     assert (
-        "      if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
-        "        call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      end if\n"
-        "      if (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
-        "        call m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      end if\n"
-        "      if (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
-        "        call m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      end if\n" in result)
+        "    if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "      call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "    end if\n"
+        "    if (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "      call m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "    end if\n"
+        "    if (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "      call m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "    end if\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
     assert ("last_halo_cell_all_colours = mesh%"
             "get_last_halo_cell_all_colours()" in result)
     assert (
-        "      do colour = loop0_start, loop0_stop, 1\n"
-        "        do cell = loop1_start, last_halo_cell_all_colours(colour,"
+        "    do colour = loop0_start, loop0_stop, 1\n"
+        "      do cell = loop1_start, last_halo_cell_all_colours(colour,"
         "max_halo_depth_mesh), 1\n" in result)
 
     assert (
-        "      call f1_proxy%set_dirty()\n"
-        "      call f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "    call f1_proxy%set_dirty()\n"
+        "    call f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5788,29 +5788,29 @@ def test_loop_fuse_then_rc(tmpdir):
 
     assert "max_halo_depth_mesh = mesh%get_halo_depth()" in result
     assert (
-        "      if (f1_proxy%is_dirty(depth=max_halo_depth_mesh - 1)) then\n"
-        "        call f1_proxy%halo_exchange(depth=max_halo_depth_mesh - 1)\n"
-        "      end if\n"
-        "      if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
-        "        call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      end if\n"
-        "      if (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
-        "        call m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      end if\n"
-        "      if (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
-        "        call m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      end if\n" in result)
+        "    if (f1_proxy%is_dirty(depth=max_halo_depth_mesh - 1)) then\n"
+        "      call f1_proxy%halo_exchange(depth=max_halo_depth_mesh - 1)\n"
+        "    end if\n"
+        "    if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "      call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "    end if\n"
+        "    if (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "      call m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "    end if\n"
+        "    if (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "      call m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "    end if\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
     assert ("last_halo_cell_all_colours = mesh%"
             "get_last_halo_cell_all_colours()" in result)
     assert (
-        "      do colour = loop0_start, loop0_stop, 1\n"
-        "        do cell = loop1_start, last_halo_cell_all_colours(colour,"
+        "    do colour = loop0_start, loop0_stop, 1\n"
+        "      do cell = loop1_start, last_halo_cell_all_colours(colour,"
         "max_halo_depth_mesh), 1\n" in result)
     assert (
-        "      call f1_proxy%set_dirty()\n"
-        "      call f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "    call f1_proxy%set_dirty()\n"
+        "    call f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
