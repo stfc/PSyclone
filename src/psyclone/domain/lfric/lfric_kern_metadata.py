@@ -608,8 +608,6 @@ class LFRicKernMetadata(KernelType):
         self._validate_no_mesh_properties()
         self._validate_not_intergrid()
 
-        const = LFRicConstants()
-
         for arg in self._arg_descriptors:
             # No vector arguments are permitted
             if arg.vector_size > 1:
