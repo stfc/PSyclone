@@ -87,12 +87,44 @@ def test_paralooptrans_validate_force(fortran_reader):
     trans.validate(loop, {"force": True})
 
 
+def test_paralooptrans_validate_pure_calls(fortran_reader):
+    ''' Test that the validation checks for calls that are not guaranteed
+    to be pure unless the 'force' option is provided.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          use other, only: my_sub
+          integer :: i
+          real :: var(10) = 1
+
+          do i = LBOUND(var), UBOUND(var)  ! Inquiry calls are pure
+            var(i) = max(i, 3)             ! max is pure
+            call my_sub(i)                 ! purity is unknown
+          end do
+        end subroutine my_sub''')
+
+    loop = psyir.walk(Loop)[0]
+    trans = ParaTrans()
+    # Check that we reject non-integer collapse arguments
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop, {"verbose": True})
+    assert ("Loop cannot be parallelised because it cannot guarantee that "
+            "the following calls are pure: {'my_sub'}" in str(err.value))
+
+    # Check that forcing the transformation or setting it to "pure" let the
+    # validation pass
+    trans.validate(loop.copy(), {"force": True})
+    loop.scope.symbol_table.lookup("my_sub").is_pure = True
+    trans.validate(loop)
+
+
 def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader,
                                                         fortran_writer):
     '''
     Test that the 'ignore_dependencies_for' option allows the validate check to
     succeed even when the dependency analysis finds a possible loop-carried
-    dependency, but the user guarantees that it's a false dependency.
+    dependency, but the user guarantees that it's a false dependency. It also
+    checks that the appopriate comments are added when dependencies are found.
 
     '''
     psyir = fortran_reader.psyir_from_source(CODE)
@@ -103,9 +135,24 @@ def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader,
     assert ("Loop cannot be parallelised because the dependency analysis "
             "reported:\nWarning: Variable 'sum' is read first, which indicates"
             " a reduction. Variable: 'sum'.") in str(err.value)
-    # With the verbose option, the dependency issue will be log as a comment
-    assert ("! PSyclone: Loop cannot be parallelised because the dependency"
-            " analysis reported:" in fortran_writer(psyir))
+    # With the verbose option, the dependency will be reported in a comment
+    assert ("PSyclone: Loop cannot be parallelised because the dependency"
+            " analysis reported:" in loop.preceding_comment)
+
+    # Test that the inner loop does not log again the same error message
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop.loop_body[0], options={"verbose": True})
+    assert ("PSyclone: Loop cannot be parallelised because the dependency"
+            not in loop.loop_body[0].preceding_comment)
+
+    # But if it's not already in an ancestor, it adds the comment there
+    loop.preceding_comment = ""
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop.loop_body[0], options={"verbose": True})
+    assert ("PSyclone: Loop cannot be parallelised because the dependency"
+            in loop.loop_body[0].preceding_comment)
+
+    # Now use the 'ignore_dependencies_for' option
     with pytest.raises(TypeError) as err:
         trans.validate(loop, {"ignore_dependencies_for": "sum"})
     assert ("The 'ignore_dependencies_for' option must be an Iterable object "
