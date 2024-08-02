@@ -50,18 +50,18 @@ class CodeBlock(Statement, DataNode):
     attempt to manipulate. As such it is a leaf in the PSyIR and therefore
     has no children.
 
-    :param fp2_nodes: list of fparser2 AST nodes representing the Fortran \
-                      code constituting the code block.
-    :type fp2_nodes: list of :py:class:`fparser.two.utils.Base`
-    :param structure: argument indicating whether this code block is a \
-    statement or an expression.
+    :param fp2_nodes: the fparser2 parse-tree nodes representing the
+        Fortran code constituting the code block.
+    :type fp2_nodes: list[:py:class:`fparser.two.utils.Base`]
+    :param structure: argument indicating whether this code block is a
+        statement or an expression.
     :type structure: :py:class:`psyclone.psyir.nodes.CodeBlock.Structure`
     :param parent: the parent node of this code block in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param annotations: tags that provide additional information about \
-        the node. The node should still be functionally correct when \
+    :param annotations: tags that provide additional information about
+        the node. The node should still be functionally correct when
         ignoring these tags.
-    :type annotations: list of str or NoneType
+    :type annotations: list[str | NoneType]
 
     '''
     #: Textual description of the node.
@@ -90,9 +90,9 @@ class CodeBlock(Statement, DataNode):
         # Store a list of the parser objects holding the code associated
         # with this block. We make a copy of the contents of the list because
         # the list itself is a temporary product of the process of converting
-        # from the fparser2 AST to the PSyIR.
+        # from the fparser2 parse tree to the PSyIR.
         self._fp2_nodes = fp2_nodes[:]
-        # Store references back into the fparser2 AST
+        # Store references back into the fparser2 parse tree.
         if fp2_nodes:
             self.ast = self._fp2_nodes[0]
             self.ast_end = self._fp2_nodes[-1]
@@ -132,7 +132,7 @@ class CodeBlock(Statement, DataNode):
     def get_ast_nodes(self):
         '''
         :returns: the nodes associated with this code block in
-                  the original AST.
+                  the original fparser2 parse tree.
         :rtype: list[:py:class:`fparser.two.Fortran2003.Base`]
 
         '''

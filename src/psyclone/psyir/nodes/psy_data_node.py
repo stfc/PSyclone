@@ -326,7 +326,7 @@ class PSyDataNode(Statement):
         ''' Generate the necessary symbols to import and use this PSyDataNode
         in the provided symbol_table if they don't already exist.
 
-        :param symbol_table: the associated SymbolTable to which symbols \
+        :param symbol_table: the associated SymbolTable to which symbols
             must be added.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
@@ -335,8 +335,8 @@ class PSyDataNode(Statement):
         try:
             csym = symbol_table.lookup(self.fortran_module)
         except KeyError:
-            # The tag doesn't exist which means that we haven't already added
-            # this Container as part of a PSyData transformation.
+            # The symbol doesn't exist which means that we haven't already
+            # added this Container as part of a PSyData transformation.
             csym = ContainerSymbol(self.fortran_module)
             symbol_table.add(csym, tag=self.fortran_module)
 

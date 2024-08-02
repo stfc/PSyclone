@@ -96,7 +96,6 @@ end module my_mod
 
 def test_validate_with_imported_subroutine_call():
     ''' Test that the module inline transformation supports kernels with
-
     call nodes that reference an imported symbol. '''
     _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
                            idx=0, dist_mem=False)
@@ -337,6 +336,38 @@ def test_validate_local_routine(fortran_reader):
             "'my_mod' because there is no explicit import of it ('USE ..., "
             "ONLY: do_something' in Fortran) and a Routine with that name is "
             "already present in the Container." in str(err.value))
+
+
+def test_validate_fail_to_get_psyir(fortran_reader):
+    '''
+    Test that the validate() method raises the expected error if the
+    PSyIR for the called routine cannot be found.
+
+    '''
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    module a_mod
+      use my_mod
+      use other_mod
+    contains
+      subroutine a_sub()
+        real, dimension(10) :: a
+        call my_sub(a)
+      end subroutine a_sub
+    end module a_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    with pytest.raises(TransformationError) as err:
+        intrans.validate(call)
+    assert ("failed to retrieve PSyIR for routine 'my_sub' due to: Failed to "
+            "find the source code of the unresolved routine 'my_sub' - looked "
+            "at any routines in the same source file and attempted to resolve "
+            "the wildcard imports from ['my_mod', 'other_mod']. However, "
+            "failed to find the source for ['my_mod', 'other_mod']. The module"
+            " search path is set to []. Searching for external routines that "
+            "are only resolved at link time is not supported."
+            in str(err.value))
 
 
 def test_module_inline_apply_transformation(tmpdir, fortran_writer):
@@ -722,38 +753,6 @@ def test_module_inline_with_interfaces(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_psyir_mod_inline_fail_to_get_psyir(fortran_reader):
-    '''
-    Test that the validate() method raises the expected error if the
-    PSyIR for the called routine cannot be found.
-
-    '''
-    intrans = KernelModuleInlineTrans()
-    code = '''\
-    module a_mod
-      use my_mod
-      use other_mod
-    contains
-      subroutine a_sub()
-        real, dimension(10) :: a
-        call my_sub(a)
-      end subroutine a_sub
-    end module a_mod
-    '''
-    psyir = fortran_reader.psyir_from_source(code)
-    call = psyir.walk(Call)[0]
-    with pytest.raises(TransformationError) as err:
-        intrans.validate(call)
-    assert ("failed to retrieve PSyIR for routine 'my_sub' due to: Failed to "
-            "find the source code of the unresolved routine 'my_sub' - looked "
-            "at any routines in the same source file and attempted to resolve "
-            "the wildcard imports from ['my_mod', 'other_mod']. However, "
-            "failed to find the source for ['my_mod', 'other_mod']. The module"
-            " search path is set to []. Searching for external routines that "
-            "are only resolved at link time is not supported."
-            in str(err.value))
-
-
 def test_get_psyir_to_inline(monkeypatch):
     '''
     Test that _get_psyir_to_inline() raises the expected error if more than
@@ -768,6 +767,9 @@ def test_get_psyir_to_inline(monkeypatch):
     monkeypatch.setattr(node, "get_callees", lambda: [rout, rout])
     with pytest.raises(TransformationError) as err:
         KernelModuleInlineTrans._get_psyir_to_inline(node)
+    # The duplicated symbol name below is purely a result of the monkeypatch
+    # - in reality these names will come from a generic interface and be
+    # different.
     assert ("The target of the call to 'my_sym' cannot be inserted because "
             "multiple implementations were found: ['my_sym', 'my_sym']." in
             str(err.value))

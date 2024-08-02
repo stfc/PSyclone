@@ -37,8 +37,11 @@
 # Modified I. Kavcic, Met Office
 
 ''' This module provides the KernelModuleInlineTrans transformation.
-TODO #924 - rename this to PrivatiseRoutineToLocalContainerTrans and move it
-to psyir/transformations/. '''
+
+TODO #2683 - rename this to {Privatise,Copy,Move}RoutineToLocalContainerTrans
+and move it to psyir/transformations/.
+
+'''
 
 
 from psyclone.errors import InternalError
@@ -68,8 +71,8 @@ class KernelModuleInlineTrans(Transformation):
 
 
     .. warning ::
-        Not all Routines can be privatised. This transformation will reject
-        attempts to privatise routines that access global data in the
+        Not all Routines can be moved. This transformation will reject
+        attempts to move routines that access private data in the
         original Container.
 
     '''
@@ -140,9 +143,7 @@ class KernelModuleInlineTrans(Transformation):
                         f"{kname}' in Fortran) and a Routine with that name "
                         f"is already present in the Container.")
 
-        # Check that the PSyIR and associated Symbol table of the Kernel is OK.
-        # If this kernel contains symbols that are not captured in the PSyIR
-        # SymbolTable then this raises an exception.
+        # Check that the PSyIR  of the routine/kernel can be retrieved.
         try:
             _, kernel_schedule = (
                 KernelModuleInlineTrans._get_psyir_to_inline(node))
@@ -152,19 +153,18 @@ class KernelModuleInlineTrans(Transformation):
                 f"'{kname}' due to: {error}"
             ) from error
 
-        # We do not support kernels that use symbols representing global
-        # variables declared in their own parent module (we would need to
-        # create new imports to this module for those, and we don't do
-        # this yet).
-        # These can only be found in References, Calls and CodeBlocks
+        # We do not support kernels that use symbols representing data
+        # declared in their own parent module (we would need to new imports
+        # from this module for those, and we don't do this yet).
+        # These can only be found in References and CodeBlocks.
         for var in kernel_schedule.walk(Reference):
             symbol = var.symbol
             if isinstance(symbol, IntrinsicSymbol):
                 continue
             if not symbol.is_import:
-                _tmp = var.scope.symbol_table.lookup(
-                    symbol.name, scope_limit=kernel_schedule, otherwise=None)
-                if not _tmp:
+                if not var.scope.symbol_table.lookup(
+                        symbol.name, scope_limit=kernel_schedule,
+                        otherwise=False):
                     raise TransformationError(
                         f"{kern_or_call} '{kname}' contains accesses to "
                         f"'{symbol.name}' which is declared in the same "
@@ -412,6 +412,9 @@ class KernelModuleInlineTrans(Transformation):
                         # applied to effectively compare both versions.
                         # This will be fixed when module-inlining versioning is
                         # implemented.
+                        # (It is OK to fail here because we have not yet made
+                        # any modifications to the tree - code_to_inline is a
+                        # detached copy.)
                         if routine != code_to_inline:
                             raise TransformationError(
                                 f"Cannot inline subroutine '{caller_name}' "
