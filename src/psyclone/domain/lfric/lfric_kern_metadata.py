@@ -598,6 +598,10 @@ class LFRicKernMetadata(KernelType):
         if self.iterates_over != "dof":
             return
 
+        # Only assessing coded kerns, not builtins
+        if self.name in BUILTIN_MAP:
+            return
+
         self._validate_only_scalars_and_fields()
         self._validate_no_evaluator(need_evaluator)
         self._validate_no_reference_element()
@@ -641,7 +645,7 @@ class LFRicKernMetadata(KernelType):
         for arg in self._arg_descriptors:
             if arg.argument_type not in valid_arg_types:
                 raise ParseError(
-                    f"In the LFRic API a kernel which operates on "
+                    f"In the LFRic API a kernel that operates on "
                     f"'{self.iterates_over}' is only permitted to accept "
                     f"scalar and field arguments but the metadata for kernel "
                     f"'{self.name}' includes an argument of type "
@@ -667,7 +671,7 @@ class LFRicKernMetadata(KernelType):
         if self.mesh.properties:
             raise ParseError(
                 f"Kernel '{self.name}' operates on '{self.iterates_over}' but "
-                f"requests  properties of the mesh ({self.mesh.properties}). "
+                f"requests properties of the mesh ({self.mesh.properties}). "
                 f"This is not permitted in the LFRic API.")
 
     def _validate_not_intergrid(self):

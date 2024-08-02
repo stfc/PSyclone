@@ -103,8 +103,9 @@ end module testkern_domain_mod
 ''', ignore_comments=False)
     with pytest.raises(ParseError) as err:
         LFRicKernMetadata(ast, name="testkern_domain_type")
-    assert ("'domain' is only permitted to accept scalar and field arguments "
-            "but the metadata for kernel 'testkern_domain_type' includes an "
+    assert ("In the LFRic API a kernel that operates on 'domain' is only "
+            "permitted to accept scalar and field arguments but the "
+            "metadata for kernel 'testkern_domain_type' includes an "
             "argument of type 'gh_operator'" in str(err.value))
 
 
@@ -214,7 +215,7 @@ end module testkern_domain_mod
 ''')
     with pytest.raises(ParseError) as err:
         LFRicKernMetadata(ast, name="testkern_domain_type")
-    assert ("'testkern_domain_type' operates on the domain but requests "
+    assert ("Kernel 'testkern_domain_type' operates on 'domain' but requests "
             "properties of the mesh ([" in str(err.value))
     assert "ADJACENT_FACE" in str(err.value)
 
@@ -243,7 +244,7 @@ end module testkern_domain_mod
 ''')
     with pytest.raises(ParseError) as err:
         LFRicKernMetadata(ast, name="testkern_domain_type")
-    assert ("'testkern_domain_type' operates on the domain but requests "
+    assert ("Kernel 'testkern_domain_type' operates on 'domain' but requests "
             "properties of the reference element ([" in str(err.value))
     assert "NORMALS_TO_HORIZONTAL_FACES" in str(err.value)
 
@@ -272,7 +273,7 @@ end module restrict_mod
 ''')
     with pytest.raises(ParseError) as err:
         LFRicKernMetadata(ast, name="restrict_kernel_type")
-    assert ("'restrict_kernel_type' operates on the domain but has fields on "
+    assert ("'restrict_kernel_type' operates on 'domain' but has fields on "
             "different mesh resolutions" in str(err.value))
 
 
@@ -306,7 +307,7 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     # ATM we have a `lower_to_language_level method` for LFRicLoop which
     # removes the loop node for a domain kernel entirely and only leaves the
     # body. So we can't call the FortranWriter directly, since it will first
-    # lower the tree, which removes the domain kernel.
+    # lower the tree, which removes 'domain' kernel.
     # In order to test the actual writer atm, we have to call the
     # `loop_node` directly. But in order for this to work, we need to
     # lower the actual kernel call. Once #1731 is fixed, the temporary
