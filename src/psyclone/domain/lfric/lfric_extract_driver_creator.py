@@ -73,10 +73,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
     1. The corresponding :py:class:`psyclone.psyGen.Invoke` statement that
        contains the kernel(s) is copied. This way we avoid affecting the tree
        of the caller. We need the invoke since it contains the symbol table.
-    2. We remove all halo exchange nodes. For now, the extract transformation
-       will not work when distributed memory is enabled, but since this
-       restriction is expected to be lifted, the code to handle this is
-       already added.
+    2. We remove all halo exchange nodes.
     3. We lower each kernel (child of the invoke) that was requested to
        be extracted, all others are removed. This is required since the kernel
        extraction will not contain the required data for the other kernels to

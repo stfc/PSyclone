@@ -40,8 +40,35 @@ module module_call_tree_mod
 
   integer, parameter :: const=2
   integer :: module_var
+  real :: module_var_real
+  double precision :: module_var_double
+
+  ! Test for generic interface. Note that integer_func is not implemented,
+  ! this will cause the exception handling in call_tree_utils to be tested.
+  interface generic_function
+    module procedure real_func, double_func, integer_func
+  end interface
+
+  public :: call_generic_function
 
 contains
+
+  function real_func(a) result(a_new)
+    implicit none
+    real :: a, a_new
+    a_new = a+module_var_real
+  end function real_func
+
+  function double_func(a) result(a_new)
+    implicit none
+    double precision :: a, a_new
+    a_new = a+module_var_double
+  end function double_func
+
+  subroutine call_generic_function(a)
+    real :: a
+    a = generic_function(a)
+  end subroutine call_generic_function
 
   subroutine local_var_sub()
     integer :: i

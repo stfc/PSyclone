@@ -269,7 +269,8 @@ class BaseDriverCreator:
             new_symbol = symbol_table.new_symbol(root_name=reference.name,
                                                  tag=reference.name,
                                                  symbol_type=DataSymbol,
-                                                 datatype=datatype)
+                                                 datatype=datatype.copy())
+            new_symbol.replace_symbols_using(symbol_table)
             reference.symbol = new_symbol
 
         # Now handle all derived types. The name of a derived type is
