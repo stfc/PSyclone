@@ -86,9 +86,6 @@ class Routine(Schedule, CommentableMixin):
         self._symbol = symbol
         self._symbol_tag = symbol_tag
         self._symbol_in_table = False
-        # Since _parent is a property for Routine, the actual node pointed
-        # to by _parent is stored in the _parent_node variable.
-        self._parent_node = None
         super().__init__(**kwargs)
 
         self._return_symbol = None
@@ -188,15 +185,17 @@ class Routine(Schedule, CommentableMixin):
         '''
         return self.coloured_name(colour) + "[name:'" + self.name + "']"
 
-    @property
-    def _parent(self):
-        return self._parent_node
+    def __setattr__(self, name, value):
+        if name == '_parent':
+            self.update_parent_symbol_table(value)
+        super().__setattr__(name, value)
 
-    @_parent.setter
-    def _parent(self, parent):
-        ''' Sets the _parent of this Routine.
-        :param parent: The parent of this node.
-        :type parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
+    def update_parent_symbol_table(self, new_parent):
+        ''' Update's the Routine's new parent's symbol tables with the
+        corresponding RoutineSymbol.
+
+        :param new_parent: The new parent of this node.
+        :type new_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
         :raises GenerationError: if a symbol with the same name already exists
                                  in the scope.
@@ -205,14 +204,22 @@ class Routine(Schedule, CommentableMixin):
         :raises GenerationError: if a Codeblock representing a routine with
                                  the same name already exists in the scope.
         '''
-        if self._parent_node is not None:
+        # Need to check the _parent property exists as the initial set of the
+        # _parent causes this to fail otherwise
+        if hasattr(self, "_parent") and self._parent is not None:
             try:
-                self._parent_node.symbol_table.remove(self._symbol)
-                self._symbol_in_table = False
+                # Need a check that this Routine's symbol is in the current
+                # _parent symbol table, as otherwise this breaks during
+                # copying.
+                if (self._parent.symbol_table.lookup(self.name)
+                        is self._symbol):
+                    self._parent.symbol_table.remove(self._symbol)
+                    self._symbol_in_table = False
             except ValueError:
                 pass
-        self._parent_node = parent
-        if self._symbol and parent is not None:
+            except KeyError:
+                pass
+        if self._symbol and new_parent is not None:
             # If we weren't able to remove this symbol from a previous symbol
             # table then we may need to create a new symbol for this Routine.
 
@@ -220,7 +227,7 @@ class Routine(Schedule, CommentableMixin):
             # whether the scope already has a Routine or CodeBlock
             # with this name and error if so.
             try:
-                sym = parent.symbol_table.lookup(self.name)
+                sym = new_parent.symbol_table.lookup(self.name)
                 # If the found symbol is not the symbol used to initialise
                 # this Routine then we raise an error, as we won't be able
                 # to add it to the parent.
@@ -231,7 +238,7 @@ class Routine(Schedule, CommentableMixin):
                             f"the same name.")
                 # Check that the scope doens't contain a Routine or
                 # CodeBlock representing a Routine with this name.
-                routines = parent.walk(Routine)
+                routines = new_parent.walk(Routine)
                 for routine in routines:
                     # Ignore itself.
                     if routine is self:
@@ -241,7 +248,7 @@ class Routine(Schedule, CommentableMixin):
                                 f"Can't add routine '{self.name}' into a "
                                 f"scope that already contains a Routine "
                                 f"with that name.")
-                codeblocks = parent.walk(CodeBlock)
+                codeblocks = new_parent.walk(CodeBlock)
                 for codeblock in codeblocks:
                     routines = walk(codeblock.get_ast_nodes,
                                     (Fortran2003.Subroutine_Subprogram,
@@ -265,10 +272,10 @@ class Routine(Schedule, CommentableMixin):
             # replace_with, which is handled here.
             if sym is self._symbol:
                 if not self._symbol_in_table:
-                    parent.symbol_table.add(self._symbol, self._symbol_tag)
+                    new_parent.symbol_table.add(self._symbol, self._symbol_tag)
                 self._symbol_in_table = True
             else:
-                parent.symbol_table.add(self._symbol, self._symbol_tag)
+                new_parent.symbol_table.add(self._symbol, self._symbol_tag)
                 self._symbol_in_table = True
 
     @property
