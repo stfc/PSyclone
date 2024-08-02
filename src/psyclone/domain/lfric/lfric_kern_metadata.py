@@ -598,7 +598,7 @@ class LFRicKernMetadata(KernelType):
         if self.iterates_over != "dof":
             return
 
-        # Only assessing coded kerns, not builtins
+        # Only validating coded kerns, not builtins
         if self.name in BUILTIN_MAP:
             return
 
@@ -610,19 +610,13 @@ class LFRicKernMetadata(KernelType):
 
         const = LFRicConstants()
 
-        # list out all arg types
-        arg_types = []
         for arg in self._arg_descriptors:
-            arg_types.append(arg.argument_type)
-
-        # Check at least one field in metadata
-        if not set(const.VALID_FIELD_NAMES) <= set(arg_types):
-            raise ParseError(
-                f"In the LFRic API, a kernel that operates on 'dof' "
-                f"must have at least one field argument but found none "
-                f"for the kernel '{self.name}'."
-                f""
-                f"{const.VALID_FIELD_NAMES} not in {arg_types}")
+            # No vector arguments are permitted
+            if arg.vector_size > 1:
+                raise ParseError(
+                    f"Kernel '{self.name}' operates on 'dof' but has a "
+                    f"vector argument '{arg.argument_type}*{arg.vector_size}'."
+                    f" This is not permitted in the LFRic API.")
 
         # Check function spaces are the same
         # list out all function spaces

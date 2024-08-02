@@ -107,9 +107,10 @@ def test_dof_kernel_mixed_function_spaces():
             in str(excinfo.value))
 
 
-def test_dof_kernel_no_field():
+def test_dof_kernel_invalid_arg():
     ''' Check that we raise an exception if we attempt to generate kernel
-    call for a dof kernel with no metadata arguments of 'gh_field' type.
+    call for a dof kernel with metadata arguments that are not of type
+    field or scalar.
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -132,4 +133,30 @@ def test_dof_kernel_no_field():
             "permitted to accept scalar and field arguments but the "
             "metadata for kernel 'testkern_dofs_type' includes an "
             "argument of type 'gh_operator'"
+            in str(excinfo.value))
+
+
+def test_dof_kernel_invalid_field_vector():
+    ''' Check that we raise an exception if we attempt to generate kernel
+    call for a dof kernel with a field vector.
+
+    '''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    # Remove the need for basis or diff-basis functions
+    code = CODE.replace(
+        """
+                    (/ arg_type(gh_field, gh_real, gh_write, w1),  &
+                        arg_type(gh_field, gh_real, gh_read, w2)   &
+        """,
+        """
+                   (/ arg_type(gh_field*3, gh_real, gh_write, w1), &
+                      arg_type(gh_scalar, gh_real, gh_read)  &
+        """,
+        1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_dofs_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = LFRicKernMetadata(ast, name=name)
+    assert ("Kernel 'testkern_dofs_type' operates on 'dof' but has a vector "
+            "argument 'gh_field*3'. This is not permitted in the LFRic API."
             in str(excinfo.value))
