@@ -275,6 +275,22 @@ def test_get_routine_recurse_named(fortran_reader):
     result = container.get_routine_psyir("sub")
     assert isinstance(result, Routine)
     assert result.name == "sub"
+    # Check that if an imported Routine is private then we don't
+    # return it.
+    code = (
+        f"{CALL_IN_SUB_USE}"
+        f"module inline_mod\n"
+        f"use inline_mod2, only : sub\n"
+        f"private\n"
+        f"end module inline_mod\n"
+        f"module inline_mod2\n"
+        f"contains\n"
+        f"{SUB}\n"
+        f"end module inline_mod2\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.walk(Container)[1]
+    result = container.get_routine_psyir("sub")
+    assert result is None
 
 
 def test_get_routine_recurse_wildcard(fortran_reader):
@@ -307,6 +323,26 @@ def test_get_routine_recurse_wildcard(fortran_reader):
                                          check_wildcard_imports=True)
     assert isinstance(result, Routine)
     assert result.name == "sub"
+    # Repeat test but alter intermediate module so that it has a default
+    # visibility of PRIVATE. Consequently, any Symbols imported into
+    # it are not visible outside.
+    code = (
+        f"{CALL_IN_SUB_USE}"
+        f"module inline_mod\n"
+        f"use inline_mod2\n"
+        f"private\n"
+        f"end module inline_mod\n"
+        f"module inline_mod2\n"
+        f"contains\n"
+        f"{SUB}\n"
+        f"end module inline_mod2\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call_node = psyir.walk(Call)[0]
+    container = call_node.routine.symbol.interface.container_symbol.container(
+        local_node=call_node)
+    result = container.get_routine_psyir(call_node.routine.name,
+                                         check_wildcard_imports=True)
+    assert result is None
     # Test when we follow an import chain but ultimately fail to find
     # a Container along the way. In this case, we have no source for
     # module 'inline_mod3'.

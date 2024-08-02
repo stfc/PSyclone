@@ -174,7 +174,8 @@ class Container(ScopingNode, CommentableMixin):
     def get_routine_psyir(self, name, allow_private=False,
                           check_wildcard_imports=False):
         '''
-        Searches the Container for a definition of the named routine.
+        Searches the Container for a definition of the named routine with
+        appropriate visibility.
 
         NOTE: if the named routine corresponds to a generic interface then this
         method will return None. You will need to use `resolve_routine` first
@@ -182,11 +183,14 @@ class Container(ScopingNode, CommentableMixin):
 
         If it is not found and the routine is named in an import statement
         then the search is continued in the named Container. Failing that,
-        all wildcard imports are checked.
+        all wildcard imports are checked if `check_wildcard_imports` is True.
 
         :param str name: the name of the Routine for which to search.
         :param bool allow_private: whether the Routine is permitted to have
             a visibility of PRIVATE.
+        :param bool check_wildcard_imports: whether or not to proceed to check
+            for the named routine in any wildcard imports. Default is False as
+            this can be expensive.
 
         :returns: the PSyIR of the named Routine if found, otherwise None.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine` | NoneType
@@ -197,6 +201,8 @@ class Container(ScopingNode, CommentableMixin):
         from psyclone.psyir.nodes.routine import Routine
         from psyclone.psyir.symbols.symbol import Symbol, SymbolError
         # pylint: enable=import-outside-toplevel
+
+        # Is the Routine defined within this Container?
         for node in self.children:
             if isinstance(node, Routine) and node.name.lower() == rname:
                 # Check this routine is public
@@ -204,10 +210,14 @@ class Container(ScopingNode, CommentableMixin):
                 if (allow_private or
                         routine_sym.visibility == Symbol.Visibility.PUBLIC):
                     return node
-                # The Container does not contain the expected Routine or the
-                # Routine is not public.
+                # The Container does contain a Routine with the right name and
+                # that means it cannot be imported from any other Container
+                # as that would result in a clash. However, its visibility is
+                # such that it can't be the one we're looking for.
+                return None
 
-        # Look in the import that names the routine if there is one.
+        # It's not defined in this Container so look in the import that names
+        # the routine if there is one.
         table = self.symbol_table
         try:
             routine_sym = table.lookup(rname)
@@ -215,11 +225,18 @@ class Container(ScopingNode, CommentableMixin):
             # Routine does not exist in the SymbolTable.
             routine_sym = None
 
-        if routine_sym and isinstance(routine_sym, GenericInterfaceSymbol):
-            # The routine is actually an interface to one or more routines.
-            # This should be handled outside this routine (e.g. by using
-            # `resolve_routine` first).
-            return None
+        if routine_sym:
+            if isinstance(routine_sym, GenericInterfaceSymbol):
+                # The routine is actually an interface to one or more routines.
+                # This should be handled outside this routine (e.g. by using
+                # `resolve_routine` first).
+                return None
+
+            if not (allow_private or
+                    routine_sym.visibility == Symbol.Visibility.PUBLIC):
+                # The Symbol is imported into this Container but is not
+                # visible outside it.
+                return None
 
         if routine_sym and routine_sym.is_import:
             child_cntr_sym = routine_sym.interface.container_symbol
@@ -235,9 +252,17 @@ class Container(ScopingNode, CommentableMixin):
                 return None
             return container.get_routine_psyir(rname)
 
-        # Look in any wildcard imports.
+        # We may not have found a RoutineSymbol yet or we have but don't know
+        # where it comes from. Look in any wildcard imports.
         if not check_wildcard_imports:
             return None
+
+        if not routine_sym:
+            # There's no Symbol in the table.
+            if (not allow_private and self.symbol_table.default_visibility !=
+                    Symbol.Visibility.PUBLIC):
+                # No imported Symbol can satisfy the visibility requirements.
+                return None
 
         for child_cntr_sym in table.containersymbols:
             if child_cntr_sym.wildcard_import:
@@ -246,7 +271,9 @@ class Container(ScopingNode, CommentableMixin):
                     container = child_cntr_sym.container(local_node=self)
                 except (SymbolError, FileNotFoundError):
                     continue
-                result = container.get_routine_psyir(rname)
+                # Recurse down to this container (but go no deeper).
+                result = container.get_routine_psyir(
+                    rname, check_wildcard_imports=False)
                 if result:
                     return result
         # The required Routine was not found in the Container.
