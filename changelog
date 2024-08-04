@@ -195,6 +195,8 @@
 	67) PR #2650 for #2630. Adds basic support for DATA statements in the
         fparser2 frontend.
 
+	68) PR #2656 for #2634. Fixes and improvements for the 'nemo' tutorials.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
