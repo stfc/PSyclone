@@ -45,7 +45,7 @@ import os
 import pytest
 
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
-from psyclone.domain.lfric import FunctionSpace, KernelInterface, LFRicTypes
+from psyclone.domain.lfric import FunctionSpace, KernelInterface
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
