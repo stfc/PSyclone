@@ -56,6 +56,8 @@ from psyclone.transformations import TransformationError, ACCDataTrans
 ACC_DATA_TRANS = ACCDataTrans()
 ACC_KERNELS_TRANS = ACCKernelsTrans()
 
+# loops of interest.
+Loop.set_loop_type_inference_rules({"tracers": {"variable": "jt"}})
 
 def trans(psyir):
     '''A PSyclone-script compliant transformation function.
