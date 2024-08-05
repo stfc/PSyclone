@@ -195,7 +195,12 @@
 	67) PR #2650 for #2630. Adds basic support for DATA statements in the
         fparser2 frontend.
 
-	68) PR #2656 for #2634. Fixes and improvements for the 'nemo' tutorials.
+	68) PR #2679 for #2676. Adds check for impure calls to the
+	ParallelLoopTrans.validate method. This fixes a race condition in the
+	sea-ice code in NEMO. Updates the NEMO workflow so that error
+	reporting is improved and timing results no longer uploaded to gist.
+
+	69) PR #2656 for #2634. Fixes and improvements for the 'nemo' tutorials.
 
 release 2.5.0 14th of February 2024
 
