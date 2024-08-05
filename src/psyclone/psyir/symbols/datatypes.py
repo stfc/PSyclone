@@ -66,7 +66,9 @@ class DataType(metaclass=abc.ABCMeta):
         :returns: whether this type is equal to the 'other' type.
         :rtype: bool
         '''
-        return type(other) is type(self)
+        # Due to run-time generation of some datatype classes, we cannot
+        # compare instances here so we resort to names.
+        return type(other).__name__ == type(self).__name__
 
     def copy(self):
         '''

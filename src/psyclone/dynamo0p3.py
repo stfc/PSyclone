@@ -56,7 +56,7 @@ from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, LFRicCollection,
                                    LFRicConstants, LFRicSymbolTable, LFRicKern,
-                                   LFRicInvokes, LFRicTypes, LFRicLoop)
+                                   LFRicInvokes, LFRicLoop)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen,
@@ -1394,10 +1394,11 @@ class DynProxies(LFRicCollection):
             lfric_type = "LFRicRealScalarDataType"
         else:
             lfric_type = "LFRicIntegerScalarDataType"
-        precision = LFRicConstants().precision_for_type(arg.data_type)
+        prec_name = LFRicConstants().precision_for_type(arg.data_type)
+        precision = self._symbol_table.add_lfric_precision_symbol(prec_name)
+        base_type = self._symbol_table.get_type(lfric_type)(precision)
         array_type = ArrayType(
-                LFRicTypes(lfric_type)(precision),
-                [ArrayType.Extent.DEFERRED]*rank)
+                base_type, [ArrayType.Extent.DEFERRED]*rank)
 
         # Since the PSyIR doesn't have the pointer concept, we have
         # to have an UnsupportedFortranType.
@@ -1635,8 +1636,9 @@ class DynCellIterators(LFRicCollection):
     def __init__(self, kern_or_invoke):
         super().__init__(kern_or_invoke)
 
+        dtype = self._symbol_table.get_type("MeshHeightDataSymbol")
         self._nlayers_name = self._symbol_table.find_or_create_tag(
-            "nlayers", symbol_type=LFRicTypes("MeshHeightDataSymbol")).name
+            "nlayers", symbol_type=dtype).name
 
         # Store a reference to the first field/operator object that
         # we can use to look-up nlayers in the PSy layer.
@@ -1847,9 +1849,10 @@ class DynCMAOperators(LFRicCollection):
                 f"{op_name}_{suffix}")
             tag = f"{op_name}:{suffix}"
             arg = self._cma_ops[op_name]["arg"]
-            precision = LFRicConstants().precision_for_type(arg.data_type)
+            name = LFRicConstants().precision_for_type(arg.data_type)
+            precision = symtab.add_lfric_precision_symbol(name)
             array_type = ArrayType(
-                LFRicTypes("LFRicRealScalarDataType")(precision),
+                symtab.get_type("LFRicRealScalarDataType")(precision),
                 [ArrayType.Extent.DEFERRED]*3)
             index_str = ",".join(3*[":"])
             dtype = UnsupportedFortranType(
@@ -6160,23 +6163,7 @@ class DynKernelArgument(KernelArgument):
                     f"Unsupported scalar type '{self.intrinsic_type}'")
 
             kind_name = self.precision
-            try:
-                kind_symbol = symbol_table.lookup(kind_name)
-            except KeyError:
-                mod_map = LFRicConstants().UTILITIES_MOD_MAP
-                const_mod = mod_map["constants"]["module"]
-                try:
-                    constants_container = symbol_table.lookup(const_mod)
-                except KeyError:
-                    # TODO Once #696 is done, we should *always* have a
-                    # symbol for this container at this point so should
-                    # raise an exception if we haven't.
-                    constants_container = LFRicTypes(const_mod)
-                    root_table.add(constants_container)
-                kind_symbol = DataSymbol(
-                    kind_name, INTEGER_TYPE,
-                    interface=ImportInterface(constants_container))
-                root_table.add(kind_symbol)
+            kind_symbol = symbol_table.add_lfric_precision_symbol(kind_name)
             return ScalarType(prim_type, kind_symbol)
 
         if self.is_field or self.is_operator:

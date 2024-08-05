@@ -508,18 +508,14 @@ class LFRicConstants():
 
         :returns: the precision as defined in domain.lfric.lfric_types
             (one of R_SOLVER, R_TRAN, R_DEF).
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: str
 
         :raises InternalError: if an unknown data_type is specified.
 
         '''
         for module_info in self.DATA_TYPE_MAP.values():
             if module_info["type"] == data_type:
-                # TODO #2659 - this method should probably just return a name
-                #              rather than create a symbol itself.
-                # pylint: disable=import-outside-toplevel
-                from psyclone.domain.lfric.lfric_types import LFRicTypes
-                return LFRicTypes(module_info["kind"].upper())
+                return module_info["kind"].upper()
 
         valid = [module_info["type"]
                  for module_info in self.DATA_TYPE_MAP.values()]

@@ -47,8 +47,6 @@ from collections import namedtuple
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants
-# Avoid circular import:
-from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference, StructureReference
 from psyclone.psyir.symbols import (
@@ -566,7 +564,8 @@ class KernCallArgList(ArgOrdering):
         self.append_structure_reference(
             operator["module"], operator["proxy_type"], ["ncell_3d"],
             arg.proxy_name_indexed,
-            overwrite_datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            overwrite_datatype=self._symtab.get_type(
+                "LFRicIntegerScalarDataType")())
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
 

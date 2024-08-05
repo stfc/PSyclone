@@ -1309,10 +1309,10 @@ def test_dynkernelargument_infer_scalar_datatype(monkeypatch, proxy):
     dtype = arg.infer_datatype(proxy)
     assert isinstance(dtype, ScalarType)
     assert dtype.intrinsic == ScalarType.Intrinsic.REAL
-    assert old_r_def is not container_table.lookup("r_def")
+    assert old_r_def is not call.scope.symbol_table.lookup("r_def")
     # Repeat when the root symbol table is missing both 'r_def' and the
     # ContainerSymbol 'constants_mod'.
-    del container_table._symbols["r_def"]
+    del schedule.symbol_table._symbols["r_def"]
     del container_table._symbols["constants_mod"]
     dtype = arg.infer_datatype(proxy)
     assert isinstance(dtype, ScalarType)
@@ -3906,6 +3906,7 @@ def test_lfricinvoke_runtime(tmpdir, monkeypatch):
     generated_code = str(psy.gen)
     expected1 = (
         "      USE testkern_mod, ONLY: testkern_code\n"
+        "      USE constants_mod, ONLY: i_def, r_def, l_def\n"
         "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
         "      USE fs_continuity_mod\n"
         "      USE mesh_mod, ONLY: mesh_type\n")
@@ -4015,6 +4016,7 @@ def test_dynruntimechecks_vector(tmpdir, monkeypatch):
     generated_code = str(psy.gen)
     expected1 = (
         "      USE testkern_coord_w0_2_mod, ONLY: testkern_coord_w0_2_code\n"
+        "      USE constants_mod, ONLY: i_def, r_def, l_def\n"
         "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
         "      USE fs_continuity_mod\n"
         "      USE mesh_mod, ONLY: mesh_type\n")
@@ -4077,6 +4079,7 @@ def test_dynruntimechecks_multikern(tmpdir, monkeypatch):
     generated_code = str(psy.gen)
     expected1 = (
         "      USE testkern_mod, ONLY: testkern_code\n"
+        "      USE constants_mod, ONLY: i_def, r_def, l_def\n"
         "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
         "      USE fs_continuity_mod\n"
         "      USE mesh_mod, ONLY: mesh_type\n")
@@ -4197,6 +4200,7 @@ def test_dynruntimechecks_anydiscontinuous(tmpdir, monkeypatch):
     expected1 = (
         "      USE testkern_any_discontinuous_space_op_1_mod, ONLY: testkern_"
         "any_discontinuous_space_op_1_code\n"
+        "      USE constants_mod, ONLY: i_def, r_def, l_def\n"
         "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
         "      USE fs_continuity_mod\n"
         "      USE mesh_mod, ONLY: mesh_type\n")
@@ -4261,6 +4265,7 @@ def test_dynruntimechecks_anyw2(tmpdir, monkeypatch):
     generated_code = str(psy.gen)
     expected1 = (
         "      USE testkern_multi_anyw2_mod, ONLY: testkern_multi_anyw2_code\n"
+        "      USE constants_mod, ONLY: i_def, r_def, l_def\n"
         "      USE log_mod, ONLY: log_event, LOG_LEVEL_ERROR\n"
         "      USE fs_continuity_mod\n"
         "      USE mesh_mod, ONLY: mesh_type\n")
@@ -4369,6 +4374,7 @@ def test_mixed_precision_args(tmpdir):
         "field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl, "
         "scalar_r_phys, field_r_phys)\n"
         "      USE mixed_kernel_mod, ONLY: mixed_code\n"
+        "      USE constants_mod, ONLY: i_def, r_def, l_def\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: scalar_r_def\n"
         "      REAL(KIND=r_solver), intent(in) :: scalar_r_solver\n"

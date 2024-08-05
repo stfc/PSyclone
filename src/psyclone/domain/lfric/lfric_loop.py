@@ -45,7 +45,6 @@ from psyclone.core import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicConstants, LFRicKern
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
-from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import CallGen, CommentGen
 from psyclone.psyGen import InvokeSchedule, HaloExchange
@@ -98,9 +97,11 @@ class LFRicLoop(PSyLoop):
                     f"creating loop variable. Supported values are 'colours', "
                     f"'colour', 'dof' or '' (for cell-columns).")
 
+            dtype = self.scope.symbol_table.get_type(
+                "LFRicIntegerScalarDataType")
             self.variable = self.scope.symbol_table.find_or_create_tag(
                 tag, root_name=suggested_name, symbol_type=DataSymbol,
-                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                datatype=dtype())
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
