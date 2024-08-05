@@ -82,18 +82,6 @@ class LFRicSymbolTable(SymbolTable):
         mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
         self._constants_mod = self.lookup(mod_name,
                                           otherwise=ContainerSymbol(mod_name))
-        # First time an instance of this is created, define
-        # the precision mapping.
-        #if not LFRicSymbolTable._precision_map:
-        #    const = LFRicConstants()
-        #    mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
-        #    LFRicSymbolTable._constants_mod = ContainerSymbol(mod_name)
-
-        #    api_config = Config.get().api_conf("lfric")
-        #    for precision in api_config.precision_map:
-        #        LFRicSymbolTable._precision_map[precision] = \
-        #            DataSymbol(precision, INTEGER_TYPE,
-        #                       interface=ImportInterface(self._constants_mod))
 
     def find_or_create_integer_symbol(self, name, tag=None):
         '''This function returns a symbol for an integer reference. If a
@@ -236,8 +224,6 @@ class LFRicSymbolTable(SymbolTable):
         lname = name.lower()
         if lname not in api_config.precision_map.keys():
             raise ValueError(f"'{lname}' is not a recognised LFRic precision.")
-
-        #sym = self._precision_map[lname]
 
         try:
             # Sanity check that the existing symbol is the right one.
@@ -386,6 +372,7 @@ class LFRicSymbolTable(SymbolTable):
         '''
         # The actual class:
         from psyclone.psyir.nodes.literal import Literal
+
         class LFRicDimension(Literal):
             '''An LFRic-specific scalar integer that captures a literal array
             dimension which can have a value between 1 and 3, inclusive. This
