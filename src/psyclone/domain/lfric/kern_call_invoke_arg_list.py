@@ -41,8 +41,6 @@ of a Kernel as required by an `invoke` of that kernel.
 '''
 
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants
-# Avoid circular dependency:
-from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, SymbolTable,
     ContainerSymbol, ImportInterface)
@@ -151,11 +149,11 @@ class KernCallInvokeArgList(ArgOrdering):
 
         # Create a DataSymbol for this kernel argument.
         if scalar_arg.intrinsic_type == "real":
-            datatype = LFRicTypes("LFRicRealScalarDataType")()
+            datatype = self._symtab.get_type("LFRicRealScalarDataType")()
         elif scalar_arg.intrinsic_type == "integer":
-            datatype = LFRicTypes("LFRicIntegerScalarDataType")()
+            datatype = self._symtab.get_type("LFRicIntegerScalarDataType")()
         elif scalar_arg.intrinsic_type == "logical":
-            datatype = LFRicTypes("LFRicLogicalScalarDataType")()
+            datatype = self._symtab.get_type("LFRicLogicalScalarDataType")()
         else:
             raise NotImplementedError(
                 f"Scalar of type '{scalar_arg.intrinsic_type}' not supported.")

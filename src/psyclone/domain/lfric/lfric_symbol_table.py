@@ -83,6 +83,28 @@ class LFRicSymbolTable(SymbolTable):
         self._constants_mod = self.lookup(mod_name,
                                           otherwise=ContainerSymbol(mod_name))
 
+    def find_or_create(self, name, symbol_type_name=None, **new_symbol_args):
+        '''
+        '''
+        if symbol_type_name:
+            if 'symbol_type' in new_symbol_args:
+                raise ValueError(
+                    "Cannot supply both 'symbol_type' and 'symbol_type_name'")
+            new_symbol_args["symbol_type"] = self.get_type(symbol_type_name)
+        return super().find_or_create(name, **new_symbol_args)
+
+    def find_or_create_tag(self, tag, root_name=None, symbol_type_name=None,
+                           **new_symbol_args):
+        '''
+        '''
+        if symbol_type_name:
+            if 'symbol_type' in new_symbol_args:
+                raise ValueError(
+                    "Cannot supply both 'symbol_type' and 'symbol_type_name'")
+            new_symbol_args["symbol_type"] = self.get_type(symbol_type_name)
+        return super().find_or_create_tag(tag, root_name=root_name,
+                                          **new_symbol_args)
+
     def find_or_create_integer_symbol(self, name, tag=None):
         '''This function returns a symbol for an integer reference. If a
         tag is specified, it will be used to search for an existing symbol,
