@@ -44,7 +44,7 @@ from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003, pattern_tools
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
-from fparser.two.utils import NoMatchError
+from fparser.two.utils import NoMatchError, FortranSyntaxError
 from psyclone.configuration import Config
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Schedule, Assignment, Routine
@@ -209,6 +209,8 @@ class FortranReader():
         :returns: PSyIR representing the provided Fortran file.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises ValueError: if the file cannot be parsed.
+
         '''
         SYMBOL_TABLES.clear()
 
@@ -222,7 +224,12 @@ class FortranReader():
         reader = FortranFileReader(file_path,
                                    include_dirs=Config.get().include_paths)
         reader.set_format(FortranFormat(free_form, False))
-        parse_tree = self._parser(reader)
+        try:
+            parse_tree = self._parser(reader)
+        except FortranSyntaxError as err:
+            raise ValueError(
+                f"File '{file_path}' could not be parsed, does it"
+                f" contain valid Fortran? Error was:\n{err}") from err
         _, filename = os.path.split(file_path)
         psyir = self._processor.generate_psyir(parse_tree, filename)
         return psyir
