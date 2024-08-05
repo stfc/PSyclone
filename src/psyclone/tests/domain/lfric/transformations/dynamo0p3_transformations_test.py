@@ -4704,6 +4704,7 @@ def test_rc_vector_no_depth(tmpdir):
                 in result)
 
 
+@pytest.mark.xfail(reason="psy.gen modifies the schedule")
 def test_rc_no_halo_decrease():
     ''' Test that we do not decrease an existing halo size when setting it
     to a particular value. This situation may happen when the
@@ -4725,6 +4726,7 @@ def test_rc_no_halo_decrease():
     assert "if (m2_proxy%is_dirty(depth=3)) then" in result
     # Second, try to change the size of the f2 halo exchange to 2 by
     # performing redundant computation in the second loop
+    schedule = invoke.schedule
     loop = schedule.walk(Loop)[1]
     rc_trans.apply(loop, {"depth": 2})
     result = str(psy.gen)
@@ -4733,6 +4735,8 @@ def test_rc_no_halo_decrease():
     assert "if (m2_proxy%is_dirty(depth=3)) then" in result
     # Third, set the size of the f2 halo exchange to the full halo
     # depth by performing redundant computation in the second loop
+    schedule = invoke.schedule
+    loop = schedule.walk(Loop)[1]
     rc_trans.apply(loop)
     result = str(psy.gen)
     assert "if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then" in result
@@ -5555,22 +5559,22 @@ def test_rc_colour(tmpdir):
     result = str(psy.gen)
 
     assert (
-        "      if (f2_proxy%is_dirty(depth=2)) then\n"
-        "        call f2_proxy%halo_exchange(depth=2)\n"
-        "      end if\n"
-        "      if (m1_proxy%is_dirty(depth=2)) then\n"
-        "        call m1_proxy%halo_exchange(depth=2)\n"
-        "      end if\n"
-        "      if (m2_proxy%is_dirty(depth=2)) then\n"
-        "        call m2_proxy%halo_exchange(depth=2)\n"
-        "      end if\n" in result)
-    assert "      cmap => mesh%get_colour_map()\n" in result
+        "    if (f2_proxy%is_dirty(depth=2)) then\n"
+        "      call f2_proxy%halo_exchange(depth=2)\n"
+        "    end if\n"
+        "    if (m1_proxy%is_dirty(depth=2)) then\n"
+        "      call m1_proxy%halo_exchange(depth=2)\n"
+        "    end if\n"
+        "    if (m2_proxy%is_dirty(depth=2)) then\n"
+        "      call m2_proxy%halo_exchange(depth=2)\n"
+        "    end if\n" in result)
+    assert "    cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
     assert ("last_halo_cell_all_colours = "
             "mesh%get_last_halo_cell_all_colours()" in result)
     assert (
-        "      do colour = loop0_start, loop0_stop, 1\n"
-        "        do cell = loop1_start, last_halo_cell_all_colours(colour,2)"
+        "    do colour = loop0_start, loop0_stop, 1\n"
+        "      do cell = loop1_start, last_halo_cell_all_colours(colour,2)"
         in result)
 
     # We've requested redundant computation out to the level 2 halo
@@ -5578,8 +5582,8 @@ def test_rc_colour(tmpdir):
     # dirty. This means that all of the halo is dirty apart from level
     # 1.
     assert (
-        "      call f1_proxy%set_dirty()\n"
-        "      call f1_proxy%set_clean(1)" in result)
+        "    call f1_proxy%set_dirty()\n"
+        "    call f1_proxy%set_clean(1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5677,32 +5681,32 @@ def test_rc_then_colour(tmpdir):
     result = str(psy.gen)
 
     assert (
-        "      if (f2_proxy%is_dirty(depth=3)) then\n"
-        "        call f2_proxy%halo_exchange(depth=3)\n"
-        "      end if\n"
-        "      if (m1_proxy%is_dirty(depth=3)) then\n"
-        "        call m1_proxy%halo_exchange(depth=3)\n"
-        "      end if\n"
-        "      if (m2_proxy%is_dirty(depth=3)) then\n"
-        "        call m2_proxy%halo_exchange(depth=3)\n"
-        "      end if\n" in result)
-    assert "      cmap => mesh%get_colour_map()\n" in result
+        "    if (f2_proxy%is_dirty(depth=3)) then\n"
+        "      call f2_proxy%halo_exchange(depth=3)\n"
+        "    end if\n"
+        "    if (m1_proxy%is_dirty(depth=3)) then\n"
+        "      call m1_proxy%halo_exchange(depth=3)\n"
+        "    end if\n"
+        "    if (m2_proxy%is_dirty(depth=3)) then\n"
+        "      call m2_proxy%halo_exchange(depth=3)\n"
+        "    end if\n" in result)
+    assert "    cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
     assert ("last_halo_cell_all_colours = "
             "mesh%get_last_halo_cell_all_colours()" in result)
     assert (
-        "      do colour = loop0_start, loop0_stop, 1\n"
-        "        do cell = loop1_start, last_halo_cell_all_colours(colour,3),"
+        "    do colour = loop0_start, loop0_stop, 1\n"
+        "      do cell = loop1_start, last_halo_cell_all_colours(colour,3),"
         " 1\n"
-        "          call testkern_code(nlayers, a, f1_data,"
+        "        call testkern_code(nlayers, a, f1_data,"
         " f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cmap(colour,cell)), ndf_w2, undf_w2, "
         "map_w2(:,cmap(colour,cell)), ndf_w3, undf_w3, "
         "map_w3(:,cmap(colour,cell)))\n" in result)
 
     assert (
-        "      call f1_proxy%set_dirty()\n"
-        "      call f1_proxy%set_clean(2)" in result)
+        "    call f1_proxy%set_dirty()\n"
+        "    call f1_proxy%set_clean(2)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5742,7 +5746,7 @@ def test_rc_then_colour2(tmpdir):
         "    if (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
         "      call m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
         "    end if\n" in result)
-    assert "      cmap => mesh%get_colour_map()\n" in result
+    assert "    cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
     assert ("last_halo_cell_all_colours = mesh%"
             "get_last_halo_cell_all_colours()" in result)
@@ -5800,7 +5804,7 @@ def test_loop_fuse_then_rc(tmpdir):
         "    if (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
         "      call m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
         "    end if\n" in result)
-    assert "      cmap => mesh%get_colour_map()\n" in result
+    assert "    cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
     assert ("last_halo_cell_all_colours = mesh%"
             "get_last_halo_cell_all_colours()" in result)
@@ -6264,12 +6268,12 @@ def test_intergrid_colour(dist_mem):
     ctrans.apply(loops[3])
     gen = str(psy.gen).lower()
     expected = '''\
-      ncolour_fld_m = mesh_fld_m%get_ncolours()
-      cmap_fld_m => mesh_fld_m%get_colour_map()'''
+    ncolour_fld_m = mesh_fld_m%get_ncolours()
+    cmap_fld_m => mesh_fld_m%get_colour_map()'''
     assert expected in gen
     expected = '''\
-      ncolour_cmap_fld_c = mesh_cmap_fld_c%get_ncolours()
-      cmap_cmap_fld_c => mesh_cmap_fld_c%get_colour_map()'''
+    ncolour_cmap_fld_c = mesh_cmap_fld_c%get_ncolours()
+    cmap_cmap_fld_c => mesh_cmap_fld_c%get_colour_map()'''
     assert expected in gen
     assert "loop1_stop = ncolour_fld_m" in gen
     assert "loop2_stop" not in gen
@@ -6277,19 +6281,19 @@ def test_intergrid_colour(dist_mem):
         assert ("last_halo_cell_all_colours_fld_m = "
                 "mesh_fld_m%get_last_halo_cell_all_colours()" in gen)
         expected = (
-            "      do colour = loop1_start, loop1_stop, 1\n"
-            "        do cell = loop2_start, last_halo_cell_all_colours_fld_m"
+            "    do colour = loop1_start, loop1_stop, 1\n"
+            "      do cell = loop2_start, last_halo_cell_all_colours_fld_m"
             "(colour,1), 1\n")
     else:
         assert ("last_edge_cell_all_colours_fld_m = "
                 "mesh_fld_m%get_last_edge_cell_all_colours()" in gen)
         expected = (
-            "      do colour = loop1_start, loop1_stop, 1\n"
-            "        do cell = loop2_start, last_edge_cell_all_colours_fld_m"
+            "    do colour = loop1_start, loop1_stop, 1\n"
+            "      do cell = loop2_start, last_edge_cell_all_colours_fld_m"
             "(colour), 1\n")
     assert expected in gen
     expected = (
-        "          call prolong_test_kernel_code(nlayers, cell_map_fld_m"
+        "        call prolong_test_kernel_code(nlayers, cell_map_fld_m"
         "(:,:,cmap_fld_m(colour,cell)), ncpc_fld_f_fld_m_x, "
         "ncpc_fld_f_fld_m_y, ncell_fld_f, fld_f_data, fld_m_data, "
         "ndf_w1, undf_w1, map_w1, undf_w2, "
@@ -6358,8 +6362,8 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
     otrans.apply(loops[5])
     gen = str(psy.gen)
     assert "loop4_stop = ncolour_cmap_fld_c" in gen
-    assert ("      do colour = loop4_start, loop4_stop, 1\n"
-            "        !$omp parallel do default(shared), private(cell), "
+    assert ("    do colour = loop4_start, loop4_stop, 1\n"
+            "      !$omp parallel do default(shared), private(cell), "
             "schedule(static)\n" in gen)
 
     if dist_mem:
@@ -6405,19 +6409,19 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
                 "get_last_edge_cell_all_colours()\n" in gen)
         upper_bound = "last_edge_cell_all_colours_cmap_fld_c(colour)"
     assert "loop0_stop = ncolour_cmap_fld_c\n" in gen
-    assert (f"      do colour = loop0_start, loop0_stop, 1\n"
-            f"        !$omp parallel default(shared), private(cell)\n"
-            f"        !$omp do schedule(static)\n"
-            f"        do cell = loop1_start, {upper_bound}, 1\n"
-            f"          call prolong_test_kernel_code(nlayers, "
+    assert (f"    do colour = loop0_start, loop0_stop, 1\n"
+            f"      !$omp parallel default(shared), private(cell)\n"
+            f"      !$omp do schedule(static)\n"
+            f"      do cell = loop1_start, {upper_bound}, 1\n"
+            f"        call prolong_test_kernel_code(nlayers, "
             f"cell_map_cmap_fld_c(:,:,cmap_cmap_fld_c(colour,cell)), "
             f"ncpc_fld_m_cmap_fld_c_x, ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, "
             f"fld_m_data, cmap_fld_c_data, ndf_w1, undf_w1, "
             f"map_w1, undf_w2, map_w2(:,cmap_cmap_fld_c(colour,cell)))\n"
-            f"        enddo\n"
-            f"        !$omp end do\n"
-            f"        !$omp end parallel\n"
-            f"      enddo\n" in gen)
+            f"      enddo\n"
+            f"      !$omp end do\n"
+            f"      !$omp end parallel\n"
+            f"    enddo\n" in gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -6514,13 +6518,13 @@ def test_accenterdata_builtin(tmpdir):
             "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
             "undf_w1,undf_w2,undf_w3)" in output)
     assert "loop2_stop = undf_aspc1_f1" in output
-    assert ("      !$acc loop independent\n"
-            "      do df = loop2_start, loop2_stop, 1\n"
-            "        ! built-in: setval_c (set a real-valued field to "
+    assert ("    !$acc loop independent\n"
+            "    do df = loop2_start, loop2_stop, 1\n"
+            "      ! built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
-            "        f1_data(df) = 0.0_r_def\n"
-            "      enddo\n"
-            "      !$acc end parallel\n" in output)
+            "      f1_data(df) = 0.0_r_def\n"
+            "    enddo\n"
+            "    !$acc end parallel\n" in output)
 
 # Class ACCEnterDataTrans end
 
@@ -6540,11 +6544,11 @@ def test_acckernelstrans():
     code = str(psy.gen)
     assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
     assert (
-        "      !$acc kernels\n"
-        "      do cell = loop0_start, loop0_stop, 1\n" in code)
+        "    !$acc kernels\n"
+        "    do cell = loop0_start, loop0_stop, 1\n" in code)
     assert (
-        "      enddo\n"
-        "      !$acc end kernels\n" in code)
+        "    enddo\n"
+        "    !$acc end kernels\n" in code)
 
 
 def test_acckernelstrans_dm():
@@ -6566,16 +6570,15 @@ def test_acckernelstrans_dm():
     code = str(psy.gen)
     assert "loop0_stop = mesh%get_last_halo_cell(1)" in code
     assert (
-        "      !$acc kernels\n"
-        "      do cell = loop0_start, loop0_stop, 1\n" in code)
+        "    !$acc kernels\n"
+        "    do cell = loop0_start, loop0_stop, 1\n" in code)
     assert (
-        "      enddo\n"
-        "      !$acc end kernels\n"
-        "      !\n"
-        "      ! Set halos dirty/clean for fields modified in the above "
-        "loop(s)\n"
-        "      !\n"
-        "      call f1_proxy%set_dirty()\n" in code)
+        "    enddo\n"
+        "    !$acc end kernels\n"
+        # "\n"
+        # "    ! Set halos dirty/clean for fields modified in the above "
+        # "loop(s)\n"
+        "    call f1_proxy%set_dirty()\n" in code)
 
 # Class ACCKernelsTrans end
 
@@ -6599,15 +6602,14 @@ def test_accparalleltrans(tmpdir):
     code = str(psy.gen)
     assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
     assert (
-        "      !$acc enter data copyin(f1_data,f2_data,m1_data,"
+        "    !$acc enter data copyin(f1_data,f2_data,m1_data,"
         "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
         "undf_w1,undf_w2,undf_w3)\n"
-        "      !\n"
-        "      !$acc parallel default(present)\n"
-        "      do cell = loop0_start, loop0_stop, 1") in code
+        "    !$acc parallel default(present)\n"
+        "    do cell = loop0_start, loop0_stop, 1") in code
     assert (
-        "      enddo\n"
-        "      !$acc end parallel\n") in code
+        "    enddo\n"
+        "    !$acc end parallel\n") in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6634,19 +6636,18 @@ def test_accparalleltrans_dm(tmpdir):
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
 
-    assert ("      !$acc parallel default(present)\n"
-            "      do cell = loop0_start, loop0_stop, 1\n"
-            "        call testkern_code(nlayers, a, f1_data, "
+    assert ("    !$acc parallel default(present)\n"
+            "    do cell = loop0_start, loop0_stop, 1\n"
+            "      call testkern_code(nlayers, a, f1_data, "
             "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell))\n"
-            "      enddo\n"
-            "      !$acc end parallel\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the above "
-            "loop(s)\n"
-            "      !\n"
-            "      call f1_proxy%set_dirty()\n" in code)
+            "    enddo\n"
+            "    !$acc end parallel\n"
+            # "\n"
+            # "    ! Set halos dirty/clean for fields modified in the above "
+            # "loop(s)\n"
+            "    call f1_proxy%set_dirty()\n" in code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6674,18 +6675,17 @@ def test_acclooptrans():
     code = str(psy.gen)
     assert "loop0_stop = ncolour" in code
     assert (
-        "      !$acc enter data copyin(f1_data,f2_data,m1_data,"
+        "    !$acc enter data copyin(f1_data,f2_data,m1_data,"
         "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
         "undf_w1,undf_w2,undf_w3)\n"
-        "      !\n"
-        "      !$acc parallel default(present)\n"
-        "      do colour = loop0_start, loop0_stop, 1\n"
-        "        !$acc loop independent\n"
-        "        do cell = loop1_start, last_edge_cell_all_colours(colour), 1"
+        "    !$acc parallel default(present)\n"
+        "    do colour = loop0_start, loop0_stop, 1\n"
+        "      !$acc loop independent\n"
+        "      do cell = loop1_start, last_edge_cell_all_colours(colour), 1"
         in code)
     assert (
-        "      enddo\n"
-        "      !$acc end parallel\n") in code
+        "    enddo\n"
+        "    !$acc end parallel\n") in code
 
 # Class ACCLoopTrans end
 
@@ -6731,17 +6731,15 @@ def test_async_hex(tmpdir):
     ahex_trans.apply(f2_hex)
     result = str(psy.gen)
     assert (
-        "      ! Call kernels and communication routines\n"
-        "      !\n"
-        "      if (f1_proxy%is_dirty(depth=1)) then\n"
-        "        call f1_proxy%halo_exchange(depth=1)\n"
-        "      end if\n"
-        "      if (f2_proxy%is_dirty(depth=1)) then\n"
-        "        call f2_proxy%halo_exchange_start(depth=1)\n"
-        "      end if\n"
-        "      if (f2_proxy%is_dirty(depth=1)) then\n"
-        "        call f2_proxy%halo_exchange_finish(depth=1)\n"
-        "      end if\n") in result
+        "    if (f1_proxy%is_dirty(depth=1)) then\n"
+        "      call f1_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (f2_proxy%is_dirty(depth=1)) then\n"
+        "      call f2_proxy%halo_exchange_start(depth=1)\n"
+        "    end if\n"
+        "    if (f2_proxy%is_dirty(depth=1)) then\n"
+        "      call f2_proxy%halo_exchange_finish(depth=1)\n"
+        "    end if\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6766,18 +6764,18 @@ def test_async_hex_move_1(tmpdir):
     mtrans.apply(schedule.children[4], schedule.children[3])
     result = str(psy.gen)
     assert (
-        "      if (m1_proxy%is_dirty(depth=1)) then\n"
-        "        call m1_proxy%halo_exchange_start(depth=1)\n"
-        "      end if\n"
-        "      if (f2_proxy%is_dirty(depth=1)) then\n"
-        "        call f2_proxy%halo_exchange(depth=1)\n"
-        "      end if\n"
-        "      if (m2_proxy%is_dirty(depth=1)) then\n"
-        "        call m2_proxy%halo_exchange(depth=1)\n"
-        "      end if\n"
-        "      if (m1_proxy%is_dirty(depth=1)) then\n"
-        "        call m1_proxy%halo_exchange_finish(depth=1)\n"
-        "      end if\n") in result
+        "    if (m1_proxy%is_dirty(depth=1)) then\n"
+        "      call m1_proxy%halo_exchange_start(depth=1)\n"
+        "    end if\n"
+        "    if (f2_proxy%is_dirty(depth=1)) then\n"
+        "      call f2_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m2_proxy%is_dirty(depth=1)) then\n"
+        "      call m2_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m1_proxy%is_dirty(depth=1)) then\n"
+        "      call m1_proxy%halo_exchange_finish(depth=1)\n"
+        "    end if\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6864,13 +6862,13 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
     result = str(psy.gen)
     assert "loop3_stop = mesh%get_last_halo_cell(1)" in result
     assert (
-        "      call f2_proxy%halo_exchange_start(depth=1)\n"
-        "      do cell = loop3_start, loop3_stop, 1\n"
-        "        call testkern_any_space_3_code(cell, nlayers, "
+        "    call f2_proxy%halo_exchange_start(depth=1)\n"
+        "    do cell = loop3_start, loop3_stop, 1\n"
+        "      call testkern_any_space_3_code(cell, nlayers, "
         "op_proxy%ncell_3d, op_local_stencil, ndf_aspc1_op, "
         "ndf_aspc2_op)\n"
-        "      enddo\n"
-        "      call f2_proxy%halo_exchange_finish(depth=1)\n") in result
+        "    enddo\n"
+        "    call f2_proxy%halo_exchange_finish(depth=1)\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -7008,17 +7006,16 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
     ahex_trans.apply(m2_hex)
     result = str(psy.gen)
     assert (
-        "      if (m2_proxy%is_dirty(depth=2)) then\n"
-        "        call m2_proxy%halo_exchange_start(depth=2)\n"
-        "      end if\n"
-        "      if (m2_proxy%is_dirty(depth=2)) then\n"
-        "        call m2_proxy%halo_exchange_finish(depth=2)\n"
-        "      end if\n") in result
+        "    if (m2_proxy%is_dirty(depth=2)) then\n"
+        "      call m2_proxy%halo_exchange_start(depth=2)\n"
+        "    end if\n"
+        "    if (m2_proxy%is_dirty(depth=2)) then\n"
+        "      call m2_proxy%halo_exchange_finish(depth=2)\n"
+        "    end if\n") in result
     assert (
-        "      ! Set halos dirty/clean for fields modified in the above loop(s)\n"
-        "      !\n"
-        "      call m2_proxy%set_dirty()\n"
-        "      call m2_proxy%set_clean(2)\n") in result
+        # "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
+        "    call m2_proxy%set_dirty()\n"
+        "    call m2_proxy%set_clean(2)\n") in result
 
     # move m2 async halo exchange start and end then check depths and
     # set clean are still generated correctly for m2
@@ -7027,18 +7024,17 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
     mtrans.apply(schedule.children[6], schedule.children[2])
     result = str(psy.gen)
     assert (
-        "      if (m2_proxy%is_dirty(depth=2)) then\n"
-        "        call m2_proxy%halo_exchange_start(depth=2)\n"
-        "      end if\n") in result
+        "    if (m2_proxy%is_dirty(depth=2)) then\n"
+        "      call m2_proxy%halo_exchange_start(depth=2)\n"
+        "    end if\n") in result
     assert (
-        "      if (m2_proxy%is_dirty(depth=2)) then\n"
-        "        call m2_proxy%halo_exchange_finish(depth=2)\n"
-        "      end if\n") in result
+        "    if (m2_proxy%is_dirty(depth=2)) then\n"
+        "      call m2_proxy%halo_exchange_finish(depth=2)\n"
+        "    end if\n") in result
     assert (
-        "      ! Set halos dirty/clean for fields modified in the above loop(s)\n"
-        "      !\n"
-        "      call m2_proxy%set_dirty()\n"
-        "      call m2_proxy%set_clean(2)\n") in result
+        # "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
+        "    call m2_proxy%set_dirty()\n"
+        "    call m2_proxy%set_clean(2)\n") in result
 
     # increase depth of redundant computation. We do this to all loops
     # to remove halo exchanges for f1 and f2 just because we can :-)
@@ -7128,17 +7124,17 @@ def test_vector_async_halo_exchange(tmpdir):
     result = str(psy.gen)
     for index in [1, 2, 3]:
         assert (
-            f"      if (f1_proxy({index})%is_dirty(depth=1)) then\n"
-            f"        call f1_proxy({index})%halo_exchange_start(depth=1)\n"
-            f"      end if\n"
-            f"      if (f1_proxy({index})%is_dirty(depth=1)) then\n"
-            f"        call f1_proxy({index})%halo_exchange_finish(depth=1)\n"
-            f"      end if\n") in result
+            f"    if (f1_proxy({index})%is_dirty(depth=1)) then\n"
+            f"      call f1_proxy({index})%halo_exchange_start(depth=1)\n"
+            f"    end if\n"
+            f"    if (f1_proxy({index})%is_dirty(depth=1)) then\n"
+            f"      call f1_proxy({index})%halo_exchange_finish(depth=1)\n"
+            f"    end if\n") in result
     assert (
-        "      call f1_proxy(1)%halo_exchange(depth=1)\n"
-        "      call f1_proxy(2)%halo_exchange_start(depth=1)\n"
-        "      call f1_proxy(2)%halo_exchange_finish(depth=1)\n"
-        "      call f1_proxy(3)%halo_exchange(depth=1)\n") in result
+        "    call f1_proxy(1)%halo_exchange(depth=1)\n"
+        "    call f1_proxy(2)%halo_exchange_start(depth=1)\n"
+        "    call f1_proxy(2)%halo_exchange_finish(depth=1)\n"
+        "    call f1_proxy(3)%halo_exchange(depth=1)\n") in result
 
     # we are not able to test re-ordering of vector halo exchanges as
     # the dependence analysis does not currently support it

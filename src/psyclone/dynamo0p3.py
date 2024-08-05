@@ -3014,8 +3014,7 @@ class DynMeshes():
                 assignment = Assignment.create(
                         lhs=Reference(dig.ncolours_var_symbol),
                         rhs=Call.create(StructureReference.create(
-                            digmmap, ["get_ncell"])),
-                        is_pointer=True)
+                            coarse_mesh, ["get_ncolours"])))
                 self._schedule.addchild(assignment, cursor)
                 cursor += 1
                 # parent.add(AssignGen(parent, lhs=dig.ncolours_var_symbol.name,
@@ -3024,7 +3023,7 @@ class DynMeshes():
                 assignment = Assignment.create(
                         lhs=Reference(dig.colourmap_symbol),
                         rhs=Call.create(StructureReference.create(
-                            digmmap, ["get_ncell"])),
+                            coarse_mesh, ["get_colour_map"])),
                         is_pointer=True)
                 self._schedule.addchild(assignment, cursor)
                 cursor += 1
