@@ -41,7 +41,7 @@
 '''
 
 from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicConstants,
-                                   LFRicSymbolTable, LFRicTypes)
+                                   LFRicSymbolTable)
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric import LFRicKern
@@ -132,7 +132,7 @@ class LFRicAlg:
         for sym in kern_args.scalars:
             sub.addchild(Assignment.create(
                 Reference(sym),
-                Literal("1", LFRicTypes("LFRicIntegerScalarDataType")())))
+                Literal("1", table.get_type("LFRicIntegerScalarDataType")())))
 
         # We use the setval_c builtin to initialise all fields to unity.
         # As with the scalar initialisation, we don't worry about precision
@@ -149,7 +149,7 @@ class LFRicAlg:
                     "setval_c", table,
                     [Reference(sym),
                      Literal("1.0",
-                             LFRicTypes("LFRicRealScalarDataType")())]))
+                             table.get_type("LFRicRealScalarDataType")())]))
 
         # Finally, add the kernel itself to the list for the invoke().
         arg_nodes = []
