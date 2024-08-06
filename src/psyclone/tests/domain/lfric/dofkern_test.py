@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,39 +31,26 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office,
-#          C. M. Maynard, Met Office/University of Reading,
-#          J. Henrichs, Bureau of Meteorology.
+# Authors O. Brunt, Met Office
 
-''' This module tests the Dynamo 0.3 API using pytest. '''
+'''
+This module tests the metadata validation in LFRicKernMetadata of
+user-supplied kernels operating on degrees of freedom (dofs)
+'''
 
-import os
 import pytest
 
-import fparser
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicKernMetadata
 from psyclone.parse.utils import ParseError
 
-# constants
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
-# Get the root directory of this PSyclone distribution
-ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__)))))
-# Construct the path to the default configuration file
-DEFAULT_CFG_FILE = os.path.join(ROOT_PATH, "config", "psyclone.cfg")
-
-TEST_API = "dynamo0.3"
-
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
     yield
     Config._instance = None
 
@@ -90,31 +77,27 @@ CODE = '''
 
 
 def test_dof_kernel_mixed_function_spaces():
-    ''' Check that we raise an exception if we attempt to generate kernel
-    call for a dof kernel with non-homogenous function spaces.
+    ''' Check that we raise an exception if we encounter a dof kernel
+    call with arguments of different function spaces.
 
     '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    # Remove the need for basis or diff-basis functions
 
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_dofs_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     assert ("Kernel 'testkern_dofs_type' operates on 'dof' but has "
-            "fields on different function spaces. This is not "
+            "fields on different function spaces: ['w1', 'w2']. This is not "
             "permitted in the LFRic API."
             in str(excinfo.value))
 
 
 def test_dof_kernel_invalid_arg():
-    ''' Check that we raise an exception if we attempt to generate kernel
-    call for a dof kernel with metadata arguments that are not of type
-    field or scalar.
+    ''' Check that we raise an exception if we find metadata for a dof kernel
+    which specifies arguments that are not fields or scalars.
 
     '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    # Remove the need for basis or diff-basis functions
+    # Substitute field for operator, an invalid arg type for dof kernels
     code = CODE.replace(
         """
                     (/ arg_type(gh_field, gh_real, gh_write, w1),  &
@@ -137,12 +120,11 @@ def test_dof_kernel_invalid_arg():
 
 
 def test_dof_kernel_invalid_field_vector():
-    ''' Check that we raise an exception if we attempt to generate kernel
-    call for a dof kernel with a field vector.
+    ''' Check that we raise an exception if we encounter metadata
+    for a dof kernel with a field vector.
 
     '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    # Remove the need for basis or diff-basis functions
+    # Substitute field for field vector
     code = CODE.replace(
         """
                     (/ arg_type(gh_field, gh_real, gh_write, w1),  &

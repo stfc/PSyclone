@@ -306,6 +306,26 @@ def test_unnecessary_shape():
             in str(excinfo.value))
 
 
+def test_kernel_call_invalid_iteration_space():
+    ''' Check that we raise an exception if we attempt to generate kernel
+    call for a kernel with an unsupported iteration space.
+    '''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_dofs_mod.f90"),
+                      ignore_comments=False)
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
+    kernel.load_meta(metadata)
+    # set iterates_over to something unsupported
+    kernel._iterates_over = "vampires"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = kernel.validate_global_constraints()
+    assert ("The LFRic API supports calls to user-supplied kernels that "
+            "operate on one of ['cell_column', 'domain', 'dof'], but "
+            "kernel 'testkern_dofs_code' operates on 'vampires'."
+            in str(excinfo.value))
+
+
 def test_any_space_1(tmpdir):
     ''' Tests that any_space is implemented correctly in the PSy
     layer. Includes more than one type of any_space declaration

@@ -307,7 +307,7 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     # ATM we have a `lower_to_language_level method` for LFRicLoop which
     # removes the loop node for a domain kernel entirely and only leaves the
     # body. So we can't call the FortranWriter directly, since it will first
-    # lower the tree, which removes 'domain' kernel.
+    # lower the tree, which removes the domain kernel.
     # In order to test the actual writer atm, we have to call the
     # `loop_node` directly. But in order for this to work, we need to
     # lower the actual kernel call. Once #1731 is fixed, the temporary

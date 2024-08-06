@@ -575,6 +575,9 @@ class LFRicKernMetadata(KernelType):
         Check whether a kernel that has operates_on == domain obeys
         the rules for the LFRic API.
 
+        :param bool need_evaluator: whether a kernel requires an
+                                    evaluator/quadrature.
+
         :raises ParseError: if the kernel metadata does not obey the rules
                             for an LFRic kernel with operates_on = domain.
         '''
@@ -591,6 +594,9 @@ class LFRicKernMetadata(KernelType):
         '''
         Check whether a kernel that has operates_on == dof obeys
         the rules for the LFRic API.
+
+        :param bool need_evaluator: whether a kernel requires an
+                                    evaluator/quadrature.
 
         :raises ParseError: if the kernel metadata does not obey the rules
                             for an LFRic kernel with operates_on = dof.
@@ -618,18 +624,26 @@ class LFRicKernMetadata(KernelType):
 
         # Check function spaces are the same
         # list out all function spaces
-        arg_fs_names = []
+        arg_fs_names = set()
         for arg in self._arg_descriptors:
-            arg_fs_names.extend(arg.function_spaces)
+            for fs_name in arg.function_spaces:
+                arg_fs_names.add(fs_name)
         # dof kernels should only have one function space so a set of fs
         # names should be of length 1
-        if len(set(arg_fs_names)) > 1:
+        if len(arg_fs_names) > 1:
             raise ParseError(
                 f"Kernel '{self.name}' operates on 'dof' but has "
-                f"fields on different function spaces. This is not "
-                f"permitted in the LFRic API.")
+                f"fields on different function spaces: {sorted(arg_fs_names)}."
+                f" This is not permitted in the LFRic API.")
 
     def _validate_only_scalars_and_fields(self):
+        '''
+        Checks metadata arguments are either fields or scalars by comparing
+        the kernel's argument descriptors to the valid names for these types
+        found in LFRic constants.
+        :raises ParseError: if any argument descriptors are not field or
+                            scalar types.
+        '''
         const = LFRicConstants()
         # A kernel which operates on the 'domain' is currently restricted
         # to only accepting scalar and field arguments.
@@ -644,6 +658,14 @@ class LFRicKernMetadata(KernelType):
                     f"'{arg.argument_type}'")
 
     def _validate_no_evaluator(self, need_evaluator):
+        '''
+        Checks that this kernel has not requested an evaluator (gh_diff,
+        gh_basis) and raises a ParseError if it has.
+
+        :param bool need_evaluator: whether a kernel requires an
+                                    evaluator/quadrature.
+        :raises ParseError: if a kernel requires an evaluator/quadrature.
+        '''
         if need_evaluator:
             raise ParseError(
                 f"In the LFRic API a kernel that operates on "
@@ -652,6 +674,13 @@ class LFRicKernMetadata(KernelType):
                 f"contains an entry for 'meta_funcs'")
 
     def _validate_no_reference_element(self):
+        '''
+        Checks whether any reference elements have been added during the
+        initialisation of the class instance.
+
+        :raises ParseError: if a kernel requests properties of the reference
+                            element.
+        '''
         if self.reference_element.properties:
             raise ParseError(
                 f"Kernel '{self.name}' operates on '{self.iterates_over}' "
@@ -660,6 +689,11 @@ class LFRicKernMetadata(KernelType):
                 f"permitted in the LFRic API.")
 
     def _validate_no_mesh_properties(self):
+        '''
+        Checks that no mesh properties are required by the kernel.
+
+        :raises ParseError: if a kernel requires properties of the mesh.
+        '''
         if self.mesh.properties:
             raise ParseError(
                 f"Kernel '{self.name}' operates on '{self.iterates_over}' but "
@@ -667,6 +701,12 @@ class LFRicKernMetadata(KernelType):
                 f"This is not permitted in the LFRic API.")
 
     def _validate_not_intergrid(self):
+        '''
+        Checks that the kernel is not defined as 'intergrid'.
+
+        :raises ParseError: if a kernel has fields on different mesh
+                            resolutions.
+        '''
         if self._is_intergrid:
             raise ParseError(
                 f"Kernel '{self.name}' operates on '{self.iterates_over}' but "
