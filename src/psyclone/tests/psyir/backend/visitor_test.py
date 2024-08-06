@@ -170,7 +170,7 @@ def test_psyirvisitor_visit_no_string():
 
     visitor = MyVisitor()
     my_node = Container("blah")
-    my_child_node = Routine("hmm")
+    my_child_node = Routine.create("hmm")
     my_node.children = [my_child_node]
     result = visitor._visit(my_node)
     assert result is my_node

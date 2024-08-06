@@ -89,7 +89,7 @@ def test_reference_equality():
 
 def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
-    kschedule = KernelSchedule("kname")
+    kschedule = KernelSchedule.create("kname")
     symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
@@ -101,7 +101,7 @@ def test_reference_node_str():
 def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
-    kschedule = KernelSchedule("kname")
+    kschedule = KernelSchedule.create("kname")
     symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()

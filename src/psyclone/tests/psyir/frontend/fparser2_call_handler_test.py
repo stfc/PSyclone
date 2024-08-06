@@ -66,7 +66,7 @@ def test_call_noargs():
     '''
     reader = FortranStringReader(" call kernel()")
     ast = Fortran2003.Call_Stmt(reader)
-    fake_parent = Routine('dummy')
+    fake_parent = Routine.create('dummy')
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [ast])
 

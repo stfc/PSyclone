@@ -190,7 +190,7 @@ class LFRicAlg:
         # pylint: disable=protected-access
         # TODO #1954 Remove the protected access using a factory
         ScopingNode._symbol_table_class = LFRicSymbolTable
-        alg_sub = Routine(name)
+        alg_sub = Routine.create(name)
         table = alg_sub.symbol_table
 
         # Create Container and Type Symbols for each of the modules/types that

@@ -46,7 +46,7 @@ def test_read_only_verify_lower_to_language_level():
     ''' Test that the lowering methods works as expected. '''
 
     # Create a ReadOnlyVerify code with a read-only variable 'a'
-    routine = Routine('my_routine')
+    routine = Routine.create('my_routine')
     symbol = DataSymbol("a", INTEGER_TYPE)
     routine.symbol_table.add(symbol)
     node = ReadOnlyVerifyNode()

@@ -228,18 +228,17 @@ def test_psy_data_generate_symbols():
     ''' Check that the generate_symbols method inserts the appropriate
     symbols in the provided symbol table if they don't exist already. '''
 
-    # By inserting the psy_data no symbols are created (only the routine symbol
-    # name exists)
-    routine = Routine('my_routine')
+    # By inserting the psy_data no symbols are created.
+    routine = Routine.create('my_routine')
     psy_data = PSyDataNode()
     psy_data2 = PSyDataNode()
     routine.addchild(psy_data)
     routine.addchild(psy_data2)
-    assert len(routine.symbol_table.symbols) == 1
+    assert len(routine.symbol_table.symbols) == 0
 
     # Executing generate_symbols adds 3 more symbols:
     psy_data.generate_symbols(routine.symbol_table)
-    assert len(routine.symbol_table.symbols) == 4
+    assert len(routine.symbol_table.symbols) == 3
 
     # - The module (with a tag equal to its name)
     assert "psy_data_mod" in routine.symbol_table
@@ -264,12 +263,12 @@ def test_psy_data_generate_symbols():
 
     # Executing it again doesn't add anything new
     psy_data.generate_symbols(routine.symbol_table)
-    assert len(routine.symbol_table.symbols) == 4
+    assert len(routine.symbol_table.symbols) == 3
 
     # But executing it again from a different psy_data re-utilises the module
     # and type but creates a new object instance
     psy_data2.generate_symbols(routine.symbol_table)
-    assert len(routine.symbol_table.symbols) == 5
+    assert len(routine.symbol_table.symbols) == 4
     assert "psy_data_1" in routine.symbol_table
     objectsymbol = routine.symbol_table.lookup("psy_data_1")
     assert isinstance(objectsymbol, DataSymbol)
@@ -433,7 +432,7 @@ def test_psy_data_node_lower_to_language_level():
             in str(excinfo.value))
 
     # Add the ancestor Routine and empty body
-    routine = Routine("my_routine")
+    routine = Routine.create("my_routine")
     routine.addchild(psy_node)
     psy_node.lower_to_language_level()
     # The PSyDataNode is substituted by 2 CodeBlocks, the first one with the
@@ -448,7 +447,7 @@ def test_psy_data_node_lower_to_language_level():
         'CALL psy_data % PostEnd'
 
     # Now try with a PSyDataNode with specified module and region names
-    routine = Routine("my_routine")
+    routine = Routine.create("my_routine")
     psy_node = PSyDataNode.create([], SymbolTable())
     routine.addchild(psy_node)
     psy_node._module_name = "my_module"

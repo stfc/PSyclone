@@ -323,7 +323,7 @@ def test_init_scalar_value(monkeypatch):
     '''Check that _init_scalar_value() adds the expected nodes to the supplied
     Routine.'''
     table = LFRicSymbolTable()
-    routine = nodes.Routine("testkern_code", symbol_table=table)
+    routine = nodes.Routine.create("testkern_code", symbol_table=table)
     sym1 = DataSymbol("my_real1", LFRicTypes("LFRicRealScalarDataType")())
     sym2 = DataSymbol("my_int2", LFRicTypes("LFRicIntegerScalarDataType")())
     sym2_input = DataSymbol("my_int2_input",

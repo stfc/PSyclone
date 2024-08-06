@@ -93,7 +93,7 @@ def test_accregiondir_validate_global(fortran_reader):
 
 def test_accregiondir_signatures():
     '''Test the signatures property of ACCRegionDirective.'''
-    routine = Routine("test_prog")
+    routine = Routine.create("test_prog")
     accnode = MyACCRegion()
     routine.addchild(accnode)
     bob = DataSymbol("bob", INTEGER_TYPE)

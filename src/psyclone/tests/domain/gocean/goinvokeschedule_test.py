@@ -46,6 +46,7 @@ import pytest
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.parse.algorithm import parse
 from psyclone.psyir.nodes import Container
+from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.tests.utilities import get_base_path, get_invoke
 
 API = "gocean"
@@ -60,11 +61,12 @@ def test_gosched_parent():
                            api=API)
     kcalls = invoke_info.calls[0].kcalls
     # With no parent specified
-    gsched = GOInvokeSchedule("my_sched", kcalls)
+    symbol = RoutineSymbol("my_sched")
+    gsched = GOInvokeSchedule(symbol, kcalls)
     assert gsched.parent is None
     # With a parent
     cont = Container("my_mod")
-    gsched = GOInvokeSchedule("my_sched", kcalls, parent=cont)
+    gsched = GOInvokeSchedule(symbol, kcalls, parent=cont)
     assert gsched.parent is cont
 
 

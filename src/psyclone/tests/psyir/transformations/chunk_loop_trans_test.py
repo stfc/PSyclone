@@ -68,7 +68,7 @@ def test_chunkloop_trans_validate1():
     increment'''
     chunktrans = ChunkLoopTrans()
     # Construct a Loop with a non-constant increment
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     lvar = routine.symbol_table.find_or_create_tag(
             "lvar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,

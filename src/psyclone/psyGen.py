@@ -407,8 +407,11 @@ class Invoke():
         if self.invokes:
             container = self.invokes.psy.container
 
-        # create the schedule
-        self._schedule = schedule_class(self._name, alg_invocation.kcalls,
+        # create the schedule (Routine sub-class). Routines use a
+        # symbol input argument.
+        schedule_symbol = RoutineSymbol(self._name)
+        self._schedule = schedule_class(schedule_symbol,
+                                        alg_invocation.kcalls,
                                         reserved_names, parent=container)
 
         # Add the new Schedule to the top-level PSy Container
@@ -668,7 +671,8 @@ class InvokeSchedule(Routine):
     >>> schedule = invoke.schedule
     >>> print(schedule.view())
 
-    :param str name: name of the Invoke.
+    :param symbol: RoutineSymbol representing the invoke.
+    :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
     :param type KernFactory: class instance of the factory to use when \
      creating Kernels. e.g. \
      :py:class:`psyclone.domain.lfric.LFRicKernCallFactory`.
@@ -684,9 +688,9 @@ class InvokeSchedule(Routine):
     # Textual description of the node.
     _text_name = "InvokeSchedule"
 
-    def __init__(self, name, KernFactory, BuiltInFactory, alg_calls=None,
+    def __init__(self, symbol, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None, **kwargs):
-        super().__init__(name, **kwargs)
+        super().__init__(symbol, **kwargs)
 
         self._invoke = None
 
@@ -1733,14 +1737,8 @@ class CodedKern(Kern):
         kern_schedule.name = new_kern_name[:]
         container.name = new_mod_name[:]
 
-        # Change the name of the symbol
-        try:
-            kern_symbol = kern_schedule.symbol_table.lookup(orig_kern_name)
-            container.symbol_table.rename_symbol(kern_symbol, new_kern_name)
-        except KeyError:
-            # TODO #1013. Right now not all tests have PSyIR symbols because
-            # some only expect f2pygen generation.
-            pass
+        # Change the name of the Kernel Schedule
+        kern_schedule.name = new_kern_name
 
         # Ensure the metadata points to the correct procedure now. Since this
         # routine is general purpose, we won't always have a domain-specific

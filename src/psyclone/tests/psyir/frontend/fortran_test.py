@@ -108,7 +108,7 @@ def test_fortran_psyir_from_source_fixed_form():
 def test_fortran_psyir_from_expression(fortran_reader):
     ''' Test that the psyir_from_expression method generates the
     expected PSyIR. '''
-    sched = Routine("malachi")
+    sched = Routine.create("malachi")
     table = sched.symbol_table
     psyir = fortran_reader.psyir_from_expression("3.0", table)
     assert isinstance(psyir, Literal)

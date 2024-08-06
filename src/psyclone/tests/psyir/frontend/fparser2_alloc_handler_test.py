@@ -114,7 +114,7 @@ def test_alloc_with_mold_or_source(fortran_reader):
 program test_alloc
   integer, parameter :: ndof = 8
   integer :: ierr
-  integer, parameter :: mask(5,8)
+  integer, parameter :: mask(5,8) = 1
   real, allocatable, dimension(:, :) :: var1, var2
   allocate(var1, mold=mask, stat=ierr)
   allocate(var2, source=var1)

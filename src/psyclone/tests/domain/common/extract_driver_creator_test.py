@@ -388,7 +388,7 @@ def test_errors_add_call():
     not a RoutineSymbol.
 
     '''
-    program = Routine("test", is_program=True)
+    program = Routine.create("test", is_program=True)
     program_symbol_table = program.symbol_table
 
     # Add 'psy_data_mod' as a container symbol:

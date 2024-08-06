@@ -1456,15 +1456,13 @@ def test_view():
                       "  func: RoutineSymbol<Scalar<REAL, UNDEFINED>, "
                       "pure=unknown, elemental=unknown>\n")
 
-    Routine("func", symbol_table=sym_table_2)
+    Routine.create("func", symbol_table=sym_table_2)
     output = sym_table_2.view()
     assert "Symbol Table of Routine 'func':\n" in output
     assert "DataSymbol:\n" in output
     assert "var1" in output
     assert "var2" in output
-    assert "RoutineSymbol:\n" in output
     assert "func" in output
-    assert output.index("DataSymbol:\n") < output.index("RoutineSymbol:\n")
     assert output.index("var1") < output.index("var2")
     assert output == ("Symbol Table of Routine 'func':\n"
                       "-------------------------------\n"
@@ -1472,10 +1470,7 @@ def test_view():
                       "  var1: DataSymbol<Scalar<REAL, UNDEFINED>, "
                       "Automatic>\n"
                       "  var2: DataSymbol<Scalar<INTEGER, UNDEFINED>, "
-                      "Automatic>\n"
-                      "RoutineSymbol:\n"
-                      "  func: RoutineSymbol<NoType, pure=unknown, "
-                      "elemental=unknown>\n")
+                      "Automatic>\n")
 
 
 def test_can_be_printed():
@@ -2270,8 +2265,9 @@ def test_get_symbols():
     # get_symbols() works when the symbol table is attached to a
     # node which has no parent.
     all_symbols = container_symbol_table.get_symbols()
-    assert len(all_symbols) == 1
+    assert len(all_symbols) == 2
     assert all_symbols[symbol2.name] is symbol2
+    assert all_symbols[schedule.name] is schedule._symbol
 
     # get_symbols() works when the symbol table has ancestor symbol
     # tables.
@@ -2313,7 +2309,7 @@ def test_get_tags():
     # get_tags() works when the symbol table has ancestor symbol
     # tables.
     all_tags = schedule_symbol_table.get_tags()
-    assert len(all_tags) == 3
+    assert len(all_tags) == 2
     assert all_tags[symbol1_tag] is symbol1
     assert all_tags[symbol2_tag] is symbol2
 

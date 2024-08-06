@@ -40,7 +40,8 @@
 from __future__ import absolute_import
 from psyclone.psyir.nodes import Assignment, Reference, Literal, \
     KernelSchedule, Container
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE, \
+    RoutineSymbol
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
 
@@ -48,7 +49,8 @@ from psyclone.tests.utilities import check_links
 def test_kernelschedule_constructor():
     ''' Check that we can construct a KernelSchedule and that it has the
     expected properties. '''
-    ksched = KernelSchedule("timetable")
+    symbol = RoutineSymbol("timetable")
+    ksched = KernelSchedule(symbol)
     assert ksched.name == "timetable"
     # A KernelSchedule does not represent a program
     assert not ksched.is_program
@@ -57,14 +59,15 @@ def test_kernelschedule_constructor():
     assert ksched.parent is None
     # Now create a KernelSchedule with a parent
     cnode = Container("BigBox")
-    ksched2 = KernelSchedule("plan", parent=cnode)
+    symbol = RoutineSymbol("plan")
+    ksched2 = KernelSchedule(symbol, parent=cnode)
     assert ksched2.parent is cnode
 
 
 def test_kernelschedule_str():
     ''' Check that the __str__ property correctly picks up the 'text_name'
     of the KernelSchedule. '''
-    ksched = KernelSchedule("timetable")
+    ksched = KernelSchedule.create("timetable")
     assert str(ksched) == ("KernelSchedule[name:'timetable']:\n"
                            "End KernelSchedule")
 
