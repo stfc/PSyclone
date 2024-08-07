@@ -59,7 +59,7 @@ from psyclone.psyir.nodes import (
     Schedule, CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation,
     IfBlock, Reference, ArrayReference, Literal, Range, KernelSchedule,
     RegionDirective, Routine, StandaloneDirective,
-    ArrayOfStructuresReference, Call, IntrinsicCall)
+    Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, ArgumentInterface, ArrayType,
     SymbolError, ScalarType, INTEGER_TYPE, REAL_TYPE, RoutineSymbol,
