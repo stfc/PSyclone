@@ -525,7 +525,7 @@ def test_where_mask_containing_sum_with_dim(fortran_reader):
 
 
 @pytest.mark.usefixtures("parser")
-def test_where_with_scalar_assignment(rhs):
+def test_where_with_scalar_assignment():
     ''' Test that a WHERE containing a scalar assignment is handled correctly.
     Currently it is not as we do not distinguish between a scalar and an array
     reference that is missing its colons. This will be fixed in #717.
