@@ -621,7 +621,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 dtype = idx_expr.datatype
                 if isinstance(dtype, ArrayType):
                     # An array slice can be defined by a 1D slice of another
-                    # array, e.g. `a(b(1:4))`.
+                    # array, e.g. `a(b(1:4))` or `a(b)`.
                     indirect_array_shape = dtype.shape
                     if len(indirect_array_shape) > 1:
                         raise NotImplementedError(
@@ -630,7 +630,15 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                             f"used to index into '{self.name}' has "
                             f"{len(indirect_array_shape)} dimensions.")
                     # pylint: disable=protected-access
-                    shape.append(idx_expr._extent(idx))
+                    if isinstance(idx_expr, ArrayMixin):
+                        shape.append(idx_expr._extent(idx))
+                    else:
+                        # We have a Reference (to an array) with no explicit
+                        # indexing. The extent of this is then the SIZE of
+                        # that array.
+                        sizeop = IntrinsicCall.create(
+                            IntrinsicCall.Intrinsic.SIZE, [idx_expr.copy()])
+                        shape.append(sizeop)
 
             elif isinstance(idx_expr, (Call, Operation, CodeBlock)):
                 # We can't yet straightforwardly query the type of a function
