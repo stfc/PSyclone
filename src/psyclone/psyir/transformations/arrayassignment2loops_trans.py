@@ -49,10 +49,10 @@ from psyclone.psyir.nodes import (
     CodeBlock, Routine, BinaryOperation)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, ScalarType, UnresolvedType, SymbolError,
-    ArrayType)
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+    ArrayType, DataSymbol, INTEGER_TYPE, ScalarType, SymbolError,
+    UnresolvedType, UnsupportedType)
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 
@@ -241,17 +241,16 @@ class ArrayAssignment2LoopsTrans(Transformation):
                 f"Range, but none were found in '{node.debug_string()}'."))
 
         # All the ArrayMixins must have the same number of Ranges to expand
-        found = None
+        num_of_ranges = None
         for accessor in node.walk(ArrayMixin):
-            num_of_ranges = len([x for x in accessor.indices
-                                 if isinstance(x, Range)])
-            if num_of_ranges > 0:
-                if not found:
+            count = len([x for x in accessor.indices if isinstance(x, Range)])
+            if count:
+                if not num_of_ranges:
                     # If it's the first value we find, we store it
-                    found = num_of_ranges
+                    num_of_ranges = count
                 else:
                     # Otherwise we compare it against the previous found value
-                    if found != num_of_ranges:
+                    if count != num_of_ranges:
                         raise TransformationError(LazyString(
                             lambda: f"{self.name} does not support statements"
                             f" containing array accesses that have varying "
@@ -368,6 +367,34 @@ class ArrayAssignment2LoopsTrans(Transformation):
                 # pylint: disable=cell-var-from-loop
                 raise TransformationError(LazyString(
                     lambda: f"{message} In:\n{node.debug_string()}"))
+            # We must understand any array accesses on the RHS. This means all
+            # array indices must be known (because otherwise they themselves
+            # might be arrays, e.g.
+            #      a(:) = b(c) where `c` can be a scalar or an array.
+            if isinstance(reference, ArrayMixin):
+                # Check the index expressions
+                range_count = len([x for x in accessor.indices
+                                   if isinstance(x, Range)])
+                if range_count != num_of_ranges:
+                    # If the number of ranges in this access is not the same as
+                    # on the LHS then we may or may not have a scalar.
+                    for exprn in reference.indices:
+                        if not isinstance(exprn, Reference):
+                            continue
+                        if not isinstance(exprn.datatype, (UnsupportedType,
+                                                           UnresolvedType)):
+                            continue
+                        message = (
+                            f"{self.name} cannot expand expression because it "
+                            f"contains the access '{reference.debug_string()}'"
+                            f" and whether or not the index "
+                            f"expression '{exprn.debug_string()}' is "
+                            f"itself an array is unknown.")
+                        if verbose:
+                            node.append_preceding_comment(message)
+                        # pylint: disable=cell-var-from-loop
+                        raise TransformationError(LazyString(
+                            lambda: f"{message} In:\n{node.debug_string()}"))
 
 
 __all__ = [
