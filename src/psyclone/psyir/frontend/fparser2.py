@@ -59,8 +59,6 @@ from psyclone.psyir.nodes import (
     Reference, Return, Routine, Schedule, StructureReference, UnaryOperation,
     WhileLoop)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.array_of_structures_mixin import (
-    ArrayOfStructuresMixin)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, AutomaticInterface, CHARACTER_TYPE,
     CommonBlockInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
@@ -4102,75 +4100,6 @@ class Fparser2Reader():
                 parent.addchild(call)
                 call.children.extend(fake_parent.pop_all_children())
 
-    @staticmethod
-    def _array_notation_rank(node):
-        '''Check that the supplied candidate array reference uses supported
-        array notation syntax and return the rank of the sub-section
-        of the array that uses array notation. e.g. for a reference
-        "a(:, 2, :)" the rank of the sub-section is 2.
-
-        :param node: the reference to check.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference` or \
-            :py:class:`psyclone.psyir.nodes.ArrayMember` or \
-            :py:class:`psyclone.psyir.nodes.StructureReference`
-
-        :returns: rank of the sub-section of the array.
-        :rtype: int
-
-        :raises InternalError: if no ArrayMixin node with at least one \
-                               Range in its indices is found.
-        :raises InternalError: if two or more part references in a \
-                               structure reference contain ranges.
-        :raises NotImplementedError: if the supplied node is not of a \
-                                     supported type.
-        :raises NotImplementedError: if any ranges are encountered that are \
-                                     not for the full extent of the dimension.
-        '''
-        if isinstance(node, (ArrayReference, ArrayMember)):
-            array = node
-        elif isinstance(node, StructureReference):
-            array = None
-            arrays = node.walk((ArrayMember, ArrayOfStructuresMixin))
-            for part_ref in arrays:
-                if any(isinstance(idx, Range) for idx in part_ref.indices):
-                    if array:
-                        # Cannot have two or more part references that contain
-                        # ranges - this is not valid Fortran.
-                        raise InternalError(
-                            f"Found a structure reference containing two or "
-                            f"more part references that have ranges: "
-                            f"'{node.debug_string()}'. This is not valid "
-                            f"within a WHERE in Fortran.")
-                    array = part_ref
-            if not array:
-                raise InternalError(
-                    f"No array access found in node '{node.name}'")
-        else:
-            # This will result in a CodeBlock.
-            raise NotImplementedError(
-                f"Expected either an ArrayReference, ArrayMember or a "
-                f"StructureReference but got '{type(node).__name__}'")
-
-        # Only array refs using basic colon syntax are currently
-        # supported e.g. (a(:,:)).  Each colon is represented in the
-        # PSyIR as a Range node with first argument being an lbound
-        # binary operator, the second argument being a ubound operator
-        # and the third argument being an integer Literal node with
-        # value 1 i.e. a(:,:) is represented as
-        # a(lbound(a,1):ubound(a,1):1,lbound(a,2):ubound(a,2):1) in
-        # the PSyIR.
-        num_colons = 0
-        for idx_node in array.indices:
-            if isinstance(idx_node, Range):
-                # Found array syntax notation. Check that it is the
-                # simple ":" format.
-                if not array.is_full_range(array.index_of(idx_node)):
-                    raise NotImplementedError(
-                        "Only array notation of the form my_array(:, :, ...) "
-                        "is supported.")
-                num_colons += 1
-        return num_colons
-
     def _array_syntax_to_indexed(self, parent, loop_vars):
         '''
         Utility function that modifies each ArrayReference object in the
@@ -4188,23 +4117,38 @@ class Fparser2Reader():
         :raises NotImplementedError: if array sections of differing ranks are
                                      found.
         '''
-        assigns = parent.walk(Assignment)
-        # Check that the LHS of any assignment uses array notation.
-        # Note that this will prevent any WHERE blocks that contain scalar
-        # assignments from being handled but is a necessary limitation until
-        # #717 is done and we interrogate the type of each symbol.
-        for assign in assigns:
-            _ = self._array_notation_rank(assign.lhs)
-
-        # TODO #717 if the supplied code accidentally omits array
+        # If the supplied code accidentally omits array
         # notation for an array reference on the RHS then we will
-        # identify it as a scalar and the code produced from the
-        # PSyIR (using e.g. the Fortran backend) will not
-        # compile. We need to implement robust identification of the
-        # types of all symbols in the PSyIR fragment.
+        # identify it as a scalar and the produce array notated code
+        # in the PSyIR if possible.
         table = parent.scope.symbol_table
         one = Literal("1", INTEGER_TYPE)
+        refs = parent.walk(Reference)
         arrays = parent.walk(ArrayMixin)
+        for ref in refs:
+            add_op = BinaryOperation.Operator.ADD
+            sub_op = BinaryOperation.Operator.SUB
+            if (type(ref) is Reference and type(ref.symbol) is not Symbol and
+                    isinstance(ref.symbol.datatype, ArrayType)):
+                # Skip if the shape doesn't match the loop_vars length.
+                if len(ref.datatype.shape) != len(loop_vars):
+                    continue
+                # Have an implicit full range reference to an array which
+                # we need to convert ourselves.
+                temp_vals = [":" for i in range(len(ref.datatype.shape))]
+                array = ArrayReference.create(ref.symbol, temp_vals)
+                for dim in range(len(ref.datatype.shape)):
+                    # Create the index expression.
+                    symbol = table.lookup(loop_vars[dim])
+                    # We don't know what the lower bound is so have to
+                    # have an expression:
+                    #    idx-expr = array-lower-bound + loop-idx - 1
+                    lbound = array.get_lbound_expression(dim)
+                    expr = BinaryOperation.create(
+                        add_op, lbound, Reference(symbol))
+                    expr2 = BinaryOperation.create(sub_op, expr, one.copy())
+                    array.children[dim] = expr2
+
         first_rank = None
         for array in arrays:
             # Check that this is a supported array reference and that
@@ -4272,7 +4216,11 @@ class Fparser2Reader():
                     expr = BinaryOperation.create(
                         add_op, lbound, Reference(symbol))
                     expr2 = BinaryOperation.create(sub_op, expr, one.copy())
-                array.children[idx] = expr2
+                # Indices of an AoSReference start at index 1
+                if isinstance(array, ArrayOfStructuresReference):
+                    array.children[idx+1] = expr2
+                else:
+                    array.children[idx] = expr2
                 range_idx += 1
 
     def _where_construct_handler(self, node, parent):
@@ -4405,10 +4353,17 @@ class Fparser2Reader():
             # variable in the logical-array expression must be an array for
             # this to be a valid WHERE().
             # TODO #1799. Look-up the shape of the array in the SymbolTable.
-            raise NotImplementedError(
-                f"Only WHERE constructs using explicit array notation (e.g. "
-                f"my_array(:,:)) are supported but found '{logical_expr}'.")
-
+            for ref in fake_parent.walk(Reference):
+                if isinstance(ref.datatype, ArrayType):
+                    ranges = []
+                    for dim in range(len(ref.datatype.shape)):
+                        ranges.append(":")
+                    if not isinstance(ref.datatype.datatype, ScalarType):
+                        print("Hello")
+                        raise NotImplementedError("TODO")
+                    replace_ref = ArrayReference.create(ref.symbol, ranges)
+                    ref.replace_with(replace_ref)
+                    arrays.append(replace_ref)
         for array in arrays:
             if any(isinstance(idx, Range) for idx in array.indices):
                 first_array = array
@@ -4491,7 +4446,6 @@ class Fparser2Reader():
                 # handler returns
                 root_loop = loop
             new_parent = sched
-
         # Now we have the loop nest, add an IF block to the innermost
         # schedule
         ifblock = IfBlock(parent=new_parent, annotations=annotations)
@@ -4514,7 +4468,6 @@ class Fparser2Reader():
         # Now construct the body of the IF using the body of the WHERE
         sched = Schedule(parent=ifblock)
         ifblock.addchild(sched)
-
         if was_single_stmt:
             # We only had a single-statement WHERE
             self.process_nodes(sched, node.items[1:])
