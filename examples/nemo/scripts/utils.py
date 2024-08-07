@@ -36,7 +36,7 @@
 ''' Utilities file to parallelise Nemo code. '''
 
 from psyclone.psyir.nodes import (
-    ArrayMixin, Assignment, Loop, Directive, Container, Reference, CodeBlock,
+    Assignment, Loop, Directive, Container, Reference, CodeBlock,
     Call, Return, IfBlock, Routine, IntrinsicCall)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ScalarType,
@@ -194,7 +194,7 @@ def normalise_loops(
                     Reference2ArrayRangeTrans().apply(reference)
                 except TransformationError:
                     pass
-            if isinstance(reference, ArrayMixin):
+            if hasattr(reference, "indices"):
                 # Look at array-index expressions too.
                 for exprn in reference.indices:
                     if (isinstance(exprn, Reference) and
