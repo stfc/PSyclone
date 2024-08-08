@@ -641,6 +641,7 @@ class LFRicKernMetadata(KernelType):
         Checks metadata arguments are either fields or scalars by comparing
         the kernel's argument descriptors to the valid names for these types
         found in LFRic constants.
+
         :raises ParseError: if any argument descriptors are not field or
                             scalar types.
         '''
@@ -664,6 +665,7 @@ class LFRicKernMetadata(KernelType):
 
         :param bool need_evaluator: whether a kernel requires an
                                     evaluator/quadrature.
+
         :raises ParseError: if a kernel requires an evaluator/quadrature.
         '''
         if need_evaluator:
