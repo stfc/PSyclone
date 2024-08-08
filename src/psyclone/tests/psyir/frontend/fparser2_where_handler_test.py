@@ -776,13 +776,13 @@ def test_where_derived_type(fortran_reader, fortran_writer, code, size_arg):
 @pytest.mark.parametrize(
     "code",
     [("where (my_type%var > epsi20)\n"
-      "my_type%array(:,jl) = 3.0\n", "my_type%var"),
+      "my_type%array(:,jl) = 3.0\n"),
      ("where (my_type%var > epsi20)\n"
-      "my_type(jl)%array(:,jl) = 3.0\n", "my_type%var"),
+      "my_type(jl)%array(:,jl) = 3.0\n"),
      ("where (my_type%block(jl)%var > epsi20)\n"
-      "my_type(jl%array(:,jl) = 3.0\n", "my_type%block(jl)%var"),
+      "my_type(jl%array(:,jl) = 3.0\n"),
      ("where (my_type%block(jl)%var > epsi20)\n"
-      "my_type%block(jl)%var = 3.0\n", "my_type%block(jl)%var")])
+      "my_type%block(jl)%var = 3.0\n")])
 @pytest.mark.xfail(reason="#1960 Can't handle WHERE constructs without "
                           "explicit array notation inside derived types.")
 def test_where_noarray_syntax_derived_types(fortran_reader, fortran_writer,
