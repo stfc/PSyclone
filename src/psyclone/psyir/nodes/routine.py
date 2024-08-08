@@ -78,7 +78,7 @@ class Routine(Schedule, CommentableMixin):
     def __init__(self, symbol, is_program=False,
                  symbol_tag=None, **kwargs):
         # These attributes need to be set before anything, as the _symbol
-        # is required for setting the _parent, which is overriden by Routine
+        # is required for setting the parent links.
         if not isinstance(symbol, RoutineSymbol):
             raise TypeError(f"Routine argument 'symbol' must be present and "
                             f"must be a RoutineSymbol but got "
@@ -335,6 +335,19 @@ class Routine(Schedule, CommentableMixin):
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol` or NoneType
         '''
         return self._symbol
+
+    @symbol.setter
+    def symbol(self, symbol):
+        '''
+        :param symbol: the RoutineSymbol corresponding to this Routine.
+        :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol` or NoneType
+
+        :raises TypeError: if the provided symbol is neither a RoutineSymbol or None
+        '''
+        if symbol and not isinstance(symbol, RoutineSymbol):
+            raise TypeError(f"Routine symbol must be a RoutineSymbol but got "
+                            f"'{type(symbol).__name__}'")
+        self._symbol = symbol
 
     @property
     def is_program(self):
