@@ -4123,31 +4123,7 @@ class Fparser2Reader():
         # in the PSyIR if possible.
         table = parent.scope.symbol_table
         one = Literal("1", INTEGER_TYPE)
-        refs = parent.walk(Reference)
         arrays = parent.walk(ArrayMixin)
-        for ref in refs:
-            add_op = BinaryOperation.Operator.ADD
-            sub_op = BinaryOperation.Operator.SUB
-            if (type(ref) is Reference and type(ref.symbol) is not Symbol and
-                    isinstance(ref.symbol.datatype, ArrayType)):
-                # Skip if the shape doesn't match the loop_vars length.
-                if len(ref.datatype.shape) != len(loop_vars):
-                    continue
-                # Have an implicit full range reference to an array which
-                # we need to convert ourselves.
-                temp_vals = [":" for i in range(len(ref.datatype.shape))]
-                array = ArrayReference.create(ref.symbol, temp_vals)
-                for dim in range(len(ref.datatype.shape)):
-                    # Create the index expression.
-                    symbol = table.lookup(loop_vars[dim])
-                    # We don't know what the lower bound is so have to
-                    # have an expression:
-                    #    idx-expr = array-lower-bound + loop-idx - 1
-                    lbound = array.get_lbound_expression(dim)
-                    expr = BinaryOperation.create(
-                        add_op, lbound, Reference(symbol))
-                    expr2 = BinaryOperation.create(sub_op, expr, one.copy())
-                    array.children[dim] = expr2
 
         first_rank = None
         for array in arrays:
@@ -4257,6 +4233,9 @@ class Fparser2Reader():
             not use array notation.
 
         '''
+        from psyclone.psyir.transformations import (
+                Reference2ArrayRangeTrans, TransformationError)
+
         def _contains_intrinsic_reduction(pnodes):
             '''
             Utility to check for Fortran intrinsics that perform a reduction
@@ -4345,25 +4324,18 @@ class Fparser2Reader():
         # parent for this logical expression we will repeat the processing.
         fake_parent = Assignment(parent=parent)
         self.process_nodes(fake_parent, logical_expr)
+        # We want to convert all the non-explicit array syntax code to use
+        # explicit array syntax.
+        # TODO 1799 If we have two arrays where one uses a non-maximal range
+        # that is defined we will not convert this correctly yet.
+        for ref in fake_parent.walk(Reference):
+            if isinstance(ref.symbol, DataSymbol):
+                try:
+                    Reference2ArrayRangeTrans().apply(ref)
+                except TransformationError:
+                    pass
         arrays = fake_parent.walk(ArrayMixin)
 
-        if not arrays:
-            # If the PSyIR doesn't contain any Arrays then that must be
-            # because the code doesn't use explicit array syntax. At least one
-            # variable in the logical-array expression must be an array for
-            # this to be a valid WHERE().
-            # TODO #1799. Look-up the shape of the array in the SymbolTable.
-            for ref in fake_parent.walk(Reference):
-                if isinstance(ref.datatype, ArrayType):
-                    ranges = []
-                    for dim in range(len(ref.datatype.shape)):
-                        ranges.append(":")
-                    if not isinstance(ref.datatype.datatype, ScalarType):
-                        print("Hello")
-                        raise NotImplementedError("TODO")
-                    replace_ref = ArrayReference.create(ref.symbol, ranges)
-                    ref.replace_with(replace_ref)
-                    arrays.append(replace_ref)
         for array in arrays:
             if any(isinstance(idx, Range) for idx in array.indices):
                 first_array = array
@@ -4457,6 +4429,13 @@ class Fparser2Reader():
         # second time here now that we have the correct parent node in the
         # PSyIR (and thus a SymbolTable) to refer to.
         self.process_nodes(ifblock, logical_expr)
+        # Convert References to arrays to use the array range notation.
+        for ref in ifblock.walk(Reference):
+            if isinstance(ref.symbol, DataSymbol):
+                try:
+                    Reference2ArrayRangeTrans().apply(ref)
+                except TransformationError:
+                    pass
 
         # Each array reference must now be indexed by the loop variables
         # of the loops we've just created.

@@ -816,7 +816,9 @@ def test_where_noarray_syntax_derived_types(fortran_reader, fortran_writer,
      ("where (var > var2)\n"
       "var = 3.0\n"),
      ("where (var(:) > var2)\n"
-         "var(:) = 3.0\n")])
+      "var(:) = 3.0\n"),
+     ("where (var > var2(1:20))\n"
+      "var = 3.0\n")])
 def test_where_scalar_var(fortran_reader, fortran_writer, code):
     '''Test where we have a scalar variable in a WHERE clause with no
     array index clause.'''
@@ -837,34 +839,6 @@ def test_where_scalar_var(fortran_reader, fortran_writer, code):
     assert len(loops) == 1
     assert isinstance(loops[0].stop_expr, Reference)
     assert loops[0].stop_expr.debug_string() == "nc"
-    assert isinstance(loops[0].loop_body[0], IfBlock)
-    # All Range nodes should have been replaced
-    assert not loops[0].walk(Range)
-    # All ArrayMember accesses should now use the `widx1` loop variable
-    array_members = loops[0].walk(ArrayMember)
-    for member in array_members:
-        assert "+ widx1 - 1" in member.indices[0].debug_string()
-
-
-def test_where_other_cases(fortran_reader, fortran_writer):
-    code = '''
-    program where_test
-    integer, parameter :: nc=20
-    integer :: ii
-    real :: var(nc)
-    real :: var2(nc)
-    var = 1.5
-    var2 = 1.6
-    where (var > var2(1:20))
-    var = 3.0
-    end where
-    end program'''
-    psyir = fortran_reader.psyir_from_source(code)
-    loops = psyir.walk(Loop)
-    assert len(loops) == 1
-    assert isinstance(loops[0].stop_expr, Literal)
-    assert loops[0].stop_expr.debug_string() == "20"
-    assert loops[0].start_expr.debug_string() == "1"
     assert isinstance(loops[0].loop_body[0], IfBlock)
     # All Range nodes should have been replaced
     assert not loops[0].walk(Range)
