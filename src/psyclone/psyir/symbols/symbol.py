@@ -199,10 +199,10 @@ class Symbol():
         Looks-up and returns the Symbol referred to by this Symbol's
         Import Interface.
 
-        :raises SymbolError: if the module pointed to by the symbol interface \
-                             does not contain the symbol (or the symbol is \
+        :raises SymbolError: if the module pointed to by the symbol interface
+                             does not contain the symbol (or the symbol is
                              not public).
-        :raises NotImplementedError: if this symbol does not have an \
+        :raises NotImplementedError: if this symbol does not have an
                                      ImportInterface.
         '''
         if not self.is_import:
@@ -211,20 +211,27 @@ class Symbol():
                 f"the lazy evaluation of '{self.interface}' interfaces is "
                 f"not supported.")
 
-        module = self.interface.container_symbol
+        csym = self.interface.container_symbol
+
         try:
-            return module.container.symbol_table.lookup(
+            container = csym.find_container_psyir()
+            if not container:
+                raise SymbolError(
+                    f"Error trying to resolve the properties of symbol "
+                    f"'{self.name}'. The interface points to module "
+                    f"'{csym.name}' but could not obtain its PSyIR.")
+            return container.symbol_table.lookup(
                 self.name, visibility=self.Visibility.PUBLIC)
         except KeyError as kerr:
             raise SymbolError(
                 f"Error trying to resolve the properties of symbol "
                 f"'{self.name}'. The interface points to module "
-                f"'{module.name}' but could not find the definition of "
+                f"'{csym.name}' but could not find the definition of "
                 f"'{self.name}' in that module.") from kerr
         except SymbolError as err:
             raise SymbolError(
               f"Error trying to resolve the properties of symbol "
-              f"'{self.name}' in module '{module.name}': {err.value}") from err
+              f"'{self.name}' in module '{csym.name}': {err.value}") from err
 
     def resolve_type(self):
         '''
@@ -240,15 +247,22 @@ class Symbol():
         '''
         if self.is_import:
             extern_symbol = self.get_external_symbol()
-            init_value = None
-            if extern_symbol.initial_value:
-                init_value = extern_symbol.initial_value.copy()
-            # Specialise the existing Symbol in-place so that all References
-            # to it remain valid.
-            self.specialise(type(extern_symbol),
-                            datatype=extern_symbol.datatype,
-                            is_constant=extern_symbol.is_constant,
-                            initial_value=init_value)
+            from psyclone.psyir.symbols import RoutineSymbol
+            if isinstance(extern_symbol, RoutineSymbol):
+                # Specialise the existing Symbol in-place so that all
+                # References to it remain valid.
+                self.specialise(type(extern_symbol),
+                                datatype=extern_symbol.datatype)
+            else:
+                init_value = None
+                if extern_symbol.initial_value:
+                    init_value = extern_symbol.initial_value.copy()
+                # Specialise the existing Symbol in-place so that all
+                # References to it remain valid.
+                self.specialise(type(extern_symbol),
+                                datatype=extern_symbol.datatype,
+                                is_constant=extern_symbol.is_constant,
+                                initial_value=init_value)
         return self
 
     @property
@@ -455,16 +469,16 @@ class Symbol():
         set to `i`. If `loop_variable` is specified, `access_information`
         must be specified.
 
-        :param str index_variable: optional loop variable that is used to \
+        :param str index_variable: optional loop variable that is used to
             to determine if an access is an array access using this variable.
         :param access_info: variable access information, optional.
-        :type access_info: \
+        :type access_info:
             :py:class:`psyclone.core.SingleVariableAccessInfo`
 
-        :returns: if the variable is an array.
+        :returns: whether or not the variable is an array.
         :rtype bool:
 
-        :raises InternalError: if a loop_variable is specified, but no \
+        :raises InternalError: if a loop_variable is specified, but no
             access information is given.
 
         '''
