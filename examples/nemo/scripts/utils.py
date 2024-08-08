@@ -35,6 +35,7 @@
 
 ''' Utilities file to parallelise Nemo code. '''
 
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Loop, Assignment, Directive, Container, Reference, CodeBlock, Call,
     Return, IfBlock, Routine, IntrinsicCall)
@@ -42,9 +43,9 @@ from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ScalarType,
     RoutineSymbol, ImportInterface)
 from psyclone.psyir.transformations import (
-    HoistLoopBoundExprTrans, HoistTrans, ProfileTrans, HoistLocalArraysTrans,
-    Maxval2LoopTrans, Reference2ArrayRangeTrans)
-from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans
+    ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
+    HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
+    Reference2ArrayRangeTrans)
 from psyclone.transformations import TransformationError
 
 
@@ -148,6 +149,57 @@ def enhance_tree_information(schedule):
             for child in reference.children:
                 call.addchild(child.detach())
             reference.replace_with(call)
+
+
+def inline_calls(schedule):
+    '''
+    Looks for all Calls within the supplied Schedule and attempts to:
+
+      1. Find the source of the routine being called.
+      2. Insert that source into the same Container as the call site.
+      3. Replace the call to the routine with the body of the routine.
+
+    where each step is dependent upon the success of the previous one.
+
+    TODO #924 - this could be InlineAllCallsTrans.apply(schedule,
+                                                        excluding={})
+
+    :param schedule: the schedule in which to search for Calls.
+    :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
+
+    '''
+    excluding = ["ctl_stop", "ctl_warn", "eos", "iom_", "hist", "mpi_",
+                 "timing_", "oasis_"]
+    ignore_codeblocks = ["bdy_dyn3d_frs", "bdy_dyn3d_spe", "bdy_dyn3d_zro",
+                         "bdy_dyn3d_zgrad"]
+    mod_inline_trans = KernelModuleInlineTrans()
+    inline_trans = InlineTrans()
+    all_calls = schedule.walk(Call)
+    for call in all_calls:
+        if isinstance(call, IntrinsicCall):
+            continue
+        rsym = call.routine.symbol
+        name = rsym.name.lower()
+        if any(name.startswith(excl_name) for excl_name in excluding):
+            print(f"Inlining of routine '{name}' is disabled.")
+            continue
+        if rsym.is_import:
+            try:
+                mod_inline_trans.apply(call)
+                print(f"Module-inlined routine '{name}'")
+            except TransformationError as err:
+                print(f"Module inline of '{name}' failed:\n{err}")
+                continue
+        try:
+            options = {}
+            if name in ignore_codeblocks:
+                options["force"] = True
+                print(f"Forcing inlining of '{name}'")
+            inline_trans.apply(call, options=options)
+            print(f"Inlined routine '{name}'")
+        except TransformationError as err:
+            print(f"Inlining of '{name}' failed:\n{err}")
+            continue
 
 
 def normalise_loops(
@@ -311,9 +363,11 @@ def insert_explicit_loop_parallelism(
             # And if successful, the region directive on top.
             if region_directive_trans:
                 region_directive_trans.apply(loop.parent.parent)
-        except TransformationError as err:
-            # This loop can not be transformed, proceed to next loop
-            loop.append_preceding_comment(f"PSyclone: {err.value}")
+        except TransformationError:
+            # This loop cannot be transformed, proceed to next loop.
+            # The parallelisation restrictions will be explained with a comment
+            # associted to the loop in the generated output.
+            continue
 
 
 def add_profiling(children):
