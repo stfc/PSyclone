@@ -45,9 +45,9 @@ from fparser.two import Fortran2003
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
-    ArrayMember, ArrayReference, Assignment, BinaryOperation, Call, CodeBlock,
-    Container, IfBlock, IntrinsicCall, Literal, Loop, Range, Reference,
-    Routine, Schedule, UnaryOperation)
+    ArrayMember, ArrayReference, Assignment, BinaryOperation,
+    Call, CodeBlock, Container, IfBlock, IntrinsicCall, Literal, Loop, Range,
+    Reference, Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, INTEGER_TYPE,
     UnresolvedInterface)
@@ -837,12 +837,18 @@ def test_where_scalar_var(fortran_reader, fortran_writer, code):
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     assert len(loops) == 1
+    print(fortran_writer(psyir))
     assert isinstance(loops[0].stop_expr, Reference)
     assert loops[0].stop_expr.debug_string() == "nc"
     assert isinstance(loops[0].loop_body[0], IfBlock)
     # All Range nodes should have been replaced
     assert not loops[0].walk(Range)
-    # All ArrayMember accesses should now use the `widx1` loop variable
-    array_members = loops[0].walk(ArrayMember)
-    for member in array_members:
-        assert "+ widx1 - 1" in member.indices[0].debug_string()
+    array_refs = loops[0].walk(ArrayReference)
+    for member in array_refs:
+        assert "widx1" in member.indices[0].debug_string()
+
+    # All References to var or var2 should be ArrayReferences
+    refs = loops[0].walk(Reference)
+    for ref in refs:
+        if "var" in ref.symbol.name:
+            assert isinstance(ref, ArrayReference)
