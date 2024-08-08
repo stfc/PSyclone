@@ -303,13 +303,15 @@ class ACCEnterDataDirective(ACCStandaloneDirective, ACCAsyncMixin):
         :returns: the opening statement of this directive.
         :rtype: str
 
-        :raises GenerationError: if there are no variables to copy to \
+        :raises GenerationError: if there are no variables to copy to
                                  the device.
         '''
         if not self._sig_set:
             # There should be at least one variable to copyin.
             # TODO #1872: this directive needs reimplementing using the Clause
-            # class and proper lowering.
+            # class and proper lowering. When this is fixed it may be possible
+            # to change RegionTrans.validate() so that it always uses
+            # Node.debug_string() rather than only for CodeBlocks.
             raise GenerationError(
                 "ACCEnterData directive did not find any data to copyin. "
                 "Perhaps there are no ACCParallel or ACCKernels directives "

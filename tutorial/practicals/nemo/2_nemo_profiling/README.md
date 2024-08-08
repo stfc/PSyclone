@@ -198,9 +198,19 @@ transformation script to perform finer-grained profiling.
    the 'simple_timing' library we have used so far is 'dl_timer' which
    is available from
    [bitbucket](https://bitbucket.org/apeg/dl_timer/src/master/). You
-   will need to obtain the source for this library and then update the
-   three `PROFILE_*` variables in the Makefile in this directory to point
-   to its location.
+   will need to obtain the source for this library:
+   ```
+   git clone https://bitbucket.org/apeg/dl_timer.git
+   cd dl_timer
+   . compiler_setup/gnu.sh
+   make sm_lib
+   ```
+   and then update the
+   various `PROFILE_*` variables in the Makefile in this tutorial directory
+   to point to its location.
+
+   **NOTE:** dl_timer requires an *initialisation* call to be added to
+   `runner.f90` (`call profile_psydatainit()`).
 
 ## 4. Conclusion
 
