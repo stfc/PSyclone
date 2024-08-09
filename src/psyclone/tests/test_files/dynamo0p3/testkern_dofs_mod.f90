@@ -45,9 +45,9 @@ module testkern_dofs_mod
   type, extends(kernel_type) :: testkern_dofs_type
      type(arg_type), dimension(4) :: meta_args =          &
           (/ arg_type(gh_field, gh_real, gh_write, w1),   &
-             arg_type(gh_field, gh_real, gh_read,  w2),   &
-             arg_type(gh_field, gh_real, gh_read,  w2),   &
-             arg_type(gh_field, gh_real, gh_read,  w3)    &
+             arg_type(gh_field, gh_real, gh_read,  w1),   &
+             arg_type(gh_field, gh_real, gh_read,  w1),   &
+             arg_type(gh_field, gh_real, gh_read,  w1)    &
            /)
      integer :: operates_on = DOF
    contains
