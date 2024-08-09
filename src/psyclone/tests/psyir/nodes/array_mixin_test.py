@@ -608,6 +608,7 @@ def test_get_effective_shape(fortran_reader):
     code = (
         "subroutine test()\n"
         "  use some_mod\n"
+        "  integer :: idx = 2\n"
         "  integer :: indices(8,3)\n"
         "  real a(10), b(10,10)\n"
         "  a(1:10) = 0.0\n"
@@ -621,6 +622,7 @@ def test_get_effective_shape(fortran_reader):
         "  b(indices(2:3,1:2), 2:5) = 2.0\n"
         "  a(f()) = 2.0\n"
         "  a(2+3) = 1.0\n"
+        "  b(idx, a) = -1.0\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
@@ -691,6 +693,12 @@ def test_get_effective_shape(fortran_reader):
     with pytest.raises(NotImplementedError) as err:
         _ = routine.children[child_idx].lhs._get_effective_shape()
     assert "include a function call or expression" in str(err.value)
+    # Array access with indices given by another array that is not explicitly
+    # indexed.
+    child_idx += 1
+    shape = routine.children[child_idx].lhs._get_effective_shape()
+    assert len(shape) == 1
+    assert "SIZE(a)" in shape[0].debug_string()
 
 
 # get_outer_range_index

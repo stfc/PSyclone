@@ -303,6 +303,38 @@ def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
             in output_test4)
 
 
+def test_apply_indirect_indexing(fortran_reader, fortran_writer):
+    '''
+    Check the application of the transformation when the array is indexed
+    indirectly.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    program test
+      use dom_oce
+      INTEGER, DIMENSION(4)  ::   iwewe
+      INTEGER, DIMENSION(8,kfld)  :: ishtSi
+      integer :: jf
+      iwewe(:) = (/ jpwe,jpea,jpwe,jpea /)
+      do jf = 1, kfld
+        ishtSi(5:8,jf) = ishtSi( iwewe,jf )
+      end do
+    end program test
+    ''')
+    assignments = psyir.walk(Assignment)
+    # Only transform the second assignment as the first contains a
+    # CodeBlock. (We check this here so that this test can be extended
+    # if/when the CodeBlock is removed.)
+    assert isinstance(assignments[0].rhs, CodeBlock)
+    trans = ArrayAssignment2LoopsTrans()
+    trans.apply(assignments[1])
+    result = fortran_writer(psyir)
+    assert ('''
+    do idx = 5, 8, 1
+      ishtsi(idx,jf) = ishtsi(iwewe(idx + (1 - 5)),jf)
+    enddo''' in result)
+
+
 def test_apply_outside_routine(fortran_reader, fortran_writer):
     ''' Check that the transformation still succeeds and generates valid
     code when found in a scope detached from a Routine. '''
@@ -568,15 +600,18 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
     '''
     psyir = fortran_reader.psyir_from_source('''
     subroutine test(unsupported)
-        use my_variables, only: unresolved
+        use my_variables, only: unresolved, map
         integer :: scalar = 1
         integer, dimension(:) :: array = 1, x
         integer, dimension(:), optional :: unsupported
-
+        integer, dimension(4) :: ishtsi
         x(:) = scalar
         x(:) = array
         x(:) = unresolved
         x(:) = unsupported
+        ! An indirectly-addressed RHS but we can't tell whether or not map is
+        ! an array reference
+        x(:) = ishtsi(map,scalar)
     end subroutine test
     ''')
 
@@ -616,6 +651,13 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
             "and therefore cannot be guaranteed to be ScalarType."
             in str(info.value))
 
+    with pytest.raises(TransformationError) as info:
+        trans.apply(psyir.walk(Assignment)[4], opts)
+    assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
+            "contains the access 'ishtsi(map,scalar)' and whether or not the "
+            "index expression 'map' is itself an array is unknown" in
+            str(info.value))
+
     # The end result should look like:
     assert (
         "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
@@ -634,6 +676,10 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
         "Type('INTEGER, DIMENSION(:), OPTIONAL :: unsupported') and therefore "
         "cannot be guaranteed to be ScalarType.\n"
         "  x(:) = unsupported\n"
+        "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "
+        "contains the access 'ishtsi(map,scalar)' and whether or not the "
+        "index expression 'map' is itself an array is unknown.\n"
+        "  x(:) = ishtsi(map,scalar)\n"
     ) in fortran_writer(psyir)
 
 
