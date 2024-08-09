@@ -1207,7 +1207,8 @@ def test_kernel_datatype_not_found():
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(BASE_PATH, "testkern_no_datatype_mod.f90"),
                  api=TEST_API)
-    assert 'Kernel type testkern_type does not exist' in str(excinfo.value)
+    assert ('Kernel type testkern_no_datatype_type does not exist' in
+            str(excinfo.value))
 
 
 def test_arg_descriptor_funcs_method_error():
