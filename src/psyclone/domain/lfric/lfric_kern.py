@@ -56,7 +56,7 @@ from psyclone.psyir.nodes import (
     Loop, Literal, Reference, KernelSchedule, Container, Routine)
 from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, ArrayType, UnsupportedFortranType, DataTypeSymbol,
-    UnresolvedType, SymbolTable, ContainerSymbol)
+    UnresolvedType, SymbolTable, ContainerSymbol, UnknownInterface)
 
 
 class LFRicKern(CodedKern):

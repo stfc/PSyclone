@@ -69,7 +69,7 @@ def test_creation():
     assert "f2:data" in tags
 
 
-def test_invoke_declarations():
+def test_invoke_declarations(fortran_writer):
     '''
     Test the _invoke_declarations() method, primarily by checking the
     generated declarations in output code.
@@ -81,19 +81,20 @@ def test_invoke_declarations():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     proxies = DynProxies(invoke)
-    amod = ModuleGen("test_mod")
-    node = SubroutineGen(amod, name="a_sub")
-    amod.add(node)
-    proxies._invoke_declarations(node)
-    code = str(amod.root).lower()
-    assert ("real(kind=r_def), pointer, dimension(:) :: f1_1_data => null(), "
-            "f1_2_data => null(), f1_3_data => null()" in code)
-    assert "type(field_proxy_type) f1_proxy(3)" in code
+    proxies._invoke_declarations(0)
+    code = fortran_writer(invoke.schedule)
+    assert ("real(kind=r_def), pointer, dimension(:) :: f1_1_data => null()"
+            in code)
+    assert ("real(kind=r_def), pointer, dimension(:) :: f1_2_data => null()"
+            in code)
+    assert ("real(kind=r_def), pointer, dimension(:) :: f1_3_data => null()"
+            in code)
+    assert "type(field_proxy_type), dimension(3) :: f1_proxy" in code
     assert ("r_def" in
             invoke.invokes.psy.infrastructure_modules["constants_mod"])
 
 
-def test_initialise():
+def test_initialise(fortran_writer):
     '''
     Test the initialise() method.
 
@@ -104,13 +105,10 @@ def test_initialise():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     proxies = DynProxies(invoke)
-    amod = ModuleGen("test_mod")
-    node = SubroutineGen(amod, name="a_sub")
-    amod.add(node)
-    proxies._invoke_declarations(node)
-    proxies.initialise(node)
-    code = str(amod.root).lower()
-    assert "initialise field and/or operator proxies" in code
+    proxies._invoke_declarations(0)
+    proxies.initialise(0)
+    code = fortran_writer(invoke.schedule)
+    assert "! Initialise field and/or operator proxies" in code
     assert ("r_def" in
             invoke.invokes.psy.infrastructure_modules["constants_mod"])
     assert "my_mapping_proxy = my_mapping%get_proxy()" in code
@@ -130,10 +128,7 @@ def test_initialise_errors(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     kern = invoke.schedule.walk(LFRicKern)[0]
     proxies = DynProxies(invoke)
-    amod = ModuleGen("test_mod")
-    node = SubroutineGen(amod, name="a_sub")
-    amod.add(node)
-    proxies._invoke_declarations(node)
+    proxies._invoke_declarations(0)
     # Monkeypatch the first kernel argument so that it is of an unrecognised
     # type.
     monkeypatch.setattr(kern.args[0], "_argument_type", "gh_wrong")
@@ -141,7 +136,7 @@ def test_initialise_errors(monkeypatch):
     monkeypatch.setattr(LFRicConstants, "ARG_TYPE_SUFFIX_MAPPING",
                         {"gh_wrong": "data"})
     with pytest.raises(InternalError) as err:
-        proxies.initialise(node)
+        proxies.initialise(0)
     assert ("Kernel argument 'my_mapping' of type 'gh_wrong' not handled in "
             "DynProxies.initialise()" in str(err.value))
 
@@ -149,7 +144,7 @@ def test_initialise_errors(monkeypatch):
     # argument is recognised as an operator.
     monkeypatch.setattr(LFRicConstants, "VALID_OPERATOR_NAMES", ["gh_wrong"])
     with pytest.raises(InternalError) as err:
-        proxies.initialise(node)
+        proxies.initialise(0)
     assert ("Kernel argument 'my_mapping' is a recognised operator but its "
             "type ('gh_wrong') is not supported by DynProxies.initialise()"
             in str(err.value))

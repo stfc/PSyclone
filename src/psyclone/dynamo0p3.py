@@ -632,7 +632,7 @@ class LFRicMeshProperties(LFRicCollection):
                     # Update the name in case there was a clash
                     adj_face = adj_face_sym.name
                     if var_accesses:
-                        var_accesses.add_acrcess(Signature(adj_face),
+                        var_accesses.add_access(Signature(adj_face),
                                                 AccessType.READ, self._kernel,
                                                 [":", cell_ref])
 
@@ -760,10 +760,10 @@ class LFRicMeshProperties(LFRicCollection):
             elif prop == MeshProperty.NCELL_2D:
                 ncell_2d = self._symbol_table.find_or_create_integer_symbol(
                     "ncell_2d", tag="ncell_2d")
-                parent.add(
-                    DeclGen(parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            intent="in", entity_decls=[ncell_2d.name]))
+                # parent.add(
+                #     DeclGen(parent, datatype="integer",
+                #             kind=api_config.default_kind["integer"],
+                #             intent="in", entity_decls=[ncell_2d.name]))
             else:
                 raise InternalError(
                     f"Found unsupported mesh property '{prop}' when generating"
@@ -2226,9 +2226,9 @@ class DynCMAOperators(LFRicCollection):
                               datatype=dtype,
                               tag=tag)
             # Now the various integer parameters of the operator.
-            for param in self._cma_ops[op_name]["params"]:
-                symtab.find_or_create_integer_symbol(
-                    f"{op_name}_{param}", tag=f"{op_name}:{param}:{suffix}")
+            # for param in self._cma_ops[op_name]["params"]:
+            #     symtab.find_or_create_integer_symbol(
+            #         f"{op_name}_{param}", tag=f"{op_name}:{param}:{suffix}")
 
     def initialise(self, cursor):
         '''
@@ -2384,9 +2384,19 @@ class DynCMAOperators(LFRicCollection):
 
         # CMA operators always need the current cell index and the number
         # of columns in the mesh
-        parent.add(DeclGen(parent, datatype="integer",
-                           kind=api_config.default_kind["integer"],
-                           intent="in", entity_decls=["cell", "ncell_2d"]))
+        symbol = symtab.find_or_create(
+            "cell", symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+        symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+        symtab.append_argument(symbol)
+        symbol = symtab.find_or_create(
+            "ncell_2d", symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+        symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+        symtab.append_argument(symbol)
+        # parent.add(DeclGen(parent, datatype="integer",
+        #                    kind=api_config.default_kind["integer"],
+        #                    intent="in", entity_decls=["cell", "ncell_2d"]))
 
         const = LFRicConstants()
         suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
@@ -2395,29 +2405,53 @@ class DynCMAOperators(LFRicCollection):
             # Declare the associated scalar arguments before the array because
             # some of them are used to dimension the latter (and some compilers
             # get upset if this ordering is not followed)
-            _local_args = []
             for param in self._cma_ops[op_name]["params"]:
-                param_name = symtab.find_or_create_tag(
+                symbol = symtab.find_or_create_tag(
                     f"{op_name}:{param}:{suffix}",
-                    root_name=f"{op_name}_{param}").name
-                _local_args.append(param_name)
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=_local_args))
+                    root_name=f"{op_name}_{param}",
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                symbol.interface = ArgumentInterface(
+                        ArgumentInterface.Access.READ)
+                symtab.append_argument(symbol)
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    intent="in", entity_decls=_local_args))
             # Declare the array that holds the CMA operator
             bandwidth = symtab.find_or_create_tag(
                 f"{op_name}:bandwidth:{suffix}",
-                root_name=f"{op_name}_bandwidth").name
+                root_name=f"{op_name}_bandwidth",
+                symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            bandwidth.interface = ArgumentInterface(
+                    ArgumentInterface.Access.READ)
+            symtab.append_argument(bandwidth)
+
             nrow = symtab.find_or_create_tag(
                 f"{op_name}:nrow:{suffix}",
-                root_name=f"{op_name}_nrow").name
-            intent = self._cma_ops[op_name]["intent"]
-            op_dtype = self._cma_ops[op_name]["datatype"]
-            op_kind = self._cma_ops[op_name]["kind"]
-            parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
-                               dimension=",".join([bandwidth,
-                                                   nrow, "ncell_2d"]),
-                               intent=intent, entity_decls=[op_name]))
+                root_name=f"{op_name}_nrow",
+                symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            nrow.interface = ArgumentInterface(
+                    ArgumentInterface.Access.READ)
+            symtab.append_argument(nrow)
+            
+            # intent = self._cma_ops[op_name]["intent"]
+            # op_dtype = self._cma_ops[op_name]["datatype"]
+            # op_kind = self._cma_ops[op_name]["kind"]
+            op = symtab.find_or_create(
+                op_name, symbol_type=DataSymbol,
+                datatype=ArrayType(
+                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                    [Reference(bandwidth), Reference(nrow),
+                     Reference(symtab.lookup("ncell_2d"))]))
+            op.interface = ArgumentInterface(
+                    ArgumentInterface.Access.READ)
+            symtab.append_argument(op)
+            # parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
+            #                    dimension=",".join([bandwidth,
+            #                                        nrow, "ncell_2d"]),
+            #                    intent=intent, entity_decls=[op_name]))
         return cursor
 
 

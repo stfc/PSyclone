@@ -229,8 +229,9 @@ class LFRicDofmaps(LFRicCollection):
         for dmap, cma in self._unique_indirection_maps.items():
             stmt = Assignment.create(
                     lhs=Reference(self._symbol_table.lookup(dmap)),
-                    rhs=cma.generate_method_call(
-                        f"indirection_dofmap_{cma['direction']}"),
+                    rhs=cma['argument'].generate_method_call(
+                        f"indirection_dofmap_{cma['direction']}",
+                        use_proxy=False),
                     is_pointer=True)
             if first:
                 stmt.preceding_comment = (
@@ -348,14 +349,27 @@ class LFRicDofmaps(LFRicCollection):
                     f"Invalid direction ('{cma['''direction''']}') found for "
                     f"CMA operator when collecting column-banded dofmaps. "
                     f"Should be either 'to' or 'from'.")
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[ndf_name]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in",
-                               dimension=",".join([ndf_name, "nlayers"]),
-                               entity_decls=[dmap]))
+            symbol = self._symbol_table.find_or_create(
+                ndf_name, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self._symbol_table.append_argument(symbol)
+
+            nlayers = self._symbol_table.lookup("nlayers")
+            dmap_symbol = self._symbol_table.find_or_create(
+                dmap, symbol_type=DataSymbol,
+                datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
+                                   [Reference(symbol), Reference(nlayers)]))
+            dmap_symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self._symbol_table.append_argument(dmap_symbol)
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    intent="in", entity_decls=[ndf_name]))
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    intent="in",
+            #                    dimension=",".join([ndf_name, "nlayers"]),
+            #                    entity_decls=[dmap]))
         # CMA operator indirection dofmaps
         for dmap, cma in self._unique_indirection_maps.items():
             if cma["direction"] == "to":
@@ -367,13 +381,25 @@ class LFRicDofmaps(LFRicCollection):
                     f"Invalid direction ('{cma['''direction''']}') found for "
                     f"CMA operator when collecting indirection dofmaps. "
                     f"Should be either 'to' or 'from'.")
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[dim_name]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", dimension=dim_name,
-                               entity_decls=[dmap]))
+            dim = self._symbol_table.find_or_create(
+                dim_name, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            dim.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self._symbol_table.append_argument(dim)
+
+            dmap_symbol = self._symbol_table.find_or_create(
+                dmap, symbol_type=DataSymbol,
+                datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
+                                   [Reference(dim)]))
+            dmap_symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self._symbol_table.append_argument(dmap_symbol)
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    intent="in", entity_decls=[dim_name]))
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    intent="in", dimension=dim_name,
+            #                    entity_decls=[dmap]))
         return cursor
 
 

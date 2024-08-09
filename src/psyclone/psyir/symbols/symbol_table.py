@@ -568,7 +568,7 @@ class SymbolTable():
         if not isinstance(new_symbol, Symbol):
             raise InternalError(f"Symbol '{new_symbol}' is not a symbol, but "
                                 f"'{type(new_symbol).__name__}'.'")
-        # if new_symbol.name in ("weights_xyz_qr", ):
+        # if new_symbol.name in ("cma_op_3_nrow_1", ):
         #     import pdb; pdb.set_trace()
 
         key = self._normalize(new_symbol.name)

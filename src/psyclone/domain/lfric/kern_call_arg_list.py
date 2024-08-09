@@ -53,7 +53,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference, StructureReference
 from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
-    ImportInterface, ScalarType)
+    ImportInterface, ScalarType, ArrayType)
 
 # psyir has classes created at runtime
 # pylint: disable=no-member
@@ -945,11 +945,15 @@ class KernCallArgList(ArgOrdering):
                 # If there is only one colourmap we need to specify the tag
                 # to make sure we get the right symbol.
                 tag = "cmap"
-            array_ref = self.get_array_reference(self._kern.colourmap.name,
-                                                 [Reference(colour_sym),
-                                                  Reference(cell_sym)],
-                                                 ScalarType.Intrinsic.INTEGER,
-                                                 tag=tag)
+            symbol = self._symtab.find_or_create(
+                self._kern.colourmap.name, symbol_type=DataSymbol,
+                datatype=ArrayType(
+                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                    [ArrayType.Extent.DEFERRED, ArrayType.Extent.DEFERRED]),
+                tag=tag)
+            array_ref = ArrayReference.create(
+                    symbol,
+                    [Reference(colour_sym), Reference(cell_sym)])
             if var_accesses is not None:
                 var_accesses.add_access(Signature(colour_sym.name),
                                         AccessType.READ, self._kern)

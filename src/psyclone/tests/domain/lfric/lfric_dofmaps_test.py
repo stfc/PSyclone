@@ -152,9 +152,8 @@ def test_cbanded_test_comments():
     code = str(psy.gen)
 
     output = (
-        "      !\n"
-        "      ! Look-up required column-banded dofmaps\n"
-        "      !\n"
+        "\n"
+        "    ! Look-up required column-banded dofmaps\n"
     )
 
     assert output in code
@@ -172,40 +171,42 @@ def test_unique_fs_comments():
     code = str(psy.gen)
 
     output = (
-        "      !\n"
-        "      ! Look-up dofmaps for each function space\n"
-        "      !\n"
+        "\n"
+        "    ! Look-up dofmaps for each function space\n"
         )
 
     assert output in code
 
 
-def test_stub_decl_dofmaps():
+def test_stub_daecl_dofmaps(fortran_writer):
     '''
     Check that LFRicDofmaps generates the expected declarations in the stub.
 
     '''
 
-    result = generate(os.path.join(BASE_PATH,
+    stub_psyir = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_asm_kernel_mod.F90"),
                       api=TEST_API)
+    result = fortran_writer(stub_psyir)
 
-    assert ("INTEGER(KIND=i_def), intent(in) :: cma_op_2_nrow, cma_op_2_ncol"
-            in str(result))
+    assert "integer(kind=i_def), intent(in) :: cma_op_2_ncol" in result
+    assert "integer(kind=i_def), intent(in) :: cma_op_2_nrow" in result
 
 
-def test_lfricdofmaps_stub_gen():
+def test_lfricdofmaps_stub_gen(fortran_writer):
     '''
     Test the kernel-stub generator for a CMA apply kernel. This has
     two fields and one CMA operator as arguments.
 
     '''
-    result = generate(os.path.join(BASE_PATH,
+    stub_psyir = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_app_kernel_mod.F90"),
                       api=TEST_API)
+    import pdb; pdb.set_trace()
+    result = fortran_writer(stub_psyir)
 
     expected = (
-        "    SUBROUTINE columnwise_op_app_kernel_code(cell, ncell_2d, "
+        "    subroutine columnwise_op_app_kernel_code(cell, ncell_2d, "
         "field_1_aspc1_field_1, field_2_aspc2_field_2, cma_op_3, "
         "cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, "
         "cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p, "
