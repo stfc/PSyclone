@@ -326,28 +326,43 @@ class PSyDataNode(Statement):
         ''' Generate the necessary symbols to import and use this PSyDataNode
         in the provided symbol_table if they don't already exist.
 
-        :param symbol_table: the associated SymbolTable to which symbols \
+        :param symbol_table: the associated SymbolTable to which symbols
             must be added.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
         # Ensure that we have a container symbol for the API access
         try:
-            csym = symbol_table.lookup_with_tag(self.fortran_module)
+            csym = symbol_table.lookup(self.fortran_module)
         except KeyError:
-            # The tag doesn't exist which means that we haven't already added
-            # this Container as part of a PSyData transformation.
+            # The symbol doesn't exist which means that we haven't already
+            # added this Container as part of a PSyData transformation.
             csym = ContainerSymbol(self.fortran_module)
             symbol_table.add(csym, tag=self.fortran_module)
+
+        if not isinstance(csym, ContainerSymbol):
+            raise InternalError(
+                f"Cannot add PSyData module '{self.fortran_module}' because "
+                f"another Symbol already exists with that name and is a "
+                f"{type(csym).__name__} rather than a ContainerSymbol.")
 
         # Add the symbols that will be imported from the module. Use the
         # PSyData names as tags to ensure we don't attempt to add them more
         # than once if multiple transformations are applied.
         for sym in self.imported_symbols:
-            symbol_table.find_or_create_tag(sym.name,
-                                            symbol_type=sym.symbol_type,
-                                            interface=ImportInterface(csym),
-                                            datatype=UnresolvedType())
+            existing_sym = symbol_table.lookup(sym.name, otherwise=None)
+            if existing_sym:
+                if not (existing_sym.is_import and
+                        existing_sym.interface.container_symbol is csym):
+                    raise InternalError(
+                        f"Cannot add PSyData symbol '{sym.name}' because it "
+                        f"already exists but is not imported from "
+                        f"'{csym.name}'")
+            else:
+                symbol_table.find_or_create_tag(
+                    sym.name, symbol_type=sym.symbol_type,
+                    interface=ImportInterface(csym),
+                    datatype=UnresolvedType())
 
         # Store the name of the PSyData variable that is used for this
         # PSyDataNode. This allows the variable name to be shown in str
