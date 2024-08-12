@@ -2184,18 +2184,19 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         sym_tab = subroutine.symbol_table.deep_copy()
         generated_code = subroutine.pop_all_children()
 
-        real_subroutine = Routine(subroutine_symbol,
-                                  symbol_table=sym_tab,
-                                  symbol_tag="openacc_read_func")
-        for node in generated_code:
-            real_subroutine.addchild(node)
-
         # Insert the routine as a child of the ancestor Container
         if not self.ancestor(Container):
             raise GenerationError(
                 f"The GOACCEnterDataDirective can only be generated/lowered "
                 f"inside a Container in order to insert a sibling "
                 f"subroutine, but '{self}' is not inside a Container.")
+
+        self.ancestor(Container).symbol_table.add(subroutine_symbol,
+                                                  tag="openacc_read_func")
+        real_subroutine = Routine(subroutine_symbol,
+                                  symbol_table=sym_tab)
+        for node in generated_code:
+            real_subroutine.addchild(node)
 
         self.ancestor(Container).addchild(real_subroutine)
 

@@ -934,7 +934,9 @@ class GOOpenCLTrans(Transformation):
 
         # Create the new Routine
         sub_name = node.symbol_table.next_available_name(sub_name)
-        argsetter = Routine.create(sub_name, symbol_tag=sub_name)
+        sub_symbol = RoutineSymbol(sub_name)
+        node.symbol_table.add(sub_symbol, tag=kernel.name + "_set_args")
+        argsetter = Routine(sub_symbol)
         arg_list = []
 
         # Add subroutine imported symbols
@@ -1018,7 +1020,7 @@ class GOOpenCLTrans(Transformation):
         # Add the subroutine as child of the provided node
         node.addchild(argsetter)
 
-        return node.symbol_table.lookup_with_tag(sub_name)
+        return node.symbol_table.lookup_with_tag(kernel.name + "_set_args")
 
     def _insert_opencl_init_routine(self, node):
         '''
@@ -1098,9 +1100,9 @@ class GOOpenCLTrans(Transformation):
         sym_tab = subroutine.symbol_table.deep_copy()
         generated_code = subroutine.pop_all_children()
 
+        symtab.add(subroutine_symbol, tag="ocl_init_routine")
         real_subroutine = Routine(subroutine_symbol,
-                                  symbol_table=sym_tab,
-                                  symbol_tag="ocl_init_routine")
+                                  symbol_table=sym_tab)
         for nodes in generated_code:
             real_subroutine.addchild(nodes)
 
@@ -1197,9 +1199,9 @@ class GOOpenCLTrans(Transformation):
 
         sym_tab = subroutine.symbol_table.deep_copy()
         generated_code = subroutine.pop_all_children()
+        symtab.add(subroutine_symbol, tag="ocl_init_grid_buffers")
         real_subroutine = Routine(subroutine_symbol,
-                                  symbol_table=sym_tab,
-                                  symbol_tag="ocl_init_grid_buffers")
+                                  symbol_table=sym_tab)
         for nodes in generated_code:
             real_subroutine.addchild(nodes)
 
@@ -1284,9 +1286,9 @@ class GOOpenCLTrans(Transformation):
 
         sym_tab = subroutine.symbol_table.deep_copy()
         generated_code = subroutine.pop_all_children()
+        symtab.add(subroutine_symbol, tag="ocl_write_grid_buffers")
         real_subroutine = Routine(subroutine_symbol,
-                                  symbol_table=sym_tab,
-                                  symbol_tag="ocl_write_grid_buffers")
+                                  symbol_table=sym_tab)
         for nodes in generated_code:
             real_subroutine.addchild(nodes)
 
@@ -1380,9 +1382,9 @@ class GOOpenCLTrans(Transformation):
 
         sym_tab = subroutine.symbol_table.deep_copy()
         generated_code = subroutine.pop_all_children()
+        symtab.add(subroutine_symbol, tag="ocl_read_func")
         real_subroutine = Routine(subroutine_symbol,
-                                  symbol_table=sym_tab,
-                                  symbol_tag="ocl_read_func")
+                                  symbol_table=sym_tab)
         for nodes in generated_code:
             real_subroutine.addchild(nodes)
 
@@ -1476,9 +1478,9 @@ class GOOpenCLTrans(Transformation):
 
         sym_tab = subroutine.symbol_table.deep_copy()
         generated_code = subroutine.pop_all_children()
+        symtab.add(subroutine_symbol, tag="ocl_write_func")
         real_subroutine = Routine(subroutine_symbol,
-                                  symbol_table=sym_tab,
-                                  symbol_tag="ocl_write_func")
+                                  symbol_table=sym_tab)
         for nodes in generated_code:
             real_subroutine.addchild(nodes)
 
@@ -1555,9 +1557,9 @@ class GOOpenCLTrans(Transformation):
         subroutine = container.children[0]
         sym_tab = subroutine.symbol_table.deep_copy()
         generated_code = subroutine.pop_all_children()
+        symtab.add(subroutine_symbol, tag="ocl_init_buffer_func")
         real_subroutine = Routine(subroutine_symbol,
-                                  symbol_table=sym_tab,
-                                  symbol_tag="ocl_init_buffer_func")
+                                  symbol_table=sym_tab)
         for nodes in generated_code:
             real_subroutine.addchild(nodes)
 

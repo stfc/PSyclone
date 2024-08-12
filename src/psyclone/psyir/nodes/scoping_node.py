@@ -136,6 +136,7 @@ class ScopingNode(Node):
         # We have to import Routine here to avoid a circular dependency.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.routine import Routine
+        removed_tags = {}
         for node in other.walk(Routine):
             try:
                 if isinstance(self._symbol_table.lookup(node.name),
@@ -148,12 +149,18 @@ class ScopingNode(Node):
                     for tag, tagged_symbol in list(
                             self._symbol_table._tags.items()):
                         if symbol is tagged_symbol:
+                            removed_tags[tag] = tagged_symbol
                             del self._symbol_table._tags[tag]
             except KeyError:
                 pass
 
         super(ScopingNode, self)._refine_copy(other)
         # pylint: disable=protected-access
+
+        # Add any routine tags back
+        for tag in removed_tags.keys():
+            self._symbol_table._tags[tag] = self._symbol_table.lookup(
+                    removed_tags[tag].name)
 
         # Now we've updated the symbol table, walk back down the tree and
         # update any Symbols.

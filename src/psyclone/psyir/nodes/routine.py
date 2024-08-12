@@ -63,8 +63,6 @@ class Routine(Schedule, CommentableMixin):
                                       entry point into a program (e.g.
                                       Fortran Program or C main()). Default is
                                       False.
-    :param str symbol_tag: The tag used for this Routine's symbol when
-                           storing it in symbol tables.
     :param kwargs: additional keyword arguments provided to the super class.
     :type kwargs: unwrapped dict.
 
@@ -75,16 +73,15 @@ class Routine(Schedule, CommentableMixin):
     _children_valid_format = "[Statement]*"
     _text_name = "Routine"
 
-    def __init__(self, symbol, is_program=False,
-                 symbol_tag=None, **kwargs):
+    def __init__(self, symbol, is_program=False, **kwargs):
         # These attributes need to be set before anything, as the _symbol
         # is required for setting the parent links.
         if not isinstance(symbol, RoutineSymbol):
             raise TypeError(f"Routine argument 'symbol' must be present and "
                             f"must be a RoutineSymbol but got "
                             f"'{type(symbol).__name__}'")
+        self._parent = None
         self._symbol = symbol
-        self._symbol_tag = symbol_tag
         self._symbol_in_table = False
         super().__init__(**kwargs)
 
@@ -114,7 +111,7 @@ class Routine(Schedule, CommentableMixin):
 
     @classmethod
     def create(cls, name, symbol_table=None, children=None, is_program=False,
-               return_symbol_name=None, symbol_tag=None):
+               return_symbol_name=None):
         # pylint: disable=too-many-arguments
         '''Create an instance of the supplied class given a name, a symbol
         table and a list of child nodes. This is implemented as a classmethod
@@ -133,8 +130,6 @@ class Routine(Schedule, CommentableMixin):
         :param str return_symbol_name: name of the symbol that holds the
             return value of this routine (if any). Must be present in the
             supplied symbol table.
-        :param str symbol_tag: The tag used for this Routine's symbol when
-                               storing it in symbol tables.
 
         :returns: an instance of `cls`.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine` or subclass
@@ -166,8 +161,7 @@ class Routine(Schedule, CommentableMixin):
                     f"found '{type(child).__name__}'.")
 
         symbol = RoutineSymbol(name)
-        routine = cls(symbol, is_program=is_program, symbol_table=symbol_table,
-                      symbol_tag=symbol_tag)
+        routine = cls(symbol, is_program=is_program, symbol_table=symbol_table)
         routine.children = children
         if return_symbol_name:
             routine.return_symbol = routine.symbol_table.lookup(
@@ -185,11 +179,6 @@ class Routine(Schedule, CommentableMixin):
         '''
         return self.coloured_name(colour) + "[name:'" + self.name + "']"
 
-    def __setattr__(self, name, value):
-        if name == '_parent':
-            self.update_parent_symbol_table(value)
-        super().__setattr__(name, value)
-
     def update_parent_symbol_table(self, new_parent):
         ''' Update's the Routine's new parent's symbol tables with the
         corresponding RoutineSymbol.
@@ -206,7 +195,7 @@ class Routine(Schedule, CommentableMixin):
         '''
         # Need to check the _parent property exists as the initial set of the
         # _parent causes this to fail otherwise
-        if hasattr(self, "_parent") and self._parent is not None:
+        if self._parent is not None:
             try:
                 # Need a check that this Routine's symbol is in the current
                 # _parent symbol table, as otherwise this breaks during
@@ -271,11 +260,13 @@ class Routine(Schedule, CommentableMixin):
             # If lookup found this Routine's symbol then we are performing
             # replace_with, which is handled here.
             if sym is self._symbol:
-                if not self._symbol_in_table:
-                    new_parent.symbol_table.add(self._symbol, self._symbol_tag)
-                self._symbol_in_table = True
+                try:
+                    new_parent.symbol_table.lookup(self._symbol.name)
+                except KeyError:
+                    new_parent.symbol_table.add(self._symbol)
             else:
-                new_parent.symbol_table.add(self._symbol, self._symbol_tag)
+                new_parent.symbol_table.add(sym)
+                self._symbol = sym
                 self._symbol_in_table = True
 
     @property
@@ -340,9 +331,11 @@ class Routine(Schedule, CommentableMixin):
     def symbol(self, symbol):
         '''
         :param symbol: the RoutineSymbol corresponding to this Routine.
-        :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol` or NoneType
+        :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+                      or NoneType
 
-        :raises TypeError: if the provided symbol is neither a RoutineSymbol or None
+        :raises TypeError: if the provided symbol is neither a RoutineSymbol
+                           or None
         '''
         if symbol and not isinstance(symbol, RoutineSymbol):
             raise TypeError(f"Routine symbol must be a RoutineSymbol but got "
