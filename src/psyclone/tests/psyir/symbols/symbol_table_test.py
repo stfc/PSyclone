@@ -3001,7 +3001,7 @@ def test_resolve_imports_private_symbols(fortran_reader, tmpdir, monkeypatch):
     # name_public2 also has been imported because it is a public symbol
     assert "name_public2" in symtab
     # even though we capture that other symbols are private by default
-    ctr = symtab.lookup("b_mod").container
+    ctr = symtab.lookup("b_mod").find_container_psyir()
     assert (ctr.symbol_table.default_visibility ==
             symbols.Symbol.Visibility.PRIVATE)
     assert "other_private" not in symtab

@@ -330,7 +330,7 @@ class CallTreeUtils():
                           f"'{kernel.module_name}' as no possible routines "
                           f" were found - ignored.")
                 for routine_name in all_possible_routines:
-                    psyir = cntr.get_routine_psyir(routine_name)
+                    psyir = cntr.find_routine_psyir(routine_name)
                     if not psyir:
                         print(f"[CallTreeUtils.get_non_local_read_write_info] "
                               f"Could not get PSyIR for Routine "
@@ -407,7 +407,7 @@ class CallTreeUtils():
                 # could be found in case of a generic interface):
                 at_least_one_routine_found = False
                 for routine_name in cntr.resolve_routine(signature[0]):
-                    routine = cntr.get_routine_psyir(routine_name)
+                    routine = cntr.find_routine_psyir(routine_name)
                     if not routine:
                         # TODO #11: Add proper logging
                         # TODO #2120: Handle error
@@ -445,7 +445,7 @@ class CallTreeUtils():
                           f"Cannot get PSyIR for module '{module_name}' - "
                           f"ignoring unknown symbol '{signature}'.")
                 else:
-                    psyir = cntr.get_routine_psyir(str(signature))
+                    psyir = cntr.find_routine_psyir(str(signature))
                     if psyir:
                         # It is a routine, which we need to analyse for the use
                         # of non-local symbols:
@@ -468,7 +468,7 @@ class CallTreeUtils():
                         all_possible_routines = \
                             cntr.resolve_routine(signature[0])
                         for function_name in all_possible_routines:
-                            psyir = cntr.get_routine_psyir(function_name)
+                            psyir = cntr.find_routine_psyir(function_name)
                             if not psyir:
                                 print(f"[CallTreeUtils._resolve_calls_and_"
                                       f"unknowns] Could not get PSyIR for "

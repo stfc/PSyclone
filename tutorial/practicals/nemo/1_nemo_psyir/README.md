@@ -257,7 +257,7 @@ are [`Loop`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsy
 
    ```python
    from psyclone.psyir.nodes import Assignment
-   assignments = sched.walk(Assignment)
+   assignments = psyir.walk(Assignment)
    ```
 
 4. Use the `view()` method of one of these `Assignment` nodes to

@@ -303,8 +303,8 @@ def test_generic_interface():
     # It should contain all two concrete functions
     contr = mod_info.get_psyir()
 
-    assert contr.get_routine_psyir("myfunc1")
-    assert contr.get_routine_psyir("myfunc2")
+    assert contr.find_routine_psyir("myfunc1")
+    assert contr.find_routine_psyir("myfunc2")
 
 
 # -----------------------------------------------------------------------------

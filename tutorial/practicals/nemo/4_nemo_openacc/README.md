@@ -36,6 +36,15 @@ the generated code by default. If you have a suitable compiler and
 want to actually perform the compilation then use the `tra_adv.exe`
 target, i.e. `make tra_adv.exe`.
 
+### Validation ###
+
+If you are able to build and run the generated Fortran on a GPU then
+you will also need to validate the results, just as in part 3 of this
+tutorial. In order to achieve identical results between the CPU and
+GPU when using the NVIDIA compiler, it is essential that you use the
+`-Mnofma` flag (disable fused multiply-adds) when building for both CPU
+and GPU.
+
 ## Parallelisation using KERNELS ##
 
 The simplest way to add OpenACC directives to a code is often to use
@@ -320,7 +329,9 @@ so that it will just create `ACC LOOP INDEPENDENT` directives. We'll then
 add the necessary option to add the `COLLAPSE` clause.
 
 1. Create a brand-new transformation script and, for demonstration purposes,
-   apply the `ACCLoopTrans` without any options to every 'latitude' loop:
+   apply the `ACCLoopTrans` without any options to every 'latitude' loop
+   (remember to setup the `Loop.set_loop_type_inference_rules` in your new
+   script):
    ```python
     from psyclone.transformations import ACCLoopTrans, TransformationError
     ACC_LOOP_TRANS = ACCLoopTrans()
@@ -350,8 +361,8 @@ add the necessary option to add the `COLLAPSE` clause.
    ```python
     # Find the outer, 'iteration' loop
     tloop = None
-    for node in subroutine.children:
-        if isinstance(node, Loop) and node.loop_type == "tracers":
+    for node in subroutine.walk(Loop):
+        if node.loop_type == "tracers":
             tloop = node
             break
     ACC_KERNELS_TRANS.apply(tloop.loop_body)
@@ -394,7 +405,7 @@ add the necessary option to add the `COLLAPSE` clause.
           DO ji = 2, jpi - 1
    ```
    This option has been found to improve the performance of the NEMO model
-   on GPU by a few percent.
+   on an NVIDIA GPU by a few percent.
 
 If time allows, you might wish to try modifying the mini-app so that
 at least one of the latitude loops does *not* correspond to a

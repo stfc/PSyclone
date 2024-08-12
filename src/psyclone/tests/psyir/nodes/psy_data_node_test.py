@@ -236,7 +236,15 @@ def test_psy_data_generate_symbols():
     routine.addchild(psy_data2)
     assert len(routine.symbol_table.symbols) == 0
 
-    # Executing generate_symbols adds 3 more symbols:
+    # Add a symbol of the wrong type for the module.
+    tmp_sym = routine.symbol_table.new_symbol(psy_data.fortran_module)
+    with pytest.raises(InternalError) as err:
+        psy_data.generate_symbols(routine.symbol_table)
+    assert ("Cannot add PSyData module 'psy_data_mod' because another Symbol "
+            "already exists with that name and is a Symbol rather"
+            in str(err.value))
+    routine.symbol_table.remove(tmp_sym)
+    # Successfully executing generate_symbols adds 3 more symbols:
     psy_data.generate_symbols(routine.symbol_table)
     assert len(routine.symbol_table.symbols) == 3
 
@@ -252,6 +260,7 @@ def test_psy_data_generate_symbols():
     typesymbol = routine.symbol_table.lookup("PSyDataType")
     assert isinstance(typesymbol, DataTypeSymbol)
     assert isinstance(typesymbol.interface, ImportInterface)
+    assert typesymbol.interface.container_symbol.name == "psy_data_mod"
     assert isinstance(typesymbol.datatype, UnresolvedType)
     assert routine.symbol_table.lookup_with_tag("PSyDataType") == typesymbol
 
@@ -273,6 +282,12 @@ def test_psy_data_generate_symbols():
     objectsymbol = routine.symbol_table.lookup("psy_data_1")
     assert isinstance(objectsymbol, DataSymbol)
     assert isinstance(objectsymbol.datatype, UnsupportedFortranType)
+
+    typesymbol.interface.container_symbol = ContainerSymbol("wrong")
+    with pytest.raises(InternalError) as err:
+        psy_data.generate_symbols(routine.symbol_table)
+    assert ("Cannot add PSyData symbol 'PSyDataType' because it already "
+            "exists but is not imported from" in str(err.value))
 
 
 # -----------------------------------------------------------------------------
