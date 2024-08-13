@@ -276,7 +276,7 @@ class LFRicInvoke(Invoke):
                          self.reference_element_properties,
                          self.mesh_properties, self.loop_bounds,
                          self.run_time_checks]:
-            print("Declare", type(entities))
+            # print("Declare", type(entities))
             cursor = entities.declarations(cursor)
             if not isinstance(cursor, int):
                 cursor = 0
@@ -289,7 +289,7 @@ class LFRicInvoke(Invoke):
                          self.function_spaces, self.evaluators,
                          self.reference_element_properties,
                          self.mesh_properties, self.loop_bounds]:
-            print("Initialise", type(entities))
+            # print("Initialise", type(entities))
             cursor = entities.initialise(cursor)
             if cursor is None:
                 import pdb; pdb.set_trace()

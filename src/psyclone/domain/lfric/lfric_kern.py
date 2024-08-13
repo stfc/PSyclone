@@ -645,7 +645,6 @@ class LFRicKern(CodedKern):
                          DynLMAOperators, LFRicStencils, DynBasisFunctions,
                          DynBoundaryConditions, DynReferenceElement,
                          LFRicMeshProperties]:
-            # import pdb; pdb.set_trace()
             entities(self).declarations(sub_stub)
 
 
@@ -656,6 +655,11 @@ class LFRicKern(CodedKern):
         arg_list = []
         for argument_name in create_arg_list.arglist:
             arg_list.append(sub_stub.symbol_table.lookup(argument_name))
+        # If a previous argument has not been given an order by KernStubArgList
+        # ignore it.
+        for argument in sub_stub.symbol_table.argument_list:
+            if argument not in arg_list:
+                argument.interface = UnknownInterface()
         sub_stub.symbol_table.specify_argument_list(arg_list)
 
         return psy_module

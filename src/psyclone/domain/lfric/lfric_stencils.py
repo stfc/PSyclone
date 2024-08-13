@@ -414,11 +414,14 @@ class LFRicStencils(LFRicCollection):
         '''
         api_config = Config.get().api_conf("lfric")
 
-        if self._unique_direction_vars:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=self._unique_direction_vars,
-                               intent="in"))
+        for var in self._unique_direction_vars:
+            self._symbol_table.new_symbol(
+                var, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    entity_decls=self._unique_direction_vars,
+            #                    intent="in"))
         return cursor
 
     @property

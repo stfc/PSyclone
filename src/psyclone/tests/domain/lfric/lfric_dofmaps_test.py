@@ -202,11 +202,10 @@ def test_lfricdofmaps_stub_gen(fortran_writer):
     stub_psyir = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_app_kernel_mod.F90"),
                       api=TEST_API)
-    import pdb; pdb.set_trace()
     result = fortran_writer(stub_psyir)
 
     expected = (
-        "    subroutine columnwise_op_app_kernel_code(cell, ncell_2d, "
+        "  subroutine columnwise_op_app_kernel_code(cell, ncell_2d, "
         "field_1_aspc1_field_1, field_2_aspc2_field_2, cma_op_3, "
         "cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, "
         "cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p, "

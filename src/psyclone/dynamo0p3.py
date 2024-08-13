@@ -547,8 +547,10 @@ class LFRicMeshProperties(LFRicCollection):
             name_lower = prop.name.lower()
             if prop.name in ["NCELL_2D", "NCELL_2D_NO_HALOS"]:
                 # This is an integer:
-                self._symbol_table.find_or_create_integer_symbol(
-                    name_lower, tag=name_lower)
+                self._symbol_table.find_or_create(
+                    name_lower, tag=name_lower,
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             elif name_lower == "adjacent_face":
                 self._symbol_table.find_or_create(
                     name_lower, symbol_type=DataSymbol,
@@ -758,8 +760,10 @@ class LFRicMeshProperties(LFRicCollection):
                 #         dimension=dimension,
                 #         intent="in", entity_decls=[adj_face]))
             elif prop == MeshProperty.NCELL_2D:
-                ncell_2d = self._symbol_table.find_or_create_integer_symbol(
-                    "ncell_2d", tag="ncell_2d")
+                ncell_2d = self._symbol_table.find_or_create(
+                    "ncell_2d", tag="ncell_2d",
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                 # parent.add(
                 #     DeclGen(parent, datatype="integer",
                 #             kind=api_config.default_kind["integer"],
@@ -827,24 +831,24 @@ class LFRicMeshProperties(LFRicCollection):
                 cursor += 1
 
             elif prop == MeshProperty.NCELL_2D_NO_HALOS:
-                name = self._symbol_table.find_or_create_integer_symbol(
-                    "ncell_2d_no_halos", tag="ncell_2d_no_halos").name
+                symbol = self._symbol_table.find_or_create_integer_symbol(
+                    "ncell_2d_no_halos", tag="ncell_2d_no_halos")
                 # parent.add(AssignGen(parent, lhs=name,
                 #                      rhs=mesh+"%get_last_edge_cell()"))
                 assignment = Assignment.create(
-                        lhs=Reference(name),
+                        lhs=Reference(symbol),
                         rhs=Call.create(StructureReference.create(
                             mesh, ["get_last_edge_cell"])),)
                 self._invoke._schedule.addchild(assignment, cursor)
                 cursor += 1
 
             elif prop == MeshProperty.NCELL_2D:
-                name = self._symbol_table.find_or_create_integer_symbol(
+                symbol = self._symbol_table.find_or_create_integer_symbol(
                     "ncell_2d", tag="ncell_2d")
                 # parent.add(AssignGen(parent, lhs=name,
                 #                      rhs=mesh+"%get_ncells_2d()"))
                 assignment = Assignment.create(
-                        lhs=Reference(name),
+                        lhs=Reference(symbol),
                         rhs=Call.create(StructureReference.create(
                             mesh, ["get_ncells_2d"])),)
                 self._invoke._schedule.addchild(assignment, cursor)
@@ -2226,9 +2230,12 @@ class DynCMAOperators(LFRicCollection):
                               datatype=dtype,
                               tag=tag)
             # Now the various integer parameters of the operator.
-            # for param in self._cma_ops[op_name]["params"]:
-            #     symtab.find_or_create_integer_symbol(
-            #         f"{op_name}_{param}", tag=f"{op_name}:{param}:{suffix}")
+            for param in self._cma_ops[op_name]["params"]:
+                symtab.find_or_create(
+                    f"{op_name}_{param}",
+                    tag=f"{op_name}:{param}:{suffix}",
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
     def initialise(self, cursor):
         '''
@@ -2435,7 +2442,7 @@ class DynCMAOperators(LFRicCollection):
             nrow.interface = ArgumentInterface(
                     ArgumentInterface.Access.READ)
             symtab.append_argument(nrow)
-            
+
             # intent = self._cma_ops[op_name]["intent"]
             # op_dtype = self._cma_ops[op_name]["datatype"]
             # op_kind = self._cma_ops[op_name]["kind"]

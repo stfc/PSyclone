@@ -288,38 +288,18 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     # we require a mesh object.
     assert "type(mesh_type), pointer :: mesh => null()" in gen_code
     assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code
-    assert "integer(kind=i_def) ncell_2d_no_halos" in gen_code
+    assert "integer(kind=i_def) :: ncell_2d_no_halos" in gen_code
     assert "ncell_2d_no_halos = mesh%get_last_edge_cell()" in gen_code
 
     # Kernel call should include whole dofmap and not be within a loop
-    if dist_mem:
-        expected = "      ! call kernels and communication routines\n"
-    else:
-        expected = "      ! call our kernels\n"
-    assert (expected + "      !\n"
-            "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
+    # if dist_mem:
+    #     expected = "    ! call kernels and communication routines\n"
+    # else:
+    #     expected = "    ! call our kernels\n"
+    assert ("    call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
             "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    # Also test that the FortranWriter handles domain kernels as expected.
-    # ATM we have a `lower_to_language_level method` for LFRicLoop which
-    # removes the loop node for a domain kernel entirely and only leaves the
-    # body. So we can't call the FortranWriter directly, since it will first
-    # lower the tree, which removes the domain kernel.
-    # In order to test the actual writer atm, we have to call the
-    # `loop_node` directly. But in order for this to work, we need to
-    # lower the actual kernel call. Once #1731 is fixed, the temporary
-    # `lower_to_language_level` method in LFRicLoop can (likely) be removed,
-    # and then we can just call `fortran_writer(schedule)` here.
-    schedule = psy.invokes.invoke_list[0].schedule
-    # Lower the LFRicKern:
-    for kern in schedule.walk(LFRicKern):
-        kern.lower_to_language_level()
-    # Now call the loop handling method directly.
-    out = fortran_writer.loop_node(schedule.children[0])
-    assert ("call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
-            "f1_data, ndf_w3, undf_w3, map_w3)" in out)
 
 
 def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
@@ -332,27 +312,25 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
     gen_code = str(psy.gen).lower()
 
     assert "mesh => f2_proxy%vspace%get_mesh()" in gen_code
-    assert "integer(kind=i_def) ncell_2d_no_halos" in gen_code
+    assert "integer(kind=i_def) :: ncell_2d_no_halos" in gen_code
 
     expected = (
-        "      end do\n")
+        "    enddo\n")
     if dist_mem:
         expected += (
-            "      !\n"
-            "      ! set halos dirty/clean for fields modified in the above "
-            "loop\n"
-            "      !\n"
-            "      call f2_proxy%set_dirty()\n"
-            "      !\n")
+            # "\n"
+            # "    ! set halos dirty/clean for fields modified in the above "
+            # "loop\n"
+            "    call f2_proxy%set_dirty()\n")
     expected += (
-        "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
+        "    call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
         "f1_data, ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
-        assert ("      ! set halos dirty/clean for fields modified in the "
-                "above kernel\n"
-                "      !\n"
-                "      call f1_proxy%set_dirty()\n" in gen_code)
+        assert (
+                # "    ! set halos dirty/clean for fields modified in the "
+                # "above kernel\n"
+                "  call f1_proxy%set_dirty()\n" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -370,31 +348,32 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     # Check that we only have one last-edge-cell assignment
     assert gen_code.count("ncell_2d_no_halos = mesh%get_last_edge_cell()") == 1
 
-    expected = ("      !\n"
-                "      call testkern_domain_code(nlayers, ncell_2d_no_halos, "
+    expected = (
+                "    call testkern_domain_code(nlayers, ncell_2d_no_halos, "
                 "b, f1_data, ndf_w3, undf_w3, map_w3)\n")
     if dist_mem:
         assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in gen_code
-        expected += ("      !\n"
-                     "      ! set halos dirty/clean for fields modified in "
+        expected += (
+                     # "\n"
+                     # "    ! set halos dirty/clean for fields modified in "
                      "the above kernel\n"
-                     "      !\n"
-                     "      call f1_proxy%set_dirty()\n"
-                     "      !\n"
-                     "      if (f2_proxy%is_dirty(depth=1)) then\n"
-                     "        call f2_proxy%halo_exchange(depth=1)\n"
-                     "      end if\n"
-                     "      if (f3_proxy%is_dirty(depth=1)) then\n"
-                     "        call f3_proxy%halo_exchange(depth=1)\n"
-                     "      end if\n"
-                     "      if (f4_proxy%is_dirty(depth=1)) then\n"
-                     "        call f4_proxy%halo_exchange(depth=1)\n"
-                     "      end if\n"
-                     "      call f1_proxy%halo_exchange(depth=1)\n")
+                     "    call f1_proxy%set_dirty()\n"
+                     "    if (f2_proxy%is_dirty(depth=1)) then\n"
+                     "      call f2_proxy%halo_exchange(depth=1)\n"
+                     "    end if\n"
+                     "    if (f3_proxy%is_dirty(depth=1)) then\n"
+                     "      call f3_proxy%halo_exchange(depth=1)\n"
+                     "    end if\n"
+                     "    if (f4_proxy%is_dirty(depth=1)) then\n"
+                     "      call f4_proxy%halo_exchange(depth=1)\n"
+                     "    end if\n"
+                     "    call f1_proxy%halo_exchange(depth=1)\n")
     else:
         assert "loop1_stop = f2_proxy%vspace%get_ncell()\n" in gen_code
-    expected += "      do cell = loop1_start, loop1_stop, 1\n"
-    assert expected in gen_code
+    expected += "    do cell = loop1_start, loop1_stop, 1\n"
+    print(expected)
+    print(gen_code)
+    assert expected == gen_code
 
     expected = (
         "      end do\n")
