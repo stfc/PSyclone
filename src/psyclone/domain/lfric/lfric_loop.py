@@ -629,12 +629,7 @@ class LFRicLoop(PSyLoop):
                 )
                 # result = f"{self._mesh_name}%get_last_edge_cell()"
             else:
-                result = Call.create(
-                    StructureReference.create(
-                        sym_tab.lookup(self.field.proxy_name_indexed),
-                        [self.field.ref_name(), "get_ncell"]
-                    )
-                )
+                result = self.field.generate_method_call("get_ncell")
                 # result = (f"{self.field.proxy_name_indexed}%"
                 #           f"{self.field.ref_name()}%get_ncell()")
             return result

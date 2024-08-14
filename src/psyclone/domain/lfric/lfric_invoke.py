@@ -82,7 +82,7 @@ class LFRicInvoke(Invoke):
         self._schedule = LFRicInvokeSchedule('name', None)  # for pyreverse
         reserved_names_list = []
         const = LFRicConstants()
-        reserved_names_list.extend(const.STENCIL_MAPPING.values())
+        # reserved_names_list.extend(const.STENCIL_MAPPING.values())
         # reserved_names_list.extend(["omp_get_thread_num",
         #                             "omp_get_max_threads"])
         Invoke.__init__(self, alg_invocation, idx, LFRicInvokeSchedule,

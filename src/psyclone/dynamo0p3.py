@@ -3900,7 +3900,6 @@ class DynBasisFunctions(LFRicCollection):
         # Loop over the list of dicts describing each basis function
         # required by this Invoke.
         for basis_fn in self._basis_fns:
-            # import pdb; pdb.set_trace()
             # Get the extent of the first dimension of the basis array and
             # store whether we have a basis or a differential basis function.
             # Currently there are only those two possible types of basis
@@ -6092,8 +6091,11 @@ class DynKernelArguments(Arguments):
                     # symbol_table.
                     tag = "AlgArgs_" + arg.stencil.extent_arg.text
                     root = arg.stencil.extent_arg.varname
-                    new_name = symtab.find_or_create_tag(tag, root).name
-                    arg.stencil.extent_arg.varname = new_name
+                    symbol = symtab.find_or_create_tag(
+                        tag, root, symbol_type=DataSymbol,
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                    )
+                    arg.stencil.extent_arg.varname = symbol.name
             if arg.descriptor.stencil['type'] == 'xory1d':
                 # a direction argument has been added
                 if arg.stencil.direction_arg.varname and \
@@ -6103,9 +6105,9 @@ class DynKernelArguments(Arguments):
                     # it is unique in the PSy layer
                     tag = "AlgArgs_" + arg.stencil.direction_arg.text
                     root = arg.stencil.direction_arg.varname
-                    new_name = symtab.find_or_create_integer_symbol(
-                        root, tag=tag).name
-                    arg.stencil.direction_arg.varname = new_name
+                    symbol = symtab.find_or_create_integer_symbol(
+                        root, tag=tag)
+                    arg.stencil.direction_arg.varname = symbol.name
 
         self._dofs = []
 

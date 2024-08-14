@@ -201,7 +201,7 @@ class ArgOrdering:
         if tag is None:
             tag = name
         sym = self._symtab.find_or_create(
-                name, symbol_type=DataSymbol,
+                name, tag=tag, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
         self.psyir_append(Reference(sym))
         return sym
@@ -240,7 +240,7 @@ class ArgOrdering:
             #                             tag)
             from psyclone.domain.lfric import LFRicTypes
             symbol = self._symtab.find_or_create(
-                array_name, symbol_type=DataSymbol,
+                array_name, tag=tag, symbol_type=DataSymbol,
                 datatype=ArrayType(
                     LFRicTypes("LFRicIntegerScalarDataType")(),
                     [ArrayType.Extent.DEFERRED for _ in indices]))
