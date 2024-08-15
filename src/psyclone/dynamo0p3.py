@@ -1848,7 +1848,7 @@ class DynProxies(LFRicCollection):
                 self._invoke.schedule[init_cursor].preceding_comment = (
                     "Initialise field and/or operator proxies")
 
-            return cursor
+        return cursor
 
 
 class DynCellIterators(LFRicCollection):

@@ -359,7 +359,7 @@ def test_create_from_kernel_with_scalar(fortran_writer):
         "test", os.path.join(BASE_PATH, "testkern_mod.F90"))
     code = fortran_writer(psyir)
     assert "module test_mod" in code
-    assert "use constants_mod\n" in code
+    assert "use constants_mod, only : i_def, r_def" in code
     assert "real(kind=r_def) :: rscalar_1" in code
     assert ("    rscalar_1 = 1_i_def\n"
             "    call invoke(setval_c(field_2, 1.0_r_def), "
@@ -378,7 +378,7 @@ def test_create_from_kernel_with_vector(fortran_writer):
         os.path.join(BASE_PATH,
                      "testkern_coord_w0_mod.f90"))
     code = fortran_writer(psyir)
-    assert "use constants_mod\n" in code
+    assert "use constants_mod, only : i_def, r_def" in code
     assert '''\
     type(field_type) :: field_1
     type(field_type), dimension(3) :: field_2

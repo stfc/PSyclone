@@ -134,14 +134,14 @@ def test_field(tmpdir):
         "      !\n"
         "      ! Call kernels\n"
         "      !\n"
-        "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_code(nlayers, a, f1_data, f2_data, "
+        "    do cell = loop0_start, loop0_stop, 1\n"
+        "      call testkern_code(nlayers, a, f1_data, f2_data, "
         "m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
-        "      END DO\n"
+        "    enddo\n"
         "      !\n"
-        "    END SUBROUTINE invoke_0_testkern_type\n"
-        "  END MODULE single_invoke_psy")
+        "  end subroutine invoke_0_testkern_type\n"
+        "end module single_invoke_psy")
     assert output in str(generated_code)
 
 
@@ -246,32 +246,32 @@ def test_field_deref(tmpdir, dist_mem):
         output = (
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
-            "        CALL f1_proxy%halo_exchange(depth=1)\n"
-            "      END IF\n"
-            "      IF (est_f2_proxy%is_dirty(depth=1)) THEN\n"
-            "        CALL est_f2_proxy%halo_exchange(depth=1)\n"
-            "      END IF\n"
-            "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
-            "        CALL m1_proxy%halo_exchange(depth=1)\n"
-            "      END IF\n"
-            "      IF (est_m2_proxy%is_dirty(depth=1)) THEN\n"
-            "        CALL est_m2_proxy%halo_exchange(depth=1)\n"
-            "      END IF\n"
-            "      DO cell = loop0_start, loop0_stop, 1\n")
+            "    if (f1_proxy%is_dirty(depth=1)) then\n"
+            "      call f1_proxy%halo_exchange(depth=1)\n"
+            "    end if\n"
+            "    if (est_f2_proxy%is_dirty(depth=1)) then\n"
+            "      call est_f2_proxy%halo_exchange(depth=1)\n"
+            "    end if\n"
+            "    if (m1_proxy%is_dirty(depth=1)) then\n"
+            "      call m1_proxy%halo_exchange(depth=1)\n"
+            "    end if\n"
+            "    if (est_m2_proxy%is_dirty(depth=1)) then\n"
+            "      call est_m2_proxy%halo_exchange(depth=1)\n"
+            "    end if\n"
+            "    do cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()\n" in generated_code
         output = (
             "      ! Call kernels\n"
             "      !\n"
-            "      DO cell = loop0_start, loop0_stop, 1\n")
+            "    do cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
     output = (
-        "        CALL testkern_code(nlayers, a, f1_data, est_f2_data, m1_data,"
+        "      call testkern_code(nlayers, a, f1_data, est_f2_data, m1_data,"
         " est_m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
-        "      END DO\n")
+        "    enddo\n")
     assert output in generated_code
     if dist_mem:
         output = (
@@ -279,7 +279,7 @@ def test_field_deref(tmpdir, dist_mem):
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
             "      !\n"
-            "      CALL f1_proxy%set_dirty()\n"
+            "    call f1_proxy%set_dirty()\n"
             "      !")
         assert output in generated_code
 
@@ -296,217 +296,249 @@ def test_field_fs(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     generated_code = str(psy.gen)
-    output = (
-        "  MODULE single_invoke_fs_psy\n"
-        "    USE constants_mod\n"
-        "    USE field_mod, ONLY: field_type, field_proxy_type\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, "
-        "m3, m4, f5, f6, m5, m6, m7)\n"
-        "      USE testkern_fs_mod, ONLY: testkern_fs_code\n"
-        "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2, f3, f4, m3, "
-        "m4, f5, f6, m5, m6, m7\n"
-        "      INTEGER(KIND=i_def) cell\n"
-        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: m7_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: m6_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: m5_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f6_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f5_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: m4_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: m3_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f4_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f3_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
-        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
-        "m2_proxy, f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, "
-        "f6_proxy, m5_proxy, m6_proxy, m7_proxy\n"
-        "      INTEGER(KIND=i_def), pointer :: map_any_w2(:,:) => null(), "
-        "map_w0(:,:) => null(), map_w1(:,:) => null(), map_w2(:,:) => "
-        "null(), map_w2broken(:,:) => null(), map_w2h(:,:) => null(), "
-        "map_w2htrace(:,:) => null(), map_w2trace(:,:) => null(), "
-        "map_w2v(:,:) => null(), map_w2vtrace(:,:) => null(), map_w3(:,:) "
-        "=> null(), map_wchi(:,:) => null(), map_wtheta(:,:) => null()\n"
-        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w0, "
-        "undf_w0, ndf_w3, undf_w3, ndf_wtheta, undf_wtheta, ndf_w2h, "
-        "undf_w2h, ndf_w2v, undf_w2v, ndf_w2broken, undf_w2broken, "
-        "ndf_w2trace, undf_w2trace, ndf_w2htrace, undf_w2htrace, "
-        "ndf_w2vtrace, undf_w2vtrace, ndf_wchi, undf_wchi, ndf_any_w2, "
-        "undf_any_w2\n"
-        "      INTEGER(KIND=i_def) max_halo_depth_mesh\n"
-        "      TYPE(mesh_type), pointer :: mesh => null()\n")
+    output = """\
+module single_invoke_fs_psy
+  use constants_mod
+  use field_mod, only : field_proxy_type, field_type
+  implicit none
+  public
+
+  contains
+  subroutine invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, m3, m4, f5, f6, m5, m6, m7)
+    use mesh_mod, only : mesh_type
+    use testkern_fs_mod, only : testkern_fs_code
+    type(field_type), intent(in) :: f1
+    type(field_type), intent(in) :: f2
+    type(field_type), intent(in) :: m1
+    type(field_type), intent(in) :: m2
+    type(field_type), intent(in) :: f3
+    type(field_type), intent(in) :: f4
+    type(field_type), intent(in) :: m3
+    type(field_type), intent(in) :: m4
+    type(field_type), intent(in) :: f5
+    type(field_type), intent(in) :: f6
+    type(field_type), intent(in) :: m5
+    type(field_type), intent(in) :: m6
+    type(field_type), intent(in) :: m7
+    integer(kind=i_def) :: cell
+    type(mesh_type), pointer :: mesh => null()
+    integer(kind=i_def) :: max_halo_depth_mesh
+    real(kind=r_def), pointer, dimension(:) :: f1_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f2_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m1_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m2_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f3_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f4_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m3_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m4_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f5_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f6_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m5_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m6_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m7_data => null()
+    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: ndf_w1
+    integer(kind=i_def) :: undf_w1
+    integer(kind=i_def) :: ndf_w2
+    integer(kind=i_def) :: undf_w2
+    integer(kind=i_def) :: ndf_w0
+    integer(kind=i_def) :: undf_w0
+    integer(kind=i_def) :: ndf_w3
+    integer(kind=i_def) :: undf_w3
+    integer(kind=i_def) :: ndf_wtheta
+    integer(kind=i_def) :: undf_wtheta
+    integer(kind=i_def) :: ndf_w2h
+    integer(kind=i_def) :: undf_w2h
+    integer(kind=i_def) :: ndf_w2v
+    integer(kind=i_def) :: undf_w2v
+    integer(kind=i_def) :: ndf_w2broken
+    integer(kind=i_def) :: undf_w2broken
+    integer(kind=i_def) :: ndf_w2trace
+    integer(kind=i_def) :: undf_w2trace
+    integer(kind=i_def) :: ndf_w2htrace
+    integer(kind=i_def) :: undf_w2htrace
+    integer(kind=i_def) :: ndf_w2vtrace
+    integer(kind=i_def) :: undf_w2vtrace
+    integer(kind=i_def) :: ndf_wchi
+    integer(kind=i_def) :: undf_wchi
+    integer(kind=i_def) :: ndf_any_w2
+    integer(kind=i_def) :: undf_any_w2
+    integer(kind=i_def), pointer :: map_any_w2(:,:) => null()
+    integer(kind=i_def), pointer :: map_w0(:,:) => null()
+    integer(kind=i_def), pointer :: map_w1(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2broken(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2h(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2htrace(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2trace(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2v(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2vtrace(:,:) => null()
+    integer(kind=i_def), pointer :: map_w3(:,:) => null()
+    integer(kind=i_def), pointer :: map_wchi(:,:) => null()
+    integer(kind=i_def), pointer :: map_wtheta(:,:) => null()
+    type(field_proxy_type) :: f1_proxy
+    type(field_proxy_type) :: f2_proxy
+    type(field_proxy_type) :: m1_proxy
+    type(field_proxy_type) :: m2_proxy
+    type(field_proxy_type) :: f3_proxy
+    type(field_proxy_type) :: f4_proxy
+    type(field_proxy_type) :: m3_proxy
+    type(field_proxy_type) :: m4_proxy
+    type(field_proxy_type) :: f5_proxy
+    type(field_proxy_type) :: f6_proxy
+    type(field_proxy_type) :: m5_proxy
+    type(field_proxy_type) :: m6_proxy
+    type(field_proxy_type) :: m7_proxy
+    integer(kind=i_def) :: loop0_start
+    integer(kind=i_def) :: loop0_stop
+"""
     assert output in generated_code
     output = (
-        "      ! Initialise field and/or operator proxies\n"
-        "      !\n"
-        "      f1_proxy = f1%get_proxy()\n"
-        "      f1_data => f1_proxy%data\n"
-        "      f2_proxy = f2%get_proxy()\n"
-        "      f2_data => f2_proxy%data\n"
-        "      m1_proxy = m1%get_proxy()\n"
-        "      m1_data => m1_proxy%data\n"
-        "      m2_proxy = m2%get_proxy()\n"
-        "      m2_data => m2_proxy%data\n"
-        "      f3_proxy = f3%get_proxy()\n"
-        "      f3_data => f3_proxy%data\n"
-        "      f4_proxy = f4%get_proxy()\n"
-        "      f4_data => f4_proxy%data\n"
-        "      m3_proxy = m3%get_proxy()\n"
-        "      m3_data => m3_proxy%data\n"
-        "      m4_proxy = m4%get_proxy()\n"
-        "      m4_data => m4_proxy%data\n"
-        "      f5_proxy = f5%get_proxy()\n"
-        "      f5_data => f5_proxy%data\n"
-        "      f6_proxy = f6%get_proxy()\n"
-        "      f6_data => f6_proxy%data\n"
-        "      m5_proxy = m5%get_proxy()\n"
-        "      m5_data => m5_proxy%data\n"
-        "      m6_proxy = m6%get_proxy()\n"
-        "      m6_data => m6_proxy%data\n"
-        "      m7_proxy = m7%get_proxy()\n"
-        "      m7_data => m7_proxy%data\n"
-        "      !\n"
-        "      ! Initialise number of layers\n"
-        "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh => f1_proxy%vspace%get_mesh()\n"
-        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
-        "      !\n"
-        "      ! Look-up dofmaps for each function space\n"
-        "      !\n"
-        "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w0 => m1_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
-        "      map_wtheta => f3_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w2h => f4_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w2v => m3_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w2broken => m4_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w2trace => f5_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w2htrace => f6_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w2vtrace => m5_proxy%vspace%get_whole_dofmap()\n"
-        "      map_wchi => m6_proxy%vspace%get_whole_dofmap()\n"
-        "      map_any_w2 => m7_proxy%vspace%get_whole_dofmap()\n"
-        "      !\n"
-        "      ! Initialise number of DoFs for w1\n"
-        "      !\n"
-        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
-        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise number of DoFs for w2\n"
-        "      !\n"
-        "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
-        "      undf_w2 = f2_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise number of DoFs for w0\n"
-        "      !\n"
-        "      ndf_w0 = m1_proxy%vspace%get_ndf()\n"
-        "      undf_w0 = m1_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise number of DoFs for w3\n"
-        "      !\n"
-        "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
-        "      undf_w3 = m2_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise number of DoFs for wtheta\n"
-        "      !\n"
-        "      ndf_wtheta = f3_proxy%vspace%get_ndf()\n"
-        "      undf_wtheta = f3_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise number of DoFs for w2h\n"
-        "      !\n"
-        "      ndf_w2h = f4_proxy%vspace%get_ndf()\n"
-        "      undf_w2h = f4_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise number of DoFs for w2v\n"
-        "      !\n"
-        "      ndf_w2v = m3_proxy%vspace%get_ndf()\n"
-        "      undf_w2v = m3_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise number of DoFs for w2broken\n"
-        "      !\n"
-        "      ndf_w2broken = m4_proxy%vspace%get_ndf()\n"
-        "      undf_w2broken = m4_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise number of DoFs for w2trace\n"
-        "      !\n"
-        "      ndf_w2trace = f5_proxy%vspace%get_ndf()\n"
-        "      undf_w2trace = f5_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise number of DoFs for w2htrace\n"
-        "      !\n"
-        "      ndf_w2htrace = f6_proxy%vspace%get_ndf()\n"
-        "      undf_w2htrace = f6_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise number of DoFs for w2vtrace\n"
-        "      !\n"
-        "      ndf_w2vtrace = m5_proxy%vspace%get_ndf()\n"
-        "      undf_w2vtrace = m5_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise number of DoFs for wchi\n"
-        "      !\n"
-        "      ndf_wchi = m6_proxy%vspace%get_ndf()\n"
-        "      undf_wchi = m6_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise number of DoFs for any_w2\n"
-        "      !\n"
-        "      ndf_any_w2 = m7_proxy%vspace%get_ndf()\n"
-        "      undf_any_w2 = m7_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Set-up all of the loop bounds\n"
-        "      !\n"
-        "      loop0_start = 1\n"
-        "      loop0_stop = mesh%get_last_halo_cell(1)\n"
-        "      !\n"
-        "      ! Call kernels and communication routines\n"
-        "      !\n"
-        "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f1_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m1_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m2_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (f4_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f4_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m3_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m3_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m4_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m4_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (f5_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f5_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (f6_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f6_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m5_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m5_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m6_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m6_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m7_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m7_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_fs_code(nlayers, f1_data, f2_data, "
+        "    ! Initialise field and/or operator proxies\n"
+        "    f1_proxy = f1%get_proxy()\n"
+        "    f1_data => f1_proxy%data\n"
+        "    f2_proxy = f2%get_proxy()\n"
+        "    f2_data => f2_proxy%data\n"
+        "    m1_proxy = m1%get_proxy()\n"
+        "    m1_data => m1_proxy%data\n"
+        "    m2_proxy = m2%get_proxy()\n"
+        "    m2_data => m2_proxy%data\n"
+        "    f3_proxy = f3%get_proxy()\n"
+        "    f3_data => f3_proxy%data\n"
+        "    f4_proxy = f4%get_proxy()\n"
+        "    f4_data => f4_proxy%data\n"
+        "    m3_proxy = m3%get_proxy()\n"
+        "    m3_data => m3_proxy%data\n"
+        "    m4_proxy = m4%get_proxy()\n"
+        "    m4_data => m4_proxy%data\n"
+        "    f5_proxy = f5%get_proxy()\n"
+        "    f5_data => f5_proxy%data\n"
+        "    f6_proxy = f6%get_proxy()\n"
+        "    f6_data => f6_proxy%data\n"
+        "    m5_proxy = m5%get_proxy()\n"
+        "    m5_data => m5_proxy%data\n"
+        "    m6_proxy = m6%get_proxy()\n"
+        "    m6_data => m6_proxy%data\n"
+        "    m7_proxy = m7%get_proxy()\n"
+        "    m7_data => m7_proxy%data\n"
+        "\n"
+        "    ! Initialise number of layers\n"
+        "    nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "\n"
+        "    ! Create a mesh object\n"
+        "    mesh => f1_proxy%vspace%get_mesh()\n"
+        "    max_halo_depth_mesh = mesh%get_halo_depth()\n"
+        "\n"
+        "    ! Look-up dofmaps for each function space\n"
+        "    map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
+        "    map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
+        "    map_w0 => m1_proxy%vspace%get_whole_dofmap()\n"
+        "    map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
+        "    map_wtheta => f3_proxy%vspace%get_whole_dofmap()\n"
+        "    map_w2h => f4_proxy%vspace%get_whole_dofmap()\n"
+        "    map_w2v => m3_proxy%vspace%get_whole_dofmap()\n"
+        "    map_w2broken => m4_proxy%vspace%get_whole_dofmap()\n"
+        "    map_w2trace => f5_proxy%vspace%get_whole_dofmap()\n"
+        "    map_w2htrace => f6_proxy%vspace%get_whole_dofmap()\n"
+        "    map_w2vtrace => m5_proxy%vspace%get_whole_dofmap()\n"
+        "    map_wchi => m6_proxy%vspace%get_whole_dofmap()\n"
+        "    map_any_w2 => m7_proxy%vspace%get_whole_dofmap()\n"
+        "\n"
+        "    ! Initialise number of DoFs for w1\n"
+        "    ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+        "    undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "\n"
+        "    ! Initialise number of DoFs for w2\n"
+        "    ndf_w2 = f2_proxy%vspace%get_ndf()\n"
+        "    undf_w2 = f2_proxy%vspace%get_undf()\n"
+        "\n"
+        "    ! Initialise number of DoFs for w0\n"
+        "    ndf_w0 = m1_proxy%vspace%get_ndf()\n"
+        "    undf_w0 = m1_proxy%vspace%get_undf()\n"
+        "\n"
+        "    ! Initialise number of DoFs for w3\n"
+        "    ndf_w3 = m2_proxy%vspace%get_ndf()\n"
+        "    undf_w3 = m2_proxy%vspace%get_undf()\n"
+        "\n"
+        "    ! Initialise number of DoFs for wtheta\n"
+        "    ndf_wtheta = f3_proxy%vspace%get_ndf()\n"
+        "    undf_wtheta = f3_proxy%vspace%get_undf()\n"
+        "\n"
+        "    ! Initialise number of DoFs for w2h\n"
+        "    ndf_w2h = f4_proxy%vspace%get_ndf()\n"
+        "    undf_w2h = f4_proxy%vspace%get_undf()\n"
+        "\n"
+        "    ! Initialise number of DoFs for w2v\n"
+        "    ndf_w2v = m3_proxy%vspace%get_ndf()\n"
+        "    undf_w2v = m3_proxy%vspace%get_undf()\n"
+        "\n"
+        "    ! Initialise number of DoFs for w2broken\n"
+        "    ndf_w2broken = m4_proxy%vspace%get_ndf()\n"
+        "    undf_w2broken = m4_proxy%vspace%get_undf()\n"
+        "\n"
+        "    ! Initialise number of DoFs for w2trace\n"
+        "    ndf_w2trace = f5_proxy%vspace%get_ndf()\n"
+        "    undf_w2trace = f5_proxy%vspace%get_undf()\n"
+        "\n"
+        "    ! Initialise number of DoFs for w2htrace\n"
+        "    ndf_w2htrace = f6_proxy%vspace%get_ndf()\n"
+        "    undf_w2htrace = f6_proxy%vspace%get_undf()\n"
+        "\n"
+        "    ! Initialise number of DoFs for w2vtrace\n"
+        "    ndf_w2vtrace = m5_proxy%vspace%get_ndf()\n"
+        "    undf_w2vtrace = m5_proxy%vspace%get_undf()\n"
+        "\n"
+        "    ! Initialise number of DoFs for wchi\n"
+        "    ndf_wchi = m6_proxy%vspace%get_ndf()\n"
+        "    undf_wchi = m6_proxy%vspace%get_undf()\n"
+        "\n"
+        "    ! Initialise number of DoFs for any_w2\n"
+        "    ndf_any_w2 = m7_proxy%vspace%get_ndf()\n"
+        "    undf_any_w2 = m7_proxy%vspace%get_undf()\n"
+        "\n"
+        "    ! Set-up all of the loop bounds\n"
+        "    loop0_start = 1\n"
+        "    loop0_stop = mesh%get_last_halo_cell(1)\n"
+        # "\n"
+        # "    ! Call kernels and communication routines\n"
+        "    if (f1_proxy%is_dirty(depth=1)) then\n"
+        "      call f1_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (f2_proxy%is_dirty(depth=1)) then\n"
+        "      call f2_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m1_proxy%is_dirty(depth=1)) then\n"
+        "      call m1_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m2_proxy%is_dirty(depth=1)) then\n"
+        "      call m2_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (f4_proxy%is_dirty(depth=1)) then\n"
+        "      call f4_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m3_proxy%is_dirty(depth=1)) then\n"
+        "      call m3_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m4_proxy%is_dirty(depth=1)) then\n"
+        "      call m4_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (f5_proxy%is_dirty(depth=1)) then\n"
+        "      call f5_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (f6_proxy%is_dirty(depth=1)) then\n"
+        "      call f6_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m5_proxy%is_dirty(depth=1)) then\n"
+        "      call m5_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m6_proxy%is_dirty(depth=1)) then\n"
+        "      call m6_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m7_proxy%is_dirty(depth=1)) then\n"
+        "      call m7_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    do cell = loop0_start, loop0_stop, 1\n"
+        "      call testkern_fs_code(nlayers, f1_data, f2_data, "
         "m1_data, m2_data, f3_data, f4_data, "
         "m3_data, m4_data, f5_data, f6_data, "
         "m5_data, m6_data, m7_data, ndf_w1, undf_w1, "
@@ -519,17 +551,16 @@ def test_field_fs(tmpdir):
         "map_w2htrace(:,cell), ndf_w2vtrace, undf_w2vtrace, "
         "map_w2vtrace(:,cell), ndf_wchi, undf_wchi, map_wchi(:,cell), "
         "ndf_any_w2, undf_any_w2, map_any_w2(:,cell))\n"
-        "      END DO\n"
-        "      !\n"
-        "      ! Set halos dirty/clean for fields modified in the above loop\n"
-        "      !\n"
-        "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f3_proxy%set_dirty()\n"
-        "      CALL f3_proxy%set_clean(1)\n"
-        "      !\n"
-        "      !\n"
-        "    END SUBROUTINE invoke_0_testkern_fs_type\n"
-        "  END MODULE single_invoke_fs_psy")
+        "    enddo\n"
+        # "\n"
+        # "    ! Set halos dirty/clean for fields modified in the above loop\n"
+        "    call f1_proxy%set_dirty()\n"
+        "    call f3_proxy%set_dirty()\n"
+        "    call f3_proxy%set_clean(1)\n"
+        "\n"
+        "  end subroutine invoke_0_testkern_fs_type\n"
+        "\n"
+        "end module single_invoke_fs_psy")
     assert output in generated_code
 
 
@@ -707,7 +738,6 @@ def test_int_field_fs(tmpdir):
         "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
-        "      !\n"
         "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w0 => m1_proxy%vspace%get_whole_dofmap()\n"
@@ -806,50 +836,50 @@ def test_int_field_fs(tmpdir):
         "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
-        "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f1_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m1_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m2_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (f4_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f4_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m3_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m3_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m4_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m4_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (f5_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f5_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (f6_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f6_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m5_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m5_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m6_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m6_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (f7_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f7_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (f8_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f8_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m7_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m7_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_fs_int_field_code(nlayers, f1_data, "
+        "    if (f1_proxy%is_dirty(depth=1)) then\n"
+        "      call f1_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (f2_proxy%is_dirty(depth=1)) then\n"
+        "      call f2_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m1_proxy%is_dirty(depth=1)) then\n"
+        "      call m1_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m2_proxy%is_dirty(depth=1)) then\n"
+        "      call m2_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (f4_proxy%is_dirty(depth=1)) then\n"
+        "      call f4_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m3_proxy%is_dirty(depth=1)) then\n"
+        "      call m3_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m4_proxy%is_dirty(depth=1)) then\n"
+        "      call m4_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (f5_proxy%is_dirty(depth=1)) then\n"
+        "      call f5_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (f6_proxy%is_dirty(depth=1)) then\n"
+        "      call f6_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m5_proxy%is_dirty(depth=1)) then\n"
+        "      call m5_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m6_proxy%is_dirty(depth=1)) then\n"
+        "      call m6_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (f7_proxy%is_dirty(depth=1)) then\n"
+        "      call f7_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (f8_proxy%is_dirty(depth=1)) then\n"
+        "      call f8_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    if (m7_proxy%is_dirty(depth=1)) then\n"
+        "      call m7_proxy%halo_exchange(depth=1)\n"
+        "    end if\n"
+        "    do cell = loop0_start, loop0_stop, 1\n"
+        "      call testkern_fs_int_field_code(nlayers, f1_data, "
         "f2_data, m1_data, m2_data, f3_data, "
         "f4_data, m3_data, m4_data, f5_data, "
         "f6_data, m5_data, m6_data, f7_data, "
@@ -865,20 +895,20 @@ def test_int_field_fs(tmpdir):
         "ndf_any_w2, undf_any_w2, map_any_w2(:,cell), ndf_aspc1_f8, "
         "undf_aspc1_f8, map_aspc1_f8(:,cell), ndf_adspc1_m7, "
         "undf_adspc1_m7, map_adspc1_m7(:,cell))\n"
-        "      END DO\n"
+        "    enddo\n"
         "      !\n"
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
-        "      CALL f2_proxy%set_dirty()\n"
-        "      CALL f3_proxy%set_dirty()\n"
-        "      CALL f3_proxy%set_clean(1)\n"
-        "      CALL f8_proxy%set_dirty()\n"
-        "      CALL m7_proxy%set_dirty()\n"
-        "      CALL m7_proxy%set_clean(1)\n"
+        "    call f2_proxy%set_dirty()\n"
+        "    call f3_proxy%set_dirty()\n"
+        "    call f3_proxy%set_clean(1)\n"
+        "    call f8_proxy%set_dirty()\n"
+        "    call m7_proxy%set_dirty()\n"
+        "    call m7_proxy%set_clean(1)\n"
         "      !\n"
         "      !\n"
-        "    END SUBROUTINE invoke_0_testkern_fs_int_field_type\n"
-        "  END MODULE single_invoke_fs_int_field_psy")
+        "  end subroutine invoke_0_testkern_fs_int_field_type\n"
+        "end module single_invoke_fs_int_field_psy")
     assert output in generated_code
 
 
@@ -929,14 +959,14 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
             "      ALLOCATE (diff_basis_adspc1_f3_qr_face(diff_dim_adspc1_f3, "
             "ndf_adspc1_f3, np_xyz_qr_face, nfaces_qr_face))\n"
             in gen_code)
-    assert ("      CALL qr_xyoz%compute_function(BASIS, f3_proxy%vspace, "
+    assert ("    call qr_xyoz%compute_function(BASIS, f3_proxy%vspace, "
             "dim_adspc1_f3, ndf_adspc1_f3, basis_adspc1_f3_qr_xyoz)\n"
-            "      CALL qr_xyoz%compute_function(DIFF_BASIS, "
+            "    call qr_xyoz%compute_function(DIFF_BASIS, "
             "f3_proxy%vspace, diff_dim_adspc1_f3, ndf_adspc1_f3, "
             "diff_basis_adspc1_f3_qr_xyoz)\n"
-            "      CALL qr_face%compute_function(BASIS, f3_proxy%vspace, "
+            "    call qr_face%compute_function(BASIS, f3_proxy%vspace, "
             "dim_adspc1_f3, ndf_adspc1_f3, basis_adspc1_f3_qr_face)\n"
-            "      CALL qr_face%compute_function(DIFF_BASIS, "
+            "    call qr_face%compute_function(DIFF_BASIS, "
             "f3_proxy%vspace, diff_dim_adspc1_f3, ndf_adspc1_f3, "
             "diff_basis_adspc1_f3_qr_face)\n" in gen_code)
     # Check that the kernel call itself is correct
@@ -1080,7 +1110,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     assert output in generated_code
     # Kernel calls are the same regardless of distributed memory
     kern1_call = (
-        "        CALL testkern_fs_int_field_code(nlayers, i1_data, "
+        "      call testkern_fs_int_field_code(nlayers, i1_data, "
         "i2_data, n1_data, n2_data, i3_data, "
         "i4_data, n3_data, n4_data, i5_data, "
         "i6_data, n5_data, n6_data, i7_data, "
@@ -1098,7 +1128,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "undf_adspc1_n7, map_adspc1_n7(:,cell))\n")
     assert kern1_call in generated_code
     kern2_call = (
-        "        CALL testkern_fs_code(nlayers, f1_data, f2_data, "
+        "      call testkern_fs_code(nlayers, f1_data, f2_data, "
         "m1_data, m2_data, f3_data, f4_data, "
         "m3_data, m4_data, f5_data, f6_data, "
         "m5_data, m6_data, m7_data, ndf_w1, undf_w1, "
@@ -1122,15 +1152,15 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     # Check that the field halo flags after the kernel calls
     if dist_mem:
         halo1_flags = (
-            "      CALL i2_proxy%set_dirty()\n"
-            "      CALL i3_proxy%set_dirty()\n"
-            "      CALL i3_proxy%set_clean(1)\n"
-            "      CALL i8_proxy%set_dirty()\n"
-            "      CALL n7_proxy%set_dirty()\n"
-            "      CALL n7_proxy%set_clean(1)\n")
+            "    call i2_proxy%set_dirty()\n"
+            "    call i3_proxy%set_dirty()\n"
+            "    call i3_proxy%set_clean(1)\n"
+            "    call i8_proxy%set_dirty()\n"
+            "    call n7_proxy%set_dirty()\n"
+            "    call n7_proxy%set_clean(1)\n")
         halo2_flags = (
-            "      CALL f1_proxy%set_dirty()\n"
-            "      CALL f3_proxy%set_dirty()\n"
-            "      CALL f3_proxy%set_clean(1)\n")
+            "    call f1_proxy%set_dirty()\n"
+            "    call f3_proxy%set_dirty()\n"
+            "    call f3_proxy%set_clean(1)\n")
         assert halo1_flags in generated_code
         assert halo2_flags in generated_code
