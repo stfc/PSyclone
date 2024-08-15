@@ -62,7 +62,7 @@ class KernStubArgList(ArgOrdering):
         # TODO 719 The stub_symtab is not connected to other parts of the
         # Stub generation. Also the symboltable already has an
         # argument_list that may be able to replace the argument list below.
-        self._stub_symtab = LFRicSymbolTable()
+        # self._symtab = LFRicSymbolTable()
 
     def cell_position(self, var_accesses=None):
         '''Adds a cell argument to the argument list and if supplied stores
@@ -186,7 +186,7 @@ class KernStubArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        name = LFRicStencils.dofmap_size_symbol(None, arg, self._stub_symtab).name
+        name = LFRicStencils.dofmap_size_symbol(None, arg, self._symtab).name
         self.append(name, var_accesses)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
@@ -205,7 +205,7 @@ class KernStubArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        name = LFRicStencils.direction_name(self._stub_symtab, arg)
+        name = LFRicStencils.direction_name(self._symtab, arg).name
         self.append(name, var_accesses)
 
     def stencil(self, arg, var_accesses=None):
@@ -225,7 +225,7 @@ class KernStubArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        var_name = LFRicStencils.dofmap_symbol(self._stub_symtab, arg).name
+        var_name = LFRicStencils.dofmap_symbol(self._symtab, arg).name
         self.append(var_name, var_accesses)
 
     def stencil_2d_max_extent(self, arg, var_accesses=None):
@@ -246,7 +246,7 @@ class KernStubArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        name = LFRicStencils.max_branch_length_name(self._stub_symtab, arg)
+        name = LFRicStencils.max_branch_length(self._symtab, arg).name
         self.append(name, var_accesses)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
@@ -265,7 +265,7 @@ class KernStubArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        name = LFRicStencils.dofmap_size_symbol(None, arg, self._stub_symtab).name
+        name = LFRicStencils.dofmap_size_symbol(None, arg, self._symtab).name
         self.append(name, var_accesses)
 
     def stencil_2d(self, arg, var_accesses=None):
@@ -292,7 +292,7 @@ class KernStubArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        var_name = LFRicStencils.dofmap_symbol(self._stub_symtab, arg).name
+        var_name = LFRicStencils.dofmap_symbol(self._symtab, arg).name
         self.append(var_name, var_accesses)
 
     def operator(self, arg, var_accesses=None):

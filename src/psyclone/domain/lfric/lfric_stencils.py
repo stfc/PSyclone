@@ -190,7 +190,7 @@ class LFRicStencils(LFRicCollection):
         unique = LFRicStencils.stencil_unique_str(arg, "map")
         # FIXME: This is not the type
         return self._symbol_table.find_or_create_tag(
-            unique, root_name, symbol_type=DataSymbol,
+            unique, root_name=root_name, symbol_type=DataSymbol,
             datatype=UnresolvedType()).name
 
     @staticmethod
@@ -211,13 +211,11 @@ class LFRicStencils(LFRicCollection):
         '''
         root_name = arg.name + "_stencil_dofmap"
         unique = LFRicStencils.stencil_unique_str(arg, "dofmap")
-        if arg.descriptor.stencil['type'] == "cross2d":
-            num_dimensions = 4
-        else:
-            num_dimensions = 3
-        return symtab.find_or_create_array(root_name, num_dimensions,
-                                           ScalarType.Intrinsic.INTEGER,
-                                           tag=unique)
+        # The dofmap symbol type depends if it's in a stub or an invoke, so
+        # don't commit to any type yet.
+        return symtab.find_or_create_tag(
+                unique, root_name=root_name, symbol_type=DataSymbol,
+                datatype=UnresolvedType())
 
     def dofmap_size_symbol(self, arg, symtab=None):
         '''
@@ -238,21 +236,12 @@ class LFRicStencils(LFRicCollection):
             symtab = self._symbol_table
         root_name = arg.name + "_stencil_size"
         unique = LFRicStencils.stencil_unique_str(arg, "size")
-        if arg.descriptor.stencil['type'] == "cross2d":
-            num_dimensions = 2
-        else:
-            num_dimensions = 1
-        symbol = symtab.find_or_create_array(root_name, num_dimensions,
-                                             ScalarType.Intrinsic.INTEGER,
-                                             tag=unique)
-        dim_string = (":," * num_dimensions)[:-1]
-        symbol.datatype = UnsupportedFortranType(
-            f"integer(kind=i_def), pointer, dimension({dim_string}) :: "
-            f"{symbol.name} => null()")
-        return symbol
+        return symtab.find_or_create_tag(
+                unique, root_name=root_name, symbol_type=DataSymbol,
+                datatype=UnresolvedType())
 
     @staticmethod
-    def max_branch_length_name(symtab, arg):
+    def max_branch_length(symtab, arg):
         '''
         Create a valid unique name for the maximum length of a stencil branch
         (in cells) of a 2D stencil dofmap in the PSy layer. This is required
@@ -271,7 +260,9 @@ class LFRicStencils(LFRicCollection):
         '''
         root_name = arg.name + "_max_branch_length"
         unique = LFRicStencils.stencil_unique_str(arg, "length")
-        return symtab.find_or_create_integer_symbol(root_name, tag=unique)
+        return symtab.find_or_create_tag(
+                unique, root_name=root_name, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
     def _unique_max_branch_length_vars(self):
         '''
@@ -286,26 +277,6 @@ class LFRicStencils(LFRicCollection):
                 names.append(arg.name + "_max_branch_length")
 
         return names
-
-    def _declare_unique_max_branch_length_vars(self, parent):
-        '''
-        Declare all unique max branch length arguments as integers with intent
-        'in' and add the declaration as a child of the parent argument passed
-        in.
-
-        :param parent: the node in the f2pygen AST to which to add the
-                       declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("lfric")
-
-        if self._unique_max_branch_length_vars():
-            parent.add(DeclGen(
-                parent, datatype="integer",
-                kind=api_config.default_kind["integer"],
-                entity_decls=self._unique_max_branch_length_vars(), intent="in"
-            ))
 
     @staticmethod
     def direction_name(symtab, arg):
@@ -325,7 +296,9 @@ class LFRicStencils(LFRicCollection):
         '''
         root_name = arg.name+"_direction"
         unique = LFRicStencils.stencil_unique_str(arg, "direction")
-        return symtab.find_or_create_integer_symbol(root_name, tag=unique).name
+        return symtab.find_or_create_tag(
+                unique, root_name=root_name, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
     @property
     def _unique_extent_vars(self):
@@ -369,23 +342,41 @@ class LFRicStencils(LFRicCollection):
             if self._kernel:
                 for arg in self._kern_args:
                     if arg.descriptor.stencil['type'] == "cross2d":
-                        parent.add(DeclGen(
-                            parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            dimension="4",
-                            entity_decls=self._unique_extent_vars, intent="in"
-                        ))
+                        for var in self._unique_extent_vars:
+                            symbol = table.lookup(var)
+                            symbol.datatype = ArrayType(
+                                    LFRicTypes(
+                                        "LFRicIntegerScalarDataType")(),
+                                    [Literal("4", INTEGER_TYPE)])
+                            if symbol not in table.argument_list:
+                                symbol.interface = ArgumentInterface(
+                                            ArgumentInterface.Access.READ)
+                                table.append_argument(symbol)
+                        # parent.add(DeclGen(
+                        #     parent, datatype="integer",
+                        #     kind=api_config.default_kind["integer"],
+                        #     dimension="4",
+                        #     entity_decls=self._unique_extent_vars, intent="in"
+                        # ))
                     else:
-                        parent.add(DeclGen(
-                            parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            entity_decls=self._unique_extent_vars,
-                            intent="in"))
+                        for var in self._unique_extent_vars:
+                            symbol = table.lookup(var)
+                            symbol.datatype = LFRicTypes(
+                                    "LFRicIntegerScalarDataType")()
+                            if symbol not in table.argument_list:
+                                symbol.interface = ArgumentInterface(
+                                            ArgumentInterface.Access.READ)
+                                table.append_argument(symbol)
+                        # parent.add(DeclGen(
+                        #     parent, datatype="integer",
+                        #     kind=api_config.default_kind["integer"],
+                        #     entity_decls=self._unique_extent_vars,
+                        #     intent="in"))
             elif self._invoke:
                 for var in self._unique_extent_vars:
                     symbol = table.find_or_create(
                         var, symbol_type=DataSymbol,
-                        datatype= LFRicTypes("LFRicIntegerScalarDataType")())
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                     if symbol not in table.argument_list:
                         symbol.interface = ArgumentInterface(
                                     ArgumentInterface.Access.READ)
@@ -410,7 +401,7 @@ class LFRicStencils(LFRicCollection):
             if arg.stencil.direction_arg.varname:
                 names.append(arg.stencil.direction_arg.varname)
             else:
-                names.append(arg.name+"_direction")
+                names.append(self.direction_name(self._symbol_table, arg).name)
         return names
 
     def _declare_unique_direction_vars(self, cursor):
@@ -481,7 +472,6 @@ class LFRicStencils(LFRicCollection):
         '''
         cursor = self._declare_unique_extent_vars(cursor)
         cursor = self._declare_unique_direction_vars(cursor)
-        cursor = self._declare_unique_max_branch_length_vars(cursor)
         cursor = self._declare_maps_stub(cursor)
         return cursor
 
@@ -567,7 +557,7 @@ class LFRicStencils(LFRicCollection):
                     # is included as part of the stencil_dofmap.
                     stmt = Assignment.create(
                         lhs=Reference(
-                                self.max_branch_length_name(symtab, arg)),
+                                self.max_branch_length(symtab, arg)),
                         rhs=BinaryOperation.create(
                             BinaryOperation.Operator.ADD,
                             self.extent_value(arg),
@@ -608,10 +598,9 @@ class LFRicStencils(LFRicCollection):
                     #               stencil_name + "," +
                     #               self.extent_value(arg) + ")"))
 
-                map_symbol = symtab.lookup(map_name)
                 self._invoke.schedule.addchild(
                     Assignment.create(
-                        lhs=Reference(self.dofmap_symbol(symtab,arg)),
+                        lhs=Reference(self.dofmap_symbol(symtab, arg)),
                         rhs=Call.create(
                             StructureReference.create(
                                 symtab.lookup(map_name),
@@ -624,9 +613,19 @@ class LFRicStencils(LFRicCollection):
                 #                      rhs=map_name + "%get_whole_dofmap()"))
 
                 # Add declaration and look-up of stencil size
+                size_symbol = self.dofmap_size_symbol(arg)
+                if arg.descriptor.stencil['type'] == "cross2d":
+                    num_dimensions = 2
+                else:
+                    num_dimensions = 1
+                dim_string = (":," * num_dimensions)[:-1]
+                size_symbol.datatype = UnsupportedFortranType(
+                    f"integer(kind=i_def), pointer, "
+                    f"dimension({dim_string}) :: {size_symbol.name}"
+                    f" => null()")
                 self._invoke.schedule.addchild(
                     Assignment.create(
-                        lhs=Reference(self.dofmap_size_symbol(arg)),
+                        lhs=Reference(size_symbol),
                         rhs=Call.create(
                             StructureReference.create(
                                 symtab.lookup(map_name),
@@ -804,35 +803,61 @@ class LFRicStencils(LFRicCollection):
                 #                                  f"=> null()"]))
         return cursor
 
-    def _declare_maps_stub(self, parent):
+    def _declare_maps_stub(self, cursor):
         '''
         Add declarations for all stencil maps to a kernel stub.
 
-        :param parent: the node in the f2pygen AST representing the kernel
-                       stub routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("lfric")
 
         symtab = self._symbol_table
         for arg in self._kern_args:
+            symbol = self.dofmap_symbol(symtab, arg)
             if arg.descriptor.stencil['type'] == "cross2d":
-                parent.add(DeclGen(
-                    parent, datatype="integer",
-                    kind=api_config.default_kind["integer"], intent="in",
-                    dimension=",".join([arg.function_space.ndf_name,
-                                        self.max_branch_length_name(
-                                            symtab, arg), "4"]),
-                    entity_decls=[self.dofmap_symbol(symtab, arg).name]))
+                max_length = self.max_branch_length(symtab, arg)
+                if max_length not in symtab.argument_list:
+                    max_length.interface = ArgumentInterface(
+                                ArgumentInterface.Access.READ)
+                    symtab.append_argument(max_length)
+                symbol.datatype = ArrayType(
+                        LFRicTypes("LFRicIntegerScalarDataType")(),
+                        [Reference(symtab.lookup(arg.function_space.ndf_name)),
+                         Reference(max_length),
+                         Literal("4", INTEGER_TYPE)])
+                # parent.add(DeclGen(
+                #     parent, datatype="integer",
+                #     kind=api_config.default_kind["integer"], intent="in",
+                #     dimension=",".join([arg.function_space.ndf_name,
+                #                         self.max_branch_length_name(
+                #                             symtab, arg), "4"]),
+                #     entity_decls=[self.dofmap_symbol(symtab, arg).name]))
             else:
-                dofmap_size_name = self.dofmap_size_symbol(arg).name
-                parent.add(DeclGen(
-                    parent, datatype="integer",
-                    kind=api_config.default_kind["integer"], intent="in",
-                    dimension=",".join([arg.function_space.ndf_name,
-                                        dofmap_size_name]),
-                    entity_decls=[self.dofmap_symbol(symtab, arg).name]))
+                size_symbol = self.dofmap_size_symbol(arg)
+                size_symbol.datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                if size_symbol not in symtab.argument_list:
+                    size_symbol.interface = ArgumentInterface(
+                                ArgumentInterface.Access.READ)
+                    symtab.append_argument(size_symbol)
+                symbol.datatype = ArrayType(
+                        LFRicTypes("LFRicIntegerScalarDataType")(),
+                        [Reference(symtab.lookup(arg.function_space.ndf_name)),
+                         Reference(size_symbol)])
+                # parent.add(DeclGen(
+                #     parent, datatype="integer",
+                #     kind=api_config.default_kind["integer"], intent="in",
+                #     dimension=",".join([arg.function_space.ndf_name,
+                #                         dofmap_size_name]),
+                #     entity_decls=[self.dofmap_symbol(symtab, arg).name]))
+            if symbol not in symtab.argument_list:
+                symbol.interface = ArgumentInterface(
+                            ArgumentInterface.Access.READ)
+                symtab.append_argument(symbol)
+        return cursor
 
 
 # ---------- Documentation utils -------------------------------------------- #

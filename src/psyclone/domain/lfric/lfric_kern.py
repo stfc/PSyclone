@@ -651,6 +651,7 @@ class LFRicKern(CodedKern):
         # The declarations above are not in order, we need to use the
         # KernStubArgList to generate a list of strings with the correct order
         create_arg_list = KernStubArgList(self)
+        create_arg_list._forced_symtab = sub_stub.symbol_table
         create_arg_list.generate()
         arg_list = []
         for argument_name in create_arg_list.arglist:

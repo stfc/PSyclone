@@ -1399,8 +1399,10 @@ class DynFunctionSpaces(LFRicCollection):
             arg = self._symbol_table.find_or_create(
                 var, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-            arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
-            self._symbol_table.append_argument(arg)
+            if arg not in self._symbol_table.argument_list:
+                arg.interface = ArgumentInterface(
+                        ArgumentInterface.Access.READ)
+                self._symbol_table.append_argument(arg)
         return cursor
 
     def _invoke_declarations(self, cursor):
