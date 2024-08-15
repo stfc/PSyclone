@@ -79,7 +79,7 @@ def test_field_xyoz(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     module_declns = (
-        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE constants_mod\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n")
     assert module_declns in generated_code
 
@@ -286,7 +286,7 @@ def test_face_qr(tmpdir, dist_mem):
     generated_code = str(psy.gen)
 
     module_declns = (
-        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE constants_mod\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n")
     assert module_declns in generated_code
 

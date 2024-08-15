@@ -614,17 +614,17 @@ class LFRicKern(CodedKern):
                 f"operate on one of {supported_operates_on} but found "
                 f"'{self.iterates_over}' in kernel '{self.name}'.")
 
-        # Create an empty PSy layer module
-        psy_module = Container(self._base_name+"_mod")
+        # Create an empty Stub module
+        stub_module = Container(self._base_name+"_mod")
 
         # Create the subroutine
-        sub_stub = Routine(self._base_name+"_code")
-        psy_module.addchild(sub_stub)
-        self._stub_symbol_table = sub_stub.symbol_table
+        stub_routine = Routine(self._base_name+"_code")
+        stub_module.addchild(stub_routine)
+        self._stub_symbol_table = stub_routine.symbol_table
 
         # Add wildcard "use" statement for all supported argument
         # kinds (precisions)
-        sub_stub.symbol_table.add(
+        stub_routine.symbol_table.add(
             ContainerSymbol(
                 const.UTILITIES_MOD_MAP["constants"]["module"],
                 wildcard_import=True
@@ -645,25 +645,24 @@ class LFRicKern(CodedKern):
                          DynLMAOperators, LFRicStencils, DynBasisFunctions,
                          DynBoundaryConditions, DynReferenceElement,
                          LFRicMeshProperties]:
-            entities(self).declarations(sub_stub)
-
+            entities(self).declarations(stub_routine)
 
         # The declarations above are not in order, we need to use the
         # KernStubArgList to generate a list of strings with the correct order
         create_arg_list = KernStubArgList(self)
-        create_arg_list._forced_symtab = sub_stub.symbol_table
+        create_arg_list._forced_symtab = stub_routine.symbol_table
         create_arg_list.generate()
         arg_list = []
         for argument_name in create_arg_list.arglist:
-            arg_list.append(sub_stub.symbol_table.lookup(argument_name))
+            arg_list.append(stub_routine.symbol_table.lookup(argument_name))
         # If a previous argument has not been given an order by KernStubArgList
         # ignore it.
-        for argument in sub_stub.symbol_table.argument_list:
+        for argument in stub_routine.symbol_table.argument_list:
             if argument not in arg_list:
                 argument.interface = UnknownInterface()
-        sub_stub.symbol_table.specify_argument_list(arg_list)
+        stub_routine.symbol_table.specify_argument_list(arg_list)
 
-        return psy_module
+        return stub_module
 
     def get_kernel_schedule(self):
         '''Returns a PSyIR Schedule representing the kernel code. The base

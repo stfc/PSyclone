@@ -193,7 +193,7 @@ def test_single_kern_eval(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Check module declarations
-    assert "use constants_mod, only : r_def" in gen_code  # FIXME: i_def?
+    assert "use constants_mod\n" in gen_code
     assert "use field_mod, only : field_proxy_type, field_type" in gen_code
 
     # Check subroutine declarations
@@ -381,7 +381,7 @@ def test_two_qr_same_shape(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "use constants_mod, only : i_def, r_def" in gen_code
+    assert "use constants_mod\n" in gen_code
     assert "use field_mod, only : field_proxy_type, field_type" in gen_code
 
     assert ("subroutine invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
@@ -701,7 +701,7 @@ def test_qr_plus_eval(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "use constants_mod, only : i_def, r_def" in gen_code
+    assert "use constants_mod\n" in gen_code
     assert "use field_mod, only : field_proxy_type, field_type" in gen_code
 
     assert "subroutine invoke_0(f0, f1, f2, m1, a, m2, istp, qr)" in gen_code

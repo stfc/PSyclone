@@ -1,4 +1,4 @@
-# -----------------------------------------------------------------------------
+#a -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
 # Copyright (c) 2017-2024, Science and Technology Facilities Council.
@@ -568,7 +568,7 @@ class SymbolTable():
         if not isinstance(new_symbol, Symbol):
             raise InternalError(f"Symbol '{new_symbol}' is not a symbol, but "
                                 f"'{type(new_symbol).__name__}'.'")
-        # if new_symbol.name in ("field_2_direction",):
+        # if new_symbol.name in ("constants_mod",):
         #      import pdb; pdb.set_trace()
 
         key = self._normalize(new_symbol.name)

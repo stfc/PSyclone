@@ -72,14 +72,6 @@ def test_dynamopsy():
     assert isinstance(dynamo_psy, DynamoPSy)
     assert issubclass(DynamoPSy, PSy)
     assert isinstance(dynamo_psy._invokes, LFRicInvokes)
-    infrastructure_modules = dynamo_psy._infrastructure_modules
-    assert isinstance(infrastructure_modules, OrderedDict)
-    assert list(infrastructure_modules["constants_mod"]) == ["i_def"]
-    const = LFRicConstants()
-    names = set(item["module"] for item in const.DATA_TYPE_MAP.values())
-    assert len(names)+1 == len(infrastructure_modules)
-    for module_name in names:
-        assert infrastructure_modules[module_name] == set()
 
 
 def test_dynamopsy_kind():
@@ -93,7 +85,7 @@ def test_dynamopsy_kind():
         BASE_PATH, "15.12.3_single_pointwise_builtin.f90"), api="lfric")
     dynamo_psy = DynamoPSy(invoke_info)
     result = str(dynamo_psy.gen)
-    assert "USE constants_mod, ONLY: r_def, i_def" in result
+    assert "USE constants_mod\n" in result
     assert "f1_data(df) = 0.0\n" in result
     # 2: Literal kind value is declared (trying with two cases to check)
     for kind_name in ["r_solver", "r_tran"]:
@@ -101,7 +93,7 @@ def test_dynamopsy_kind():
         invoke_info.calls[0].kcalls[0].args[1]._datatype = ("real", kind_name)
         dynamo_psy = DynamoPSy(invoke_info)
         result = str(dynamo_psy.gen).lower()
-        assert f"use constants_mod, only: {kind_name}, r_def, i_def" in result
+        assert f"use constants_mod\n" in result
         assert f"f1_data(df) = 0.0_{kind_name}" in result
 
 
@@ -117,18 +109,6 @@ def test_dynamopsy_names():
     assert dynamo_psy.orig_name == supplied_name
 
 
-def test_dynamopsy_inf_modules():
-    '''Check that the infrastructure_modules() method of DynamoPSy (which
-    is implemented as a property) behaves as expected. In this case we
-    check that it returns the values set up in the initialisation of
-    an instance of DynamoPSy.
-
-    '''
-    dynamo_psy = DynamoPSy(DummyInvokeInfo())
-    assert (dynamo_psy.infrastructure_modules is
-            dynamo_psy._infrastructure_modules)
-
-
 def test_dynamopsy_gen_no_invoke():
     '''Check that the gen() method of DynamoPSy behaves as expected for a
     minimal psy-layer when the algorithm layer does not contain any
@@ -137,7 +117,7 @@ def test_dynamopsy_gen_no_invoke():
     '''
     expected_result = (
         "  MODULE hello_psy\n"
-        "    USE constants_mod, ONLY: i_def\n"
+        "    USE constants_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "  END MODULE hello_psy")

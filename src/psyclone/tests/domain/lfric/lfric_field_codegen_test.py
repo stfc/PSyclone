@@ -70,7 +70,7 @@ def test_field(tmpdir):
     generated_code = psy.gen
     output = (
         "  MODULE single_invoke_psy\n"
-        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE constants_mod\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
@@ -298,7 +298,7 @@ def test_field_fs(tmpdir):
     generated_code = str(psy.gen)
     output = (
         "  MODULE single_invoke_fs_psy\n"
-        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE constants_mod\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
@@ -598,7 +598,7 @@ def test_int_field_fs(tmpdir):
     generated_code = str(psy.gen)
     output = (
         "  MODULE single_invoke_fs_int_field_psy\n"
-        "    USE constants_mod, ONLY: i_def\n"
+        "    USE constants_mod\n"
         "    USE integer_field_mod, ONLY: integer_field_type, "
         "integer_field_proxy_type\n"
         "    IMPLICIT NONE\n"
@@ -975,7 +975,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
 
     output = (
         "  MODULE multikernel_invokes_real_int_field_fs_psy\n"
-        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE constants_mod\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    USE integer_field_mod, ONLY: integer_field_type, "
         "integer_field_proxy_type\n"

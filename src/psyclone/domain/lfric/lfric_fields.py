@@ -125,12 +125,6 @@ class LFRicFields(LFRicCollection):
                 arg_symbol = symtab.lookup(arg.name)
                 arg_symbol.interface.access = ArgumentInterface.Access.READ
 
-            # arg_list = [arg.declaration_name for arg in args]
-            # parent.add(TypeDeclGen(parent, datatype=fld_type,
-            #                        entity_decls=arg_list,
-            #                        intent="in"))
-            (self._invoke.invokes.psy.
-             infrastructure_modules[fld_mod].add(fld_type))
         return cursor
 
     def _stub_declarations(self, cursor):

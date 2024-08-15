@@ -196,16 +196,17 @@ class LFRicScalarArgs(LFRicCollection):
             self._kernel are set.
 
         '''
-        const = LFRicConstants()
-        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
         const_mod_uses = None
         if self._invoke:
             symtab = self._invoke.schedule.symbol_table
-            const_mod_uses = self._invoke.invokes.psy.infrastructure_modules[
-                const_mod]
+        elif self._kernel:
+            symtab = self._symbol_table
         else:
-            return cursor  # FIXME
-            symtab = self._kern.schedule.symbol_table
+            raise InternalError(
+                "Expected the declaration of the scalar kernel "
+                "arguments to be for either an invoke or a "
+                "kernel stub, but it is neither.")
+            
         # Real scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
@@ -231,22 +232,6 @@ class LFRicScalarArgs(LFRicCollection):
                         elif intent == "in":
                             symbol.interface.access = \
                                 ArgumentInterface.Access.READ
-                    # real_scalar_names = [arg.declaration_name for arg
-                    #                      in real_scalars_list]
-                    # parent.add(
-                    #     DeclGen(parent, datatype=real_scalar_type,
-                    #             kind=real_scalar_kind,
-                    #             entity_decls=real_scalar_names,
-                    #             intent=intent))
-                    if self._invoke:
-                        const_mod_uses.add(real_scalar_kind)
-                    elif self._kernel:
-                        self._kernel.argument_kinds.add(real_scalar_kind)
-                    else:
-                        raise InternalError(
-                            "Expected the declaration of real scalar kernel "
-                            "arguments to be for either an invoke or a "
-                            "kernel stub, but it is neither.")
 
         # Integer scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
@@ -262,20 +247,6 @@ class LFRicScalarArgs(LFRicCollection):
                         symbol.interface.access = \
                             ArgumentInterface.Access.READ
 
-                # parent.add(
-                #     DeclGen(parent, datatype=dtype, kind=dkind,
-                #             entity_decls=integer_scalar_names,
-                #             intent=intent))
-                if self._invoke:
-                    const_mod_uses.add(dkind)
-                elif self._kernel:
-                    self._kernel.argument_kinds.add(dkind)
-                else:
-                    raise InternalError(
-                        "Expected the declaration of integer scalar kernel "
-                        "arguments to be for either an invoke or a "
-                        "kernel stub, but it is neither.")
-
         # Logical scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._logical_scalars[intent]:
@@ -289,19 +260,6 @@ class LFRicScalarArgs(LFRicCollection):
                     elif intent == "in":
                         symbol.interface.access = \
                             ArgumentInterface.Access.READ
-                # parent.add(
-                #     DeclGen(parent, datatype=dtype, kind=dkind,
-                #             entity_decls=logical_scalar_names,
-                #             intent=intent))
-                if self._invoke:
-                    const_mod_uses.add(dkind)
-                elif self._kernel:
-                    self._kernel.argument_kinds.add(dkind)
-                else:
-                    raise InternalError(
-                        "Expected the declaration of logical scalar kernel "
-                        "arguments to be for either an invoke or a "
-                        "kernel stub, but it is neither.")
         return cursor
 
 

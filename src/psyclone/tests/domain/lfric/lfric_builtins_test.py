@@ -1953,8 +1953,7 @@ def test_int_to_real_x_precision(tmpdir, kind_name):
     code = str(psy.gen)
 
     # Test code generation
-    print(code)
-    assert f"use constants_mod, only : i_def, {kind_name}" in code
+    assert f"use constants_mod\n" in code
     assert (f"use {kind_name}_field_mod, only : {kind_name}_field_proxy_type, "
             f"{kind_name}_field_type") in code
     assert f"type({kind_name}_field_type), intent(in) :: f2" in code
@@ -2018,7 +2017,7 @@ def test_real_to_int_x_precision(monkeypatch, tmpdir, kind_name):
     # Test limited code generation (no equivalent field type)
     code = str(psy.gen)
     return
-    assert f"use constants_mod, only : r_def, {kind_name}" in code
+    assert f"use constants_mod\n" in code
     assert (f"integer(kind={kind_name}), pointer, dimension(:) :: "
             "f2_data => null()") in code
     assert f"f2_data(df) = INT(f1_data(df), kind={kind_name})" in code
@@ -2093,13 +2092,7 @@ def test_real_to_real_x_lowering(monkeypatch, tmpdir, kind_name):
     # Due to the reverse alphabetical ordering performed by PSyclone,
     # different cases will arise depending on the substitution
     return
-    print(code)
-    if kind_name < 'r_def':
-        assert f"use constants_mod, only : r_def, r_solver, {kind_name}" in code
-    elif 'r_solver' > kind_name > 'r_def':
-        assert f"use constants_mod, only : r_solver, {kind_name}, r_def" in code
-    else:
-        assert f"use constants_mod, only : {kind_name}, r_solver, r_def" in code
+    assert f"use constants_mod\n" in code
 
     # Assert correct type is set
     assert (f"real(kind={kind_name}), pointer, dimension(:) :: "

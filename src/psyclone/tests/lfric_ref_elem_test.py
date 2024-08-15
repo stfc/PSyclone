@@ -336,8 +336,7 @@ def test_refelem_no_rdef(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
-    # print(gen)
-    # assert "use constants_mod, only : r_solver, r_def, i_def" in gen
+    assert "use constants_mod" in gen
 
 
 def test_ref_element_symbols():
