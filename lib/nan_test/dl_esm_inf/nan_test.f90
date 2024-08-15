@@ -92,6 +92,7 @@ contains
         class(nan_test_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
+        call this%PreDeclareVariable(name, value%data)
 
     end subroutine DeclareField
 
@@ -112,7 +113,7 @@ contains
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
 
-        call this%ProvideArray2dDouble(name, value%data)
+        call this%ProvideVariable(name, value%data)
 
     end subroutine ProvideField
 
