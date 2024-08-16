@@ -50,9 +50,9 @@ jobs:
       NETCDF_C_VERSION: 4.9.2
       NETCDF_FORTRAN_VERSION: 4.6.1
       NVFORTRAN_VERSION: 23.7
-      ONEAPI_VERSION: 2024.1.0
-      PERL_VERSION: 5.38.2
-      PYTHON_VERSION: 3.12.3
+      ONEAPI_VERSION: 2024.2.1
+      PERL_VERSION: 5.40.0
+      PYTHON_VERSION: 3.12.5
 
     steps:
     - uses: actions/checkout@v3
