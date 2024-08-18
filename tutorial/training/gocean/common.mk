@@ -13,9 +13,7 @@ this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 ROOT_DIR := $(abspath $(dir $(this_file))../../..)
 
 ifeq ($(API), gocean1.0)
-	# For now till MPI support is merged into dl_esm_info and PSyclone is updated.
-	# INF_DIR ?= $(ROOT_DIR)/external/dl_esm_inf/finite_difference
-	INF_DIR ?= $(HOME)/work/dl_esm_inf/finite_difference
+	INF_DIR ?= $(ROOT_DIR)/external/dl_esm_inf/finite_difference
 	INF_INC = $(INF_DIR)/src
 	ifeq ($(MPI), yes)
 		INF_LIB ?= $(INF_DIR)/src/lib_dm_fd.a
@@ -40,7 +38,7 @@ LIBS +=  $(INF_LIB)
 LDFLAGS += $(LIBS)
 F90FLAGS += -I$(INF_INC)
 
-PSYCLONE = psyclone  -api $(API) -l output $(DM) -d $(GOL_DIR)
+PSYCLONE = psyclone --config $(ROOT_DIR)/config/psyclone.cfg -api $(API) -l output $(DM) -d $(GOL_DIR)
 
 default: $(EXE)
 
@@ -72,7 +70,7 @@ run-default: $(EXE)
 	./$(EXE) $(GOL_DIR)/config.glider
 
 test-default: $(EXE)
-	make run | tail -n 13 | head -n 12 | diff - $(GOL_DIR)/glider.correct
+	make --no-print-directory  run | tail -n 12 | diff -b - $(GOL_DIR)/glider.correct
 
 clean-default:
 	rm -f *.o $(EXE) *.mod time_step_alg_mod.f90 time_step_alg_mod_psy.f90

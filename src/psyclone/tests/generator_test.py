@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,6 +58,7 @@ from psyclone import generator
 from psyclone.alg_gen import NoInvokesError
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.generator import (
     generate, main, check_psyir, add_builtins_use)
@@ -66,7 +67,6 @@ from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.version import __VERSION__
 
 
@@ -494,7 +494,7 @@ def test_script_trans_dynamo0p3():
     schedule = invoke.schedule
     loop1 = schedule.children[4]
     loop2 = schedule.children[5]
-    trans = LoopFuseTrans()
+    trans = LFRicLoopFuseTrans()
     trans.apply(loop1, loop2)
     generated_code_1 = psy.gen
     # Second loop fuse using generator.py and a script
@@ -1309,7 +1309,7 @@ def test_no_invokes_lfric_new(monkeypatch):
 
 
 @pytest.mark.parametrize("invoke", ["call invoke", "if (.true.) call invoke"])
-def test_generate_unknown_container_lfric(invoke, tmpdir, monkeypatch):
+def test_generate_unresolved_container_lfric(invoke, tmpdir, monkeypatch):
     '''Test that a GenerationError exception in the generate function is
     raised for the LFRic DSL if one of the functors is not explicitly
     declared. This can happen in LFRic algorithm code as it is never
@@ -1357,7 +1357,7 @@ def test_generate_unknown_container_lfric(invoke, tmpdir, monkeypatch):
             "['x_plus_y', 'inc_x_plus_y'," in str(info.value))
 
 
-def test_generate_unknown_container_gocean(tmpdir):
+def test_generate_unresolved_container_gocean(tmpdir):
     '''Test that a GenerationError exception in the generate function is
     raised for the GOcean DSL if one of the functors is not explicitly
     declared. This can happen in GOcean algorithm code as it is never

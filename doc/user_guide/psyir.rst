@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -245,10 +245,10 @@ DataTypes
 =========
 
 The PSyIR supports the following datatypes: ``ScalarType``,
-``ArrayType``, ``StructureType``, ``DeferredType``, ``UnknownType``
+``ArrayType``, ``StructureType``, ``UnresolvedType``, ``UnsupportedType``
 and ``NoType``.  These datatypes are used when creating instances of
 DataSymbol, RoutineSymbol and Literal (although note that ``NoType`` may
-only be used with a RoutineSymbol). ``DeferredType`` and ``UnknownType``
+only be used with a RoutineSymbol). ``UnresolvedType`` and ``UnsupportedType``
 are both used when processing existing code. The former is used
 when a symbol is being imported from some other scope (e.g. via a USE
 statement in Fortran) that hasn't yet been resolved and the latter is
@@ -382,7 +382,7 @@ Unknown DataType
 ----------------
 
 If a PSyIR frontend encounters an unsupported declaration then the
-corresponding Symbol is given :ref_guide:`UnknownType psyclone.psyir.symbols.html#psyclone.psyir.symbols.UnknownType`.
+corresponding Symbol is given :ref_guide:`UnsupportedType psyclone.psyir.symbols.html#psyclone.psyir.symbols.UnsupportedType`.
 The text of the original declaration is stored in the type object and is
 available via the ``declaration`` property.
 
@@ -432,6 +432,8 @@ are:
 - .. autoclass:: psyclone.psyir.symbols.IntrinsicSymbol
 
 - .. autoclass:: psyclone.psyir.symbols.RoutineSymbol
+
+- .. autoclass:: psyclone.psyir.symbols.GenericInterfaceSymbol
 
 See the reference guide for the full API documentation of the
 :ref_guide:`SymbolTable psyclone.psyir.symbols.html#psyclone.psyir.symbols.SymbolTable`

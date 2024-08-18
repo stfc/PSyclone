@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,8 +34,7 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel extraction code to
-all invokes.
+function via the -s option. It module inlines all kernels.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
@@ -49,18 +48,14 @@ def trans(psy):
     :param psy: the PSy layer to transform.
     :type psy: :py:class:`psyclone.psyGen.PSy`
 
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
-
     '''
-    inline = KernelModuleInlineTrans()
+    # TODO: Create an instance of the inline transformation
 
     for invoke in psy.invokes.invoke_list:
-        print(invoke)
         schedule = invoke.schedule
-        # Inline all kernels to help gfortran with inlining.
-        for kern in schedule.walk(GOKern):
-            print(kern)
-            inline.apply(kern)
-
-    return psy
+        # TODO: Look at the schedule representation, i.e. print
+        # schedule.view()
+        print
+        # TODO: Inline all kernels to help gfortran with inlining
+        # by applying the inline transformation to each kernel:
+        # inline.apply(...)

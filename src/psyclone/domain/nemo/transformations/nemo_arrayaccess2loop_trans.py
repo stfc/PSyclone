@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -116,7 +116,7 @@ class NemoArrayAccess2LoopTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         array_index = node.position
         array_reference = node.parent

@@ -18,7 +18,7 @@ $(EXE): $(INF_LIB) $(PSY_DATA_LIB) $(OBJ)
 test: $(EXE)
 	@# Due to the additional profiling output, we need to take a different
 	@# section of the output file:
-	make run | tail -n 21  | head -n 12| diff - ../gol-lib/glider.correct
+	make run | tail -n 21  | head -n 12| diff - ../../gol-lib/glider.correct
 
 # Dependencies:
 # -------------

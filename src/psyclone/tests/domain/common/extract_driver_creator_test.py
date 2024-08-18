@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council
+# Copyright (c) 2021-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
-from psyclone.psyir.tools import DependencyTools, ReadWriteInfo
+from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.tests.utilities import get_base_path, get_invoke
 
@@ -174,8 +174,8 @@ def test_driver_creation2():
     clb_trans = GOConstLoopBoundsTrans()
     clb_trans.apply(invoke.schedule)
 
-    dep = DependencyTools()
-    read_write_info = dep.get_in_out_parameters(nodes)
+    ctu = CallTreeUtils()
+    read_write_info = ctu.get_in_out_parameters(nodes)
 
     edc = ExtractDriverCreator()
 
@@ -480,8 +480,8 @@ def test_driver_creation_same_symbol():
                            idx=3, dist_mem=False)
 
     nodes = [invoke.schedule.children[0]]
-    dep = DependencyTools()
-    read_write_info = dep.get_in_out_parameters(nodes)
+    ctu = CallTreeUtils()
+    read_write_info = ctu.get_in_out_parameters(nodes)
 
     edc = ExtractDriverCreator()
     driver_code = edc.get_driver_as_string(nodes, read_write_info,
@@ -528,7 +528,7 @@ def test_driver_creation_import_modules(fortran_reader):
     assert str(all_symbols["my_module"]) == \
         "my_module: ContainerSymbol<not linked>"
     mod_func = all_symbols["mod_func"]
-    assert str(mod_func) == ("mod_func: RoutineSymbol<DeferredType, "
+    assert str(mod_func) == ("mod_func: RoutineSymbol<UnresolvedType, "
                              "pure=unknown, elemental=unknown>")
 
 

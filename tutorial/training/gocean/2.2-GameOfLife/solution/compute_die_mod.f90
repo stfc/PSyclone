@@ -23,7 +23,6 @@ contains
         ! It has to be declared inout - even though the data is only written,
         ! the r2d_field type exists, so it's input as well
         TYPE(r2d_field), intent(inout) :: die
-        ! Sorry for the short name, it keeps the line length below shorter
         TYPE(r2d_field), intent(in)    :: current, neighbours
 
         integer                        :: xstart, xstop, ystart, ystop

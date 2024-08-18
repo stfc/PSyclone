@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 
 '''
 pytest tests for the GOKern class.
@@ -48,10 +49,13 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
 from psyclone.configuration import Config
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern, GOKernelSchedule
+from psyclone.psyir.nodes import Reference
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.tests.utilities import get_invoke
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(
@@ -120,3 +124,97 @@ def test_gok_get_kernel_schedule():
             "PSyIR" in err_text)
     assert ("does not contain the routine that it names as implementing the "
             "kernel ('compute_cu_code')" in err_text)
+
+
+# -----------------------------------------------------------------------------
+def test_gok_reference_accesses(fortran_writer):
+    '''Test that GOcean kernel information are correct, and that the index
+    information are PSyIR nodes.
+
+    '''
+    # Large stencil has 123,110,100
+    _, invoke = get_invoke("large_stencil.f90", "gocean1.0", idx=0)
+    schedule = invoke.schedule
+
+    # Get the first kernel
+    kern1 = schedule.walk(GOKern)[0]
+    vai = VariablesAccessInfo(kern1)
+    assert str(vai) == "cu_fld: WRITE, p_fld: READ, u_fld: READ"
+    p_fld = vai[Signature("p_fld")]
+    # We can't have lists in a set, so we convert the lists to string
+    # for easy comparison. Calling `to_fortran` also ensures that the
+    # component indices are PSyIR nodes (not strings)
+
+    # Convert each PSyIR index into a string, and then also convert each
+    # index pair into a string to be added to the set (we can't have lists in
+    # in a set, so that's the easiest way to compare them)
+    result = set()
+    for access in p_fld:
+        for indices in access.component_indices:
+            result.add(str([fortran_writer(index) for index in indices]))
+
+    # The stencil is 123, 110, 100 - test that appropriate accesses were
+    # added for each direction
+    expected = {
+        # First stencil direction of 123: 1
+        "['i - 1', 'j - 1']",
+        # Second stencil direction of 123: 2
+        "['i', 'j + 1']", "['i', 'j + 2']",
+        # Third stencil direction of 123: 3
+        "['i + 1', 'j + 1']", "['i + 2', 'j + 2']", "['i + 3', 'j + 3']",
+        # First stencil direction of 110: 1
+        "['i - 1', 'j']",
+        # Second stencil direction of 110: 1
+        "['i', 'j']",
+        # First stencil direction of 100: 1
+        "['i - 1', 'j + 1']"
+        }
+
+    assert expected == result
+
+
+# -----------------------------------------------------------------------------
+def test_gok_access_info_scalar_and_property():
+    '''Test  GOcean kernel information when using a grid property and scalar
+    variables.
+
+    '''
+    _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
+                           "gocean1.0", idx=0)
+    schedule = invoke.schedule
+
+    # Get the first kernel
+    kern1 = schedule.walk(GOKern)[0]
+    vai = VariablesAccessInfo(kern1)
+
+    # Check that we get the grid properties listed:
+    assert (str(vai) == "p_fld: READWRITE, "
+            "p_fld%grid%subdomain%internal%xstop: READ, "
+            "p_fld%grid%tmask: READ")
+
+    # Check that the derived type using tmask has the corresponding component
+    # indices specified. No indices for p_fld and grid:
+    tmask = vai[Signature("p_fld%grid%tmask")]
+    comp_ind = tmask[0].component_indices
+    assert comp_ind[0] == []
+    assert comp_ind[1] == []
+
+    # And it should have PSyIR expressions for (i,j) as the last component:
+    assert isinstance(comp_ind[2][0], Reference)
+    assert isinstance(comp_ind[2][1], Reference)
+    assert comp_ind[2][0].symbol.name == "i"
+    assert comp_ind[2][1].symbol.name == "j"
+
+
+# -----------------------------------------------------------------------------
+def test_gok_local_vars():
+    '''Tests the local_var function
+
+    '''
+    _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
+                           "gocean1.0", idx=0)
+    schedule = invoke.schedule
+
+    # Get the first kernel
+    kern1 = schedule.walk(GOKern)[0]
+    assert kern1.local_vars() == []

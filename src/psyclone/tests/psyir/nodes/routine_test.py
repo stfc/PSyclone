@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,13 +33,15 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the pytest tests for the Routine class. '''
 
 import pytest
-from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
-    ScopingNode
+
+from psyclone.psyir.nodes import (Routine, Assignment, Reference, Literal,
+                                  ScopingNode)
 from psyclone.psyir.symbols import (REAL_TYPE, DataSymbol,
                                     SymbolTable, RoutineSymbol)
 from psyclone.tests.utilities import check_links

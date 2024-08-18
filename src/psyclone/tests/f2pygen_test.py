@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council
+# Copyright (c) 2017-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1158,12 +1158,12 @@ def test_declgen_invalid_vals():
     assert ("Initial value of '35' for a logical variable is invalid or "
             "unsupported" in str(err.value))
     with pytest.raises(RuntimeError) as err:
-        _char = CharDeclGen(sub, entity_decls=["val1", "val2"],
-                            initial_values=["good", ".fAlse."])
+        CharDeclGen(sub, entity_decls=["val1", "val2"],
+                    initial_values=["good", ".fAlse."])
     assert ("Initial value of \'.fAlse.' for a character variable"
             in str(err.value))
     with pytest.raises(RuntimeError) as err:
-        _char = CharDeclGen(sub, entity_decls=["val1"], initial_values=["35"])
+        CharDeclGen(sub, entity_decls=["val1"], initial_values=["35"])
     assert "Initial value of \'35\' for a character variable" in str(err.value)
 
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from an Assignment node
 containing an Array Reference node in its left-hand-side which in turn
@@ -108,15 +109,18 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
             transformation. This is an optional argument that defaults \
             to None.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+            transformation on a character type array range. Defaults to False.
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         # Get deepest array in LHS (excluding inside Ranges)
-        lhs_array_ref = node.lhs.walk(ArrayMixin, stop_type=Range)[-1]
+        deepest_range = node.lhs.walk(Range, stop_type=Range)[-1]
+        lhs_array_ref = deepest_range.parent
         index = lhs_array_ref.get_outer_range_index()
         nemo_arrayrange2loop = NemoArrayRange2LoopTrans()
-        nemo_arrayrange2loop.apply(lhs_array_ref.children[index])
+        nemo_arrayrange2loop.apply(lhs_array_ref.children[index], options)
 
     def __str__(self):
         return ("Convert a PSyIR assignment to the outermost ArrayReference "

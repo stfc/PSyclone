@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2021-2023, Science and Technology Facilities Council.
+   Copyright (c) 2021-2024, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -666,4 +666,4 @@ can be parallelised:
 .. testoutput::
     :hide:
 
-    Error: The write access to 'a(i,i)' and to 'a(i + 1,i + 1)' are dependent and cannot be parallelised.
+    Error: The write access to 'a(i,i)' and the read access to 'a(i + 1,i + 1)' are dependent and cannot be parallelised. Variable: 'a'.

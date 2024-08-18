@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council
+# Copyright (c) 2019-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -196,7 +196,7 @@ class OpenCLWriter(CWriter):
         :rtype: str
 
         :raises VisitorError: if a non-precision symbol is found with a \
-                              deferred interface.
+                              UnresolvedInterface.
         '''
         # OpenCL implementation assumptions:
         # - All array have the same size and it is given by the

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,15 +38,14 @@
 
 ''' Performs py.test tests on the Container PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Container, Return, KernelSchedule, \
-    FileContainer
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
+
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import (colored, Container, FileContainer,
+                                  KernelSchedule, Return, Routine)
+from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, SymbolTable
 from psyclone.tests.utilities import check_links
-from psyclone.psyir.nodes.node import colored
 
 
 def test_container_init():
@@ -180,3 +179,21 @@ def test_container_children_validation():
     assert ("Item 'Return' can't be child 1 of 'Container'. The valid format"
             " is: '[Container | Routine | CodeBlock]*'."
             "" in str(excinfo.value))
+
+
+def test_container_get_routine_psyir():
+    '''Test that get_routine_psyir works
+
+    '''
+    symbol_table = SymbolTable()
+    symbol_table.add(DataSymbol("tmp", REAL_SINGLE_TYPE))
+    kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
+    kernel2 = KernelSchedule.create("mod_2", SymbolTable(), [])
+    container = Container.create("container_name", symbol_table,
+                                 [kernel1, kernel2])
+    for name in ["mod_1", "mod_2"]:
+        psyir = container.get_routine_psyir(name)
+        assert isinstance(psyir, Routine)
+        assert psyir.name == name
+
+    assert container.get_routine_psyir("doesnotexist") is None

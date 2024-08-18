@@ -5,13 +5,13 @@ F90 = mpif90
 
 OBJ = time_step_alg_mod.o time_step_alg_mod_psy.o
 
-include ../common.mk
+include ../../common.mk
 
 $(EXE): $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
 
 run: $(EXE)
-	mpirun -np 4 ./$(EXE) ../gol-lib/config.glider
+	mpirun -np 4 ./$(EXE) ../../gol-lib/config.glider
 
 # Call the default test (which checks the output file), but do a second test to make
 # sure we get a 2x2 domain decomposition, otherwise the job was not running properly

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -93,9 +93,13 @@ of the active variables
   machinetol = spacing(max(abs(inner1), abs(inner2)))
   relative_diff = abs(inner1 - inner2) / machinetol
   if (relative_diff < overall_tolerance) then
+    ! psyclone codeblock (unsupported code) reason:
+    !  - unsupported statement: write_stmt
     write(*, *) 'test of adjoint of ''kern'' passed: ', inner1, inner2, \
 relative_diff
   else
+    ! psyclone codeblock (unsupported code) reason:
+    !  - unsupported statement: write_stmt
     write(*, *) 'test of adjoint of ''kern'' failed: ', inner1, inner2, \
 relative_diff
   end if

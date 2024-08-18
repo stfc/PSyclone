@@ -40,9 +40,9 @@ PSyclone, even for simple tests.
 > with the invoke statements will the kernel declarations
 > be read and interpreted.
 
-## Implement `compute_born` kernel
-We start with implementing the `compute_born` kernel. It
-is contained the `compute_born_mod.f90` file. Note that
+## Implement `compute_die` kernel
+We start with implementing the `compute_die` kernel. It
+is contained the `compute_die_mod.f90` file. Note that
 only the algorithm layers are processed by PSyclone, so
 there is no need for the kernel files to use the `.x90`
 extension. PSyclone will read the kernel files when creating
@@ -85,7 +85,7 @@ As a a reminder, here the details of this declaration:
     second argument the current status of all cells, and the
     last the number of neighbours.
 3. The first argument is written, and it is a field on the
-    CT-space and is used pointwise (i.e. only using the
+    T-space and is used pointwise (i.e. only using the
     coordinates `(i,j)`).
 4. The second and third arguments are both read-only, on the
     CT-space and used pointwise.
@@ -93,12 +93,12 @@ As a a reminder, here the details of this declaration:
     any points on a halo or boundary layer.
 6. Index offset is South-West.
 7. The subroutine that contains the kernel is called
-    `compute_die_code`. Note that 
+    `compute_die_code`.
 
 There is no need to modify this meta-data, it has been correctly
 filled out for you. But the body of
 the actual kernel code (`compute_die_code`) is missing. 
-Implement this code, and remember that only need to write
+Implement this code, and remember that you only need to write
 code for the single element `(i,j)` (`i` and `j` are
 parameters passed in by PSyclone). Remember that the
 output field needs to be initialised with zero here
@@ -113,10 +113,9 @@ which entries will get a new, alive cell, and two input
 parameters specifying the current state and the number
 of neighbours for each cell.
 
-In the template for this function, you not only need to
-implement the actual kernel code, but also add the declaration
-of the parameters in the meta data. You can use the previous
-kernel as template.
+In the template for this function, you only need to add
+the declaration of the parameters in the meta data. You can
+use the previous kernel as template.
 
 ## Implement the `combine` kernel
 This template file is nearly empty. You need to add the full
@@ -131,8 +130,9 @@ and one input parameter (current state), there is one big
 difference compared with any other kernel: this kernel accesses
 the current state as a stencil, i.e. it does not (only) read
 `current(i,j)`, but also accesses the neighbours. The meta-data
-for this kernel must declare this access (which will later important
-in case of a distributed memory implementation at a later stage).
+for this kernel must declare this access (which will later be important
+in case of a distributed memory implementation, and when applying
+certain transformations).
 So the access for the input field is not `GO_POINTWISE`, but
 it has to be declared as `GO_STENCIL`, and the parameter specifying
 the extend in each direction in which neighbouring elements are
@@ -147,13 +147,15 @@ for a field that accesses elements one row above and below.
 Adjust this declaration to the access pattern used when counting
 the neighbours.
 
-The template for `count_neighbours` contains most of the meta-data
-and the full implementation. All you need to do is to insert the
-right stencil declaration.
+The template for `count_neighbours` contains some of the meta-data
+and the full implementation. Finish the declaration of the meta-data.
 
 > Note that at this stage PSyclone does not verify the stencil
 > declaration with the actual code, but it is on the todo list
 > of the PSyclone developers.
+
+You also need to implement the actual kernel for count_neighbours,
+i.e. adding up the values of the 8 neighbours.
 
 
 ## Update `time_step_mod`
@@ -172,7 +174,7 @@ all your kernels. You can use the following command line:
 
 The flag `-nodm` disables distributes memory processing. We need
 to specify which PSyclone API we are using (`gocean1.0`, which is
-the 2d finite difference one based on dl_esm_inf). Then the output
+the 2D finite difference one based on dl_esm_inf). Then the output
 filename for the algorithm layer (`-oalg`) and the psy layer files
 (`-opsy`) and the input filename.
 

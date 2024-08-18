@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,6 @@
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
-from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Assignment, Reference, Loop, Directive,

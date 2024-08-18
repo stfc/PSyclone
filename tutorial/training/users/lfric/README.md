@@ -97,19 +97,19 @@ The explanation can be found [here](#explanation-for-supporting-mpi).
 
 
 ## Applying OpenMP (`3_applying_openmp`)
-In this example you will add transformation script to the PSyclone command line.
+In this example you will add a transformation script to the PSyclone command line.
 This script will apply OpenMP transformation to the loops. Add the option
 `-s omp.py` to the PSyclone command, i.e.:
 
     psyclone -s ./omp_transformation.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
-The script will combine the two loops for the two `setval_c`
-calls into a single loop, and then apply OpenMP parallelisation to all loops.
-Compare the PSy-layer files with the previously created files. What has changed?
+The script will apply OpenMP parallelisation to all loops.
+Compare the PSy-layer files with the previously created files in the directory
+`../1_using_psyclone`. What has changed?
 
 The explanation can be found [here](#explanation-for-applying-openmp).
 
-Optional: You can compile this example using `make comple`. Then set the environment
+Optional: You can compile this example using `make compile`. Then set the environment
 variable `$OMP_NUM_THREADS` to an appropriate value and execute the compiled binary.
 The kernel will print out which thread number is executing which column indices. More
 explanations in [this] (#explanation-for-applying-openmp) section.
@@ -128,7 +128,8 @@ with the `-dm` flag, but also apply the OpenMP transformation:
 
 
 Again, check the created PSy-layer file `main_alg_psy.f90` for the calls to halo-exchanges
-and OpenMP directives around loops.
+and OpenMP directives around loops. You can also compare it with the files created
+in directory `../2_supporting_mpi/`.
 
 The explanation can be found [here](#explanation-for-mpi-and-openmp).
 
@@ -158,6 +159,10 @@ What happens?
 The explanation can be found [here](#explanation-for-missing-parameter).
 
 
+## Invalid OpenMP Transformation (`7_invalid_openmp`)
+Please ignore this for now.
+
+<!-- IGNORE THIS FOR NOT
 ## Invalid OpenMP Transformation (`7_invalid_openmp`)
 This example has a slightly different kernel: this kernel adds a field on the W0
 space (vertices) to another field on the W0 space, i.e. it is adding the blue dots
@@ -202,11 +207,12 @@ to execute the code.
 The [explanation](#explanation-for-invalid-transformation) for this optional part will explain
 the loop structure in more detail.
 
+-->
 
 ## Incorrect Naming Scheme (`8_incorrect_naming`)
 This example shows the importance of naming the files correctly. It is basically the same code
 as in the very first PSyclone example, but the kernel file has been renamed to
-`summation_w0_to_w3_mod.f90`, but the module name is still summation_w0_to_w3_kernel_mod and
+`summation_w0_to_w3_mod.f90`, while the module name is still summation_w0_to_w3_kernel_mod and
 the `use` statement in the algorithm layer is unchanged as well:
 
     use summation_w0_to_w3_kernel_mod, only: summation_w0_to_w3_kernel_type
@@ -214,14 +220,14 @@ the `use` statement in the algorithm layer is unchanged as well:
 This works with a compiler (assuming that the kernel is compiled before the algorithm
 file), since the compiler will create a compiler-specific file
 `summation_w0_to_w3_kernel_mod`, which stores the required information about this
-module. PSyclone does not have this information, and as such rely on the naming scheme
+module. PSyclone does not have this information, and as such relies on the naming scheme
 for finding the source files for modules. Therefore, PSyclone cannot find the source
-file for the kernel, and since the data in this kernel specify which kind of loop
+file for the kernel, and since the data in this kernel specifies which kind of loop
 to create, it cannot process the algorithm layer.
 
 Run PSyclone with the standard command:
 
-    psyclone -s ./omp_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+    psyclone -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 and look at the error message provided by PSyclone.
 
@@ -394,6 +400,7 @@ PSyclone will verify the code the user asked to be created as much as possible a
 any issues early on, i.e. before even compiling the code.
 
 
+<!-- IGNORE FOR NOW
 ## Explanation for Invalid Transformation
 PSyclone internally verifies transformation to make sure it will always create valid
 code. In this case, it will recognise that the kernel cannot simply be parallelised.
@@ -471,6 +478,7 @@ This will closely recreate the output above and make it more obvious where the t
 In this small example, especially at the beginning, thread usage is limited to only one or two
 threads. For a larger example, 
 
+-->
 ## Explanation for Incorrect Naming Scheme
 
 PSyclone will print the error message:

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2017-2022, Science and Technology Facilities Council.
+   Copyright (c) 2017-2024, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -51,8 +51,9 @@ PSyclone User Guide
     languages (DSLs) for finite element, finite volume and finite difference
     codes. Notably, it is used in the
     `LFRic Project <https://www.metoffice.gov.uk/research/modelling-systems/
-    lfric/>`_, and it also supports the `GOcean <https://puma.nerc.ac.uk/trac
-    /GOcean>`_ (2D, finite difference) DSL. In addition it is being extended
+    lfric/>`_, and it also supports the
+    `GOcean <https://gtr.ukri.org/projects?ref=NE%2FL01209X%2F1>`_
+    (2D, finite difference) DSL. In addition it is being extended
     to support the processing of existing finite difference codes such as the 
     `NEMO <https://www.nemo-ocean.eu/>`_ ocean model. 
     Find more information in the

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council
+# Copyright (c) 2022-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -267,7 +267,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
         :type options: dict of str:str or None
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         assignment = node.ancestor(Assignment)
         vector1 = node.children[0]

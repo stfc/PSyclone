@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,11 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and O. Brunt, Met Office
 # Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
 # Modified: by J. Henrichs, Bureau of Meteorology
 
-''' Module containing pytest tests of the LFRicIntXKern built-in
+''' Module containing pytest tests of the LFRicRealToIntXKern built-in
     (converting real-valued to integer-valued field elements).'''
 
 import os
@@ -44,7 +44,7 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.kernel import LFRicKernelMetadata
-from psyclone.domain.lfric.lfric_builtins import LFRicIntXKern
+from psyclone.domain.lfric.lfric_builtins import LFRicRealToIntXKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, Loop
@@ -60,9 +60,9 @@ BASE_PATH = os.path.join(
 API = "dynamo0.3"
 
 
-def test_int_x(tmpdir, monkeypatch, annexed, dist_mem):
+def test_real_to_int_x(tmpdir, monkeypatch, annexed, dist_mem):
     '''
-    Test that 1) the '__str__' method of 'LFRicIntXKern' returns the
+    Test that 1) the '__str__' method of 'LFRicRealToIntXKern' returns the
     expected string and 2) we generate correct code for the built-in
     operation 'Y = INT(X, kind=i_<prec>)' where 'Y' is an integer-valued
     field of kind 'i_<prec>' and 'X' is the real-valued field being
@@ -71,21 +71,21 @@ def test_int_x(tmpdir, monkeypatch, annexed, dist_mem):
 
     '''
     # Test metadata
-    metadata = LFRicIntXKern.metadata()
+    metadata = LFRicRealToIntXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     # Test with and without annexed DoFs
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.10.3_int_X_builtin.f90"),
+                                        "15.10.3_real_to_int_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
 
     # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: int_X (convert a real-valued to an "
-                         "integer-valued field)")
+    assert str(kern) == ("Built-in: real_to_int_X (convert a real-valued to "
+                         "an integer-valued field)")
 
     # Test code generation
     code = str(psy.gen)
@@ -100,7 +100,9 @@ def test_int_x(tmpdir, monkeypatch, annexed, dist_mem):
 
     # Check built-in loop
     output = (
-        "      DO df=loop0_start,loop0_stop\n"
+        "      DO df = loop0_start, loop0_stop, 1\n"
+        "        ! Built-in: real_to_int_X (convert a real-valued to an "
+        "integer-valued field)\n"
         "        f2_data(df) = INT(f1_data(df), kind=i_def)\n"
         "      END DO\n")
     assert output in code
@@ -121,7 +123,7 @@ def test_int_x(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 @pytest.mark.parametrize("kind_name", ["i_native", "i_ncdf"])
-def test_int_x_precision(monkeypatch, kind_name):
+def test_real_to_int_x_precision(monkeypatch, kind_name):
     '''
     Test that the built-in picks up and creates correct code for field
     data with precision that is not the default, i.e. not 'i_def'.
@@ -132,7 +134,7 @@ def test_int_x_precision(monkeypatch, kind_name):
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.10.3_int_X_builtin.f90"),
+                                        "15.10.3_real_to_int_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
@@ -152,13 +154,13 @@ def test_int_x_precision(monkeypatch, kind_name):
     assert f"f2_data(df) = INT(f1_data(df), kind={kind_name})" in code
 
 
-def test_int_x_lowering(fortran_writer):
+def test_real_to_int_x_lowering(fortran_writer):
     '''
     Test that the lower_to_language_level() method works as expected.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.10.3_int_X_builtin.f90"),
+                                        "15.10.3_real_to_int_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API,
                      distributed_memory=False).create(invoke_info)
@@ -172,5 +174,7 @@ def test_int_x_lowering(fortran_writer):
     loop = first_invoke.schedule.walk(Loop)[0]
     code = fortran_writer(loop)
     assert ("do df = loop0_start, loop0_stop, 1\n"
+            "  ! Built-in: real_to_int_X (convert a real-valued to an "
+            "integer-valued field)\n"
             "  f2_data(df) = INT(f1_data(df), kind=i_def)\n"
             "enddo") in code

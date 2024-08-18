@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1566,6 +1566,30 @@ def test_debug_string(monkeypatch):
     assert tnode.debug_string() == "CORRECT STRING"
 
 
+def test_origin_string(fortran_reader):
+    ''' Test that the origin_string() method retrieves the original source
+    information available on the tree. If there isn't enough information it
+    still succeeds but returning <unknown> fields.
+    '''
+    base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             os.pardir, os.pardir, "test_files", "gocean1p0")
+    filename = os.path.join(base_path, "continuity_mod.f90")
+    psyir = fortran_reader.psyir_from_file(filename)
+
+    # If its a Statement from a file, it can return the PSyIR node type, the
+    # line number span, the filename and the original source line.
+    string = psyir.walk(Statement)[0].origin_string()
+    assert "Assignment from line (76, 76) of file" in string
+    assert "continuity_mod.f90" in string
+    assert "ssha(ji,jj) = 0.0_go_wp" in string
+
+    # If its not a Statement, the line span, filename and original source are
+    # currenlty unknown
+    string = psyir.walk(Routine)[0].origin_string()
+    assert ("Routine from line <unknown> of file '<unknown>':\n"
+            "> <unknown>" in string)
+
+
 def test_path_from(fortran_reader):
     ''' Test the path_from method of the Node class.'''
 
@@ -1723,8 +1747,8 @@ def test_get_sibling_lists(fortran_reader):
     assert len(loop_blocks) == len(expected)
     for block, indices in zip(loop_blocks, expected):
         assert len(block) == len(indices)
-        for node, index in zip(block, indices):
-            assert node is loops[index]
+        for psyir_node, index in zip(block, indices):
+            assert psyir_node is loops[index]
 
     # Test case where only assignments are requested
     assignments = psyir.walk(Assignment)
@@ -1734,8 +1758,8 @@ def test_get_sibling_lists(fortran_reader):
     assert len(assignment_blocks) == len(expected)
     for block, indices in zip(assignment_blocks, expected):
         assert len(block) == len(indices)
-        for node, index in zip(block, indices):
-            assert node is assignments[index]
+        for psyir_node, index in zip(block, indices):
+            assert psyir_node is assignments[index]
 
     # Test case where both loops and assignments are requested
     loops_assignments = psyir.walk((Loop, Assignment))
@@ -1745,8 +1769,8 @@ def test_get_sibling_lists(fortran_reader):
     assert len(both_blocks) == len(expected)
     for block, indices in zip(both_blocks, expected):
         assert len(block) == len(indices)
-        for node, index in zip(block, indices):
-            assert node is loops_assignments[index]
+        for psyir_node, index in zip(block, indices):
+            assert psyir_node is loops_assignments[index]
 
 
 def test_get_sibling_lists_with_stopping(fortran_reader):

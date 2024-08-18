@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council
+# Copyright (c) 2023-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,9 +41,9 @@ PSyIR array-reduction intrinsic to PSyIR code.
 from abc import ABC, abstractmethod
 
 from psyclone.psyir.nodes import (
-    Assignment, Reference, ArrayReference, IfBlock,
+    Assignment, Reference, ArrayReference, IfBlock, Loop,
     IntrinsicCall, Node, UnaryOperation, BinaryOperation)
-from psyclone.psyir.symbols import ArrayType, DataSymbol
+from psyclone.psyir.symbols import ArrayType, DataSymbol, ScalarType
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
@@ -170,6 +170,19 @@ class ArrayReductionBaseTrans(Transformation, ABC):
                         f"Unexpected shape for array. Expecting one of "
                         f"Deferred, Attribute or Bounds but found '{shape}'.")
 
+        # If the lhs symbol is used anywhere on the assignment rhs, we need
+        # to create a temporary, and for this we need to resolve its datatype
+        for rhs_reference in assignment.rhs.walk(Reference):
+            if rhs_reference.symbol is assignment.lhs.symbol:
+                if not (isinstance(assignment.lhs.symbol, DataSymbol) and
+                        isinstance(assignment.lhs.datatype, ScalarType)):
+                    line = assignment.debug_string().strip('\n')
+                    raise TransformationError(
+                        f"To loopify '{line}'"
+                        f" we need a temporary variable, but the type of "
+                        f"'{assignment.lhs.debug_string()}' can not be "
+                        f"resolved or is unsupported.")
+
     # pylint: disable=too-many-locals
     def apply(self, node, options=None):
         '''Apply the array-reduction intrinsic conversion transformation to
@@ -182,7 +195,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         orig_lhs = node.ancestor(Assignment).lhs.copy()
         orig_rhs = node.ancestor(Assignment).rhs.copy()
@@ -199,7 +212,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         if increment:
             new_lhs_symbol = node.scope.symbol_table.new_symbol(
                 root_name="tmp_var", symbol_type=DataSymbol,
-                datatype=lhs_symbol.datatype)
+                datatype=orig_lhs.datatype)
             new_lhs = Reference(new_lhs_symbol)
         else:
             new_lhs = orig_lhs.copy()
@@ -287,6 +300,17 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         array_range = NemoAllArrayRange2LoopTrans()
         array_range.apply(assignment)
         outer_loop = assignment_parent.children[assignment_position]
+        if not isinstance(outer_loop, Loop):
+            # The NemoAllArrayRange2LoopTrans could fail to convert the
+            # ranges without raising a TransformationError, unfortunately
+            # this can not be tested before previous modifications to the
+            # tree (e.g. in the validate), so the best we can do is reverting
+            # to the orginal statement (with maybe some leftover tmp variable)
+            # and produce the error here.
+            assignment.replace_with(orig_assignment)
+            raise TransformationError(
+                f"NemoAllArrayRange2LoopTrans could not convert the "
+                f"expression '{assignment.debug_string()}' into a loop.")
         if mask_ref:
             # remove mask from the rhs of the assignment
             orig_assignment = assignment_rhs.children[0].copy()
@@ -344,7 +368,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         # enddo
         # x = value1 + x * value2
         lhs = new_lhs.copy()
-        rhs = self._init_var(lhs.symbol)
+        rhs = self._init_var(lhs)
         assignment = Assignment.create(lhs, rhs)
         outer_loop.parent.children.insert(outer_loop.position, assignment)
         if not (isinstance(orig_rhs, IntrinsicCall) and
@@ -366,7 +390,10 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         '''The intrinsic-specific content of the created loop body.'''
 
     @abstractmethod
-    def _init_var(self, var_symbol):
+    def _init_var(self, reference):
         '''The intrinsic-specific initial value for the temporary variable.
+
+        :param reference: the reference used to store the final result.
+        :type reference: :py:class:`psyclone.psyir.node.Reference`
 
         '''

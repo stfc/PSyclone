@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -188,7 +188,7 @@ def test_refelem_arglist_err():
     # Break the list of ref-element properties required by the Kernel
     kernel.reference_element.properties.append("Not a property")
     with pytest.raises(InternalError) as err:
-        kernel.arguments.raw_arg_list()
+        kernel.arguments.psyir_expressions()
     assert ("Unsupported reference-element property ('Not a property') found "
             "when generating arguments for kernel 'testkern_ref_elem_code'. "
             "Supported properties are: ['Property" in str(err.value))

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -121,7 +121,7 @@ def test_ai2psycall_validate_argtype():
 
 def test_ai2psycall_validate_no_invoke_sym(fortran_reader):
     '''Check that the validate() method raises the expected exception when
-    no invoke symbol is found in the PSyIR. Use
+    no 'invoke' symbol is found in the PSyIR. Use
     GOceanAlgInvoke2PSyCallTrans as AlgInvoke2PSyCallTrans is
     abstract.
 
@@ -138,8 +138,8 @@ def test_ai2psycall_validate_no_invoke_sym(fortran_reader):
     AlgTrans().apply(psyir)
     invoke = psyir.children[0].children[0]
     symbol_table = invoke.scope.symbol_table
-    invoke_symbol = symbol_table.lookup("invoke")
-    symbol_table.remove(invoke_symbol)
+    # We can't use table.remove() here because it checks for calls.
+    symbol_table._symbols.pop("invoke")
     trans = GOceanAlgInvoke2PSyCallTrans()
 
     with pytest.raises(InternalError) as info:

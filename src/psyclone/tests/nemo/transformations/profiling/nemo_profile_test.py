@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,10 +45,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two.symbol_table import SYMBOL_TABLES
 from psyclone.configuration import Config
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Loop, ProfileNode
 from psyclone.psyir.transformations import ProfileTrans, TransformationError
-from psyclone.transformations import OMPParallelLoopTrans, ACCKernelsTrans
-from psyclone.profiler import Profiler
 
 
 # The transformation that most of these tests use
@@ -206,6 +203,8 @@ def test_profile_codeblock(parser):
     assert (
         "  call profile_psy_data % prestart(\"cb_test\", \"r0\", 0, 0)\n"
         "  do ji = 1, jpj, 1\n"
+        "    ! psyclone codeblock (unsupported code) reason:\n"
+        "    !  - unsupported statement: write_stmt\n"
         "    write(*, *) sto_tmp2(ji)\n"
         "  enddo\n"
         "  call profile_psy_data % postend\n" in code)
@@ -281,6 +280,8 @@ def test_profile_single_line_if(parser):
         "  if (do_this) then\n"
         "    call profile_psy_data % prestart(\"one_line_if_test\", \"r0\", 0,"
         " 0)\n"
+        "    ! psyclone codeblock (unsupported code) reason:\n"
+        "    !  - unsupported statement: write_stmt\n"
         "    write(*, *) sto_tmp2(ji)\n"
         "    call profile_psy_data % postend\n"
         "  end if\n" in gen_code)

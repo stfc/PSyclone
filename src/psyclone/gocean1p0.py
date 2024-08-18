@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,23 +58,25 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
 from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
-from psyclone.f2pygen import DeclGen, UseGen, ModuleGen, SubroutineGen, \
-    TypeDeclGen, PSyIRGen
+from psyclone.f2pygen import (
+    DeclGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen)
 from psyclone.parse.algorithm import Arg
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
-    CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    AccessType, HaloExchange
+from psyclone.psyGen import (
+    PSy, Invokes, Invoke, InvokeSchedule, CodedKern, Arguments, Argument,
+    KernelArgument, args_filter, AccessType, HaloExchange)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Literal, Schedule, KernelSchedule, \
-    StructureReference, IntrinsicCall, Reference, Call, Assignment, \
-    ACCEnterDataDirective, ACCParallelDirective, \
-    ACCKernelsDirective, Container, ACCUpdateDirective, Routine
-from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE, \
-    DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, DataTypeSymbol, \
-    UnresolvedInterface, BOOLEAN_TYPE, REAL_TYPE
+from psyclone.psyir.nodes import (
+    Literal, Schedule, KernelSchedule, StructureReference, IntrinsicCall,
+    Reference, Call, Assignment, ACCEnterDataDirective, ACCParallelDirective,
+    ACCKernelsDirective, Container, ACCUpdateDirective, Routine,
+    BinaryOperation)
+from psyclone.psyir.symbols import (
+    ScalarType, INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol,
+    UnresolvedType, DataTypeSymbol, UnresolvedInterface, BOOLEAN_TYPE,
+    REAL_TYPE)
 
 
 class GOPSy(PSy):
@@ -1091,27 +1093,34 @@ class GOKern(CodedKern):
         self._index_offset = call.ktype.index_offset
 
     @staticmethod
-    def _format_access(var_name, var_value, depth):
-        '''This function creates an index-expression: if the value is
-        negative, it returns 'varname-depth', if the value is positive,
-        it returns 'varname+depth', otherwise it just returns 'varname'.
+    def _create_psyir_for_access(symbol, var_value, depth):
+        '''This function creates the PSyIR of an index-expression:
+        - if `var_value` is negative, it returns 'symbol-depth'.
+        - if `var_value` is positive, it returns 'symbol+depth`
+        - otherwise it just returns a Reference to `symbol`.
         This is used to create artificial stencil accesses for GOKernels.
-        TODO #845: Return a proper PSyIR expression instead of a string.
 
-        :param str var_name: name of the variable.
+        :param symbol: the symbol to use.
+        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
         :param int var_value: value of the variable, which determines the \
             direction (adding or subtracting depth).
         :param int depth: the depth of the access (>0).
 
         :returns: the index expression for an access in the given direction.
-        :rtype: str
+        :rtype: union[:py:class:`psyclone.psyir.nodes.Reference`,
+                      :py:class:`psyclone.psyir.nodes.BinaryOperation`]
 
         '''
-        if var_value < 0:
-            return var_name + str(-depth)
+        if var_value == 0:
+            return Reference(symbol)
         if var_value > 0:
-            return var_name + "+" + str(depth)
-        return var_name
+            operator = BinaryOperation.Operator.ADD
+        else:
+            operator = BinaryOperation.Operator.SUB
+
+        return BinaryOperation.create(operator,
+                                      Reference(symbol),
+                                      Literal(str(depth), INTEGER_TYPE))
 
     def _record_stencil_accesses(self, signature, arg, var_accesses):
         '''This function adds accesses to a field depending on the
@@ -1128,17 +1137,32 @@ class GOKern(CodedKern):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        sym_tab = self.ancestor(GOInvokeSchedule).symbol_table
+        symbol_i = sym_tab.lookup_with_tag("contiguous_kidx")
+        symbol_j = sym_tab.lookup_with_tag("noncontiguous_kidx")
         # Query each possible stencil direction and add a corresponding
-        # variable accesses. Note that if (i,j) is accessed, the depth
-        # returned will be 1, so one access to (i,j) is added.
+        # variable accesses. Note that if (i,j) itself is accessed, the
+        # depth will be 1, so one access to (i,j) is then added.
         for j in [-1, 0, 1]:
             for i in [-1, 0, 1]:
                 depth = arg.stencil.depth(i, j)
                 for current_depth in range(1, depth+1):
-                    i_expr = GOKern._format_access("i", i, current_depth)
-                    j_expr = GOKern._format_access("j", j, current_depth)
-                    var_accesses.add_access(signature, arg.access,
-                                            self, [i_expr, j_expr])
+                    # Create PSyIR expressions for the required
+                    # i+/- and j+/- expressions
+                    i_expr = GOKern._create_psyir_for_access(symbol_i, i,
+                                                             current_depth)
+                    j_expr = GOKern._create_psyir_for_access(symbol_j, j,
+                                                             current_depth)
+                    # Even if a GOKern argument is declared to be written, it
+                    # can only ever write to (i,j), so any other references
+                    # must be read:
+                    if i == 0 and j == 0:
+                        acc = arg.access
+                    else:
+                        acc = AccessType.READ
+
+                    var_accesses.add_access(signature, acc, self,
+                                            [i_expr, j_expr])
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
@@ -1177,8 +1201,13 @@ class GOKern(CodedKern):
                     # In case of an array for now add an arbitrary array
                     # reference to (i,j) so it is properly recognised as
                     # an array access.
+                    sym_tab = self.ancestor(GOInvokeSchedule).symbol_table
+                    symbol_i = sym_tab.lookup_with_tag("contiguous_kidx")
+                    symbol_j = sym_tab.lookup_with_tag("noncontiguous_kidx")
+                    i_expr = GOKern._create_psyir_for_access(symbol_i, 0, 0)
+                    j_expr = GOKern._create_psyir_for_access(symbol_j, 0, 0)
                     var_accesses.add_access(signature, arg.access,
-                                            self, ["i", "j"])
+                                            self, [i_expr, j_expr])
         super().reference_accesses(var_accesses)
         var_accesses.next_location()
 
@@ -1268,57 +1297,6 @@ class GOKernelArguments(Arguments):
                                  f"'{arg.argument_type}' but must be one of "
                                  f"['grid_property', 'scalar', 'field'].")
         self._dofs = []
-
-    def raw_arg_list(self):
-        '''
-        :returns: a list of all of the actual arguments to the \
-                  kernel call.
-        :rtype: list of str
-
-        :raises GenerationError: if the kernel requires a grid property \
-                                 but has no field arguments.
-        :raises InternalError: if we encounter a kernel argument with an \
-                               unrecognised type.
-        '''
-        if self._raw_arg_list:
-            return self._raw_arg_list
-
-        # Before we do anything else, go through the arguments and
-        # determine the best one from which to obtain the grid properties.
-        grid_arg = self.find_grid_access()
-
-        # A GOcean 1.0 kernel always requires the [i,j] indices of the
-        # grid-point that is to be updated
-        arguments = ["i", "j"]
-        for arg in self._args:
-
-            if arg.argument_type == "scalar":
-                # Scalar arguments require no de-referencing
-                arguments.append(arg.name)
-            elif arg.argument_type == "field":
-                # Field objects are Fortran derived-types
-                api_config = Config.get().api_conf("gocean1.0")
-                # TODO: #676 go_grid_data is actually a field property
-                data = api_config.grid_properties["go_grid_data"].fortran\
-                    .format(arg.name)
-                arguments.append(data)
-            elif arg.argument_type == "grid_property":
-                # Argument is a property of the grid which we can access via
-                # the grid member of any field object.
-                # We use the most suitable field as chosen above.
-                if grid_arg is None:
-                    raise GenerationError(
-                        f"Error: kernel {self._parent_call.name} requires "
-                        f"grid property {arg.name} but does not have any "
-                        f"arguments that are fields")
-                arguments.append(arg.dereference(grid_arg.name))
-            else:
-                raise InternalError(f"Kernel {self._parent_call.name}, "
-                                    f"argument {arg.name} has "
-                                    f"unrecognised type: "
-                                    f"'{arg.argument_type}'")
-        self._raw_arg_list = arguments
-        return self._raw_arg_list
 
     def psyir_expressions(self):
         '''
@@ -1449,7 +1427,6 @@ class GOKernelArguments(Arguments):
         arg = Arg("variable", name)
         argument = GOKernelArgument(descriptor, arg, self._parent_call)
         self.args.append(argument)
-        # self.raw_arg_list().append(name)
 
 
 class GOKernelArgument(KernelArgument):
@@ -1513,18 +1490,18 @@ class GOKernelArgument(KernelArgument):
         '''
         # All GOcean fields are r2d_field
         if self.argument_type == "field":
-            # r2d_field can have DeferredType and UnresolvedInterface because
+            # r2d_field can have UnresolvedType and UnresolvedInterface because
             # it is an unnamed import from a module.
             type_symbol = self._call.root.symbol_table.find_or_create_tag(
                 "r2d_field", symbol_type=DataTypeSymbol,
-                datatype=DeferredType(), interface=UnresolvedInterface())
+                datatype=UnresolvedType(), interface=UnresolvedInterface())
             return type_symbol
 
         # Gocean scalars can be REAL or INTEGER
         if self.argument_type == "scalar":
             if self.space.lower() == "go_r_scalar":
                 go_wp = self._call.root.symbol_table.find_or_create_tag(
-                    "go_wp", symbol_type=DataSymbol, datatype=DeferredType(),
+                    "go_wp", symbol_type=DataSymbol, datatype=UnresolvedType(),
                     interface=UnresolvedInterface())
                 return ScalarType(ScalarType.Intrinsic.REAL, go_wp)
             if self.space.lower() == "go_i_scalar":

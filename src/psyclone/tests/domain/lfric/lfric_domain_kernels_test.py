@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -297,7 +297,6 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     else:
         expected = "      ! call our kernels\n"
     assert (expected + "      !\n"
-            "      !\n"
             "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
             "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
 
@@ -336,15 +335,14 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
     assert "integer(kind=i_def) ncell_2d_no_halos" in gen_code
 
     expected = (
-        "      end do\n"
-        "      !\n")
+        "      end do\n")
     if dist_mem:
         expected += (
+            "      !\n"
             "      ! set halos dirty/clean for fields modified in the above "
             "loop\n"
             "      !\n"
             "      call f2_proxy%set_dirty()\n"
-            "      !\n"
             "      !\n")
     expected += (
         "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
@@ -373,7 +371,6 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     assert gen_code.count("ncell_2d_no_halos = mesh%get_last_edge_cell()") == 1
 
     expected = ("      !\n"
-                "      !\n"
                 "      call testkern_domain_code(nlayers, ncell_2d_no_halos, "
                 "b, f1_data, ndf_w3, undf_w3, map_w3)\n")
     if dist_mem:
@@ -400,19 +397,18 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
                      "      !\n")
     else:
         assert "loop1_stop = f2_proxy%vspace%get_ncell()\n" in gen_code
-    expected += "      do cell=loop1_start,loop1_stop\n"
+    expected += "      do cell = loop1_start, loop1_stop, 1\n"
     assert expected in gen_code
 
     expected = (
-        "      end do\n"
-        "      !\n")
+        "      end do\n")
     if dist_mem:
         expected += (
+            "      !\n"
             "      ! set halos dirty/clean for fields modified in the above "
             "loop\n"
             "      !\n"
             "      call f1_proxy%set_dirty()\n"
-            "      !\n"
             "      !\n")
     expected += (
         "      call testkern_domain_code(nlayers, ncell_2d_no_halos, c, "

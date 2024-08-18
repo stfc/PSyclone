@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023 and Technology Facilities Council.
+# Copyright (c) 2017-2024 and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1376,14 +1376,15 @@ class DoGen(BaseGen):
         if position is None:
             position = ["auto"]
 
-        if position[0] == "auto" and bubble_up:
+        if position[0] == "auto" and bubble_up:  # pragma: no cover
             # There's currently no case where a bubbled-up statement
             # will live within a do loop so bubble it up again.
             self.parent.add(content, bubble_up=True)
             return
 
         if position[0] == "auto" or position[0] == "append":
-            if position[0] == "auto" and bubble_up_type(content):
+            if (position[0] == "auto" and
+                    bubble_up_type(content)):  # pragma: no cover
                 # use and declaration statements cannot appear in a do loop
                 # so pass on to parent
                 self.parent.add(content, bubble_up=True)

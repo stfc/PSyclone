@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,8 @@ def test_sum_x(tmpdir, dist_mem):
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
-            "      DO df=loop0_start,loop0_stop\n"
+            "      DO df = loop0_start, loop0_stop, 1\n"
+            "        ! Built-in: sum_X (sum a real-valued field)\n"
             "        asum = asum + f1_data(df)\n"
             "      END DO")
     assert output in code
@@ -126,5 +127,6 @@ def test_sum_x_lowering(fortran_writer):
     loop = first_invoke.schedule.walk(Loop)[0]
     code = fortran_writer(loop)
     assert ("do df = loop0_start, loop0_stop, 1\n"
+            "  ! Built-in: sum_X (sum a real-valued field)\n"
             "  asum = asum + f1_data(df)\n"
             "enddo") in code

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -226,7 +226,7 @@ class Symbol():
               f"Error trying to resolve the properties of symbol "
               f"'{self.name}' in module '{module.name}': {err.value}") from err
 
-    def resolve_deferred(self):
+    def resolve_type(self):
         '''
         Update the properties of this Symbol by using the definition imported
         from the external Container. If this symbol does not have an
@@ -424,21 +424,13 @@ class Symbol():
 
     @property
     def is_array(self):
-        '''This is the basic implementation for the method that checks
-        if a symbol is declared to be an array. In this base class it
-        will just raise an exception, indicating that no information
-        is available. The function will be overwritten, e.g. in
-        DataSymbol.
-
-        :returns: True if this symbol is an array and False otherwise.
+        '''
+        :returns: True if this symbol is an array and False if it is not or
+            there is not enough symbol information to determine it.
         :rtype: bool
 
-        :raises ValueError: if this function is called for the base class \
-            since there is no information available.
-
         '''
-        raise ValueError(f"No array information is available for the "
-                         f"symbol '{self.name}'.")
+        return False
 
     def is_array_access(self, index_variable=None, access_info=None):
         '''This method detects if a variable is used as an array or not.
@@ -512,14 +504,6 @@ class Symbol():
         # does not indicate an array. In the latter case we still need to
         # test the symbol table, since the variable might be used in array
         # expressions only. Note that we cannot check for index variable usage
-        # in this case. If there is no type information available (i.e. `self`
-        # is just a Symbol, not a DataSymbol), the `is_array` function will
-        # raise an exception.
+        # in this case.
         # TODO #1213: check for wildcard imports
-        try:
-            return self.is_array
-        except ValueError:
-            # Generic symbols produce a ValueError, since this does not have
-            # a datatype and an Array access was not found, we don't consider
-            # it an array.
-            return False
+        return self.is_array

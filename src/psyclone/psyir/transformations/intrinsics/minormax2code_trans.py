@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council
+# Copyright (c) 2021-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -120,7 +120,7 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
 
         '''
         # pylint: disable=too-many-locals
-        self.validate(node)
+        self.validate(node, options)
 
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)

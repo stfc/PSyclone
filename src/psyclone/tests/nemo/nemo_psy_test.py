@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2023, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,12 +40,11 @@
 import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory, InlinedKern
+from psyclone.psyGen import PSyFactory
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
-from psyclone.psyir.nodes import Assignment, IfBlock, Literal, Loop, \
-    Reference, Schedule
+from psyclone.psyir.nodes import Assignment, Literal, Loop, Reference, Schedule
 from psyclone.psyir.nodes.node import colored
 
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,13 +55,17 @@ TL_NAME_PREFIX = "tl_"
 INNER_PRODUCT_TOLERANCE = 1500.0
 
 
-def create_adjoint_name(tl_name):
+def create_adjoint_name(tl_name, table=None):
     '''Create an adjoint name from the supplied tangent linear name. This
     is done by stripping the TL_NAME_PREFIX from the name if it exists
     and then adding the ADJOINT_NAME_PREFIX. The adjoint name is also
-    lower-cased.
+    lower-cased. If a symbol table is supplied, then this routine also
+    ensures that the new name is not present in that table.
 
     :param str: the tangent-linear name.
+    :param table: an optional symbol table in which the new adjoint name must
+                  be unique.
+    :type table: Optional[:py:class:`psyclone.psyir.symbols.SymbolTable`]
 
     :returns: the adjoint name.
     :rtype: str
@@ -70,7 +74,10 @@ def create_adjoint_name(tl_name):
     adj_name = tl_name.lower()
     if adj_name.startswith(TL_NAME_PREFIX):
         adj_name = adj_name[len(TL_NAME_PREFIX):]
-    return ADJOINT_NAME_PREFIX + adj_name
+    base_name = ADJOINT_NAME_PREFIX + adj_name
+    if table:
+        return table.next_available_name(base_name)
+    return base_name
 
 
 def create_real_comparison(sym_table, kernel, var1, var2):

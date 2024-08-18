@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council.
+! Copyright (c) 2023-2024, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,21 +30,26 @@
 ! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
-! -----------------------------------------------------------------------------
-! Author: I. Kavcic, Met Office
+!-------------------------------------------------------------------------------
+! Author J. Henrichs, Bureau of Meteorology
 
-program single_invoke
+! A single program calling two kernels which import non-local symbols. One
+! of the kernels will also introduce name clashes with names in the created
+! PSy-layer.
 
-  ! Description: single point-wise operation (conversion of real-valued to
-  ! integer-valued field elements) specified in an invoke call.
-  use integer_field_mod, only: integer_field_type
-  use field_mod,         only: field_type
+program invoke_kernel_with_imported_symbols
+
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
+  use testkern_import_symbols_mod,  only: testkern_import_symbols_type
+  use testkern_import_symbols_name_clash_mod,  only: testkern_import_symbols_name_clash_type
 
   implicit none
 
-  type(integer_field_type) :: f2
-  type(field_type)         :: f1
+  type(field_type) :: f1, f2, m1, m2
+  real(r_def)      :: a
 
-  call invoke( int_X(f2, f1) )
+  call invoke(testkern_import_symbols_type(a, f1, f2, m1, m2))
+  call invoke(testkern_import_symbols_name_clash_type(a, f1, f2, m1, m2))
 
-end program single_invoke
+end program invoke_kernel_with_imported_symbols
