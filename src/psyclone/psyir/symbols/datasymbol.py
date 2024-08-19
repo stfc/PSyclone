@@ -68,12 +68,14 @@ class DataSymbol(TypedSymbol):
 
     '''
     def __init__(self, name, datatype, is_constant=False, initial_value=None,
-                 **kwargs):
+                 is_thread_private=False, **kwargs):
         super().__init__(name, datatype)
         self._is_constant = False
         self._initial_value = None
+        self._is_thread_private = False
         self._process_arguments(is_constant=is_constant,
                                 initial_value=initial_value,
+                                is_thread_private=is_thread_private,
                                 **kwargs)
 
     def _process_arguments(self, **kwargs):
@@ -103,6 +105,7 @@ class DataSymbol(TypedSymbol):
         '''
         new_initial_value = None
         new_is_constant_value = None
+        new_is_thread_private = None
 
         # We need to consume 'initial_value' and 'is_constant' before calling
         # the super because otherwise there will be an unknown argument in
@@ -126,6 +129,14 @@ class DataSymbol(TypedSymbol):
             # a Symbol).
             self._is_constant = False
 
+        if "is_thread_private" in kwargs:
+            new_is_thread_private = kwargs.pop("is_thread_private")
+        if not hasattr(self, '_is_constant'):
+            # At least initialise it if we reach this point and it doesn't
+            # exist (which may happen if this symbol has been specialised from
+            # a Symbol).
+            self._is_thread_private = False
+
         # Record whether an explicit value has been supplied for 'interface'
         # (before it is consumed by the super method).
         interface_supplied = "interface" in kwargs
@@ -141,6 +152,9 @@ class DataSymbol(TypedSymbol):
         # interface, we can call the is_constant setter.
         if new_is_constant_value is not None:
             self.is_constant = new_is_constant_value
+
+        if new_is_thread_private is not None:
+            self.is_thread_private = new_is_thread_private
 
         if self.is_constant and not interface_supplied and self.is_automatic:
             # No explicit interface was supplied and this Symbol represents
@@ -179,6 +193,26 @@ class DataSymbol(TypedSymbol):
                     f" does not have an initial value or an import or "
                     f"unresolved interface.")
         self._is_constant = value
+
+    @property
+    def is_thread_private(self):
+        '''
+        :returns: whether this symbol is thread private.
+        :rtype: bool
+        '''
+        return self._is_thread_private
+
+    @is_thread_private.setter
+    def is_thread_private(self, value):
+        '''
+        :param bool value: whether this symbol is thread private.
+
+        :raises TypeError: if the given value is not a boolean.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(f"Expecting a 'bool' but got '{type(value)}'")
+        self._is_thread_private = value
 
     @property
     def initial_value(self):
@@ -291,6 +325,8 @@ class DataSymbol(TypedSymbol):
             ret += f", initial_value={self.initial_value}"
         if self.is_constant:
             ret += ", constant=True"
+        if self.is_thread_private:
+            ret += ", thread_private=True"
         return ret + ">"
 
     def copy(self):
@@ -324,6 +360,7 @@ class DataSymbol(TypedSymbol):
                           visibility=self.visibility,
                           interface=self.interface.copy(),
                           is_constant=self.is_constant,
+                          is_thread_private=self.is_thread_private,
                           initial_value=new_init_value)
 
     def copy_properties(self, symbol_in):
@@ -342,6 +379,7 @@ class DataSymbol(TypedSymbol):
         super().copy_properties(symbol_in)
         self._is_constant = symbol_in.is_constant
         self._initial_value = symbol_in.initial_value
+        self._is_thread_private = symbol_in.is_thread_private
 
     def replace_symbols_using(self, table):
         '''

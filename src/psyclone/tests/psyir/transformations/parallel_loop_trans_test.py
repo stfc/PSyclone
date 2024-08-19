@@ -479,3 +479,42 @@ def test_paralooptrans_apply(fortran_reader):
     trans = ParaTrans()
     trans.apply(loop, {"force": True})
     assert isinstance(loop.parent.parent, OMPParallelDoDirective)
+
+
+def test_paralooptranas_apply_with_array_privatisation(fortran_reader,
+                                                       fortran_writer):
+    '''
+    Check that the apply() method works as expected, including passing
+    `options` down to validate().
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer ji, jj
+          real :: var1(10,10)
+          real :: ztmp(10)
+          var1 = 1.0
+
+          do ji = 1, 10
+            do jj = 1, 10
+              ztmp(jj) = var1(ji, jj) + 1
+            end do
+            do jj = 1, 10
+              var1(ji, jj) = ztmp(jj) * 2
+            end do
+          end do
+        end subroutine my_sub''')
+
+    loop = psyir.walk(Loop)[0]
+    trans = ParaTrans()
+
+    # By default this can not be parallelised because all arrays are considered
+    # shared
+    with pytest.raises(TransformationError) as err:
+        trans.apply(loop)
+    assert "ztmp(jj)\' causes a write-write race condition." in str(err.value)
+
+    # Now enable array privatisation
+    trans.apply(loop, {"array_privatisation": True})
+    assert ("!$omp parallel do default(shared), private(ji,jj,ztmp)" in
+            fortran_writer(psyir))

@@ -124,6 +124,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         force = options.get("force", False)
         ignore_dependencies_for = options.get("ignore_dependencies_for", [])
         sequential = options.get("sequential", False)
+        array_privatisation = options.get("array_privatisation",
+                                          False)
 
         # Check we are not a sequential loop
         if (not sequential and isinstance(node, PSyLoop) and
@@ -139,6 +141,11 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 raise TypeError(
                     f"The 'collapse' argument must be an integer or a bool but"
                     f" got an object of type {type(collapse)}")
+
+        if not isinstance(array_privatisation, bool):
+            raise TypeError(
+                f"The 'array_privatisation' option must be a bool"
+                f"but got an object of type {type(array_privatisation)}")
 
         # If it's sequential or we 'force' the transformation, the validations
         # below this point are skipped
@@ -180,13 +187,20 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             for message in dep_tools.get_all_messages():
                 if message.code == DTCode.WARN_SCALAR_WRITTEN_ONCE:
                     continue
+                if (array_privatisation and
+                        message.code == DTCode.ERROR_WRITE_WRITE_RACE):
+                    for var_name in message.var_names:
+                        symbol = node.scope.symbol_table.lookup(var_name)
+                        symbol.is_thread_private = True
+                    continue
                 all_msg_str = "\n".join([str(m) for m in
                                          dep_tools.get_all_messages()])
                 messages = (f"Loop cannot be parallelised because the "
                             f"dependency analysis reported:\n{all_msg_str}\n"
                             f"Consider using the \"ignore_dependencies_for\""
                             f" transformation option if this is a false "
-                            f"dependency.")
+                            f"dependency or the \"array_privatisation\" (if "
+                            f"this is an applicable write-write dependency).")
                 if verbose:
                     # This message can get quite long, we will skip it if an
                     # ancestor loop already has the exact same message

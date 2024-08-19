@@ -1593,7 +1593,18 @@ class OMPParallelDirective(OMPRegionDirective):
         self.reference_accesses(var_accesses)
         for signature in var_accesses.all_signatures:
             accesses = var_accesses[signature].all_accesses
-            # Ignore variables that have indices, we only look at scalars
+            # TODO #2094: var_name only captures the top-level
+            # component in the derived type accessor. If the attributes
+            # only apply to a sub-component, this won't be captured
+            # appropriately.
+            name = signature.var_name
+            symbol = accesses[0].node.scope.symbol_table.lookup(name)
+            # If it is manually marked as threadprivate, add it to private
+            if symbol.is_thread_private:
+                private.add(symbol)
+                continue
+
+            # All arrays not explicitly marked as threadprivate are shared
             if accesses[0].is_array():
                 continue
 
@@ -1642,12 +1653,6 @@ class OMPParallelDirective(OMPRegionDirective):
                     # Otherwise, the assignment to this variable is inside a
                     # loop (and it will be repeated for each iteration), so
                     # we declare it as private or need_synch
-                    name = signature.var_name
-                    # TODO #2094: var_name only captures the top-level
-                    # component in the derived type accessor. If the attributes
-                    # only apply to a sub-component, this won't be captured
-                    # appropriately.
-                    symbol = access.node.scope.symbol_table.lookup(name)
 
                     # If it has been read before we have to check if ...
                     if has_been_read:
