@@ -53,13 +53,13 @@ class ValueRangeCheckNode(PSyDataNode):
 
     '''
     # Textual description of the node.
-    _text_name = "NanTest"
+    _text_name = "ValueRangeCheck"
     _colour = "green"
     # The default prefix to add to the PSyData module name and PSyDataType
-    _default_prefix = "nan_test"
+    _default_prefix = "value_range_check"
 
     @property
-    def nan_test_body(self):
+    def value_range_check_body(self):
         '''
         :returns: the Schedule associated with this ValueRangeCheckNode.
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`

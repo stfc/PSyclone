@@ -34,26 +34,27 @@
 ! Author J. Henrichs, Bureau of Meteorology
 ! Modified I. Kavcic, Met Office
 
-!> This module implements a PSyData-based verification that floating point
-!! input and output parameters are not NAN and not infinite for the
-!! dl_esm_inf library. It is based on the NANTestBaseType (from which it
-!! inherits the handling of the basic Fortran data types and 2d-arrays,
-!! as specified in the Makefile). It adds the support for the
-!! dl_esm_inf-specific field type.
+!> This module implements a PSyData-based verification that checks if
+!! variable values are within a certain range. It is based on the
+!! ValueRangeCheckBaseType (from which it inherits the handling of the
+!! basic Fortran data types and 2d-arrays, as specified in the Makefile).
+!!It adds the support for the dl_esm_inf-specific field type.
 
-module nan_test_psy_data_mod
+
+module value_range_check_psy_data_mod
 
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
                                               stderr => Error_Unit
 
-    use nan_test_base_mod, only : NANTestBaseType, nan_test_PSyDataInit, &
-                 nan_test_PSyDataShutdown, is_enabled, &
-                 nan_test_PSyDataStart, nan_test_PSyDataStop
+    use value_range_check_base_mod, only : ValueRangeCheckBaseType, &
+                 value_range_check_PSyDataInit, &
+                 value_range_check_PSyDataShutdown, is_enabled, &
+                 value_range_check_PSyDataStart, value_range_check_PSyDataStop
 
     implicit none
 
-    type, extends(NANTestBaseType), public:: nan_test_PSyDataType
+    type, extends(ValueRangeCheckBaseType), public:: value_range_check_psydatatype
 
     contains
 
@@ -73,14 +74,14 @@ module nan_test_psy_data_mod
         !! are not NAN and not infinite.
         generic, public :: ProvideVariable => ProvideField
 
-    end type nan_test_PSyDataType
+    end type value_range_check_psydatatype
 
 contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine declares a field as defined in
     !! dl_esm_inf (r2d_field). It does nothing in the NAN checking library.
-    !! @param[in,out] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the value_range_check_psydatatype.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareField(this, name, value)
@@ -89,7 +90,7 @@ contains
 
         implicit none
 
-        class(nan_test_PSyDataType), intent(inout), target :: this
+        class(value_range_check_psydatatype), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
         call this%PreDeclareVariable(name, value%data)
@@ -99,17 +100,17 @@ contains
     ! -------------------------------------------------------------------------
     !> This subroutine checks that a dl_esm_inf field does not contain
     !! a NAN or infinite floating point value.
-    !! @param[in,out] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the value_range_check_psydatatype.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideField(this, name, value)
 
         use field_mod, only : r2d_field
-        use nan_test_base_mod, only : NANTestBaseType
+        use value_range_check_base_mod, only : ValueRangeCheckBaseType
 
         implicit none
 
-        class(nan_test_PSyDataType), intent(inout), target :: this
+        class(value_range_check_psydatatype), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
 
@@ -117,4 +118,4 @@ contains
 
     end subroutine ProvideField
 
-end module nan_test_psy_data_mod
+end module value_range_check_psy_data_mod

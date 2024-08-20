@@ -48,60 +48,62 @@ from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPParallelLoopTrans
 
 
-# --------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------
 def test_extract_trans():
     '''Tests basic functions in ValueRangeCheck.'''
-    nan_test = ValueRangeCheck()
-    assert str(nan_test) == "Create a sub-tree of the PSyIR that has " \
-                            "a node of type ValueRangeCheckNode at its root."
-    assert nan_test.name == "ValueRangeCheck"
+    value_range = ValueRangeCheck()
+    assert str(value_range) == ("Create a sub-tree of the PSyIR that has a "
+                                "node of type ValueRangeCheckNode at its "
+                                "root.")
+    assert value_range.name == "ValueRangeCheck"
 
 
 # -----------------------------------------------------------------------------
 def test_malformed_extract_node(monkeypatch):
     ''' Check that we raise the expected error if a ValueRangeCheckNode does
     not have a single Schedule node as its child. '''
-    read_node = ValueRangeCheckNode()
-    monkeypatch.setattr(read_node, "_children", [])
+    value_range_check_node = ValueRangeCheckNode()
+    monkeypatch.setattr(value_range_check_node, "_children", [])
     with pytest.raises(InternalError) as err:
-        _ = read_node.nan_test_body
+        _ = value_range_check_node.value_range_check_body
     assert "malformed or incomplete. It should have a " in str(err.value)
-    monkeypatch.setattr(read_node, "_children", [Node(), Node()])
+    monkeypatch.setattr(value_range_check_node, "_children", [Node(), Node()])
     with pytest.raises(InternalError) as err:
-        _ = read_node.nan_test_body
+        _ = value_range_check_node.value_range_check_body
     assert "malformed or incomplete. It should have a " in str(err.value)
 
 
 # -----------------------------------------------------------------------------
-def test_nan_test_basic():
+def test_value_range_check_basic():
     '''Check basic functionality: node names, schedule view.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0, dist_mem=False)
-    nan_test = ValueRangeCheck()
-    nan_test.apply(invoke.schedule[0].loop_body[0])
+    value_range_check = ValueRangeCheck()
+    value_range_check.apply(invoke.schedule[0].loop_body[0])
     result = invoke.schedule.view()
 
     # Create the coloured text (if required)
-    read_node = colored("NanTest", ValueRangeCheckNode._colour)
+    value_range_check_node = colored("ValueRangeCheck",
+                                     ValueRangeCheckNode._colour)
     sched_node = colored("Schedule", Schedule._colour)
     assert f"""{sched_node}[]
-            0: {read_node}[]
+            0: {value_range_check_node}[]
                 {sched_node}[]""" in result
 
 
 # -----------------------------------------------------------------------------
-def test_nan_test_options():
+def test_value_range_check_options():
     '''Check that options are passed to the ValueRangeCheckNode and trigger
     the use of the newly defined names.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0, dist_mem=False)
-    nan_test = ValueRangeCheck()
-    nan_test.apply(invoke.schedule[0].loop_body[0],
-                   options={"region_name": ("a", "b")})
+    value_range_check = ValueRangeCheck()
+    value_range_check.apply(invoke.schedule[0].loop_body[0],
+                            options={"region_name": ("a", "b")})
     code = str(invoke.gen())
-    assert 'CALL nan_test_psy_data % PreStart("a", "b", 4, 2)' in code
+    assert 'CALL value_range_check_psy_data % PreStart("a", "b", 4, 2)' in code
 
 
 # -----------------------------------------------------------------------------
@@ -111,26 +113,26 @@ def test_invalid_apply():
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0)
-    nan_test = ValueRangeCheck()
+    value_range_check = ValueRangeCheck()
     omp = OMPParallelLoopTrans()
     omp.apply(invoke.schedule[0])
     with pytest.raises(TransformationError) as err:
-        nan_test.apply(invoke.schedule[0].dir_body[0],
-                       options={"region_name": ("a", "b")})
+        value_range_check.apply(invoke.schedule[0].dir_body[0],
+                                options={"region_name": ("a", "b")})
 
     assert "Error in ValueRangeCheck: Application to a Loop without its "\
            "parent Directive is not allowed." in str(err.value)
 
     with pytest.raises(TransformationError) as err:
-        nan_test.apply(invoke.schedule[0].dir_body[0].loop_body[0],
-                       options={"region_name": ("a", "b")})
+        value_range_check.apply(invoke.schedule[0].dir_body[0].loop_body[0],
+                                options={"region_name": ("a", "b")})
 
     assert "Error in ValueRangeCheck: Application to Nodes enclosed within a "\
            "thread-parallel region is not allowed." in str(err.value)
 
 
 # -----------------------------------------------------------------------------
-def test_nan_test_psyir_visitor(fortran_writer):
+def test_value_range_check_psyir_visitor(fortran_writer):
     '''Check that options are passed to the ValueRangeCheckNode and trigger
     the use of the newly defined names. This test uses the FortranWriter
     for creating output, which triggers a different code path
@@ -140,25 +142,29 @@ def test_nan_test_psyir_visitor(fortran_writer):
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0, dist_mem=False)
 
-    nan_test = ValueRangeCheck()
-    nan_test.apply(invoke.schedule, options={"region_name": ("a", "b")})
+    value_range_check = ValueRangeCheck()
+    value_range_check.apply(invoke.schedule,
+                            options={"region_name": ("a", "b")})
 
     code = fortran_writer(invoke.schedule)
     # Test only some of the lines to keep this test short:
-    expected = ['CALL nan_test_psy_data % PreStart("a", "b", 12, 4)',
-                'CALL nan_test_psy_data % PreDeclareVariable("cv_fld%'
+    expected = ['CALL value_range_check_psy_data % PreStart("a", "b", 12, 4)',
+                'CALL value_range_check_psy_data % PreDeclareVariable("cv_fld%'
                 'internal%xstart", cv_fld % internal % xstart)',
-                'CALL nan_test_psy_data % PreDeclareVariable("ncycle", '
+                'CALL value_range_check_psy_data % PreDeclareVariable('
+                '"ncycle", ncycle)',
+                'CALL value_range_check_psy_data % PreEndDeclaration',
+                'CALL value_range_check_psy_data % ProvideVariable("ncycle", '
                 'ncycle)',
-                'CALL nan_test_psy_data % PreEndDeclaration',
-                'CALL nan_test_psy_data % ProvideVariable("ncycle", ncycle)',
-                'CALL nan_test_psy_data % PreEnd',
-                'CALL nan_test_psy_data % PostStart',
-                'CALL nan_test_psy_data % ProvideVariable("cv_fld", cv_fld)',
-                'CALL nan_test_psy_data % ProvideVariable("i", i)',
-                'CALL nan_test_psy_data % ProvideVariable("j", j)',
-                'CALL nan_test_psy_data % ProvideVariable("p_fld", p_fld)',
-                'CALL nan_test_psy_data % PostEnd',
+                'CALL value_range_check_psy_data % PreEnd',
+                'CALL value_range_check_psy_data % PostStart',
+                'CALL value_range_check_psy_data % ProvideVariable("cv_fld", '
+                'cv_fld)',
+                'CALL value_range_check_psy_data % ProvideVariable("i", i)',
+                'CALL value_range_check_psy_data % ProvideVariable("j", j)',
+                'CALL value_range_check_psy_data % ProvideVariable("p_fld", '
+                'p_fld)',
+                'CALL value_range_check_psy_data % PostEnd',
                 ]
 
     for line in expected:

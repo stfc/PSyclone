@@ -41,12 +41,12 @@
 ! Author J. Henrichs, Bureau of Meteorology
 ! Modified I. Kavcic, Met Office
 
-!> This module implements a NAN verification for the LFRic API
+!> This module implements the value range check for the LFRic API
 !!
 
 {% set ALL_PREC = ["32", "64"] -%}
 
-module nan_test_psy_data_mod
+module value_range_check_mod
 
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
@@ -56,11 +56,11 @@ module nan_test_psy_data_mod
                               field_r{{prec}}_proxy_type
     {% endfor %}
     use integer_field_mod, only   : integer_field_type, integer_field_proxy_type
-    use nan_test_base_mod, only   : NANTestBaseType, is_enabled
+    use value_range_check_base_mod, only   : ValueRangeCheckBaseType, is_enabled
 
     implicit none
 
-    type, extends(NANTestBaseType), public :: nan_test_PSyDataType
+    type, extends(ValueRangeCheckBaseType), public :: value_range_check_PSyDataType
 
     contains
 
@@ -102,7 +102,7 @@ module nan_test_psy_data_mod
                            ProvideIntField,       &
                            ProvideIntFieldVector
 
-    end type nan_test_PSyDataType
+    end type value_range_check_PSyDataType
 
 contains
 
@@ -111,14 +111,14 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine declares LFRic real-valued fields. No functionality is
     !! needed for NAN checking, so it is just an empty function.
-    !! @param[in,out] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the value_range_check_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareField_r{{prec}}(this, name, value)
 
         implicit none
 
-        class(nan_test_PSyDataType), intent(inout), target :: this
+        class(value_range_check_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                           :: name
         type(field_r{{prec}}_type), intent(in)                   :: value
 
@@ -132,14 +132,14 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine checks whether a real-valued LFRic field has NAN or
     !! infinite floating-point values.
-    !! @param[in,out] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the value_range_check_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideField_r{{prec}}(this, name, value)
 
         implicit none
 
-        class(nan_test_PSyDataType), intent(inout), target :: this
+        class(value_range_check_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                           :: name
         type(field_r{{prec}}_type), intent(in)                   :: value
 
@@ -158,14 +158,14 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine declares LFRic real-valued field vectors. No
     !! functionality is needed here, so it is just an empty function.
-    !! @param[in,out] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the value_range_check_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareFieldVector_r{{prec}}(this, name, value)
 
         implicit none
 
-        class(nan_test_PSyDataType), intent(inout), target :: this
+        class(value_range_check_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                           :: name
         type(field_r{{prec}}_type), dimension(:), intent(in)     :: value
 
@@ -184,14 +184,14 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine checks whether a real-valued LFRic vector field has NAN
     !! or infinite floating-point values.
-    !! @param[in,out] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the value_range_check_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The vector of fields.
     subroutine ProvideFieldVector_r{{prec}}(this, name, value)
 
         implicit none
 
-        class(nan_test_PSyDataType), intent(inout), target :: this
+        class(value_range_check_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                           :: name
         type(field_r{{prec}}_type), dimension(:), intent(in)     :: value
 
@@ -214,14 +214,14 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine declares LFRic integer-valued fields. No functionality
     !! is needed for NAN checking, so it is just an empty function.
-    !! @param[in,out] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the value_range_check_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareIntField(this, name, value)
 
         implicit none
 
-        class(nan_test_PSyDataType), intent(inout), target :: this
+        class(value_range_check_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(integer_field_type), intent(in) :: value
 
@@ -235,7 +235,7 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine checks whether an integer-valued LFRic field has NAN or
     !! infinite values.
-    !! @param[in,out] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the value_range_check_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideIntField(this, name, value)
@@ -245,7 +245,7 @@ contains
 
         implicit none
 
-        class(nan_test_PSyDataType), intent(inout), target :: this
+        class(value_range_check_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                           :: name
         type(integer_field_type), intent(in)               :: value
 
@@ -264,7 +264,7 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine declares LFRic integer-valued field vectors. No
     !! functionality is needed here, so it is just an empty function.
-    !! @param[in,out] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the value_range_check_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareIntFieldVector(this, name, value)
@@ -273,7 +273,7 @@ contains
 
         implicit none
 
-        class(nan_test_PSyDataType), intent(inout), target :: this
+        class(value_range_check_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                           :: name
         type(integer_field_type), dimension(:), intent(in) :: value
 
@@ -292,7 +292,7 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine checks whether an integer-valued LFRic vector field has
     !! NAN or infinite values.
-    !! @param[in,out] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the value_range_check_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The vector of fields.
     subroutine ProvideIntFieldVector(this, name, value)
@@ -301,7 +301,7 @@ contains
 
         implicit none
 
-        class(nan_test_PSyDataType), intent(inout), target :: this
+        class(value_range_check_PSyDataType), intent(inout), target :: this
         character(*), intent(in)                           :: name
         type(integer_field_type), dimension(:), intent(in) :: value
 
@@ -321,4 +321,4 @@ contains
 
     ! -------------------------------------------------------------------------
 
-end module nan_test_psy_data_mod
+end module value_range_check_mod

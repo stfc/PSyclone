@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,48 +31,50 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Author: J. Henrichs, Australian Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel NAN-verification to
-the invokes. This then creates code that, at runtime, verifies that
-all input and output parameters of a region are a valid number, i.e.
-not infinity or NAN.
-'''
+# This Makefile just creates the Fortran base class for all nan-test
+# wrappers from the jinja template. The compile functionality it offers is
+# only meant for testing, each library should compile its own version
+# of the base class (with therefore consistent compiler settings).
 
-from __future__ import print_function
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
+F90FLAGS ?=
+# Path to the PSyclone wrapper libraries. It defaults to the relative path to
+# the top-level 'lib' directory. Overwrite for a custom location.
+PSYDATA_LIB_DIR ?= ./..
+# -----------------------------------------------------------------------------
 
-from psyclone.psyir.transformations import NanTestTrans
+# The nan-test library is implemented for int, real and
+# double scalars and 2-dimension arrays
+PROCESS_ARGS = -prefix=value_range_check_ -types=int,real,double \
+		       -dims=2
+PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
 
-def trans(psy):
-    '''
-    Take the supplied psy object, and add verification to both
-    invokes that read only parameters are not modified.
+default: value_range_check_base.o psy_data_base.o
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
+process: value_range_check_base.f90
 
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
+.PHONY: default process clean all
 
-    '''
-    nan_test = NanTestTrans()
+all:
+	$(MAKE) -C dl_esm_inf
+	$(MAKE) -C lfric
 
-    invoke = psy.invokes.get("invoke_0")
-    schedule = invoke.schedule
+%.f90:	%.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > $*.f90
 
-    # You could just apply the transform for all elements of
-    # psy.invokes.invoke_list. But in this case we also
-    # want to give the regions a friendlier name:
-    nan_test.apply(schedule.children, {"region_name": ("main", "init")})
+psy_data_base.f90:	$(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
-    invoke = psy.invokes.get("invoke_1_update_field")
-    schedule = invoke.schedule
+value_range_check_base.o: psy_data_base.o
 
-    # Enclose everything in a nan_test region
-    nan_test.apply(schedule.children, {"region_name": ("main", "update")})
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
 
-    # print(schedule.view())
-    return psy
+clean:
+	rm -f value_range_check_base.f90 psy_data_base.f90 *.o *.mod

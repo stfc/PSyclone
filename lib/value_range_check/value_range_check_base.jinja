@@ -5,7 +5,7 @@
 {{ "! DO NOT MODIFY DIRECTLY!                            !" }}
 {{ "! ================================================== !" }}
 
-{# This jinja template file creates a base class for a not-NAN
+{# This jinja template file creates a base class for a value-range-check
    verification library. It produces the required ProvideVariable()
    functions for the specified Fortran basic types. Any library
    using this base class can provide the required Fortran basic
@@ -13,7 +13,7 @@
    (see ALL_DIMS) that need to be supported when processing this
    template. 
 
-   This NANTest base class depends on the PSyData base
+   This ValueRangeCheck base class depends on the PSyData base
    class, which will provide the other Fortran-type-specific
    functions for PreDeclarVariable(). Any function can obviously
    be overwritten by a derived class.
@@ -74,19 +74,28 @@
 ! Author J. Henrichs, Bureau of Meteorology
 ! Modified I. Kavcic, Met Office
 
-!> This module implements a PSyData-based verification that floating point
+!> This module implements a PSyData-based verification that checks if
+!! variable values are within a certain range. This range is specified
+!! by environment variables. Three different formats can be used:
+!! 1. PSYVERIFY__module__region__variable
+!!    Checks the specified variable in the given module and region (i.e.
+!!    kernel).
+!! 2. PSYVERIFY__module__variable
+!!    Checks the specified variable anywhere in the given module.
+!! 3. PSYVERIFY__variable
+!!    Checks the specified variable in any instrumented region.
+!! Additionally, the library will also check that any floating point
 !! input and output parameters are not NAN and not infinite.
-!!
 
-module nan_test_base_mod
+module value_range_check_base_mod
 
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
                                               stderr => Error_Unit
     use psy_data_base_mod, only : PSyDataBaseType, &
-        nan_test_PSyDataShutdown, &
-        nan_test_PSyDataInit, is_enabled, &
-        nan_test_PSyDataStart, nan_test_PSyDataStop
+        value_range_check_PSyDataShutdown, &
+        value_range_check_PSyDataInit, is_enabled, &
+        value_range_check_PSyDataStart, value_range_check_PSyDataStop
 
     implicit none
 
@@ -95,7 +104,7 @@ module nan_test_base_mod
     integer, parameter :: has_max     = 2
     integer, parameter :: has_min_max = 3
 
-    type, extends(PSyDataBaseType), public :: NANTestBaseType
+    type, extends(PSyDataBaseType), public :: ValueRangeCheckBaseType
         ! Indicates if a variable has test values, and if so, which kind of
         ! test (has_min/max/min_max)
         integer, dimension(:), allocatable :: has_checks
@@ -132,7 +141,7 @@ module nan_test_base_mod
             {{all_provides|join(", &\n"+indent) }}
         {% endif %}
 
-    end type NANTestBaseType
+    end type ValueRangeCheckBaseType
 
 contains
 
@@ -145,7 +154,7 @@ contains
     !! If a minimum is specified, its value will be stored in
     !! value_range(1). If a maximum is specified, its value will be
     !! stores in value_range(2).
-    !! @param[in] this The instance of the NANTestBaseType.
+    !! @param[in] this The instance of the ValueRangeCheckBaseType.
     !! @param[in] module The name of the module of the instrumented
     !!            region.
     !! @param[in] region The name of the instrumented region.
@@ -156,7 +165,7 @@ contains
     !!              index 2 the maximum (if specified)
 
         implicit none
-        class(NANTestBaseType), intent(in), target :: this
+        class(ValueRangeCheckBaseType), intent(in), target :: this
         character(len=*), intent(in) :: module, region, variable_name
         integer, intent(out) :: has_values
         real(kind=real64), dimension(2), intent(out) :: value_range
@@ -181,8 +190,7 @@ contains
             if (status >= 1) then
                 ! No specification with only variable and module name.
                 ! Try without module:
-                env_name = "PSYVERIFY__" // trim(module) // "__"  &
-                                         // trim(variable_name)
+                env_name = "PSYVERIFY__" // trim(variable_name)
                 call get_environment_variable(env_name, length=value_len, &
                                               status=status)
                 if (status >= 1) then
@@ -237,10 +245,10 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine is called once all variables are declared. It makes
     !! sure that the next variable index is starting at 1 again.
-    !! @param[in,out] this The instance of the NANTestBaseType.
+    !! @param[in,out] this The instance of the ValueRangeCheckBaseType.
     subroutine PreEndDeclaration(this)
         implicit none
-        class(NANTestBaseType), intent(inout), target :: this
+        class(ValueRangeCheckBaseType), intent(inout), target :: this
         integer :: err
 
         if (.not. is_enabled) return
@@ -280,7 +288,7 @@ contains
 
         implicit none
 
-        class(NANTestBaseType), intent(inout), target :: this
+        class(ValueRangeCheckBaseType), intent(inout), target :: this
 
         this%env_var_have_been_read = .true.
         call this%PSyDataBaseType%PreEnd()
@@ -297,9 +305,11 @@ contains
     ! Implementation for all {{type}} types
     ! =========================================================================
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine checks if a floating point value is NAN or infinite
-    !! using the IEEE_IS_FINIT function (and does nothing for integer types).
-    !! @param[in,out] this The instance of the NANTestBaseType.
+    !> @brief This subroutine checks if a numerical variable is within the
+    !! specified range (based on environment variables set by the user).
+    !! Additionally, in the case of a floating point value, it will also check
+    !! that this value is not NAN of infinite using the IEEE_IS_FINIT function.
+    !! @param[in,out] this The instance of the ValueRangeCheckBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideScalar{{name}}(this, name, value)
@@ -308,7 +318,7 @@ contains
 
         implicit none
 
-        class(NANTestBaseType), intent(inout), target :: this
+        class(ValueRangeCheckBaseType), intent(inout), target :: this
         character(*), intent(in)                      :: name
         {{type}}, intent(in)                          :: value
 
@@ -386,9 +396,12 @@ contains
     {% set indent = " "*3*dim %}
 
     ! -------------------------------------------------------------------------
-    !> @brief This method checks if an array contains NAN or infinite IEEE values (it
-    !! does nothing in case that the array is an integer type).
-    !! @param[in,out] this The instance of the NANTestBaseType.
+    !> @brief This subroutine checks if each element of a numerical array is
+    !! within the  specified range (based on environment variables set by the
+    !! user). Additionally, in the case of a floating point value, it will also
+    !! check that this value is not NAN of infinite using the IEEE_IS_FINIT
+    !! function.
+    !! @param[in,out] this The instance of the ValueRangeCheckBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideArray{{dim}}d{{name}}(this, name, value)
@@ -397,7 +410,7 @@ contains
 
         implicit none
 
-        class(NANTestBaseType), intent(inout), target :: this
+        class(ValueRangeCheckBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
         {{type}}, dimension({{DIMENSION}}), intent(in) :: value
 
@@ -497,4 +510,4 @@ contains
 
     ! -------------------------------------------------------------------------
 
-end module nan_test_base_mod
+end module value_range_check_base_mod
