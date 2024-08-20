@@ -44,11 +44,12 @@ of a kernel are valid numbers (i.e. neither NAN nor infinite).
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
-class NanTestNode(PSyDataNode):
+class ValueRangeCheckNode(PSyDataNode):
     '''
     This class can be inserted into a Schedule to mark Nodes for
     NAN-checking using the NanTestTrans transformation. The Nodes
-    marked for checking become children of (the Schedule of) a NanTestNode.
+    marked for checking become children of (the Schedule of) a
+    ValueRangeCheckNode.
 
     '''
     # Textual description of the node.
@@ -60,7 +61,7 @@ class NanTestNode(PSyDataNode):
     @property
     def nan_test_body(self):
         '''
-        :returns: the Schedule associated with this NanTestNode.
+        :returns: the Schedule associated with this ValueRangeCheckNode.
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
@@ -90,4 +91,4 @@ class NanTestNode(PSyDataNode):
 
 
 # For AutoAPI documentation generation
-__all__ = ['NanTestNode']
+__all__ = ['ValueRangeCheckNode']

@@ -35,16 +35,14 @@
 # Modified by: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Module containing tests for NanTestTrans and NanTestNode
+''' Module containing tests for ValueRangeCheck and ValueRangeCheckNode
 '''
-
-from __future__ import absolute_import
 
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import colored, Node, NanTestNode, Schedule
-from psyclone.psyir.transformations import (NanTestTrans,
+from psyclone.psyir.nodes import colored, Node, ValueRangeCheckNode, Schedule
+from psyclone.psyir.transformations import (ValueRangeCheck,
                                             TransformationError)
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPParallelLoopTrans
@@ -52,18 +50,18 @@ from psyclone.transformations import OMPParallelLoopTrans
 
 # --------------------------------------------------------------------------- #
 def test_extract_trans():
-    '''Tests basic functions in NanTestTrans.'''
-    nan_test = NanTestTrans()
+    '''Tests basic functions in ValueRangeCheck.'''
+    nan_test = ValueRangeCheck()
     assert str(nan_test) == "Create a sub-tree of the PSyIR that has " \
-                            "a node of type NanTestNode at its root."
-    assert nan_test.name == "NanTestTrans"
+                            "a node of type ValueRangeCheckNode at its root."
+    assert nan_test.name == "ValueRangeCheck"
 
 
 # -----------------------------------------------------------------------------
 def test_malformed_extract_node(monkeypatch):
-    ''' Check that we raise the expected error if a NanTestNode does
+    ''' Check that we raise the expected error if a ValueRangeCheckNode does
     not have a single Schedule node as its child. '''
-    read_node = NanTestNode()
+    read_node = ValueRangeCheckNode()
     monkeypatch.setattr(read_node, "_children", [])
     with pytest.raises(InternalError) as err:
         _ = read_node.nan_test_body
@@ -80,12 +78,12 @@ def test_nan_test_basic():
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0, dist_mem=False)
-    nan_test = NanTestTrans()
+    nan_test = ValueRangeCheck()
     nan_test.apply(invoke.schedule[0].loop_body[0])
     result = invoke.schedule.view()
 
     # Create the coloured text (if required)
-    read_node = colored("NanTest", NanTestNode._colour)
+    read_node = colored("NanTest", ValueRangeCheckNode._colour)
     sched_node = colored("Schedule", Schedule._colour)
     assert f"""{sched_node}[]
             0: {read_node}[]
@@ -94,12 +92,12 @@ def test_nan_test_basic():
 
 # -----------------------------------------------------------------------------
 def test_nan_test_options():
-    '''Check that options are passed to the NanTestNode and trigger
+    '''Check that options are passed to the ValueRangeCheckNode and trigger
     the use of the newly defined names.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0, dist_mem=False)
-    nan_test = NanTestTrans()
+    nan_test = ValueRangeCheck()
     nan_test.apply(invoke.schedule[0].loop_body[0],
                    options={"region_name": ("a", "b")})
     code = str(invoke.gen())
@@ -108,32 +106,32 @@ def test_nan_test_options():
 
 # -----------------------------------------------------------------------------
 def test_invalid_apply():
-    '''Test the exceptions that should be raised by NanTestTrans.
+    '''Test the exceptions that should be raised by ValueRangeCheck.
 
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0)
-    nan_test = NanTestTrans()
+    nan_test = ValueRangeCheck()
     omp = OMPParallelLoopTrans()
     omp.apply(invoke.schedule[0])
     with pytest.raises(TransformationError) as err:
         nan_test.apply(invoke.schedule[0].dir_body[0],
                        options={"region_name": ("a", "b")})
 
-    assert "Error in NanTestTrans: Application to a Loop without its "\
+    assert "Error in ValueRangeCheck: Application to a Loop without its "\
            "parent Directive is not allowed." in str(err.value)
 
     with pytest.raises(TransformationError) as err:
         nan_test.apply(invoke.schedule[0].dir_body[0].loop_body[0],
                        options={"region_name": ("a", "b")})
 
-    assert "Error in NanTestTrans: Application to Nodes enclosed within a "\
+    assert "Error in ValueRangeCheck: Application to Nodes enclosed within a "\
            "thread-parallel region is not allowed." in str(err.value)
 
 
 # -----------------------------------------------------------------------------
 def test_nan_test_psyir_visitor(fortran_writer):
-    '''Check that options are passed to the NanTestNode and trigger
+    '''Check that options are passed to the ValueRangeCheckNode and trigger
     the use of the newly defined names. This test uses the FortranWriter
     for creating output, which triggers a different code path
     (it is based on lower_to_language_level).
@@ -142,7 +140,7 @@ def test_nan_test_psyir_visitor(fortran_writer):
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0, dist_mem=False)
 
-    nan_test = NanTestTrans()
+    nan_test = ValueRangeCheck()
     nan_test.apply(invoke.schedule, options={"region_name": ("a", "b")})
 
     code = fortran_writer(invoke.schedule)
