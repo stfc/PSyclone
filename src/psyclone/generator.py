@@ -729,7 +729,7 @@ def code_transformation_mode(input_file, recipe_file, output_file,
             Profiler.add_profile_nodes(routine, Loop)
 
         # Generate Fortran
-        output = FortranWriter()(psyir)
+        output = FortranWriter(disable_copy=True)(psyir)
         # Fix line_length if requested
         if line_length in ("output", "all"):
             output = fll.process(output)

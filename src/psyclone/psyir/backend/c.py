@@ -61,25 +61,12 @@ TYPE_MAP_TO_C = {ScalarType.Intrinsic.INTEGER: "int",
 class CWriter(LanguageWriter):
     '''Implements a PSyIR-to-C back-end for the PSyIR AST.
 
-    :param bool skip_nodes: If skip_nodes is False then an exception \
-        is raised if a visitor method for a PSyIR node has not been \
-        implemented, otherwise the visitor silently continues. This is an \
-        optional argument which defaults to False.
-    :param str indent_string: Specifies what to use for indentation. This \
-        is an optional argument that defaults to two spaces.
-    :param int initial_indent_depth: Specifies how much indentation to \
-        start with. This is an optional argument that defaults to 0.
-    :param bool check_global_constraints: whether or not to validate all \
-        global constraints when walking the tree. Defaults to True.
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, skip_nodes=False, indent_string="  ",
-                 initial_indent_depth=0, check_global_constraints=True):
-
-        super().__init__(("[", "]"), ".", skip_nodes,
-                         indent_string,
-                         initial_indent_depth,
-                         check_global_constraints)
+    def __init__(self, **kwargs):
+        super().__init__(("[", "]"), ".", **kwargs)
 
     def gen_indices(self, indices, var_name=None):
         '''Given a list of PSyIR nodes representing the dimensions of an
