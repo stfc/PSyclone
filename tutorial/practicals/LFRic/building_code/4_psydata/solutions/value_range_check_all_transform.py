@@ -35,13 +35,13 @@
 # Modified: R. W. Ford, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds NAN verification code to
+function via the -s option. It adds value range checking code to
 the invokes.
 '''
 
 from __future__ import print_function
 
-from psyclone.psyir.transformations import NanTestTrans
+from psyclone.psyir.transformations import ValueRangeCheck
 
 
 def trans(psy):
@@ -55,7 +55,7 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    nan_check = NanTestTrans()
+    value_range_check = ValueRangeCheck()
 
     for invoke_name in psy.invokes.names:
 
@@ -65,8 +65,8 @@ def trans(psy):
         schedule = invoke.schedule
 
         # Apply the transformation
-        nan_check.apply(schedule, {"region_name": ("time_evolution",
-                                                   str(invoke_name))})
+        value_range_check.apply(schedule, {"region_name": ("time_evolution",
+                                                           str(invoke_name))})
 
         # Just as feedback: show the modified schedule, which should have
         # a new node at the top:

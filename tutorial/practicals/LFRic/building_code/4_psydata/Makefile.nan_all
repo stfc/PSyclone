@@ -33,9 +33,9 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-# Setting for the PSyData NAN check library
-PSYDATA_PATH?=$(PSYCLONE_RELPATH)/lib/nan_test/lfric
-PSYDATA_LIB_NAME?=_nan_test
+# Setting for the PSyData value range check library
+PSYDATA_PATH?=$(PSYCLONE_RELPATH)/lib/value_range_check/lfric
+PSYDATA_LIB_NAME?=_value_range_check
 
 include Makefile.inc
 

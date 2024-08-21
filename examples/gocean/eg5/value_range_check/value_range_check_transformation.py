@@ -58,7 +58,7 @@ def trans(psy):
     :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    nan_test = ValueRangeCheck()
+    value_range_check = ValueRangeCheck()
 
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
@@ -66,13 +66,15 @@ def trans(psy):
     # You could just apply the transform for all elements of
     # psy.invokes.invoke_list. But in this case we also
     # want to give the regions a friendlier name:
-    nan_test.apply(schedule.children, {"region_name": ("main", "init")})
+    value_range_check.apply(schedule.children,
+                            {"region_name": ("main", "init")})
 
     invoke = psy.invokes.get("invoke_1_update_field")
     schedule = invoke.schedule
 
-    # Enclose everything in a nan_test region
-    nan_test.apply(schedule.children, {"region_name": ("main", "update")})
+    # Enclose everything in a value_range_check region
+    value_range_check.apply(schedule.children,
+                            {"region_name": ("main", "update")})
 
     # print(schedule.view())
     return psy
