@@ -39,8 +39,6 @@ function via the -s option. It adds value range checking code to
 the invokes.
 '''
 
-from __future__ import print_function
-
 from psyclone.psyir.transformations import ValueRangeCheck
 
 
