@@ -108,17 +108,18 @@ the ``lib/read_only`` `directory
 For detailed instructions on how to build and use these libraries
 please refer to their specific ``README.md`` documentation.
 
-NAN Test
-^^^^^^^^
+Value Range Check
+^^^^^^^^^^^^^^^^^
 
-These libraries test all input and output parameters of a kernel to
-make sure they are not ``NaN`` or infinite.  More information can be
-found in the :ref:`NAN Test <psydata_nan_test>` section.
+These libraries can test if user-defined variables are within a
+specified range. Additionally, they also verify that they are
+not ``NaN`` or infinite.  More information can be
+found in the :ref:`NAN Test <psydata_value_range_check>` section.
 
 The libraries for :ref:`LFRic <lfric-api>` and
 :ref:`GOcean <gocean-api>` APIs are included with PSyclone in
-the ``lib/nan_test`` `directory
-<https://github.com/stfc/PSyclone/tree/master/lib/nan_test>`__.
+the ``lib/value_range_check`` `directory
+<https://github.com/stfc/PSyclone/tree/master/lib/value_range_chec>`__.
 For detailed instructions on how to build and use these libraries
 please refer to their specific ``README.md`` documentation.
 
@@ -137,9 +138,9 @@ The majority of wrapper libraries use `Jinja
 classes (please refer to :ref:`dev_guide:psy_data` and :ref:`dev_guide:jinja`
 for full details about the PSyData API).
 
-Compilation of ``extract``, ``nan_test``, ``read_only`` and some of the
+Compilation of ``extract``, ``value_range_check``, ``read_only`` and some of the
 profiling wrapper libraries depends on infrastructure libraries relevant
-to the API they are used for. :ref:`LFRic API <lfric-api>` uses the
+to the API they are used for. The :ref:`LFRic API <lfric-api>` uses the
 LFRic infrastructure and :ref:`GOcean <gocean-api>` uses the
 dl_esm_inf library. The LFRic infrastructure can be obtained from the
 LFRic `code repository <https://code.metoffice.gov.uk/trac/lfric/browser>`_,

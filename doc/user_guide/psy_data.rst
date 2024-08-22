@@ -72,10 +72,12 @@ Access Verification:
   to a field (and scalar values). See :ref:`psydata_read_verification`
   for details.
 
-NAN Test:
+Value Range Check:
   The callbacks can be used to make sure that all floating point input
-  and output parameters of a kernel are not a ``NaN`` (not-a-number) or
-  infinite. See :ref:`psydata_nan_test` for the full description.
+  and output parameters of a kernel are within a user-specified range.
+  Additionally, it will also verified that the values are not a ``NaN``
+  (not-a-number) or infinite. See :ref:`psydata_value_range_check` for
+  the full description.
 
 In-situ Visualisation:
   By giving access to output fields of a kernel, an in-situ visualisation
@@ -224,30 +226,65 @@ An executable example for using the GOcean read-only-verification
 library is included in ``examples/gocean/eg5/readonly``, see
 :ref:`gocean_example_readonly`.
 
-.. _psydata_nan_test:
+.. _psydata_value_range_check:
 
-NAN Test
---------
+Value Range Check
+-----------------
 
 This transformation can be used for both LFRic and GOcean APIs. It will
-test all input and output parameters of a kernel to make sure they are not
-``NaN`` or infinite. If they are, an error message like the following
-is printed, but the program is not aborted::
+test all input and output parameters of a kernel to make sure they are 
+within a user-specified range. Additionally, it will also very that floating
+point values are not ``NaN`` or infinite. 
 
-     PSyData: Variable a_fld has the invalid value Inf at index/indices 1 1 in module 'main' region 'update'.
+At runtime, environment variables must be specified to indicate which variables
+are within what expected range, and optionally also at which location.
+The range is specified as a ``:`` separated tuple::
+
+    1.1:3.3   A value between 1.1 and 3.3 (inclusive).
+    :3.3      A value less than or equal to 3.3
+    1.1:      A value greater than or equal to 1.1
+
+The syntax for the environment variable is one of:
+
+``PSYVERIFY__module__kernel__variable``
+    The specified variable is tested when calling the specified kernel in the
+    specified module.
+
+``PSYVERIFY__module__variable``
+    The specified variable name is tested in all kernel calls of the
+    specified module that are instrumented with the ValueRangeCheck
+    transformation.
+
+``PSYVERIFY__variable``
+    The specified variable name is tested in any instrumented code region.
+
+An example taken from the LFric tutorial (note that values greater than
+4000 are actually valid, the upper limit was just chosen to show
+a few warnings raised by the value range checker)::
+
+    PSYVERIFY__time_evolution__invoke_initialise_perturbation__perturbation_data=0.0:4000
+    PSYVERIFY__time_evolution__perturbation_data=0.0:4000
+    PSYVERIFY__perturbation_data=0.0:4000
+    
+If values out of the specified range are found, appropriate warnings are printed,
+but the program is not aborted::
+
+    PSyData: Variable 'perturbation_data' has the value 4227.3587826606408 at index/indices 27051 in module 'time_evolution' region 'invoke_initialise_perturbation', which is not between '0.0000000000000000' and '4000.0000000000000'.
+
 
 Is uses the function ``IEEE_IS_FINITE`` from the ieee_arithmetic module
-for this test. Note that only floating point numbers will be tested.
+for additionally verifying that values are not ``NAN`` or ``infinity``.
+Note that only floating point numbers will be tested.
 Integer numbers do not have a bit pattern for 'infinity' or ``NaN``.
 
 The runtime libraries for GOcean and LFRic are based on a jinja-template
-contained in the directory ``<PSYCLONEHOME>/lib/nan_test``.
+contained in the directory ``<PSYCLONEHOME>/lib/value_range_check``.
 The respective API-specific libraries map the internal field structures
 to Fortran basic types and call the functions from the base class to
 handle those.
 
 The relevant libraries for the LFRic and GOcean APIs are contained in
-the ``lib/nan_test/lfric`` and``lib/nan_test/dl_esm_inf`` subdirectories,
+the ``lib/value_range_check/lfric`` and ``lib/value_range_check/dl_esm_inf`` subdirectories,
 respectively. For more information on how to build and link these libraries,
 please refer to the relevant ``README.md`` files.
 
