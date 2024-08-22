@@ -273,9 +273,11 @@ but the program is not aborted::
 
 
 Is uses the function ``IEEE_IS_FINITE`` from the ieee_arithmetic module
-for additionally verifying that values are not ``NAN`` or ``infinity``.
-Note that only floating point numbers will be tested.
-Integer numbers do not have a bit pattern for 'infinity' or ``NaN``.
+for additionally verifying that values are not ``NAN`` or ``infinity``
+for any floating point variable, even if no ``PSY_VERIFY...`` environment
+variable is set for this variable. Integer numbers do not have a bit pattern
+for 'infinity' or ``NaN``, so they will only be tested for valid range
+if a corresponding environment variable is specified.
 
 The runtime libraries for GOcean and LFRic are based on a jinja-template
 contained in the directory ``<PSYCLONEHOME>/lib/value_range_check``.
