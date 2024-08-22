@@ -67,6 +67,42 @@ class ValueRangeCheckNode(PSyDataNode):
         '''
         return super().psy_data_body
 
+    def _get_var_lists(self):
+        '''This method uses the CallTreeUtils to get all input-
+        and output-variables. They are added to a dictionary, which
+        will be provided to the code creation method in the base class.
+
+        :returns: dictionary with key/values for pre_var_list and
+            post_var_list.
+        :rtype: Dict[str, List[Tuple[str,:py:class:`psyclone.core.Signature`]]]
+
+        '''
+        # This cannot be moved to the top, it would cause a circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
+
+        ctu = CallTreeUtils()
+        read_write_info = ctu.get_in_out_parameters(self)
+        return {'pre_var_list': read_write_info.read_list,
+                'post_var_list': read_write_info.write_list}
+
+    def gen_code(self, parent, options=None):
+        '''Old style code creation function.
+
+        :param parent: f2pygen node to which to add AST nodes.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param options: a dictionary with options for transformations
+            and validation.
+        :type options: Optional[Dict[str, Any]]
+
+        '''
+        local_options = options.copy() if options else {}
+
+        var_lists_options = self._get_var_lists()
+        local_options.update(var_lists_options)
+
+        super().gen_code(parent, local_options)
+
     def lower_to_language_level(self):
         # pylint: disable=arguments-differ
         '''
@@ -77,16 +113,7 @@ class ValueRangeCheckNode(PSyDataNode):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        # This cannot be moved to the top, it would cause a circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
-        # Determine the variables to check:
-        ctu = CallTreeUtils()
-        read_write_info = ctu.get_in_out_parameters(self)
-
-        options = {'pre_var_list': read_write_info.read_list,
-                   'post_var_list': read_write_info.write_list}
-
+        options = self._get_var_lists()
         return super().lower_to_language_level(options)
 
 

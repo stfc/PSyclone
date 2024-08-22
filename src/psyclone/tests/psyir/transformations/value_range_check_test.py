@@ -40,6 +40,7 @@
 
 import pytest
 
+
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import colored, Node, ValueRangeCheckNode, Schedule
 from psyclone.psyir.transformations import (ValueRangeCheck,
@@ -166,6 +167,34 @@ def test_value_range_check_psyir_visitor(fortran_writer):
                 'p_fld)',
                 'CALL value_range_check_psy_data % PostEnd',
                 ]
+
+    for line in expected:
+        assert line in code
+
+
+# -----------------------------------------------------------------------------
+def test_value_range_check_lfric():
+    '''Check that the value range check transformation works in LFRic.
+    Use the old-style gen_code based implementation.
+
+    '''
+    psy, invoke = get_invoke("1.2_multi_invoke.f90", api="lfric",
+                             idx=0, dist_mem=False)
+
+    value_range_check = ValueRangeCheck()
+    value_range_check.apply(invoke.schedule)
+
+    code = str(psy.gen)
+
+    # Test some lines - make sure that the number of variables is correct
+    # (first line), and some declaration and provide variable before and
+    # after the kernel:
+    expected = [
+        'CALL value_range_check_psy_data%PreStart("multi_invoke_psy", '
+        '"invoke_0-r0", 20, 2)',
+        'CALL value_range_check_psy_data%PreDeclareVariable("a", a)',
+        'CALL value_range_check_psy_data%ProvideVariable("m1_data", m1_data)',
+        'CALL value_range_check_psy_data%ProvideVariable("f1_data", f1_data)']
 
     for line in expected:
         assert line in code
