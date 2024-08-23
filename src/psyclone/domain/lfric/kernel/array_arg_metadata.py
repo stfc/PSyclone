@@ -39,6 +39,7 @@ and Fortran output of an Array argument.
 
 '''
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 
 
@@ -65,7 +66,7 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
     check_name = "array"
     # The number of arguments in the language-level metadata (min and
     # max values).
-    nargs = (4,4)
+    nargs = (4, 4)
 
     def __init__(self, datatype, access, array_ndims):
         super().__init__(datatype, access)
@@ -151,7 +152,6 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
                              f"should be an integer greater than or "
                              f"equal to 1 but found {array_ndims}.")
         return array_ndims
-
 
 
 __all__ = ["ScalarArrayArgMetadata"]
