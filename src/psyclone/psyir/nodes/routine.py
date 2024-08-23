@@ -82,7 +82,7 @@ class Routine(Schedule, CommentableMixin):
                             f"'{type(symbol).__name__}'")
         self._parent = None
         self._symbol = symbol
-        self._symbol_in_table = False
+#        self._symbol_in_table = False
         super().__init__(**kwargs)
 
         self._return_symbol = None
@@ -212,7 +212,7 @@ class Routine(Schedule, CommentableMixin):
                 if (self._parent.symbol_table.lookup(self.name)
                         is self._symbol):
                     self._parent.symbol_table.remove(self._symbol)
-                    self._symbol_in_table = False
+#                    self._symbol_in_table = False
             except ValueError:
                 pass
             except KeyError:
@@ -269,12 +269,7 @@ class Routine(Schedule, CommentableMixin):
                                     f"CodeBlock representing a routine "
                                     f"with that name.")
             except KeyError:
-                # If the Routine's symbol is already in the previous parent's
-                # symbol table, we need to create a copy.
-                if self._symbol_in_table:
-                    sym = self._symbol.copy()
-                else:
-                    sym = self._symbol
+                sym = self._symbol
             # If lookup found this Routine's symbol then we are performing
             # replace_with, which is handled here.
             if sym is self._symbol:
@@ -282,10 +277,6 @@ class Routine(Schedule, CommentableMixin):
                     new_parent.symbol_table.lookup(self._symbol.name)
                 except KeyError:
                     new_parent.symbol_table.add(self._symbol)
-            else:
-                new_parent.symbol_table.add(sym)
-                self._symbol = sym
-                self._symbol_in_table = True
         elif self.symbol_table:
             # Otherwise if new_parent is None, then we place the symbol
             # into this Routine's symbol table if possible. Not all Routine
@@ -475,7 +466,7 @@ class Routine(Schedule, CommentableMixin):
         # Set the symbol_in_table status so when using the _parent setter
         # we don't attempt to overwrite the symbol, as its already in the
         # symbol table.
-        node._symbol_in_table = self._symbol_in_table
+#        node._symbol_in_table = self._symbol_in_table
         super().replace_with(node, keep_name_in_context=keep_name_in_context)
 
 

@@ -2022,30 +2022,10 @@ class Fparser2Reader():
                                    interface=this_interface,
                                    is_constant=has_constant_value,
                                    initial_value=init_expr)
-                elif isinstance(sym, RoutineSymbol):
-                    # This was a RoutineSymbol that we shadow, so we have to
-                    # remove it.
-                    try:
-                        sym2 = DataSymbol(sym_name, datatype,
-                                          visibility=visibility,
-                                          is_constant=has_constant_value,
-                                          initial_value=init_expr)
-                        symbol_table.swap(sym, sym2)
-                    except ValueError as error:
-                        # DataSymbol can raise a ValueError in a number of
-                        # ways. We check for the ones that come from valid
-                        # Fortran that we aren't supporting and raise
-                        # NotImplementedError for those.
-                        if not isinstance(
-                                datatype,
-                                (ScalarType, ArrayType, UnsupportedType)):
-                            raise NotImplementedError
-                        # Otherwise we have an invalid Fortran declaration.
-                        raise InternalError(
-                            f"Invalid variable declaration "
-                            f"found in _process_decln for "
-                            f"'{sym_name}'.") from error
                 else:
+                    # RoutineSymbols will never be shadowed as FParser will
+                    # always have a container as a parent of a Routine.
+                    # Check is the symbol is unresolved.
                     if not sym.is_unresolved:
                         raise SymbolError(
                             f"Symbol '{sym_name}' already present in "

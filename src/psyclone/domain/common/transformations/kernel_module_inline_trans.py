@@ -428,23 +428,14 @@ class KernelModuleInlineTrans(Transformation):
             routine_symbol = existing_symbol
             table = routine_symbol.find_symbol_table(node)
             if table.node is not container:
-                # Add the routine symbol to the container if its not
-                # already present.
-                try:
-                    sym = container.symbol_table.lookup(routine_symbol.name)
-                    # If the symbol is already in the container, then we need
-                    # to ensure the visibility is set correctly.
-                    sym.visibility = Symbol.Visibility.PRIVATE
-                except KeyError:
-                    container.symbol_table.add(routine_symbol)
-                # Force removal of the routine_symbol now its in the parent
-                # container.
-                try:
-                    table.lookup(routine_symbol.name)
-                    norm_name = table._normalize(routine_symbol.name)
-                    table._symbols.pop(norm_name)
-                except KeyError:
-                    pass
+                # Set the visibility of the symbol to always be private.
+                sym = container.symbol_table.lookup(routine_symbol.name)
+                sym.visibility = Symbol.Visibility.PRIVATE
+                # Force removal of the routine_symbol if its also present in
+                # the Routine's symbol table.
+                table.lookup(routine_symbol.name)
+                norm_name = table._normalize(routine_symbol.name)
+                table._symbols.pop(norm_name)
 
         # We only modify the kernel call name after the equality check to
         # ensure the apply will succeed and we don't leave with an inconsistent
