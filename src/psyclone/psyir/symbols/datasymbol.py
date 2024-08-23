@@ -131,7 +131,7 @@ class DataSymbol(TypedSymbol):
 
         if "is_thread_private" in kwargs:
             new_is_thread_private = kwargs.pop("is_thread_private")
-        if not hasattr(self, '_is_constant'):
+        if not hasattr(self, '_is_thread_private'):
             # At least initialise it if we reach this point and it doesn't
             # exist (which may happen if this symbol has been specialised from
             # a Symbol).

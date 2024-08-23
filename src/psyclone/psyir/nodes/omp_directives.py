@@ -74,7 +74,7 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.while_loop import WhileLoop
-from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
+from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType, DataSymbol
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -1598,9 +1598,13 @@ class OMPParallelDirective(OMPRegionDirective):
             # only apply to a sub-component, this won't be captured
             # appropriately.
             name = signature.var_name
-            symbol = accesses[0].node.scope.symbol_table.lookup(name)
+            try:
+                symbol = accesses[0].node.scope.symbol_table.lookup(name)
+            except KeyError:
+                symbol = None
+
             # If it is manually marked as threadprivate, add it to private
-            if symbol.is_thread_private:
+            if isinstance(symbol, DataSymbol) and symbol.is_thread_private:
                 private.add(symbol)
                 continue
 

@@ -291,6 +291,7 @@ def insert_explicit_loop_parallelism(
         region_directive_trans=None,
         loop_directive_trans=None,
         collapse: bool = True,
+        privatise_arrays: bool = True,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
@@ -307,6 +308,8 @@ def insert_explicit_loop_parallelism(
         :py:class:`psyclone.transformation.Transformation`
     :param collapse: whether to attempt to insert the collapse clause to as
         many nested loops as possible.
+    :param privatise_arrays: whether to attempt to privatise arrays that cause
+        write-write race conditions.
 
     '''
     # Add the parallel directives in each loop
@@ -314,7 +317,8 @@ def insert_explicit_loop_parallelism(
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
-        opts = {"collapse": collapse, "verbose": True}
+        opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
+                "verbose": True}
 
         routine_name = loop.ancestor(Routine).name
 

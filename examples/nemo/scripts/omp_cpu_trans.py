@@ -96,4 +96,6 @@ def trans(psyir):
                 loop_directive_trans=omp_loop_trans,
                 # Collapse may be useful in some architecture/compiler
                 collapse=False,
+                privatise_arrays=True
+                # privatise_arrays=True if psyir.name == "zdftke.f90" else False
         )

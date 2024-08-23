@@ -124,8 +124,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         force = options.get("force", False)
         ignore_dependencies_for = options.get("ignore_dependencies_for", [])
         sequential = options.get("sequential", False)
-        array_privatisation = options.get("array_privatisation",
-                                          False)
+        privatise_arrays = options.get("privatise_arrays", False)
 
         # Check we are not a sequential loop
         if (not sequential and isinstance(node, PSyLoop) and
@@ -142,10 +141,10 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     f"The 'collapse' argument must be an integer or a bool but"
                     f" got an object of type {type(collapse)}")
 
-        if not isinstance(array_privatisation, bool):
+        if not isinstance(privatise_arrays, bool):
             raise TypeError(
-                f"The 'array_privatisation' option must be a bool"
-                f"but got an object of type {type(array_privatisation)}")
+                f"The 'privatise_arrays' option must be a bool"
+                f"but got an object of type {type(privatise_arrays)}")
 
         # If it's sequential or we 'force' the transformation, the validations
         # below this point are skipped
@@ -184,23 +183,43 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                        signatures_to_ignore=signatures):
             # The DependencyTools also returns False for things that are
             # not an issue, so we ignore specific messages.
+            errors = []
             for message in dep_tools.get_all_messages():
                 if message.code == DTCode.WARN_SCALAR_WRITTEN_ONCE:
                     continue
-                if (array_privatisation and
+                if (privatise_arrays and
                         message.code == DTCode.ERROR_WRITE_WRITE_RACE):
+                    privatisable = True
                     for var_name in message.var_names:
                         symbol = node.scope.symbol_table.lookup(var_name)
+
+                        # It must ONLY be referenced in this loop
+                        symbol_scope = symbol.find_symbol_table(node).node
+
+                        if any(reference.symbol is symbol and
+                               not reference.is_inside_of(node) for
+                               reference in symbol_scope.walk(Reference)):
+                            privatisable = False
+                            break
+
                         symbol.is_thread_private = True
+                    if not privatisable:
+                        errors.append(
+                            f"The write-write dependency in '{var_name}'"
+                            f" cannot be solved by array privatisation because"
+                            f" the variable is used outside the loop")
                     continue
-                all_msg_str = "\n".join([str(m) for m in
-                                         dep_tools.get_all_messages()])
-                messages = (f"Loop cannot be parallelised because the "
-                            f"dependency analysis reported:\n{all_msg_str}\n"
+                errors.append(str(message))
+
+            if errors:
+                error_lines = "\n".join(errors)
+                messages = (f"Loop cannot be parallelised because:\n"
+                            f"{error_lines}\n"
                             f"Consider using the \"ignore_dependencies_for\""
                             f" transformation option if this is a false "
-                            f"dependency or the \"array_privatisation\" (if "
-                            f"this is an applicable write-write dependency).")
+                            f"dependency\nConsider using the \"array_"
+                            f"privatisation\" transformation option if "
+                            f"this is a write-write dependency")
                 if verbose:
                     # This message can get quite long, we will skip it if an
                     # ancestor loop already has the exact same message
