@@ -769,9 +769,8 @@ class LFRicArgDescriptor(Descriptor):
             return self._function_space1
         if self._argument_type in const.VALID_OPERATOR_NAMES:
             return self._function_space2
-        if self._argument_type in const.VALID_ARRAY_NAMES:
-            return None
-        if self._argument_type in const.VALID_SCALAR_NAMES:
+        if self._argument_type in (const.VALID_ARRAY_NAMES +
+                                   const.VALID_SCALAR_NAMES):
             return None
         raise InternalError(f"Expected a valid argument type but got "
                             f"'{self._argument_type}'.")
@@ -796,9 +795,8 @@ class LFRicArgDescriptor(Descriptor):
         if self._argument_type in const.VALID_OPERATOR_NAMES:
             # Return to before from to maintain expected ordering
             return [self.function_space_to, self.function_space_from]
-        if self._argument_type in const.VALID_ARRAY_NAMES:
-            return [self.function_space]
-        if self._argument_type in const.VALID_SCALAR_NAMES:
+        if self._argument_type in (const.VALID_ARRAY_NAMES +
+                                   const.VALID_SCALAR_NAMES):
             return []
         raise InternalError(f"Expected a valid argument type but got "
                             f"'{self._argument_type}'.")

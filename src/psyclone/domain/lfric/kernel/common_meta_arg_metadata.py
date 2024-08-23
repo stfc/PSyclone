@@ -62,7 +62,6 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
     datatype_arg_index = 1
     access_arg_index = 2
     function_space_arg_index = 3
-    array_size_arg_index = 3
     form = ""
     check_name = ""
     nargs = 1
@@ -188,7 +187,7 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         :returns: the vector length value extracted from the fparser2 tree.
         :rtype: str
 
-        :raises TypeError: if the vector length metadata is not in the \
+        :raises TypeError: if the vector length metadata is not in the
             expected form.
 
         '''
@@ -201,28 +200,6 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
                 f"'form*vector_length' but found '{vector_datatype}'.")
         vector_length = components[1].strip()
         return vector_length
-
-    @classmethod
-    def get_array_ndims(cls, fparser2_tree):
-        '''Retrieves the array ndims metadata value found within the
-        supplied fparser2 tree and checks that it is valid.
-
-        :param fparser2_tree: fparser2 tree capturing the required metadata.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
-
-        :returns: the array ndims value extracted from the fparser2 tree.
-        :rtype: str
-
-        :raises TypeError: if the array ndims metadata is not in the
-            expected form.
-        :raises ParseError: if the array ndims metadata does not use the
-            expected keyword.
-
-        '''
-        array_datatype = CommonArgMetadata.get_arg(
-            fparser2_tree, cls.array_size_arg_index)
-        array_ndims = array_datatype.strip()
-        return array_ndims
 
     @property
     def datatype(self):

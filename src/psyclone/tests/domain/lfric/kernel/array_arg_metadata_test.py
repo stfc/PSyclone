@@ -65,8 +65,8 @@ def test_init_invalid_an():
     '''
     with pytest.raises(TypeError) as info:
         _ = ScalarArrayArgMetadata("GH_REAL", "GH_READ", None)
-    assert ("The 'array_size' value should be of type str, but found "
-            "'NoneType'." in str(info.value))
+    assert ("The number of dimensions of a scalar array should be of type "
+            "str, but found 'NoneType'." in str(info.value))
 
 
 @pytest.mark.parametrize("metadata",
@@ -121,13 +121,13 @@ def test_array_ndims_setter_getter():
 
     with pytest.raises(ValueError) as info:
         array_arg.array_ndims = "invalid"
-    assert ("The array size should be a string containing an integer, "
-            "but found 'invalid'." in str(info.value))
+    assert ("The number of dimensions of a scalar array should be a string "
+            "containing an integer, but found 'invalid'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         array_arg.array_ndims = "0"
-    assert ("The array size should be an integer greater than or equal to "
-            "1 but found 0." in str(info.value))
+    assert ("The number of dimensions of a scalar array should be an integer "
+            "greater than or equal to 1 but found 0." in str(info.value))
 
     array_arg.array_ndims = "3"
     assert array_arg.array_ndims == "3"

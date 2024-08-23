@@ -60,12 +60,12 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
     form_arg_index = 0
     datatype_arg_index = 1
     access_arg_index = 2
-    array_size_arg_index = 3
+    array_ndims_arg_index = 3
     # The name to use for any exceptions.
     check_name = "array"
     # The number of arguments in the language-level metadata (min and
     # max values).
-    nargs = (4)
+    nargs = (4,4)
 
     def __init__(self, datatype, access, array_ndims):
         super().__init__(datatype, access)
@@ -100,36 +100,10 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
                 f"{self.array_ndims})")
 
-    @staticmethod
-    def check_datatype(value):
-        '''
-        :param str value: the datatype to check for validity.
-
-        :raises ValueError: if the provided value is not a valid
-            datatype descriptor.
-
-        '''
-        const = LFRicConstants()
-        ScalarArrayArgMetadata.validate_scalar_value(
-            value, const.VALID_ARRAY_DATA_TYPES, "datatype descriptor")
-
-    @staticmethod
-    def check_access(value):
-        '''
-        :param str value: the access descriptor to validate.
-
-        :raises ValueError: if the provided value is not a valid
-            access descriptor.
-
-        '''
-        const = LFRicConstants()
-        ScalarArrayArgMetadata.validate_scalar_value(
-            value, const.VALID_ARRAY_ACCESS_TYPES, "access descriptor")
-
     @property
     def array_ndims(self):
         '''
-        :returns: the array size for this array argument.
+        :returns: the number of dimensions for this scalar array argument.
         :rtype: str
         '''
         return self._array_ndims
@@ -137,26 +111,47 @@ class ScalarArrayArgMetadata(ScalarArgMetadata):
     @array_ndims.setter
     def array_ndims(self, value):
         '''
-        :param str value: set the function space to the specified value.
-
-        :raises TypeError: if the array_size is not a string
-        :raises ValueError: if the array size is not an integer
-        :raises ValeuError: if the array size is less than 1
+        :param str value: set the number of dimensions to the specified value.
 
         '''
-        if not isinstance(value, str):
-            raise TypeError(f"The 'array_size' value should be of type str, "
-                            f"but found '{type(value).__name__}'.")
+        self._array_ndims = value
+
+    @classmethod
+    def get_array_ndims(cls, fparser2_tree):
+        '''Retrieves the array ndims metadata value found within the
+        supplied fparser2 tree and checks that it is valid.
+
+        :param fparser2_tree: fparser2 tree capturing the required metadata.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+
+        :returns: the array ndims value extracted from the fparser2 tree.
+        :rtype: str
+
+        :raises TypeError: if the array ndims is not a string.
+        :raises ValueError: if the array ndims is not an integer.
+        :raises ValueError: if the array ndims is less than 1.
+
+        '''
+        array_datatype = CommonArgMetadata.get_arg(
+            fparser2_tree, cls.array_ndims_arg_index)
+        array_ndims = array_datatype.strip()
+        if not isinstance(array_ndims, str):
+            raise TypeError(f"The number of dimensions of a scalar array "
+                            f"should be of type str, but found "
+                            f"'{type(array_ndims).__name__}'.")
         try:
-            int_value = int(value)
+            int_value = int(array_ndims)
         except ValueError as info:
-            raise ValueError(f"The array size should be a string containing "
-                             f"an integer, but found '{value}'.") from info
+            raise ValueError(f"The number of dimensions of a scalar array "
+                             f"should be a string containing an integer, "
+                             f"but found '{array_ndims}'.") from info
 
         if int_value < 1:
-            raise ValueError(f"The array size should be an integer greater "
-                             f"than or equal to 1 but found {value}.")
-        self._array_ndims = value
+            raise ValueError(f"The number of dimensions of a scalar array "
+                             f"should be an integer greater than or "
+                             f"equal to 1 but found {array_ndims}.")
+        return array_ndims
+
 
 
 __all__ = ["ScalarArrayArgMetadata"]
