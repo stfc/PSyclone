@@ -1,8 +1,8 @@
 # PSyclone for existing code - Tutorial 1 #
 
 Welcome to the first part of the tutorial on using PSyclone with existing
-Fortran code via its code-transformation capabilites. For this tutorial
-we will be using a standalone, single-source-file mini-app (tra_adv.F90)
+Fortran code via its code-transformation capabilities. For this tutorial
+we will be using a standalone, single-file mini-app (tra_adv.F90)
 based on a tracer-advection routine that has been extracted from the full
 source of the NEMO ocean model (www.nemo-ocean.eu). The original version of
 this mini-app was kindly provided by Silvia Mocavero of CMCC.
@@ -12,12 +12,10 @@ this mini-app was kindly provided by Silvia Mocavero of CMCC.
 The requirements for this section are as described in the practicals
 [README.md](../../README.md#Requirements).
 
-Check that PSyclone is installed and configured correctly by doing
-(assuming that your current working directory is the one containing
-this file):
+Check that PSyclone is installed and configured correctly by doing:
 
 ```bash
-    psyclone -h
+psyclone -h
 ```
 
 When examining the PSyIR (the intermediate representation that PSyclone
@@ -26,13 +24,35 @@ scripts, it may be useful to see the documentation of the various node
 types. The best way to do this is to use the [PSyclone Reference Guide
 ](https://psyclone-ref.readthedocs.io/en/latest/).
 
+## A note on importing PSyclone modules ##
+
+Throughout these tutorials you will be working with PSyclone transformation
+scripts written in Python. If you are adding functionality that requires
+class definitions not already imported into the script then you will have
+to add suitable import statements. e.g. to make the `Directive` node class
+available you would add:
+
+```python
+from psyclone.psyir.nodes import Directive
+```
+
+All PSyIR node definitions are within the `psyclone.psyir.nodes` module
+and all symbols and datatypes are within `psyclone.psyir.symbols`.
+
+Unfortunately, the various transformation classes are not yet as well
+organised. Many are now in the 'proper' location of
+`psyclone.psyir.transformations`, but some are still in
+`psyclone.transformations`. If in doubt, consult the
+[Reference Guide](https://psyclone-ref.readthedocs.io/en/latest/_static/html/annotated.html).
+
+
 ## 1. Processing NEMO Fortran code with PSyclone ##
 
 By default (i.e. without the additional arguments), the `psyclone` command
 parses the provided input Fortran file:
 
 ```bash
-    psyclone tra_adv.F90
+psyclone tra_adv.F90
 ```
 
 This command should result in PSyclone processing the supplied Fortran
@@ -57,7 +77,7 @@ to be written to a file instead of stdout. This is achieved with the
 `-o` flag.
 
 ```bash
-    psyclone tra_adv.F90 -o output.f90
+psyclone tra_adv.F90 -o output.f90
 ```
 
 will create a new file, `output.f90`, containing the generated Fortran
@@ -71,7 +91,7 @@ instruct PSyclone to limit the line lengths in the output Fortran via
 the `-l output` flag:
 
 ```bash
-    psyclone tra_adv.F90 -o output.f90 -l output
+psyclone tra_adv.F90 -o output.f90 -l output
 ```
 
 (Note that if we also wanted PSyclone to validate that the *incoming*
@@ -81,7 +101,7 @@ Then we can provide the generated file to a Fortran compiler. For example,
 if we use `gfortran`, we can do:
 
 ```bash
-    gfortran output.f90 -o tra_adv.exe
+gfortran output.f90 -o tra_adv.exe
 ```
 
 The mini-app picks-up the domain size and number of iterations from
@@ -91,18 +111,18 @@ using csh or tcsh. You can either cut-n-paste the commands into your
 shell or do:
 
 ```bash
-    source ../domain_setup.csh
+source ../domain_setup.sh
 ```
 
 Once the environment variables are set, you are ready to execute the
 mini-app:
 
 ```bash
-    ./tra_adv.exe 
-    Tracer-advection Mini-app:
-    Domain is  100x 100 grid points
-    Performing   10 iterations
-    Mini-app finished.
+./tra_adv.exe 
+Tracer-advection Mini-app:
+Domain is  100x 100 grid points
+Performing   10 iterations
+Mini-app finished.
 ```
 
 At this point we have succeeded in processing some Fortran code
@@ -120,11 +140,11 @@ with a transformation script, `view_trans.py`. This is done
 via the `-s` flag to PSyclone.
 
 ```bash
-    $ psyclone tra_adv.f90 -s view_trans.py -o /dev/null | less
+psyclone tra_adv.F90 -s view_trans.py -o /dev/null | less
 ```
 
 This should display a text representation of the tree of PSyIR nodes
-that represent the `tra_adv.f90` file:
+that represent the `tra_adv.F90` file:
 
 ```bash
 FileContainer[]
@@ -146,8 +166,7 @@ content of the program (the sequence of executable statements) as children.
 ## 3. Interpreting the PSyIR ##
 
 The basic structure and means of navigating the PSyIR are covered in the
-[PSyIR - Tree naviation documentation]
-(https://psyclone.readthedocs.io/en/latest/psyir.html#tree-navigation).
+[PSyIR - Tree navigation documentation](https://psyclone.readthedocs.io/en/latest/psyir.html#tree-navigation).
 In summary, all nodes in the PSyIR have `parent` and `children`
 properties and a `walk` method which may be used to find all nodes of
 a given type (or types) below the current node. Various sub-classes of
@@ -161,9 +180,9 @@ This is an important node type since it makes it possible
 for the PSyIR to represent arbitrary Fortran code without requiring
 that it be fully understood. Since PSyclone uses fparser2 to parse
 Fortran, a `CodeBlock` stores the nodes of the underlying fparser2
-parse tree that cannot be represented in the PSyIR. For more
-information on fparser2 see the
-[fparser User Guide](https://fparser.readthedocs.io/en/latest/).
+parse tree that cannot be represented in the PSyIR. PSyclone treats
+the CodeBlock as a blackbox that cannot be transformed, while still
+allowing the transformation of any code outside the CodeBlock.
 
 We can see from the fparser2 node type printed in the description of
 the `CodeBlock` that this particular node represents a Fortran `READ`
@@ -173,7 +192,7 @@ interesting from a performance point of view.
 To familiarise yourself with PSyIR navigation, you can:
 
 1. Modify the transformation script so that it breaks-out into the Python
-   debugger once it has obtained the PSyIR:
+   debugger, pdb, as soon as it is called (from PSyclone):
 
    ```python
     def trans(psyir):
@@ -181,16 +200,17 @@ To familiarise yourself with PSyIR navigation, you can:
    ```
 
    Re-running PSyclone:
-    
-       $ psyclone -s ./view_trans.py tra_adv.F90
 
+   ```bash
+   psyclone -s ./view_trans.py tra_adv.F90
+   ```
    will now launch the Python debugger at that point:
 
        -> print(psyir.view())
        (Pdb) 
 
-   You can now interactively explore the Schedule and try the `walk`
-   method, e.g.:
+   You can now interactively explore the PSyIR (passed to the routine via the
+   `psyir` argument) and try the `walk` method, e.g.:
 
    ```python
     (Pdb) psyir
@@ -212,7 +232,7 @@ To familiarise yourself with PSyIR navigation, you can:
    by entering the `quit()` command.)
 
 2. Modify the transformation script so that it uses `walk` to search
-   for all of the CodeBlocks in the file and prints information
+   for all of CodeBlocks in the file and prints information
    about each of them. Work out which lines of Fortran in the
    mini-app each corresponds to. (All nodes have a `debug_string()`
    method to quickly print the node and its children.)
@@ -236,16 +256,23 @@ are [`Loop`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsy
    `Assignment` nodes:
 
    ```python
-   form psyclone.psyir.nodes import Assignment
-   assignments = sched.walk(Assignment)
+   from psyclone.psyir.nodes import Assignment
+   assignments = psyir.walk(Assignment)
    ```
 
-4. Use the `view()` method of one of these `Assignments` nodes to
+4. Use the `view()` method of one of these `Assignment` nodes to
    examine its children. Check that you are able to work out
    which Fortran assignment this corresponds to, e.g.:
 
    ```python
    print(assignments[0].view())
+   ```
+
+   As mentioned earlier, the `debug_string` method can also be very
+   useful:
+
+   ```python
+   print(assignments[0].debug_string())
    ```
 
 ## 4. Conclusion
@@ -255,3 +282,7 @@ At this point you should be able to run PSyclone on a Fortran source
 file, use a transformation script to access the PSyIR of the code and
 be able to understand the structure of the PSyIR and how it relates to
 the original Fortran.
+
+You may now proceed to the [second section](../2_nemo_profiling/README.md)
+of the tutorial where you will use PSyclone to add profiling instrumentation
+to the mini-app.

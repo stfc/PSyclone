@@ -38,7 +38,7 @@
 
 import pytest
 from psyclone.psyir.symbols import (GenericInterfaceSymbol, INTEGER_TYPE,
-                                    RoutineSymbol)
+                                    RoutineSymbol, SymbolTable)
 
 
 def test_gis_constructor():
@@ -110,6 +110,32 @@ def test_gis_copy():
     assert isinstance(spinney, GenericInterfaceSymbol)
     assert spinney is not coppice
     assert len(spinney.routines) == 2
+    # The list of routines should be a copy.
+    assert spinney.routines is not coppice.routines
+    # The Routine objects themselves should be unchanged.
     rsyms = [item.symbol for item in spinney.routines]
     assert ash in rsyms
     assert holly in rsyms
+
+
+def test_gis_replace_symbols_using():
+    '''Test that replace_symbols_using() correctly updates symbols referred
+    to by a GenericInterfaceSymbol.
+
+    '''
+    ash = RoutineSymbol("ash")
+    holly = RoutineSymbol("holly")
+    coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False)])
+    table = SymbolTable()
+    for rinfo in coppice.routines:
+        assert rinfo.symbol in [ash, holly]
+    ashling = ash.copy()
+    table.add(ashling)
+    coppice.replace_symbols_using(table)
+    for rinfo in coppice.routines:
+        assert rinfo.symbol in [ashling, holly]
+    newholly = holly.copy()
+    table.add(newholly)
+    coppice.replace_symbols_using(table)
+    for rinfo in coppice.routines:
+        assert rinfo.symbol in [ashling, newholly]

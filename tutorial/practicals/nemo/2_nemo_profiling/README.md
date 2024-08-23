@@ -1,6 +1,6 @@
 # Using Profiling with PSyclone - Tutorial 2 #
 
-This tutorial follows on from Tutorial 1 (../1_nemo_psyir/README.md) and
+This tutorial follows on from [Tutorial 1](../1_nemo_psyir/README.md) and
 assumes that you are comfortable with the topics covered there. It uses
 the same tracer-advection mini-app, although for this tutorial it has
 been refactored so that the mini-app itself is called from a separate
@@ -8,8 +8,8 @@ driver program. The reason for this will become clear as you work
 through the tutorial.
 
 You can find information on the various transformations supported by
-PSyclone in the [User Guide](https://psyclone.readthedocs.io/en/stable/transformations.html).
-There is a separate [section](https://psyclone.readthedocs.io/en/stable/profiling.html) on
+PSyclone in the [User Guide](https://psyclone.readthedocs.io/en/latest/transformations.html).
+There is a separate [section](https://psyclone.readthedocs.io/en/latest/profiling.html) on
 PSyclone's support for profiling.
 
 ## Prerequisites ##
@@ -22,8 +22,7 @@ Make then you may need to edit the Makefile and replace the occurrences of
 ## 1. Automatic Profiling ##
 
 To begin, we will make use of PSyclone's support for the
-[automatic addition of profiling instrumentation]
-(https://psyclone.readthedocs.io/en/stable/profiling.html). For
+[automatic addition of profiling instrumentation](https://psyclone.readthedocs.io/en/latest/profiling.html). For
 demonstration purposes we will be using the 'simple-timing' library
 distributed with PSyclone since that has no dependencies. (PSyclone
 currently provides wrapper libraries for profiling tools such as
@@ -34,9 +33,9 @@ this session.)
 
 1. Use `psyclone` to generate a version of the mini-app with profiling
    calipers inserted at the beginning and end of each routine:
-
-       $ psyclone tra_adv_mod.F90 -o output_1.f90 --profile routines
-
+   ```bash
+   psyclone tra_adv_mod.F90 -o output_1.f90 --profile routines
+   ```
    When examining the generated Fortran code (in `output_1.f90`), you
    should see that PSyclone has added `USE profile_psy_data_mod, ONLY:
    profile_PSyDataType` as well as calls to
@@ -45,16 +44,17 @@ this session.)
    suitable wrapper library must be provided when compiling the
    mini-app. The supplied Makefile will build the 'simple_timing'
    implementation of this library and link our mini-app against it:
-
-       $ make allclean
-       $ make tra_adv.exe
-
-   At this point, the compiled application can be run (ensure you have
+   ```bash
+   make allclean
+   make tra_adv.exe
+   ```
+   At this point, the compiled application can be run (either ensure you have
    the necessary environment variables set first - see
-   ../1_nemo_psyir/README.md):
-
-       $ ./tra_adv.exe
-
+   [Tutorial 1](../1_nemo_psyir/README.md) - or include them inline
+   as indicated):
+   ```bash
+   JPK=30 JPI=100 JPJ=100 IT=10 ./tra_adv.exe
+   ```
    but no timing information is output!
 
 2. No timing information is output because the timing library is not
@@ -76,8 +76,8 @@ this session.)
    see timing information printed to the terminal, e.g.:
 
        ===========================================
-       module::region   count	sum	   min		average		max
-       tra_adv::r0        1   0.718750000    0.718750000   0.718750000    0.718750000
+       module::region           count	sum	   min		average		max
+       tra_adv_mod::tra_adv-r0 1   0.718750000    0.718750000   0.718750000    0.718750000
        ===========================================
 
    Timings are only reported for a single region because our mini-app consists
@@ -99,7 +99,7 @@ in this tutorial.
 
        ===========================================
        module::region   count	sum	   min		average		max
-       tra_adv::r0        1   0.718750000    0.718750000   0.718750000    0.718750000
+       tra_adv_mod::tra_adv-r0 1   0.718750000    0.718750000   0.718750000    0.718750000
        ===========================================
 
    If you examine the PSyIR that is displayed when running PSyclone with
@@ -127,7 +127,12 @@ transformation script to perform finer-grained profiling.
 1. Modify the provided transformation script (`profile_trans.py`) so that
    it uses `walk` to find all Loop nodes:
    ```python
-   loops = payir.walk(Loop)
+   loops = psyir.walk(Loop)
+   ```
+   Note, you will need to import the definition of the `Loop` class into
+   the script:
+   ```python
+   from psyclone.psyir.nodes import Loop
    ```
    Next, identify those loops that are over vertical `levels`. These are
    loops that use the 'jk' loop variable as required in the NEMO Code
@@ -163,13 +168,16 @@ transformation script to perform finer-grained profiling.
    regions (r0-r13) reported by the timing library:
 
        ===========================================
-       module::region   count	       sum	     min		average	          max
-       tra_adv::r0        1 	  3.12500000E-02    3.12500000E-02   3.12500000E-02    3.12500000E-02
-       tra_adv::r1        1 	  0.00000000        0.00000000       0.00000000        0.00000000
-       tra_adv::r2       10 	  3.12500000E-02    0.00000000       3.12500005E-03    3.12500000E-02
+       module::region                 count       sum         min     average         max
+       tra_adv_mod::tra_adv-r0            1      2.24609375E-02      2.24609375E-02      2.24609375E-02      2.24609375E-02
+       tra_adv_mod::tra_adv-r1            1      0.00000000          0.00000000          0.00000000          0.00000000
+       tra_adv_mod::tra_adv-r2           10      5.66406250E-02      3.90625000E-03      5.66406269E-03      1.07421875E-02
+       tra_adv_mod::tra_adv-r3           10      5.17578125E-02      2.92968750E-03      5.17578144E-03      1.17187500E-02
        ...
-       tra_adv::r13       1 	  0.187500000       0.187500000      0.187500000       0.187500000
+       tra_adv_mod::tra_adv-r12          10      2.73437500E-02      9.76562500E-04      2.73437495E-03      3.90625000E-03
+       tra_adv_mod::tra_adv-r13           1     0.449218750         0.449218750         0.449218750         0.449218750
        ===========================================
+
 
 
 2. Many PSyclone transformations allow additional options to be supplied
@@ -190,13 +198,24 @@ transformation script to perform finer-grained profiling.
    the 'simple_timing' library we have used so far is 'dl_timer' which
    is available from
    [bitbucket](https://bitbucket.org/apeg/dl_timer/src/master/). You
-   will need to obtain the source for this library and then update the
-   three `PROFILE_*` variables in the Makefile in this directory.
+   will need to obtain the source for this library:
+   ```
+   git clone https://bitbucket.org/apeg/dl_timer.git
+   cd dl_timer
+   . compiler_setup/gnu.sh
+   make sm_lib
+   ```
+   and then update the
+   various `PROFILE_*` variables in the Makefile in this tutorial directory
+   to point to its location.
+
+   **NOTE:** dl_timer requires an *initialisation* call to be added to
+   `runner.f90` (`call profile_psydatainit()`).
 
 ## 4. Conclusion
 
 Congratulations, you have now completed this part of the tutorial. We
 have used a PSyclone transformation to add profiling
-instrumentation to the tracer-advection mini-app. In subsequent
-tutorials we will look at using PSyclone transformations to
-parallelise the code.
+instrumentation to the tracer-advection mini-app. In the
+[next tutorial](../3_nemo_openmp/README.md) we will look at using PSyclone
+transformations to parallelise the code on CPU.
