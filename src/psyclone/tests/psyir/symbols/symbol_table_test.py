@@ -1470,7 +1470,10 @@ def test_view():
                       "  var1: DataSymbol<Scalar<REAL, UNDEFINED>, "
                       "Automatic>\n"
                       "  var2: DataSymbol<Scalar<INTEGER, UNDEFINED>, "
-                      "Automatic>\n")
+                      "Automatic>\n"
+                      "RoutineSymbol:\n"
+                      "  func: RoutineSymbol<NoType, pure=unknown, "
+                      "elemental=unknown>\n")
 
 
 def test_can_be_printed():

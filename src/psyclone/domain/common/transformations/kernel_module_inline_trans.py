@@ -379,6 +379,9 @@ class KernelModuleInlineTrans(Transformation):
         if not existing_symbol:
             # If it doesn't exist already, module-inline the subroutine by
             # inserting the relevant code into the tree.
+            # We need to set the visibility of the routine's symbol to
+            # be private.
+            code_to_inline.symbol.visibility = Symbol.Visibility.PRIVATE
             node.ancestor(Container).addchild(code_to_inline.detach())
         else:
             if existing_symbol.is_import:
@@ -395,7 +398,10 @@ class KernelModuleInlineTrans(Transformation):
                 existing_symbol.visibility = Symbol.Visibility.PRIVATE
                 if remove_csym:
                     ctable.remove(csym)
-                container.addchild(code_to_inline.detach())
+                code_to_inline = code_to_inline.detach()
+                # Set the routine's symbol to the existing_symbol
+                code_to_inline.symbol = existing_symbol
+                container.addchild(code_to_inline)
             else:
                 # The routine symbol already exists, and we know from the
                 # validation that it's a Routine. Now check if they are
@@ -422,8 +428,23 @@ class KernelModuleInlineTrans(Transformation):
             routine_symbol = existing_symbol
             table = routine_symbol.find_symbol_table(node)
             if table.node is not container:
-                container.symbol_table.add(routine_symbol)
-                table.remove(routine_symbol)
+                # Add the routine symbol to the container if its not
+                # already present.
+                try:
+                    sym = container.symbol_table.lookup(routine_symbol.name)
+                    # If the symbol is already in the container, then we need
+                    # to ensure the visibility is set correctly.
+                    sym.visibility = Symbol.Visibility.PRIVATE
+                except KeyError:
+                    container.symbol_table.add(routine_symbol)
+                # Force removal of the routine_symbol now its in the parent
+                # container.
+                try:
+                    table.lookup(routine_symbol.name)
+                    norm_name = table._normalize(routine_symbol.name)
+                    table._symbols.pop(norm_name)
+                except KeyError:
+                    pass
 
         # We only modify the kernel call name after the equality check to
         # ensure the apply will succeed and we don't leave with an inconsistent

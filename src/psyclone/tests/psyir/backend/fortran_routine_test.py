@@ -451,3 +451,25 @@ def test_fw_routine_prefixes_nomodule(fortran_reader, fortran_writer):
     container = fortran_reader.psyir_from_source(code)
     output = fortran_writer(container)
     assert "impure elemental subroutine sub" in output
+
+
+def test_fw_standalone_routine(fortran_reader, fortran_writer):
+    '''
+    Test for a routine that is not part of a PSyIR tree.
+    '''
+    code = '''subroutine sub()
+    integer :: a
+    a = 1
+    end subroutine sub'''
+    container = fortran_reader.psyir_from_source(code)
+    routine = container.children[0]
+    routine.detach()
+    output = fortran_writer(routine)
+    correct = '''subroutine sub()
+  integer :: a
+
+  a = 1
+
+end subroutine sub
+'''
+    assert correct == output

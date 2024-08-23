@@ -234,7 +234,7 @@ def test_psy_data_generate_symbols():
     psy_data2 = PSyDataNode()
     routine.addchild(psy_data)
     routine.addchild(psy_data2)
-    assert len(routine.symbol_table.symbols) == 0
+    assert len(routine.symbol_table.symbols) == 1
 
     # Add a symbol of the wrong type for the module.
     tmp_sym = routine.symbol_table.new_symbol(psy_data.fortran_module)
@@ -246,7 +246,7 @@ def test_psy_data_generate_symbols():
     routine.symbol_table.remove(tmp_sym)
     # Successfully executing generate_symbols adds 3 more symbols:
     psy_data.generate_symbols(routine.symbol_table)
-    assert len(routine.symbol_table.symbols) == 3
+    assert len(routine.symbol_table.symbols) == 4
 
     # - The module (with a tag equal to its name)
     assert "psy_data_mod" in routine.symbol_table
@@ -272,12 +272,12 @@ def test_psy_data_generate_symbols():
 
     # Executing it again doesn't add anything new
     psy_data.generate_symbols(routine.symbol_table)
-    assert len(routine.symbol_table.symbols) == 3
+    assert len(routine.symbol_table.symbols) == 4
 
     # But executing it again from a different psy_data re-utilises the module
     # and type but creates a new object instance
     psy_data2.generate_symbols(routine.symbol_table)
-    assert len(routine.symbol_table.symbols) == 4
+    assert len(routine.symbol_table.symbols) == 5
     assert "psy_data_1" in routine.symbol_table
     objectsymbol = routine.symbol_table.lookup("psy_data_1")
     assert isinstance(objectsymbol, DataSymbol)

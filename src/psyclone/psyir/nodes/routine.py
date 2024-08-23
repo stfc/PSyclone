@@ -91,6 +91,15 @@ class Routine(Schedule, CommentableMixin):
                             f"but got '{type(is_program).__name__}'")
         self._is_program = is_program
 
+        # If the routine is detached we try to
+        # add the symbol into it's symbol table unless the symbol table
+        # already contains a symbol with that name (e.g. for a Function).
+        if self.parent is None and self.symbol_table:
+            try:
+                self.symbol_table.lookup(self._symbol.name)
+            except KeyError:
+                self.symbol_table.add(self._symbol)
+
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. Two Routine nodes are equal
@@ -208,7 +217,16 @@ class Routine(Schedule, CommentableMixin):
                 pass
             except KeyError:
                 pass
-        if self._symbol and new_parent is not None:
+        elif new_parent is not None:
+            # If the current parent is None and the new parent is not None
+            # then we remove the RoutineSymbol from out own symbol table
+            # it is present.
+            try:
+                if self.symbol_table.lookup(self.name) is self._symbol:
+                    self.symbol_table.remove(self._symbol)
+            except KeyError:
+                pass
+        if new_parent is not None:
             # If we weren't able to remove this symbol from a previous symbol
             # table then we may need to create a new symbol for this Routine.
 
@@ -268,6 +286,14 @@ class Routine(Schedule, CommentableMixin):
                 new_parent.symbol_table.add(sym)
                 self._symbol = sym
                 self._symbol_in_table = True
+        elif self.symbol_table:
+            # Otherwise if new_parent is None, then we place the symbol
+            # into this Routine's symbol table if possible. Not all Routine
+            # subclasses have a symbol table, hence the elif statement.
+            try:
+                self.symbol_table.lookup(self._symbol.name)
+            except KeyError:
+                self.symbol_table.add(self._symbol)
 
     @property
     def dag_name(self):
@@ -305,12 +331,18 @@ class Routine(Schedule, CommentableMixin):
                             f"'{type(new_name).__name__}'")
         if self.name != new_name:
             symbol = self._symbol
-            container_sym_tab = symbol.find_symbol_table(self)
-            if container_sym_tab is not None:
-                container_sym_tab.rename_symbol(symbol, new_name)
+            if self.parent is not None:
+                self.parent.symbol_table.rename_symbol(symbol, new_name)
             else:
-                # Symbol isn't in a symbol table so we can modify its name.
-                symbol._name = new_name
+                # Check if the symbol in our own symbol table is the symbol
+                try:
+                    sym = self.symbol_table.lookup(symbol.name)
+                    if sym is self._symbol:
+                        self.symbol_table.rename_symbol(symbol, new_name)
+                except KeyError:
+                    # Symbol isn't in a symbol table so we can modify its
+                    # name freely
+                    symbol._name = new_name
 
     def __str__(self):
         result = self.node_str(False) + ":\n"

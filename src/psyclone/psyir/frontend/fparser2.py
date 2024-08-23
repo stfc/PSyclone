@@ -2014,7 +2014,6 @@ class Fparser2Reader():
                     raise KeyError
 
                 sym = symbol_table.lookup(sym_name, scope_limit=scope)
-                print(sym)
                 # pylint: disable=unidiomatic-typecheck
                 if type(sym) is Symbol:
                     # This was a generic symbol. We now know what it is
@@ -2023,6 +2022,29 @@ class Fparser2Reader():
                                    interface=this_interface,
                                    is_constant=has_constant_value,
                                    initial_value=init_expr)
+                elif isinstance(sym, RoutineSymbol):
+                    # This was a RoutineSymbol that we shadow, so we have to
+                    # remove it.
+                    try:
+                        sym2 = DataSymbol(sym_name, datatype,
+                                          visibility=visibility,
+                                          is_constant=has_constant_value,
+                                          initial_value=init_expr)
+                        symbol_table.swap(sym, sym2)
+                    except ValueError as error:
+                        # DataSymbol can raise a ValueError in a number of
+                        # ways. We check for the ones that come from valid
+                        # Fortran that we aren't supporting and raise
+                        # NotImplementedError for those.
+                        if not isinstance(
+                                datatype,
+                                (ScalarType, ArrayType, UnsupportedType)):
+                            raise NotImplementedError
+                        # Otherwise we have an invalid Fortran declaration.
+                        raise InternalError(
+                            f"Invalid variable declaration "
+                            f"found in _process_decln for "
+                            f"'{sym_name}'.") from error
                 else:
                     if not sym.is_unresolved:
                         raise SymbolError(
@@ -5352,7 +5374,6 @@ class Fparser2Reader():
             else:
                 # Routine has no arguments
                 arg_list = []
-
             self.process_declarations(routine, decl_list, arg_list)
 
             # Check whether the function-stmt has a prefix specifying the
@@ -5388,7 +5409,9 @@ class Fparser2Reader():
                 # Ensure that we have an explicit declaration for the symbol
                 # returned by the function.
                 keep_tag = None
-                if return_name not in routine.symbol_table:
+                if (return_name not in routine.symbol_table or
+                        isinstance(routine.symbol_table.lookup(return_name),
+                                   RoutineSymbol)):
                     # There is no existing declaration for the symbol returned
                     # by the function (because it is specified by the prefix
                     # and suffix of the function declaration). We add one
@@ -5416,7 +5439,14 @@ class Fparser2Reader():
                     # declared with its own local name.
                     routine_symbol = routine.symbol_table.lookup(routine.name)
                     routine_symbol.datatype = base_type
-
+                    # If we already have a RoutineSymbol to shadow in the
+                    # routine then we remove it before adding the new return
+                    # symbol.
+                    if isinstance(routine_symbol, RoutineSymbol):
+                        try:
+                            routine.symbol_table.remove(routine_symbol)
+                        except KeyError:
+                            pass
                     routine.symbol_table.new_symbol(return_name,
                                                     tag=keep_tag,
                                                     symbol_type=DataSymbol,
@@ -5444,7 +5474,14 @@ class Fparser2Reader():
             # in the tree without a coresponding Routine.
             sym = parent.symbol_table.lookup(routine.name)
             routine.detach()
-            parent.symbol_table.add(sym)
+            # In some cases the symbol won't be removed when deatching the
+            # symbol, e.g. if the function is called in something already
+            # declared in the scope. In this case we are ok to catch
+            # the KeyError and continue.
+            try:
+                parent.symbol_table.add(sym)
+            except KeyError:
+                pass
             raise err
 
         # We always make sure the symbol is detached as it will be connected
