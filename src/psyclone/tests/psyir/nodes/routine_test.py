@@ -83,6 +83,11 @@ def test_routine_properties():
     node3 = Routine.create("gutentag", is_program=True)
     assert node3.is_program
 
+    with pytest.raises(TypeError) as excinfo:
+        node3.symbol = "123"
+    assert ("Routine symbol must be a RoutineSymbol but got 'str'"
+            in str(excinfo.value))
+
 
 def test_routine_name_setter():
     ''' Check the name setter property of the Routine class updates its
