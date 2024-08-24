@@ -97,5 +97,5 @@ def trans(psyir):
                 # Collapse may be useful in some architecture/compiler
                 collapse=False,
                 privatise_arrays=True
-                # privatise_arrays=True if psyir.name == "zdftke.f90" else False
+                # privatise_arrays=(psyir.name == "zdftke.f90")
         )

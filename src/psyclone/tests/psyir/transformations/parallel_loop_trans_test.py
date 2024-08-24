@@ -483,18 +483,22 @@ def test_paralooptranas_with_array_privatisation(fortran_reader,
     '''
     Check that the 'privatise_arrays' transformation option allows to ignore
     write-write dependencies by setting the associated variable as 'private'
-    (only if it's never used outside the loop).
     '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_sub()
           integer ji, jj
           real :: var1(10,10)
           real :: ztmp(10)
+          real :: ztmp2(10)
           var1 = 1.0
+          ztmp2 = 1.0
 
           do ji = 1, 10
             do jj = 1, 10
-              ztmp(jj) = var1(ji, jj) + 1
+              if (jj == 4) then
+                ztmp2(jj) = 4
+              end if  ! the rest get the value from before the loop
+              ztmp(jj) = var1(ji, jj) + ztmp2(jj)
             end do
             do jj = 1, 10
               var1(ji, jj) = ztmp(jj) * 2
@@ -509,36 +513,45 @@ def test_paralooptranas_with_array_privatisation(fortran_reader,
     with pytest.raises(TransformationError) as err:
         trans.apply(loop)
     assert "ztmp(jj)\' causes a write-write race condition." in str(err.value)
+    assert "ztmp2(jj)\' causes a write-write race condition." in str(err.value)
 
     # Now enable array privatisation
     trans.apply(loop, {"privatise_arrays": True})
-    assert ("!$omp parallel do default(shared), private(ji,jj,ztmp)" in
-            fortran_writer(psyir))
+    assert ("!$omp parallel do default(shared), private(ji,jj,ztmp), "
+            "firstprivate(ztmp2)" in fortran_writer(psyir))
 
-    # If the 'ztmp' is accessed outside the loop the privatisation will fail
+    # If the array is accessed after the loop or is a not an automatic
+    # interface the privatisation will fail
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_sub()
           integer ji, jj
           real :: var1(10,10)
-          real :: ztmp(10)
+          real, save :: ztmp1(10)
+          real :: ztmp2(10)
           var1 = 1.0
           ztmp = 3.0
 
           do ji = 1, 10
             do jj = 1, 10
+              ztmp2(jj) = 3
               ztmp(jj) = var1(ji, jj) + 1
             end do
             do jj = 1, 10
               var1(ji, jj) = ztmp(jj) * 2
             end do
           end do
+          call something(ztmp2)
         end subroutine my_sub''')
 
     loop = psyir.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
         trans.apply(loop, {"privatise_arrays": True})
-    # with and updated error message
+    # with and updated error messages
     assert "ztmp(jj)\' causes a write-write race " not in str(err.value)
+    assert "ztmp2(jj)\' causes a write-write race " not in str(err.value)
     assert ("The write-write dependency in 'ztmp' cannot be solved by array "
+            "privatisation because the variable is used outside the loop"
+            in str(err.value))
+    assert ("The write-write dependency in 'ztmp2' cannot be solved by array "
             "privatisation because the variable is used outside the loop"
             in str(err.value))

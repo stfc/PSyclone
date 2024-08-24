@@ -46,6 +46,7 @@ from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import Loop, Reference, Call
+from psyclone.psyir.symbols import AutomaticInterface
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -191,23 +192,29 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                         message.code == DTCode.ERROR_WRITE_WRITE_RACE):
                     privatisable = True
                     for var_name in message.var_names:
-                        symbol = node.scope.symbol_table.lookup(var_name)
+                        sym = node.scope.symbol_table.lookup(var_name)
 
-                        # It must ONLY be referenced in this loop
-                        symbol_scope = symbol.find_symbol_table(node).node
-
-                        if any(reference.symbol is symbol and
-                               not reference.is_inside_of(node) for
-                               reference in symbol_scope.walk(Reference)):
+                        # If it's not a local symbol, we cannot safely analyse
+                        # its lifetime
+                        if not isinstance(sym.interface, AutomaticInterface):
                             privatisable = False
                             break
 
-                        symbol.is_thread_private = True
+                        # It must not be referenced after this loop (before the
+                        # loop is fine because we can use OpenMP/OpenACC
+                        # first-private or Fortran do concurrent local_init())
+                        if any(r.symbol is sym
+                               for r in node.following(include_children=False)
+                               if isinstance(r, Reference)):
+                            privatisable = False
+                            break
+
+                        sym.is_thread_private = True
                     if not privatisable:
                         errors.append(
                             f"The write-write dependency in '{var_name}'"
                             f" cannot be solved by array privatisation because"
-                            f" the variable is used outside the loop")
+                            f" the variable is used outside the loop.")
                     continue
                 errors.append(str(message))
 

@@ -1515,9 +1515,9 @@ def test_following_preceding():
 
     # 2b: Middle node. 'routine' argument is set to False. Additional
     # container and routine2 nodes are returned.
-    assert (multiply1.following(routine=False) ==
+    assert (multiply1.following(routine_scope=False) ==
             [c_ref, d_ref, routine2, assign2, e_ref, zero])
-    assert (multiply1.preceding(routine=False) ==
+    assert (multiply1.preceding(routine_scope=False) ==
             [container, routine1, assign1, a_ref, multiply2, b_ref])
 
 
@@ -1815,3 +1815,99 @@ def test_get_sibling_lists_with_stopping(fortran_reader):
     # Second kernel
     assert len(blocks_to_port[1]) == 1
     assert blocks_to_port[1][0] is loops[2]
+
+
+def test_following_node(fortran_reader):
+    '''Tests that the following_node method works as expected.'''
+
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        contains
+
+        subroutine test
+            integer :: i, j, val
+
+            do j = 1, 10
+               do i = 1, 10
+                  if (i == 3) then
+                    val = 1
+                  end if
+               end do
+               val = 2
+            end do
+        end subroutine
+
+        subroutine test2
+        end subroutine test2
+    end module
+    ''')
+
+    loops = psyir.walk(Loop)
+    assignments = psyir.walk(Assignment)
+    routines = psyir.walk(Routine)
+
+    # If it has a following sibiling, this is the following_node
+    assert loops[1].following_node() is assignments[1]
+    assert routines[0].following_node() is routines[1]
+
+    # If it doesn't, but one of its ancestor does, that it the following node
+    assert assignments[0].following_node() is assignments[1]
+
+    # If they don't (at the routine scope), they return None
+    assert loops[0].following_node() is None
+    assert assignments[1].following_node() is None
+
+    # With the routine_scope=False, they keep searching outside the routine
+    assert loops[0].following_node(routine_scope=False) is routines[1]
+    assert assignments[1].following_node(routine_scope=False) is routines[1]
+
+
+def test_following(fortran_reader):
+    '''Tests that the following method works as expected.'''
+
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        contains
+
+        subroutine test
+            integer :: i, j, val
+
+            do j = 1, 10
+               do i = 1, 10
+                  if (i == 3) then
+                    val = 1
+                  end if
+               end do
+               val = 2
+            end do
+            val = 3
+        end subroutine
+
+        subroutine test2
+        end subroutine test2
+    end module
+    ''')
+    loops = psyir.walk(Loop)
+    assignments = psyir.walk(Assignment)
+    routines = psyir.walk(Routine)
+
+    # By default following returns children and following children
+    # inside the same routine scope
+    assert loops[0] not in loops[1].following()  # before
+    assert assignments[0] in loops[1].following()  # inside
+    assert assignments[1] in loops[1].following()  # after
+    assert assignments[2] in loops[1].following()  # after a parent
+    assert routines[1] not in loops[1].following()  # outside routine
+
+    # If we set routine_scope to False, it returns nodes from outside
+    assert routines[1] in loops[1].following(routine_scope=False)
+
+    # If we set include_children to False, it only return "after" nodes
+    assert assignments[0] not in loops[1].following(include_children=False)
+    assert assignments[1] in loops[1].following(include_children=False)
+    assert assignments[2] in loops[1].following(include_children=False)
+
+    # Both arguments work together
+    assert routines[1] not in loops[1].following(include_children=False)
+    assert routines[1] in loops[1].following(routine_scope=False,
+                                             include_children=False)
