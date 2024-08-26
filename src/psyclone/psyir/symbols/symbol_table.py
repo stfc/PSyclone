@@ -568,8 +568,6 @@ class SymbolTable():
         if not isinstance(new_symbol, Symbol):
             raise InternalError(f"Symbol '{new_symbol}' is not a symbol, but "
                                 f"'{type(new_symbol).__name__}'.'")
-        if new_symbol.name == "_psyclone_internal_div_hor":
-            import pdb; pdb.set_trace()
 
         key = self._normalize(new_symbol.name)
         if key in self._symbols:
