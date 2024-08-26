@@ -832,6 +832,30 @@ def test_gen_access_stmts(fortran_writer):
     assert code.strip() == "public :: my_sub1, some_var, overloaded"
 
 
+def test_gen_access_stmts_avoids_internal(fortran_reader, fortran_writer):
+    '''
+    Tests for the gen_access_stmts does not list the psyclone internal symbols
+    '''
+    test_module = '''
+    module test_mod
+      private
+      interface test
+        module procedure test, test_code
+      end interface test
+      public test
+    contains
+      subroutine test_code()
+      end subroutine test_code
+      subroutine test()
+      end subroutine test
+    end module test_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(test_module)
+    # Check that the internal symbol exists but is not listed
+    assert psyir.children[0].symbol_table.lookup("_PSYCLONE_INTERNAL_test")
+    assert "_PSYCLONE_INTERNAL_test" not in fortran_writer(psyir)
+
+
 def test_fw_exception(fortran_writer):
     '''Check the FortranWriter class instance raises an exception if an
     unsupported PSyIR node is found.
