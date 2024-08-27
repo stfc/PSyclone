@@ -38,7 +38,6 @@ metadata associated with an array argument. Supports the creation, modification
 and Fortran output of an Array argument.
 
 '''
-from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 
