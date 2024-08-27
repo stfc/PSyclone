@@ -74,7 +74,7 @@ jobs:
     - name: NEMO 5.0 gcc passthrough
       run: |
         # Set up environment
-        source /apps/spack/spack-upstream/share/spack/setup-env.sh
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
         spack unload && spack load nemo-build-environment%gcc@14
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
@@ -101,7 +101,7 @@ jobs:
     - name: NEMO 5.0 nvidia passthrough
       run: |
         # Set up environment
-        source /apps/spack/spack-upstream/share/spack/setup-env.sh
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
         spack unload && spack load nemo-build-environment%nvhpc@24.5
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
@@ -129,7 +129,7 @@ jobs:
     - name: NEMO 5.0 Intel passthrough
       run: |
         # Set up environment
-        source /apps/spack/spack-upstream/share/spack/setup-env.sh
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
         spack unload && spack load nemo-build-environment%oneapi@2024.04
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
@@ -157,7 +157,7 @@ jobs:
     - name: NEMO 5.0 Intel OpenMP for CPUs
       run: |
         # Set up environment
-        source /apps/spack/spack-upstream/share/spack/setup-env.sh
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
         spack unload && spack load nemo-build-environment%oneapi@2024.04
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
@@ -185,7 +185,7 @@ jobs:
     - name: NEMO 5.0 nvidia OpenMP for GPUs (managed memory)
       run: |
         # Set up environment
-        source /apps/spack/spack-upstream/share/spack/setup-env.sh
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
         spack unload && spack load nemo-build-environment%nvhpc@24.5
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
