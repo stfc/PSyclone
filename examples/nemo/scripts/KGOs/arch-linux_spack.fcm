@@ -1,0 +1,19 @@
+%PSYCLONE_HOME       ${PSYCLONE_HOME}
+%NCDF_INC            -I${NCDF_F_HOME}/include -I${NCDF_C_HOME}/include -I${HDF5_HOME}/include
+%NCDF_LIB            -L${NCDF_F_HOME}/lib -lnetcdff -L${NCDF_C_HOME}/lib -lnetcdf
+
+%CPP	             cpp
+%FC	                 ${MPIF90} -c
+
+%FFLAGS              ${FCFLAGS}
+%LD                  ${MPIF90}
+%LDFLAGS             
+%FPPFLAGS            -P -traditional
+%AR                  ar
+%ARFLAGS             rs
+%MK                  make
+%USER_INC            %NCDF_INC
+%USER_LIB            %NCDF_LIB
+
+%CC                  ${CC}
+%CFLAGS              -O2

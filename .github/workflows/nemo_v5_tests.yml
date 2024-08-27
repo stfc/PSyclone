@@ -1,0 +1,211 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2024, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author S. Siso, STFC Daresbury Lab
+
+# This workflow will use a self-hosted runner to perform the more expensive
+# integrations tests that are not run on GHA systems.
+
+name: NEMOv5 Integration Tests
+
+on:
+  push
+
+jobs:
+  run_if_on_mirror:
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
+    runs-on: self-hosted
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+        # This is required to get the commit history for merge commits for
+        # the ci-skip check below.
+        fetch-depth: '0'
+    - name: Check for [skip ci] in commit message
+      uses: mstachniuk/ci-skip@v1
+      with:
+        # This setting causes the tests to 'fail' if [skip ci] is specified
+        fail-fast: true
+        commit-filter: '[skip ci]'
+    - name: Install dependencies
+      run: |
+        module load python/${PYTHON_VERSION}
+        python -m venv .runner_venv
+        source .runner_venv/bin/activate
+        python -m pip install --upgrade pip
+        # Uncomment the below to use the submodule version of fparser rather
+        # than the latest release from pypi.
+        # pip install external/fparser
+        pip install .
+
+    # PSyclone passthrough for 5.0-beta of NEMO.
+    - name: NEMO 5.0 gcc passthrough
+      run: |
+        # Set up environment
+        source /apps/spack/spack-upstream/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%gcc@14
+        source .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export PSYCLONE_HOME=${PWD}/.runner_venv
+        export NEMO_DIR=${HOME}/NEMOv5
+
+        # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
+        cd $NEMO_DIR
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export FCFLAGS="-O2 -fcray-pointer -ffree-line-length-none -g"
+
+        # Clean up and compile
+        ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_GCC clean -y
+        ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_GCC -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
+            del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" -j 4 -v 1
+
+        # Run Orca1
+        cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_GCC/EXP00
+        mpirun -np 4 ./nemo
+        diff run.stat ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.orca2.4mpi.10steps
+        export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
+        echo "Time-stepping duration = " $VAR_TIME
+
+    - name: NEMO 5.0 nvidia passthrough
+      run: |
+        # Set up environment
+        source /apps/spack/spack-upstream/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%nvhpc@24.5
+        source .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export PSYCLONE_HOME=${PWD}/.runner_venv
+        export NEMO_DIR=${HOME}/NEMOv5
+        
+        # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
+        # We compile at -O1 to permit comparison of the results.
+        cd $NEMO_DIR
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export FCFLAGS="-i4 -Mr8 -O1 -Minline -Mcray=pointer -Mpre -g"
+        
+        # Clean up and compile
+        ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_NVHPC clean -y
+        ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_NVHPC -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
+          del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" -j 4 -v 1
+
+        # Run Orca1
+        cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_NVHPC/EXP00
+        mpirun -np 4 ./nemo
+        diff run.stat ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.orca2.4mpi.10steps
+        export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
+        echo "Time-stepping duration = " $VAR_TIME
+
+    - name: NEMO 5.0 Intel passthrough
+      run: |
+        # Set up environment
+        source /apps/spack/spack-upstream/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%oneapi@2024.04
+        source .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export PSYCLONE_HOME=${PWD}/.runner_venv
+        export NEMO_DIR=${HOME}/NEMOv5
+        
+        # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
+        # We compile at -O1 to permit comparison of the results.
+        cd $NEMO_DIR
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export FCFLAGS="-i4 -r8 -O2 -fp-model precise -fno-alias -g"
+        
+        # Clean up and compile
+        ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_ONEAPI clean -y
+        ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_ONEAPI -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
+          del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" -j 4 -v 1
+
+        # Run Orca1
+        cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_ONEAPI/EXP00
+        mpirun -np 4 ./nemo
+        diff run.stat ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.orca2.4mpi.10steps
+        export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
+        echo "Time-stepping duration = " $VAR_TIME
+        
+    - name: NEMO 5.0 Intel OpenMP for CPUs
+      run: |
+        # Set up environment
+        source /apps/spack/spack-upstream/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%oneapi@2024.04
+        source .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export PSYCLONE_HOME=${PWD}/.runner_venv
+        export NEMO_DIR=${HOME}/NEMOv5
+        
+        # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
+        # We compile at -O1 to permit comparison of the results.
+        cd $NEMO_DIR
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export FCFLAGS="-i4 -r8 -O2 -fp-model precise -fno-alias -g -qopenmp"
+        
+        # Clean up and compile
+        ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_ONEAPI clean -y
+        ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_ONEAPI -p ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py \
+          del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" -j 4 -v 1
+
+        # Run Orca1
+        cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_ONEAPI/EXP00
+        OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
+        diff run.stat ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.orca2.4mpi.10steps
+        export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
+        echo "Time-stepping duration = " $VAR_TIME
+        
+    - name: NEMO 5.0 nvidia OpenMP for GPUs (managed memory)
+      run: |
+        # Set up environment
+        source /apps/spack/spack-upstream/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%nvhpc@24.5
+        source .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export PSYCLONE_HOME=${PWD}/.runner_venv
+        export NEMO_DIR=${HOME}/NEMOv5
+        
+        # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
+        # We compile at -O1 to permit comparison of the results.
+        cd $NEMO_DIR
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export FCFLAGS="-i4 -Mr8 -O3 -Minline -Mcray=pointer -Mpre -g -mp=gpu -gpu=managed"
+        
+        # Clean up and compile
+        ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_NVHPC clean -y
+        ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_NVHPC -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
+          del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" -j 4 -v 1
+
+        # Run Orca1
+        cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_NVHPC/EXP00
+        mpirun -np 4 ./nemo
+        diff run.stat ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.orca2.4mpi.10steps
+        export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
+        echo "Time-stepping duration = " $VAR_TIME
