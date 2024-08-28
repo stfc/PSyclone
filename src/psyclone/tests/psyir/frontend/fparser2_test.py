@@ -592,7 +592,7 @@ def test_get_partial_datatype():
     ids = [id(entry) for entry in walk(node)]
     datatype, init = processor._get_partial_datatype(node, fake_parent, {})
     assert isinstance(datatype, ScalarType)
-    assert isinstance(init, CodeBlock)
+    assert isinstance(init, IntrinsicCall)
     assert init.parent is None
     assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
     # Check fparser2 tree is unmodified
@@ -633,7 +633,7 @@ def test_get_partial_datatype():
     ids = [id(entry) for entry in walk(node)]
     datatype, init = processor._get_partial_datatype(node, fake_parent, {})
     assert isinstance(datatype, ScalarType)
-    assert isinstance(init, CodeBlock)
+    assert isinstance(init, IntrinsicCall)
     assert init.parent is None
     assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
     # Check fparser2 tree is unmodified
@@ -767,7 +767,7 @@ def test_process_declarations():
     ptr_sym = fake_parent.symbol_table.lookup("dptr")
     assert isinstance(ptr_sym, DataSymbol)
     assert isinstance(ptr_sym.datatype, UnsupportedFortranType)
-    assert isinstance(ptr_sym.initial_value, CodeBlock)
+    assert isinstance(ptr_sym.initial_value, IntrinsicCall)
 
 
 @pytest.mark.usefixtures("f2008_parser")
