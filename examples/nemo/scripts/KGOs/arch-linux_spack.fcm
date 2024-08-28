@@ -4,8 +4,8 @@
 
 %CPP	             cpp
 %FC	                 ${MPIF90} -c
-
-%FFLAGS              ${FCFLAGS}
+%FCFLAGS             ${FCFLAGS}
+%FFFLAGS             %FCFLAGS
 %LD                  ${MPIF90}
 %LDFLAGS             
 %FPPFLAGS            -P -traditional
