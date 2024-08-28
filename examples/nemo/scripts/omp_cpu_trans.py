@@ -46,7 +46,25 @@ from psyclone.transformations import OMPLoopTrans
 PROFILING_ENABLED = False
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING
+FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING + [
+    "lbclnk.f90", # TODO #2685: effective shape bug
+    "asminc.f90",
+    "trosk.f90",
+    "vremap.f90",
+    # "prtctl.f90",
+    # "fldread.f90",
+    # "dynspg_ts.f90",
+    # "lib_mpp.f90",
+    # "diaobs.f90",
+    # "traqsr.f90",
+    # "icethd_pnd.f90",
+    # "lbclnk.f90",
+    # "iom_nf90.f90",
+    # "ldfslp.f90",
+    # "icethd.f90",
+    # "icestp.f90",
+    # "sbcblk.f90"
+]
 
 
 def trans(psyir):
@@ -77,7 +95,8 @@ def trans(psyir):
 
         if subroutine.name in ("eos_rprof", "load_nml", "prt_ctl_write_sum",
                                "sbc_blk", "lbc_lnk_pt2pt_sp",
-                               "lbc_lnk_neicoll_sp"):
+                               "lbc_lnk_neicoll_sp", "lbc_lnk_iprobe_sp",
+                               "lbc_lnk_waitany_sp"):
             # TODO #1959: 'eos_rprof' make the ECMWF compilation fail
             # because it moves a statement function outside of the
             # specification part.

@@ -105,7 +105,7 @@ stretching_method='linear',
 /
 
 &io
-  use_xios_io               = .true.
+  use_xios_io               = .false.
   write_conservation_diag   = .true.
   diag_active_files         = 'lfric_diag'
   diag_always_on_sampling   = .false.
