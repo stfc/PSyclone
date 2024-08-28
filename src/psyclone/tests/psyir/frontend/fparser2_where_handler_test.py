@@ -525,23 +525,49 @@ def test_where_mask_containing_sum_with_dim(fortran_reader):
 
 
 @pytest.mark.usefixtures("parser")
-def test_where_with_scalar_assignment():
+def test_where_with_scalar_assignment(fortran_reader, fortran_writer):
     ''' Test that a WHERE containing a scalar assignment is handled correctly.
-    Currently it is not as we do not distinguish between a scalar and an array
-    reference that is missing its colons. This will be fixed in #717.
     '''
-    fake_parent, _ = process_where(
-        "WHERE (dry(1, :, :))\n"
-        "  var1 = depth\n"
-        "  z1_st(:, 2, :) = var1 / ptsu(:, :, 3)\n"
-        "END WHERE\n", Fortran2003.Where_Construct,
-        ["dry", "z1_st", "depth", "ptsu", "var1"])
+    code = '''
+    subroutine sub()
+        integer, dimension(100,100,100) :: dry, z1_st, ptsu
+        integer :: var1, depth
+
+        where(dry(1, :, :))
+            var1 = depth
+            z1_st(:,2,:) = var1 / ptsu(:, :, 3)
+        end where
+    end subroutine sub
+    '''
+    fake_parent = fortran_reader.psyir_from_source(code)
     # We should have a doubly-nested loop with an IfBlock inside
     loops = fake_parent.walk(Loop)
     assert len(loops) == 2
     for loop in loops:
         assert "was_where" in loop.annotations
     assert isinstance(loops[1].loop_body[0], IfBlock)
+    out = fortran_writer(fake_parent)
+    correct = '''subroutine sub()
+  integer, dimension(100,100,100) :: dry
+  integer, dimension(100,100,100) :: z1_st
+  integer, dimension(100,100,100) :: ptsu
+  integer :: var1
+  integer :: depth
+  integer :: widx2
+  integer :: widx1
+
+  do widx2 = 1, SIZE(dry, dim=3), 1
+    do widx1 = 1, SIZE(dry, dim=2), 1
+      if (dry(1,widx1,widx2)) then
+        var1 = depth
+        z1_st(widx1,2,widx2) = var1 / ptsu(widx1,widx2,3)
+      end if
+    enddo
+  enddo
+
+end subroutine sub
+'''
+    assert out == correct
 
 
 @pytest.mark.usefixtures("parser")
@@ -785,8 +811,7 @@ def test_where_derived_type(fortran_reader, fortran_writer, code, size_arg):
       "my_type%block(jl)%var = 3.0\n")])
 @pytest.mark.xfail(reason="#1960 Can't handle WHERE constructs without "
                           "explicit array notation inside derived types.")
-def test_where_noarray_syntax_derived_types(fortran_reader, fortran_writer,
-                                            code):
+def test_where_noarray_syntax_derived_types(fortran_reader, code):
     '''Xfailing test for when a derived type access in a where condition
     doesn't use range syntax.'''
     code = (f"module my_mod\n"
@@ -819,7 +844,7 @@ def test_where_noarray_syntax_derived_types(fortran_reader, fortran_writer,
       "var(:) = 3.0\n"),
      ("where (var > var2(1:20))\n"
       "var = 3.0\n")])
-def test_where_scalar_var(fortran_reader, fortran_writer, code):
+def test_where_scalar_var(fortran_reader, code):
     '''Test where we have a scalar variable in a WHERE clause with no
     array index clause.'''
     code = (
@@ -837,7 +862,6 @@ def test_where_scalar_var(fortran_reader, fortran_writer, code):
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     assert len(loops) == 1
-    print(fortran_writer(psyir))
     assert isinstance(loops[0].stop_expr, Reference)
     assert loops[0].stop_expr.debug_string() == "nc"
     assert isinstance(loops[0].loop_body[0], IfBlock)
