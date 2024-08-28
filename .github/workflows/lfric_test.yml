@@ -79,8 +79,8 @@ jobs:
     - name: LFRic passthrough (with DistributedMemory)
       run: |
         # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc@14
+        source /apps/spack/spack-upstream/share/spack/setup-env.sh
+        spack load lfric-buildenv%gcc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -119,8 +119,8 @@ jobs:
     - name: LFRic with all transformations
       run: |
         # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%gcc@14
+        source /apps/spack/spack-upstream/share/spack/setup-env.sh
+        spack load lfric-buildenv%gcc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg

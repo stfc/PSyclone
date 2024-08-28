@@ -47,23 +47,10 @@ PROFILING_ENABLED = False
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING + [
-    "lbclnk.f90", # TODO #2685: effective shape bug
+    "lbclnk.f90",  # TODO #2685: effective shape bug
     "asminc.f90",
     "trosk.f90",
     "vremap.f90",
-    # "prtctl.f90",
-    # "fldread.f90",
-    # "dynspg_ts.f90",
-    # "lib_mpp.f90",
-    # "diaobs.f90",
-    # "traqsr.f90",
-    # "icethd_pnd.f90",
-    # "lbclnk.f90",
-    # "iom_nf90.f90",
-    # "ldfslp.f90",
-    # "icethd.f90",
-    # "icestp.f90",
-    # "sbcblk.f90"
 ]
 
 
