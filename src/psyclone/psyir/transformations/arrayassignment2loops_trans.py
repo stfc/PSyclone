@@ -244,7 +244,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
         num_of_ranges = None
         for accessor in node.walk(ArrayMixin):
             count = len([x for x in accessor.indices if isinstance(x, Range)])
-            if count:
+            if count > 0:
                 if not num_of_ranges:
                     # If it's the first value we find, we store it
                     num_of_ranges = count
@@ -321,8 +321,8 @@ class ArrayAssignment2LoopsTrans(Transformation):
                     lambda: f"{message} in:\n{node.debug_string()}."))
 
         # For each top-level reference (because we don't support nesting), the
-        # apply will have to be able to decide if its an Array (and access it
-        # with the index) or an Scalar (and leave it as it is). We can not
+        # apply() will have to determine whether it's an Array (and access it
+        # with the index) or a Scalar (and leave it as it is). We cannot
         # transform references where this is unclear.
         for reference in node.walk(Reference, stop_type=Reference):
             if isinstance(reference.parent, Call):
@@ -350,12 +350,12 @@ class ArrayAssignment2LoopsTrans(Transformation):
             # scalar.
             if not isinstance(reference.datatype, (ScalarType, ArrayType)):
                 if isinstance(reference.symbol, DataSymbol):
-                    typestr = f"an {reference.symbol.datatype}"
+                    typestr = f"an {reference.datatype}"
                 else:
                     typestr = "not a DataSymbol"
                 message = (
                     f"{self.name} cannot expand expression because it "
-                    f"contains the variable '{reference.symbol.name}' "
+                    f"contains the access '{reference.debug_string()}' "
                     f"which is {typestr} and therefore cannot be guaranteed"
                     f" to be ScalarType.")
                 if not isinstance(reference.symbol, DataSymbol) or \
@@ -370,16 +370,21 @@ class ArrayAssignment2LoopsTrans(Transformation):
             # We must understand any array accesses on the RHS. This means all
             # array indices must be known (because otherwise they themselves
             # might be arrays, e.g.
-            #      a(:) = b(c) where `c` can be a scalar or an array.
+            #      a(:) = b(c) where `c` can be a scalar or an array
+            #  or  a(:) = grid%b(c)
             if isinstance(reference, ArrayMixin):
                 # Check the index expressions
                 range_count = len([x for x in accessor.indices
                                    if isinstance(x, Range)])
                 if range_count != num_of_ranges:
                     # If the number of ranges in this access is not the same as
-                    # on the LHS then we may or may not have a scalar.
+                    # on the LHS then we may or may not have a scalar. To
+                    # determine this we must know the type of every one of the
+                    # index expressions.
                     for exprn in reference.indices:
                         if not isinstance(exprn, Reference):
+                            # We don't have a Reference so it cannot be of
+                            # array type (we rejected CodeBlocks earlier).
                             continue
                         if not isinstance(exprn.datatype, (UnsupportedType,
                                                            UnresolvedType)):
