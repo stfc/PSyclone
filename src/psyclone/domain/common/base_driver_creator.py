@@ -37,7 +37,7 @@
 implementations.
 '''
 
-from psyclone.psyir.nodes import Call, Literal, Reference
+from psyclone.psyir.nodes import Call, Literal
 from psyclone.psyir.symbols import (CHARACTER_TYPE, ContainerSymbol,
                                     ImportInterface, INTEGER_TYPE, NoType,
                                     RoutineSymbol)
@@ -87,7 +87,13 @@ class BaseDriverCreator:
     @staticmethod
     def add_result_tests(program, output_symbols):
         '''Adds tests to check that all output variables have the expected
-        value.
+        value. It takes a list of tuples. Each tuple contains:
+        1. the symbol containing the result when the kernel is called in the
+            driver.
+        2. the symbol containing the original results, i.e. the values read
+            from the extracted file.
+        3. The signature of the original access. This is used in case of
+            derived types to get the members used.
 
         :param program: the program to which the tests should be added.
         :type program: :py:class:`psyclone.psyir.nodes.Routine`
@@ -98,7 +104,8 @@ class BaseDriverCreator:
             values that have been read in from a file.
         :type output_symbols: list[tuple[
             :py:class:`psyclone.psyir.symbols.Symbol`,
-            :py:class:`psyclone.psyir.symbols.Symbol`]]
+            :py:class:`psyclone.psyir.symbols.Symbol`,
+            :py:class:`psyclone.core.signature.Signature`]]
         '''
 
         module = ContainerSymbol("compare_variables_mod")
@@ -114,10 +121,14 @@ class BaseDriverCreator:
 
         # TODO #2083: check if this can be combined with psyad result
         # comparison.
-        for (sym_computed, sym_read) in output_symbols:
-            lit_name = Literal(sym_computed.name, CHARACTER_TYPE)
+        for (sym_computed, sym_read, signature) in output_symbols:
+            # First create the reference (including potential member access)
+            # to the newly computed value, and the value read from the file:
+            ref_computed = signature.create_reference(sym_computed)
+            ref_read = signature.create_reference(sym_read)
+            # Create the tag that was used in extraction:
+            lit_name = Literal(str(signature), CHARACTER_TYPE)
             BaseDriverCreator.add_call(program, "compare",
-                                       [lit_name, Reference(sym_computed),
-                                        Reference(sym_read)])
+                                       [lit_name, ref_computed, ref_read])
 
         BaseDriverCreator.add_call(program, "compare_summary", [])

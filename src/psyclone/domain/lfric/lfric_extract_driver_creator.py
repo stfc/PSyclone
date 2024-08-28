@@ -420,7 +420,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _create_output_var_code(name, program, is_input, read_var,
+    def _create_output_var_code(signature, program, is_input, read_var,
                                 postfix, index=None, module_name=None):
         # pylint: disable=too-many-arguments
         '''
@@ -470,30 +470,70 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # type, look up the 'original' variable and declare the _POST variable
         symbol_table = program.symbol_table
         if module_name:
-            sym = symbol_table.lookup_with_tag(f"{name}@{module_name}")
+            sym = symbol_table.lookup_with_tag(f"{signature[0]}@{module_name}")
         else:
             if index is not None:
-                sym = symbol_table.lookup_with_tag(f"{name}_{index}_data")
+                sym = symbol_table.lookup_with_tag(
+                    f"{signature[0]}_{index}_data")
             else:
                 # If it is not indexed then `name` will already end in "_data"
-                sym = symbol_table.lookup_with_tag(name)
+                sym = symbol_table.lookup_with_tag(signature[0])
 
         # Declare a 'post' variable of the same type and read in its value.
         post_name = sym.name + postfix
-        post_sym = symbol_table.new_symbol(post_name,
-                                           symbol_type=DataSymbol,
-                                           datatype=sym.datatype)
+        if module_name and hasattr(sym.datatype, "interface"):
+            mod_man = ModuleManager.get()
+            mod_info = mod_man.get_module_info(module_name)
+            sym_type_in_module = mod_info.get_symbol(sym.datatype.name)
+
+            if sym_type_in_module.is_automatic:
+                # The type is defined in the module we are looking at. So we
+                # need to import the datatype here:
+                datatype = symbol_table.find_or_create(
+                    sym_type_in_module.name, symbol_type=DataTypeSymbol,
+                    datatype=sym_type_in_module.datatype,
+                    interface=ImportInterface(sym.interface.container_symbol))
+            else:
+                if sym_type_in_module.is_unknown_interface:
+                    # We don't know where the type of the variable comes from
+                    # (likely parsing error). Just assume it comes from the
+                    # same module as the variable
+                    module_container = sym.interface.container_symbol
+                else:
+                    # Take the container symbol from the data type to import
+                    # the datatype into the driver:
+                    module_container = \
+                        sym_type_in_module.interface.container_symbol
+                # Add imported data type to the symbol table
+                datatype = symbol_table.find_or_create(
+                    sym_type_in_module.name, symbol_type=DataTypeSymbol,
+                    datatype=sym_type_in_module.datatype,
+                    interface=ImportInterface(module_container))
+
+            # Now data type is imported, and we can declare the _post variable
+            post_sym = symbol_table.new_symbol(post_name,
+                                               symbol_type=DataSymbol,
+                                               datatype=datatype)
+        else:
+            post_sym = symbol_table.new_symbol(post_name,
+                                               symbol_type=DataSymbol,
+                                               datatype=sym.datatype)
+
+        # Now create the read call for the _post variable
+        post_sig = Signature(post_name, signature[1:])
         if module_name:
-            post_tag = f"{name}{postfix}@{module_name}"
+            post_tag = f"{post_sig}@{module_name}"
         else:
             if index is not None:
-                post_tag = f"{name}{postfix}%{index}"
+                post_tag = f"{post_sig}%{index}"
             else:
                 # If it is not indexed then `name` will already end in "_data"
-                post_tag = f"{name}{postfix}"
+                post_tag = f"{post_sig}"
+
         name_lit = Literal(post_tag, CHARACTER_TYPE)
+        ref = signature.create_reference(post_sym)
         BaseDriverCreator.add_call(program, read_var,
-                                   [name_lit, Reference(post_sym)])
+                                   [name_lit, ref])
 
         # Now if a variable is written to, but not read, the variable
         # is not allocated. So we need to allocate it and set it to 0.
@@ -506,10 +546,10 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                     IntrinsicCall.Intrinsic.ALLOCATE,
                     [Reference(sym), ("mold", Reference(post_sym))])
                 program.addchild(alloc)
-            set_zero = Assignment.create(Reference(sym),
+            set_zero = Assignment.create(signature.create_reference(sym),
                                          Literal("0", INTEGER_TYPE))
             program.addchild(set_zero)
-        return (sym, post_sym)
+        return (sym, post_sym, signature)
 
     # -------------------------------------------------------------------------
     def _create_read_in_code(self, program, psy_data, original_symbol_table,
@@ -615,12 +655,19 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                     # because we couldn't successfully parse the module)
                     # and will have inconsistent/missing declarations.
                     continue
-                name_lit = Literal(tag, CHARACTER_TYPE)
+                name_lit = Literal(f"{signature}@{module_name}",
+                                   CHARACTER_TYPE)
             else:
                 sym = symbol_table.lookup_with_tag(str(signature))
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
+
+            try:
+                ref = signature.create_reference(sym)
+            except TypeError:
+                ref = Reference(sym)
+
             self.add_call(program, read_var,
-                          [name_lit, Reference(sym)])
+                          [name_lit, ref])
 
         # Then handle all variables that are written (note that some
         # variables might be read and written)
@@ -665,7 +712,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             else:
                 sig_str = str(signature)
                 sym_tuple = \
-                    self._create_output_var_code(str(signature), program,
+                    self._create_output_var_code(signature, program,
                                                  is_input, read_var, postfix,
                                                  module_name=module_name)
                 output_symbols.append(sym_tuple)
