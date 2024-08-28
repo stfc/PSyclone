@@ -45,7 +45,7 @@ from psyclone import psyGen
 from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import Loop, Reference, Call
+from psyclone.psyir.nodes import Loop, Reference, Call, Routine
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -139,6 +139,19 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 raise TypeError(
                     f"The 'collapse' argument must be an integer or a bool but"
                     f" got an object of type {type(collapse)}")
+
+        routine = node.ancestor(Routine)
+        if routine is not None and routine.parent is not None:
+            try:
+                rsym = routine.parent.symbol_table.lookup(routine.name)
+                if rsym.is_pure or rsym.is_elemental:
+                    raise TransformationError(
+                        f"Loops inside a pure (or elemental) routine cannot be"
+                        f" parallelised, but attempted to parallelise loop "
+                        f"inside '{routine.name}'"
+                    )
+            except KeyError:
+                pass
 
         # If it's sequential or we 'force' the transformation, the validations
         # below this point are skipped

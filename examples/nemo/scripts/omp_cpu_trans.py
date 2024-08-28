@@ -76,7 +76,8 @@ def trans(psyir):
         enhance_tree_information(subroutine)
 
         if subroutine.name in ("eos_rprof", "load_nml", "prt_ctl_write_sum",
-                               "sbc_blk"):
+                               "sbc_blk", "lbc_lnk_pt2pt_sp",
+                               "lbc_lnk_neicoll_sp"):
             # TODO #1959: 'eos_rprof' make the ECMWF compilation fail
             # because it moves a statement function outside of the
             # specification part.

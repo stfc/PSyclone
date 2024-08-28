@@ -84,7 +84,7 @@ jobs:
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-O2 -fcray-pointer -ffree-line-length-none -g"
+        export FCFLAGS="-fdefault-real-8 -O2 -fcray-pointer -ffree-line-length-none -g"
 
         # Clean up and compile
         ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_GCC clean -y

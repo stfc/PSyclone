@@ -118,6 +118,45 @@ def test_paralooptrans_validate_pure_calls(fortran_reader):
     trans.validate(loop)
 
 
+def test_paralooptrans_validate_loop_inside_pure(fortran_reader):
+    ''' Test that the validation checks that we don't attempt to parallelise
+    a loop inside a pure (or elemental) routine
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    module test
+        contains
+        elemental function my_func(a)
+          real, intent(in) :: a(10)
+          real, intent(out) :: my_func(10)
+          integer :: i
+
+          do i = LBOUND(a), UBOUND(a)
+            my_func(i) = a(i) + 1
+          end do
+        end function
+
+        pure subroutine my_sub(a,b)
+          real, intent(in) :: a(10)
+          real, intent(out) :: b(10)
+          integer :: i
+
+          do i = LBOUND(a), UBOUND(a)
+            b(i) = a(i) + 1
+          end do
+        end subroutine
+    end module
+    ''')
+
+    trans = ParaTrans()
+    for loop in psyir.walk(Loop):
+        # Check that we reject parallelisng inside a pure routine
+        with pytest.raises(TransformationError) as err:
+            trans.validate(loop, {"verbose": True})
+        assert ("Loops inside a pure (or elemental) routine cannot be "
+                "parallelised, but attempted to parallelise loop inside '"
+                in str(err.value))
+
+
 def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader,
                                                         fortran_writer):
     '''
