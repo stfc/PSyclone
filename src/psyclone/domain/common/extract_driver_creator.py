@@ -399,7 +399,7 @@ class ExtractDriverCreator(BaseDriverCreator):
                 set_zero = Assignment.create(Reference(sym),
                                              Literal("0", INTEGER_TYPE))
                 program.addchild(set_zero)
-            output_symbols.append((sym, post_sym))
+            output_symbols.append((sym, post_sym, signature))
         return output_symbols
 
     # -------------------------------------------------------------------------

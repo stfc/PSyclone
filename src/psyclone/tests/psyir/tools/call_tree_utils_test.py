@@ -216,8 +216,10 @@ def test_call_tree_get_used_symbols_from_modules():
             ("routine", "module_with_var_mod", "module_subroutine"),
             ("unknown", "module_with_var_mod", "module_var_a"),
             ("routine", "testkern_import_symbols_mod", "local_subroutine"),
-            ("routine", None, "unknown_subroutine")]
-            )
+            ("routine", None, "unknown_subroutine"),
+            ('unknown', 'module_with_var_mod', 'user_var%member_read_write'),
+            ('unknown', 'module_with_var_mod', 'user_var%member_write'),
+            ('unknown', 'module_with_var_mod', 'user_var%member_read')])
     assert non_locals_without_access == expected
 
     # Check the handling of a symbol that is not found: _compute_all_non_locals

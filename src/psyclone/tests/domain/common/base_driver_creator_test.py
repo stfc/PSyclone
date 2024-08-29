@@ -39,6 +39,7 @@
 
 import pytest
 
+from psyclone.core import Signature
 from psyclone.domain.common import BaseDriverCreator
 from psyclone.psyir.nodes import Literal, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, RoutineSymbol
@@ -78,7 +79,8 @@ def test_lfric_driver_add_result_tests(fortran_writer):
         "a1_orig", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
     # This will add one test for the variable a1 with the
     # correct values a1_orig.
-    BaseDriverCreator.add_result_tests(program, [(a1, a1_orig)])
+    BaseDriverCreator.add_result_tests(program,
+                                       [(a1, a1_orig, Signature("a"))])
     out = fortran_writer(program)
     expected = """  call compare_init(1)
   call compare('a1', a1, a1_orig)
