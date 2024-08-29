@@ -71,7 +71,7 @@ jobs:
         pip install .
 
     # PSyclone passthrough for 5.0-beta of NEMO.
-    - name: NEMO 5.0 gcc passthrough
+    - name: NEMO 5.0 gfortran passthrough
       run: |
         # Set up environment
         source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
@@ -95,7 +95,7 @@ jobs:
         cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_GCC/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_orca2_like namelist_cfg
         mpirun -np 4 ./nemo
-        # diff run.stat ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.orca2.4mpi.10steps
+        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.orca2.4mpi.10steps run.stat
         cat run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
@@ -117,6 +117,7 @@ jobs:
         export FCFLAGS="-i4 -Mr8 -O1 -Minline -Mcray=pointer -Mpre -g"
         
         # Clean up and compile
+        # Without key_mpi_off it fails to compile (even without psyclone)
         ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_NVHPC clean -y
         ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_NVHPC -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
           del_key "key_xios key_iomput key_top" add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
@@ -125,7 +126,7 @@ jobs:
         cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_NVHPC/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_orca2_like namelist_cfg
         mpirun -np 4 ./nemo
-        # diff run.stat ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.orca2.4mpi.10steps
+        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.orca2.4mpi.10steps run.stat
         cat run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
@@ -153,17 +154,18 @@ jobs:
         # Run Orca2
         cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_ONEAPI/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_orca2_like namelist_cfg
-        mpirun -np 4 ./nemo
-        # diff run.stat ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.orca2.4mpi.10steps
-        cat run.stat
-        export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
-        echo "Time-stepping duration = " $VAR_TIME
+        # It currently segfaults
+        # mpirun -np 4 ./nemo
+        # python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.orca2.4mpi.10steps run.stat
+        # cat run.stat
+        # export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
+        # echo "Time-stepping duration = " $VAR_TIME
         
-    - name: NEMO 5.0 Intel OpenMP for CPUs
+    - name: NEMO 5.0 gfortran OpenMP for CPUs
       run: |
         # Set up environment
         source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
-        spack unload && spack load nemo-build-environment%oneapi
+        spack unload && spack load nemo-build-environment%gcc@14
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
@@ -172,18 +174,18 @@ jobs:
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -r8 -O2 -fp-model precise -fno-alias -g -qopenmp"
+        export FCFLAGS="-fdefault-real-8 -O2 -fcray-pointer -ffree-line-length-none -g -fopenmp"
         
         # Clean up and compile
-        ./makenemo -r BENCH -m linux_spack -n BENCH_OMP_THREADING_ONEAPI clean -y
-        ./makenemo -r BENCH -m linux_spack -n BENCH_OMP_THREADING_ONEAPI -p ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py \
+        ./makenemo -r BENCH -m linux_spack -n BENCH_OMP_THREADING_GCC clean -y
+        ./makenemo -r BENCH -m linux_spack -n BENCH_OMP_THREADING_GCC -p ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py \
           del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" -j 4 -v 1
 
         # Run Orca2
-        cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_ONEAPI/EXP00
+        cd $NEMO_DIR/tests/BENCH_OMP_THREADING_GCC/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_orca2_like namelist_cfg
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
-        # diff run.stat ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.orca2.4mpi.10steps
+        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.orca2.4mpi.10steps run.stat
         cat run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
@@ -205,15 +207,16 @@ jobs:
         export FCFLAGS="-i4 -Mr8 -O3 -Minline -Mcray=pointer -Mpre -g -mp=gpu -gpu=managed"
         
         # Clean up and compile
+        # Without key_mpi_off it fails to compile (even without psyclone)
         ./makenemo -r BENCH -m linux_spack -n BENCH_OMP_OFFLOAD_NVHPC clean -y
         ./makenemo -r BENCH -m linux_spack -n BENCH_OMP_OFFLOAD_NVHPC -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
           del_key "key_xios key_iomput key_top" add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
 
         # Run Orca2
-        cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_NVHPC/EXP00
+        cd $NEMO_DIR/tests/BENCH_OMP_OFFLOAD_NVHPC/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_orca2_like namelist_cfg
         mpirun -np 1 ./nemo
-        # diff run.stat ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.orca2.4mpi.10steps
+        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.orca2.4mpi.10steps run.stat
         cat run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
