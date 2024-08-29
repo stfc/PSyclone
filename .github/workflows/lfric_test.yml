@@ -92,8 +92,8 @@ jobs:
         # Run
         cd applications/gungho_model/example
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its.nml configuration.nml
-        mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_output.txt output.txt
+        mpirun -n 6 ../bin/gungho_model configuration.nml |& tee output.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
@@ -105,7 +105,7 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic Passthrough with DM", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
-          compiler:"spack-gfortran-11", date: new Date(), elapsed_time: '"$VAR_TIME"',
+          compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"',
           num_of_halo_exchanges: '"$VAR_HALOS"'})'
 
     - name: Upload LFRic passthrough results
@@ -138,7 +138,7 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its.nml configuration.nml
         export OMP_NUM_THREADS=6
         mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_output.txt output.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
@@ -150,7 +150,7 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic all transformations", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
-          system: "GlaDos", compiler:"spack-gfortran-11", date: new Date(), elapsed_time: '"$VAR_TIME"',
+          system: "GlaDos", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"',
           num_of_halo_exchanges: '"$VAR_HALOS"'})'
 
     - name: Upload LFRic optimised results
