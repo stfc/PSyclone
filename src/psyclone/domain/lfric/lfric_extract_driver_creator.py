@@ -364,7 +364,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             new_symbol.replace_symbols_using(symbol_table)
             reference.symbol = new_symbol
 
-        # Now handle all derived type. The name of a derived type is
+        # Now handle all derived types. The name of a derived type is
         # 'flattened', i.e. all '%' are replaced with '_', and this is then
         # declared as a non-structured type. We also need to make sure that a
         # flattened name does not clash with a variable declared by the user.
@@ -381,7 +381,9 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                     proxy_name_mapping)
 
         # Now add all non-local symbols, which need to be
-        # imported from the appropriate module:
+        # imported from the appropriate module. Note that
+        # this will not create the `_post ` version of the
+        # variables.
         # -----------------------------------------------
         mod_man = ModuleManager.get()
         for module_name, signature in read_write_info.set_of_all_used_vars:
@@ -469,69 +471,45 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # variable and the one storing the expected results have the same
         # type, look up the 'original' variable and declare the _POST variable
         symbol_table = program.symbol_table
+        tag = signature[0]
+        if index:
+            tag = f"{tag}_{index}_data"
         if module_name:
-            sym = symbol_table.lookup_with_tag(f"{signature[0]}@{module_name}")
-        else:
-            if index is not None:
-                sym = symbol_table.lookup_with_tag(
-                    f"{signature[0]}_{index}_data")
-            else:
-                # If it is not indexed then `name` will already end in "_data"
-                sym = symbol_table.lookup_with_tag(signature[0])
+            tag = f"{tag}@{module_name}"
+        sym = symbol_table.lookup_with_tag(tag)
 
         # Declare a 'post' variable of the same type and read in its value.
-        post_name = sym.name + postfix
         if module_name and hasattr(sym.datatype, "interface"):
+            flat_name = LFRicExtractDriverCreator._flatten_signature(signature)
+            post_name = f"{flat_name}_{module_name}{postfix}"
             mod_man = ModuleManager.get()
             mod_info = mod_man.get_module_info(module_name)
-            sym_type_in_module = mod_info.get_symbol(sym.datatype.name)
+            datatype = mod_info.get_symbol(sym.datatype.name)
 
-            if sym_type_in_module.is_automatic:
-                # The type is defined in the module we are looking at. So we
-                # need to import the datatype here:
-                datatype = symbol_table.find_or_create(
-                    sym_type_in_module.name, symbol_type=DataTypeSymbol,
-                    datatype=sym_type_in_module.datatype,
-                    interface=ImportInterface(sym.interface.container_symbol))
-            else:
-                if sym_type_in_module.is_unknown_interface:
-                    # We don't know where the type of the variable comes from
-                    # (likely parsing error). Just assume it comes from the
-                    # same module as the variable
-                    module_container = sym.interface.container_symbol
-                else:
-                    # Take the container symbol from the data type to import
-                    # the datatype into the driver:
-                    module_container = \
-                        sym_type_in_module.interface.container_symbol
-                # Add imported data type to the symbol table
-                datatype = symbol_table.find_or_create(
-                    sym_type_in_module.name, symbol_type=DataTypeSymbol,
-                    datatype=sym_type_in_module.datatype,
-                    interface=ImportInterface(module_container))
-
-            # Now data type is imported, and we can declare the _post variable
+            if isinstance(datatype, DataTypeSymbol):
+                # This is a structure. We need to create a flattened name
+                # and fine the base type of the member involved
+                datatype = datatype.datatype
+                for member in signature[1:]:
+                    datatype = datatype.components[member].datatype
             post_sym = symbol_table.new_symbol(post_name,
                                                symbol_type=DataSymbol,
                                                datatype=datatype)
         else:
+            post_name = sym.name + postfix
             post_sym = symbol_table.new_symbol(post_name,
                                                symbol_type=DataSymbol,
                                                datatype=sym.datatype)
 
         # Now create the read call for the _post variable
-        post_sig = Signature(post_name, signature[1:])
+        post_tag = f"{signature}{postfix}"
+        if index:
+            post_tag = f"{post_tag}%{index}"
         if module_name:
-            post_tag = f"{post_sig}@{module_name}"
-        else:
-            if index is not None:
-                post_tag = f"{post_sig}%{index}"
-            else:
-                # If it is not indexed then `name` will already end in "_data"
-                post_tag = f"{post_sig}"
+            post_tag = f"{post_tag}@{module_name}"
 
         name_lit = Literal(post_tag, CHARACTER_TYPE)
-        ref = signature.create_reference(post_sym)
+        ref = Reference(post_sym)
         BaseDriverCreator.add_call(program, read_var,
                                    [name_lit, ref])
 
@@ -679,7 +657,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # file. The content of these two variables should be identical
         # at the end.
         output_symbols = []
-
         for module_name, signature in read_write_info.write_list:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
@@ -704,9 +681,10 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
                     sym_tuple = \
-                        self._create_output_var_code(flattened, program,
-                                                     is_input, read_var,
-                                                     postfix, index=i,
+                        self._create_output_var_code(Signature(flattened),
+                                                     program, is_input,
+                                                     read_var, postfix,
+                                                     index=i,
                                                      module_name=module_name)
                     output_symbols.append(sym_tuple)
             else:

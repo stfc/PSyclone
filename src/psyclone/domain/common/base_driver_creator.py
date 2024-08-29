@@ -37,7 +37,8 @@
 implementations.
 '''
 
-from psyclone.psyir.nodes import Call, Literal
+from psyclone.core import Signature
+from psyclone.psyir.nodes import Call, Literal, Reference
 from psyclone.psyir.symbols import (CHARACTER_TYPE, ContainerSymbol,
                                     ImportInterface, INTEGER_TYPE, NoType,
                                     RoutineSymbol)
@@ -125,9 +126,10 @@ class BaseDriverCreator:
             # First create the reference (including potential member access)
             # to the newly computed value, and the value read from the file:
             ref_computed = signature.create_reference(sym_computed)
-            ref_read = signature.create_reference(sym_read)
+            ref_read = Reference(sym_read)
             # Create the tag that was used in extraction:
-            lit_name = Literal(str(signature), CHARACTER_TYPE)
+            name_in_kernel_file = Signature(sym_computed.name, signature[1:])
+            lit_name = Literal(str(name_in_kernel_file), CHARACTER_TYPE)
             BaseDriverCreator.add_call(program, "compare",
                                        [lit_name, ref_computed, ref_read])
 

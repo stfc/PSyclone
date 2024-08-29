@@ -619,7 +619,8 @@ def test_lfric_driver_field_array_inc():
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_external_symbols():
     '''Test the handling of symbols imported from other modules, or calls to
-    external functions that use module variables.
+    external functions that use module variables. Also make sure to test
+    access to structure variables:
 
     '''
     _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
@@ -635,6 +636,31 @@ def test_lfric_driver_external_symbols():
     assert ('CALL extract_psy_data%ProvideVariable("'
             'module_var_a_post@module_with_var_mod", module_var_a)' in code)
 
+    # Check the usage of structures: there are three accesses to three members:
+    # read, write, read_write. For the write-only variable, only a post
+    # variable is declared, for the read-write one two:
+    assert ('CALL extract_psy_data%PreDeclareVariable("user_var%member_read@'
+            'module_with_var_mod", user_var%member_read)' in code)
+    assert ('CALL extract_psy_data%PreDeclareVariable("user_var%member_read_'
+            'write@module_with_var_mod", user_var%member_read_write)' in code)
+    assert ('CALL extract_psy_data%PreDeclareVariable("user_var%'
+            'member_read_write_post@module_with_var_mod", '
+            'user_var%member_read_write)' in code)
+    assert ('CALL extract_psy_data%PreDeclareVariable("user_var%member_'
+            'write_post@module_with_var_mod", user_var%member_write)' in code)
+
+    # Check that the variables are all provided as expected. First the read
+    # values:
+    assert ('CALL extract_psy_data%ProvideVariable("user_var%member_read@'
+            'module_with_var_mod", user_var%member_read)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("user_var%member_read_write'
+            '@module_with_var_mod", user_var%member_read_write)' in code)
+    # Then the output values, which all go into _post variables:
+    assert ('CALL extract_psy_data%ProvideVariable("user_var%member_read_write'
+            '_post@module_with_var_mod", user_var%member_read_write)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("user_var%member_write_post'
+            '@module_with_var_mod", user_var%member_write)' in code)
+
     filename = "driver-import-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
@@ -643,6 +669,33 @@ def test_lfric_driver_external_symbols():
             "module_with_var_mod', module_var_a_post)" in driver)
     assert ("call compare('module_var_a', module_var_a, module_var_a_post)"
             in driver)
+
+    # A user-defined variable read:
+    # Test the user defined type: the variable and the type must be imported
+    # because of the written member (since it requires a _post variable to
+    # be declared).
+    assert ("use module_with_var_mod, only : module_var_a, module_var_b, "
+            "user_var" in driver)
+    assert ("integer :: user_var_member_read_write_module_with_var_mod_post"
+            in driver)
+    assert ("  integer :: user_var_member_write_module_with_var_mod_post"
+            in driver)
+    assert ("call extract_psy_data%ReadVariable('user_var%member_read@"
+            "module_with_var_mod', user_var%member_read)" in driver)
+    assert ("call extract_psy_data%ReadVariable('user_var%member_read_write@"
+            "module_with_var_mod', user_var%member_read_write)" in driver)
+    assert ("call extract_psy_data%ReadVariable('user_var%member_read_write_"
+            "post@module_with_var_mod', &\n"
+            "&user_var_member_read_write_module_with_var_mod_post)" in driver)
+    assert ("call extract_psy_data%ReadVariable('user_var%member_write_post@"
+            "module_with_var_mod', &\n"
+            "&user_var_member_write_module_with_var_mod_post" in driver)
+    assert "user_var%member_write = 0" in driver
+    assert ("call compare('user_var%member_read_write', user_var%member_read"
+            "_write, user_var_member_read_write_module_with_var_mod_post)"
+            in driver)
+    assert ("call compare('user_var%member_write', user_var%member_write, "
+            "user_var_member_write_module_with_var_mod_post)" in driver)
 
     # While the actual code is LFRic, the driver is stand-alone, and as such
     # does not need any of the infrastructure files
