@@ -34,17 +34,27 @@
 # Author: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Script to compare LFRic output files. '''
+''' Script to compare NEMO run.stat output files. '''
 
 import sys
 import os
+import math
 
-TOLERANCE_DIGITS = 8
+TOLERANCE = 1e-05
+
+
+def is_float(x):
+    ''' Check if the given value is a float. '''
+    try:
+        _ = float(x)
+        return True
+    except ValueError:
+        return False
 
 
 def main():
-    ''' Compare the two provided LFRic output files, it checks that the
-    Conservation and Residual values are equivalent (within a tolerance). '''
+    ''' Compare the two provided NEMO run.stat output files, it checks that the
+    values are equivalent (within a tolerance). '''
 
     # Parse input arguments
     if len(sys.argv) - 1 != 2:
@@ -64,10 +74,10 @@ def main():
         line_f2 = file2.readline()
         while line_f1 and line_f2:
             # Get all numbers (rhs of each :)
-            values1 = line_f1.split(':')[::2]
-            values2 = line_f2.split(':')[::2]
+            values1 = [float(x) for x in line_f1.split(' ') if is_float(x)]
+            values2 = [float(x) for x in line_f2.split(' ') if is_float(x)]
             for value1, value2 in zip(values1, values2):
-                if value1[:TOLERANCE_DIGITS] != value2[:TOLERANCE_DIGITS]:
+                if not math.isclose(value1, value2, rel_tol=TOLERANCE):
                     sys.exit(f"The values are not equal:\n{line_f1}{line_f2}")
 
             # Get next lines

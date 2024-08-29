@@ -44,7 +44,7 @@ TOLERANCE_DIGITS = 10
 
 def main():
     ''' Compare the two provided LFRic output files, it checks that the
-    Conservation and Residual values are equivalent (within a tolerance). '''
+    checksum values are equivalent (within a tolerance). '''
 
     # Parse input arguments
     if len(sys.argv) - 1 != 2:
