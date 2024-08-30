@@ -38,7 +38,6 @@ which module is contained in which file (including full location). '''
 
 
 from collections import OrderedDict
-import copy
 from difflib import SequenceMatcher
 import os
 import re
@@ -93,7 +92,7 @@ class ModuleManager:
         # Setup the regex used to find Fortran modules. Have to be careful not
         # to match e.g. "module procedure :: some_sub".
         self._module_pattern = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
-                                          flags=(re.IGNORECASE | re.MULTILINE))
+                                          flags=re.IGNORECASE | re.MULTILINE)
 
     # ------------------------------------------------------------------------
     def add_search_path(self, directories, recursive=True):
@@ -378,8 +377,11 @@ class ModuleManager:
         '''
         result = []
 
-        # Create a copy to avoid modifying the callers data structure:
-        todo = copy.deepcopy(module_dependencies)
+        # Create a copy to avoid modifying the callers data structure, and
+        # also make sure all dependencies are in lower case
+        todo = {}
+        for module, dependencies in module_dependencies.items():
+            todo[module.lower()] = set(i.lower() for i in dependencies)
 
         # Consistency check: test that all dependencies listed are also
         # a key in the list, otherwise there will be a dependency that
@@ -415,7 +417,7 @@ class ModuleManager:
                 # dependencies, the best we can do in this case - and
                 # it's better to provide all modules (even if they cannot)
                 # be sorted, than missing some.
-                all_mods_sorted = sorted((mod for mod in todo.keys()),
+                all_mods_sorted = sorted((mod for mod in todo),
                                          key=lambda x: len(todo[x]))
                 mod = all_mods_sorted[0]
 
