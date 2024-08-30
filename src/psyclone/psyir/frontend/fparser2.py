@@ -839,7 +839,7 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         return _kind_find_or_create(precision_name, symbol_table)
 
 
-def _process_routine_symbols(module_ast, container, symbol_table,
+def _process_routine_symbols(module_ast, container,
                              visibility_map):
     '''
     Examines the supplied fparser2 parse tree for a module and creates
@@ -850,8 +850,6 @@ def _process_routine_symbols(module_ast, container, symbol_table,
     :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
     :param container: the PSyIR node in which to add the empty Routine nodes.
     :type container: :py:class:`psyclone.psyir.nodes.Container`
-    :param symbol_table: the SymbolTable to which to add the symbols.
-    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
     :param visibility_map: dict of symbol names with explicit visibilities.
     :type visibility_map: Dict[str, \
         :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
@@ -877,7 +875,8 @@ def _process_routine_symbols(module_ast, container, symbol_table,
         # Type to give the RoutineSymbol.
         sym_type = type_map[type(routine)]()
         # Visibility of the symbol.
-        vis = visibility_map.get(name.lower(), symbol_table.default_visibility)
+        vis = visibility_map.get(name.lower(),
+                                 container.symbol_table.default_visibility)
         # Check any prefixes on the routine declaration.
         prefix = routine.children[0].children[0]
         if prefix:
@@ -2023,9 +2022,6 @@ class Fparser2Reader():
                                    is_constant=has_constant_value,
                                    initial_value=init_expr)
                 else:
-                    # RoutineSymbols will never be shadowed as FParser will
-                    # always have a container as a parent of a Routine.
-                    # Check is the symbol is unresolved.
                     if not sym.is_unresolved:
                         raise SymbolError(
                             f"Symbol '{sym_name}' already present in "
@@ -2511,9 +2507,7 @@ class Fparser2Reader():
                         # Check whether the symbol we're about to add
                         # corresponds to the routine we're currently inside. If
                         # it does then we remove the RoutineSymbol in order to
-                        # free the exact name for the DataSymbol, but we keep
-                        # the tag to reintroduce it to the new symbol.
-                        tag = None
+                        # free the exact name for the DataSymbol.
                         try:
                             routine_name = parent.name
                             if routine_name.lower() == symbol_name:
@@ -2538,8 +2532,7 @@ class Fparser2Reader():
                                         partial_datatype=datatype),
                                     interface=UnknownInterface(),
                                     visibility=vis,
-                                    initial_value=init),
-                                tag=tag)
+                                    initial_value=init))
                         except KeyError as err:
                             if len(orig_children) == 1:
                                 raise SymbolError(
@@ -5307,16 +5300,14 @@ class Fparser2Reader():
         # to create its symbol and store it there. No visibility information
         # is available since we're not contained in module.
         if isinstance(parent, FileContainer):
-            _process_routine_symbols(node, parent, parent.symbol_table, {})
+            _process_routine_symbols(node, parent, {})
 
         name = node.children[0].children[1].string
         routine = None
         # The Routine may have been forward declared in
         # _process_routine_symbol, and so may already exist in the
-        # PSyIR as a child of parent with no subtree. If so, we find the
+        # PSyIR as a child of parent with no body. If so, we find the
         # Routine object and fill it with the Routine internals.
-        # If we find a Routine object in this way we also need to detach it
-        # from its parent so it can be added to its parent in _create_child.
         for routine_node in parent.walk(Routine):
             if routine_node.name.lower() == name.lower():
                 routine = routine_node
@@ -5388,7 +5379,6 @@ class Fparser2Reader():
 
                 # Ensure that we have an explicit declaration for the symbol
                 # returned by the function.
-                keep_tag = None
                 if (return_name not in routine.symbol_table or
                         isinstance(routine.symbol_table.lookup(return_name),
                                    RoutineSymbol)):
@@ -5428,7 +5418,6 @@ class Fparser2Reader():
                         except KeyError:
                             pass
                     routine.symbol_table.new_symbol(return_name,
-                                                    tag=keep_tag,
                                                     symbol_type=DataSymbol,
                                                     datatype=base_type,
                                                     shadowing=True)
@@ -5542,8 +5531,7 @@ class Fparser2Reader():
         container.symbol_table.default_visibility = default_visibility
 
         # Create symbols for all routines defined within this module
-        _process_routine_symbols(node, container,
-                                 container.symbol_table, visibility_map)
+        _process_routine_symbols(node, container, visibility_map)
 
         # Parse the declarations if it has any
         try:

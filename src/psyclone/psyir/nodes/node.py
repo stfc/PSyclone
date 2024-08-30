@@ -1754,10 +1754,11 @@ class Node():
         Specify how this node must update its parent's symbol table (if it has
         one) when its parent is updated.
 
+        This base implementation does nothing.
+
         :param new_parent: The new parent of this node.
         :type new_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
-        This base implementation does nothing.
         '''
 
 

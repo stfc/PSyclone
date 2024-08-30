@@ -68,10 +68,8 @@ class LFRicInvokeSchedule(InvokeSchedule):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    # Rather than passing an LFRicSymbolTable we should use the functionality
-    # in scoping node to determine the type of this symbol table. This also
-    # avoids collision due to Routine.create passing the symbol_table kwarg
-    # to this function.
+    # LFRicInvokeSchedule always uses an LFRicSymbolTable for its inner scope
+    # symbol table.
     _symbol_table_class = LFRicSymbolTable
 
     def __init__(self, symbol, alg_calls=None, reserved_names=None,

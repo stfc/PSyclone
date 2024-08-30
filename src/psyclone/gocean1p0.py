@@ -217,7 +217,6 @@ class GOInvoke(Invoke):
 
     '''
     def __init__(self, alg_invocation, idx, invokes):
-        # for pyreverse
         self._schedule = GOInvokeSchedule.create('name')
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
 
@@ -2160,9 +2159,6 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
             # generated first.
             pass
 
-        # Create the symbol for the routine and add it to the symbol table.
-        subroutine_symbol = RoutineSymbol("read_from_device")
-
         code = '''
             subroutine read_openacc(from, to, startx, starty, nx, ny, blocking)
                 use iso_c_binding, only: c_ptr
@@ -2174,6 +2170,9 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
             end subroutine read_openacc
             '''
 
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_symbol = RoutineSymbol("read_from_device")
+
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
         container = fortran_reader.psyir_from_source(code)
@@ -2181,9 +2180,6 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         # Add an ACCUpdateDirective inside the subroutine
         subroutine.addchild(ACCUpdateDirective([Signature("to")], "host",
                                                if_present=False))
-        sym_tab = subroutine.symbol_table.deep_copy()
-        generated_code = subroutine.pop_all_children()
-
         # Insert the routine as a child of the ancestor Container
         if not self.ancestor(Container):
             raise GenerationError(
@@ -2193,12 +2189,10 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
 
         self.ancestor(Container).symbol_table.add(subroutine_symbol,
                                                   tag="openacc_read_func")
-        real_subroutine = Routine(subroutine_symbol,
-                                  symbol_table=sym_tab)
-        for node in generated_code:
-            real_subroutine.addchild(node)
+        subroutine.detach()
+        subroutine.symbol = subroutine_symbol
 
-        self.ancestor(Container).addchild(real_subroutine)
+        self.ancestor(Container).addchild(subroutine)
 
         return symtab.lookup_with_tag("openacc_read_func")
 

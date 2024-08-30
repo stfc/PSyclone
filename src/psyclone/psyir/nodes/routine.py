@@ -82,7 +82,6 @@ class Routine(Schedule, CommentableMixin):
                             f"'{type(symbol).__name__}'")
         self._parent = None
         self._symbol = symbol
-#        self._symbol_in_table = False
         super().__init__(**kwargs)
 
         self._return_symbol = None
@@ -202,25 +201,22 @@ class Routine(Schedule, CommentableMixin):
         :raises GenerationError: if a Codeblock representing a routine with
                                  the same name already exists in the scope.
         '''
-        # Need to check the _parent property exists as the initial set of the
-        # _parent causes this to fail otherwise
         if self._parent is not None:
             try:
-                # Need a check that this Routine's symbol is in the current
-                # _parent symbol table, as otherwise this breaks during
-                # copying.
+                # TODO 2702: Need to check that this Routine's symbol is in
+                # the current _parent symbol table, as otherwise this breaks
+                # during copying.
                 if (self._parent.symbol_table.lookup(self.name)
                         is self._symbol):
                     self._parent.symbol_table.remove(self._symbol)
-#                    self._symbol_in_table = False
             except ValueError:
                 pass
             except KeyError:
                 pass
         elif new_parent is not None:
             # If the current parent is None and the new parent is not None
-            # then we remove the RoutineSymbol from out own symbol table
-            # it is present.
+            # then we remove the RoutineSymbol from the Routine's symbol table
+            # if it is present.
             try:
                 if self.symbol_table.lookup(self.name) is self._symbol:
                     self.symbol_table.remove(self._symbol)
@@ -398,7 +394,7 @@ class Routine(Schedule, CommentableMixin):
         if not isinstance(value, DataSymbol):
             raise TypeError(f"Routine return-symbol should be a DataSymbol "
                             f"but found '{type(value).__name__}'.")
-        if (value not in self.symbol_table.datasymbols):
+        if value not in self.symbol_table.datasymbols:
             raise KeyError(
                 f"For a symbol to be a return-symbol, it must be present in "
                 f"the symbol table of the Routine "
@@ -413,11 +409,6 @@ class Routine(Schedule, CommentableMixin):
         :type other: :py:class:`psyclone.psyir.node.Routine`
 
         '''
-        # Removing the parent_node knowledge from the default copy method
-        # before calling the super, else in Node we set self._parent = None
-        # and attempt to remove this symbol from a symbol table that doesn't
-        # contain it.
-        self._parent_node = None
         self._symbol = other._symbol.copy()
         super()._refine_copy(other)
         if other.return_symbol is not None:
@@ -463,10 +454,6 @@ class Routine(Schedule, CommentableMixin):
                 "The symbol of argument node in method replace_with in the "
                 "Routine class should be the same as the Routine being "
                 "replaced.")
-        # Set the symbol_in_table status so when using the _parent setter
-        # we don't attempt to overwrite the symbol, as its already in the
-        # symbol table.
-#        node._symbol_in_table = self._symbol_in_table
         super().replace_with(node, keep_name_in_context=keep_name_in_context)
 
 

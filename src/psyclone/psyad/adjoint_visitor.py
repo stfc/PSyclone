@@ -443,8 +443,8 @@ class AdjointVisitor(PSyIRVisitor):
                 result = [result]
             node_copy.children.extend(result)
 
-        # Update any GenericInterfaceSymbols to the use the new routine
-        # symbols created during copying.
+        # TODO #2596 Update any GenericInterfaceSymbols to the use the new
+        # routine symbols created during copying.
         sym_tab = node_copy.symbol_table
         for symbol in node_copy.symbol_table.get_symbols():
             symbol_obj = sym_tab.lookup(symbol)

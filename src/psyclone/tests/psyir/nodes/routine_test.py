@@ -303,7 +303,7 @@ def test_routine_replace_with(fortran_reader):
     assert rout2.parent is psyir
 
 
-def test_routine_illegal_parent(fortran_reader):
+def test_routine_update_parent_symbol_table_illegal_parent(fortran_reader):
     ''' Test the cases where we're attempting to add a routine into
      a scope we aren't allowed. '''
     code = '''module my_mod
@@ -333,7 +333,6 @@ def test_routine_illegal_parent(fortran_reader):
     end module my_mod'''
     psyir = fortran_reader.psyir_from_source(code)
     module = psyir.walk(Container)[1]
-    print(module.children[0])
     assert isinstance(module.children[0], CodeBlock)
     alt_routine = Routine(module.symbol_table.lookup("routine"))
     with pytest.raises(GenerationError) as excinfo:
@@ -341,3 +340,34 @@ def test_routine_illegal_parent(fortran_reader):
     assert ("Can't add routine 'routine' into a scope that already contains "
             "a CodeBlock representing a routine with that name."
             in str(excinfo.value))
+
+
+def test_routine_update_parent_symbol_table():
+    ''' Test the update_parent_symbol_table function of the Routine class.
+    Some of the tests here are accessed through addchild of a container. '''
+    routine = Routine.create("test")
+
+    symbol_table = SymbolTable()
+    container = Container.create("my_container", symbol_table, [])
+
+    assert routine.symbol_table.lookup("test") is not None
+    container.addchild(routine)
+    # Routine's symbol table should no longer contain the RoutineSymbol
+    with pytest.raises(KeyError):
+        routine.symbol_table.lookup("test", scope_limit=routine)
+    assert container.symbol_table.lookup("test") is routine.symbol
+
+    # Test the update_parent_symbol_table mimicing using replace_with.
+    routine2 = Routine(routine.symbol)
+    routine.detach()
+    container.symbol_table.add(routine.symbol)
+    routine2.update_parent_symbol_table(container)
+    # This all should work correctly, add routine2 as a child of container
+    # so we can test the last section
+    container.addchild(routine2)
+    # Test the removal of a parent section of update_parent_symbol_table
+    with pytest.raises(KeyError):
+        routine2.symbol_table.lookup("test", scope_limit=routine2)
+    routine2.update_parent_symbol_table(None)
+    assert (routine2.symbol_table.lookup("test", scope_limit=routine2) is
+            routine.symbol)
