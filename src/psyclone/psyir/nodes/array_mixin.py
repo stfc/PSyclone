@@ -610,7 +610,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :rtype: list[:py:class:`psyclone.psyir.nodes.DataNode`]
 
         :raises NotImplementedError: if any of the array-indices involve a
-                                     function call or an expression.
+                                     function call or an expression or are
+                                     of unknown type.
         '''
         shape = []
         for idx, idx_expr in enumerate(self.indices):
@@ -639,7 +640,13 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         sizeop = IntrinsicCall.create(
                             IntrinsicCall.Intrinsic.SIZE, [idx_expr.copy()])
                         shape.append(sizeop)
-
+                elif isinstance(dtype, (UnsupportedType, UnresolvedType)):
+                    raise NotImplementedError(
+                        f"The array index expression "
+                        f"'{idx_expr.debug_string()}' in access "
+                        f"'{self.debug_string()}' is of '{dtype}' type and "
+                        f"therefore whether it is an array slice (i.e. an "
+                        f"indirect access) cannot be determined.")
             elif isinstance(idx_expr, (Call, Operation, CodeBlock)):
                 # We can't yet straightforwardly query the type of a function
                 # call or Operation - TODO #1799.
