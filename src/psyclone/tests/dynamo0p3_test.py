@@ -309,16 +309,20 @@ def test_unnecessary_shape():
 def test_kernel_call_invalid_iteration_space():
     ''' Check that we raise an exception if we attempt to generate kernel
     call for a kernel with an unsupported iteration space.
-
     '''
-    _, invoke_info = parse(os.path.join(
-        BASE_PATH, "1.14_single_invoke_dofs.f90"), api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = psy.gen
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_dofs_mod.f90"),
+                      ignore_comments=False)
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
+    kernel.load_meta(metadata)
+    # set iterates_over to something unsupported
+    kernel._iterates_over = "vampires"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = kernel.validate_global_constraints()
     assert ("The LFRic API supports calls to user-supplied kernels that "
-            "operate on one of ['cell_column', 'domain'], but "
-            "kernel 'testkern_dofs_code' operates on 'dof'."
+            "operate on one of ['cell_column', 'domain', 'dof'], but "
+            "kernel 'testkern_dofs_code' operates on 'vampires'."
             in str(excinfo.value))
 
 
@@ -1203,7 +1207,8 @@ def test_kernel_datatype_not_found():
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(BASE_PATH, "testkern_no_datatype_mod.f90"),
                  api=TEST_API)
-    assert 'Kernel type testkern_type does not exist' in str(excinfo.value)
+    assert ('Kernel type testkern_no_datatype_type does not exist' in
+            str(excinfo.value))
 
 
 def test_arg_descriptor_funcs_method_error():

@@ -50,9 +50,9 @@ jobs:
       NETCDF_C_VERSION: 4.9.2
       NETCDF_FORTRAN_VERSION: 4.6.1
       NVFORTRAN_VERSION: 23.7
-      ONEAPI_VERSION: 2024.1.0
-      PERL_VERSION: 5.38.2
-      PYTHON_VERSION: 3.12.3
+      ONEAPI_VERSION: 2024.2.1
+      PERL_VERSION: 5.40.0
+      PYTHON_VERSION: 3.12.5
 
     steps:
     - uses: actions/checkout@v3
@@ -131,12 +131,12 @@ jobs:
         make -j 4 compile-openmp_gpu
         export NV_ACC_POOL_THRESHOLD=75
         make run-openmp_gpu |& tee output.txt
-        # Check the output is as expected for the first 6 digits
-        tail -n 1 output.txt | grep -q " it :      10"
-        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483"
-        tail -n 1 output.txt | grep -q "|U|_max:  0.458515"
-        tail -n 1 output.txt | grep -q "S_min:  0.482686"
-        tail -n 1 output.txt | grep -q "S_max:  0.407622"
+        # Check the output is as expected for the first 6 digits (if not exit with error message)
+        tail -n 1 output.txt | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
+        tail -n 1 output.txt | grep -q "|U|_max:  0.458515" || (echo "Error: '|U|_max:  0.458515' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_min:  0.482686" || (echo "Error: 'S_min:  0.482686' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_max:  0.407622" || (echo "Error: 'S_max:  0.407622' not found!" & false)
         export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openmp_gpu
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
@@ -147,13 +147,6 @@ jobs:
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "NEMO OpenMP for GPU", nemo_version: "NEMO MO 4.0.2", system: "GlaDos",
           compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
-
-    - name: Upload NEMO OpenMP GPU results
-      uses: exuanbo/actions-deploy-gist@v1
-      with:
-        token: ${{ secrets.GIST_TOKEN }}
-        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
-        file_path: ../../../../store_results/performance_history_openmp_gpu
 
     # PSyclone, compile and run MetOffice NEMO with OpenACC kernels for GPUs
     - name: NEMO MetOffice OpenACC kernels for GPU
@@ -169,12 +162,12 @@ jobs:
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j 4 compile-openacc_kernels
         export NV_ACC_POOL_THRESHOLD=75
         make run-openacc_kernels |& tee output.txt
-        # Check the output is as expected for the first 6 digits
-        tail -n 1 output.txt | grep -q " it :      10"
-        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483"
-        tail -n 1 output.txt | grep -q "|U|_max:  0.458515"
-        tail -n 1 output.txt | grep -q "S_min:  0.482686"
-        tail -n 1 output.txt | grep -q "S_max:  0.407622"
+        # Check the output is as expected for the first 6 digits (if not exit with error message)
+        tail -n 1 output.txt | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
+        tail -n 1 output.txt | grep -q "|U|_max:  0.458515" || (echo "Error: '|U|_max:  0.458515' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_min:  0.482686" || (echo "Error: 'S_min:  0.482686' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_max:  0.407622" || (echo "Error: 'S_max:  0.407622' not found!" & false)
         export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openacc_kernels_gpu
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
@@ -185,13 +178,6 @@ jobs:
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "NEMO OpenACC kernels for GPU", nemo_version: "MEMO MO 4.0.2", system: "GlaDos",
           compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
-
-    - name: Upload NEMO OpenACC kernels GPU results
-      uses: exuanbo/actions-deploy-gist@v1
-      with:
-        token: ${{ secrets.GIST_TOKEN }}
-        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
-        file_path: ../../../../store_results/performance_history_openacc_kernels_gpu
 
     # PSyclone, compile and run MetOffice NEMO with OpenACC loops for GPUs
     - name: NEMO MetOffice OpenACC loops for GPU
@@ -207,12 +193,12 @@ jobs:
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j 4 compile-openacc_loops
         export NV_ACC_POOL_THRESHOLD=75
         make run-openacc_loops |& tee output.txt
-        # Check the output is as expected for the first 6 digits
-        tail -n 1 output.txt | grep -q " it :      10"
-        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483"
-        tail -n 1 output.txt | grep -q "|U|_max:  0.458515"
-        tail -n 1 output.txt | grep -q "S_min:  0.482686"
-        tail -n 1 output.txt | grep -q "S_max:  0.407622"
+        # Check the output is as expected for the first 6 digits (if not exit with error message)
+        tail -n 1 output.txt | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
+        tail -n 1 output.txt | grep -q "|U|_max:  0.458515" || (echo "Error: '|U|_max:  0.458515' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_min:  0.482686" || (echo "Error: 'S_min:  0.482686' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_max:  0.407622" || (echo "Error: 'S_max:  0.407622' not found!" & false)
         export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openacc_loops_gpu
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
@@ -223,14 +209,7 @@ jobs:
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "NEMO OpenACC loops for GPU", nemo_version: "MEMO MO 4.0.2", system: "GlaDos",
           compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
-
-    - name: Upload NEMO OpenACC loops GPU results
-      uses: exuanbo/actions-deploy-gist@v1
-      with:
-        token: ${{ secrets.GIST_TOKEN }}
-        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
-        file_path: ../../../../store_results/performance_history_openacc_loops_gpu
-        
+      
     # PSyclone, compile and run ECMWF NEMO with OpenMP for CPUs. This uses
     # the Intel compiler and does not disable MPI. Therefore we have to ensure
     # that we provide the path to the header files for Intel MPI.
@@ -254,11 +233,11 @@ jobs:
         export OMP_NUM_THREADS=4
         make run-openmp_cpu |& tee output.txt
         # Check the output is as expected for the first 6 digits
-        tail -n 1 output.txt | grep -q " it :      10"
-        tail -n 1 output.txt | grep -q "|ssh|_max:  0.199714"
-        tail -n 1 output.txt | grep -q "|U|_max:  0.148409"
-        tail -n 1 output.txt | grep -q "S_min:  0.108530"
-        tail -n 1 output.txt | grep -q "S_max:  0.404045"
+        tail -n 1 output.txt | grep -q " it :      10" || (echo "Error: 'it :      10' not found!" & false)
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.199714" || (echo "Error: '|ssh|_max:  0.199714' not found!" & false)
+        tail -n 1 output.txt | grep -q "|U|_max:  0.148409" || (echo "Error: '|U|_max:  0.148409' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_min:  0.108530" || (echo "Error: 'S_min:  0.108530' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_max:  0.404045" || (echo "Error: 'S_max:  0.404045' not found!" & false)
         export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo  $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openmp_cpu
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
@@ -270,10 +249,3 @@ jobs:
           ci_test: "NEMO OpenMP for CPU", nemo_version: "NEMO ECMWF 4.0 V40 with mpp", system: "GlaDos",
           compiler:"intel-'"$ONEAPI_VERSION"'" , date: new Date(),
           num_omp_threads: '"$OMP_NUM_THREADS"', elapsed_time: '"$VAR_TIME"'})'
-
-    - name: Upload NEMO OpenMP CPU results
-      uses: exuanbo/actions-deploy-gist@v1
-      with:
-        token: ${{ secrets.GIST_TOKEN }}
-        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
-        file_path: ../../../../store_results/performance_history_openmp_cpu

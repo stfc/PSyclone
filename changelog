@@ -192,6 +192,25 @@
 	66) PR #2651 for #2617. Fixes PSyKE driver create for LFRic in the
 	event of a call to a generic routine interface.
 
+	67) PR #2650 for #2630. Adds basic support for DATA statements in the
+	fparser2 frontend.
+
+	68) PR #2679 for #2676. Adds check for impure calls to the
+	ParallelLoopTrans.validate method. This fixes a race condition in the
+	sea-ice code in NEMO. Updates the NEMO workflow so that error
+	reporting is improved and timing results no longer uploaded to gist.
+
+	69) PR #2656 for #2634. Fixes and improvements for the 'nemo' tutorials.
+
+	70) PR #2413 towards #924. Add find_container_psyir, find_routine_psyir
+	and get_callees utilities to simplify the inlining transformation.
+
+	71) PR #2523 towards #1719. Add the poly_{1,2}d_reconstruction kernels
+	and tweak the adjoint README files.
+
+	72) PR #2675 towards #1351. Refactors the LFRic metadata checking and
+	adds support for user-supplied kernels that operate on dofs.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data

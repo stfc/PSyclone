@@ -67,8 +67,8 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DataSymbol, UnresolvedType, INTEGER_TYPE,
-    ScalarType, Symbol, SymbolError)
+    ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
+    SymbolError, UnresolvedType)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import (
@@ -876,12 +876,10 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
             incorrect code.
 
         '''
-        if not options:
-            options = {}
-
         # Since this function potentially modifies the user's option
         # dictionary, create a copy:
-        options = options.copy()
+        options = options.copy() if options else {}
+
         # Make sure the default is set:
         options["reprod"] = options.get("reprod",
                                         Config.get().reproducible_reductions)
@@ -904,20 +902,17 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
         :param node: the Node in the Schedule to check.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations \
+        :param options: a dictionary with options for transformations
                         and validation.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["reprod"]: \
-                indicating whether reproducible reductions should be used. \
+        :type options: Optional[dict[str, Any]]
+        :param bool options["reprod"]:
+                indicating whether reproducible reductions should be used.
                 By default the value from the config file will be used.
 
         '''
-        if not options:
-            options = {}
-
         # Since this function potentially modifies the user's option
         # dictionary, create a copy:
-        options = options.copy()
+        options = options.copy() if options else {}
         # Make sure the default is set:
         options["reprod"] = options.get("reprod",
                                         Config.get().reproducible_reductions)

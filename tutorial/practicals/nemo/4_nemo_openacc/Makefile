@@ -50,8 +50,10 @@ F90 ?= gfortran
 F90FLAGS ?= -fopenacc -O2
 
 # For NVIDIA we could use:
-# F90FLAGS = -acc -ta=tesla -O2 -Minfo=all
+# F90FLAGS = -acc -O2 -Minfo=all -Mnofma
 # F90 = nvfortran
+# (Note that '-Mnofma' is required to get identical results from CPU and
+# GPU for this benchmark.)
 
 # ------------------------------------------------------------------------------
 NAME = ./tra_adv.exe
@@ -92,3 +94,9 @@ compile: transform $(NAME)
 
 run: compile
 	JPK=30 JPJ=100 JPI=100 IT=10 $(NAME)
+
+# Runs the OpenACC version, checks the number of kernel launches and
+# checks that the outputs match the KGOs from CPU. (On NVIDIA, the
+# latter step requires the '-Mnofma' compiler flag.)
+acc_test: compile
+	./solutions/test_acc.sh
