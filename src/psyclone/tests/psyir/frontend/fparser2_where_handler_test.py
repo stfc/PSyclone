@@ -876,3 +876,36 @@ def test_where_scalar_var(fortran_reader, code):
     for ref in refs:
         if "var" in ref.symbol.name:
             assert isinstance(ref, ArrayReference)
+
+
+def test_import_in_where_clause(fortran_reader):
+    '''
+    Test that imported symbols inside a where clause produce a code block
+    as we don't know what is scalar vs an array.
+    '''
+    code = '''
+    program where_test
+    implicit none
+    use some_module, only: a, b, c, d
+
+    where(a(:) + b > 1)
+       b = c + d
+    end where
+    end program
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0].children[0], CodeBlock)
+
+    code2 = '''
+    program where_test
+    implicit none
+    use some_module, only: c, d
+    integer, dimension(100) :: a, b
+
+    where(a(:) + b > 1)
+       b = c + d
+    end where
+    end program
+    '''
+    psyir = fortran_reader.psyir_from_source(code2)
+    assert isinstance(psyir.children[0].children[0], CodeBlock)

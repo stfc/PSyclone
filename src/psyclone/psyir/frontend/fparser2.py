@@ -4189,6 +4189,10 @@ class Fparser2Reader():
         # Convert References to arrays to use the array range notation unless
         # they have an IntrinsicCall parent.
         for ref in parent.walk(Reference):
+            if isinstance(ref.symbol.interface, ImportInterface):
+                raise NotImplementedError(
+                        "PSyclone doesn't yet support reference to imported "
+                        "symbols inside WHERE clauses.")
             if (isinstance(ref.symbol, DataSymbol) and
                     not ref.ancestor(IntrinsicCall)):
                 try:
@@ -4404,13 +4408,26 @@ class Fparser2Reader():
         # that is defined we will not convert this correctly yet.
         # Convert References to arrays to use the array range notation unless
         # they have an IntrinsicCall parent.
-        for ref in fake_parent.walk(Reference):
+        references = fake_parent.walk(Reference)
+        for ref in references:
+            if isinstance(ref.symbol.interface, ImportInterface):
+                raise NotImplementedError(
+                        "PSyclone doesn't yet support reference to imported "
+                        "symbols inside WHERE clauses.")
+            intrinsic_ancestor = ref.ancestor(IntrinsicCall)
             if (isinstance(ref.symbol, DataSymbol) and
-                    not ref.ancestor(IntrinsicCall)):
+                    not intrinsic_ancestor):
                 try:
                     Reference2ArrayRangeTrans().apply(ref)
                 except TransformationError:
                     pass
+            elif (intrinsic_ancestor is not None and
+                    intrinsic_ancestor.intrinsic.name.lower() not in
+                    ["minval", "maxval", "sum", "lbound", "ubound"]):
+                raise NotImplementedError(
+                        f"Intrinsic '{intrinsic_ancestor.intrinsic.name}' is "
+                        f" not supported in a WHERE region")
+
         arrays = fake_parent.walk(ArrayMixin)
 
         for array in arrays:
