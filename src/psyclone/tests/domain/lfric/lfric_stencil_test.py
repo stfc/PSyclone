@@ -258,7 +258,7 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
 def test_stencil_args_unique_1(dist_mem, tmpdir):
     ''' This test checks that stencil extent and direction arguments do not
     clash with internal names generated in the PSy-layer. f2_stencil_size
-    and nlayers are chosen as the names that would clash.
+    and nlayers_f1 are chosen as the names that would clash.
 
     '''
     _, invoke_info = parse(

@@ -1635,19 +1635,22 @@ class LFRicCellIterators(LFRicCollection):
     def __init__(self, kern_or_invoke):
         super().__init__(kern_or_invoke)
 
+        # Dictionary to hold the names of the various nlayers variables and
+        # (for invokes) the kernel argument to which each corresponds.
+        self._nlayers_names = {}
+
         if not self._invoke:
             # We are dealing with a single Kernel so there is only one
-            # 'nlayers' variable.
-            self._nlayers_names = {
-                self._symbol_table.find_or_create_tag(
-                    "nlayers",
-                    symbol_type=LFRicTypes("MeshHeightDataSymbol")).name}
+            # 'nlayers' variable and we don't need to store the associated
+            # argument.
+            self._nlayers_names[self._symbol_table.find_or_create_tag(
+                "nlayers",
+                symbol_type=LFRicTypes("MeshHeightDataSymbol")).name] = None
             # We're not generating a PSy layer so we're done here.
             return
 
         # Each kernel needs an 'nlayers' obtained from the first written
         # field/operator argument.
-        self._nlayers_names = {}
         for kern in self._invoke.schedule.walk(LFRicKern):
             if kern.iterates_over not in ["cell_column", "domain"]:
                 # Only user-supplied kernels that operate on either the domain
@@ -1702,7 +1705,7 @@ class LFRicCellIterators(LFRicCollection):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in",
-                               entity_decls=list(self._nlayers_names)))
+                               entity_decls=list(self._nlayers_names.keys())))
 
     def initialise(self, parent):
         '''
