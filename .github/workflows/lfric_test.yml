@@ -159,12 +159,13 @@ jobs:
         token: ${{ secrets.GIST_TOKEN }}
         gist_id: a4049a0fc0a0a11651a5ce6a04d76160
         file_path: ../../../../store_results/lfric_optimised_performance_history
+
     # PSyclone, compile and run MetOffice GravityWave on GPU
     - name: LFRic GravityWave with OpenACC offload
       run: |
         # Set up environment
-        source /apps/spack/spack-upstream/share/spack/setup-env.sh
-        spack load lfric-buildenv%nvhpc
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment%nvhpc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR==${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
