@@ -40,7 +40,7 @@ import sys
 import os
 import math
 
-TOLERANCE = 1e-05
+TOLERANCE = 1e-07
 
 
 def is_float(x):

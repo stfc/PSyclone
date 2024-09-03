@@ -108,6 +108,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :raises TransformationError: if the given loops calls a procedure that
             is not guaranteed to be pure (and therefore could have dependencies
             beyond the specified by the arguments intent)
+        :raises TransformationError: if the given loop is inside a pure routine
+            as these do not allow parallel constructs.
         :raises TransformationError: if there is a data dependency that
             prevents the parallelisation of the loop and the provided
             options don't disregard them.
@@ -143,6 +145,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         routine = node.ancestor(Routine)
         if routine is not None and routine.parent is not None:
             try:
+                # TODO #2596: Replace with routine.symbol
                 rsym = routine.parent.symbol_table.lookup(routine.name)
                 if rsym.is_pure or rsym.is_elemental:
                     raise TransformationError(

@@ -7,16 +7,16 @@
 !-----------------------------------------------------------------------
    cn_exp      =   'BENCH' !  experience name
    nn_it000    =       1   !  first time step
-   nn_itend    =      10   !  last time step 
+   nn_itend    =    100   !  last time step 
    nn_stock    =      -1   !  frequency of creation of a restart file (modulo referenced to 1)
    nn_write    =      -1   !  frequency of write in the output file   (modulo referenced to nn_it000)
 /
 !-----------------------------------------------------------------------
 &namusr_def    !   User defined :   BENCH configuration: Flat bottom, beta-plane
 !-----------------------------------------------------------------------
-   nn_isize   =   180      ! number of point in i-direction of global(local) domain if >0 (<0)  
-   nn_jsize   =   166      ! number of point in j-direction of global(local) domain if >0 (<0)  
-   nn_ksize   =   40       ! total number of point in k-direction
+   nn_isize   =   64      ! number of point in i-direction of global(local) domain if >0 (<0)  
+   nn_jsize   =   64      ! number of point in j-direction of global(local) domain if >0 (<0)  
+   nn_ksize   =   30       ! total number of point in k-direction
    ln_Iperio  =   .true.   ! i-periodicity
    ln_Jperio  =  .false.   ! j-periodicity
    ln_NFold   =   .true.   ! North pole folding
@@ -32,14 +32,12 @@
 !-----------------------------------------------------------------------
 &namctl        !   Control prints                                       (default: OFF)
 !-----------------------------------------------------------------------
-   ln_timing   = .true.   !  timing by routine write out in timing.output file
-   sn_cfctl%l_runstat = .true. ! Output run.stat
+   ln_timing   = .false.   !  timing by routine write out in timing.output file
 /
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
    rn_Dt      =    360.    !  time step for the dynamics (and tracer if nn_acc=0)
-   rn_atfp     =   0.05    !  asselin time filter parameter
    ln_meshmask = .false.   !  =T create a mesh file
 /
 

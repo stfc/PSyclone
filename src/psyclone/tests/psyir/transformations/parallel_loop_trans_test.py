@@ -123,6 +123,13 @@ def test_paralooptrans_validate_loop_inside_pure(fortran_reader):
     a loop inside a pure (or elemental) routine
     '''
     psyir = fortran_reader.psyir_from_source('''
+    program test_prog
+        real, dimension(10) :: var = 1
+        integer :: j
+        do j = LBOUND(var), UBOUND(var)
+          var(j) = var(j) + 1
+        end do
+    end program
     module test
         contains
         elemental function my_func(a)
@@ -148,7 +155,12 @@ def test_paralooptrans_validate_loop_inside_pure(fortran_reader):
     ''')
 
     trans = ParaTrans()
-    for loop in psyir.walk(Loop):
+    loops = psyir.walk(Loop)
+
+    # The first one succeeds as it is not inside a pure function
+    trans.validate(loops[0], {"verbose": True})
+
+    for loop in loops[1:]:
         # Check that we reject parallelisng inside a pure routine
         with pytest.raises(TransformationError) as err:
             trans.validate(loop, {"verbose": True})

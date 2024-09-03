@@ -853,7 +853,7 @@ def test_gen_access_stmts_avoids_internal(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(test_module)
     # Check that the internal symbol exists but is not listed
     assert psyir.children[0].symbol_table.lookup("_PSYCLONE_INTERNAL_test")
-    assert "_PSYCLONE_INTERNAL_test" not in fortran_writer(psyir)
+    assert "_psyclone_internal_test" not in fortran_writer(psyir).lower()
 
 
 def test_fw_exception(fortran_writer):

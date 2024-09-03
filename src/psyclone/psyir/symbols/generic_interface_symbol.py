@@ -46,7 +46,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
 
     :param str name: name of the interface.
     :param routines: the routines that this interface provides access to,
-        nd whether or not each of them is a module procedure.
+        and whether or not each of them is a module procedure.
     :type routines: list[
         tuple[:py:class:`psyclone.psyir.symbols.RoutineSymbol`, bool]]
     :param kwargs: additional keyword arguments provided by

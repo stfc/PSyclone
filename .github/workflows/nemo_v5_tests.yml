@@ -34,7 +34,7 @@
 # Author S. Siso, STFC Daresbury Lab
 
 # This workflow will use a self-hosted runner to perform the more expensive
-# integrations tests that are not run on GHA systems.
+# NEMOv5 integrations tests that are not run on GHA systems.
 
 name: NEMOv5 Integration Tests
 
@@ -93,10 +93,11 @@ jobs:
 
         # Run Orca2
         cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_GCC/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_orca2_like namelist_cfg
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_test namelist_cfg
         mpirun -np 4 ./nemo
-        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.orca2.4mpi.10steps run.stat
-        cat run.stat
+        tail run.stat
+        # This was produced with gfortran, so we can do an exact diff
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.test.100steps run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
 
@@ -111,10 +112,9 @@ jobs:
         export NEMO_DIR=${HOME}/NEMOv5
         
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
-        # We compile at -O1 to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O1 -Minline -Mcray=pointer -Mpre -g"
+        export FCFLAGS="-i4 -Mr8 -O2 -Minline -Mcray=pointer -Mpre -g"
         
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
@@ -124,10 +124,10 @@ jobs:
 
         # Run Orca2
         cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_NVHPC/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_orca2_like namelist_cfg
-        mpirun -np 4 ./nemo
-        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.orca2.4mpi.10steps run.stat
-        cat run.stat
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_test namelist_cfg
+        ./nemo
+        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.test.100steps run.stat
+        tail run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
 
@@ -153,13 +153,12 @@ jobs:
 
         # Run Orca2
         cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_ONEAPI/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_orca2_like namelist_cfg
-        # It currently segfaults
-        # mpirun -np 4 ./nemo
-        # python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.orca2.4mpi.10steps run.stat
-        # cat run.stat
-        # export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
-        # echo "Time-stepping duration = " $VAR_TIME
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_test namelist_cfg
+        mpirun -np 6 ./nemo
+        tail run.stat
+        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.test.100steps run.stat
+        export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
+        echo "Time-stepping duration = " $VAR_TIME
         
     - name: NEMO 5.0 gfortran OpenMP for CPUs
       run: |
@@ -183,10 +182,10 @@ jobs:
 
         # Run Orca2
         cd $NEMO_DIR/tests/BENCH_OMP_THREADING_GCC/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_orca2_like namelist_cfg
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_test namelist_cfg
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
-        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.orca2.4mpi.10steps run.stat
-        cat run.stat
+        tail run.stat
+        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.test.100steps run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
         
@@ -214,9 +213,9 @@ jobs:
 
         # Run Orca2
         cd $NEMO_DIR/tests/BENCH_OMP_OFFLOAD_NVHPC/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_orca2_like namelist_cfg
-        mpirun -np 1 ./nemo
-        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.orca2.4mpi.10steps run.stat
-        cat run.stat
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_test namelist_cfg
+        ./nemo
+        tail run.stat
+        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.test.100steps run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
