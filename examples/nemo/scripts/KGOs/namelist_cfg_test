@@ -32,7 +32,8 @@
 !-----------------------------------------------------------------------
 &namctl        !   Control prints                                       (default: OFF)
 !-----------------------------------------------------------------------
-   ln_timing   = .false.   !  timing by routine write out in timing.output file
+   ln_timing   = .true.   !  timing by routine write out in timing.output file
+   sn_cfctl%l_runstat = .TRUE.
 /
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
