@@ -114,12 +114,12 @@ Value Range Check
 These libraries can test if user-defined variables are within a
 specified range. Additionally, they also verify that they are
 not ``NaN`` or infinite.  More information can be
-found in the :ref:`NAN Test <psydata_value_range_check>` section.
+found in the :ref:`Value Range Check <psydata_value_range_check>` section.
 
 The libraries for :ref:`LFRic <lfric-api>` and
 :ref:`GOcean <gocean-api>` APIs are included with PSyclone in
 the ``lib/value_range_check`` `directory
-<https://github.com/stfc/PSyclone/tree/master/lib/value_range_chec>`__.
+<https://github.com/stfc/PSyclone/tree/master/lib/value_range_check>`__.
 For detailed instructions on how to build and use these libraries
 please refer to their specific ``README.md`` documentation.
 
