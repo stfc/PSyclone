@@ -84,6 +84,8 @@ def test_lfriccelliterators_kernel_stub_declns():
     obj._stub_declarations(node)
     output1 = str(node.root).lower()
     assert "integer(kind=i_def), intent(in) :: nlayers" in output1
+    # Calling the 'initialise' method in the case of an LFRicKern should
+    # do nothing.
     obj.initialise(node)
     output2 = str(node.root).lower()
     assert output2 == output1
