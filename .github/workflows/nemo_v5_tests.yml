@@ -89,15 +89,15 @@ jobs:
         # Clean up and compile
         ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_GCC clean -y
         ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_GCC -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
-            del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" -j 4 -v 1
+            add_key "key_nosignedzero" -j 4 -v 1
 
-        # Run Orca2
+        # Run test
         cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_GCC/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_test namelist_cfg
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         mpirun -np 4 ./nemo
         tail run.stat
         # This was produced with gfortran, so we can do an exact diff
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.test.100steps run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.small.100steps run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
 
@@ -120,13 +120,13 @@ jobs:
         # Without key_mpi_off it fails to compile (even without psyclone)
         ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_NVHPC clean -y
         ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_NVHPC -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
-          del_key "key_xios key_iomput key_top" add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
+          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
 
-        # Run Orca2
+        # Run test
         cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_NVHPC/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_test namelist_cfg
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         ./nemo
-        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.test.100steps run.stat
+        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.small.100steps run.stat
         tail run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
@@ -149,14 +149,14 @@ jobs:
         # Clean up and compile
         ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_ONEAPI clean -y
         ./makenemo -r BENCH -m linux_spack -n BENCH_PASSTHROUGH_ONEAPI -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
-          del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" -j 4 -v 1
+          add_key "key_nosignedzero" -j 4 -v 1
 
-        # Run Orca2
+        # Run test
         cd $NEMO_DIR/tests/BENCH_PASSTHROUGH_ONEAPI/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_test namelist_cfg
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         mpirun -np 6 ./nemo
         tail run.stat
-        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.test.100steps run.stat
+        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.small.100steps run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
         
@@ -178,14 +178,14 @@ jobs:
         # Clean up and compile
         ./makenemo -r BENCH -m linux_spack -n BENCH_OMP_THREADING_GCC clean -y
         ./makenemo -r BENCH -m linux_spack -n BENCH_OMP_THREADING_GCC -p ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py \
-          del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" -j 4 -v 1
+          add_key "key_nosignedzero" -j 4 -v 1
 
-        # Run Orca2
+        # Run test
         cd $NEMO_DIR/tests/BENCH_OMP_THREADING_GCC/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_test namelist_cfg
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         tail run.stat
-        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.test.100steps run.stat
+        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.small.100steps run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
         
@@ -209,13 +209,13 @@ jobs:
         # Without key_mpi_off it fails to compile (even without psyclone)
         ./makenemo -r BENCH -m linux_spack -n BENCH_OMP_OFFLOAD_NVHPC clean -y
         ./makenemo -r BENCH -m linux_spack -n BENCH_OMP_OFFLOAD_NVHPC -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
-          del_key "key_xios key_iomput key_top" add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
+          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
 
-        # Run Orca2
+        # Run test
         cd $NEMO_DIR/tests/BENCH_OMP_OFFLOAD_NVHPC/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_test namelist_cfg
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         ./nemo
         tail run.stat
-        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.test.100steps run.stat
+        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.small.100steps run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
