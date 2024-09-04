@@ -96,7 +96,8 @@ class FortranReader():
 
         '''
         SYMBOL_TABLES.clear()
-        string_reader = FortranStringReader(source_code)
+        string_reader = FortranStringReader(
+            source_code, include_dirs=Config.get().include_paths)
         # Set reader to free format.
         string_reader.set_format(FortranFormat(free_form, False))
         parse_tree = self._parser(string_reader)
