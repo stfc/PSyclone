@@ -160,8 +160,8 @@ jobs:
         gist_id: a4049a0fc0a0a11651a5ce6a04d76160
         file_path: ../../../../store_results/lfric_optimised_performance_history
 
-    # PSyclone, compile and run MetOffice GravityWave on GPU
-    - name: LFRic GravityWave with OpenACC offload
+    # PSyclone, compile and run MetOffice gungho_model on GPU
+    - name: LFRic GungHo with OpenACC offload
       run: |
         # Set up environment
         source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
@@ -176,7 +176,7 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/acc_parallel.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf appplications/gungho_model/working
-        ./build/local_build.py -a gravity_wave -p psyclone-test
+        ./build/local_build.py -a gungho_model -p psyclone-test
         # Run
         cd applications/gungho_model/example
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its.nml configuration.nml
