@@ -51,10 +51,9 @@ from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
                                    LFRicConstants, LFRicKern,
                                    LFRicKernMetadata, LFRicLoop)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import (DynACCEnterDataDirective,
-                                DynBoundaryConditions, LFRicCellIterators,
-                                DynGlobalSum, DynKernelArguments, DynProxies,
-                                HaloReadAccess, KernCallArgList)
+from psyclone.dynamo0p3 import (
+    DynACCEnterDataDirective, DynBoundaryConditions, DynGlobalSum,
+    DynKernelArguments, DynProxies, HaloReadAccess, KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
@@ -3679,25 +3678,6 @@ def test_lfriccollection_err2(monkeypatch):
         proxies.declarations(ModuleGen(name="testmodule"))
     assert "LFRicCollection has neither a Kernel nor an Invoke" \
         in str(err.value)
-
-
-def test_lfriccelliterators_err(monkeypatch):
-    ''' Check that the LFRicCellIterators constructor raises the expected
-    error if it fails to find any field or operator arguments. '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    # The list of arguments is dynamically generated if it is empty so
-    # monkeypatch it to contain a single, scalar argument.
-    monkeypatch.setattr(invoke._psy_unique_vars[0], "_argument_type",
-                        "gh_scalar")
-    monkeypatch.setattr(invoke, "_psy_unique_vars",
-                        [invoke._psy_unique_vars[0]])
-    with pytest.raises(GenerationError) as err:
-        _ = LFRicCellIterators(invoke)
-    assert ("Cannot create an Invoke with no field/operator arguments."
-            in str(err.value))
 
 # tests for class kerncallarglist position methods
 

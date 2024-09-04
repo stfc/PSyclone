@@ -1620,119 +1620,6 @@ class DynProxies(LFRicCollection):
                         f"handled in DynProxies.initialise()")
 
 
-class LFRicCellIterators(LFRicCollection):
-    '''
-    Handles all entities required by kernels that operate on cell-columns.
-
-    :param kern_or_invoke: the Kernel or Invoke for which to manage cell
-                           iterators.
-    :type kern_or_invoke: :py:class:`psyclone.domain.lfric.LFRicKern` |
-                          :py:class:`psyclone.dynamo0p3.LFRicInvoke`
-
-    :raises GenerationError: if an Invoke has no field or operator arguments.
-
-    '''
-    def __init__(self, kern_or_invoke):
-        super().__init__(kern_or_invoke)
-
-        # Dictionary to hold the names of the various nlayers variables and
-        # (for invokes) the kernel argument to which each corresponds.
-        self._nlayers_names = {}
-
-        if not self._invoke:
-            # We are dealing with a single Kernel so there is only one
-            # 'nlayers' variable and we don't need to store the associated
-            # argument.
-            self._nlayers_names[self._symbol_table.find_or_create_tag(
-                "nlayers",
-                symbol_type=LFRicTypes("MeshHeightDataSymbol")).name] = None
-            # We're not generating a PSy layer so we're done here.
-            return
-
-        # Each kernel needs an 'nlayers' obtained from the first written
-        # field/operator argument.
-        for kern in self._invoke.schedule.walk(LFRicKern):
-            if kern.iterates_over not in ["cell_column", "domain"]:
-                # Only user-supplied kernels that operate on either the domain
-                # or cell-columns require nlayers.
-                continue
-            arg = kern.arguments.iteration_space_arg()
-            self._nlayers_names[self._symbol_table.find_or_create_tag(
-                f"nlayers_{arg.name}",
-                symbol_type=LFRicTypes("MeshHeightDataSymbol")).name] = arg
-
-        first_var = None
-        for var in self._invoke.psy_unique_vars:
-            if not var.is_scalar:
-                first_var = var
-                break
-        if not first_var:
-            raise GenerationError(
-                "Cannot create an Invoke with no field/operator arguments.")
-        self._first_var = first_var
-
-    def _invoke_declarations(self, parent):
-        '''
-        Declare entities required for iterating over cells in the Invoke.
-
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("lfric")
-
-        # Declare the number of layers in the mesh for each kernel that
-        # operates on cell-columns or the domain.
-        name_list = list(self._nlayers_names.keys())
-        if name_list:
-            name_list.sort()  # Purely for test reproducibility.
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=name_list))
-
-    def _stub_declarations(self, parent):
-        '''
-        Declare entities required for a kernel stub that operates on
-        cell-columns.
-
-        :param parent: the f2pygen node representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("lfric")
-
-        if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in",
-                               entity_decls=list(self._nlayers_names.keys())))
-
-    def initialise(self, parent):
-        '''
-        Look-up the number of vertical layers in the mesh for each user-
-        supplied kernel that operates on cell columns.
-
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        if not self._nlayers_names:
-            return
-
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Initialise number of layers"))
-        parent.add(CommentGen(parent, ""))
-        # Sort for test reproducibility
-        sorted_names = list(self._nlayers_names.keys())
-        sorted_names.sort()
-        for name in sorted_names:
-            var = self._nlayers_names[name]
-            parent.add(AssignGen(
-                parent, lhs=name,
-                rhs=(f"{var.proxy_name_indexed}%{var.ref_name()}%"
-                     f"get_nlayers()")))
-
-
 class DynLMAOperators(LFRicCollection):
     '''
     Handles all entities associated with Local-Matrix-Assembly Operators.
@@ -6245,7 +6132,6 @@ __all__ = [
     'DynamoPSy',
     'DynFunctionSpaces',
     'DynProxies',
-    'LFRicCellIterators',
     'DynLMAOperators',
     'DynCMAOperators',
     'DynMeshes',
