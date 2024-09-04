@@ -140,7 +140,7 @@ class LFRicCellIterators(LFRicCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        if not self._nlayers_names:
+        if not self._nlayers_names or not self._invoke:
             return
 
         parent.add(CommentGen(parent, ""))
