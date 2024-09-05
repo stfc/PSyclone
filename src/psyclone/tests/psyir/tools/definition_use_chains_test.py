@@ -36,20 +36,40 @@
 # TODO Info
 
 
-from psyclone.psyir.nodes import Routine, IfBlock, Loop, WhileLoop, Call, Reference, Assignment, Statement, IntrinsicCall, Schedule, Container, Node
-from psyclone.psyir.symbols import Symbol, AutomaticInterface, SymbolTable, DataSymbol, INTEGER_TYPE
+from psyclone.psyir.nodes import (
+    Routine,
+    IfBlock,
+    Loop,
+    WhileLoop,
+    Call,
+    Reference,
+    Assignment,
+    Statement,
+    IntrinsicCall,
+    Schedule,
+    Container,
+    Node,
+)
+from psyclone.psyir.symbols import (
+    Symbol,
+    AutomaticInterface,
+    SymbolTable,
+    DataSymbol,
+    INTEGER_TYPE,
+)
 
 from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
 
+
 def test_definition_use_chain_init_and_properties(fortran_reader):
-    ''' Test the initialisation of the DefinitionUseChain class.'''
-    code = '''subroutine test(a)
+    """Test the initialisation of the DefinitionUseChain class."""
+    code = """subroutine test(a)
     Integer :: a
     Integer :: b
 
     a = a + 1
     b = a + 2
-    end subroutine test'''
+    end subroutine test"""
 
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
@@ -95,10 +115,11 @@ def test_definition_use_chain_init_and_properties(fortran_reader):
     assert len(duc.defsout) == 0
     assert len(duc.killed) == 0
 
+
 def test_definition_use_chain_is_basic_block(fortran_reader):
-    ''' Test the is_basic_block property gives the correct result
-    for various blocks.'''
-    code = '''
+    """Test the is_basic_block property gives the correct result
+    for various blocks."""
+    code = """
 subroutine foo(a, b)
 real :: a, b, c, d, e, f
 integer :: i
@@ -119,7 +140,7 @@ do j = 1, 10
     end if
     d = cos(d)
 end do
-end subroutine foo'''
+end subroutine foo"""
 
     psyir = fortran_reader.psyir_from_source(code)
     block1 = [psyir.walk(Routine)[0]]
@@ -145,12 +166,12 @@ end subroutine foo'''
 def test_definition_use_chain_compute_forward_uses(fortran_reader):
 
     # First test is a simple Reference with a following read.
-    code = '''
+    code = """
     subroutine x()
     integer :: a, b
     a = a + 1
     b = a
-    end subroutine'''
+    end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     a_1 = psyir.walk(Reference)[0]
@@ -164,17 +185,17 @@ def test_definition_use_chain_compute_forward_uses(fortran_reader):
     duc._stop_point = 100000000
     duc._compute_forward_uses(basic_block_list)
     assert len(duc.uses) == 1
-    assert duc.uses[0] is psyir.walk(Reference)[3] # The rhs of b=a
+    assert duc.uses[0] is psyir.walk(Reference)[3]  # The rhs of b=a
 
     # Next we test a Reference with a write then a read - we should only get the
     # write, which should be in uses and defsout.
-    code = '''
+    code = """
     subroutine x()
     integer :: a, b, c
     c = a
     a = 2
     b = a
-    end subroutine'''
+    end subroutine"""
 
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
@@ -189,19 +210,19 @@ def test_definition_use_chain_compute_forward_uses(fortran_reader):
     assert len(duc.uses) == 0
     assert len(duc.defsout) == 1
     assert len(duc.killed) == 0
-    assert duc.defsout[0] is psyir.walk(Reference)[2] # The lhs of a = 2
+    assert duc.defsout[0] is psyir.walk(Reference)[2]  # The lhs of a = 2
 
     # Finally test a Reference with a write then another write - the defsout should
     # be the final write and the first write should be killed. The use in b=a is after
     # a write so we should ignore it.
-    code = '''
+    code = """
     subroutine x()
     integer :: a, b, c
     c = a
     a = 2
     b = a
     a = 3
-    end subroutine'''
+    end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     a_1 = psyir.walk(Reference)[1]
@@ -215,15 +236,15 @@ def test_definition_use_chain_compute_forward_uses(fortran_reader):
     assert len(duc.uses) == 0
     assert len(duc.defsout) == 1
     assert len(duc.killed) == 1
-    assert duc.defsout[0] is psyir.walk(Reference)[5] # The lhs of a = 3
-    assert duc.killed[0] is psyir.walk(Reference)[2] # The lhs of a = 2
+    assert duc.defsout[0] is psyir.walk(Reference)[5]  # The lhs of a = 3
+    assert duc.killed[0] is psyir.walk(Reference)[2]  # The lhs of a = 2
 
     # TODO Check something with a Call
 
 
 def test_definition_use_chain_find_basic_blocks(fortran_reader):
     # TODO
-    code = '''
+    code = """
     subroutine x()
     use some_mod
     if (a) then
@@ -241,10 +262,12 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
        end do
        a = f
     end if
-    end subroutine'''
+    end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
-    duc = DefinitionUseChain(routine.walk(Reference)[0], control_flow_region=[routine])
+    duc = DefinitionUseChain(
+        routine.walk(Reference)[0], control_flow_region=[routine]
+    )
     # Find the basic blocks.
     cfn, blocks = duc._find_basic_blocks(routine.children[:])
     ifblock = psyir.walk(IfBlock)[0]
@@ -275,7 +298,7 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
 
     # Try for the basic blocks in the else_body. Since else if we have a nested if.
     cfn, blocks = duc._find_basic_blocks(ifblock.else_body.children[:])
-    assert len(cfn) == 2 
+    assert len(cfn) == 2
     assert cfn[0] == None
     assert cfn[1] == ifblock.else_body.children[0]
     assert len(blocks) == 2
@@ -296,10 +319,13 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
     assert blocks[2] == ifblock2.if_body.children[1].loop_body.children[:]
     assert blocks[3][0] == ifblock2.if_body.children[2]
 
-def test_definition_use_chain_find_forward_accesses_basic_example(fortran_reader):
+
+def test_definition_use_chain_find_forward_accesses_basic_example(
+    fortran_reader,
+):
     # Now we're essentially doing tests of the full functionality gives the expected results.
 
-    code = '''
+    code = """
 subroutine foo(a, b)
 real, intent(inout) :: a
 real, intent(inout) :: b
@@ -321,12 +347,14 @@ real, intent(inout) :: y
 !x = x + 1.0
 y = exp(x**2)
 end subroutine bar
-'''
+"""
 
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     # Creating use chain for the a in c = a + 1.0
-    chains = DefinitionUseChain(routine.children[0].children[1].children[0], [routine])
+    chains = DefinitionUseChain(
+        routine.children[0].children[1].children[0], [routine]
+    )
     reaches = chains._find_forward_accesses()
     # We find 3 results
     # the a in e = a**2
@@ -352,15 +380,17 @@ end subroutine bar
     reaches = chains._find_forward_accesses()
     # 2 results:
     # b = C + d
-    #call bar(c, d)
+    # call bar(c, d)
     assert len(reaches) == 2
     assert reaches[0] is routine.children[5].rhs.children[0]
     assert reaches[1] is routine.children[6].arguments[0]
 
 
-def test_definition_use_chain_find_forward_accesses_ifelse_example(fortran_reader):
+def test_definition_use_chain_find_forward_accesses_ifelse_example(
+    fortran_reader,
+):
 
-    code = '''
+    code = """
     subroutine x()
     integer :: a, b, c, d, e, f
     a = 1
@@ -371,7 +401,7 @@ def test_definition_use_chain_find_forward_accesses_ifelse_example(fortran_reade
         a = 4
     end if
     b = a + d
-    end subroutine'''
+    end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     # Start the chain from a = 1.
@@ -386,8 +416,10 @@ def test_definition_use_chain_find_forward_accesses_ifelse_example(fortran_reade
     assert reaches[3] is routine.children[3].rhs.children[0]
 
 
-def test_definition_use_chain_find_forward_accesses_loop_example(fortran_reader):
-    code = '''
+def test_definition_use_chain_find_forward_accesses_loop_example(
+    fortran_reader,
+):
+    code = """
     subroutine x()
     integer :: a, b, c, d, e, f, i
 
@@ -397,12 +429,14 @@ def test_definition_use_chain_find_forward_accesses_loop_example(fortran_reader)
        b = a + 2
     end do
     c = a + b
-    end subroutine x'''
-    
+    end subroutine x"""
+
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     # Start the chain from b = A +2.
-    chains = DefinitionUseChain(routine.children[1].loop_body.children[1].rhs.children[0])
+    chains = DefinitionUseChain(
+        routine.children[1].loop_body.children[1].rhs.children[0]
+    )
     reaches = chains._find_forward_accesses()
     # We should have 2 reaches
     # First is A = a + i
