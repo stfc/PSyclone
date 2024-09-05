@@ -64,10 +64,9 @@ NOT_PERFORMANT = [
 # Files that we won't touch at all, either because PSyclone actually fails
 # or because it produces incorrect Fortran.
 NOT_WORKING = [
+    # NEMOv4 bugs:
     # TODO #717 - array accessed inside WHERE does not use array notation
     "diurnal_bulk.f90",
-    # TODO #1902: Excluded to avoid HoistLocalArraysTrans bug
-    "mpp_ini.f90",
 ]
 
 # If routine names contain these substrings then we do not profile them
@@ -227,7 +226,8 @@ def normalise_loops(
         statements out of the loop nest.
     '''
 
-    if hoist_local_arrays:
+    # TODO #1902: NEMO4 mpi_ini.f90 has a HoistLocalArraysTrans bug
+    if hoist_local_arrays and schedule.root.name != "mpp_ini.f90":
         # Apply the HoistLocalArraysTrans when possible
         try:
             HoistLocalArraysTrans().apply(schedule)
