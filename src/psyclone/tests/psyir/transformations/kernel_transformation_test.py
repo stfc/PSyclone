@@ -282,6 +282,38 @@ def test_gpumixin_validate_wrong_node_type():
             "Routine but got 'FileContainer'" in str(err.value))
 
 
+def test_gpumixin_kernel_interface(kernel_outputdir, monkeypatch,
+                                   fortran_reader, fortran_writer):
+    '''
+    Test that the xxxxx works correctly for a kernel that has multiple
+    implementations (i.e. for different precisions).
+
+    '''
+    # Ensure kernel-output directory is uninitialised
+    config = Config.get()
+    monkeypatch.setattr(config, "_kernel_naming", "multiple")
+    psy, invoke = get_invoke("26.8_mixed_precision_args.f90",
+                             api="lfric", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    rtrans = ACCRoutineTrans()
+    # Use force because the kernel contains a WRITE statement.
+    rtrans.apply(kernels[0], options={"force": True})
+    # Generate the code (this triggers the generation of a new kernel)
+    code = str(psy.gen).lower()
+    # Work out the value of the tag used to re-name the kernel
+    tag = re.search('use mixed_kernel(.+?)_mod', code).group(1)
+    filename = os.path.join(str(kernel_outputdir),
+                            f"mixed_kernel{tag}_mod.f90")
+    assert os.path.isfile(filename)
+    # Parse the new kernel file
+    psyir = fortran_reader.psyir_from_file(filename)
+    output = fortran_writer(psyir)
+    assert "module procedure :: mixed_code_32_0, mixed_code_64_0" in output
+    assert "subroutine mixed_code_32_0" in output
+    assert "subroutine mixed_code_64_0" in output
+
+
 def test_gpumixin_validate_no_schedule(monkeypatch):
     '''
     Test that the MarkRoutineForGPUMixin.validate_it_can_run_on_gpu() method
