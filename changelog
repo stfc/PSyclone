@@ -213,6 +213,9 @@
 
 	73) PR #2700 for #2699. Fix docstring error for Config class.
 
+	74) PR #2698 for #2629. Fix NEMOv5 issues and extend related
+	integration tests.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
