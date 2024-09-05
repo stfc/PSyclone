@@ -192,7 +192,14 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                         message.code == DTCode.ERROR_WRITE_WRITE_RACE):
                     privatisable = True
                     for var_name in message.var_names:
-                        sym = node.scope.symbol_table.lookup(var_name)
+                        try:
+                            sym = node.scope.symbol_table.lookup(var_name)
+                        except KeyError:
+                            # Structures are reported with the full expression:
+                            # "mystruct%myfield" by the DA var_name, we
+                            # purposely avoid privatising these.
+                            privatisable = False
+                            break
 
                         # If it's not a local symbol, we cannot safely analyse
                         # its lifetime
@@ -213,8 +220,9 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     if not privatisable:
                         errors.append(
                             f"The write-write dependency in '{var_name}'"
-                            f" cannot be solved by array privatisation because"
-                            f" the variable is used outside the loop.")
+                            f" cannot be solved by array privatisation "
+                            f"because it is not a plain array or it is "
+                            f"used outside the loop.")
                     continue
                 errors.append(str(message))
 

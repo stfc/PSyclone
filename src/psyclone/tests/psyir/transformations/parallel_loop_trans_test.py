@@ -520,10 +520,11 @@ def test_paralooptranas_with_array_privatisation(fortran_reader,
     assert ("!$omp parallel do default(shared), private(ji,jj,ztmp), "
             "firstprivate(ztmp2)" in fortran_writer(psyir))
 
-    # If the array is accessed after the loop or is a not an automatic
-    # interface the privatisation will fail
+    # If the array is accessed after the loop, or is a not an automatic
+    # interface, or is not a plain array, the privatisation will fail
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_sub()
+          use other, only: mystruct
           integer ji, jj
           real :: var1(10,10)
           real, save :: ztmp1(10)
@@ -534,6 +535,7 @@ def test_paralooptranas_with_array_privatisation(fortran_reader,
           do ji = 1, 10
             do jj = 1, 10
               ztmp2(jj) = 3
+              mystruct%array(jj) = 3
               ztmp(jj) = var1(ji, jj) + 1
             end do
             do jj = 1, 10
@@ -550,8 +552,11 @@ def test_paralooptranas_with_array_privatisation(fortran_reader,
     assert "ztmp(jj)\' causes a write-write race " not in str(err.value)
     assert "ztmp2(jj)\' causes a write-write race " not in str(err.value)
     assert ("The write-write dependency in 'ztmp' cannot be solved by array "
-            "privatisation because the variable is used outside the loop"
-            in str(err.value))
+            "privatisation because it is not a plain array or it is used "
+            "outside the loop" in str(err.value))
     assert ("The write-write dependency in 'ztmp2' cannot be solved by array "
-            "privatisation because the variable is used outside the loop"
-            in str(err.value))
+            "privatisation because it is not a plain array or it is used "
+            "outside the loop" in str(err.value))
+    assert ("The write-write dependency in 'mystruct%array' cannot be solved "
+            "by array privatisation because it is not a plain array or it is "
+            "used outside the loop" in str(err.value))
