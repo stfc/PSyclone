@@ -44,7 +44,7 @@ from psyclone.psyir.transformations import ValueRangeCheck
 
 def trans(psy):
     '''
-    Take the supplied psy object, and add NAN verification code.
+    Take the supplied psy object, and add value_range_check code.
 
     :param psy: the PSy layer to transform.
     :type psy: :py:class:`psyclone.psyGen.PSy`
