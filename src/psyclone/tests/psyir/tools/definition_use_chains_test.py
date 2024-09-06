@@ -300,9 +300,9 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
     cfn, blocks = duc._find_basic_blocks(ifblock.else_body.children[:])
     assert len(cfn) == 2
     assert cfn[0] == None
-    assert cfn[1] == ifblock.else_body.children[0]
+    assert cfn[1] is ifblock.else_body.children[0]
     assert len(blocks) == 2
-    assert blocks[0][0] == ifblock.else_body.children[0].condition
+    assert blocks[0][0] is ifblock.else_body.children[0].condition
     assert blocks[1] == ifblock.else_body.children[0].if_body.children[:]
 
     # Now look inside the else if
@@ -311,13 +311,13 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
     assert len(cfn) == 4
     assert cfn[0] == None
     assert cfn[1] == None
-    assert cfn[2] == ifblock2.if_body.children[1]
+    assert cfn[2] is ifblock2.if_body.children[1]
     assert cfn[3] == None
     assert len(blocks) == 4
-    assert blocks[0][0] == ifblock2.if_body.children[0]
-    assert blocks[1][0] == ifblock2.if_body.children[1].condition
+    assert blocks[0][0] is ifblock2.if_body.children[0]
+    assert blocks[1][0] is ifblock2.if_body.children[1].condition
     assert blocks[2] == ifblock2.if_body.children[1].loop_body.children[:]
-    assert blocks[3][0] == ifblock2.if_body.children[2]
+    assert blocks[3][0] is ifblock2.if_body.children[2]
 
 
 def test_definition_use_chain_find_forward_accesses_basic_example(
@@ -386,6 +386,30 @@ end subroutine bar
     assert reaches[1] is routine.children[6].arguments[0]
 
 
+def test_definition_use_chain_find_forward_accesses_assignment(
+    fortran_reader,
+):
+
+    code = """
+    subroutine x()
+    integer :: a
+    a = 1
+    a = a * a
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    # Start chain from A = 1
+    chains = DefinitionUseChain(routine.children[0].lhs)
+    reaches = chains._find_forward_accesses()
+    # We should find 3 results, all 3 references in 
+    # A = A * A
+    assert len(reaches) == 3
+    assert reaches[0] is routine.children[1].rhs.children[0]
+    assert reaches[1] is routine.children[1].rhs.children[1]
+    assert reaches[2] is routine.children[1].lhs
+
+
 def test_definition_use_chain_find_forward_accesses_ifelse_example(
     fortran_reader,
 ):
@@ -438,10 +462,43 @@ def test_definition_use_chain_find_forward_accesses_loop_example(
         routine.children[1].loop_body.children[1].rhs.children[0]
     )
     reaches = chains._find_forward_accesses()
-    # We should have 2 reaches
-    # First is A = a + i
+    # We should have 3 reaches
+    # First two are A = A + i
     # Second is c = a + b
+    assert len(reaches) == 3
+    assert reaches[0] is routine.children[1].loop_body.children[0].rhs.children[0]
+    assert reaches[1] is routine.children[1].loop_body.children[0].lhs
+    assert reaches[2] is routine.children[2].rhs.children[0]
+
+def test_definition_use_chain_find_forward_accesses_while_loop_example(
+    fortran_reader,
+):
+    code = """
+    subroutine x()
+    integer :: a, b, c, d, e, f, i
+    i = 100
+    a = 1
+    do while (a < i)
+        a = a + 3
+    end do
+    end subroutine"""
+
+
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    # Start the chain from A = a + 3.
+    chains = DefinitionUseChain(
+        routine.children[2].loop_body.children[0].lhs
+    )
+    reaches = chains._find_forward_accesses()
+
+    # This test currently fails because we find a basic block where the
+    # reference is the lhs of an assignment but also we need to look at
+    # the same assignment because its in a loop.
+    # The current rules basically say to ignore the assignment in this case
+    # see the if condition at line 307-308:
+    # if self._start_point != self._reference_abs_pos
+
     assert len(reaches) == 2
-    # FIXME Should this be rhs or lhs or both? Maybe 3 reaches
-    assert reaches[0] is routine.children[1].loop_body.children[0].lhs
-    assert reaches[1] is routine.children[2].rhs.children[0]
+    assert reaches[0] is routine.children[2].loop_body.children[0].rhs.children[0]
+    assert reaches[1] is routine.children[2].loop_body.children[0].lhs

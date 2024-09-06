@@ -105,18 +105,36 @@ class DefinitionUseChain:
 
     @property
     def uses(self):
+        '''
+        :returns: the list of nodes used by this DefinitionUseChain.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
         return self._uses
 
     @property
     def defsout(self):
+        '''
+        :returns: the list of output nodes computed by this DefinitionUseChain.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
         return self._defsout
 
     @property
     def killed(self):
+        '''
+        :returns: the list of killed output nodes computed by this
+                  DefinitionUseChain.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
         return self._killed
 
     @property
     def is_basic_block(self):
+        '''
+        :returns: whether the scope of this DefinitionUseChain is a basic
+                  block, i.e. whether it contains any control flow nodes.
+        :rtype: bool
+        '''
         # This is a basic block if there is no control flow inside this scope
         # then it is a basic block.
         # In PSyclone, possible control flow nodes are IfBlock, Loop
@@ -128,6 +146,19 @@ class DefinitionUseChain:
         return True
 
     def _find_forward_accesses(self):
+        '''
+        Find all the forward accesses for the reference defined in this
+        DefinitionUseChain.
+        Forward accesses are all of the References (or Calls) that read
+        or write to the symbol of the reference up to the point that a
+        write to the symbol is guaranteed to occur.
+        PSyclone only assumes a write to the symbol is guaranteed to occur
+        if it occurs outside of a control flow region.
+
+        :returns: the forward accesses of the reference given to this
+                  DefinitionUseChain
+        :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
         # Find the position of the Reference's highest-level parent in
         # the Routine.
         routine = self._reference.ancestor(Routine)
@@ -150,17 +181,6 @@ class DefinitionUseChain:
         # the start point can potentially be a forward access.
         if self._stop_point is None:
             self._stop_point = sys.maxsize
-
-        # TODO What happens if self._reference has a Loop ancestor? We need to do
-        # something to handle this.
-        # Sergi suggests:
-        # I think loop creates two search branches one to the next sibling after the
-        # loop and one back to the beggining of the body of the loop (which means we
-        # probably need to pass down into the recursion the starting point to stop
-        # otherwise will be an infitie recursion).
-        # We also need to update the "self._reference_abs_pos" for this to work as
-        # we need to find the things at the start of the loop and a stop point inside
-        # the loop.
         if not self.is_basic_block:
             # If this isn't a basic block, the we find all the basic blocks.
             control_flow_nodes, basic_blocks = self._find_basic_blocks(
@@ -187,12 +207,16 @@ class DefinitionUseChain:
                     # Create a basic block for the ancestor Loop.
                     body = ancestor.loop_body.children[:]
                     control_flow_nodes.insert(0, ancestor)
+                    sub_stop_point = self._reference.abs_position+1
+                    #assignment = self._reference.ancestor(Assignment)
+                    #if assignment:
+                    #    sub_stop_point = assignment.rhs.children[-1].abs_position+1
                     chain = DefinitionUseChain(
                         self._reference,
                         body,
                         self._is_local,
                         start_point=ancestor.abs_position,
-                        stop_point=self._reference.abs_position + 1,
+                        stop_point=sub_stop_point,
                     )
                     chains.insert(0, chain)
 
@@ -278,6 +302,10 @@ class DefinitionUseChain:
             # Check if there is an ancestor Assignment.
             ancestor = self._reference.ancestor(Assignment)
             if ancestor is not None:
+                # If we get here to check the start part of a loop we need
+                # to handle this differently.
+                if self._start_point != self._reference_abs_pos:
+                    pass
                 # If the reference is the lhs then we can ignore the RHS.
                 if ancestor.lhs is self._reference:
                     # Find the last node in the assignment
@@ -357,10 +385,28 @@ class DefinitionUseChain:
         return self._reaches
 
     def _compute_forward_uses(self, basic_block_list):
+        '''
+        Compute the forward uses for self._reference for the
+        basic_block_list provided. This function will not work
+        correctly if there is control flow inside the 
+        basic_block_list provided.
+        FIXME should we check and raise an exception?
+        Reads to the reference that occur before a write will
+        be added to the self._uses array, the final write will
+        be provided as self._defsout and all previous writes
+        will be inside self._killed.
+
+        :param basic_block_list: The list of nodes that make up the basic
+                                 block to find the forward uses in.
+        :type basic_block_list: list[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
         # TODO - This should maybe be Signature not symbol
         symbol = self._reference.symbol
         # For a basic block we will only ever have one defsout
         defs_out = None
+        if(self._start_point == 8):
+            import pdb
+            pdb.set_trace()
         for region in basic_block_list:
             for reference in region.walk((Reference, Call)):
                 # Store the position instead of computing it twice.
@@ -392,6 +438,12 @@ class DefinitionUseChain:
                             if defs_out is not None:
                                 self._killed.append(defs_out)
                             defs_out = reference
+                        elif assign.lhs is defs_out and len(self._killed) == 0 and assign.lhs.symbol == reference.symbol and assign.lhs is not self._reference:
+                            # reference is on the rhs of an assignment such as a = a + 1.
+                            # Since the PSyIR tree walk accesses the lhs of an assignment
+                            # before the rhs of an assignment we need to not ignore these
+                            # accesses.
+                            self._uses.append(reference)
                         else:
                             # Read only, so if we've not yet set written to this
                             # variable this is a use. NB. We need to check the
@@ -414,6 +466,22 @@ class DefinitionUseChain:
             self._defsout.append(defs_out)
 
     def _find_basic_blocks(self, nodelist):
+        '''
+        Compute the blocks inside the provided list of nodes.
+        Each block is a set of nodes inside a control flow region, and
+        may contain more control flow (which will be handled recusively later).
+        Each block also has the control flow node stored that contains the
+        block, e.g. for a Loop, the block consisting of loop.body will have
+        contain the associated Loop at the same index in the control_flow_nodes
+        return value.
+
+        :returns: (control_flow_nodes, basic_blocks). control_flow_nodes
+                  contains the list of control_flow_nodes corresponding to
+                  the lists of nodes contained in the basic_block list.
+        :rtype: tuple(list[:py:class:`psyclone.psyir.nodes.Node],
+                      list[list[:py:class:`psyclone.psyir.nodes.Node]])
+
+        '''
         current_block = []
         # Keep track of the basic blocks.
         basic_blocks = []
@@ -491,142 +559,3 @@ class DefinitionUseChain:
             basic_blocks.append(current_block)
             control_flow_nodes.append(None)
         return control_flow_nodes, basic_blocks
-
-
-# from psyclone.psyir.frontend.fortran import FortranReader
-# from psyclone.psyir.backend.fortran import FortranWriter
-#
-# code = '''
-# subroutine foo(a, b)
-# real, intent(inout) :: a
-# real, intent(inout) :: b
-# real :: c, d, e, f
-# c = a + 1.0
-# e = a**2
-# f = cos(e)
-# d = c + 2.0
-# c = d * a
-# b = c + d
-# call bar(c, b)
-# b = b + c
-# e = a**3
-# a = 2
-# end subroutine foo
-# subroutine bar(x, y)
-# real, intent(in) :: x
-# real, intent(inout) :: y
-#!x = x + 1.0
-# y = exp(x**2)
-# end subroutine bar
-#'''
-#
-# reader = FortranReader()
-# psyir = reader.psyir_from_source(code)
-# routine = psyir.walk(Routine)[0]
-# chains = DefinitionUseChain(routine.children[0].children[1].children[0], [routine], False)
-# reaches = chains._find_forward_accesses()
-# for statement in reaches:
-#    print(statement.debug_string())
-#
-#
-# code2 = '''
-# subroutine foo(a, b)
-# real :: a, b, c, d, e, f
-# integer :: i
-#
-# c = a + 1.0
-# e = a**2
-# f = cos(e)
-# if(b > 3) then
-#   a = a + 1.0
-#   d = a * 2
-# else
-#   d = a * 2
-#   a = a + 1.0
-# end if
-# d = cos(d)
-# d = d + a
-#
-# end subroutine foo'''
-# psyir = reader.psyir_from_source(code2)
-# routine = psyir.walk(Routine)[0]
-# chains = DefinitionUseChain(routine.children[0].children[1].children[0], [routine], False)
-# cfs, blocks = chains._find_basic_blocks(routine.children[:])
-#
-# x = chains._find_forward_accesses()
-# print(len(x))
-# print(x[0].ancestor(Statement).debug_string())
-# print(x[1].ancestor(Statement).debug_string())
-# print(x[2].ancestor(Statement).debug_string())
-# print(x[3].ancestor(Statement).debug_string())
-# print(x[4].ancestor(Statement).debug_string())
-#
-# code2 = '''
-# subroutine foo(a, b)
-# real :: a, b, c, d, e, f
-# integer :: i
-#
-# c = a + 1.0
-# e = a**2
-# f = cos(e)
-# if(b > 3) then
-#   a = a + 1.0
-#   d = a * 2
-# else
-#   d = a * 2
-#   do i = 1, 100
-#      a = a * 1.1
-#   end do
-#   a = a + 1.0
-# end if
-# d = cos(d)
-# d = d + a
-#
-# end subroutine foo'''
-# psyir = reader.psyir_from_source(code2)
-# routine = psyir.walk(Routine)[0]
-# chains = DefinitionUseChain(routine.children[0].children[1].children[0], [routine], False)
-# cfs, blocks = chains._find_basic_blocks(routine.children[:])
-#
-# x = chains._find_forward_accesses()
-# print(len(x))
-# print(x[0].ancestor(Statement).debug_string())
-# print(x[1].ancestor(Statement).debug_string())
-# print(x[2].ancestor(Statement).debug_string())
-# print(x[3].ancestor(Statement).debug_string())
-# print(x[4].ancestor(Statement).debug_string())
-# print(x[5].ancestor(Statement).debug_string())
-#
-#
-#
-# code2 = '''
-# subroutine foo(a, b)
-# real :: a, b, c, d, e, f
-# integer :: i
-#
-# do j = 1, 10
-#    c = a + 1.0
-#    e = a**2
-#    f = cos(e)
-#    if(b > 3) then
-#       a = a + 1.0
-#       d = a * 2
-#    else
-#       d = a * 2
-#       do i = 1, 100
-#          a = a * 1.1
-#       end do
-#       a = a + 1.0
-#    end if
-#    d = cos(d)
-# end do
-# end subroutine foo'''
-# psyir = reader.psyir_from_source(code2)
-# routine = psyir.walk(Routine)[0]
-# assignment = psyir.walk(Assignment)[1]
-# chains = DefinitionUseChain(assignment.children[1].children[0], [routine], False)
-# x = chains._find_forward_accesses()
-## We want this to be c = a + 1.0, e = a**2, a = a + 1.0, d = a*2, a = a * 1.1,  a = a + 1.0 and
-# print(len(x) == 6)
-# for y in x:
-#    print(y.ancestor(Statement).debug_string())
