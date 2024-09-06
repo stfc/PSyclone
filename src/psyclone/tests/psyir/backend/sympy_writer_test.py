@@ -251,7 +251,7 @@ def test_sym_writer_rename_members(fortran_reader, expressions):
 
 
 @pytest.mark.parametrize("expr, sym_map", [("a%x", {"a": Symbol("a"),
-                                                    "a_x": Symbol("a_x")}),
+                                                    "a_x": Symbol("a%x")}),
                                            ("a%x(i)", {"a": Symbol("a"),
                                                        "a_x": Function("a_x"),
                                                        "i": Symbol("i")}),
@@ -285,7 +285,7 @@ def test_sym_writer_symbol_types(fortran_reader, expr, sym_map):
     expr = psyir.children[0].children[0].rhs
     sympy_writer = SymPyWriter()
     _ = sympy_writer(expr)
-    assert sympy_writer.type_map.keys() == sym_map.keys()
+    assert sympy_writer.type_map.items() == sym_map.items()
 
 
 @pytest.mark.parametrize("expr, sym_map", [("i", {'i': Symbol('i')}),
