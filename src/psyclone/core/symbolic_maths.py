@@ -82,13 +82,18 @@ class SymbolicMaths:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def equal(exp1, exp2):
+    def equal(exp1, exp2, assume=None):
         '''Test if the two PSyIR expressions are symbolically equivalent.
+        The optional assume dictionary can contain information which variables
+        are known to be the same. For example, if `assume={'i': 'j'}`, then
+        'i+1' and 'j+1' will be considered equal.
 
         :param exp1: the first expression to be compared.
         :type exp1: :py:class:`psyclone.psyir.nodes.Node`
         :param exp2: the second expression to be compared.
         :type exp2: :py:class:`psyclone.psyir.nodes.Node`
+        :param assume: which variable names are known to be identical
+        :type assume: dict[str, str]
 
         :returns: whether the two expressions are mathematically \
             identical.
@@ -99,7 +104,7 @@ class SymbolicMaths:
         if exp1 is None or exp2 is None:
             return exp1 == exp2
 
-        diff = SymbolicMaths._subtract(exp1, exp2)
+        diff = SymbolicMaths._subtract(exp1, exp2, assume=assume)
         # For ranges all values (start, stop, step) must be equal, meaning
         # each index of the difference must evaluate to 0:
         if isinstance(diff, list):
@@ -164,7 +169,7 @@ class SymbolicMaths:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _subtract(exp1, exp2):
+    def _subtract(exp1, exp2, assume=None):
         '''Subtracts two PSyIR expressions and returns the simplified result
         of this operation. An expression might result in multiple SymPy
         expressions - for example, a `Range` node becomes a 3-tuple (start,
@@ -175,6 +180,8 @@ class SymbolicMaths:
         :type exp1: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         :param exp2: the second expression to be compared.
         :type exp2: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :param assume: which variable names are known to be identical
+        :type assume: dict[str, str]
 
         :returns: the sympy expression resulting from subtracting exp2 \
             from exp1.
@@ -188,7 +195,9 @@ class SymbolicMaths:
 
         # Use the SymPyWriter to convert the two expressions to
         # SymPy expressions:
-        sympy_expressions = SymPyWriter(exp1, exp2)
+        writer = SymPyWriter()
+        sympy_expressions = writer([exp1, exp2], assume=assume)
+
         # If an expression is a range node, then the corresponding SymPy
         # expression will be a tuple:
         if isinstance(sympy_expressions[0], tuple) and \
