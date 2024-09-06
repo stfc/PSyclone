@@ -298,20 +298,16 @@ def test_gpumixin_kernel_interface(kernel_outputdir, monkeypatch,
     kernels = sched.walk(Kern)
     rtrans = ACCRoutineTrans()
     # Use force because the kernel contains a WRITE statement.
-    rtrans.apply(kernels[0], options={"force": True})
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(kernels[0], options={"force": True})
+    assert ("Cannot apply ACCRoutineTrans to kernel 'mixed_code' as it has "
+            "multiple implementations - TODO #1946" in str(err.value))
     # Generate the code (this triggers the generation of a new kernel)
-    code = str(psy.gen).lower()
-    # Work out the value of the tag used to re-name the kernel
-    tag = re.search('use mixed_kernel(.+?)_mod', code).group(1)
-    filename = os.path.join(str(kernel_outputdir),
-                            f"mixed_kernel{tag}_mod.f90")
-    assert os.path.isfile(filename)
+    # code = str(psy.gen).lower()
     # Parse the new kernel file
-    psyir = fortran_reader.psyir_from_file(filename)
-    output = fortran_writer(psyir)
-    assert "module procedure :: mixed_code_32_0, mixed_code_64_0" in output
-    assert "subroutine mixed_code_32_0" in output
-    assert "subroutine mixed_code_64_0" in output
+    # psyir = fortran_reader.psyir_from_file(filename)
+    # output = fortran_writer(psyir)
+    # Check that the subroutine and metadata use the correct names.
 
 
 def test_gpumixin_validate_no_schedule(monkeypatch):
