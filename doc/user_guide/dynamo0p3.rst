@@ -459,7 +459,7 @@ called via a generic interface (which lets Fortran choose the
 appropriate subroutine based on the precision of its argument(s)).
 
 Below is a simple example of an algorithm code calling the same
-generic kernel twice with potentially different precision. The
+generic kernel twice, with potentially different precision. The
 implementation of the generic kernel such that it supports both 32-
 and 64-bit precision is also shown. The use of LFRic names for
 precision in the algorithm code allows precision to be controlled in a
@@ -499,7 +499,7 @@ one configuration and 64-bits in another:
            /)
        integer :: operates_on = cell_column
      contains
-       procedure, nopass :: code => example_code
+       procedure, nopass :: example_code_32, example_code_64
     end type example_type
 
     private
@@ -1906,12 +1906,21 @@ procedure
 #########
 
 The fifth and final type of metadata is ``procedure`` metadata. This
-specifies the name of the Kernel subroutine that this metadata
-describes.
-
-For example::
+specifies the name(s) of the Kernel subroutine(s) that this metadata
+describes. A Kernel that does *not* support multiple precisions must
+correspond to a single subroutine, for example::
 
   procedure, nopass :: my_kernel_subroutine
+
+However, if a Kernel does support mixed precision then it will have
+two or more subroutine implementations. The names of these subroutines
+must be specified in the same `procedure` declaration, e.g.::
+
+  procedure, nopass :: my_kernel_sub_r32, my_kernel_sub_r64
+
+and the name of the Fortran `INTERFACE` block for these routines must
+be named according to the LFRic coding standards (e.g. `my_kernel_code`
+for Kernel `my_kernel`).
 
 .. _lfric-kern-subroutine:
 
