@@ -1036,7 +1036,7 @@ metadata, 1) 'meta_args_', 2) 'meta_funcs_', 3) 'meta_reference_element_',
     integer :: gh_shape = gh_quadrature_XYoZ
     integer :: operates_on = cell_column
   contains
-    procedure, nopass :: my_kernel_code
+    procedure, nopass :: my_kernel_code [, ...]
   end type
 
 These various metadata elements are discussed in order in the following
@@ -1918,7 +1918,7 @@ must be specified in the same `procedure` declaration, e.g.::
 
   procedure, nopass :: my_kernel_sub_r32, my_kernel_sub_r64
 
-and the name of the Fortran `INTERFACE` block for these routines must
+and the Fortran `INTERFACE` block for these routines must
 be named according to the LFRic coding standards (e.g. `my_kernel_code`
 for Kernel `my_kernel`).
 
