@@ -48,7 +48,7 @@ from psyclone.tests.utilities import get_invoke
 @pytest.fixture(scope="function", autouse=True)
 def clear_config_instance():
     '''The tests in this file all assume that the Nemo API is used.'''
-    Config.get().api = "nemo"
+    Config.get().api = ""
 
 
 # -----------------------------------------------------------------------------
