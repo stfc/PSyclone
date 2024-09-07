@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         A. B. G. Chalk, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+#          J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenMP PSyIR Directive nodes. '''
@@ -69,7 +70,6 @@ from psyclone.transformations import (
     Dynamo0p3OMPLoopTrans, OMPParallelTrans,
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans)
-from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -171,8 +171,8 @@ def test_ompparallel_gen_code_clauses(monkeypatch):
 
     # Check with an LFRic kernel, the cell variable must be private
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     tree = psy.invokes.invoke_list[0].schedule
     ptrans = OMPParallelTrans()
     tdir = OMPDoDirective()
@@ -229,8 +229,8 @@ def test_omp_paralleldo_clauses_gen_code(monkeypatch):
 
     # Check with an LFRic kernel, the cell variable must be private
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     tree = psy.invokes.invoke_list[0].schedule
     ptrans = OMPParallelLoopTrans()
     loops = tree.walk(Loop)
@@ -281,6 +281,7 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
     ''' Check that lowering an OMP Parallel Do leaves it with the
     appropriate begin_string and clauses for the backend to generate
     the right code'''
+
     code = '''
     subroutine my_subroutine()
         integer, dimension(321, 10) :: A
@@ -296,12 +297,10 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelLoopTrans()
     loops = tree.walk(Loop)
-    loop = loops[0]
-    loop.loop_type = None
     ptrans.apply(loops[0])
-
     assert isinstance(tree.children[0].children[0], OMPParallelDoDirective)
     pdir = tree.children[0].children[0]
+    assert pdir.begin_string() == "omp parallel do"
     pdir.lower_to_language_level()
     assert len(pdir.children) == 5
     assert isinstance(pdir.children[2], OMPPrivateClause)
@@ -381,8 +380,8 @@ def test_ompdo_constructor():
     ''' Check that we can make an OMPDoDirective with and without
     children '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     ompdo = OMPDoDirective(parent=schedule)
     # A Directive always has a Schedule
@@ -524,6 +523,23 @@ def test_omp_do_directive_validate_global_constraints(fortran_reader,
             in str(err.value))
 
 
+def test_omp_parallel_do_create():
+    ''' Test the OMPParallelDoDirective create method. '''
+    loop = Loop.create(DataSymbol("i", INTEGER_SINGLE_TYPE),
+                       Literal("1", INTEGER_SINGLE_TYPE),
+                       Literal("10", INTEGER_SINGLE_TYPE),
+                       Literal("1", INTEGER_SINGLE_TYPE),
+                       [])
+    children = [loop]
+    directive = OMPParallelDoDirective.create(children=children, collapse=2)
+    assert directive.collapse == 2
+    assert directive.omp_schedule == "none"
+    assert str(directive) == "OMPParallelDoDirective[collapse=2]"
+    assert directive.dir_body.children[0] is loop
+    assert (directive.default_clause.clause_type
+            == OMPDefaultClause.DefaultClauseTypes.SHARED)
+
+
 def test_omp_pdo_validate_child():
     ''' Test the _validate_child method for OMPParallelDoDirective'''
     sched = Schedule()
@@ -600,25 +616,30 @@ def test_ompdo_equality():
     assert ompdo1 != ompdo2
 
 
-def test_omp_do_children_err():
+def test_omp_do_children_err(fortran_reader):
     ''' Tests that we raise the expected error when an OpenMP parallel do
     directive has more than one child or the child is not a loop. '''
     otrans = OMPParallelLoopTrans()
-    psy, invoke_info = get_invoke("imperfect_nest.f90", api="nemo", idx=0)
-    schedule = invoke_info.schedule
-    otrans.apply(schedule[0].loop_body[2])
-    directive = schedule[0].loop_body[2]
-    assert isinstance(directive, OMPParallelDoDirective)
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1
+            real, dimension(10) :: array
+            do i = 1, 10
+               array(i) = scalar1
+            enddo
+        end subroutine''')
+    otrans.apply(psyir.walk(Loop)[0])
+    directive = psyir.walk(OMPParallelDoDirective)[0]
     # Make the schedule invalid by adding a second child to the
     # OMPParallelDoDirective
     directive.dir_body.children.append(directive.dir_body[0].copy())
     with pytest.raises(GenerationError) as err:
-        _ = psy.gen
+        directive.validate_global_constraints()
     assert ("An OMPParallelDoDirective can only be applied to a single loop "
             "but this Node has 2 children:" in str(err.value))
     directive.dir_body.children = [Return()]
     with pytest.raises(GenerationError) as err:
-        _ = psy.gen
+        directive.validate_global_constraints()
     assert ("An OMPParallelDoDirective can only be applied to a loop but "
             "this Node has a child of type 'Return'" in str(err.value))
 
@@ -632,8 +653,8 @@ def test_directiveinfer_sharing_attributes_lfric():
 
     '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1_single_invoke_w3.f90"), api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        os.path.join(BASE_PATH, "1_single_invoke_w3.f90"), api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1046,8 +1067,8 @@ def test_omp_forward_dependence():
     schedule or None if none are found. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     otrans = DynamoOMPParallelLoopTrans()
@@ -1071,8 +1092,8 @@ def test_omp_forward_dependence():
     # 3: directive and globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     otrans.apply(schedule.children[0])
@@ -1102,9 +1123,9 @@ def test_omp_single_strings(nowait):
     ''' Test the begin_string and end_string methods of the OMPSingle
         directive '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
+                           api="gocean")
     single = OMPSingleTrans()
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -1131,9 +1152,9 @@ def test_omp_single_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPSingle
         directive '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
+                           api="lfric")
     single = OMPSingleTrans()
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+    psy = PSyFactory("lfric", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -1149,14 +1170,14 @@ def test_omp_single_nested_validate_global_constraints(monkeypatch):
     ''' Test the validate_global_constraints method of the OMPSingle
         directive fails when nested OMPSingles happen'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
+                           api="lfric")
     single = OMPSingleTrans()
     # Alternative excluded node types for monkeypatch
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
                            psyGen.HaloExchange, nodes.OMPParallelDirective)
     monkeypatch.setattr(single, "excluded_node_types", excluded_node_types)
     parallel = OMPParallelTrans()
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+    psy = PSyFactory("lfric", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -1220,9 +1241,9 @@ def test_omp_master_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPMaster
         directive '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
+                           api="lfric")
     master = OMPMasterTrans()
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+    psy = PSyFactory("lfric", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -1238,14 +1259,14 @@ def test_omp_master_nested_validate_global_constraints(monkeypatch):
     ''' Test the validate_global_constraints method of the OMPMaster
         directive fails when nested OMPSingles happen'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
+                           api="lfric")
     master = OMPMasterTrans()
     # Alternative excluded node types for monkeypatch
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
                            psyGen.HaloExchange, nodes.OMPParallelDirective)
     monkeypatch.setattr(master, "excluded_node_types", excluded_node_types)
     parallel = OMPParallelTrans()
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+    psy = PSyFactory("lfric", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -1285,8 +1306,8 @@ def test_omp_taskwait_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPTaskwait
         directive '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     taskwait = OMPTaskwaitDirective()
@@ -1390,9 +1411,9 @@ def test_omp_taskloop_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPTaskloop
         directive '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
-                           api="dynamo0.3")
+                           api="lfric")
     taskloop = OMPTaskloopTrans()
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+    psy = PSyFactory("lfric", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -1972,7 +1993,7 @@ def test_omp_serial_compute_accesses_bad_binop():
 
     binop_fail12 = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
-        Call(RoutineSymbol("mycall")),
+        Call.create(RoutineSymbol("mycall")),
         Reference(tmp),
     )
     with pytest.raises(UnresolvedDependencyError) as excinfo:
@@ -2018,7 +2039,7 @@ def test_omp_serial_compute_accesses_other_fails():
         Literal("1", INTEGER_SINGLE_TYPE),
     )
 
-    call_fail = Call(RoutineSymbol("mycall"))
+    call_fail = Call.create(RoutineSymbol("mycall"))
     with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(correct_binop, [call_fail], None)
     assert (

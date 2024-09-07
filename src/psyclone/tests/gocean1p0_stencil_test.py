@@ -52,17 +52,15 @@ from psyclone import expression as expr
 
 from psyclone.tests.gocean_build import GOceanBuild
 
-API = "gocean1.0"
+API = "gocean"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "gocean1p0")
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use gocean1.0 as API.'''
-    Config.get().api = "gocean1.0"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use gocean as API.'''
+    Config.get().api = "gocean"
 
 
 # Section 1

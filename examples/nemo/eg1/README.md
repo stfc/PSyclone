@@ -14,11 +14,11 @@ Makefile rules to generate parallel versions of the file with the
 Once you have installed PSyclone, these scripts may be run by doing:
 
 ```sh
-psyclone -api nemo -s ./openmp_[cpu|gpu]_levels_trans.py ../code/traadv.f90
+psyclone -s ./openmp_[cpu|gpu]_levels_trans.py ../code/traadv.f90
 ```
 or
 ```sh
-psyclone -api nemo -s ../scripts/omp_[cpu|gpu]_trans.py ../code/traadv.f90
+psyclone -s ../scripts/omp_[cpu|gpu]_trans.py ../code/traadv.f90
 ```
 
 This will output the generated Fortran code with the OpenMP directives added.

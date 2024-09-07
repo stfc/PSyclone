@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 .. Modified by L. Turner, Met Office
 
 Modules
@@ -125,9 +125,7 @@ guarantee that all tests use the config file provided in the PSyclone
 repository, and not a (potentially modified) user installed version.
 
 The ``Config`` class also stores the list of supported
-APIs (``Config._supported_api_list``) and the default API to use if none
-is specified in either a config file or the command line
-(``Config._default_api``). Additionally, it performs some basic
+APIs (``Config._supported_api_list``). Additionally, it performs some basic
 consistency checks on the values it obtains from the configuration file.
 
 Since the PSyclone API to use can be read from the configuration
@@ -136,7 +134,7 @@ as we don't know which API is in use before we read the file. However, the
 configuration file can contain API-specific settings. These are placed in
 separate sections, named for the API to which they apply, e.g.::
 
-  [dynamo0.3]
+  [lfric]
   COMPUTE_ANNEXED_DOFS = false
 
 Having parsed and stored the options from the default section of the
@@ -149,7 +147,7 @@ corresponding section. The resulting object is stored in the
 dictionary under the appropriate key. The API-specific values may then
 be accessed as, e.g.::
 
-  Config.get().api_conf("dynamo0.3").compute_annexed_dofs
+  Config.get().api_conf("lfric").compute_annexed_dofs
 
 The API-specific sub-classes exist to provide validation/type-checking and
 encapsulation for API-specific options. They do not sub-class ``Config``
@@ -169,11 +167,10 @@ these constants. The constant objects make sure that this initialisation
 only happens the very first time - creating an instance is therefore
 very cheap.
 
-There three constant objects can be imported as follows:
+There two constant objects can be imported as follows:
 
 - ``from psyclone.domain.gocean import GOceanConstants``
 - ``from psyclone.domain.lfric import LFRicConstants``
-- ``from psyclone.domain.nemo import NemoConstants``
 
 These objects can be used in two different ways:
 

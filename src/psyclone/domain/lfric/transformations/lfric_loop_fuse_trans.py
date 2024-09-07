@@ -46,14 +46,14 @@ from psyclone.transformations import check_intergrid
 
 
 class LFRicLoopFuseTrans(LoopFuseTrans):
-    ''' Dynamo0.3 API specialisation of the
+    ''' LFRic API specialisation of the
     :py:class:`base class <LoopFuseTrans>` in order to fuse two Dynamo
     loops after performing validity checks. For example:
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>>
-    >>> API = "dynamo0.3"
+    >>> API = "lfric"
     >>> FILENAME = "alg.x90"
     >>> ast, invokeInfo = parse(FILENAME, api=API)
     >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
@@ -127,7 +127,11 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         # TODO #2498: access information for LFRic kernels do not have any
         # index information for field accesses, and the loop fusion dependency
         # tests will therefore fail. To avoid this, disable the dependency test
-        # in the generic loop fusion class for LFRic:
+        # in the generic loop fusion class for LFRic.
+        # TODO 257: if the loop-fusion transformation is implemented to just
+        # check that a variable with a stencil read-access is written, then
+        # the test could be enabled for LFRic as well, so the force option
+        # can be removed.
         if "force" not in my_options:
             my_options["force"] = True
 

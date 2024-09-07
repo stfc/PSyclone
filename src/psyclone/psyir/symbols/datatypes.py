@@ -38,6 +38,7 @@
 ''' This module contains the datatype definitions.'''
 
 import abc
+import copy
 from collections import OrderedDict, namedtuple
 from enum import Enum
 
@@ -66,6 +67,24 @@ class DataType(metaclass=abc.ABCMeta):
         :rtype: bool
         '''
         return type(other) is type(self)
+
+    def copy(self):
+        '''
+        :returns: a copy of this datatype.
+        :rtype: :py:class:`psyclone.psyir.symbols.datatypes.DataType`
+        '''
+        return copy.copy(self)
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
 
 
 class UnresolvedType(DataType):
@@ -116,8 +135,7 @@ class UnsupportedType(DataType, metaclass=abc.ABCMeta):
     @property
     def declaration(self):
         '''
-        :returns: the original declaration of the symbol. This is obviously \
-                  language specific and hence this class must be subclassed.
+        :returns: the original declaration of the symbol.
         :rtype: str
         '''
         return self._declaration
@@ -158,7 +176,8 @@ class UnsupportedFortranType(UnsupportedType):
         '''
         :returns: partial datatype information if it can be determined,
             else None.
-        :rtype: Optional[:py:class:`psyclone.symbols.DataType`]
+        :rtype: Optional[:py:class:`psyclone.psyir.symbols.DataType` |
+                         :py:class:`psyclone.symbols.symbols.DataTypeSymbol`]
         '''
         return self._partial_datatype
 
@@ -234,6 +253,29 @@ class UnsupportedFortranType(UnsupportedType):
 
         return other.type_text == self.type_text
 
+    def copy(self):
+        '''
+        :returns: a copy of this datatype.
+        :rtype: :py:class:`psyclone.psyir.symbols.datatypes.UnknownFortranType`
+        '''
+        new = copy.copy(self)
+        if self._partial_datatype:
+            new._partial_datatype = self._partial_datatype.copy()
+        return new
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        if self.partial_datatype:
+            self.partial_datatype.replace_symbols_using(table)
+
 
 class ScalarType(DataType):
     '''Describes a scalar datatype (and its precision).
@@ -241,8 +283,8 @@ class ScalarType(DataType):
     :param intrinsic: the intrinsic of this scalar type.
     :type intrinsic: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
     :param precision: the precision of this scalar type.
-    :type precision: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`, \
-        int or :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :type precision: :py:class:`psyclone.psyir.symbols.ScalarType.Precision` |
+                     int | :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     :raises TypeError: if any of the arguments are of the wrong type.
     :raises ValueError: if any of the argument have unexpected values.
@@ -274,6 +316,9 @@ class ScalarType(DataType):
                 f"ScalarType expected 'intrinsic' argument to be of type "
                 f"ScalarType.Intrinsic but found "
                 f"'{type(intrinsic).__name__}'.")
+
+        self._intrinsic = intrinsic
+
         if not isinstance(precision, (int, ScalarType.Precision, DataSymbol)):
             raise TypeError(
                 f"ScalarType expected 'precision' argument to be of type "
@@ -292,8 +337,6 @@ class ScalarType(DataType):
                 f"A DataSymbol representing the precision of another "
                 f"DataSymbol must be of either 'unresolved' or scalar, "
                 f"integer type but got: {precision}")
-
-        self._intrinsic = intrinsic
         self._precision = precision
 
     @property
@@ -308,8 +351,8 @@ class ScalarType(DataType):
     def precision(self):
         '''
         :returns: the precision of this scalar type.
-        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`, \
-            int or :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision` |
+                int | :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return self._precision
 
@@ -335,8 +378,41 @@ class ScalarType(DataType):
         if not super().__eq__(other):
             return False
 
-        return (self.precision == other.precision and
-                self.intrinsic == other.intrinsic)
+        # TODO #2659 - the following should be sufficient but isn't because
+        # currently, each new instance of an LFRicIntegerScalarDataType ends
+        # up with a brand new instance of a precision symbol.
+        # return (self.precision == other.precision and
+        #         self.intrinsic == other.intrinsic)
+        # Therefore, we have to take special action in the case where the
+        # precision is given by a Symbol:
+        if isinstance(other.precision, Symbol) and isinstance(self.precision,
+                                                              Symbol):
+            # If the precision in both types is given by a Symbol then we just
+            # compare their interfaces and their names.
+            precision_match = (
+                other.precision.name == self.precision.name and
+                other.precision.interface == self.precision.interface)
+        else:
+            precision_match = self.precision == other.precision
+        return precision_match and self.intrinsic == other.intrinsic
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        # Only the 'precision' of a ScalarType can refer to a Symbol.
+        if isinstance(self.precision, Symbol):
+            # Update any 'precision' information.
+            try:
+                self._precision = table.lookup(self.precision.name)
+            except KeyError:
+                pass
 
 
 class ArrayType(DataType):
@@ -345,38 +421,47 @@ class ArrayType(DataType):
     specified as a DataTypeSymbol (see #1031).
 
     :param datatype: the datatype of the array elements.
-    :type datatype: :py:class:`psyclone.psyir.datatypes.DataType` or \
-        :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
-    :param list shape: shape of the symbol in column-major order (leftmost \
-        index is contiguous in memory). Each entry represents an array \
-        dimension. If it is ArrayType.Extent.ATTRIBUTE the extent of that \
-        dimension is unknown but can be obtained by querying the run-time \
-        system (e.g. using the SIZE intrinsic in Fortran). If it is \
-        ArrayType.Extent.DEFERRED then the extent is also unknown and may or \
-        may not be defined at run-time (e.g. the array is ALLOCATABLE in \
-        Fortran). Otherwise it can be an int or a DataNode (that returns an \
-        int) or a 2-tuple of such quantities. If only a single value is \
-        provided then that is taken to be the upper bound and the lower bound \
-        defaults to 1. If a 2-tuple is provided then the two members specify \
-        the lower and upper bounds, respectively, of the current dimension. \
-        Note that providing an int is supported as a convenience, the provided\
+    :type datatype: :py:class:`psyclone.psyir.datatypes.DataType` |
+                    :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+    :param list shape: shape of the symbol in column-major order (leftmost
+        index is contiguous in memory). Each entry represents an array
+        dimension. If it is ArrayType.Extent.ATTRIBUTE the extent of that
+        dimension is unknown but the lower bound is 1 and the extent can be
+        obtained by querying the appropriate intrinsic (e.g. using the SIZE
+        intrinsic in Fortran). If it is ArrayType.Extent.DEFERRED then the
+        extent and bounds are all unknown and may or may not be possible to
+        query them using intrinsics (e.g. the array is ALLOCATABLE in Fortran).
+        Otherwise it can be an int or a DataNode (that returns an
+        int) or a 2-tuple of such quantities. If only a single value is
+        provided then that is taken to be the upper bound and the lower bound
+        defaults to 1. If a 2-tuple is provided then the two members specify
+        the lower and upper bounds, respectively, of the current dimension.
+        Note that providing an int is supported as a convenience, the provided
         value will be stored internally as a Literal node.
 
     :raises TypeError: if the arguments are of the wrong type.
-    :raises NotImplementedError: if a structure type does not have a \
+    :raises NotImplementedError: if a structure type does not have a
                                  DataTypeSymbol as its type.
     '''
     class Extent(Enum):
         '''
         Enumeration of array shape extents that are unspecified at compile
-        time. When the extent must exist and is accessible via the run-time
-        system it is an 'ATTRIBUTE'. When it may or may not be defined in the
-        current scope (e.g. the array may need to be allocated/malloc'd) it
-        is 'DEFERRED'.
+        time. An 'ATTRIBUTE' extent means that the lower bound is 1 with an
+        unknown extent (which can be retrieved with appropriate run-time
+        intrinsics). A 'DEFERRED' extent means that we don't know anything
+        about the bounds, and run-time intrinsics may or may not be able
+        to retrieve them (e.g. the array may need to be allocated/malloc'd).
 
         '''
         DEFERRED = 1
         ATTRIBUTE = 2
+
+        def copy(self):
+            '''
+            :returns: a copy of self.
+            :rtype: :py:class:`psyclone.psyir.symbols.ArrayType.Extent`
+            '''
+            return copy.copy(self)
 
     #: namedtuple used to store lower and upper limits of an array dimension
     ArrayBounds = namedtuple("ArrayBounds", ["lower", "upper"])
@@ -454,7 +539,7 @@ class ArrayType(DataType):
                 # The lower bound is 1 by default.
                 self._shape.append(
                     ArrayType.ArrayBounds(
-                        _dangling_parent(one),
+                        _dangling_parent(one.copy()),
                         _dangling_parent(_node_from_int(dim))))
             elif isinstance(dim, tuple):
                 self._shape.append(
@@ -479,8 +564,8 @@ class ArrayType(DataType):
     def intrinsic(self):
         '''
         :returns: the intrinsic type of each element in the array.
-        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic` or \
-                :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic` |
+                :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         '''
         return self._intrinsic
 
@@ -488,7 +573,7 @@ class ArrayType(DataType):
     def precision(self):
         '''
         :returns: the precision of each element in the array.
-        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`, \
+        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`,
             int or :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return self._precision
@@ -496,20 +581,20 @@ class ArrayType(DataType):
     @property
     def shape(self):
         '''
-        :returns: the (validated) shape of the symbol in column-major order \
-            (leftmost index is contiguous in memory) with each entry \
+        :returns: the (validated) shape of the symbol in column-major order
+            (leftmost index is contiguous in memory) with each entry
             representing an array dimension.
+            If an entry is ArrayType.Extent.ATTRIBUTE the extent of that
+            dimension is unknown but can be obtained by querying the run-time
+            system (e.g. using the SIZE intrinsic in Fortran). If it is
+            ArrayType.Extent.DEFERRED then the extent is also unknown and may
+            or may not be defined at run-time (e.g. the array is ALLOCATABLE
+            in Fortran). Otherwise an entry is an ArrayBounds namedtuple with
+            lower and upper components.
 
-        :rtype: a list of ArrayType.Extent.ATTRIBUTE, \
-            ArrayType.Extent.DEFERRED, or \
-            :py:class:`psyclone.psyir.nodes.ArrayType.ArrayBounds`. If an \
-            entry is ArrayType.Extent.ATTRIBUTE the extent of that dimension \
-            is unknown but can be obtained by querying the run-time \
-            system (e.g. using the SIZE intrinsic in Fortran). If it \
-            is ArrayType.Extent.DEFERRED then the extent is also \
-            unknown and may or may not be defined at run-time \
-            (e.g. the array is ALLOCATABLE in Fortran). Otherwise an \
-            entry is a DataNode that returns an int.
+        :rtype: list[ArrayType.Extent.ATTRIBUTE |
+                     ArrayType.Extent.DEFERRED |
+                     :py:class:`psyclone.psyir.nodes.ArrayType.ArrayBounds`].
 
         '''
         self._validate_shape(self._shape)
@@ -707,6 +792,71 @@ class ArrayType(DataType):
 
         return True
 
+    def copy(self):
+        '''
+        Create a copy of this ArrayType. Any shape expressions will be
+        re-created but any referenced Symbols will remain unchanged.
+
+        :returns: a copy of this ArrayType.
+        :rtype: :py:class:`psyclone.psyir.datatype.ArrayType`
+
+        '''
+        new_shape = []
+        for dim in self.shape:
+            if isinstance(dim, ArrayType.ArrayBounds):
+                new_bounds = ArrayType.ArrayBounds(dim.lower.copy(),
+                                                   dim.upper.copy())
+                new_shape.append(new_bounds)
+            else:
+                # This dimension is specified with an ArrayType.Extent
+                # so no need to copy.
+                new_shape.append(dim)
+        return ArrayType(self.datatype, new_shape)
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        if isinstance(self.datatype, DataTypeSymbol):
+            try:
+                self._datatype = table.lookup(self.datatype.name)
+            except KeyError:
+                pass
+        else:
+            self.datatype.replace_symbols_using(table)
+
+        # TODO #1857: we will probably remove '_precision' and have
+        # 'intrinsic' be 'datatype'.
+        if self._precision and isinstance(self._precision, Symbol):
+            try:
+                self._precision = table.lookup(self._precision.name)
+            except KeyError:
+                pass
+        if self._intrinsic and isinstance(self._intrinsic, Symbol):
+            try:
+                self._intrinsic = table.lookup(self._intrinsic.name)
+            except KeyError:
+                pass
+
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Node
+
+        # Update any Symbols referenced in the array shape
+        for dim in self.shape:
+            if isinstance(dim, ArrayType.ArrayBounds):
+                exprns = dim
+            else:
+                exprns = [dim]
+            for bnd in exprns:
+                if isinstance(bnd, Node):
+                    bnd.replace_symbols_using(table)
+
 
 class StructureType(DataType):
     '''
@@ -845,6 +995,36 @@ class StructureType(DataType):
             return False
 
         return True
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        # Since ComponentType is a namedtuple it is immutable therefore we
+        # must construct new ones.
+        new_components = OrderedDict()
+        for component in self.components.values():
+            if isinstance(component.datatype, DataTypeSymbol):
+                try:
+                    new_type = table.lookup(component.datatype.name)
+                except KeyError:
+                    new_type = component.datatype
+            else:
+                component.datatype.replace_symbols_using(table)
+                new_type = component.datatype
+            if component.initial_value:
+                component.initial_value.replace_symbols_using(table)
+            # Construct the new ComponentType
+            new_components[component.name] = StructureType.ComponentType(
+                component.name, new_type, component.visibility,
+                component.initial_value)
+        self._components = new_components
 
 
 # Create common scalar datatypes

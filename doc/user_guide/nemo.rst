@@ -61,7 +61,7 @@ does not have the concept of an Algorithm layer.
 Constructing the PSyIR
 -----------------------
 
-Transformations in PSyclone are applied to an Internal Representation,
+Transformations in PSyclone are applied to an Intermediate Representation,
 the "PSyIR." In contrast to the other APIs where the PSyIR is
 constructed from scratch, for NEMO PSyclone must parse the existing
 Fortran and create a higher-level representation of it. This is done
@@ -143,7 +143,7 @@ routine) is shown below::
          END DO
 
 PSyclone uses fparser2 to parse such source code and then generates the PSy
-Internal Representation of it::
+Intermediate Representation of it::
 
     Loop[type='tracers',field_space='None',it_space='None']
         Loop[type='None',field_space='None',it_space='None']
@@ -154,41 +154,6 @@ Internal Representation of it::
             Loop[type='lat',field_space='None',it_space='None']
                 Loop[type='lon',field_space='None',it_space='None']
                     CodedKern[]
-
-Transformations
----------------
-
-The following transformations are specific to the NEMO API.
-
-####
-
-.. autoclass:: psyclone.domain.nemo.transformations.NemoArrayRange2LoopTrans
-    :noindex:
-    :members: apply, validate
-
-####
-
-.. autoclass:: psyclone.domain.nemo.transformations.NemoOuterArrayRange2LoopTrans
-    :noindex:
-    :members: apply, validate
-
-####
-
-.. autoclass:: psyclone.domain.nemo.transformations.NemoAllArrayRange2LoopTrans
-    :noindex:
-    :members: apply, validate
-
-####
-
-.. autoclass:: psyclone.domain.nemo.transformations.NemoArrayAccess2LoopTrans
-    :noindex:
-    :members: apply, validate
-
-####
-
-.. autoclass:: psyclone.domain.nemo.transformations.NemoAllArrayAccess2LoopTrans
-    :noindex:
-    :members: apply, validate
 
 .. _limitations:
 

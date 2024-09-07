@@ -46,7 +46,8 @@ from sympy.parsing.sympy_parser import parse_expr
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
-from psyclone.psyir.nodes import DataNode, Range, Reference, IntrinsicCall
+from psyclone.psyir.nodes import (
+    DataNode, Range, Reference, IntrinsicCall, Call)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, SymbolTable)
 
 
@@ -294,7 +295,13 @@ class SymPyWriter(FortranWriter):
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
         # (an array).
         for expr in list_of_expressions:
+            # TODO #2542. References should be iterated with the
+            # reference_acess method when its issues are fixed.
             for ref in expr.walk(Reference):
+                if (isinstance(ref.parent, Call) and
+                        ref.parent.children[0] is ref):
+                    continue
+
                 name = ref.name
                 # The reserved Python keywords do not have tags, so they
                 # will not be found.
@@ -628,7 +635,12 @@ class SymPyWriter(FortranWriter):
         # Support renaming a symbol (e.g. if it is a reserved Python name).
         # Look up with the name as tag, which will return the symbol with
         # a unique name (e.g. lambda --> lambda_1):
-        name = self._symbol_table.lookup_with_tag(node.name).name
+        try:
+            name = self._symbol_table.lookup_with_tag(node.name).name
+        except KeyError:
+            # If the tag did not exist it means that this symbol has not
+            # been re-named, and we can use it as is.
+            name = node.name
         if not node.is_array:
             # This reference is not an array, just return the name
             return name
@@ -704,7 +716,7 @@ class SymPyWriter(FortranWriter):
 
         '''
         if node.parent and node.parent.is_lower_bound(
-                node.parent.indices.index(node)):
+                node.parent.index_of(node)):
             # The range starts for the first element in this
             # dimension, so use the generic name for lower bound:
             start = self.lower_bound
@@ -712,7 +724,7 @@ class SymPyWriter(FortranWriter):
             start = self._visit(node.start)
 
         if node.parent and node.parent.is_upper_bound(
-                node.parent.indices.index(node)):
+                node.parent.index_of(node)):
             # The range ends with the last element in this
             # dimension, so use the generic name for the upper bound:
             stop = self.upper_bound

@@ -121,11 +121,11 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
         '''
 
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynInvokeSchedule
+        from psyclone.domain.lfric import LFRicInvokeSchedule
         from psyclone.gocean1p0 import GOInvokeSchedule
         from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 
-        if self.ancestor((DynInvokeSchedule, GOInvokeSchedule)):
+        if self.ancestor((LFRicInvokeSchedule, GOInvokeSchedule)):
             # Look-up the kernels that are children of this node
             sig_set = set()
             for call in self.kernels():
@@ -144,12 +144,54 @@ class ACCStandaloneDirective(ACCDirective, StandaloneDirective,
 
 
 class ACCRoutineDirective(ACCStandaloneDirective):
-    ''' Class representing a "!$ACC routine" OpenACC directive in PSyIR. '''
+    '''
+    Class representing an "ACC routine" OpenACC directive in PSyIR.
+
+    :param str parallelism: the level of parallelism in the routine, one of
+        "gang", "worker", "vector", "seq".
+
+    '''
+    SUPPORTED_PARALLELISM = ["seq", "vector", "worker", "gang"]
+
+    def __init__(self, parallelism="seq", **kwargs):
+        self.parallelism = parallelism
+
+        super().__init__(self, **kwargs)
+
+    @property
+    def parallelism(self):
+        '''
+        :returns: the clause describing the level of parallelism within this
+                  routine (or a called one).
+        :rtype: str
+
+        '''
+        return self._parallelism
+
+    @parallelism.setter
+    def parallelism(self, value):
+        '''
+        :param str value: the new value for the level-of-parallelism within
+                          this routine (or a called one).
+
+        :raises TypeError: if `value` is not a str.
+        :raises ValueError: if `value` is not a recognised level of
+                            parallelism.
+        '''
+        if not isinstance(value, str):
+            raise TypeError(
+                f"Expected a str to specify the level of parallelism but got "
+                f"'{type(value).__name__}'")
+        if value.lower() not in self.SUPPORTED_PARALLELISM:
+            raise ValueError(
+                f"Expected one of {self.SUPPORTED_PARALLELISM} for the level "
+                f"of parallelism but got '{value}'")
+        self._parallelism = value.lower()
 
     def gen_code(self, parent):
-        '''Generate the fortran ACC Routine Directive and any associated code.
+        '''Generate the Fortran ACC Routine Directive and any associated code.
 
-        :param parent: the parent Node in the Schedule to which to add our \
+        :param parent: the parent Node in the Schedule to which to add our
                        content.
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
         '''
@@ -157,7 +199,8 @@ class ACCRoutineDirective(ACCStandaloneDirective):
         self.validate_global_constraints()
 
         # Generate the code for this Directive
-        parent.add(DirectiveGen(parent, "acc", "begin", "routine", ""))
+        parent.add(DirectiveGen(parent, "acc", "begin", "routine",
+                                f"{self.parallelism}"))
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -168,7 +211,7 @@ class ACCRoutineDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
-        return "acc routine"
+        return f"acc routine {self.parallelism}"
 
 
 class ACCEnterDataDirective(ACCStandaloneDirective):
@@ -247,13 +290,15 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         :returns: the opening statement of this directive.
         :rtype: str
 
-        :raises GenerationError: if there are no variables to copy to \
+        :raises GenerationError: if there are no variables to copy to
                                  the device.
         '''
         if not self._sig_set:
             # There should be at least one variable to copyin.
             # TODO #1872: this directive needs reimplementing using the Clause
-            # class and proper lowering.
+            # class and proper lowering. When this is fixed it may be possible
+            # to change RegionTrans.validate() so that it always uses
+            # Node.debug_string() rather than only for CodeBlocks.
             raise GenerationError(
                 "ACCEnterData directive did not find any data to copyin. "
                 "Perhaps there are no ACCParallel or ACCKernels directives "

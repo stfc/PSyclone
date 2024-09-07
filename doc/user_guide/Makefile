@@ -42,7 +42,8 @@ clean:
 	-rm -rf $(BUILDDIR)/*
 
 html:
-	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
+	# Set SPHINXTAG to `-t has_dvipng` to enable maths mode for html:
+	$(SPHINXBUILD) $(SPHINXTAG) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 

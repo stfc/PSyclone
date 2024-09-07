@@ -43,7 +43,7 @@ import pytest
 
 from psyclone.psyir.symbols.interfaces import (
      AutomaticInterface, ArgumentInterface, CommonBlockInterface,
-     DefaultModuleInterface, ImportInterface,
+     DefaultModuleInterface, ImportInterface, PreprocessorInterface,
      StaticInterface, SymbolInterface, UnknownInterface, UnresolvedInterface)
 from psyclone.psyir.symbols import ContainerSymbol
 
@@ -124,10 +124,11 @@ def test_importinterface():
     assert import_interface.container_symbol is container_symbol
     assert str(import_interface) == "Import(container='my_mod')"
 
-    import_interface = ImportInterface(container_symbol, orig_name="orig_name")
-    assert import_interface.container_symbol is container_symbol
-    assert str(import_interface) == ("Import(container='my_mod', "
-                                     "orig_name='orig_name')")
+    import_interface1 = ImportInterface(container_symbol,
+                                        orig_name="orig_name")
+    assert import_interface1.container_symbol is container_symbol
+    assert str(import_interface1) == ("Import(container='my_mod', "
+                                      "orig_name='orig_name')")
 
     with pytest.raises(TypeError) as info:
         _ = ImportInterface("hello")
@@ -137,6 +138,15 @@ def test_importinterface():
         _ = ImportInterface(container_symbol, orig_name=[])
     assert ("ImportInterface orig_name parameter must be of type str or None, "
             "but found 'list'." in str(info.value))
+
+    # Two import interfaces are considered 'equal' if they are importing from
+    # a container of the same name, independent of case.
+    container_symbol2 = ContainerSymbol("my_MOD")
+    import_interface2 = ImportInterface(container_symbol2)
+    assert import_interface == import_interface2
+    assert import_interface != "my_mod"
+    # But they must have the same original name.
+    assert import_interface2 != import_interface1
 
 
 def test_importinterface_container_symbol_getter_setter():
@@ -165,20 +175,25 @@ def test_importinterface_container_symbol_getter_setter():
     assert import_interface.orig_name == "orig_name"
 
 
-def test_importinterface_copy():
-    ''' Test the copy() method of ImportInterface. '''
+def test_importinterface_copy_eq():
+    ''' Test the copy() and __eq__ methods of ImportInterface. '''
     csym = ContainerSymbol("my_mod")
     import_interface = ImportInterface(csym)
     new_interface = import_interface.copy()
+    assert new_interface == import_interface
     assert new_interface is not import_interface
     assert new_interface.container_symbol is csym
     assert new_interface.orig_name is None
     new_interface.container_symbol = ContainerSymbol("other_mod")
     assert import_interface.container_symbol is csym
+    assert new_interface != import_interface
 
     import_interface = ImportInterface(csym, orig_name="orig_name")
     new_interface = import_interface.copy()
     assert new_interface.orig_name == "orig_name"
+    assert new_interface == import_interface
+    new_interface._orig_name = "something"
+    assert new_interface != import_interface
 
 
 def test_argumentinterface_init():
@@ -229,11 +244,20 @@ def test_argumentinterface_str():
     assert str(argument_interface) == "Argument(Access.WRITE)"
 
 
-def test_argumentinterface_copy():
-    ''' Test the copy() method of ArgumentInterface. '''
+def test_argumentinterface_copy_eq():
+    ''' Test the copy() and __eq__ methods of ArgumentInterface. '''
     arg_interface = ArgumentInterface(access=ArgumentInterface.Access.WRITE)
     new_interface = arg_interface.copy()
     assert new_interface.access == ArgumentInterface.Access.WRITE
+    assert arg_interface == new_interface
     # Check that we can modify the copy without affecting the original
     new_interface.access = ArgumentInterface.Access.READ
     assert arg_interface.access == ArgumentInterface.Access.WRITE
+    assert arg_interface != new_interface
+    assert arg_interface != 2
+
+
+def test_preprocessorinterface():
+    ''' Test the PreprocessorInterface method.'''
+    interface = PreprocessorInterface()
+    assert str(interface) == "Preprocessor"

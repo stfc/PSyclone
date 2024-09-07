@@ -41,10 +41,10 @@ include ../../common.mk
 transform: vanilla openmp
 
 vanilla:
-	${PSYCLONE} advective_inc_alg_mod.x90
+	${PSYCLONE} -api lfric advective_inc_alg_mod.x90
 
 openmp:
-	${PSYCLONE} -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90
+	${PSYCLONE} -api lfric -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg9"

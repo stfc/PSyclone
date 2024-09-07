@@ -34,9 +34,10 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+#         J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
-''' Perform py.test tests on the psyclone.psyir.symbols.symboltable file '''
+''' Perform py.test tests on the psyclone.psyir.symbols.symbol_table file '''
 
 import re
 import os
@@ -45,7 +46,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
-    CodeBlock, Container, KernelSchedule,
+    BinaryOperation, CodeBlock, Container, IntrinsicCall, KernelSchedule,
     Literal, Reference, Assignment, Routine, Schedule)
 from psyclone.psyir import symbols
 
@@ -55,7 +56,7 @@ def create_hierarchy():
     symbol in each symbol table.
 
     :returns: two symbol tables created in a hierarchy.
-    :rtype: (:py:class:`psyclone.psyir.symbols.SymbolTable`, \
+    :rtype: (:py:class:`psyclone.psyir.symbols.SymbolTable`,
         :py:class:`psyclone.psyir.symbols.SymbolTable`)
 
     '''
@@ -266,6 +267,52 @@ def test_new_symbol_5():
                 == "symbol1")
 
 
+def test_new_symbol_import_interface():
+    '''Check that if a symbol is renamed and is from an import it has
+     the correct original name.'''
+    sym_table = symbols.SymbolTable()
+    my_mod = symbols.ContainerSymbol("my_mod")
+    sym_table.add(my_mod)
+    sym_table.new_symbol("generic")
+    renamed = sym_table.new_symbol("generic",
+                                   interface=symbols.ImportInterface(my_mod))
+    assert renamed.name == "generic_1"
+    assert renamed.interface.orig_name == "generic"
+
+
+def test_new_symbol_fails_on_duplicate_without_renaming():
+    '''Check if a new symbol has the same name as an existing symbol, and
+    that symbol is not allowed to be renamed we get the appropriate exception.
+    '''
+    # Prepare the symbol table hierarchy for the test
+    schedule_symbol_table, _ = create_hierarchy()
+    symbol = schedule_symbol_table.lookup("symbol1")
+    symbol.constant_value = 3
+    symbol2 = schedule_symbol_table.lookup("symbol2")
+
+    # Create multiple references to the symbol
+    array_type = symbols.ArrayType(symbols.REAL_TYPE, [Reference(symbol)])
+    schedule_symbol_table.new_symbol("array",
+                                     symbol_type=symbols.DataSymbol,
+                                     datatype=array_type)
+    sched = schedule_symbol_table.node
+    ref1 = Reference(symbol2)
+    ref2 = Reference(symbol)
+    assignment = Assignment.create(ref1, ref2)
+    sched.addchild(assignment)
+
+    # Check we fail if we attempt to add another symbol with the same name
+    # and disallow renaming.
+    with pytest.raises(symbols.SymbolError) as err:
+        schedule_symbol_table.new_symbol("array",
+                                         symbol_type=symbols.DataSymbol,
+                                         datatype=array_type,
+                                         allow_renaming=False)
+    assert ("Cannot create symbol 'array' as a symbol with that name already "
+            "exists in this scope, and renaming is disallowed."
+            in str(err.value))
+
+
 def test_add_1():
     '''Test that the add method inserts new symbols in the symbol table,
     but raises appropriate errors when provided with an invalid symbol
@@ -457,7 +504,6 @@ def test_remove_routineymbols():
 def test_no_remove_routinesymbol_called(fortran_reader):
     '''Check that remove() refuses to remove a RoutineSymbol if it is the
     target of a Call.'''
-    # But not if they are referred to by a Call
     psyir = fortran_reader.psyir_from_source(
         '''
 module my_mod
@@ -487,7 +533,6 @@ end module my_mod
 def test_no_remove_routinesymbol_interface(fortran_reader):
     '''Check that remove() refuses to remove a RoutineSymbol if it is
     referred to in an interface.'''
-    # But not if they are referred to by a Call
     psyir = fortran_reader.psyir_from_source(
         '''
 module my_mod
@@ -652,9 +697,9 @@ def test_check_for_clashes_imports():
     table2.add(clash4)
     with pytest.raises(symbols.SymbolError) as err:
         table1.check_for_clashes(table2)
-    assert ("This table has an import of 'dent' from Container 'arthur' but "
-            "the supplied table imports it from Container 'Ford'." in
-            str(err.value))
+    assert ("This table has an import of 'dent' via interface "
+            "'Import(container='arthur')' but the supplied table imports it "
+            "via 'Import(container='Ford')'." in str(err.value))
 
 
 def test_check_for_clashes_cannot_rename():
@@ -713,6 +758,56 @@ def test_check_for_clashes_cannot_rename():
             "'NoneType'" in str(err.value))
 
 
+def test_check_for_clashes_wildcard_import():
+    '''Test check_for_clashes() in the presence of wildcard imports.'''
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    # A Symbol representing an intrinsic will be unresolved but shouldn't
+    # affect the ability to merge so long as we are certain that it cannot
+    # be imported from anywhere.
+    table1.new_symbol("random_number", symbol_type=symbols.RoutineSymbol,
+                      interface=symbols.UnresolvedInterface())
+    table2.new_symbol("random_number", symbol_type=symbols.RoutineSymbol,
+                      interface=symbols.UnresolvedInterface())
+    table1.check_for_clashes(table2)
+    table1.new_symbol("stavro", symbol_type=symbols.DataSymbol,
+                      datatype=symbols.UnresolvedType(),
+                      interface=symbols.UnresolvedInterface())
+    table2.new_symbol("stavro", symbol_type=symbols.DataSymbol,
+                      datatype=symbols.UnresolvedType(),
+                      interface=symbols.UnresolvedInterface())
+    # Both symbols unresolved and not an intrinsic.
+    with pytest.raises(symbols.SymbolError) as err:
+        table1.check_for_clashes(table2)
+    assert ("A symbol named 'stavro' is present but unresolved in one or "
+            "both tables." in str(err.value))
+    # Both symbols unresolved but no common wildcard import.
+    table1.add(symbols.ContainerSymbol("beta", wildcard_import=True))
+    with pytest.raises(symbols.SymbolError) as err:
+        table1.check_for_clashes(table2)
+    assert ("A symbol named 'stavro' is present but unresolved in one or "
+            "both tables." in str(err.value))
+    # Add a wildcard import to the second table but from a different container.
+    table2.add(symbols.ContainerSymbol("romula", wildcard_import=True))
+    with pytest.raises(symbols.SymbolError) as err:
+        table1.check_for_clashes(table2)
+    assert ("A symbol named 'stavro' is present but unresolved in one or "
+            "both tables." in str(err.value))
+    # Add a wildcard import from the same container as in the first table.
+    table2.add(symbols.ContainerSymbol("beta", wildcard_import=True))
+    # We can't safely rename the symbol because it's possible that it is being
+    # brought into scope from different containers.
+    with pytest.raises(symbols.SymbolError) as err:
+        table1.check_for_clashes(table2)
+    assert ("A symbol named 'stavro' is present but unresolved in one or "
+            "both tables." in str(err.value))
+    # Remove the wildcard import that is unique to table2.
+    table2.remove(table2.lookup("romula"))
+    # Now that we are confident that 'stavro' must come from container 'beta'
+    # in both tables we know there isn't a clash.
+    table1.check_for_clashes(table2)
+
+
 def test_table_merge():
     ''' Test the SymbolTable.merge method. '''
     table1 = symbols.SymbolTable()
@@ -748,14 +843,19 @@ def test_table_merge():
     assert "marvin" in table1
     assert "wp" in table1
     # Different symbols with a name clash. This results in the Symbol in the
-    # second table being renamed (as that preserves any references to it).
+    # second table being renamed (as that preserves any references to it)
+    # unless it is an intrinsic.
     table1 = symbols.SymbolTable()
     table2 = symbols.SymbolTable()
-    table1.add(symbols.DataSymbol("theclash", symbols.INTEGER_TYPE))
-    table2.add(symbols.DataSymbol("theclash", symbols.INTEGER_TYPE))
+    for table in [table1, table2]:
+        table.add(symbols.DataSymbol("theclash", symbols.INTEGER_TYPE))
+        table.new_symbol("random_number", symbol_type=symbols.RoutineSymbol,
+                         interface=symbols.UnresolvedInterface())
     table1.merge(table2)
-    assert len(table1._symbols) == 2
+    assert len(table1._symbols) == 3
     assert table1.lookup("theclash_1") is table2.lookup("theclash_1")
+    # The symbol representing an intrinsic should not be modified.
+    assert table1.lookup("random_number") is not table2.lookup("random_number")
     # Arguments. By default they are included in a merge.
     table3 = symbols.SymbolTable()
     arg_sym = symbols.DataSymbol("trillian", symbols.INTEGER_TYPE,
@@ -813,6 +913,82 @@ def test_merge_container_syms():
     assert "due to unresolvable name clashes." in err_txt
 
 
+def test_merge_same_routine_symbol(fortran_reader):
+    '''
+    Check that we can merge two tables containing clashing symbols that
+    refer to the same routine.
+
+    '''
+    code = '''\
+    module my_mod
+      implicit none
+    contains
+      subroutine sub1()
+        use slartibartfast, only: norway
+        call norway()
+      end subroutine sub1
+      subroutine sub2()
+        use slartibartfast, only: norway
+        call norway()
+      end subroutine sub2
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routines = psyir.walk(Routine)
+    norway = routines[0].symbol_table.lookup("norway")
+    routines[0].symbol_table.merge(routines[1].symbol_table)
+    # Since the two routines are referring to the same "norway" symbol,
+    # the member of the original table should be unchanged.
+    assert routines[0].symbol_table.lookup("norway") is norway
+
+
+def test_merge_with_use_renaming(fortran_reader):
+    '''Test that merging works when both tables contain a use of
+    a specific variable from a module but give it different local names.
+
+    '''
+    code = '''\
+subroutine A
+  use modA, only : var_a => var_b
+end subroutine A
+subroutine B
+  use modA, only : var_c => var_b
+end subroutine B
+subroutine C
+  use modA, only: var_b => other_var
+end subroutine C
+subroutine D
+  use modA, only: var_b => another_var
+end subroutine D
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routines = psyir.walk(Routine)
+    table = routines[0].symbol_table
+    # Routine B
+    table.merge(routines[1].symbol_table)
+    cntr = table.lookup("moda")
+    imported_syms = table.symbols_imported_from(cntr)
+    assert len(imported_syms) == 2
+    asym = table.lookup("var_a")
+    csym = table.lookup("var_c")
+    assert asym in imported_syms
+    assert csym in imported_syms
+    assert asym.interface.orig_name == "var_b"
+    assert csym.interface.orig_name == "var_b"
+    # Routine C
+    table.merge(routines[2].symbol_table)
+    imported_syms = table.symbols_imported_from(cntr)
+    assert len(imported_syms) == 3
+    bsym = table.lookup("var_b")
+    assert bsym in imported_syms
+    assert bsym.interface.orig_name == "other_var"
+    # Routine D. These tables cannot be merged because the same local name
+    # is associated with a different module variable.
+    print(str(routines[3].symbol_table))
+    with pytest.raises(symbols.SymbolError) as err:
+        table.merge(routines[3].symbol_table)
+    assert "Cannot merge Symbol Table of Routine 'D'" in str(err.value)
+
+
 def test_add_container_symbols_from_table():
     '''Test that the _add_container_symbols_from_table method copies Container
     symbols into the current table and updates any import interfaces.'''
@@ -865,8 +1041,10 @@ def test_add_container_symbols_from_table():
     assert bclash_in_1.name != "bclash"
 
 
-def test_add_symbols_from_table():
-    '''Test for the 'internal' _add_symbols_from_table() method.'''
+def test_add_symbols_from_table_import_error():
+    '''Test that the 'internal' _add_symbols_from_table() method raises
+    the expected error if a Container import has not been updated before
+    it is called.'''
     table1 = symbols.SymbolTable()
     table2 = symbols.SymbolTable()
     csym = symbols.ContainerSymbol("ford")
@@ -878,10 +1056,56 @@ def test_add_symbols_from_table():
     table2.add(symbols.DataSymbol("prefect", symbols.INTEGER_TYPE,
                                   interface=symbols.ImportInterface(csym2)))
     with pytest.raises(InternalError) as err:
-        table1._add_symbols_from_table(table2)
+        table1._add_symbols_from_table(table2, {})
     assert ("Symbol 'prefect' imported from 'ford' has not been updated to "
             "refer to the corresponding container in the current table."
             in str(err.value))
+
+
+def test_add_symbols_from_table_wildcard_import():
+    '''Test that _add_symbols_from_table() handles the case where the same
+    symbol is brought into scope via a wildcard import in both tables.
+
+    '''
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    csym = symbols.ContainerSymbol("adagio")
+    table1.add(csym)
+    csym2 = csym.copy()
+    table2.add(csym2)
+    table1.new_symbol("concierto", symbol_type=symbols.DataSymbol,
+                      datatype=symbols.UnresolvedType(),
+                      interface=symbols.UnresolvedInterface())
+    table2.new_symbol("concierto", symbol_type=symbols.DataSymbol,
+                      datatype=symbols.UnresolvedType(),
+                      interface=symbols.UnresolvedInterface())
+    # Since this method requires that check_for_clashes() be called first,
+    # it assumes that any unresolved symbol clashes refer to the same symbol
+    # and therefore, table1 should be left unchanged.
+    table1._add_symbols_from_table(table2)
+    assert len(table1._symbols) == 2
+    assert "adagio" in table1
+    assert "concierto" in table1
+
+
+def test_add_symbols_from_table_rename_existing():
+    '''Test that _add_symbols_from_table() will rename the symbol in the
+    current table if it can't rename the one in the other table.'''
+    table1 = symbols.SymbolTable()
+    table1.new_symbol("concierto", symbol_type=symbols.DataSymbol,
+                      datatype=symbols.INTEGER_TYPE)
+    table2 = symbols.SymbolTable()
+    table2.new_symbol("adagio", symbol_type=symbols.ContainerSymbol)
+    table2.new_symbol("concierto", symbol_type=symbols.DataSymbol,
+                      datatype=symbols.UnresolvedType(),
+                      interface=symbols.UnresolvedInterface())
+    table1._add_symbols_from_table(table2)
+    assert len(table1._symbols) == 2
+    # The original, integer scalar symbol should have been renamed.
+    orig_sym = table1.lookup("concierto_1")
+    assert orig_sym.datatype == symbols.INTEGER_TYPE
+    new_sym = table1.lookup("concierto")
+    assert isinstance(new_sym.datatype, symbols.UnresolvedType)
 
 
 def test_swap_symbol_properties():
@@ -1006,7 +1230,7 @@ def test_lookup_1():
         str(error.value)
 
 
-def test_lookup_2():
+def test_lookup_vis_filtering():
     '''Test the visibility argument filtering functionality of the
     lookup() method.
 
@@ -1047,7 +1271,7 @@ def test_lookup_2():
             "searching for symbol 'var2'" in str(err.value))
 
 
-def test_lookup_3():
+def test_lookup_name_type_error():
     '''Check that lookup() in the SymbolTable class raises the expected
     exception if the name argument has the wrong type.
 
@@ -1060,7 +1284,7 @@ def test_lookup_3():
             "but found 'DataSymbol'." in str(info.value))
 
 
-def test_lookup_4():
+def test_lookup_scope_limit():
     '''Check that lookup() in the SymbolTable class behaves as
     expected with the scope_limit argument.
 
@@ -1089,6 +1313,28 @@ def test_lookup_4():
             container_symbol_table.lookup(symbol1.name, **arg)
         assert ("Could not find 'symbol1' in the Symbol Table."
                 in str(info.value))
+
+
+def test_lookup_default_value():
+    '''Test that the lookup() method returns the supplied (optional)
+    'otherwise' value if a Symbol cannot be found.
+
+    '''
+    table = symbols.SymbolTable()
+    with pytest.raises(KeyError) as err:
+        table.lookup("missing")
+    assert "Could not find 'missing'" in str(err.value)
+    # The most common use case is to allow None to be returned rather than
+    # raising an error.
+    sym = table.lookup("missing", otherwise=None)
+    assert sym is None
+    # But any other alternative value can be specified.
+    sym = table.lookup("missing", otherwise=symbols.Symbol("missing"))
+    assert sym.name == "missing"
+    # The presence of other, optional arguments doesn't alter anything.
+    sym = table.lookup("missing", visibility=symbols.Symbol.Visibility.PUBLIC,
+                       otherwise=1)
+    assert sym == 1
 
 
 def test_lookup_with_tag_1():
@@ -1158,32 +1404,78 @@ def test_lookup_with_tag_3():
                     in str(info.value))
 
 
-def test_has_wildcard_imports():
-    ''' Test the has_wildcard_imports() method. '''
+def test_wildcard_imports():
+    ''' Test the wildcard_imports() method. '''
     sched_table, container_table = create_hierarchy()
     # We have no wildcard imports initially
-    assert sched_table.has_wildcard_imports() is False
-    assert container_table.has_wildcard_imports() is False
+    assert sched_table.wildcard_imports() == set()
+    assert not container_table.wildcard_imports()
     csym = symbols.ContainerSymbol("some_mod")
     container_table.add(csym)
     # Adding a container symbol without a wildcard import has no effect
-    assert container_table.has_wildcard_imports() is False
+    assert not container_table.wildcard_imports()
     # Now give it a wildcard import
     csym.wildcard_import = True
-    assert container_table.has_wildcard_imports() is True
-    assert sched_table.has_wildcard_imports() is True
+    assert container_table.wildcard_imports() == set([csym.name])
+    assert sched_table.wildcard_imports() == set([csym.name])
 
 
 def test_view():
     '''Test the view method of the SymbolTable class, it should return a
-    representation of the full SymbolTable.'''
+    representation of the full SymbolTable, sorted by symbol type and
+    alphabetically ordered.'''
     sym_table = symbols.SymbolTable()
     sym_table.add(symbols.DataSymbol("var1", symbols.REAL_TYPE))
     sym_table.add(symbols.DataSymbol("var2", symbols.INTEGER_TYPE))
     output = sym_table.view()
     assert "Symbol Table:\n" in output
+    assert "DataSymbol:\n" in output
     assert "var1" in output
     assert "var2" in output
+
+    sym_table_2 = sym_table.deep_copy()
+
+    sym_table.add(symbols.RoutineSymbol("func", symbols.REAL_TYPE))
+    output = sym_table.view()
+    assert "Symbol Table:\n" in output
+    assert "DataSymbol:\n" in output
+    assert "var1" in output
+    assert "var2" in output
+    assert "RoutineSymbol:\n" in output
+    assert "func" in output
+    assert output.index("DataSymbol:\n") < output.index("RoutineSymbol:\n")
+    assert output.index("var1") < output.index("var2")
+    assert output == ("Symbol Table:\n"
+                      "-------------\n"
+                      "DataSymbol:\n"
+                      "  var1: DataSymbol<Scalar<REAL, UNDEFINED>, "
+                      "Automatic>\n"
+                      "  var2: DataSymbol<Scalar<INTEGER, UNDEFINED>, "
+                      "Automatic>\n"
+                      "RoutineSymbol:\n"
+                      "  func: RoutineSymbol<Scalar<REAL, UNDEFINED>, "
+                      "pure=unknown, elemental=unknown>\n")
+
+    Routine("func", symbol_table=sym_table_2)
+    output = sym_table_2.view()
+    assert "Symbol Table of Routine 'func':\n" in output
+    assert "DataSymbol:\n" in output
+    assert "var1" in output
+    assert "var2" in output
+    assert "RoutineSymbol:\n" in output
+    assert "func" in output
+    assert output.index("DataSymbol:\n") < output.index("RoutineSymbol:\n")
+    assert output.index("var1") < output.index("var2")
+    assert output == ("Symbol Table of Routine 'func':\n"
+                      "-------------------------------\n"
+                      "DataSymbol:\n"
+                      "  var1: DataSymbol<Scalar<REAL, UNDEFINED>, "
+                      "Automatic>\n"
+                      "  var2: DataSymbol<Scalar<INTEGER, UNDEFINED>, "
+                      "Automatic>\n"
+                      "RoutineSymbol:\n"
+                      "  func: RoutineSymbol<NoType, pure=unknown, "
+                      "elemental=unknown>\n")
 
 
 def test_can_be_printed():
@@ -1311,6 +1603,141 @@ def test_argument_list_errors():
         sym_table._validate_arg_list(["Not a symbol"])
     assert "Expected a list of DataSymbols but found an object of type" \
         in str(err.value)
+
+
+def test_insert_argument():
+    ''' Checks for the insertion of a symbol into the argument list. '''
+    sym_table = symbols.SymbolTable()
+    var1 = symbols.DataSymbol("var1", symbols.REAL_TYPE)
+    sym_table.add(var1)
+
+    arg1 = symbols.DataSymbol("var2", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    sym_table.insert_argument(0, arg1)
+    assert var1 not in sym_table.argument_list
+    assert arg1 in sym_table.argument_list
+    assert sym_table.argument_list[0] is arg1
+    assert arg1 in sym_table.argument_datasymbols
+
+    arg2 = symbols.DataSymbol("var3", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    sym_table.insert_argument(0, arg2)
+    assert arg2 in sym_table.argument_list
+    assert sym_table.argument_list[0] is arg2
+    assert sym_table.argument_list[1] is arg1
+    assert arg2 in sym_table.argument_datasymbols
+
+    with pytest.raises(TypeError) as err:
+        arg = symbols.DataSymbol("var4", symbols.REAL_TYPE,
+                                 interface=symbols.ArgumentInterface())
+        sym_table.insert_argument('Not an int', arg)
+    assert ("Expected an integer index for the position at which to insert "
+            "the argument but found 'str'." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        sym_table.insert_argument(0, "Not a symbol")
+    assert ("Expected a DataSymbol for the argument to insert but found "
+            "'str'." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        sym_table.insert_argument(0, symbols.Symbol("Not a DataSymbol"))
+    assert ("Expected a DataSymbol for the argument to insert but found "
+            "'Symbol'." in str(err.value))
+
+    with pytest.raises(ValueError) as err:
+        sym_table.insert_argument(0, symbols.DataSymbol("var5",
+                                                        symbols.REAL_TYPE))
+    assert ("DataSymbol 'var5' is not marked as a kernel argument."
+            in str(err.value))
+
+    # Make table inconsistent by adding a symbol with an argument interface
+    # that is not listed as an argument
+    arg3 = symbols.DataSymbol("var6", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    sym_table.add(arg3)
+    arg4 = symbols.DataSymbol("var7", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    with pytest.raises(InternalError) as err:
+        sym_table.insert_argument(0, arg4)
+    assert ("var6" in str(err.value) and " is not listed as a kernel argument"
+            " and yet has an ArgumentInterface interface." in str(err.value))
+
+    # Make table inconsistent by putting a non-argument symbol into the
+    # internal argument list
+    sym_table = symbols.SymbolTable()
+    var1 = symbols.DataSymbol("var1", symbols.REAL_TYPE)
+    sym_table._argument_list.append(var1)
+    arg1 = symbols.DataSymbol("var2", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    with pytest.raises(InternalError) as err:
+        sym_table.insert_argument(0, arg1)
+    assert ("var1" in str(err.value) and " is listed as a kernel argument "
+            "but has an interface of type 'AutomaticInterface' "
+            "rather than ArgumentInterface" in str(err.value))
+
+
+def test_append_argument():
+    ''' Checks for the appending of a symbol into the argument list. '''
+    sym_table = symbols.SymbolTable()
+    var1 = symbols.DataSymbol("var1", symbols.REAL_TYPE)
+    sym_table.add(var1)
+
+    arg1 = symbols.DataSymbol("var2", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    sym_table.append_argument(arg1)
+    assert var1 not in sym_table.argument_list
+    assert arg1 in sym_table.argument_list
+    assert sym_table.argument_list[-1] is arg1
+    assert arg1 in sym_table.argument_datasymbols
+
+    arg2 = symbols.DataSymbol("var3", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    sym_table.append_argument(arg2)
+    assert arg2 in sym_table.argument_list
+    assert sym_table.argument_list[-1] is arg2
+    assert sym_table.argument_list[-2] is arg1
+    assert arg2 in sym_table.argument_datasymbols
+
+    with pytest.raises(TypeError) as err:
+        sym_table.append_argument("Not a symbol")
+    assert ("Expected a DataSymbol for the argument to insert but found "
+            "'str'." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        sym_table.append_argument(symbols.Symbol("Not a DataSymbol"))
+    assert ("Expected a DataSymbol for the argument to insert but found "
+            "'Symbol'." in str(err.value))
+
+    with pytest.raises(ValueError) as err:
+        sym_table.append_argument(symbols.DataSymbol("var4",
+                                                     symbols.REAL_TYPE))
+    assert ("DataSymbol 'var4' is not marked as a kernel argument." in
+            str(err.value))
+
+    # Make table inconsistent by adding a symbol with an argument interface
+    # that is not listed as an argument
+    arg3 = symbols.DataSymbol("var6", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    sym_table.add(arg3)
+    arg4 = symbols.DataSymbol("var7", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    with pytest.raises(InternalError) as err:
+        sym_table.append_argument(arg4)
+    assert ("var6" in str(err.value) and " is not listed as a kernel argument"
+            " and yet has an ArgumentInterface interface." in str(err.value))
+
+    # Make table inconsistent by putting a non-argument symbol into the
+    # internal argument list
+    sym_table = symbols.SymbolTable()
+    var1 = symbols.DataSymbol("var1", symbols.REAL_TYPE)
+    sym_table._argument_list.append(var1)
+    arg1 = symbols.DataSymbol("var2", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    with pytest.raises(InternalError) as err:
+        sym_table.append_argument(arg1)
+    assert ("var1" in str(err.value) and " is listed as a kernel argument "
+            "but has an interface of type 'AutomaticInterface' "
+            "rather than ArgumentInterface" in str(err.value))
 
 
 def test_validate_non_args():
@@ -1543,9 +1970,9 @@ def test_copy_external_import():
     assert "my_mod" in symtab
     assert var.interface.container_symbol.name == "my_mod"
     # The symtab items should be new copies not connected to the original
-    assert symtab.lookup("a") != var
-    assert symtab.lookup("my_mod") != container
-    assert symtab.lookup("a").interface.container_symbol != container
+    assert symtab.lookup("a") is not var
+    assert symtab.lookup("my_mod") is not container
+    assert symtab.lookup("a").interface.container_symbol is not container
 
     # Copy a second imported_var with a reference to the same external
     # Container
@@ -1556,13 +1983,13 @@ def test_copy_external_import():
     assert "b" in symtab
     assert "my_mod" in symtab
     assert var2.interface.container_symbol.name == "my_mod"
-    assert symtab.lookup("b") != var2
-    assert symtab.lookup("my_mod") != container2
-    assert symtab.lookup("b").interface.container_symbol != container2
+    assert symtab.lookup("b") is not var2
+    assert symtab.lookup("my_mod") is not container2
+    assert symtab.lookup("b").interface.container_symbol is not container2
 
     # The new imported_var should reuse the available container reference
-    assert symtab.lookup("a").interface.container_symbol == \
-        symtab.lookup("b").interface.container_symbol
+    assert (symtab.lookup("a").interface.container_symbol is
+            symtab.lookup("b").interface.container_symbol)
 
     # The copy of imported_vars that already exist is supported
     var3 = symbols.DataSymbol("b", symbols.UnresolvedType(),
@@ -1653,24 +2080,70 @@ def test_shallow_copy():
 
 def test_deep_copy():
     ''' Tests the SymbolTable deep copy generates a new SymbolTable with
-    new identical copies of the symbols in the original symbol table'''
+    new, identical copies of the symbols in the original symbol table'''
 
     # Create an initial SymbolTable
     symtab = symbols.SymbolTable(
         default_visibility=symbols.Symbol.Visibility.PRIVATE)
     Schedule(symbol_table=symtab)
     mod = symbols.ContainerSymbol("my_mod")
+    symtab.add(mod)
     sym1 = symbols.DataSymbol("symbol1", symbols.INTEGER_TYPE,
                               interface=symbols.ArgumentInterface(
                                   symbols.ArgumentInterface.Access.READ))
+    symtab.add(sym1)
     sym2 = symbols.Symbol(
         "symbol2",
         interface=symbols.ImportInterface(mod, orig_name="altsym2"))
-    sym3 = symbols.DataSymbol("symbol3", symbols.INTEGER_TYPE)
-    symtab.add(mod)
-    symtab.add(sym1)
     symtab.add(sym2, tag="tag1")
+    sym3 = symbols.DataSymbol("symbol3", symbols.INTEGER_TYPE)
     symtab.add(sym3)
+    # Shape containing References.
+    sym4 = symbols.DataSymbol("symbol4",
+                              symbols.ArrayType(symbols.REAL_TYPE,
+                                                [Reference(sym1)]))
+    symtab.add(sym4)
+    # Shape with an attribute rather than bounds.
+    sym4a = symbols.DataSymbol(
+        "sym4a",
+        symbols.ArrayType(symbols.REAL_TYPE,
+                          [symbols.ArrayType.Extent.ATTRIBUTE]))
+    symtab.add(sym4a)
+    other_sym = symbols.DataSymbol("other_sym", symbols.UnresolvedType())
+    # Shape with a reference to an unresolved Symbol.
+    sym4b = symbols.DataSymbol(
+        "sym4b",
+        symbols.ArrayType(symbols.REAL_TYPE,
+                          [Reference(other_sym)]))
+    symtab.add(sym4b)
+    maxcall = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                   [Reference(sym1), Reference(sym3)])
+    binop = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                   Literal("3", symbols.INTEGER_TYPE), maxcall)
+    sym4c = symbols.DataSymbol(
+        "sym4c", symbols.ArrayType(symbols.REAL_TYPE, [binop]))
+    symtab.add(sym4c)
+    # Initial value containing References.
+    sym5 = symbols.DataSymbol(
+        "symbol5", symbols.INTEGER_TYPE,
+        initial_value=BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                             Reference(sym1), Reference(sym2)))
+    symtab.add(sym5)
+    dpsym = symbols.DataSymbol("dp", symbols.REAL_DOUBLE_TYPE)
+    symtab.add(dpsym)
+    icall = IntrinsicCall.create(IntrinsicCall.Intrinsic.KIND,
+                                 [Reference(dpsym)])
+    wp = symbols.DataSymbol("wp", symbols.INTEGER_TYPE,
+                            initial_value=icall)
+    symtab.add(wp)
+    # Initial value containing a Reference to an unresolved Symbol.
+    sym5a = symbols.DataSymbol(
+        "sym5a",
+        symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER, wp),
+        initial_value=BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                             Reference(sym1),
+                                             Reference(other_sym)))
+    symtab.add(sym5a)
     symtab.specify_argument_list([sym1])
     rsym = symbols.RoutineSymbol("my_sub")
     gisym = symbols.GenericInterfaceSymbol("generic_sub", [(rsym, False)])
@@ -1713,6 +2186,45 @@ def test_deep_copy():
     assert gisym2.routines[0].symbol is rsym2
     assert (gisym2.routines[0].from_container ==
             gisym.routines[0].from_container)
+
+    # Check that the dimensioning symbol has been updated.
+    newsym4 = symtab2.lookup("symbol4")
+    assert newsym4.datatype.shape[0].upper.symbol.name == "symbol1"
+    assert newsym4.datatype.shape[0].upper.symbol is not sym1
+    newsym1 = symtab2.lookup("symbol1")
+    assert newsym4.datatype.shape[0].upper.symbol is newsym1
+    assert newsym1.is_argument
+    newsym4a = symtab2.lookup("sym4a")
+    assert newsym4a.datatype.shape[0] == symbols.ArrayType.Extent.ATTRIBUTE
+    # Check that the original declaration still uses the original
+    # dimensioning symbol.
+    assert sym4.datatype.shape[0].upper.symbol is sym1
+    newsym4b = symtab2.lookup("sym4b")
+    # Check that the reference to an unresolved symbol is unchanged.
+    assert newsym4b.datatype.shape[0].upper.symbol is other_sym
+    # Repeat check when array bound is given by an expression.
+    newsym4c = symtab2.lookup("sym4c")
+    assert isinstance(newsym4c.datatype.shape[0].upper, BinaryOperation)
+    for ref in newsym4c.datatype.shape[0].upper.walk(Reference):
+        if not isinstance(ref.symbol, symbols.RoutineSymbol):
+            assert ref.symbol in symtab2.symbols
+            assert ref.symbol not in symtab.symbols
+
+    # Check that initial-value expressions are updated correctly.
+    newsym5 = symtab2.lookup("symbol5")
+    newsym2 = symtab2.lookup("symbol2")
+    assert isinstance(newsym5.initial_value, BinaryOperation)
+    assert newsym5.initial_value.children[0].symbol is newsym1
+    assert newsym5.initial_value.children[1].symbol is newsym2
+    assert sym5.initial_value.children[0].symbol is sym1
+    assert sym5.initial_value.children[1].symbol is sym2
+    newsym5a = symtab2.lookup("sym5a")
+    assert newsym5a.initial_value.children[1].symbol is other_sym
+    # Check that precision value has been updated.
+    new_wp = symtab2.lookup("wp")
+    new_dp = symtab2.lookup("dp")
+    assert newsym5a.datatype.precision is new_wp
+    assert new_wp.initial_value.arguments[0].symbol is new_dp
 
     # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table
@@ -2025,6 +2537,17 @@ def test_find_or_create_tag():
     assert ("Expected symbol with tag 'tag3' to be of type 'RoutineSymbol' "
             "but found type 'DataSymbol'." in str(err.value))
 
+    tag5 = symtab.find_or_create_tag("tag5", root_name="var",
+                                     allow_renaming=True)
+    assert tag5.name == "var_1"
+    # Check that it fails if exact_name was specified but we couldn't create
+    # a variable with that name.
+    with pytest.raises(symbols.SymbolError) as err:
+        symtab.find_or_create_tag("tag6", root_name="var",
+                                  allow_renaming=False)
+    assert ("Cannot create symbol 'var' as a symbol with that name already "
+            "exists in this scope, and renaming is disallowed."
+            in str(err.value))
     # TODO #1057: It should also fail the symbol is found but the properties
     # are different than the requested ones.
 
@@ -2172,6 +2695,7 @@ end module gold'''
 
 # resolve_imports
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     ''' Tests that the SymbolTable resolve_imports method works as expected
     when importing symbol information from external containers and respects
@@ -2348,6 +2872,7 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     assert a_2.visibility == symbols.Symbol.Visibility.PRIVATE
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_different_capitalization(
         fortran_reader, tmpdir, monkeypatch):
     ''' Tests that the SymbolTable resolve_imports method works as expected
@@ -2381,6 +2906,7 @@ def test_resolve_imports_different_capitalization(
     assert symbol.visibility == symbols.Symbol.Visibility.PRIVATE
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
     ''' Tests the SymbolTable resolve_imports method raises the appropriate
     errors when it finds name clashes. '''
@@ -2418,6 +2944,7 @@ def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
             "symbols from container 'a_mod'." in str(err.value))
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_private_symbols(fortran_reader, tmpdir, monkeypatch):
     ''' Tests the SymbolTable resolve_imports respects the accessibility
     statements when importing symbol information from external containers. '''
@@ -2478,11 +3005,13 @@ def test_resolve_imports_private_symbols(fortran_reader, tmpdir, monkeypatch):
     # name_public2 also has been imported because it is a public symbol
     assert "name_public2" in symtab
     # even though we capture that other symbols are private by default
-    assert symtab.lookup("b_mod").container.symbol_table \
-        .default_visibility == symbols.Symbol.Visibility.PRIVATE
+    ctr = symtab.lookup("b_mod").find_container_psyir()
+    assert (ctr.symbol_table.default_visibility ==
+            symbols.Symbol.Visibility.PRIVATE)
     assert "other_private" not in symtab
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_with_datatypes(fortran_reader, tmpdir, monkeypatch):
     ''' Tests that the SymbolTable resolve_imports method work as expected when
     we are importing user-defined/derived types from an external container. '''
@@ -2550,6 +3079,7 @@ def test_resolve_imports_with_datatypes(fortran_reader, tmpdir, monkeypatch):
     assert my_type.components["array"].datatype.shape[1].upper.value == "10"
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 @pytest.mark.parametrize('dependency_order', [['a_mod', 'b_mod'],
                                               ['b_mod', 'a_mod']])
 def test_resolve_imports_common_symbol(fortran_reader, tmpdir, monkeypatch,
@@ -2590,6 +3120,7 @@ def test_resolve_imports_common_symbol(fortran_reader, tmpdir, monkeypatch,
     assert symtab.lookup("common_import").datatype.intrinsic.name == "INTEGER"
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_parent_scope(fortran_reader, tmpdir, monkeypatch):
     '''Test that resolve_imports() works as expected if a Symbol is brought
     into scope from a parent table (which does not itself contain the Symbol
@@ -2627,6 +3158,7 @@ def test_resolve_imports_parent_scope(fortran_reader, tmpdir, monkeypatch):
     assert new_sym.interface.container_symbol.name == "a_mod"
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtab(
         fortran_reader, tmpdir, monkeypatch):
     '''Check that when an unresolved symbol is declared in a subroutine,
@@ -2669,6 +3201,7 @@ def test_resolve_imports_from_child_symtab(
     assert symbol.interface.container_symbol.name == "a_mod"
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtab_uft(
         fortran_reader, tmpdir, monkeypatch):
     '''Check that when an unresolved symbol is declared in a subroutine,
@@ -2713,6 +3246,7 @@ def test_resolve_imports_from_child_symtab_uft(
     assert symbol.interface.container_symbol.name == "a_mod"
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtabs(
         fortran_reader, tmpdir, monkeypatch):
     '''Check that when an unresolved symbol is declared in more than one
@@ -2770,6 +3304,7 @@ def test_resolve_imports_from_child_symtabs(
         assert reference.symbol is some_var_symbol
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtabs_utf(
         fortran_reader, tmpdir, monkeypatch):
     '''Check that when an unresolved symbol is declared in more than one
@@ -2829,6 +3364,7 @@ def test_resolve_imports_from_child_symtabs_utf(
         assert reference.symbol is some_var_symbol
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtab_with_import(
         fortran_reader, tmpdir, monkeypatch):
     '''Check that when an unresolved symbol is declared in a subroutine

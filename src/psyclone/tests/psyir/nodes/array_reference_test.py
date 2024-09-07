@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, ScalarType,
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, Symbol, INTEGER_TYPE,
-    UnsupportedFortranType)
+    UnsupportedFortranType, StructureType)
 from psyclone.tests.utilities import check_links
 
 
@@ -484,23 +484,6 @@ def test_array_indices():
             "has none" in str(err.value))
 
 
-def test_array_same_array():
-    ''' Test the is_same_array() method for an ArrayReference. '''
-    one = Literal("1", INTEGER_TYPE)
-    two = Literal("2", INTEGER_TYPE)
-    test_sym = DataSymbol("test",
-                          ArrayType(REAL_TYPE, [10]))
-    array = ArrayReference.create(test_sym, [one])
-    # Something other than a Reference won't match
-    assert array.is_same_array(one) is False
-    # An ArrayReference should match
-    array2 = ArrayReference.create(test_sym, [two])
-    assert array.is_same_array(array2) is True
-    # A Reference to the array symbol should also match
-    bare_array = Reference(test_sym)
-    assert array.is_same_array(bare_array) is True
-
-
 def test_array_datatype():
     '''Test the datatype() method for an ArrayReference.'''
     test_sym = DataSymbol("test", ArrayType(REAL_TYPE, [10]))
@@ -586,6 +569,16 @@ def test_array_datatype():
     assert isinstance(dtype5.intrinsic, UnresolvedType)
     assert dtype5.shape[0].lower.value == "1"
     assert dtype5.shape[0].upper.debug_string() == "4 - 2 + 1"
+
+    # TODO 2448 Test that we get an UnresolvedType if the symbol
+    # is a structure symbol.
+    generic_sym = Symbol("test")
+    aref6 = ArrayReference(generic_sym)
+    test_struc_sym = DataSymbol("test", StructureType())
+    index = Symbol("temp")
+    aref6.addchild(Reference(index))
+    aref6._symbol = test_struc_sym
+    assert isinstance(aref6.datatype, UnresolvedType)
 
 
 def test_array_create_colon(fortran_writer):

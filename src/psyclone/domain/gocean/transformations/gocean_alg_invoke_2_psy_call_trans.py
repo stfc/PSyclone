@@ -69,7 +69,7 @@ class GOceanAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
 
         '''
         arguments = []
-        for kern in node.children:
+        for kern in node.arguments:
             for arg in kern.children:
                 self._add_arg(arg, arguments)
         return arguments

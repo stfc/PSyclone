@@ -45,7 +45,7 @@ import os
 from collections import OrderedDict
 import abc
 
-from psyclone.configuration import Config
+from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CommentGen,
@@ -92,25 +92,6 @@ def object_index(alist, item):
         if entry is item:
             return idx
     raise ValueError(f"Item '{item}' not found in list: {alist}")
-
-
-def get_api(api):
-    ''' If no API is specified then return the default. Otherwise, check that
-    the supplied API is valid.
-    :param str api: The PSyclone API to check or an empty string.
-    :returns: The API that is in use.
-    :rtype: str
-    :raises GenerationError: if the specified API is not supported.
-
-    '''
-    if api == "":
-        api = Config.get().default_api
-    else:
-        if api not in Config.get().supported_apis:
-            raise GenerationError(f"get_api: Unsupported API '{api}' "
-                                  f"specified. Supported types are "
-                                  f"{Config.get().supported_apis}.")
-    return api
 
 
 def zero_reduction_variables(red_call_list, parent):
@@ -170,9 +151,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
 
 class PSyFactory():
     '''
-    Creates a specific version of the PSy. If a particular api is not
-    provided then the default api, as specified in the psyclone.cfg
-    file, is chosen.
+    Creates a specific version of the PSy.
 
     :param str api: name of the PSyclone API (domain) for which to create \
         a factory.
@@ -193,36 +172,31 @@ class PSyFactory():
             raise TypeError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
+        Config.get().api = api
         Config.get().distributed_memory = _distributed_memory
-        self._type = get_api(api)
+        self._type = api
 
     def create(self, invoke_info):
         '''
         Create the API-specific PSy instance.
 
-        :param invoke_info: information on the invoke()s found by parsing \
-                            the Algorithm layer or (for NEMO) the fparser2 \
-                            parse tree of the source file.
-        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo` or \
-                           :py:class:`fparser.two.Fortran2003.Program`
+        :param invoke_info: information on the invoke()s found by parsing
+                            the Algorithm layer.
+        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
 
         :returns: an instance of the API-specific sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
 
-        :raises InternalError: if this factory is found to have an \
+        :raises InternalError: if this factory is found to have an
                                unsupported type (API).
         '''
         # Conditional run-time importing is a part of this factory
         # implementation.
         # pylint: disable=import-outside-toplevel
-        if self._type == "dynamo0.3":
+        if self._type in LFRIC_API_NAMES:
             from psyclone.dynamo0p3 import DynamoPSy as PSyClass
-        elif self._type == "gocean1.0":
+        elif self._type in GOCEAN_API_NAMES:
             from psyclone.gocean1p0 import GOPSy as PSyClass
-        elif self._type == "nemo":
-            from psyclone.nemo import NemoPSy as PSyClass
-            # For this API, the 'invoke_info' is actually the fparser2 AST
-            # of the Fortran file being processed
         else:
             raise InternalError(
                 f"PSyFactory: Unsupported API type '{self._type}' found. "

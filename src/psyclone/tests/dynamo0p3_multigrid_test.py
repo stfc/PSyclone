@@ -53,9 +53,10 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Node, Loop
 from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.transformations import (ACCEnterDataTrans, ACCKernelsTrans,
-                                      check_intergrid, Dynamo0p3ColourTrans,
+from psyclone.transformations import (ACCEnterDataTrans, check_intergrid,
+                                      Dynamo0p3ColourTrans,
                                       DynamoOMPParallelLoopTrans,
                                       TransformationError)
 
@@ -63,7 +64,7 @@ from psyclone.transformations import (ACCEnterDataTrans, ACCKernelsTrans,
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
-API = "dynamo0.3"
+API = "lfric"
 
 RESTRICT_MDATA = '''
 module restrict_mod
@@ -84,12 +85,10 @@ end module restrict_mod
 '''
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
 
 
 def test_check_intergrid():
@@ -350,7 +349,6 @@ def test_field_prolong(tmpdir, dist_mem):
             "      IF (field2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL field2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      DO cell = loop0_start, loop0_stop, 1\n")
         assert expected in gen_code
     else:
@@ -379,7 +377,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -471,11 +469,9 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
                 "      IF (field1_proxy%is_dirty(depth=1)) THEN\n"
                 "        CALL field1_proxy%halo_exchange(depth=1)\n"
                 "      END IF\n"
-                "      !\n"
                 "      IF (field2_proxy%is_dirty(depth=2)) THEN\n"
                 "        CALL field2_proxy%halo_exchange(depth=2)\n"
                 "      END IF\n"
-                "      !\n"
                 "      DO cell = loop0_start, loop0_stop, 1\n")
         else:
             halo_exchs = (
@@ -484,7 +480,6 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
                 "      IF (field2_proxy%is_dirty(depth=2)) THEN\n"
                 "        CALL field2_proxy%halo_exchange(depth=2)\n"
                 "      END IF\n"
-                "      !\n"
                 "      DO cell = loop0_start, loop0_stop, 1\n")
         assert halo_exchs in output
 
@@ -518,7 +513,7 @@ def test_cont_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -613,11 +608,9 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "      IF (fld_m_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL fld_m_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (cmap_fld_c_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL cmap_fld_c_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      DO cell = loop0_start, loop0_stop, 1")
         assert expected in output
         assert "loop0_stop = mesh_cmap_fld_c%get_last_halo_cell(1)\n" in output
@@ -634,7 +627,6 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "      IF (fld_f_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL fld_f_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      DO cell = loop1_start, loop1_stop, 1\n")
         assert expected in output
         assert "loop1_stop = mesh_fld_m%get_last_halo_cell(1)\n" in output
@@ -647,7 +639,6 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
                     "      CALL fld_f_proxy%set_clean(1)\n"
                     "      !\n"
                     "      CALL fld_f_proxy%halo_exchange(depth=2)\n"
-                    "      !\n"
                     "      DO cell = loop2_start, loop2_stop, 1\n"
                     "        CALL restrict_test_kernel_code")
         assert expected in output
@@ -660,7 +651,6 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
         expected = ("      CALL fld_m_proxy%set_dirty()\n"
                     "      !\n"
                     "      CALL fld_m_proxy%halo_exchange(depth=2)\n"
-                    "      !\n"
                     "      DO cell = loop3_start, loop3_stop, 1\n"
                     "        CALL restrict_test_kernel_code")
         assert expected in output
@@ -768,7 +758,7 @@ def test_no_stub_gen():
     a kernel stub if the metadata contains mesh information. '''
     with pytest.raises(NotImplementedError) as excinfo:
         generate(os.path.join(BASE_PATH, "prolong_test_kernel_mod.f90"),
-                 api="dynamo0.3")
+                 api="lfric")
     assert ("Intergrid kernels can only be setup inside an InvokeSchedule, "
             "but attempted 'prolong_test_kernel_code' without it."
             in str(excinfo.value))

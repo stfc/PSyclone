@@ -1,14 +1,13 @@
 # Using PSyclone to add OpenMP - Tutorial 3 #
 
-This tutorial follows on from Tutorials 1 and 2
-(../1_nemo_psyir/README.md and ../2_nemo_profiling/README.md) and
+This tutorial follows on from [Tutorial 1](../1_nemo_psyir/README.md) and
+[Tutorial 2](../2_nemo_profiling/README.md) and
 assumes that you are comfortable with the topics covered there. It
-uses PSyclone to parallelise the tracer-advection mini-app by adding
-OpenMP directives.
+uses PSyclone to parallelise the tracer-advection mini-app to make
+use of a multi-core CPU by adding appropriate OpenMP directives.
 
 You can find information on the various transformations supported by
-PSyclone in the User Guide
-(https://psyclone.readthedocs.io/en/stable/transformations.html).
+PSyclone in the [User Guide](https://psyclone.readthedocs.io/en/latest/transformations.html).
 
 ## Prerequisites ##
 
@@ -20,7 +19,7 @@ Make then you may need to edit the Makefile and replace the occurrences of
 The flags to enable OpenMP will depend upon which Fortran compiler you
 are using. By default, the Makefile is configured to use gfortran. If you
 are using some other compiler then you must either edit the Makefile
-or set the F90 and F90FLAGS environment variables. (Since OpenMP directives
+or set the `F90` and `F90FLAGS` environment variables. (Since OpenMP directives
 are just comments, the compiler will ignore them unless the appropriate
 flag is set.)
 
@@ -28,8 +27,8 @@ Ideally you will be familiar with the use of OpenMP to parallelise code
 although this is not absolutely essential. A detailed explanation
 of OpenMP is beyond the scope of this course but, for the purposes of
 this tutorial, OpenMP enables work to be shared over the cores of a
-multi-core CPU (or CPUs in a multi-socket machine). It does this by
-spawning threads, each of which has full access to all of the memory
+multi-core CPU (or CPUs in a multi-socket, shared-memory machine). It does
+this by spawning threads, each of which has full access to all of the memory
 of the parent process.
 
 ## Validation ##
@@ -42,41 +41,26 @@ parts of the NEMO tutorial then you will have run the mini-app on a
 single core and it will have produced an `output.dat` file. Copy that
 file to `output.dat.serial` or similar so that we have something to
 compare with. (Note that this 'known good answer' is problem-size
-specific so if you change JPI, JPJ, JPK or IT then you will need to
+specific so if you change `JPI`, `JPJ`, `JPK` or `IT` then you will need to
 re-generate it.)
 
 ## 1. Adding basic OpenMP parallelism ##
 
 The supplied `Makefile` processes the mini-app with PSyclone using the
 supplied `omp_trans.py` transformation script. Before we do anything
-else, let's take a look at the script. There are three key differences
+else, let's take a look at the script. There are two key differences
 compared to the script we used to introduce profiling in the previous
 tutorial:
 
  * the script uses the `OMPParallelLoopTrans` transformation which
    decorates the target loop with an `OMP PARALLEL DO` directive.
 
- * the script is written specifically to work on the 'tra_adv' routine:
-   ```python
-        sched = psy.invokes.get('tra_adv').schedule
-   ```
-   this is just a choice. Normally a script will be written to be as
-   general as possible but occasionally, something tailored to a
-   particular routine may be required.
+ * it blindly applies the transformation to each loop over vertical levels
+   that is an *immediate child* of the Routine. (This is *NOT* a
+   recommended approach and you will improve upon this as part of the
+   tutorial.)
 
- * it blindly applies a transformation to each loop over vertical levels
-   that is an immediate child of the Schedule:
-   ```python
-   for child in sched.children:
-       if isinstance(child, Loop) and child.loop_type == "levels":
-           OMP_TRANS.apply(child)
-   ```
-
-Hopefully that looks similar to what you may have ended up with at the
-end of the profiling part of this tutorial although we are applying a
-different transformation here.
-
-Note that in this tutorial we will only be applying OpenMP
+Note that in this tutorial, we will only be applying OpenMP
 parallelisation to the loops over vertical levels. This is because, in
 the full NEMO code, the horizontal domain is already decomposed over
 MPI processes and there is no attempt to exploit the parallelism
@@ -89,9 +73,9 @@ the number of MPI processes and resulting inter-process communication.)
    transform the mini-app. You can use the Makefile or just run
    PSyclone directly:
    ```bash
-   $ psyclone -s ./omp_trans.py -api nemo -opsy psy.f90 -l output tra_adv_mod.F90
+   psyclone -s ./omp_trans.py -o output.f90 -l output tra_adv_mod.F90
    ```
-   This will produce an error message. Can you see what causes this?
+   This will produce an **error message**. Can you see what causes this?
 
 2. The problem is that not all of the loops in the mini-app are
    parallelisable. The last loop nest contains:
@@ -106,22 +90,34 @@ the number of MPI processes and resulting inter-process communication.)
    END DO
    ```
 
-   and the `write` statement is represented as a CodeBlock in the PSyIR:
+   and the `write` statement is represented as a `CodeBlock` in the PSyIR:
    ```
-    20: Loop[type='levels', field_space='None', it_space='None']
-        ...
-        Schedule[]
-            0: Loop[type='lat', field_space='None', it_space='None']
-               ...
-               Schedule[]
-                   0: Loop[type='lon', field_space='None', it_space='None']
-                      ...
-                      Schedule[]
-                          0: CodeBlock[[<class 'fparser.two.Fortran2003.Write_Stmt'>]]
+   20: Loop[variable='jk', loop_type='levels']
+       ...
+       Schedule[]
+           0: Loop[variable='jj']
+              ...
+              Schedule[]
+                  0: Loop[variable='ji']
+                     ...
+                     Schedule[]
+                         0: CodeBlock[[<class 'fparser.two.Fortran2003.Write_Stmt'>]]
    ```
-   Since, by definition, a CodeBlock contains code that PSyclone does not
+   Since, by definition, a `CodeBlock` contains code that PSyclone does not
    understand, it will refuse to parallelise any region that contains
-   one.
+   one. If you perform a 'pass-through' with PSyclone (i.e. do not provide
+   an optimisation script) then you will see that the generated Fortran
+   will have comments added to it identifying any `CodeBlock` nodes and the
+   reason for them:
+
+   ```fortran
+   do jk = 1, jpk - 1, 1
+     do jj = 2, jpj - 1, 1
+       do ji = 2, jpi - 1, 1
+         ! PSyclone CodeBlock (unsupported code) reason:
+         !  - Unsupported statement: Write_Stmt
+         WRITE(4, *) mydomain(ji, jj, jk)
+   ```
 
 3. We therefore need to edit the transformation script and make it a bit
    smarter. The easiest thing to do is to continue with our rather
@@ -131,53 +127,44 @@ the number of MPI processes and resulting inter-process communication.)
 
    ```python
      try:
-         OMP_TRANS.apply(child)
-     except TransformationError:
-         pass
+         OMP_TRANS.apply(loop)
+     except TransformationError as err:
+         print(f"Could not parallelise:\n{loop.debug_string()}"
+               f"because:\n{err.value}")
    ```
 
    Edit the `omp_trans.py` script to use this approach and then build the
    code (`make tra_adv.exe`). Verify that PSyclone now successfully
-   transforms the code and examine the PSyIR to see where the OpenMP
+   transforms the code and examine the output to see where the OpenMP
    directives have been inserted. You should see that there are now
-   `Directive` nodes in the PSyIR, e.g.:
-
-       14: OMPParallelDoDirective[omp_schedule=auto]
-           Schedule[]
-               0: Loop[type='levels', field_space='None', it_space='None']
-                   Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-                   Reference[name:'jpk']
-                   Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-                   Schedule[]
-                       0: Loop[type='lat', field_space='None', it_space='None']
-                           Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-
-   and the corresponding Fortran looks like:
+   `!$omp parallel do` directives in the generated code, e.g.:
 
    ```fortran
-       !$OMP parallel do default(shared), private(ji,jj,jk), schedule(auto)
-       DO jk = 1, jpk
-         DO jj = 1, jpj
-           DO ji = 1, jpi
-             umask(ji, jj, jk) = ji * jj * jk / r
+   !$omp parallel do default(shared), private(jk), schedule(auto)
+   do jk = 1, jpk, 1
+     rnfmsk_z(jk) = jk / jpk
+   enddo
+   !$omp end parallel do
+   do jt = 1, it, 1
+     !$omp parallel do default(shared), private(ji,jj,jk), firstprivate(zice), schedule(auto)
+     do jk = 1, jpk, 1
+       do jj = 1, jpj, 1
    ```
 
-   Note that PSyclone has automatically identified all scalars
-   accessed within the loop and has declared them as thread
-   private. All other variables are declared to be shared between
-   threads.
+   Note that PSyclone has automatically identified all necessary thread
+   sharing attributes (shared, private, or firstprivate).
 
 4. We are now ready to do our first parallel run. The number of threads
-   to use is set via the OMP_NUM_THREADS environment variable at run
+   to use is set via the `OMP_NUM_THREADS` environment variable at run
    time, e.g. in bash:
    ```bash
-    $ OMP_NUM_THREADS=4 ./tra_adv.exe
+   OMP_NUM_THREADS=4 JPI=100 JPJ=100 JPK=30 IT=10 ./tra_adv.exe
    ```
    At this point, the first thing to do is to check that we haven't
    broken anything. Assuming you've followed the steps in the
    [Validation](#validation) section then doing:
    ```bash
-   $ diff output.dat output.dat.serial
+   diff output.dat output.dat.serial
    ```
    should show no differences.
 
@@ -197,7 +184,7 @@ other options are available.)
    simple timing library.
    Running the mini-app should now produce timing information:
    ```bash
-   $ OMP_NUM_THREADS=4 ./tra_adv.exe
+   OMP_NUM_THREADS=4 JPI=100 JPJ=100 JPK=30 IT=10 ./tra_adv.exe
     Tracer-advection Mini-app:
     Domain is  100x 100 grid points
     Performing   10 iterations
@@ -218,18 +205,24 @@ the initialisation loops have been parallelised. Since each of these
 loop nests are before the main iteration loop, their effect on the
 overall runtime is negligible.
 
+(N.B. since we are using a mini-app consisting of a single file, it
+is very easy to examine the code produced by PSyclone in order to identify
+the cause of any performance issues. When applying PSyclone to a large
+code base, it becomes essential to use a good profiling tool to identify
+the location of any performance problems.)
+
 ## 3. Improving Coverage ##
 
 Clearly, the optimisation script needs to be improved so that it finds
 all of the loops over vertical levels, rather than just those that are
 immediate children of the root Schedule.
 
-1. Edit the optimisation script so that it uses `sched.walk()` to do this
+1. Edit the optimisation script so that it uses `routine.walk()` to do this
    (in the same way as was done for profiling in tutorial 2). Check that
    the generated PSyIR looks as you would expect. (You can use a second
    `walk`, after the transformation is complete, to count the number of
-   `Directive` nodes that have been inserted in the Schedule - there
-   should be 13.)
+   `Directive` [`from psyclone.psyir.nodes import Directive`] nodes that
+   have been inserted in the Schedule - there should be 13.)
 
 2. Now that we've parallelised a reasonable percentage of the mini-app,
    you should see a speed-up as you increase OMP_NUM_THREADS. For
@@ -255,13 +248,12 @@ activity on your machine. This is all well beyond the scope of this
 tutorial.
 
 (Note also that the 'simple_timing' library has been found to have very
-poor granularity on MACOS.)
+poor granularity on macOS.)
 
 ## 4. Improving Performance ##
 
 The next section is optional and so, depending on how much time you
-have, you may want to move on to the OpenACC part of this tutorial
-(../4_nemo_openacc). If you are interested but don't have much time
+have, you may want to move on to the [OpenACC part of this tutorial](../4_nemo_openacc). If you are interested but don't have much time
 then example solutions are provided in the
 `parallel_region_omp_trans.py` and
 `general_parallel_region_omp_trans.py` scripts in the `solutions`
@@ -271,7 +263,7 @@ If time allows then it is possible to improve upon the parallelisation
 achieved in the previous section by creating parallel regions containing
 multiple loop nests (this reduces any possible overhead associated with the
 creation and destruction of the OpenMP threads). For instance, if
-you examine the `psy.f90` that has been created, you will see:
+you examine the `output.f90` that has been created, you will see:
 
 ```fortran
       !$OMP parallel do default(shared), private(ji,jj,jk), schedule(static)
@@ -338,11 +330,14 @@ steps to achieve this are:
 
 ## 5. Conclusion ##
 
-Congratulations, you have now completed part 3 of the NEMO
+Congratulations, you have now completed part 3 of the
 tutorial. We have looked in more detail at the process of creating an
 optimisation script and have used PSyclone to add OpenMP
 parallelisation to the tracer-advection mini-app. With the caveats
 noted earlier, you should have been able to measure a performance
 improvement.
+
+In [part 4 of this tutorial](../4_nemo_openacc/README.md), we will
+look at using PSyclone to add OpenACC directives to the mini-app.
 
 

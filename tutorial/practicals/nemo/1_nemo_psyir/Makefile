@@ -32,14 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified J. Henrichs, Bureau of Meteorology
+# Modified: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 
 include ../../../common.mk
 
 .PHONY: transform
 
 transform:
-	$(PSYCLONE) -api nemo -s ./schedule_view_trans.py -opsy /dev/null tra_adv.F90
+	$(PSYCLONE) -s ./view_trans.py -o /dev/null tra_adv.F90
 
 compile: transform
 	@echo "No compilation targets for example tutorial/1_nemo_psyir"
@@ -47,8 +48,9 @@ compile: transform
 run: compile
 	@echo "No run targets for example tutorial/1_nemo_psyir"
 
+# (output.f90 is created when following the tutorial instructions)
 clean:
-	rm -f psy.f90 *.o *.mod *~
+	rm -f output.f90 *.o *.mod *~
 
 allclean: clean
 	rm -f *.exe output.dat

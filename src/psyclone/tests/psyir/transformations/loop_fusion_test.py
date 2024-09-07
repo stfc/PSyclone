@@ -677,7 +677,7 @@ def test_loop_fuse_different_iterates_over(fortran_reader):
     ''' Test that an appropriate error is raised when we attempt to
     fuse two loops that have differing values of ITERATES_OVER '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     schedule = invoke.schedule
     fuse = LoopFuseTrans()
 

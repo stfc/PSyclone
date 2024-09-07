@@ -66,8 +66,8 @@ class LoopFuseTrans(LoopTrans):
     def __str__(self):
         return "Fuse two adjacent loops together"
 
+    # pylint: disable=arguments-renamed
     def validate(self, node1, node2, options=None):
-        # pylint: disable=arguments-differ
         ''' Performs various checks to ensure that it is valid to apply
         the LoopFuseTrans transformation to the supplied Nodes.
 
@@ -97,6 +97,7 @@ class LoopFuseTrans(LoopTrans):
         :raises TransformationError: if there are dependencies between the
                                      loops that prevent the loop fusion.
         '''
+        # pylint: disable=too-many-locals, too-many-branches
         if not options:
             options = {}
         # Check that the supplied Nodes are Loops

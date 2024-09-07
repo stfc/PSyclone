@@ -152,8 +152,8 @@ def test_node_depth():
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule.detach()
     # Assert that start_depth of any Node (including Schedule) is 0
@@ -277,8 +277,8 @@ def test_node_position():
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.7_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule.detach()
     child = schedule.children[6]
@@ -340,8 +340,8 @@ def test_node_root():
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.7_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     ru_schedule = invoke.schedule
     # Select a loop and the kernel inside
@@ -370,8 +370,8 @@ def test_node_args():
     for Nodes that do not have arguments themselves'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop1 = schedule.children[0]
@@ -411,8 +411,8 @@ def test_node_forward_dependence():
     None if none are found.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     read4 = schedule.children[4]
@@ -433,8 +433,8 @@ def test_node_forward_dependence():
     # 3: haloexchange dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     prev_loop = schedule.children[7]
@@ -448,8 +448,8 @@ def test_node_forward_dependence():
     # 4: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     prev_loop = schedule.children[0]
@@ -470,8 +470,8 @@ def test_node_backward_dependence():
     None if none are found.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: loop no backwards dependence
@@ -487,8 +487,8 @@ def test_node_backward_dependence():
     # 3: haloexchange dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop2 = schedule.children[7]
@@ -503,8 +503,8 @@ def test_node_backward_dependence():
     # 4: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop1 = schedule.children[0]
@@ -527,8 +527,8 @@ def test_node_is_valid_location():
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: new node argument is invalid
@@ -569,8 +569,8 @@ def test_node_is_valid_location():
     # 5: valid no previous dependency
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 6: valid no prev dep
@@ -594,7 +594,7 @@ def test_node_is_valid_location():
 
 def test_node_ancestor():
     ''' Test the Node.ancestor() method. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+    _, invoke = get_invoke("single_invoke.f90", "gocean", idx=0,
                            dist_mem=False)
     sched = invoke.schedule
     kern = sched[0].loop_body[0].loop_body[0]
@@ -685,8 +685,8 @@ def test_dag_names():
     node class and its specialisations. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
@@ -713,8 +713,8 @@ def test_dag_names():
     # GlobalSum and BuiltIn also have specialised dag_names
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     global_sum = schedule.children[2]
@@ -748,8 +748,8 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
     monkeypatch.setitem(sys.modules, 'graphviz', None)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     my_file = tmpdir.join('test')
@@ -782,8 +782,8 @@ def test_node_dag_returns_digraph(monkeypatch):
     monkeypatch.setattr(node, "_graphviz_digraph_class", lambda: FakeDigraph)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -807,8 +807,8 @@ def test_node_dag_wrong_file_format(monkeypatch):
     monkeypatch.setattr(node, "_graphviz_digraph_class", lambda: FakeDigraph)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     with pytest.raises(GenerationError) as err:
@@ -858,8 +858,8 @@ def test_node_dag(tmpdir, have_graphviz):
     import graphviz
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.1_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1228,12 +1228,12 @@ def test_replace_with_named_context():
         ("name2", node2),
         ("name3", node3),
         ])
-    parent_node.children = [node1, node2, node3]
+    parent_node.children = [parent_node.routine, node1, node2, node3]
 
     # Replace a node keeping the name
     new_node = Literal('20', INTEGER_TYPE)
     node2.replace_with(new_node)
-    assert parent_node.children[1] is new_node
+    assert parent_node.children[2] is new_node
     assert new_node.parent is parent_node
     assert node2.parent is None
     assert parent_node.argument_names == ["name1", "name2", "name3"]
@@ -1241,7 +1241,7 @@ def test_replace_with_named_context():
     # Replace a node keeping the name
     new_node = Literal('10', INTEGER_TYPE)
     node1.replace_with(new_node, keep_name_in_context=False)
-    assert parent_node.children[0] is new_node
+    assert parent_node.children[1] is new_node
     assert new_node.parent is parent_node
     assert node1.parent is None
     assert parent_node.argument_names == [None, "name2", "name3"]
@@ -1352,7 +1352,7 @@ def test_detach():
     lit = Literal("1", REAL_TYPE)
     e_ref2 = Reference(e_sym)
     f_ref = Reference(f_sym)
-    node1 = Call(routine)
+    node1 = Call.create(routine)
     node1.addchild(e_ref)
     node1.addchild(lit)
     node1.addchild(e_ref2)
@@ -1363,10 +1363,10 @@ def test_detach():
 
     # Check that the resulting nodes and connections are correct
     assert e_ref2.parent is None
-    assert len(node1.children) == 3
-    assert node1.children[0] is e_ref
-    assert node1.children[1] is lit
-    assert node1.children[2] is f_ref
+    assert len(node1.children) == 4
+    assert node1.children[1] is e_ref
+    assert node1.children[2] is lit
+    assert node1.children[3] is f_ref
 
     # Executing it again still succeeds
     assert e_ref2.detach() is e_ref2

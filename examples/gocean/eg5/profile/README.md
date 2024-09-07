@@ -89,10 +89,10 @@ library, you should see:
  ...
  profile_PSyDataInit called
  ...
- PreStart called for module 'psy_test' region 'invoke_0:r0'
- PostEnd called for module 'psy_test' region 'invoke_0:r0'
- PreStart called for module 'psy_test' region 'invoke_1_update_field:update_field_code:r0'
- PostEnd called for module 'psy_test' region 'invoke_1_update_field:update_field_code:r0'
+ PreStart called for module 'psy_test' region 'invoke_0-r0'
+ PostEnd called for module 'psy_test' region 'invoke_0-r0'
+ PreStart called for module 'psy_test' region 'invoke_1_update_field-r0'
+ PostEnd called for module 'psy_test' region 'invoke_1_update_field-r0'
  ...  
  profile_PSyDataShutdown called
 ```
