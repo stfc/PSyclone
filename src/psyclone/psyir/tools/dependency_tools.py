@@ -1000,8 +1000,6 @@ class DependencyTools():
                 return False
             first_index = all_accesses[0].component_indices[index[0]]
             other_index = other_access.component_indices[index[0]]
-            print("before", first_index, other_index,
-                  loop_var_name1, loop_variable2.name)
             if not SymbolicMaths.equal(
                     first_index, other_index,
                     assume={loop_var_name1: loop_variable2.name}):
