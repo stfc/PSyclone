@@ -744,7 +744,7 @@ def test_loop_fuse_different_variables(fortran_reader, fortran_writer):
         s(ji, jj) = t(ji, jj) + 1
       end do
       do jk = 1, 10
-        s(jk, jj) = t(jk, jj) + 1
+        s(jk, jj) = t(jk, jj) - 1
       end do
     end do
     end subroutine sub'''
@@ -764,12 +764,22 @@ def test_loop_fuse_different_variables(fortran_reader, fortran_writer):
   do jj = 1, n, 1
     do ji = 1, 10, 1
       s(ji,jj) = t(ji,jj) + 1
-      s(ji,jj) = t(ji,jj) + 1
+      s(ji,jj) = t(ji,jj) - 1
     enddo
   enddo
 
 end subroutine sub'''
     assert correct in out
+
+    # Now try to provide the loops in the wrong order. Recreate the PSyIR
+    # by re-parsing the original code
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.children[0].walk(Loop)
+    fuse = LoopFuseTrans()
+    with pytest.raises(TransformationError) as err:
+        fuse.apply(loops[2], loops[1])
+    assert ("Error in LoopFuseTrans transformation. The second loop comes "
+            "before the first loop" in str(err.value))
 
 
 def test_loop_fuse_different_variables_with_access(fortran_reader):

@@ -117,6 +117,13 @@ class LoopFuseTrans(LoopTrans):
             raise TransformationError(
                 f"Error in {self.name} transformation. Nodes are not siblings "
                 f"who are next to each other.")
+
+        # Check node1 comes before node2:
+        if node2.position-node1.position != 1:
+            raise TransformationError(
+                f"Error in {self.name} transformation. The second loop comes "
+                f"before the first loop")
+
         # Check that the iteration space is the same
         if isinstance(node1, PSyLoop) and isinstance(node2, PSyLoop):
             # TODO 1731: For some PSyLoops the iteration space is encoded just
