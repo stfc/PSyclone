@@ -829,6 +829,7 @@ class DependencyTools():
         # This should only be called from loop_fuse_trans, which
         # has done tests for loop boundaries (depending on domain)
 
+        self._clear_messages()
         assert isinstance(loop1, Loop)
         assert isinstance(loop2, Loop)
         vars1 = VariablesAccessInfo(loop1)
