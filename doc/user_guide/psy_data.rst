@@ -258,6 +258,10 @@ The syntax for the environment variable is one of:
 ``PSYVERIFY__variable``
     The specified variable name is tested in any instrumented code region.
 
+If the module name or kernel name should contain a `-` (which can be inserted
+by PSyclone, e.g. `invoke_compute-r1`), it needs to be replaced with an
+underscore character in the environment variable (`_`)
+
 An example taken from the LFric tutorial (note that values greater than
 4000 are actually valid, the upper limit was just chosen to show
 a few warnings raised by the value range checker)::
