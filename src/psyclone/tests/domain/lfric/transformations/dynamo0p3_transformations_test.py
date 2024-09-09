@@ -47,7 +47,7 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.domain.lfric import LFRicLoop, LFRicKern
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.dynamo0p3 import (LFRicHaloExchangeStart, LFRicHaloExchangeEnd,
                                 LFRicHaloExchange)
 from psyclone.errors import GenerationError, InternalError
