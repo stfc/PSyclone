@@ -95,9 +95,9 @@ jobs:
         ./build/local_build.py -a gungho_model -p psyclone-test
         # Run
         cd applications/gungho_model/example
-        #cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its.nml configuration.nml
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_gpu_4its.nml configuration.nml
         mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
-        #python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_output.txt output.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_output.txt output.txt
         cat timer.txt
 
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks
