@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,44 +35,39 @@
 # Modified: R. W. Ford, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel NAN-verification to
-the invokes. This then creates code that, at runtime, verifies that
-all input and output parameters of a region are a valid number, i.e.
-not infinity or NAN.
+function via the -s option. It adds value range checking code to
+the invokes.
 '''
 
-from __future__ import print_function
-
-from psyclone.psyir.transformations import NanTestTrans
+from psyclone.psyir.transformations import ValueRangeCheck
 
 
 def trans(psy):
     '''
-    Take the supplied psy object, and add verification to both
-    invokes that read only parameters are not modified.
+    Take the supplied psy object, and add value_range_check code.
 
     :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
+    :type psy: :py:class:`psyclone.psyGen.PSy`
 
     :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
+    :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    nan_test = NanTestTrans()
+    value_range_check = ValueRangeCheck()
 
-    invoke = psy.invokes.get("invoke_0")
-    schedule = invoke.schedule
+    for invoke_name in psy.invokes.names:
 
-    # You could just apply the transform for all elements of
-    # psy.invokes.invoke_list. But in this case we also
-    # want to give the regions a friendlier name:
-    nan_test.apply(schedule.children, {"region_name": ("main", "init")})
+        invoke = psy.invokes.get(invoke_name)
 
-    invoke = psy.invokes.get("invoke_1_update_field")
-    schedule = invoke.schedule
+        # Now get the schedule, to which we want to apply the transformation
+        schedule = invoke.schedule
 
-    # Enclose everything in a nan_test region
-    nan_test.apply(schedule.children, {"region_name": ("main", "update")})
+        # Apply the transformation
+        value_range_check.apply(schedule, {"region_name": ("time_evolution",
+                                                           str(invoke_name))})
 
-    # print(schedule.view())
+        # Just as feedback: show the modified schedule, which should have
+        # a new node at the top:
+        print(schedule.view())
+
     return psy

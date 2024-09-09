@@ -267,8 +267,8 @@ like this will be printed:
 
 
 The transformation ``NanTestTrans`` is imported from ``psyclone.psyir.transformations``.
-You can use the template ``nan_all_transform.py`` for your script, and ``Makefile.nan_all``
-for the makefile to use.
+You can use the template ``value_range_check_transform.py`` for your script,
+and ``Makefile.value_range_check`` for the makefile to use.
 
 This example by itself will not print any message (since there is no invalid floating
 point number), so you have to use ``PSYDATA_VERBOSE`` and set it to 1 or 2 to see that

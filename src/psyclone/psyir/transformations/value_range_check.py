@@ -42,30 +42,28 @@
    actual code.
 '''
 
-from __future__ import absolute_import
-
 from psyclone import psyGen
-from psyclone.psyir.nodes import NanTestNode
+from psyclone.psyir.nodes import ValueRangeCheckNode
 from psyclone.psyir import nodes
 from psyclone.psyir.transformations.read_only_verify_trans \
     import ReadOnlyVerifyTrans
 
 
-class NanTestTrans(ReadOnlyVerifyTrans):
-    '''This transformation inserts a NanTestNode into the PSyIR of a
+class ValueRangeCheck(ReadOnlyVerifyTrans):
+    '''This transformation inserts a ValueRangeCheckNode into the PSyIR of a
     schedule. At code creation time this node will use the PSyData API
     to create code that will verify all input parameters are not NANs
     and not infinite, and the same for all output parameters.
 
     After applying the transformation the Nodes marked for verification are
-    children of the NanTestNode.
+    children of the ValueRangeCheckNode.
     Nodes to verify can be individual constructs within an Invoke (e.g.
     Loops containing a Kernel or BuiltIn call) or entire Invokes.
 
     :param node_class: The class of Node which will be inserted \
-        into the tree (defaults to NanTestNode), but can be any \
+        into the tree (defaults to ValueRangeCheckNode), but can be any \
         derived class.
-    :type node_class: :py:class:`psyclone.psyir.nodes.NanTestNode` or \
+    :type node_class: :py:class:`psyclone.psyir.nodes.ValueRangeCheckNode` or \
         derived class
 
     '''
@@ -73,7 +71,7 @@ class NanTestTrans(ReadOnlyVerifyTrans):
     valid_node_types = (nodes.Loop, psyGen.Kern, psyGen.BuiltIn,
                         nodes.Directive, nodes.Literal, nodes.Reference)
 
-    def __init__(self, node_class=NanTestNode):
+    def __init__(self, node_class=ValueRangeCheckNode):
         # This function is only here to change the default node type
         super().__init__(node_class=node_class)
 
@@ -105,4 +103,4 @@ class NanTestTrans(ReadOnlyVerifyTrans):
 
 # ============================================================================
 # For automatic documentation creation:
-__all__ = ["NanTestTrans"]
+__all__ = ["ValueRangeCheck"]
