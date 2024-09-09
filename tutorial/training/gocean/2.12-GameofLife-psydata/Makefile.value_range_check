@@ -8,7 +8,7 @@ PSY_DATA_INCLUDE = -I $(PSY_DATA_DIR)
 
 F90FLAGS += $(PSY_DATA_INCLUDE)
 
-OBJ = gol.o time_step_alg_mod.o time_step_alg_mod_psy.o
+OBJ = gol.o time_step_alg_mod.o time_step_alg_mod_psy.o compute_born_mod.o
 
 include ../common.mk
 

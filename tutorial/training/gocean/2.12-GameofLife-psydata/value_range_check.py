@@ -34,7 +34,7 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds NAN verification for all
+function via the -s option. It adds Value Range verification for all
 kernels.
 '''
 
@@ -57,11 +57,7 @@ def trans(psy):
 
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
-        # Apply nan-testing
-        for loop in schedule.walk(GOLoop):
-            # Only apply to the outer loop, PSyData will
-            # get full arrays provided to check for NANs
-            if loop.loop_type == "outer":
-                value_range_check.apply(loop)
+        # Apply nan-testing to all loops that are outer loops:
+        ...
 
     return psy

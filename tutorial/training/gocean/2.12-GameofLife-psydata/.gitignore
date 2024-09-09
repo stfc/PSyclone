@@ -1,5 +1,5 @@
 driver
 driver-timestep-combine.f90
 gol.extraction
-gol.nan
+gol.value_range_check
 timestep-combine.nc

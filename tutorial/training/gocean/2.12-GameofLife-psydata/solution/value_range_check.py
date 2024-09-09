@@ -39,7 +39,7 @@ kernels.
 '''
 
 from psyclone.gocean1p0 import GOLoop
-from psyclone.psyir.transformations import NanTestTrans
+from psyclone.psyir.transformations import ValueRangeCheck
 
 
 def trans(psy):
@@ -53,7 +53,7 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    nan_test = NanTestTrans()
+    value_range_check = ValueRangeCheck()
 
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
@@ -62,6 +62,6 @@ def trans(psy):
             # Only apply to the outer loop, PSyData will
             # get full arrays provided to check for NANs
             if loop.loop_type == "outer":
-                nan_test.apply(loop)
+                value_range_check.apply(loop)
 
     return psy
