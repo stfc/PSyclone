@@ -253,8 +253,8 @@ def test_code_compile(monkeypatch):
                                                 abspath(__file__)),
                                         "test_files", "gocean1p0",
                                         "single_invoke.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).create(invoke_info)
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).create(invoke_info)
     # Always trigger 'compilation' to avoid early abort, before the code
     # to be tested is executed.
     monkeypatch.setattr(Compile, "TEST_COMPILE", True)
@@ -313,39 +313,39 @@ def test_get_invoke():
     # First test all 3 valid APIs - we only make sure that no exception
     # is raised, so no assert required
 
-    get_invoke("test14_module_inline_same_kernel.f90", "gocean1.0", idx=0)
-    get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
+    get_invoke("test14_module_inline_same_kernel.f90", "gocean", idx=0)
+    get_invoke("1_single_invoke.f90", "lfric", idx=0)
     # Check that dist_mem is being accepted:
-    get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0, dist_mem=True)
-    get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0, dist_mem=False)
-    get_invoke("explicit_do.f90", "nemo", idx=0)
+    get_invoke("1_single_invoke.f90", "lfric", idx=0, dist_mem=True)
+    get_invoke("1_single_invoke.f90", "lfric", idx=0, dist_mem=False)
 
     # Test that an invalid name raises an exception
     with pytest.raises(RuntimeError) as excinfo:
         get_invoke("test11_different_iterates_over_one_invoke.f90",
-                   "gocean1.0", name="invalid_name")
+                   "gocean", name="invalid_name")
     assert "Cannot find an invoke named 'invalid_name'" in str(excinfo.value)
 
     # Test that an invalid API raises the right exception:
-    with pytest.raises(RuntimeError) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         get_invoke("test11_different_iterates_over_one_invoke.f90",
                    "invalid-api", name="invalid_name")
-    assert "The API 'invalid-api' is not supported" in str(excinfo.value)
+    assert "'invalid-api' is not a valid API," in str(excinfo.value)
+    # assert "The API 'invalid-api' is not supported" in str(excinfo.value)
 
     # Test that invalid parameter combinations raise an exception:
     with pytest.raises(RuntimeError) as excinfo:
-        get_invoke("does_not_exist", "nemo")
+        get_invoke("does_not_exist", "lfric")
     assert ("Either the index or the name of the requested invoke must "
             "be specified") in str(excinfo.value)
 
     with pytest.raises(RuntimeError) as excinfo:
-        get_invoke("does_not_exist", "nemo", idx=0, name="name")
+        get_invoke("does_not_exist", "lfric", idx=0, name="name")
     assert ("Either the index or the name of the requested invoke must "
             "be specified") in str(excinfo.value)
 
     # Test that a non-existent file raises the right exception
     with pytest.raises(ParseError) as excinfo:
-        get_invoke("does_not_exist", "nemo", idx=0)
+        get_invoke("does_not_exist", "lfric", idx=0)
     assert "No such file or directory" in str(excinfo.value)
 
 

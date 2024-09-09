@@ -251,7 +251,7 @@ def test_sym_writer_rename_members(fortran_reader, expressions):
 
 
 @pytest.mark.parametrize("expr, sym_map", [("a%x", {"a": Symbol("a"),
-                                                    "a_x": Symbol("a_x")}),
+                                                    "a_x": Symbol("a%x")}),
                                            ("a%x(i)", {"a": Symbol("a"),
                                                        "a_x": Function("a_x"),
                                                        "i": Symbol("i")}),
@@ -285,7 +285,7 @@ def test_sym_writer_symbol_types(fortran_reader, expr, sym_map):
     expr = psyir.children[0].children[0].rhs
     sympy_writer = SymPyWriter()
     _ = sympy_writer(expr)
-    assert sympy_writer.type_map.keys() == sym_map.keys()
+    assert sympy_writer.type_map.items() == sym_map.items()
 
 
 @pytest.mark.parametrize("expr, sym_map", [("i", {'i': Symbol('i')}),
@@ -554,3 +554,36 @@ def test_sym_writer_reserved_names(fortran_reader, expression):
 
     sympy_exp = sympy_writer(psyir_expr)
     assert str(sympy_exp) == expression
+
+
+@pytest.mark.parametrize("expressions", [("a+b", "2*b"),
+                                         ("a-b", "0"),
+                                         ("a-a", "0"),
+                                         ("b-b", "0"),
+                                         ("b", "b"),
+                                         # We can't just use 'a', since then
+                                         # there would be no variable 'b'
+                                         # defined. So add 0*b:
+                                         ("a-0*b", "b"),
+                                         ("a+b+c", "2*b + c"),
+                                         ])
+def test_sym_writer_assume_vars(fortran_reader, expressions):
+    '''Test that we can indicate that certain variables are identical,
+    in which case the sympy expression will replace one variable with
+    the other. For example, if a=b --> a-b = b-b = 0
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                use some_mod
+                integer :: a, b, c
+                x = {expressions[0]}
+                end program test_prog '''
+    psyir = fortran_reader.psyir_from_source(source)
+    # psyir is a FileContainer, its first child the program, and its
+    # first child the assignment, of which we take the right hand side
+    expr = psyir.children[0].children[0].rhs
+
+    sympy_writer = SymPyWriter()
+    assume = {'a': 'b'}
+    assert str(sympy_writer(expr, assume=assume)) == expressions[1]

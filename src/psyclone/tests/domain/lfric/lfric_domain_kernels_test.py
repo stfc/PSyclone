@@ -52,7 +52,7 @@ BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 def test_domain_kernel():
@@ -103,8 +103,9 @@ end module testkern_domain_mod
 ''', ignore_comments=False)
     with pytest.raises(ParseError) as err:
         LFRicKernMetadata(ast, name="testkern_domain_type")
-    assert ("'domain' is only permitted to accept scalar and field arguments "
-            "but the metadata for kernel 'testkern_domain_type' includes an "
+    assert ("In the LFRic API a kernel that operates on 'domain' is only "
+            "permitted to accept scalar and field arguments but the "
+            "metadata for kernel 'testkern_domain_type' includes an "
             "argument of type 'gh_operator'" in str(err.value))
 
 
@@ -214,7 +215,7 @@ end module testkern_domain_mod
 ''')
     with pytest.raises(ParseError) as err:
         LFRicKernMetadata(ast, name="testkern_domain_type")
-    assert ("'testkern_domain_type' operates on the domain but requests "
+    assert ("Kernel 'testkern_domain_type' operates on 'domain' but requests "
             "properties of the mesh ([" in str(err.value))
     assert "ADJACENT_FACE" in str(err.value)
 
@@ -243,7 +244,7 @@ end module testkern_domain_mod
 ''')
     with pytest.raises(ParseError) as err:
         LFRicKernMetadata(ast, name="testkern_domain_type")
-    assert ("'testkern_domain_type' operates on the domain but requests "
+    assert ("Kernel 'testkern_domain_type' operates on 'domain' but requests "
             "properties of the reference element ([" in str(err.value))
     assert "NORMALS_TO_HORIZONTAL_FACES" in str(err.value)
 
@@ -272,7 +273,7 @@ end module restrict_mod
 ''')
     with pytest.raises(ParseError) as err:
         LFRicKernMetadata(ast, name="restrict_kernel_type")
-    assert ("'restrict_kernel_type' operates on the domain but has fields on "
+    assert ("'restrict_kernel_type' operates on 'domain' but has fields on "
             "different mesh resolutions" in str(err.value))
 
 
@@ -384,17 +385,13 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
                      "      if (f2_proxy%is_dirty(depth=1)) then\n"
                      "        call f2_proxy%halo_exchange(depth=1)\n"
                      "      end if\n"
-                     "      !\n"
                      "      if (f3_proxy%is_dirty(depth=1)) then\n"
                      "        call f3_proxy%halo_exchange(depth=1)\n"
                      "      end if\n"
-                     "      !\n"
                      "      if (f4_proxy%is_dirty(depth=1)) then\n"
                      "        call f4_proxy%halo_exchange(depth=1)\n"
                      "      end if\n"
-                     "      !\n"
-                     "      call f1_proxy%halo_exchange(depth=1)\n"
-                     "      !\n")
+                     "      call f1_proxy%halo_exchange(depth=1)\n")
     else:
         assert "loop1_stop = f2_proxy%vspace%get_ncell()\n" in gen_code
     expected += "      do cell = loop1_start, loop1_stop, 1\n"

@@ -32,7 +32,7 @@
 ! Author: J. Henrichs, Bureau of Meteorology
 
 ! This modules renames a variable it imports. This is used to test the
-! handling of renaming variables in non-local variable in extraction and
+! handling of renaming of non-local variables in extraction and
 ! driver creation.
 
 module module_renaming_external_var_mod

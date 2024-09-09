@@ -46,7 +46,8 @@ from sympy.parsing.sympy_parser import parse_expr
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
-from psyclone.psyir.nodes import DataNode, Range, Reference, IntrinsicCall
+from psyclone.psyir.nodes import (
+    DataNode, Range, Reference, IntrinsicCall, Call)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, SymbolTable)
 
 
@@ -245,7 +246,7 @@ class SymPyWriter(FortranWriter):
         return new_func
 
     # -------------------------------------------------------------------------
-    def _create_type_map(self, list_of_expressions):
+    def _create_type_map(self, list_of_expressions, assume=None):
         '''This function creates a dictionary mapping each Reference in any
         of the expressions to either a SymPy Function (if the reference
         is an array reference) or a Symbol (if the reference is not an
@@ -268,6 +269,13 @@ class SymPyWriter(FortranWriter):
         ``lambda_1``). The SymPyWriter (e.g. in ``reference_node``) will
         use the renamed value when creating the string representation.
 
+        The optional assume dictionary can contain information which variables
+        are known to be the same. For example, if `assume={'i': 'j'}`, then
+        'i+1' and 'j+1' will be considered equal.
+
+        :param assume: which variable names are known to be identical
+        :type assume: dict[str, str]
+
         :param list_of_expressions: the list of expressions from which all
             references are taken and added to a symbol table to avoid
             renaming any symbols (so that only member names will be renamed).
@@ -287,7 +295,13 @@ class SymPyWriter(FortranWriter):
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
         # (an array).
         for expr in list_of_expressions:
+            # TODO #2542. References should be iterated with the
+            # reference_acess method when its issues are fixed.
             for ref in expr.walk(Reference):
+                if (isinstance(ref.parent, Call) and
+                        ref.parent.children[0] is ref):
+                    continue
+
                 name = ref.name
                 # The reserved Python keywords do not have tags, so they
                 # will not be found.
@@ -303,7 +317,8 @@ class SymPyWriter(FortranWriter):
                 unique_sym = self._symbol_table.new_symbol(name, tag=name)
                 # Test if an array or an array expression is used:
                 if not ref.is_array:
-                    self._sympy_type_map[unique_sym.name] = Symbol(name)
+                    if unique_sym.name not in self._sympy_type_map:
+                        self._sympy_type_map[unique_sym.name] = Symbol(name)
                     continue
 
                 # A Fortran array is used which has not been seen before.
@@ -312,6 +327,16 @@ class SymPyWriter(FortranWriter):
                 # Fortran code.
                 self._sympy_type_map[unique_sym.name] = \
                     self._create_sympy_array_function(name)
+
+        if not assume:
+            assume = {}
+        # For all variables that are the same, set the symbols to be
+        # identical. This means if e.g. assume={'i': 'j'}, the expression
+        # i-j becomes j-j = 0
+
+        for var1, var2 in assume.items():
+            if var1 in self._sympy_type_map and var2 in self._sympy_type_map:
+                self._sympy_type_map[var1] = self._sympy_type_map[var2]
 
         # Now all symbols have been added to the symbol table, create
         # unique names for the lower- and upper-bounds using special tags:
@@ -351,11 +376,17 @@ class SymPyWriter(FortranWriter):
         return self._sympy_type_map
 
     # -------------------------------------------------------------------------
-    def _to_str(self, list_of_expressions):
+    def _to_str(self, list_of_expressions, assume=None):
         '''Converts PSyIR expressions to strings. It will replace Fortran-
         specific expressions with code that can be parsed by SymPy. The
         argument can either be a single element (in which case a single string
         is returned) or a list/tuple, in which case a list is returned.
+        The optional assume dictionary can contain information which variables
+        are known to be the same. For example, if `assume={'i': 'j'}`, then
+        'i+1' and 'j+1' will be considered equal.
+
+        :param assume: which variable names are known to be identical
+        :type assume: dict[str, str]
 
         :param list_of_expressions: the list of expressions which are to be
             converted into SymPy-parsable strings.
@@ -372,7 +403,7 @@ class SymPyWriter(FortranWriter):
 
         # Create the type map in `self._sympy_type_map`, which is required
         # when converting these strings to SymPy expressions
-        self._create_type_map(list_of_expressions)
+        self._create_type_map(list_of_expressions, assume=assume)
 
         expression_str_list = []
         for expr in list_of_expressions:
@@ -385,7 +416,7 @@ class SymPyWriter(FortranWriter):
         return expression_str_list
 
     # -------------------------------------------------------------------------
-    def __call__(self, list_of_expressions):
+    def __call__(self, list_of_expressions, assume=None):
         '''
         This function takes a list of PSyIR expressions, and converts
         them all into Sympy expressions using the SymPy parser.
@@ -393,11 +424,16 @@ class SymPyWriter(FortranWriter):
         constants with kind specification, ...), including the renaming of
         member accesses, as described in
         https://psyclone-dev.readthedocs.io/en/latest/sympy.html#sympy
+        The optional assume dictionary can contain information which variables
+        are known to be the same. For example, if `assume={'i': 'j'}`, then
+        'i+1' and 'j+1' will be considered equal.
 
         :param list_of_expressions: the list of expressions which are to be
             converted into SymPy-parsable strings.
         :type list_of_expressions: list of
             :py:class:`psyclone.psyir.nodes.Node`
+        :param assume: which variable names are known to be identical
+        :type assume: dict[str, str]
 
         :returns: a 2-tuple consisting of the the converted PSyIR
             expressions, followed by a dictionary mapping the symbol names
@@ -411,7 +447,7 @@ class SymPyWriter(FortranWriter):
         is_list = isinstance(list_of_expressions, (tuple, list))
         if not is_list:
             list_of_expressions = [list_of_expressions]
-        expression_str_list = self._to_str(list_of_expressions)
+        expression_str_list = self._to_str(list_of_expressions, assume=assume)
 
         result = []
         for expr in expression_str_list:
@@ -599,7 +635,12 @@ class SymPyWriter(FortranWriter):
         # Support renaming a symbol (e.g. if it is a reserved Python name).
         # Look up with the name as tag, which will return the symbol with
         # a unique name (e.g. lambda --> lambda_1):
-        name = self._symbol_table.lookup_with_tag(node.name).name
+        try:
+            name = self._symbol_table.lookup_with_tag(node.name).name
+        except KeyError:
+            # If the tag did not exist it means that this symbol has not
+            # been re-named, and we can use it as is.
+            name = node.name
         if not node.is_array:
             # This reference is not an array, just return the name
             return name
@@ -675,7 +716,7 @@ class SymPyWriter(FortranWriter):
 
         '''
         if node.parent and node.parent.is_lower_bound(
-                node.parent.indices.index(node)):
+                node.parent.index_of(node)):
             # The range starts for the first element in this
             # dimension, so use the generic name for lower bound:
             start = self.lower_bound
@@ -683,7 +724,7 @@ class SymPyWriter(FortranWriter):
             start = self._visit(node.start)
 
         if node.parent and node.parent.is_upper_bound(
-                node.parent.indices.index(node)):
+                node.parent.index_of(node)):
             # The range ends with the last element in this
             # dimension, so use the generic name for the upper bound:
             stop = self.upper_bound

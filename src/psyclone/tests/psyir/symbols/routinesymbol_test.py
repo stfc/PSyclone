@@ -32,14 +32,16 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Perform py.test tests on the psygen.psyir.symbols.routinesymbol file '''
 
 import pytest
 from psyclone.psyir.symbols import (
-    RoutineSymbol, Symbol, UnresolvedInterface,
-    NoType, INTEGER_TYPE, UnresolvedType, DataTypeSymbol)
+    ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface, INTEGER_TYPE,
+    NoType, RoutineSymbol, ScalarType, Symbol, SymbolTable,
+    UnresolvedInterface, UnresolvedType)
 
 
 def test_routinesymbol_init():
@@ -142,3 +144,65 @@ def test_routinesymbol_str():
     assert (str(routine_symbol) ==
             "eyore: RoutineSymbol<some_type: DataTypeSymbol, pure=True, "
             "elemental=False>")
+
+
+def test_routinesymbol_copy():
+    '''
+    Test the RoutineSymbol.copy() method.
+    '''
+    asym = RoutineSymbol("a", is_elemental=True, is_pure=True)
+    new_sym = asym.copy()
+    assert new_sym is not asym
+    assert new_sym.name == asym.name
+    assert new_sym.visibility == asym.visibility
+    assert new_sym.is_elemental
+    assert new_sym.is_pure
+    assert new_sym.datatype is not asym.datatype
+
+    # Default is elemental and pure is None
+    sym2 = RoutineSymbol("a")
+    new_sym = sym2.copy()
+    assert new_sym is not sym2
+    assert new_sym.name == sym2.name
+    assert new_sym.visibility == sym2.visibility
+    assert new_sym.is_elemental == sym2.is_elemental
+    assert new_sym.is_elemental is None
+    assert new_sym.is_pure == sym2.is_pure
+    assert new_sym.is_pure is None
+
+    # Test when the routine has a datatype.
+    wp = DataSymbol("wp", INTEGER_TYPE)
+    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL, wp))
+    new_sym3 = sym3.copy()
+    assert new_sym3.datatype is not sym3.datatype
+    assert new_sym3.datatype.precision is wp
+
+    # Test when the routine has an interface.
+    csym = ContainerSymbol("test_mod")
+    interf = ImportInterface(csym)
+    sym4 = RoutineSymbol("gotit", interface=interf)
+    assert sym4.interface.container_symbol is csym
+    new_sym4 = sym4.copy()
+    assert new_sym4.interface is not interf
+    assert new_sym4.interface.container_symbol is csym
+
+
+def test_routinesymbol_replace_symbols_using():
+    '''Test that the replace_symbols_using() method updates any symbols in
+    the datatype of a RoutineSymbol.
+
+    '''
+    sym1 = RoutineSymbol('a')
+    table = SymbolTable()
+    sym1.replace_symbols_using(table)
+    assert isinstance(sym1.datatype, NoType)
+    # Test when the routine has a datatype.
+    wp = DataSymbol("wp", INTEGER_TYPE)
+    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL, wp))
+    # No symbol in table.
+    sym3.replace_symbols_using(table)
+    assert sym3.datatype.precision is wp
+    wp_new = wp.copy()
+    table.add(wp_new)
+    sym3.replace_symbols_using(table)
+    assert sym3.datatype.precision is wp_new

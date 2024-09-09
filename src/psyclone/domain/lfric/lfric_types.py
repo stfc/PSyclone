@@ -140,16 +140,16 @@ class LFRicTypes:
     # ------------------------------------------------------------------------
     @staticmethod
     def _create_precision_from_const_module():
-        '''This function implements all precisions defined in the
-        `dynamo0.3` (LFRic) domain. It adds "constants_mod" as
-        ContainerSymbol. The names are added to the global mapping.
+        '''This function implements all precisions defined in the LFRic domain.
+        It adds "constants_mod" as a ContainerSymbol. The names are added to
+        the global mapping.
 
         '''
         # The first Module namedtuple argument specifies the name of the
         # module and the second argument declares the name(s) of any symbols
         # declared by the module.
         lfric_const = LFRicConstants()
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         lfric_kinds = list(api_config.precision_map.keys())
 
@@ -160,11 +160,14 @@ class LFRicTypes:
         # Generate LFRic module symbols from definitions
         for module_info in modules:
             module_name = module_info.name.lower()
-            # Create the module (using a PSyIR ContainerSymbol)
+            # Create the module (using a PSyIR ContainerSymbol).
+            # TODO #2659 - this ContainerSymbol should be added to
+            # a SymbolTable!
             LFRicTypes._name_to_class[module_name] = \
                 ContainerSymbol(module_info.name)
             # Create the variables specified by the module (using
-            # PSyIR DataSymbols)
+            # PSyIR DataSymbols). TODO #2659 - these DataSymbols should
+            # be added to a SymbolTable!
             for module_var in module_info.vars:
                 var_name = module_var.upper()
                 interface = ImportInterface(LFRicTypes(module_name))

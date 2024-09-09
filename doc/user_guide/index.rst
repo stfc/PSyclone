@@ -31,35 +31,45 @@
    ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
    POSSIBILITY OF SUCH DAMAGE.
    -----------------------------------------------------------------------------
-   Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+   Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
    Modified by I. Kavcic, Met Office
 
 .. only:: html
 
     .. image:: ../logo/psyclone_v1.0.png
-        :width: 75%
+        :width: 70%
         :align: center
         :alt: PSyclone
 
 PSyclone User Guide
 =====================
 
+PSyclone is a source-to-source Fortran compiler designed to programmatically
+optimise, parallelise and instrument HPC applications via user-provided
+transformation scripts.
 
-.. only:: html
+By encapsulating the performance-portability aspects (e.g. whether to
+parallelise with OpenMP or OpenACC), these scripts enable a separation of
+concerns between the scientific implementation and the optimisation choices.
+This allows each aspect to be explored and developed largely independently.
+Additionally, PSyclone supports the development of kernel-based, Fortran-embedded
+DSLs following the PSyKAl model developed in the
+`GungHo project <https://www.metoffice.gov.uk/research/foundation/dynamics/next-generation>`_.
 
-    PSyclone is a code generation system developed to support domain-specific
-    languages (DSLs) for finite element, finite volume and finite difference
-    codes. Notably, it is used in the
-    `LFRic Project <https://www.metoffice.gov.uk/research/modelling-systems/
-    lfric/>`_, and it also supports the
-    `GOcean <https://gtr.ukri.org/projects?ref=NE%2FL01209X%2F1>`_
-    (2D, finite difference) DSL. In addition it is being extended
-    to support the processing of existing finite difference codes such as the 
-    `NEMO <https://www.nemo-ocean.eu/>`_ ocean model. 
-    Find more information in the
-    `Developer's Guide <https://psyclone-dev.readthedocs.io/>`_
-    and the
-    `Reference Guide <https://psyclone-ref.readthedocs.io/>`_.
+PSyclone is currently used to support the
+`LFRic <https://www.metoffice.gov.uk/research/modelling-systems/lfric/>`_
+mixed finite-element PSyKAl DSL for the UK MetOffice's next generation
+modelling system and the
+`GOcean <https://gtr.ukri.org/projects?ref=NE%2FL01209X%2F1>`_
+finite-difference PSyKAl DSL for a prototype 2D ocean modelling system.
+It is also used to insert GPU offloading directives into existing
+directly-addressed MPI applications such as the
+`NEMO ocean model <https://www.nemo-ocean.eu/>`_.
+
+More detailed implementation information is available in the
+`Developer Guide <https://psyclone-dev.readthedocs.io/>`_
+and the
+`Reference Guide <https://psyclone-ref.readthedocs.io/>`_.
 
 .. toctree::
     :hidden:
@@ -69,9 +79,9 @@ PSyclone User Guide
     :maxdepth: 2
     :caption: Introduction
 
-    introduction
     getting_going
     psyclone_command
+    configuration
     tutorial
     examples
     libraries
@@ -79,28 +89,18 @@ PSyclone User Guide
 
 .. toctree::
     :maxdepth: 2
-    :caption: PSyKAl
-
-    kernel_layer
-    algorithm_layer
-    psy_layer
-    built_ins
-
-.. toctree::
-    :maxdepth: 2
-    :caption: Domain APIs
-
-    dynamo0p3
-    gocean1p0
-    nemo
-
-.. toctree::
-    :maxdepth: 2
-    :caption: PSyclone Transformations
+    :caption: Code Transformation
 
     psyir
     transformations
-    distributed_memory
+
+.. toctree::
+    :maxdepth: 2
+    :caption: PSyKAl DSLs
+
+    introduction_to_psykal
+    dynamo0p3
+    gocean1p0
 
 
 .. toctree::
@@ -110,11 +110,9 @@ PSyclone User Guide
     psyclone_kern
     line_length
     fortran_naming_conventions
-    api
     psy_data
     profiling
     psyke
-    configuration
 
 .. toctree::
     :maxdepth: 2

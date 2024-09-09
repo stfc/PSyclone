@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''A transformation script that adds profiling information with user-provided
 region names.
@@ -42,47 +42,33 @@ README.md in the top-level psyclone directory.
 
 Once you have psyclone installed, this may be used by doing:
 
- $ psyclone -api nemo -s ./profile_trans.py some_source_file.f90
-
-This should produce a lot of output, ending with generated
-Fortran. Note that the Fortran source files provided to PSyclone must
-have already been preprocessed (if required).
+ $ psyclone -s ./profile_trans.py some_source_file.f90
 
 '''
 
-from __future__ import print_function, absolute_import
 from psyclone.psyir.transformations import ProfileTrans
 from psyclone.psyir.nodes import Loop
 
+# Set up some loop_type inference rules in order to reference useful domain
+# loop constructs by name
+Loop.set_loop_type_inference_rules({"levels": {"variable": "jk"}})
 
-def trans(psy):
-    '''A PSyclone-script compliant transformation function. Adds
-    profiling to an invoke.
 
-    :param psy: The PSy layer object to apply transformations to.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
+def trans(psyir):
+    ''' Adds profiling around loops over levels.
+
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
-    # Since "Backslashes may not appear inside the expression
-    # portions of f-strings" via PEP 498, use chr(10) for '\n'
-    print(f"Invokes found:\n"
-          f"{chr(10).join([str(name) for name in psy.invokes.names])}\n")
 
     p_trans = ProfileTrans()
 
-    for invoke in psy.invokes.invoke_list:
+    loops = psyir.walk(Loop)
+    loop_counter = 0
+    for loop in loops:
+        if loop.loop_type == "levels":
+            # We only put profiling around loops over levels
+            loop_counter += 1
+            p_trans.apply(loop, {"region_name": ("kloop", f"{loop_counter}")})
 
-        sched = invoke.schedule
-        if not sched:
-            print("Invoke {invoke.name} has no Schedule! Skipping...")
-            continue
-
-        loops = sched.walk(Loop)
-        loop_counter = 0
-        for loop in loops:
-            if loop.loop_type == "levels":
-                # We only put profiling around loops over levels
-                loop_counter += 1
-                p_trans.apply(loop,
-                              {"region_name": ("kloop", f"{loop_counter}")})
-
-        print(sched.view())
+    print(psyir.view())

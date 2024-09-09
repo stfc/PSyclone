@@ -66,8 +66,8 @@ class LoopFuseTrans(LoopTrans):
     def __str__(self):
         return "Fuse two adjacent loops together"
 
+    # pylint: disable=arguments-renamed
     def validate(self, node1, node2, options=None):
-        # pylint: disable=arguments-differ
         ''' Performs various checks to ensure that it is valid to apply
         the LoopFuseTrans transformation to the supplied Nodes.
 
@@ -97,6 +97,7 @@ class LoopFuseTrans(LoopTrans):
         :raises TransformationError: if there are dependencies between the
                                      loops that prevent the loop fusion.
         '''
+        # pylint: disable=too-many-locals, too-many-branches
         if not options:
             options = {}
         # Check that the supplied Nodes are Loops
@@ -116,6 +117,13 @@ class LoopFuseTrans(LoopTrans):
             raise TransformationError(
                 f"Error in {self.name} transformation. Nodes are not siblings "
                 f"who are next to each other.")
+
+        # Check node1 comes before node2:
+        if node2.position-node1.position != 1:
+            raise TransformationError(
+                f"Error in {self.name} transformation. The second loop comes "
+                f"before the first loop")
+
         # Check that the iteration space is the same
         if isinstance(node1, PSyLoop) and isinstance(node2, PSyLoop):
             # TODO 1731: For some PSyLoops the iteration space is encoded just

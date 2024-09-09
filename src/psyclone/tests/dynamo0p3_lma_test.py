@@ -62,7 +62,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 CODE = '''
 module testkern_qr
@@ -92,12 +92,10 @@ end module testkern_qr
 '''
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    Config.get().api = "lfric"
 
 
 def test_get_op_wrong_name():
@@ -616,15 +614,12 @@ def test_operator_different_spaces(tmpdir):
         "      IF (coord_proxy(1)%is_dirty(depth=1)) THEN\n"
         "        CALL coord_proxy(1)%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (coord_proxy(2)%is_dirty(depth=1)) THEN\n"
         "        CALL coord_proxy(2)%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (coord_proxy(3)%is_dirty(depth=1)) THEN\n"
         "        CALL coord_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL assemble_weak_derivative_w3_w2_kernel_code(cell, "
         "nlayers, mapping_proxy%ncell_3d, mapping_local_stencil, "

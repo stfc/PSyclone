@@ -41,6 +41,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.tests.utilities import get_invoke
 
@@ -48,7 +49,7 @@ from psyclone.tests.utilities import get_invoke
 @pytest.fixture(scope="function", autouse=True)
 def clear_config_instance():
     '''The tests in this file all assume that the Nemo API is used.'''
-    Config.get().api = "nemo"
+    Config.get().api = ""
 
 
 # -----------------------------------------------------------------------------
@@ -92,21 +93,15 @@ def test_messages():
 def test_dep_tool_constructor_errors():
     '''Test that invalid loop types raise an error in the constructor.
     '''
-    with pytest.raises(TypeError) as err:
-        _ = DependencyTools(loop_types_to_parallelise=["lon", "invalid"])
-    assert ("Invalid loop type 'invalid' specified in DependencyTools. Valid "
-            "values for API 'nemo' are ['lat', 'levels', 'lon', 'tracers', "
-            "'unknown']." in str(err.value))
-
-    # Test that a a change to the API works as expected, i.e. does
+    # Test that a change to the API works as expected, i.e. does
     # not raise an exception with a valid loop type, but still raises
     # one with an invalid loop type
-    Config.get().api = "dynamo0.3"
+    Config.get().api = "lfric"
     _ = DependencyTools(loop_types_to_parallelise=["dof", "colours"])
     with pytest.raises(TypeError) as err:
         _ = DependencyTools(loop_types_to_parallelise=["invalid"])
     assert ("Invalid loop type 'invalid' specified in DependencyTools. Valid "
-            "values for API 'dynamo0.3' are ['dof', 'colours', 'colour', '', "
+            "values for API 'lfric' are ['dof', 'colours', 'colour', '', "
             "'null']." in str(err.value))
 
 
@@ -726,8 +721,10 @@ def test_reserved_words(fortran_reader):
 # -----------------------------------------------------------------------------
 def test_gocean_parallel():
     '''Check that PSyclones gives useful error messages for a GOKern.'''
+
+    # TODO #2531: this kernel should not be accepted in the first place.
     _, invoke = get_invoke("test31_stencil_not_parallel.f90",
-                           api="gocean1.0", idx=0, dist_mem=False)
+                           api="gocean", idx=0, dist_mem=False)
 
     loop = invoke.schedule.children[0]
     dep_tools = DependencyTools()
@@ -739,3 +736,305 @@ def test_gocean_parallel():
             "'u_fld(i,j - 1)' in '< kern call: stencil_not_parallel_code >' "
             "are dependent and cannot be parallelised. Variable: 'u_fld'."
             in str(dep_tools.get_all_messages()[0]))
+
+
+def test_fuse_different_variables_with_access(fortran_reader):
+    '''Test that fusing loops with different variables is disallowed when
+    either loop uses the other loops variable for any reason.'''
+    code = '''subroutine sub()
+    integer :: ji, jj, n, jk
+    integer, dimension(10, 10) :: s, t
+    do jj = 1, n
+      do ji = 1, 10
+        s(ji, jj) = t(ji, jj) + 1
+      end do
+      do jk = 1, 10
+        ji = jk
+        s(jk, jj) = t(jk, jj) + ji
+      end do
+    end do
+    end subroutine sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.children[0].walk(Loop)
+    dep_tools = DependencyTools()
+
+    assert not dep_tools.can_loops_be_fused(loops[1], loops[2])
+    assert len(dep_tools.get_all_messages()) == 1
+    msg = dep_tools.get_all_messages()[0]
+    assert ("Second loop contains accesses to the first loop's variable: ji"
+            in str(msg))
+    assert msg.var_names[0] == "ji"
+
+    assert not dep_tools.can_loops_be_fused(loops[2], loops[1])
+    msg = dep_tools.get_all_messages()[0]
+    assert ("First loop contains accesses to the second loop's variable: ji"
+            in str(msg))
+    assert msg.var_names[0] == "ji"
+
+
+# ----------------------------------------------------------------------------
+def test_fuse_independent_array_stencil(fortran_reader):
+    '''Test that using arrays which are not dependent on the loop variable
+    are handled correctly. Example:
+    do j  ... a(1) = b(j) * c(j)
+    do j ...  d(j) = a(1)
+    '''
+
+    # The first example can be merged, since 's' does not
+    # depend on the loop variable, and it is written and read.
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=1, n
+                 do ji=1, 10
+                    t(ji, jj) = s(ji, jj+1) + t(ji, jj)
+                 enddo
+              enddo
+              end subroutine sub'''
+
+    dep_tools = DependencyTools()
+    psyir = fortran_reader.psyir_from_source(code)
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+
+    assert not dep_tools.can_loops_be_fused(loop1, loop2)
+    msg = dep_tools.get_all_messages()[0]
+    assert ("Variable 's' is used with different indices: 's(ji,jj)' and "
+            "'s(ji,jj + 1)" in str(msg))
+
+
+# ----------------------------------------------------------------------------
+def test_fuse_independent_array(fortran_reader):
+    '''Test that using arrays which are not dependent on the loop variable
+    are handled correctly. Example:
+    do j  ... a(1) = b(j) * c(j)
+    do j ...  d(j) = a(1)
+    '''
+
+    # The first example can be merged, since 's' does not
+    # depend on the loop variable, and it is written and read.
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=1, n
+                 do ji=1, 10
+                    s(1, 1)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=1, n
+                 do ji=1, 10
+                    t(ji, jj) = s(1, 1) + t(ji, jj)
+                 enddo
+              enddo
+              end subroutine sub'''
+
+    dep_tools = DependencyTools()
+    psyir = fortran_reader.psyir_from_source(code)
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+    assert not dep_tools.can_loops_be_fused(loop1, loop2)
+    msg = dep_tools.get_all_messages()[0]
+    assert ("Variable 's' does not depend on loop variable 'jj', but is "
+            "read and written" in str(msg))
+
+
+# ----------------------------------------------------------------------------
+def test_fuse_scalars(fortran_reader):
+    '''Test that using scalars work as expected in all combinations of
+    being read/written in both loops.
+    '''
+
+    # First test: read/read of scalar variable
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              real, dimension(10,10) :: s, t
+              real                   :: a
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj) = t(ji, jj) + a
+                 enddo
+              enddo
+              do jj=1, n
+                 do ji=1, 10
+                    t(ji, jj) = t(ji, jj) - a
+                 enddo
+              enddo
+              end subroutine sub'''
+    dep_tools = DependencyTools()
+    psyir = fortran_reader.psyir_from_source(code)
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+    assert dep_tools.can_loops_be_fused(loop1, loop2)
+
+    # Second test: read/write of scalar variable
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              real, dimension(10,10) :: s, t
+              real                   :: a
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+a
+                 enddo
+              enddo
+              do jj=1, n
+                 do ji=1, 10
+                    a = t(ji, jj) - 2
+                    s(ji, jj)=t(ji, jj)+a
+                 enddo
+              enddo
+              end subroutine sub'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+    assert not dep_tools.can_loops_be_fused(loop1, loop2)
+    msg = dep_tools.get_all_messages()[0]
+    assert ("Scalar variable 'a' is written in one loop, but only read in "
+            "the other loop." in str(msg))
+
+    # Third test: write/read of scalar variable
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              real, dimension(10,10) :: s, t
+              real                   :: b
+              do jj=1, n
+                 do ji=1, 10
+                    b = t(ji, jj) - 2
+                    s(ji, jj )=t(ji, jj)+b
+                 enddo
+              enddo
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+b
+                 enddo
+              enddo
+              end subroutine sub'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+    assert not dep_tools.can_loops_be_fused(loop1, loop2)
+    msg = dep_tools.get_all_messages()[0]
+    assert ("Scalar variable 'b' is written in one loop, but only read in "
+            "the other loop." in str(msg))
+
+    # Fourth test: write/write of scalar variable - this is ok
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              real, dimension(10,10) :: s, t
+              real                   :: b
+              do jj=1, n
+                 do ji=1, 10
+                    b = t(ji, jj) - 2
+                    s(ji, jj )=t(ji, jj)+b
+                 enddo
+              enddo
+              do jj=1, n
+                 do ji=1, 10
+                    b = sqrt(t(ji, jj))
+                    s(ji, jj)=t(ji, jj)+b
+                 enddo
+              enddo
+              end subroutine sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+    assert dep_tools.can_loops_be_fused(loop1, loop2)
+
+
+# ----------------------------------------------------------------------------
+def test_fuse_dimension_change(fortran_reader):
+    '''Test that inconsistent use of dimemsions are detected, e.g.:
+    loop1:  a(i,j)
+    loop2:  a(j,i)
+    when at least one operation is a write
+    '''
+
+    # This cannot be fused, since 's' is written in the first iteration
+    # and read in the second with inconsistent indices
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t, u
+              do jj=1, n+1
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=1, n+1
+                 do ji=1, 10
+                    u(ji, jj)=s(jj, ji)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+    dep_tools = DependencyTools()
+    assert not dep_tools.can_loops_be_fused(loop1, loop2)
+    msg = dep_tools.get_all_messages()[0]
+    assert ("Variable 's' is written to and the "
+            "loop variable 'jj' is used in different index locations: "
+            "s(ji,jj) and s(jj,ji)."
+            in str(msg))
+
+    # This cannot be fused, since 's' is read in the
+    # first iteration and written in the second with
+    # different indices.
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t, u
+              do jj=1, n+1
+                 do ji=1, 10
+                    u(ji, jj)=s(jj, ji)+1
+                 enddo
+              enddo
+              do jj=1, n+1
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+    dep_tools = DependencyTools()
+    assert not dep_tools.can_loops_be_fused(loop1, loop2)
+    msg = dep_tools.get_all_messages()[0]
+    assert ("Variable 's' is written to and the loop variable 'jj' is "
+            "used in different index locations: s(jj,ji) and s(ji,jj)."
+            in str(msg))
+
+    # Same test using a structure type:
+    code = '''subroutine sub()
+              use my_module
+              integer :: ji, jj, n
+              type(my_type) :: s, t, u
+              do jj=1, n+1
+                 do ji=1, 10
+                    u%comp1(ji)%comp2(jj)=s%comp1(jj)%comp2(ji)+1
+                 enddo
+              enddo
+              do jj=1, n+1
+                 do ji=1, 10
+                    s%comp1(ji)%comp2(jj)=t%comp1(ji)%comp2(jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+    dep_tools = DependencyTools()
+    assert not dep_tools.can_loops_be_fused(loop1, loop2)
+    msg = dep_tools.get_all_messages()[0]
+    assert ("Variable 's' is written to and the loop variable 'jj' is used "
+            "in different index locations: s%comp1(jj)%comp2(ji) and "
+            "s%comp1(ji)%comp2(jj)."
+            in str(msg))

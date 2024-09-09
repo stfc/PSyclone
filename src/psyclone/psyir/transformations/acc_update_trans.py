@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
 
 '''
@@ -47,7 +47,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (Call, CodeBlock, IfBlock, Loop, Routine,
                                   Schedule, ACCEnterDataDirective,
                                   ACCKernelsDirective, ACCParallelDirective,
-                                  Node, IntrinsicCall)
+                                  Node, IntrinsicCall, ACCUpdateDirective)
 from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 from psyclone.psyir.transformations import TransformationError
 
@@ -427,14 +427,6 @@ class ACCUpdateTrans(Transformation):
                          either IN (read) or OUT (write).
 
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.nemo import NemoInvokeSchedule
-        if sched.ancestor(NemoInvokeSchedule, include_self=True):
-            from psyclone.nemo import NemoACCUpdateDirective as \
-                ACCUpdateDirective
-        else:
-            from psyclone.psyir.nodes import ACCUpdateDirective
-
         # Avoid rewriting the set of signatures on the caller.
         host_sig = host_sig.copy()
 

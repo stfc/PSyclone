@@ -56,15 +56,13 @@ from psyclone.tests.lfric_build import LFRicBuild
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
-API = "dynamo0.3"
+API = "lfric"
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
 
 
 def test_field_xyoz(tmpdir):
@@ -205,19 +203,15 @@ def test_field_xyoz(tmpdir):
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f1_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL testkern_qr_code(nlayers, f1_data, f2_data, "
         "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
@@ -416,19 +410,15 @@ def test_face_qr(tmpdir, dist_mem):
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f1_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL m1_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL m2_proxy%halo_exchange(depth=1)\n"
-            "      END IF\n"
-            "      !\n")
+            "      END IF\n")
     else:
         init_output2 += (
             "      loop0_stop = f1_proxy%vspace%get_ncell()\n"
@@ -528,9 +518,9 @@ def test_field_qr_deref(tmpdir):
     component of a derived type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.1_single_invoke_qr_deref.f90"),
-                           api="dynamo0.3")
+                           api="lfric")
     for dist_mem in [True, False]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory("lfric",
                          distributed_memory=dist_mem).create(invoke_info)
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
