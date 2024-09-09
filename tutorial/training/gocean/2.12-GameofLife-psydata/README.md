@@ -80,18 +80,26 @@ implemented.
 > significant overhead, which can impact the precision of the
 > results.
 
-## NaN Checking
-PSyclone comes with a PSyData library that automatically checks
-all input- and output-parameters of a kernel to make sure they
-are valid numbers, i.e. not infinity, or NAN.
+## Value Range Checking
+PSyclone comes with a PSyData library that can automatically check
+that kernel parameters are within a user-specified range. For example,
+variables (including fields) that represent a fraction, can be tested
+to be between 0 and 1. In our "Game of Life" example, we can verify
+that the number of neighbours should be between 0 and 8, and the fields
+`die` and `born` should be between 0 and 1. Additionally, this transform
+will also verify that the values are not infinity or NAN.
 
-In order to have a real use case, you need to modify for example
-the `compute_born` function to compute an invalid result. You can use
-the following:
+A value range is specified using environment variables starting with
+PSYVERIFY:
 
-    born(i, j) = 1.0 / (i-j)
 
-This will trigger a division by 0 for all elements on the diagonal.
+    PSYVERIFY__psy_time_step_alg_mod__invoke_compute_r0__neighbours
+
+    time_evolution__invoke_initialise_perturbation__perturbation_data=0.0:4000
+    PSYVERIFY__time_evolution__perturbation_data=0.0:4000
+    PSYVERIFY__perturbation_data=0.0:4000
+
+
 
 In order to use the NAN testing, you need to apply the
 `NanTestTrans` transformation, which comes from
