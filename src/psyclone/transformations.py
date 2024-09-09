@@ -1140,7 +1140,16 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Cannot have a loop over colours "
                                       "within an OpenMP parallel region.")
 
+        # Get the ancestor InvokeSchedule as applying the transformation
+        # creates a new Loop node.
+        sched = node.ancestor(LFRicInvokeSchedule)
+
         super().apply(node, options=options)
+
+        # Finally, update the information on the colourmaps required for
+        # the mesh(es) in this invoke.
+        if sched and sched.invoke:
+            sched.invoke.meshes.colourmap_init()
 
     def _create_colours_loop(self, node):
         '''

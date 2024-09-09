@@ -439,16 +439,6 @@ class LFRicKern(CodedKern):
                                 f"coloured loop.")
 
         if self.is_intergrid:
-            sym = self._intergrid_ref.last_cell_var_symbol
-            if not sym:
-                # TODO - this setting up of loop boundary information for
-                # an inter-grid kernel should be done in the colouring
-                # transformation?
-                from psyclone.domain.lfric.lfric_invoke_schedule import (
-                    LFRicInvokeSchedule)
-                invoke = self.ancestor(LFRicInvokeSchedule).invoke
-                # pylint: disable=protected-access
-                invoke.meshes._colourmap_init()
             return self._intergrid_ref.last_cell_var_symbol
 
         ubnd_name = self.ancestor(Loop).upper_bound_name
