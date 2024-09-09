@@ -188,8 +188,8 @@ contains
                 local_region(i:i) = "_"
             endif
         enddo
-        env_name = "PSYVERIFY__" // trim(module) // "__" // trim(region) // "__"  &
-                                 // trim(variable_name)
+        env_name = "PSYVERIFY__" // trim(local_module) // "__" // trim(local_region) &
+                                 // "__" // trim(variable_name)
 
 
         call get_environment_variable(env_name, length=value_len, status=status)
@@ -198,7 +198,7 @@ contains
         if (status >= 1) then
             ! No specification for this variable with kernel and region.
             ! Try without region:
-            env_name = "PSYVERIFY__" // trim(module) // "__"  &
+            env_name = "PSYVERIFY__" // trim(local_module) // "__"  &
                                      // trim(variable_name)
 
             call get_environment_variable(env_name, length=value_len, &
