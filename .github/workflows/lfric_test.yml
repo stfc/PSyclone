@@ -75,6 +75,30 @@ jobs:
         pip install .[test]
         pip install jinja2
 
+    # PSyclone, compile and run MetOffice gungho_model on GPU
+    - name: LFRic GungHo with OpenACC offload
+      run: |
+        # Set up environment
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment%nvhpc
+        source .runner_venv/bin/activate
+        export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_r2222
+        cd ${LFRIC_DIR}
+        # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
+        mkdir -p applications/gungho_model/optimisation/psyclone-test
+        cp ${PSYCLONE_LFRIC_DIR}/acc_parallel.py ${OPT_DIR}/global.py
+        # Clean previous version and compile again
+        rm -rf appplications/gungho_model/working
+        ./build/local_build.py -a gungho_model -p psyclone-test
+        # Run
+        cd applications/gungho_model/example
+        #cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its.nml configuration.nml
+        mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
+        #python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_output.txt output.txt
+        cat timer.txt
+
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks
     - name: LFRic passthrough (with DistributedMemory)
       run: |
@@ -159,27 +183,3 @@ jobs:
         token: ${{ secrets.GIST_TOKEN }}
         gist_id: a4049a0fc0a0a11651a5ce6a04d76160
         file_path: ../../../../store_results/lfric_optimised_performance_history
-
-    # PSyclone, compile and run MetOffice gungho_model on GPU
-    - name: LFRic GungHo with OpenACC offload
-      run: |
-        # Set up environment
-        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment%nvhpc
-        source .runner_venv/bin/activate
-        export PSYCLONE_LFRIC_DIR==${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_r2222
-        cd ${LFRIC_DIR}
-        # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
-        mkdir -p applications/gungho_model/optimisation/psyclone-test
-        cp ${PSYCLONE_LFRIC_DIR}/acc_parallel.py ${OPT_DIR}/global.py
-        # Clean previous version and compile again
-        rm -rf appplications/gungho_model/working
-        ./build/local_build.py -a gungho_model -p psyclone-test
-        # Run
-        cd applications/gungho_model/example
-        #cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its.nml configuration.nml
-        mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
-        #python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_output.txt output.txt
-        cat timer.txt
