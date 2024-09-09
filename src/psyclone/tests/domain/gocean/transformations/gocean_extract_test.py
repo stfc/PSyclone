@@ -431,7 +431,7 @@ def test_driver_generation_flag(create_driver):
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
-                  "kernel-compute_kernel_code-r0.f90")
+                  "kernel-compute_kernel_code-r0.F90")
     # When create_driver is None, as a default no driver should be created.
     # Since "None or False" is "False", this simple test can be used in all
     # three cases.
@@ -456,7 +456,7 @@ def test_driver_loop_variables():
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
-                  "kernel-compute_kernel_code-r0.f90")
+                  "kernel-compute_kernel_code-r0.F90")
 
     assert driver.is_file()
 
@@ -509,7 +509,7 @@ def test_driver_scalars(fortran_writer):
     # Now test the created driver:
     # ----------------------------
     driver_name = ("driver-psy_single_invoke_scalar_float_test-"
-                   "invoke_0_bc_ssh-bc_ssh_code-r0.f90")
+                   "invoke_0_bc_ssh-bc_ssh_code-r0.F90")
     with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
@@ -571,7 +571,7 @@ def test_driver_grid_properties(fortran_writer):
     # Now test the created driver:
     # ----------------------------
     driver_name = ("driver-psy_single_invoke_scalar_float_test-"
-                   "invoke_0_bc_ssh-bc_ssh_code-r0.f90")
+                   "invoke_0_bc_ssh-bc_ssh_code-r0.F90")
     with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
@@ -617,7 +617,7 @@ def test_rename_region():
 
     # Now test if the created driver has the right name, and will open the
     # right file:
-    driver_name = "driver-main-update.f90"
+    driver_name = "driver-main-update.F90"
     with open(driver_name, "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
     assert ("call extract_psy_data%OpenReadModuleRegion('main', 'update')"
@@ -654,7 +654,7 @@ def test_change_prefix(monkeypatch, dist_mem):
         in gen
 
     # Now test if the created driver has the right prefix:
-    driver_name = "driver-main-update.f90"
+    driver_name = "driver-main-update.F90"
     with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
     assert ("call NEW_psy_data%OpenReadModuleRegion('main', 'update')"

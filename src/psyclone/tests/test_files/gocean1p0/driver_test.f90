@@ -43,7 +43,7 @@ PROGRAM extract_example_with_various_variable_access_patterns
   use kind_params_mod
   use grid_mod
   use field_mod
-  use kernel_driver_test,  only: compute_kernel
+  use kernel_driver_test_mod,  only: compute_kernel
   implicit none
 
   type(grid_type), target :: model_grid

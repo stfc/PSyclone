@@ -40,7 +40,6 @@
 import os
 import pytest
 
-from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
@@ -124,30 +123,6 @@ def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
 
 
 # ----------------------------------------------------------------------------
-def test_lfric_driver_valid_unit_name():
-    '''Tests that we create valid unit names, i.e. less than 64 characters,
-    and no ":" in name.'''
-
-    long_name = "A"*100
-    new_name = LFRicExtractDriverCreator._make_valid_unit_name(long_name)
-    assert new_name == "A"*63
-
-    special_characters = "aaa-bbb"
-    new_name = \
-        LFRicExtractDriverCreator._make_valid_unit_name(special_characters)
-    assert new_name == "aaabbb"
-
-
-# ----------------------------------------------------------------------------
-def test_lfric_driver_flatten_signature():
-    '''Tests that a user-defined type access is correctly converted
-    to a 'flattened' string.'''
-
-    new_name = LFRicExtractDriverCreator._flatten_signature(Signature("a%b%c"))
-    assert new_name == "a_b_c"
-
-
-# ----------------------------------------------------------------------------
 def test_lfric_driver_get_proxy_mapping():
     '''Tests that a kernel returns the right proxy mapping.'''
 
@@ -168,8 +143,7 @@ def test_lfric_driver_flatten_reference_error():
     driver_creator = LFRicExtractDriverCreator()
 
     with pytest.raises(InternalError) as err:
-        driver_creator._flatten_reference("NoUserType", symbol_table=None,
-                                          proxy_name_mapping={})
+        driver_creator._flatten_reference("NoUserType", symbol_table=None)
     assert ("Unexpected type 'str' in _flatten_reference, it must be a "
             "'StructureReference'" in str(err.value))
 
@@ -214,7 +188,7 @@ def test_lfric_driver_import_modules():
     # Initially we should only have one symbol:
     assert ["routine"] == [sym.name for sym in program.symbol_table.symbols]
 
-    driver_creator._import_modules(program.scope.symbol_table, sched)
+    driver_creator.import_modules(program.scope.symbol_table, sched)
     # We should now have two more symbols:
     all_symbols = ["routine", "testkern_coord_w0_2_mod",
                    "testkern_coord_w0_2_code"]
@@ -222,7 +196,7 @@ def test_lfric_driver_import_modules():
 
     # Import twice so we test the handling of symbols that
     # are already in the symbol table:
-    driver_creator._import_modules(program.scope.symbol_table, sched)
+    driver_creator.import_modules(program.scope.symbol_table, sched)
 
     # The symbol table should be the same as it was before:
     assert (all_symbols == [sym.name for sym in program.symbol_table.symbols])
@@ -243,7 +217,7 @@ def test_lfric_driver_import_modules_no_import_interface(fortran_reader):
     sched.lower_to_language_level()
     driver_creator = LFRicExtractDriverCreator()
     program = Routine("routine", is_program=True)
-    driver_creator._import_modules(program.scope.symbol_table, sched)
+    driver_creator.import_modules(program.scope.symbol_table, sched)
     # Only the program routine itself should be in the symbol table after
     # calling `import_modules`.
     assert (["routine"] == [sym.name for sym in program.symbol_table.symbols])
