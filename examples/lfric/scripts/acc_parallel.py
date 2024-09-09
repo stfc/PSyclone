@@ -5,8 +5,8 @@
 ##############################################################################
 
 
-'''PSyclone transformation script for the Dynamo0p3 API to apply
-colouring, OpenMP and redundant computation to the level1 halo for
+'''PSyclone transformation script for the lfric API to apply
+colouring, OpenACC and redundant computation to the level1 halo for
 setval_* generically.
 
 '''
@@ -15,9 +15,9 @@ from psyclone.psyir.nodes import ACCDirective, Loop
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, TransformationError)
 from psyclone.transformations import (
-    Dynamo0p3ColourTrans, Dynamo0p3OMPLoopTrans, OMPParallelTrans,
+    Dynamo0p3ColourTrans, Dynamo0p3OMPLoopTrans,
+    Dynamo0p3RedundantComputationTrans, OMPParallelTrans,
     ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans)
-from psyclone_tools import redundant_computation_setval
 
 
 ACC_EXCLUSIONS = [
@@ -25,9 +25,11 @@ ACC_EXCLUSIONS = [
 
 
 def trans(psy):
-    '''Applies PSyclone colouring, OpenMP transformations.
+    '''Applies PSyclone colouring and OpenACC transformations. Any setval_*
+    kernels are transformed so as to compute into the L1 halos.
 
     '''
+    rtrans = Dynamo0p3RedundantComputationTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = Dynamo0p3OMPLoopTrans()
     const = LFRicConstants()
@@ -39,13 +41,19 @@ def trans(psy):
 
     print(f"PSy name = '{psy.name}'")
 
-    redundant_computation_setval(psy)
-
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
 
         print("Transforming invoke '{0}' ...".format(invoke.name))
         schedule = invoke.schedule
+
+        # Make setval_* compute redundantly to the level 1 halo if it
+        # is in its own loop
+        for loop in schedule.loops():
+            if loop.iteration_space == "dof":
+                if len(loop.kernels()) == 1:
+                    if loop.kernels()[0].name in ["setval_c", "setval_x"]:
+                        rtrans.apply(loop, options={"depth": 1})
 
         if psy.name.lower() in ACC_EXCLUSIONS:
             print(f"Not adding ACC to invoke in '{psy.name}'")
