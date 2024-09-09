@@ -176,7 +176,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             message = (
                 f"Loop cannot be parallelised because it cannot "
                 f"guarantee that the following calls are pure: "
-                f"{set(not_pure)}")
+                f"{sorted(set(not_pure))}")
             if verbose:
                 node.append_preceding_comment(message)
             raise TransformationError(message)

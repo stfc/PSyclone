@@ -45,12 +45,14 @@ from psyclone.transformations import OMPLoopTrans
 
 PROFILING_ENABLED = False
 
-# List of all files that psyclone will skip processing
+# List of all files that psyclone will skip processing (the NOT_PERFORMANT
+# list also has files that fail for NEMOv5)
 FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING + [
     "lbclnk.f90",  # TODO #2685: effective shape bug
     "asminc.f90",
-    "trosk.f90",
-    "vremap.f90",
+    "trosk.f90",  # TODO #1254
+    "vremap.f90",  # bulk assignment of a structure component
+    "ldfslp.f90",  # Dependency analysis mistake? see Cray compiler comment
 ]
 
 
@@ -81,9 +83,7 @@ def trans(psyir):
         enhance_tree_information(subroutine)
 
         if subroutine.name in ("eos_rprof", "load_nml", "prt_ctl_write_sum",
-                               "sbc_blk", "lbc_lnk_pt2pt_sp",
-                               "lbc_lnk_neicoll_sp", "lbc_lnk_iprobe_sp",
-                               "lbc_lnk_waitany_sp"):
+                               "sbc_blk"):
             # TODO #1959: 'eos_rprof' make the ECMWF compilation fail
             # because it moves a statement function outside of the
             # specification part.
@@ -105,6 +105,6 @@ def trans(psyir):
                 loop_directive_trans=omp_loop_trans,
                 # Collapse may be useful in some architecture/compiler
                 collapse=False,
-                privatise_arrays=True
+                privatise_arrays=False
                 # privatise_arrays=(psyir.name == "zdftke.f90")
         )
