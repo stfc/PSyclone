@@ -36,7 +36,7 @@
 .PHONY: transform test clean allclean
 
 transform:
-	psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+	psyclone -api lfric -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 test:
 	$(MAKE) transform 2>&1 | grep "kernel call 'no_setval_c' must either "\
