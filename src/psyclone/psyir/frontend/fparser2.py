@@ -4423,12 +4423,6 @@ class Fparser2Reader():
                     Reference2ArrayRangeTrans().apply(ref)
                 except TransformationError:
                     pass
-            elif (intrinsic_ancestor is not None and
-                    intrinsic_ancestor.intrinsic.name.lower() not in
-                    ["minval", "maxval", "sum", "lbound", "ubound"]):
-                raise NotImplementedError(
-                        f"Intrinsic '{intrinsic_ancestor.intrinsic.name}' is "
-                        f" not supported in a WHERE region")
 
         arrays = fake_parent.walk(ArrayMixin)
 
