@@ -44,7 +44,7 @@ Now extend the script to apply parallel loop directive to all kernels.
 
 You can run the parallel version using:
 
-    OMP_NUM_THREADS=4 ./gol ./config.glider-large
+    OMP_NUM_THREADS=4 ./gol ../gol-lib/config.glider-large
 
 Measure the performance.
 

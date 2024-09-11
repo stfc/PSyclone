@@ -62,7 +62,7 @@ algorithm:
 This is then repeated for the number of required time steps.
 
 A configuration file is used to store the initial configuration. It
-has the following format (see ``config.glider``):
+has the following format (see ``../gol-lib/config.glider``):
 
     # 10x10 grid, 20 time steps
     10 10 20
@@ -156,7 +156,7 @@ The remaining functions need to be finished similarly. The template will
 contain comments with details.
 
 ### Running the program
-You can run the program using ``gol ./config.glider``. This will print
+You can run the program using ``gol ../gol-lib/config.glider``. This will print
 the current state to the screen. The configuration is a so called glider,
 a structure that moves continuously to the lower right. The last state
 looks like this:

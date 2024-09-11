@@ -252,7 +252,7 @@ If everything is done correctly, you can compile this example using:
 
 and a binary `gol` will be created. You can run this with:
 
-    ./gol ./config.glider
+    ./gol ../gol-lib/config.glider
 
 This is a small configuration with just 20 time steps, and the time
 stepping loop will display the grid after each step:
@@ -289,7 +289,7 @@ right. To test if your implementation is correct, you can use
 This will run the small test, and compare the output of each time step
 with a known-good outcome contained in the file `glider.correct`:
 
-    ./gol config.glider | tail -n 12 | diff - ./glider.correct
+    ./gol ../gol-lib/config.glider | tail -n 12 | diff - ./glider.correct
 
 If no output is shown the results are correct, otherwise you will
 see the output from diff, e.g.:
