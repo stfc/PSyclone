@@ -285,8 +285,10 @@ def test_gpumixin_validate_wrong_node_type():
 def test_gpumixin_kernel_interface(kernel_outputdir, monkeypatch,
                                    fortran_reader, fortran_writer):
     '''
-    Test that the xxxxx works correctly for a kernel that has multiple
-    implementations (i.e. for different precisions).
+    Test that the MarkRoutineForGPUMixin.validate() rejects a kernel that has
+    multiple implementations (i.e. for different precisions).
+
+    TODO this limitation is the subject of #1946.
 
     '''
     # Ensure kernel-output directory is uninitialised
@@ -302,12 +304,6 @@ def test_gpumixin_kernel_interface(kernel_outputdir, monkeypatch,
         rtrans.apply(kernels[0], options={"force": True})
     assert ("Cannot apply ACCRoutineTrans to kernel 'mixed_code' as it has "
             "multiple implementations - TODO #1946" in str(err.value))
-    # Generate the code (this triggers the generation of a new kernel)
-    # code = str(psy.gen).lower()
-    # Parse the new kernel file
-    # psyir = fortran_reader.psyir_from_file(filename)
-    # output = fortran_writer(psyir)
-    # Check that the subroutine and metadata use the correct names.
 
 
 def test_gpumixin_validate_no_schedule(monkeypatch):
