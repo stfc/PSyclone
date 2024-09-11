@@ -1,10 +1,11 @@
 EXE = gol
 
+TRANS ?= omp_trans.py
 include ../../common.mk
 
 SRC_X90 = compute_die_mod.x90 compute_born_mod.x90 combine_mod.x90 \
-		  count_neighbours_mod.x90
-SRC_F90 = gol.f90 read_config_mod.f90 time_step_mod.f90 output_field_mod.f90
+		  count_neighbours_mod.x90 time_step_mod.x90
+SRC_F90 = gol.f90 read_config_mod.f90 output_field_mod.f90
 
 OBJ = $(SRC_F90:%.f90=%.o) $(SRC_X90:%.x90=%.o)
 
@@ -16,8 +17,13 @@ $(EXE): $(OBJ)
 # ------------------------
 .precious: $(SRC_X90:%.x90=%.f90)
 
+ifeq ($(TRANS), omp_trans.py)
 %.f90: %.x90
-	$(PSYCLONE) -s ./omp_trans.py -o $*.f90 $< 
+	$(PSYCLONE) -s ./$(TRANS) -o $*.f90 $<
+else
+%.f90: %.x90
+	$(PSYCLONE) --backend disable-validation -s ./$(TRANS) -o $*.f90 $<
+endif
 
 %.o: %.f90
 	$(F90) -c $(F90FLAGS) $<
