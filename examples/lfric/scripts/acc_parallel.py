@@ -1,13 +1,43 @@
-##############################################################################
-# Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-# For further details please refer to the file LICENCE.original which you
-# should have received as part of this distribution.
-##############################################################################
-
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors: A. R. Porter, STFC Daresbury Lab
+#          R. W. Ford, STFC Daresbury Lab
+#          L. Mosimann, NVIDIA.
 
 '''PSyclone transformation script for the lfric API to apply
-colouring, OpenACC and redundant computation to the level1 halo for
-setval_* generically.
+colouring, OpenACC, OpenMP. Also adds redundant computation to the level-1
+halo for setval_* generically.
 
 '''
 from psyclone.domain.lfric import LFRicConstants
@@ -25,8 +55,9 @@ ACC_EXCLUSIONS = [
 
 
 def trans(psy):
-    '''Applies PSyclone colouring and OpenACC transformations. Any setval_*
-    kernels are transformed so as to compute into the L1 halos.
+    '''Applies PSyclone colouring and OpenACC transformations. Any kernels that
+    cannot be offloaded to GPU are parallelised using OpenMP on the CPU. Any
+    setval_* kernels are transformed so as to compute into the L1 halos.
 
     '''
     rtrans = Dynamo0p3RedundantComputationTrans()
@@ -106,6 +137,8 @@ def trans(psy):
                 print(str(err))
                 pass
 
+        # Apply OpenMP thread parallelism for any kernels we've not been able
+        # to offload to GPU.
         for loop in schedule.walk(Loop):
             if not apply_acc or any(kern.name.lower() in failed_inline for
                                     kern in loop.kernels()):
