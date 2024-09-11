@@ -4184,6 +4184,7 @@ class Fparser2Reader():
         :raises NotImplementedError: if array sections of differing ranks are
                                      found.
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.transformations import (
                 Reference2ArrayRangeTrans, TransformationError)
         # Convert References to arrays to use the array range notation unless
@@ -4311,6 +4312,7 @@ class Fparser2Reader():
             not use array notation.
 
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.transformations import (
                 Reference2ArrayRangeTrans, TransformationError)
 
