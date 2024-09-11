@@ -4194,8 +4194,16 @@ class Fparser2Reader():
                 raise NotImplementedError(
                         "PSyclone doesn't yet support reference to imported "
                         "symbols inside WHERE clauses.")
+            intrinsic_ancestor = ref.ancestor(IntrinsicCall)
             if (isinstance(ref.symbol, DataSymbol) and
-                    not ref.ancestor(IntrinsicCall)):
+                    not intrinsic_ancestor):
+                try:
+                    Reference2ArrayRangeTrans().apply(ref)
+                except TransformationError:
+                    pass
+            elif (isinstance(ref.symbol, DataSymbol) and intrinsic_ancestor
+                  is not None and intrinsic_ancestor.intrinsic.name.upper()
+                  not in Fortran2003.Intrinsic_Name.array_reduction_names):
                 try:
                     Reference2ArrayRangeTrans().apply(ref)
                 except TransformationError:
