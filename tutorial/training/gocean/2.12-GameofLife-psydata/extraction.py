@@ -57,6 +57,6 @@ def trans(psy):
     invoke = psy.invokes.get("invoke_compute")
 
     extract.apply(invoke.schedule,
-                  options={"create_driver": True
                   # INSERT OPTIONS HERE
-                  })
+                  )
+    print(invoke.schedule.view())
