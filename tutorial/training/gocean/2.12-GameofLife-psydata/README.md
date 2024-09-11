@@ -175,17 +175,14 @@ want to implement your own runtime library.
 ## Kernel Data Extraction
 Kernel data extraction describes a very useful and new ability
 of PSyclone. Applying the kernel extraction transformation will
-insert PSyData calls around kernels. The runtime library
+insert PSyData calls around kernels or invokes. The runtime library
 uses this to create a NetCDF file at runtime, which stores all
 input- and output-parameters of the included kernel calls. This
 transformation can also create a stand-alone driver - a program
-which will read the written NetCDF file, executes the kernel,
+which will read the written NetCDF file, executes the kernel(s),
 and then compares the result. This allows you to automatically
 develop unit tests, or to optimise the implementation of a single
 kernel, without having to rerun the full application every time.
-
-> Note that at this time LFRic does not yet fully support the
-> creation of a driver.
 
 The transformation `GOceanExtractTrans` is used to add the data
 extraction code to a region of code and to create the driver.
@@ -193,51 +190,79 @@ It takes two optional parameters that can be specified in the
 options argument - if a driver should be created (default is
 False), and a tuple containing a module and region name. While
 PSyclone will create names for you, they are often not intuitive,
-so it is recommended to explicitly specify names (assuming of
-course that transformation is not applied to a large number of
-kernels at the same time). The options for the `apply` method
-can be specified as follows:
+so you have an option to specify a module and region name to use.
+Typically you might want to extract more than one kernel at a time
+(I often use it for any kernel in an application, e.g. for LFRic's
+gungho application over 1500 kernels are created, though only around
+700 are executed when running the example configuration), so naming
+all kernels becomes impossible. PSyclone will add region and invoke
+numbers if required to make sure unique names are created. Initially,
+do not specify a name to get used of the automatic PSyclone naming
+scheme. 
+Options to a transformation are specified by adding a dictionary
+as follows:
 
-    options={"create_driver": True,
-             "region_name": ("timestep_mod", "combine")})
+    ... apply(..., options={"create_driver": True })
 
-Indicating that this is part of the timestep module, and
-is for the `combine` kernel.
+In the PSyclone script `extraction.py`, add the required parameter
+in the options dictionary when calling `apply`. The code can be
+compiled by using `Makefile.extraction` (`make -f Makefile.extraction`).
+After compilation, run the binary `gol.extraction ../gol-lib/config.glider`.
 
-Create an instance of the `GOceanExtractTrans` transformation
-and apply it to the combine kernel in a PSyclone transformation
-script `extraction.py`. The code can be compiled by using
-`Makefile.extraction` (`make -f Makefile.extraction`).
-After compilation, run the binary `gol.extraction config.glider`.
+You should now see that a new file `psy_time_step_alg_mod-invoke_compute-r0.nc`
+has been created. The added `r0` is a region number added automatically by
+PSyclone (in case that you instrument more than one kernel).
 
-You should now see that a new file `timestep-combine.nc` has
-been created. You can use `ncdump timestep-combine.nc | less`
+You can use 
+`ncdump psy_time_step_alg_mod-invoke_compute-r0.nc | less`
 to look at the content of this file. You can see that the dimensions
 of each field are specified, as well as the data of each field.
-For `current` there are actually two entries in the file: one
-called `current`, the other one `current_post`. This field
-is an input- and output-parameter of the combine function, and
-as such both the input value are stored (to provide the input
-parameter to the kernel), as well as the output value after the
-kernel call (`current_post`), which is used to verify the results.
+Fields that input- and output-parameters will actually have
+two entries in that file. An example is the field `current`: The
+first entry is called `current`, the other one `current_post`. This field
+is an input-parameter, because it contains the initial state of the 
+grid, and it is an output-parameter, since its status is being updated
+at the end. Some parameters are (maybe unexpected) output parameters:
+`die` and `born` for example. While technically they are only temporary
+work arrays, they are written first (so they are not input parameters),
+and any written variable is considered an output, and so will be stored
+in the file. As they do not need to have input values, only the
+output values are stored in the fields `die_post` and `born_post`.
 
-The driver program is called `driver-timestep-combine.f90`,
+The output values of any variable (i.e. the ones with s `post` attached
+to the names) will be used to verify the computation of the kernel.
+
+The driver program is called `driver-psy_time_step_alg_mod-invoke_compute-r0.F90`
+(reflecting the name of the created NetCDF file)
 and you can have a look at the code created by PSyclone. After
 a sequence of reading in the data from the file, you will see:
 
+    ...
     do j = current_internal_ystart, current_internal_ystop, 1
       do i = current_internal_xstart, current_internal_xstop, 1
         call combine_code(i, j, current, die, born)
       enddo
     enddo
-    if (ALL(current - current_post == 0.0)) then
-      PRINT *, "current correct"
-    else
-      PRINT *, "current incorrect. Values are:"
-      PRINT *, current
-      PRINT *, "current values should be:"
-      PRINT *, current_post
-    end if
+    call compare_init(6)
+    call compare('born', born, born_post)
+    call compare('current', current, current_post)
+    call compare('die', die, die_post)
+    call compare('i', i, i_post)
+    call compare('j', j, j_post)
+    call compare('neighbours', neighbours, neighbours_post)
+    call compare_summary()
+
+
+
+    ... apply(..., options={"create_driver": True,
+                            "region_name": ("timestep", "myinvoke")})
+                            })
+
+
+
+
+
+
 
 The nested loops are the psy-layer code that calls the kernel. Notice
 that the driver is not using any field data types, it is using plain

@@ -3,13 +3,13 @@ API = gocean1.0
 
 # We need to compile and link the PSyData libraries:
 PSY_DATA_DIR = $(ROOT_DIR)/lib/extract/netcdf/dl_esm_inf
-PSY_DATA_LIB = $(PSY_DATA_DIR)/lib_kernel_data_netcdf.a
+PSY_DATA_LIB = $(PSY_DATA_DIR)/lib_extract.a
 PSY_DATA_INCLUDE = -I $(PSY_DATA_DIR)
 
 F90FLAGS += $(PSY_DATA_INCLUDE) -DPSYDATA_EXTRACT $$(nf-config --fflags)
 
 OBJ = gol.o time_step_alg_mod.o time_step_alg_mod_psy.o
-DRIVER_NAME = driver-timestep-combine
+DRIVER_NAME = driver-psy_time_step_alg_mod-invoke_compute-r0
 
 include ../common.mk
 
@@ -60,5 +60,4 @@ $(PSY_DATA_LIB): $(INF_LIB)
 
 clean:
 	rm -f $(OBJ) $(EXE) *.mod time_step_alg_mod.f90 time_step_alg_mod_psy.f90
-	rm -f driver timestep-combine.nc 
-	rm -f driver-timestep-combine.mod $(DRIVER_NAME).f90
+	rm -f $(DRIVER_NAME) $(DRIVER_NAME).mod $(DRIVER_NAME).F90

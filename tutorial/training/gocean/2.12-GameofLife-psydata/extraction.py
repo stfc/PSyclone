@@ -57,5 +57,6 @@ def trans(psy):
     invoke = psy.invokes.get("invoke_compute")
 
     extract.apply(invoke.schedule,
-                  options={"create_driver": True,
-                           "region_name": ("timestep", "combine")})
+                  options={"create_driver": True
+                  # INSERT OPTIONS HERE
+                  })
