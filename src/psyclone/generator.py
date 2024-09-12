@@ -729,7 +729,10 @@ def code_transformation_mode(input_file, recipe_file, output_file,
             Profiler.add_profile_nodes(routine, Loop)
 
         # Generate Fortran
-        output = FortranWriter()(psyir)
+        # TODO 2709: we need to add tests that this works as expected
+        writer = FortranWriter(
+            check_global_constraints=Config.get().backend_checks_enabled)
+        output = writer(psyir)
         # Fix line_length if requested
         if line_length in ("output", "all"):
             output = fll.process(output)
