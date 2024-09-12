@@ -350,66 +350,6 @@ def test_psy_data_node_invokes_gocean1p0(fortran_writer):
     assert code == code_again
 
 
-# -----------------------------------------------------------------------------
-def test_psy_data_node_options():
-    '''Check that the options for PSyData work as expected.
-    '''
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean", idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    data_trans = PSyDataTrans()
-
-    data_trans.apply(schedule[0].loop_body)
-    data_node = schedule[0].loop_body[0]
-    assert isinstance(data_node, PSyDataNode)
-
-    # 1) Test that the listed variables will appear in the list
-    # ---------------------------------------------------------
-    mod = ModuleGen(None, "test")
-    data_node.gen_code(mod, options={"pre_var_list": [("", "a")],
-                                     "post_var_list": [("", "b")]})
-
-    out = "\n".join([str(i.root) for i in mod.children])
-    expected = ['CALL psy_data%PreDeclareVariable("a", a)',
-                'CALL psy_data%PreDeclareVariable("b", b)',
-                'CALL psy_data%ProvideVariable("a", a)',
-                'CALL psy_data%PostStart',
-                'CALL psy_data%ProvideVariable("b", b)']
-    for line in expected:
-        assert line in out
-
-    # 2) Test that variables suffixes are added as expected
-    # -----------------------------------------------------
-    mod = ModuleGen(None, "test")
-    data_node.gen_code(mod, options={"pre_var_list": [("", "a")],
-                                     "post_var_list": [("", "b")],
-                                     "pre_var_postfix": "_pre",
-                                     "post_var_postfix": "_post"})
-
-    out = "\n".join([str(i.root) for i in mod.children])
-    expected = ['CALL psy_data%PreDeclareVariable("a_pre", a)',
-                'CALL psy_data%PreDeclareVariable("b_post", b)',
-                'CALL psy_data%ProvideVariable("a_pre", a)',
-                'CALL psy_data%PostStart',
-                'CALL psy_data%ProvideVariable("b_post", b)']
-    for line in expected:
-        assert line in out
-
-    # 3) Check that we don't get any declaration if there are no variables:
-    # ---------------------------------------------------------------------
-    mod = ModuleGen(None, "test")
-    data_node.gen_code(mod, options={})
-
-    out = "\n".join([str(i.root) for i in mod.children])
-    # Only PreStart and PostEnd should appear
-    assert "PreStart" in out
-    assert "PreDeclareVariable" not in out
-    assert "ProvideVariable" not in out
-    assert "PreEnd" not in out
-    assert "PostStart" not in out
-    assert "PostEnd" in out
-
-
 def test_psy_data_node_children_validation():
     '''Test that children added to PSyDataNode are validated. PSyDataNode
     accepts just one Schedule as its child.

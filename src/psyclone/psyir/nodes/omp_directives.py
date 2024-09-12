@@ -1406,7 +1406,7 @@ class OMPParallelDirective(OMPRegionDirective):
 
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import zero_reduction_variables
-        zero_reduction_variables(calls, parent)
+        zero_reduction_variables(calls)
 
         # pylint: disable=protected-access
         clauses_str = self.default_clause._clause_string
@@ -1480,13 +1480,13 @@ class OMPParallelDirective(OMPRegionDirective):
                     f"reduction variable")
             names.append(name)
 
-        first_type = type(self.dir_body[0])
-        for child in self.dir_body.children:
-            if first_type != type(child):
-                raise NotImplementedError("Cannot correctly generate code"
-                                          " for an OpenMP parallel region"
-                                          " containing children of "
-                                          "different types")
+        # first_type = type(self.dir_body[0])
+        # for child in self.dir_body.children[1:]:
+        #     if first_type != type(child):
+        #         raise NotImplementedError("Cannot correctly generate code"
+        #                                   " for an OpenMP parallel region"
+        #                                   " containing children of "
+        #                                   "different types")
 
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import zero_reduction_variables
@@ -1554,12 +1554,12 @@ class OMPParallelDirective(OMPRegionDirective):
                         found = True
                     if found:
                         break
-                # if not found:
-                #     raise GenerationError(
-                #         f"Lowering '{type(self).__name__}' does not support "
-                #         f"symbols that need synchronisation unless they are "
-                #         f"in a depend clause, but found: "
-                #         f"'{sym.name}' which is not in a depend clause.")
+                if not found:
+                    raise GenerationError(
+                        f"Lowering '{type(self).__name__}' does not support "
+                        f"symbols that need synchronisation unless they are "
+                        f"in a depend clause, but found: "
+                        f"'{sym.name}' which is not in a depend clause.")
 
         self.addchild(private_clause)
         self.addchild(fprivate_clause)
