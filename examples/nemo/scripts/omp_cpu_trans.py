@@ -53,6 +53,7 @@ FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING + [
     "trosk.f90",  # TODO #1254
     "vremap.f90",  # bulk assignment of a structure component
     "ldfslp.f90",  # Dependency analysis mistake? see Cray compiler comment
+    # "seddta.f90",  # Cannot be uncommented?
 ]
 
 
@@ -105,6 +106,5 @@ def trans(psyir):
                 loop_directive_trans=omp_loop_trans,
                 # Collapse may be useful in some architecture/compiler
                 collapse=False,
-                privatise_arrays=False
-                # privatise_arrays=(psyir.name == "zdftke.f90")
+                privatise_arrays=(psyir.name in ["zdftke.f90", ])
         )

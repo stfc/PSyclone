@@ -291,7 +291,7 @@ def insert_explicit_loop_parallelism(
         region_directive_trans=None,
         loop_directive_trans=None,
         collapse: bool = True,
-        privatise_arrays: bool = True,
+        privatise_arrays: bool = False,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.

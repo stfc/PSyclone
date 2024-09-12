@@ -1536,9 +1536,7 @@ class OMPParallelDirective(OMPRegionDirective):
 
         This method analyses the directive body and automatically classifies
         each symbol using the following rules:
-        - All arrays that are not marked as threadprivate, are shared.
-        - Threadprivate arrays are private, or firstprivate if they are used
-          before the directive.
+        - All arrays are shared unless listed in a explicit private list.
         - Scalars that are accessed only once are shared.
         - Scalars that are read-only or written outside a loop are shared.
         - Scalars written in multiple iterations of a loop are private, unless:
@@ -1605,12 +1603,11 @@ class OMPParallelDirective(OMPRegionDirective):
             except KeyError:
                 symbol = None
 
-            # If it is manually marked as threadprivate, add it to private
-            if isinstance(symbol, DataSymbol) and symbol.is_thread_private:
-                if any(ref.symbol is symbol
-                       for ref in self.following(include_children=False)
-                       if isinstance(ref, Reference)):
-                    continue  # Is shared
+            # If it is manually marked as private, add it to private or
+            # firstprivate sets depending if it has a value before
+            if (isinstance(symbol, DataSymbol) and
+                    isinstance(self.dir_body[0], Loop) and
+                    symbol in self.dir_body[0].explicitly_private_symbols):
                 if any(ref.symbol is symbol for ref in self.preceding()
                        if isinstance(ref, Reference)):
                     # If it's used before the loop, make it firstprivate
@@ -1668,6 +1665,12 @@ class OMPParallelDirective(OMPRegionDirective):
                     # Otherwise, the assignment to this variable is inside a
                     # loop (and it will be repeated for each iteration), so
                     # we declare it as private or need_synch
+                    name = signature.var_name
+                    # TODO #2094: var_name only captures the top-level
+                    # component in the derived type accessor. If the attributes
+                    # only apply to a sub-component, this won't be captured
+                    # appropriately.
+                    symbol = access.node.scope.symbol_table.lookup(name)
 
                     # If it has been read before we have to check if ...
                     if has_been_read:

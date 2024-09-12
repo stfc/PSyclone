@@ -102,6 +102,7 @@ class Loop(Statement):
         self._variable = None
         if variable is not None:
             self.variable = variable
+        self._explicitly_private_symbols = set()
 
     def __eq__(self, other):
         '''
@@ -121,6 +122,14 @@ class Loop(Statement):
         is_eq = is_eq and self.variable.name == other.variable.name
 
         return is_eq
+
+    @property
+    def explicitly_private_symbols(self):
+        '''
+        :returns: the set of symbols inside the loop which are private
+        :rtype: Set[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+        '''
+        return self._explicitly_private_symbols
 
     @property
     def loop_type(self):
@@ -428,6 +437,14 @@ class Loop(Statement):
             try:
                 new_sym = table.lookup(self._variable.name)
                 self.variable = new_sym
+            except KeyError:
+                pass
+
+        for symbol in list(self._explicitly_private_symbols):
+            try:
+                new_sym = table.lookup(symbol.name)
+                self._explicitly_private_symbols.remove(symbol)
+                self._explicitly_private_symbols.add(new_sym)
             except KeyError:
                 pass
         super().replace_symbols_using(table)
