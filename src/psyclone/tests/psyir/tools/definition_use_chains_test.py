@@ -492,13 +492,6 @@ def test_definition_use_chain_find_forward_accesses_while_loop_example(
     )
     reaches = chains._find_forward_accesses()
 
-    # This test currently fails because we find a basic block where the
-    # reference is the lhs of an assignment but also we need to look at
-    # the same assignment because its in a loop.
-    # The current rules basically say to ignore the assignment in this case
-    # see the if condition at line 307-308:
-    # if self._start_point != self._reference_abs_pos
-
     assert len(reaches) == 2
     assert reaches[0] is routine.children[2].loop_body.children[0].rhs.children[0]
     assert reaches[1] is routine.children[2].loop_body.children[0].lhs

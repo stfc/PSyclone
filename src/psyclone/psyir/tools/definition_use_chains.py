@@ -105,36 +105,36 @@ class DefinitionUseChain:
 
     @property
     def uses(self):
-        '''
+        """
         :returns: the list of nodes used by this DefinitionUseChain.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
-        '''
+        """
         return self._uses
 
     @property
     def defsout(self):
-        '''
+        """
         :returns: the list of output nodes computed by this DefinitionUseChain.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
-        '''
+        """
         return self._defsout
 
     @property
     def killed(self):
-        '''
+        """
         :returns: the list of killed output nodes computed by this
                   DefinitionUseChain.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
-        '''
+        """
         return self._killed
 
     @property
     def is_basic_block(self):
-        '''
+        """
         :returns: whether the scope of this DefinitionUseChain is a basic
                   block, i.e. whether it contains any control flow nodes.
         :rtype: bool
-        '''
+        """
         # This is a basic block if there is no control flow inside this scope
         # then it is a basic block.
         # In PSyclone, possible control flow nodes are IfBlock, Loop
@@ -146,7 +146,7 @@ class DefinitionUseChain:
         return True
 
     def _find_forward_accesses(self):
-        '''
+        """
         Find all the forward accesses for the reference defined in this
         DefinitionUseChain.
         Forward accesses are all of the References (or Calls) that read
@@ -158,7 +158,7 @@ class DefinitionUseChain:
         :returns: the forward accesses of the reference given to this
                   DefinitionUseChain
         :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
-        '''
+        """
         # Find the position of the Reference's highest-level parent in
         # the Routine.
         routine = self._reference.ancestor(Routine)
@@ -207,12 +207,18 @@ class DefinitionUseChain:
                     # Create a basic block for the ancestor Loop.
                     body = ancestor.loop_body.children[:]
                     control_flow_nodes.insert(0, ancestor)
-                    sub_stop_point = self._reference.abs_position+1
-                    #assignment = self._reference.ancestor(Assignment)
-                    #if assignment:
+                    # Find the stop point - this needs to be the node after the ancestor statement.
+                    sub_stop_point = (
+                        self._reference.ancestor(Statement)
+                        .walk(Node)[-1]
+                        .abs_position
+                        + 1
+                    )
+                    # assignment = self._reference.ancestor(Assignment)
+                    # if assignment:
                     #    sub_stop_point = assignment.rhs.children[-1].abs_position+1
                     chain = DefinitionUseChain(
-                        self._reference,
+                        self._reference.copy(),
                         body,
                         self._is_local,
                         start_point=ancestor.abs_position,
@@ -385,10 +391,10 @@ class DefinitionUseChain:
         return self._reaches
 
     def _compute_forward_uses(self, basic_block_list):
-        '''
+        """
         Compute the forward uses for self._reference for the
         basic_block_list provided. This function will not work
-        correctly if there is control flow inside the 
+        correctly if there is control flow inside the
         basic_block_list provided.
         FIXME should we check and raise an exception?
         Reads to the reference that occur before a write will
@@ -399,14 +405,11 @@ class DefinitionUseChain:
         :param basic_block_list: The list of nodes that make up the basic
                                  block to find the forward uses in.
         :type basic_block_list: list[:py:class:`psyclone.psyir.nodes.Node`]
-        '''
+        """
         # TODO - This should maybe be Signature not symbol
         symbol = self._reference.symbol
         # For a basic block we will only ever have one defsout
         defs_out = None
-        if(self._start_point == 8):
-            import pdb
-            pdb.set_trace()
         for region in basic_block_list:
             for reference in region.walk((Reference, Call)):
                 # Store the position instead of computing it twice.
@@ -438,7 +441,12 @@ class DefinitionUseChain:
                             if defs_out is not None:
                                 self._killed.append(defs_out)
                             defs_out = reference
-                        elif assign.lhs is defs_out and len(self._killed) == 0 and assign.lhs.symbol == reference.symbol and assign.lhs is not self._reference:
+                        elif (
+                            assign.lhs is defs_out
+                            and len(self._killed) == 0
+                            and assign.lhs.symbol == reference.symbol
+                            and assign.lhs is not self._reference
+                        ):
                             # reference is on the rhs of an assignment such as a = a + 1.
                             # Since the PSyIR tree walk accesses the lhs of an assignment
                             # before the rhs of an assignment we need to not ignore these
@@ -466,7 +474,7 @@ class DefinitionUseChain:
             self._defsout.append(defs_out)
 
     def _find_basic_blocks(self, nodelist):
-        '''
+        """
         Compute the blocks inside the provided list of nodes.
         Each block is a set of nodes inside a control flow region, and
         may contain more control flow (which will be handled recusively later).
@@ -481,7 +489,7 @@ class DefinitionUseChain:
         :rtype: tuple(list[:py:class:`psyclone.psyir.nodes.Node],
                       list[list[:py:class:`psyclone.psyir.nodes.Node]])
 
-        '''
+        """
         current_block = []
         # Keep track of the basic blocks.
         basic_blocks = []
