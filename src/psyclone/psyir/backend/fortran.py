@@ -791,6 +791,10 @@ class FortranWriter(LanguageWriter):
             if (isinstance(symbol, RoutineSymbol) or
                     symbol.is_unresolved or symbol.is_import):
 
+                # Skip _PSYCLONE_INTERNAL_* symbols
+                if (isinstance(symbol, RoutineSymbol) and
+                        symbol.name.startswith("_PSYCLONE_INTERNAL_")):
+                    continue
                 # It doesn't matter whether this symbol has a local or import
                 # interface - its accessibility in *this* context is determined
                 # by the local accessibility statements. e.g. if we are
@@ -1159,8 +1163,8 @@ class FortranWriter(LanguageWriter):
             container = node.ancestor(Container)
             rsym = None
             if container:
-                rsym = container.symbol_table.get_symbols().get(
-                    node.name, None)
+                # TODO #2592: When this is implemented it will be node.symbol
+                rsym = container.symbol_table.lookup(node.name, otherwise=None)
             prefix = ""
             if rsym:
                 if rsym.is_elemental:
