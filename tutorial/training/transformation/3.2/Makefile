@@ -17,13 +17,9 @@ $(EXE): $(OBJ)
 # ------------------------
 .precious: $(SRC_X90:%.x90=%.f90)
 
-ifeq ($(TRANS), omp_trans.py)
+# This will need an additional flag
 %.f90: %.x90
 	$(PSYCLONE) -s ./$(TRANS) -o $*.f90 $<
-else
-%.f90: %.x90
-	$(PSYCLONE) --backend disable-validation -s ./$(TRANS) -o $*.f90 $<
-endif
 
 %.o: %.f90
 	$(F90) -c $(F90FLAGS) $<
