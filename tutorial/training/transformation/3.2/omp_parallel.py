@@ -54,10 +54,6 @@ Loop.set_loop_type_inference_rules({
         "lon": {"variable": "#Add the variable name used in inner loops"},
         "lat": {"variable": "#Add the variable name used in outer loops"},
 })
-Loop.set_loop_type_inference_rules({
-        "lon": {"variable": "i"},
-        "lat": {"variable": "j"},
-})
 
 
 def trans(psyir):
