@@ -909,3 +909,37 @@ def test_import_in_where_clause(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_source(code2)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
+
+
+def test_non_array_reduction_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test that a non-array reduction intrinsic (such as SIN) produces
+    the correct PSyIR.
+    '''
+    code = '''
+    program where_test
+    implicit none
+    integer, dimension(100) :: a, b, c
+
+    where(a < b)
+       c = sin(a)
+    end where
+    end program
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0].children[0], Loop)
+    out = fortran_writer(psyir)
+    correct = '''program where_test
+  integer, dimension(100) :: a
+  integer, dimension(100) :: b
+  integer, dimension(100) :: c
+  integer :: widx1
+
+  do widx1 = 1, 100, 1
+    if (a(widx1) < b(widx1)) then
+      c(widx1) = SIN(a(widx1))
+    end if
+  enddo
+
+end program where_test'''
+    assert correct in out
