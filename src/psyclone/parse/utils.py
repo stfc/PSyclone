@@ -83,10 +83,10 @@ def check_line_length(filename):
     '''Check that the code contained within the filename file
     conforms to the 132 line length limit.
 
-    :param str filename: The file containing the code.
+    :param str filename: The name of the file containing the code.
 
     :raises InternalError: if the specified file can not be opened or read.
-    :raises ParseError: if one of more lines are longer than the 132 \
+    :raises ParseError: if one of more lines are longer than the 132
                         line length limit.
     '''
     fll = FortLineLength()
@@ -98,8 +98,9 @@ def check_line_length(filename):
 
     if fll.long_lines(code_str):
         raise ParseError(
-            f"the file does not conform to the specified {fll.length} line "
-            f"length limit")
+            f"File '{filename}' does not conform to the specified {fll.length}"
+            f" line-length limit. Either correct the file or change the "
+            f"'-l/--limit' setting on the PSyclone command line.")
 
 
 def parse_fp2(filename):
