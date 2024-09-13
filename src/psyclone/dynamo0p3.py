@@ -53,10 +53,11 @@ from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
-from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
-                                   KernCallArgList, LFRicCollection,
-                                   LFRicConstants, LFRicSymbolTable, LFRicKern,
-                                   LFRicInvokes, LFRicTypes, LFRicLoop)
+from psyclone.domain.lfric import (
+    FunctionSpace, KernCallAccArgList, KernCallArgList, LFRicCollection,
+    LFRicConstants, LFRicSymbolTable, LFRicKern,
+    LFRicInvokes, LFRicTypes, LFRicLoop)
+from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen,
@@ -4970,15 +4971,18 @@ class FSDescriptors():
         return self._descriptors
 
 
-def check_args(call):
+def check_args(call, parent_call):
     '''
     Checks that the kernel arguments provided via the invoke call are
     consistent with the information expected, as specified by the
-    kernel metadata
+    kernel metadata.
 
     :param call: the object produced by the parser that describes the
                  kernel call to be checked.
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param parent_call: the kernel-call object.
+    :type parent_call: :py:class:`psyclone.domain.lfric.LFRicKern`
+
     :raises: GenerationError if the kernel arguments in the Algorithm layer
              do not match up with the kernel metadata
     '''
@@ -4999,15 +5003,20 @@ def check_args(call):
     qr_arg_count = len(set(call.ktype.eval_shapes).intersection(
         set(const.VALID_QUADRATURE_SHAPES)))
 
-    expected_arg_count = len(call.ktype.arg_descriptors) + \
-        stencil_arg_count + qr_arg_count
+    expected_arg_count = (len(call.ktype.arg_descriptors) +
+                          stencil_arg_count + qr_arg_count)
 
     if expected_arg_count != len(call.args):
+        msg = ""
+        if parent_call:
+            invoke_name = parent_call.ancestor(LFRicInvokeSchedule).name
+            msg = f"from invoke '{invoke_name}' "
         raise GenerationError(
-            f"error: expected '{expected_arg_count}' arguments in the "
-            f"algorithm layer but found '{len(call.args)}'. Expected "
+            f"error: expected '{expected_arg_count}' arguments for the call "
+            f"to kernel '{call.ktype.name}' {msg}in the algorithm layer but "
+            f"found '{len(call.args)}'. Expected "
             f"'{len(call.ktype.arg_descriptors)}' standard arguments, "
-            f"'{stencil_arg_count}' tencil arguments and '{qr_arg_count}' "
+            f"'{stencil_arg_count}' stencil arguments and '{qr_arg_count}' "
             f"qr_arguments'")
 
 
@@ -5042,7 +5051,7 @@ class DynKernelArguments(Arguments):
     :type call: :py:class:`psyclone.parse.KernelCall`
     :param parent_call: the kernel-call object.
     :type parent_call: :py:class:`psyclone.domain.lfric.LFRicKern`
-    :param bool check: whether to check for consistency between the \
+    :param bool check: whether to check for consistency between the
         kernel metadata and the algorithm layer. Defaults to True.
 
     :raises GenerationError: if the kernel metadata specifies stencil extent.
@@ -5057,7 +5066,7 @@ class DynKernelArguments(Arguments):
 
         # check that the arguments provided by the algorithm layer are
         # consistent with those expected by the kernel(s)
-        check_args(call)
+        check_args(call, parent_call)
 
         # create our arguments and add in stencil information where
         # appropriate.
