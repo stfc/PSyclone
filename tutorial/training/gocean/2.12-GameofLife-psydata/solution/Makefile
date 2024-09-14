@@ -33,3 +33,7 @@ $(PSY_DATA_LIB): $(INF_LIB)
 
 %.f90: %.x90 Makefile
 	$(PSYCLONE) --profile kernels -oalg $*.f90 -opsy $*_psy.f90 $<
+
+clean:
+	$(MAKE) -f Makefile.extraction clean
+	$(MAKE) -f Makefile.value_range_check clean
