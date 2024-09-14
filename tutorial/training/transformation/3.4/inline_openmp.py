@@ -47,13 +47,13 @@ Fortran.
 
 from psyclone.transformations import MoveTrans, OMPParallelLoopTrans, TransformationError
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
-from psyclone.psyir.transformations import InlineTrans
+from psyclone.psyir.transformations import InlineTrans, LoopTiling2DTrans
 from psyclone.psyir.nodes import Call, Loop
 
 
 def trans(psyir):
-    '''A complex program that inline all loops, moves the scalar assignment to
-    # the top so that all loops are next to each other
+    '''A complex program that will optimise the given code by inlining, openmp,
+    etc.
 
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
@@ -67,35 +67,8 @@ def trans(psyir):
             print("Inlining", call.routine)
             inline.apply(call)
 
-    # Collect all outer (latitude) loops. Outer loops have a
-    # loop as loop body:
-    lat_loops = []
-    for loop in psyir.walk(Loop):
-        # We can't rely on variable names/loop types, since inlining will
-        # create new, unique variable names. So identify outer loops by
-        # checking if the body of the loop is a Loop:
-        if isinstance(loop.loop_body.children[0], Loop):
-            lat_loops.append(loop)
-
-    parent = lat_loops[0].parent
-    # Now move any non-loop statement in the parent to just before the first
-    # loop. We can't move the scalar assignments before the first loop, since
-    # they would be moved to the same location, which triggers an exception
-    # in the transformation. So we start with the first statement after the
-    # first loop
-    # Now move the assignments to the scalars
-    move = MoveTrans()
-    for child in parent.children[lat_loops[0].position+1:]:
-        if isinstance(child, Loop):
-            # Leave the loop where they are
-            continue
-        move.apply(child, lat_loops[0], options={"position": "before"})
-
-    # Now add an omp parallel around all loops ...
-    ompp = OMPParallelTrans()
-    ompp.apply(lat_loops)
-
-    # ... and then omp do around the outer loops
-    ompl = OMPLoopTrans()
-    for loop in lat_loops:
-        ompl.apply(loop)
+    # Study the output code - and find a way to add openmp - ideally
+    # by using `openmp parallel` only once around all loops.
+    # There is an easy solution, but a more complicated one will
+    # allow you to fuse loop.
+    # Alternatively/additionally, try to apply LoopTiling
