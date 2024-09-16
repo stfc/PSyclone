@@ -480,8 +480,9 @@ class LFRicLoop(PSyLoop):
             if isinstance(self._kern, LFRicBuiltIn):
                 if Config.get().distributed_memory:
                     if self._upper_bound_name == "ndofs":
-                        result = (f"{self.field.proxy_name_indexed}%"
-                                f"{self.field.ref_name()}%get_last_dof_owned()")
+                        result = (
+                            f"{self.field.proxy_name_indexed}%"
+                            f"{self.field.ref_name()}%get_last_dof_owned()")
                     else:  # nannexed
                         result = (
                             f"{self.field.proxy_name_indexed}%"
