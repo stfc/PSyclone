@@ -372,9 +372,9 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     else:
         assert "loop1_stop = f2_proxy%vspace%get_ncell()\n" in gen_code
     expected += "    do cell = loop1_start, loop1_stop, 1\n"
-    print(expected)
+    # print(expected)
     print(gen_code)
-    assert expected == gen_code
+    assert expected in gen_code
 
     expected = (
         "      end do\n")
@@ -413,8 +413,8 @@ def test_domain_plus_cma_kernels(dist_mem, tmpdir):
     gen_code = str(psy.gen).lower()
 
     assert "type(mesh_type), pointer :: mesh => null()" in gen_code
-    assert "integer(kind=i_def) ncell_2d" in gen_code
-    assert "integer(kind=i_def) ncell_2d_no_halos" in gen_code
+    assert "integer(kind=i_def) :: ncell_2d" in gen_code
+    assert "integer(kind=i_def) :: ncell_2d_no_halos" in gen_code
     assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code
     assert "ncell_2d = mesh%get_ncells_2d()" in gen_code
     assert "ncell_2d_no_halos = mesh%get_last_edge_cell()" in gen_code

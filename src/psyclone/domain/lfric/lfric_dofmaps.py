@@ -353,7 +353,7 @@ class LFRicDofmaps(LFRicCollection):
                 ndf_name, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
-            self._symbol_table.append_argument(symbol)
+            # self._symbol_table.append_argument(symbol)
 
             nlayers = self._symbol_table.lookup("nlayers")
             dmap_symbol = self._symbol_table.find_or_create(

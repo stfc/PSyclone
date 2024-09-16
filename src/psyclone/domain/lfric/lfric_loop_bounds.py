@@ -101,6 +101,7 @@ class LFRicLoopBounds(LFRicCollection):
             assignment = Assignment.create(
                     lhs=Reference(lbound),
                     rhs=loop._lower_bound_fortran())  # FIXME
+            loop.children[0] = Reference(lbound)
             self._invoke.schedule.addchild(assignment, cursor)
             cursor += 1
             if first:
@@ -121,6 +122,7 @@ class LFRicLoopBounds(LFRicCollection):
                         rhs=loop._upper_bound_psyir()
                     ), cursor)
                 cursor += 1
+                loop.children[1] = Reference(ubound)
                 # entities.append(ubound.name)
                 # parent.add(AssignGen(parent, lhs=ubound.name,
                 #                      rhs=loop._upper_bound_fortran()))

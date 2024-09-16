@@ -1792,7 +1792,7 @@ class DynProxies(LFRicCollection):
             else:
                 self._invoke.schedule.addchild(
                     Assignment.create(
-                        lhs=Reference(symtab.lookup(arg.proxy_name)),
+                        lhs=Reference(symtab.find_or_create(arg.proxy_name)),
                         rhs=Call.create(StructureReference.create(
                             symtab.lookup(arg.name), ["get_proxy"]))),
                     cursor)
@@ -2376,7 +2376,7 @@ class DynCMAOperators(LFRicCollection):
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             bandwidth.interface = ArgumentInterface(
                     ArgumentInterface.Access.READ)
-            symtab.append_argument(bandwidth)
+            # symtab.append_argument(bandwidth)
 
             nrow = symtab.find_or_create_tag(
                 f"{op_name}:nrow:{suffix}",
@@ -2385,7 +2385,7 @@ class DynCMAOperators(LFRicCollection):
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             nrow.interface = ArgumentInterface(
                     ArgumentInterface.Access.READ)
-            symtab.append_argument(nrow)
+            # symtab.append_argument(nrow)
 
             # intent = self._cma_ops[op_name]["intent"]
             # op_dtype = self._cma_ops[op_name]["datatype"]

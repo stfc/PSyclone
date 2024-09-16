@@ -928,26 +928,26 @@ class LFRicLoop(PSyLoop):
                     # or not
                     self._add_halo_exchange(halo_field)
 
-    @property
-    def start_expr(self):
-        '''
-        :returns: the PSyIR for the lower bound of this loop.
-        :rtype: :py:class:`psyclone.psyir.Node`
+    # @property
+    # def start_expr(self):
+    #     '''
+    #     :returns: the PSyIR for the lower bound of this loop.
+    #     :rtype: :py:class:`psyclone.psyir.Node`
 
-        '''
-        inv_sched = self.ancestor(Routine)
-        sym_table = inv_sched.symbol_table
-        loops = inv_sched.loops()
-        posn = None
-        for index, loop in enumerate(loops):
-            if loop is self:
-                posn = index
-                break
-        root_name = f"loop{posn}_start"
-        lbound = sym_table.find_or_create_integer_symbol(root_name,
-                                                         tag=root_name)
-        self.children[0] = Reference(lbound)
-        return self.children[0]
+    #     '''
+    #     inv_sched = self.ancestor(Routine)
+    #     sym_table = inv_sched.symbol_table
+    #     loops = inv_sched.loops()
+    #     posn = None
+    #     for index, loop in enumerate(loops):
+    #         if loop is self:
+    #             posn = index
+    #             break
+    #     root_name = f"loop{posn}_start"
+    #     lbound = sym_table.find_or_create_integer_symbol(root_name,
+    #                                                      tag=root_name)
+    #     self.children[0] = Reference(lbound)
+    #     return self.children[0]
 
     @property
     def stop_expr(self):
@@ -990,16 +990,16 @@ class LFRicLoop(PSyLoop):
 
         # This isn't a 'colour' loop so we have already set-up a
         # variable that holds the upper bound.
-        loops = inv_sched.loops()
-        posn = None
-        for index, loop in enumerate(loops):
-            if loop is self:
-                posn = index
-                break
-        root_name = f"loop{posn}_stop"
-        ubound = sym_table.find_or_create_integer_symbol(root_name,
-                                                         tag=root_name)
-        self.children[1] = Reference(ubound)
+        # loops = inv_sched.loops()
+        # posn = None
+        # for index, loop in enumerate(loops):
+        #     if loop is self:
+        #         posn = index
+        #         break
+        # root_name = f"loop{posn}_stop"
+        # ubound = sym_table.find_or_create_integer_symbol(root_name,
+        #                                                  tag=root_name)
+        # self.children[1] = Reference(ubound)
         return self.children[1]
 
     def gen_code(self, parent):
