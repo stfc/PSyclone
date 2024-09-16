@@ -1541,7 +1541,7 @@ class OMPParallelDirective(OMPRegionDirective):
                             sorted(fprivate, key=lambda x: x.name))
         # Check all of the need_sync nodes are synchronized in children.
         sync_clauses = self.walk(OMPDependClause)
-        if need_sync:
+        if sync_clauses and need_sync:
             for sym in need_sync:
                 found = False
                 for clause in sync_clauses:

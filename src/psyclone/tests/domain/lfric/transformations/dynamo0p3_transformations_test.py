@@ -53,8 +53,9 @@ from psyclone.dynamo0p3 import (LFRicHaloExchangeStart, LFRicHaloExchangeEnd,
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import (colored, Loop, Schedule, Literal, Directive,
-                                  OMPDoDirective, ACCEnterDataDirective)
+from psyclone.psyir.nodes import (
+    colored, Loop, Schedule, Literal, Directive, OMPDoDirective,
+    ACCEnterDataDirective, Assignment)
 from psyclone.psyir.symbols import (AutomaticInterface, ScalarType, ArrayType,
                                     REAL_TYPE, INTEGER_TYPE)
 from psyclone.psyir.transformations import (
@@ -7147,14 +7148,17 @@ def test_vector_async_halo_exchange(tmpdir):
     # will be adjacent to each other and will follow 6 haloexchange
     # start and end calls.
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    rc_trans.apply(schedule.children[6], {"depth": 2})
+    rc_trans.apply(schedule.walk(Loop)[0], {"depth": 2})
+    num_init_assignments = len([x for x in schedule.children
+                                if isinstance(x, Assignment)])
 
-    assert len(schedule.children) == 8
+    assert len(schedule.children) == 8 + num_init_assignments
     for index in [0, 2, 4]:
-        assert isinstance(schedule.children[index], LFRicHaloExchangeStart)
-        assert isinstance(schedule.children[index+1], LFRicHaloExchangeEnd)
-    assert isinstance(schedule.children[6], LFRicLoop)
-    assert isinstance(schedule.children[7], LFRicLoop)
+        pos = num_init_assignments + index
+        assert isinstance(schedule.children[pos], LFRicHaloExchangeStart)
+        assert isinstance(schedule.children[pos+1], LFRicHaloExchangeEnd)
+    assert isinstance(schedule.children[num_init_assignments + 6], LFRicLoop)
+    assert isinstance(schedule.children[num_init_assignments + 7], LFRicLoop)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
