@@ -110,6 +110,8 @@ class LFRicKern(CodedKern):
         self._reference_element = None
         # The mesh properties required by this kernel
         self._mesh_properties = None
+        # An identifier for a user-defined dof kernel
+        self._is_dofkern = None
         # Initialise kinds (precisions) of all kernel arguments (start
         # with 'real' and 'integer' kinds)
         api_config = Config.get().api_conf("lfric")
@@ -289,6 +291,9 @@ class LFRicKern(CodedKern):
             intergrid = DynInterGrid(fine_args[0], coarse_args[0])
             self._intergrid_ref = intergrid
 
+        # Set the identifier for a dof kernels
+        self._is_dofkern = ktype.is_user_dofkern
+
         const = LFRicConstants()
         # Check that all specified evaluator shapes are recognised
         invalid_shapes = set(self._eval_shapes) \
@@ -393,6 +398,14 @@ class LFRicKern(CodedKern):
         :rtype: bool
         '''
         return self._intergrid_ref is not None
+
+    @property
+    def is_dofkern(self):
+        '''
+        :return: True if it is a user-defined dof kernel, False otherwise
+        :rtype: bool
+        '''
+        return self._is_dofkern
 
     @property
     def colourmap(self):

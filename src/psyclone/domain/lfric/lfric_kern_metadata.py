@@ -95,6 +95,10 @@ class LFRicKernMetadata(KernelType):
         # set to True if all the checks in '_validate_inter_grid()' pass.
         self._is_intergrid = False
 
+        # Whether or not this is a user-defined kernel operating on dofs. This
+        # is set to True if the `_validate_operates_on_dof` method succeeds.
+        self._is_user_dofkern = False
+
         # Parse the 'arg_type' metadata
         self._arg_descriptors = []
         for idx, arg_type in enumerate(self._inits):
@@ -636,6 +640,8 @@ class LFRicKernMetadata(KernelType):
                 f"fields on different function spaces: {sorted(arg_fs_names)}."
                 f" This is not permitted in the LFRic API.")
 
+        self._is_user_dofkern = True
+
     def _validate_only_scalars_and_fields(self):
         '''
         Checks metadata arguments are either fields or scalars by comparing
@@ -769,6 +775,16 @@ class LFRicKernMetadata(KernelType):
         :rtype: bool
         '''
         return self._is_intergrid
+
+    @property
+    def is_user_dofkern(self):
+        '''
+        Returns whether or not this is a user-defined kernel operating on dofs.
+
+        :return: True if kernel is a user-defined dof kernel, False otherwise
+        :rtype: bool
+        '''
+        return self._is_user_dofkern
 
 
 # ---------- Documentation utils -------------------------------------------- #
