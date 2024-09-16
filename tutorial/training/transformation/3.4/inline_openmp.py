@@ -45,15 +45,16 @@ This should produce a lot of output, ending with generated
 Fortran.
 '''
 
-from psyclone.transformations import MoveTrans, OMPParallelLoopTrans, TransformationError
+from psyclone.transformations import MoveTrans, TransformationError
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
-from psyclone.psyir.transformations import InlineTrans, LoopTiling2DTrans
-from psyclone.psyir.nodes import Call, Loop
+from psyclone.psyir.transformations import (InlineTrans, LoopFuseTrans,
+                                            LoopTiling2DTrans)
+from psyclone.psyir.nodes import Assignment, Call, Loop, Reference
 
 
 def trans(psyir):
-    '''A complex program that will optimise the given code by inlining, openmp,
-    etc.
+    '''A complex program that inline all loops, moves the scalar assignment to
+    the top so that all loops are next to each other
 
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

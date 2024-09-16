@@ -45,15 +45,16 @@ This should produce a lot of output, ending with generated
 Fortran.
 '''
 
-from psyclone.transformations import MoveTrans, OMPParallelLoopTrans, TransformationError
+from psyclone.transformations import MoveTrans, TransformationError
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
-from psyclone.psyir.transformations import InlineTrans
-from psyclone.psyir.nodes import Call, Loop
+from psyclone.psyir.transformations import (InlineTrans, LoopFuseTrans,
+                                            LoopTiling2DTrans)
+from psyclone.psyir.nodes import Assignment, Call, Loop, Reference
 
 
 def trans(psyir):
     '''A complex program that inline all loops, moves the scalar assignment to
-    # the top so that all loops are next to each other
+    the top so that all loops are next to each other
 
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
@@ -78,6 +79,10 @@ def trans(psyir):
             lat_loops.append(loop)
 
     parent = lat_loops[0].parent
+    # Keep track of all assignments (see below)
+    assignments = [assignment for assignment
+                   in parent.children
+                   if isinstance(assignment, Assignment)]
     # Now move any non-loop statement in the parent to just before the first
     # loop. We can't move the scalar assignments before the first loop, since
     # they would be moved to the same location, which triggers an exception
@@ -89,7 +94,28 @@ def trans(psyir):
         if isinstance(child, Loop):
             # Leave the loop where they are
             continue
-        move.apply(child, lat_loops[0], options={"position": "before"})
+        try:
+            move.apply(child, lat_loops[0], options={"position": "before"})
+        except TransformationError as err:
+            print(f"Cannot move code {child}: {err.value}")
+
+    const_mapping = {}
+    for assignment in assignments:
+        const_mapping[assignment.lhs.name] = assignment.rhs
+
+    for lat_loop in lat_loops:
+        for ref in lat_loop.walk(Reference):
+            if ref.name in const_mapping:
+                value = const_mapping[ref.name].copy()
+                ref.replace_with(value)
+
+    fuse = LoopFuseTrans()
+    fuse.apply(lat_loops[0], lat_loops[1])
+    fuse.apply(lat_loops[0].loop_body[0], lat_loops[0].loop_body[1])
+    del lat_loops[1]
+    fuse.apply(lat_loops[0], lat_loops[1])
+    fuse.apply(lat_loops[0].loop_body[0], lat_loops[0].loop_body[1])
+    del lat_loops[1]
 
     # Now add an omp parallel around all loops ...
     ompp = OMPParallelTrans()
@@ -98,4 +124,20 @@ def trans(psyir):
     # ... and then omp do around the outer loops
     ompl = OMPLoopTrans()
     for loop in lat_loops:
-        ompl.apply(loop)
+        try:
+            ompl.apply(loop)
+        except TransformationError as err:
+            print(f"Cannot applu omp loop {loop}: {err.value}")
+
+    # Then apply tiling for the big fused loop
+    # Applying this last avoids the problem that lat_loops[0]
+    # is suddenly not an outer loop anymore (and ompl.apply()
+    # then fails because the loops don't have a common parent).
+    # Plus, the 4-times nested loop is too much for the dependency
+    # analysis and would require an option to ignore (incorrectly)
+    # detected dependencies for some variables.
+    tiling = LoopTiling2DTrans()
+    try:
+        tiling.apply(lat_loops[0])
+    except TransformationError as err:
+        print(f"Cannot tile loop {lat_loops[0]}: {err.value}")
