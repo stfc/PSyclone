@@ -54,7 +54,13 @@ include ../../common.mk
 
 # Default target: run PSyclone (even if the output file should already exist)
 transform: main_alg_psy.f90
-	$(PSYCLONE) -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+	$(PSYCLONE) -s ./openmp.py -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+
+# This rule invokes the same PSyclone command, but it won't get run if
+# the output file already exist, which is useful for compilation to avoid
+# recompilation.
+main_alg_psy.f90: main_alg.x90
+	$(PSYCLONE) -s ./openmp.py -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 compile: main_alg_psy.f90 $(EXE)
 
@@ -72,12 +78,6 @@ allclean: clean
 
 # Keep the generated psy and alg files
 .precious: main_alg_psy.f90 main_alg.f90
-
-# This rule invokes the same PSyclone command, but it won't get run if
-# the output file already exist, which is useful for compilation to avoid
-# recompilation.
-main_alg_psy.f90: main_alg.x90
-	$(PSYCLONE) -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 # For PSyclone CI:
 test: transform
