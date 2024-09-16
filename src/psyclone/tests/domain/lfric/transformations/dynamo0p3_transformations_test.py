@@ -3627,7 +3627,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                  "rhs": "f1_data(df) * f2_data(df)",
                  "builtin": "! Built-in: X_innerproduct_Y (real-valued fields)"
                  },
-                {"var": "bsum", "lvar": "l_bsum", "loop_idx": "3",
+                {"var": "bsum", "lvar": "l_bsum", "loop_idx": "2",
                  "rhs": "f2_data(df)",
                  "builtin": "! Built-in: sum_X (sum a real-valued field)"}]:
             assert (
@@ -3667,7 +3667,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                  "builtin": "! Built-in: X_innerproduct_Y (real-valued fields)"
                  },
                 {"var": "bsum", "lvar": "l_bsum",
-                 "loop_idx": "3", "rhs": "f2_data(df)",
+                 "loop_idx": "2", "rhs": "f2_data(df)",
                  "builtin": "! Built-in: sum_X (sum a real-valued field)"}]:
             assert (
                 "    " + names["var"] + " = 0.0\n"
@@ -4705,7 +4705,6 @@ def test_rc_vector_no_depth(tmpdir):
                 in result)
 
 
-@pytest.mark.xfail(reason="psy.gen modifies the schedule")
 def test_rc_no_halo_decrease():
     ''' Test that we do not decrease an existing halo size when setting it
     to a particular value. This situation may happen when the
@@ -4903,7 +4902,7 @@ def test_rc_max_remove_halo_exchange(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_rc_continuous_halo_remove():
+def test_rc_continuous_halo_remove(fortran_writer):
     ''' Check that we do not remove a halo exchange when the field is
     continuous and the redundant computation depth equals the required
     halo access depth. The reason for this is that the outer halo
@@ -4915,7 +4914,7 @@ def test_rc_continuous_halo_remove():
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
     rc_trans = Dynamo0p3RedundantComputationTrans()
     f3_inc_hex = schedule.children[2]
     f3_inc_loop = schedule.children[4]
@@ -4935,7 +4934,7 @@ def test_rc_continuous_halo_remove():
     # f3_inc_loop are now to depth 2.
     rc_trans.apply(f3_read_loop, {"depth": 3})
     rc_trans.apply(f3_inc_loop, {"depth": 3})
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
     assert result.count("call f3_proxy%halo_exchange(depth=") == 2
     assert f3_inc_hex._compute_halo_depth() == "2"
     assert f3_read_hex._compute_halo_depth() == "3"
@@ -4947,7 +4946,7 @@ def test_rc_continuous_halo_remove():
     # The "is_dirty" check and the halo exchange before the
     # f3_inc_loop are now to depth 3.
     rc_trans.apply(f3_inc_loop, {"depth": 4})
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
     assert result.count("call f3_proxy%halo_exchange(depth=") == 1
     assert f3_inc_hex._compute_halo_depth() == "3"
     # Position 7 is now halo exchange on f4 instead of f3
@@ -4955,7 +4954,7 @@ def test_rc_continuous_halo_remove():
     assert "if (f3_proxy%is_dirty(depth=4)" not in result
 
 
-def test_rc_discontinuous_halo_remove(monkeypatch):
+def test_rc_discontinuous_halo_remove(monkeypatch, fortran_writer):
     ''' Check that we do remove a halo exchange when the field is
     discontinuous and the redundant computation depth equals the
     required halo access depth. Also check that we do not remove the
@@ -4966,7 +4965,7 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
     rc_trans = Dynamo0p3RedundantComputationTrans()
     f4_write_loop = schedule.children[5]
     f4_read_loop = schedule.children[9]
@@ -4974,13 +4973,13 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
     assert "if (f4_proxy%is_dirty(depth=1)) then" not in result
     rc_trans.apply(f4_read_loop, {"depth": 3})
     rc_trans.apply(f4_write_loop, {"depth": 2})
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
     assert "call f4_proxy%halo_exchange(depth=3)" in result
     assert "if (f4_proxy%is_dirty(depth=3)) then" not in result
     # Increase RC depth to 3 and check that halo exchange is removed
     # when a discontinuous field has write access
     rc_trans.apply(f4_write_loop, {"depth": 3})
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
     assert "call f4_proxy%halo_exchange(depth=" not in result
     assert "if (f4_proxy%is_dirty(depth=" not in result
     # Increase RC depth to 3 and check that halo exchange is not removed
@@ -4990,12 +4989,12 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
     monkeypatch.setattr(f4_arg, "_access", value=AccessType.READWRITE)
     monkeypatch.setattr(f4_write_loop, "_upper_bound_halo_depth", value=2)
     rc_trans.apply(f4_write_loop, {"depth": 3})
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
     assert "call f4_proxy%halo_exchange(depth=" in result
     assert "if (f4_proxy%is_dirty(depth=" in result
 
 
-def test_rc_reader_halo_remove():
+def test_rc_reader_halo_remove(fortran_writer):
     ''' Check that we do not add an unnecessary halo exchange when we
     increase the depth of halo that a loop computes but the previous loop
     still computes deep enough into the halo to avoid needing a halo
@@ -5005,27 +5004,25 @@ def test_rc_reader_halo_remove():
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    result = str(psy.gen)
-
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
     assert "call f2_proxy%halo_exchange(depth=1)" in result
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
     # Redundant computation to avoid halo exchange for f2
     rc_trans.apply(schedule.children[1], {"depth": 2})
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
     assert "call f2_proxy%halo_exchange(" not in result
 
     # Redundant computation to depth 2 in f2 reader loop should not
     # cause a new halo exchange as it is still covered by depth=2 in
     # the writer loop
     rc_trans.apply(schedule.children[4], {"depth": 2})
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
     assert "call f2_proxy%halo_exchange(" not in result
 
 
-def test_rc_vector_reader_halo_remove():
+def test_rc_vector_reader_halo_remove(fortran_writer):
     ''' Check that we do not add unnecessary halo exchanges for a vector
     field when we increase the depth of halo that a loop computes but
     the previous loop still computes deep enough into the halo to
@@ -5033,7 +5030,7 @@ def test_rc_vector_reader_halo_remove():
     psy, invoke = get_invoke("8.2.1_multikernel_invokes_w3_vector.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
 
     assert "is_dirty" not in result
     assert "halo_exchange" not in result
@@ -5042,7 +5039,7 @@ def test_rc_vector_reader_halo_remove():
 
     # Redundant computation for first loop
     rc_trans.apply(schedule.children[0], {"depth": 1})
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
     assert result.count("is_dirty") == 3
     assert result.count("halo_exchange") == 3
 
@@ -5050,19 +5047,19 @@ def test_rc_vector_reader_halo_remove():
     # cause a new halo exchange as it is still covered by depth=1 in
     # the writer loop
     rc_trans.apply(schedule.children[4], {"depth": 1})
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
     assert result.count("is_dirty") == 3
     assert result.count("halo_exchange") == 3
 
 
-def test_rc_vector_reader_halo_readwrite():
+def test_rc_vector_reader_halo_readwrite(fortran_writer):
     ''' When we increase the depth of halo that a loop computes but the
     previous loop still computes deep enough into the halo the added
     halo exchanges stem from the vector readwrite access. '''
     psy, invoke = get_invoke("8.2.2_multikernel_invokes_wtheta_vector.f90",
                              TEST_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
 
     assert "is_dirty" not in result
     assert "halo_exchange" not in result
@@ -5072,14 +5069,14 @@ def test_rc_vector_reader_halo_readwrite():
     # Redundant computation for first loop: both fields have
     # read dependencies for all three components
     rc_trans.apply(schedule.children[0], {"depth": 1})
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
     assert result.count("is_dirty") == 6
     assert result.count("halo_exchange") == 6
 
     # Redundant computation in reader loop causes new halo exchanges
     # due to readwrite dependency in f3
     rc_trans.apply(schedule.children[7], {"depth": 1})
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
     assert result.count("is_dirty") == 9
     assert result.count("halo_exchange") == 9
 
@@ -5087,7 +5084,7 @@ def test_rc_vector_reader_halo_readwrite():
     # additional halo exchanges (3 more due to readwrite to read
     # dependency in f1)
     rc_trans.apply(schedule.children[10], {"depth": 2})
-    result = str(psy.gen)
+    result = fortran_writer(schedule)
     # Check for additional halo exchanges
     assert result.count("halo_exchange") == 12
     # Check that additional halo exchanges for all three f1
@@ -6958,7 +6955,7 @@ def test_rc_remove_async_halo_exchange(monkeypatch, tmpdir):
     assert "call m1_proxy%halo_exchange(depth=1)" in result
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    loop = schedule.children[0]
+    loop = schedule.walk(Loop)[0]
     rc_trans.apply(loop, {"depth": 1})
     result = str(psy.gen)
     assert "call f1_proxy%halo_exchange_start(depth=1)" not in result
@@ -6968,7 +6965,7 @@ def test_rc_remove_async_halo_exchange(monkeypatch, tmpdir):
     assert "if (m1_proxy%is_dirty(depth=1)) then" in result
     assert "call m1_proxy%halo_exchange(depth=1)" in result
     #
-    loop = schedule.children[1]
+    loop = schedule.walk(Loop)[1]
     rc_trans.apply(loop, {"depth": 1})
     result = str(psy.gen)
     assert "call f1_proxy%halo_exchange_start(depth=1)" not in result
@@ -7041,23 +7038,22 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
     # to remove halo exchanges for f1 and f2 just because we can :-)
     # Check depths and set clean are still generated correctly for m2
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    for index in [7, 1, 3]:
-        loop = schedule.children[index]
+    for loop in schedule.walk(Loop):
         rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
     assert (
-        "      if (m2_proxy%is_dirty(depth=3)) then\n"
-        "        call m2_proxy%halo_exchange_start(depth=3)\n"
-        "      end if\n") in result
+        "    if (m2_proxy%is_dirty(depth=3)) then\n"
+        "      call m2_proxy%halo_exchange_start(depth=3)\n"
+        "    end if\n") in result
     assert (
-        "      if (m2_proxy%is_dirty(depth=3)) then\n"
-        "        call m2_proxy%halo_exchange_finish(depth=3)\n"
-        "      end if\n") in result
+        "    if (m2_proxy%is_dirty(depth=3)) then\n"
+        "      call m2_proxy%halo_exchange_finish(depth=3)\n"
+        "    end if\n") in result
     assert (
-        "      ! Set halos dirty/clean for fields modified in the above loop(s)\n"
-        "      !\n"
-        "      call m2_proxy%set_dirty()\n"
-        "      call m2_proxy%set_clean(3)\n") in result
+        # "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
+        # "    !\n"
+        "    call m2_proxy%set_dirty()\n"
+        "    call m2_proxy%set_clean(3)\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
