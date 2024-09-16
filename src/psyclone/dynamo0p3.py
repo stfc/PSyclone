@@ -3486,7 +3486,7 @@ class DynBasisFunctions(LFRicCollection):
                     "nfaces"+qr_name, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                 sym = self._symbol_table.find_or_create(
-                    "weights_yxz"+qr_name, symbol_type=DataSymbol,
+                    "weights_xyz"+qr_name, symbol_type=DataSymbol,
                     datatype=ArrayType(intr_type, [Reference(dim1),
                                                    Reference(dim2)]))
                 sym.interface = ArgumentInterface(
@@ -3506,7 +3506,7 @@ class DynBasisFunctions(LFRicCollection):
                     "nedges"+qr_name, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                 sym = self._symbol_table.find_or_create(
-                    "weights_yxz"+qr_name, symbol_type=DataSymbol,
+                    "weights_xyz"+qr_name, symbol_type=DataSymbol,
                     datatype=ArrayType(intr_type, [Reference(dim1),
                                                    Reference(dim2)]))
                 sym.interface = ArgumentInterface(
@@ -4476,12 +4476,22 @@ class DynBoundaryConditions(LFRicCollection):
 
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
-            ndf_name = dofs.function_space.ndf_name
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in",
-                               dimension=",".join([ndf_name, "2"]),
-                               entity_decls=[name]))
+            ndf_name = self._symbol_table.lookup(dofs.function_space.ndf_name)
+            dtype = ArrayType(
+                LFRicTypes("LFRicIntegerScalarDataType")(),
+                [Reference(ndf_name), Literal("2", INTEGER_TYPE)])
+            new_symbol = self._symbol_table.new_symbol(
+                name,
+                symbol_type=DataSymbol,
+                datatype=dtype,
+                interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            )
+            self._symbol_table.append_argument(new_symbol)
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    intent="in",
+            #                    dimension=",".join([ndf_name, "2"]),
+            #                    entity_decls=[name]))
         return cursor
 
     def initialise(self, cursor):

@@ -85,7 +85,7 @@ def test_dynamopsy_kind():
         BASE_PATH, "15.12.3_single_pointwise_builtin.f90"), api="lfric")
     dynamo_psy = DynamoPSy(invoke_info)
     result = str(dynamo_psy.gen)
-    assert "USE constants_mod\n" in result
+    assert "use constants_mod\n" in result
     assert "f1_data(df) = 0.0\n" in result
     # 2: Literal kind value is declared (trying with two cases to check)
     for kind_name in ["r_solver", "r_tran"]:
@@ -116,11 +116,14 @@ def test_dynamopsy_gen_no_invoke():
 
     '''
     expected_result = (
-        "  MODULE hello_psy\n"
-        "    USE constants_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "  END MODULE hello_psy")
+        "module hello_psy\n"
+        "  use constants_mod\n"
+        "  implicit none\n"
+        "  public\n"
+        "\n"
+        "  contains\n"
+        "\n"
+        "end module hello_psy\n")
     dynamo_psy = DynamoPSy(DummyInvokeInfo(name="hello"))
     result = dynamo_psy.gen
     assert str(result) == expected_result
@@ -151,19 +154,17 @@ def test_dynamopsy_gen(monkeypatch):
     dynamo_psy = DynamoPSy(invoke_info)
     result = str(dynamo_psy.gen)
     assert (
-        "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_code(nlayers, ginger, f1_data, "
+        "    do cell = loop0_start, loop0_stop, 1\n"
+        "      call testkern_code(nlayers, ginger, f1_data, "
         "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))\n"
-        "      END DO\n"
-        "      !\n"
-        "      ! Set halos dirty/clean for fields modified in the above loop\n"
-        "      !\n"
-        "      CALL f1_proxy%set_dirty()\n"
-        "      !\n"
-        "      DO df = loop1_start, loop1_stop, 1\n"
-        "        ! Built-in: setval_c (set a real-valued field to a real "
+        "    enddo\n"
+        # "\n"
+        # "    ! Set halos dirty/clean for fields modified in the above loop\n"
+        "    call f1_proxy%set_dirty()\n"
+        "    do df = loop1_start, loop1_stop, 1\n"
+        "      ! Built-in: setval_c (set a real-valued field to a real "
         "scalar value)\n"
-        "        f1_data(df) = 0.0_r_def\n"
-        "      END DO\n" in result)
+        "      f1_data(df) = 0.0_r_def\n"
+        "    enddo\n" in result)
