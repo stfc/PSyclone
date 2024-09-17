@@ -94,7 +94,8 @@ def check_line_length(filename):
         with io.open(filename, "r", encoding='utf8') as myfile:
             code_str = myfile.read()
     except IOError as excinfo:
-        raise InternalError(f"In utils.py:check_line_length: {excinfo}")
+        raise InternalError(
+            f"In utils.py:check_line_length: {excinfo}") from excinfo
 
     if fll.long_lines(code_str):
         raise ParseError(
@@ -122,11 +123,11 @@ def parse_fp2(filename):
     except IOError as error:
         raise ParseError(
             f"algorithm.py:parse_fp2: Failed to parse file '{filename}'. "
-            f"Error returned was ' {error} '.")
+            f"Error returned was ' {error} '.") from error
     try:
         parse_tree = parser(reader)
     except FortranSyntaxError as msg:
         raise ParseError(
             f"algorithm.py:parse_fp2: Syntax error in file '{filename}':\n"
-            f"{msg}")
+            f"{msg}") from msg
     return parse_tree

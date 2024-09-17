@@ -4984,7 +4984,7 @@ def check_args(call, parent_call):
     :type parent_call: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises: GenerationError if the kernel arguments in the Algorithm layer
-             do not match up with the kernel metadata
+             do not match up with the kernel metadata.
     '''
     # stencil arguments
     stencil_arg_count = 0
