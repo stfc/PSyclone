@@ -76,6 +76,8 @@ jobs:
         pip install jinja2
 
     # PSyclone, compile and run MetOffice gungho_model on GPU
+    # This currently uses revision 2222 of the LFRic source and needs to
+    # be updated to use LFRIC_APPS_REV.
     - name: LFRic GungHo with OpenACC offload
       run: |
         # Set up environment
@@ -84,6 +86,7 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        # TODO update revision 2222 below.
         export LFRIC_DIR=${HOME}/LFRic/lfric_apps_r2222
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
         cd ${LFRIC_DIR}
@@ -91,10 +94,12 @@ jobs:
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/acc_parallel.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
-        rm -rf appplications/gungho_model/working
+        rm -rf applications/gungho_model/working
         ./build/local_build.py -a gungho_model -p psyclone-test
-        # Run
         cd applications/gungho_model/example
+        # Run. NOTE, we do not use precisely the same configuration as the
+        # other LFRic tests. This is because we're not yet using the same
+        # LFRIC_APPS_REV as those tests.
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_gpu_4its.nml configuration.nml
         mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its_checksums.txt gungho_model-checksums.txt
@@ -108,7 +113,8 @@ jobs:
           --password ${{ secrets.MONGODB_PASSWORD }} \
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-          ci_test: "LFRic OpenACC", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
+          # TODO - update revision 2222 below.
+          ci_test: "LFRic OpenACC", lfric_apps_version: '"2222"', system: "GlaDos",
           compiler:"spack-nvhpc-24.5", date: new Date(), elapsed_time: '"$VAR_TIME"',
           num_of_halo_exchanges: '"$VAR_HALOS"'})'
 

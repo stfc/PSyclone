@@ -50,6 +50,7 @@ from psyclone.transformations import (
     ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans)
 
 
+# Names of any routines that we won't add any OpenACC to.
 ACC_EXCLUSIONS = [
 ]
 
