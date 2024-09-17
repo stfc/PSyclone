@@ -266,6 +266,26 @@ def test_new_same_kern_single(kernel_outputdir, monkeypatch):
     assert out_files == [new_kernels[1].module_name+".f90"]
 
 
+def test_transform_kern_with_interface(kernel_outputdir):
+    '''
+    '''
+    rtrans = ACCRoutineTrans()
+    _, invoke = get_invoke("26.8_mixed_precision_args.f90",
+                           api="lfric", idx=0)
+    sched = invoke.schedule
+    kern = sched.coded_kernels()[0]
+    rtrans.apply(kern)
+    kern.rename_and_write()
+    out_files = os.listdir(str(kernel_outputdir))
+    import pdb; pdb.set_trace()
+    filename = os.path.join(str(kernel_outputdir), out_files[0])
+    assert os.path.isfile(filename)
+    with open(filename,
+              "r", encoding="utf-8") as ffile:
+        contents = ffile.read()
+    assert "happy days" in contents
+
+
 # The following tests test the MarkRoutineForGPUMixin validation, for this
 # it uses the ACCRoutineTrans as instance of this Mixin.
 

@@ -1714,14 +1714,16 @@ class CodedKern(Kern):
         :param str suffix: the string to insert into the quantity names.
 
         '''
-        # We need to get the kernel schedule before modifying self.name
+        # We need to get the kernel schedule before modifying self.name.
+        # If the kernel corresponds to an interface, this will get the
+        # implementation that is actually being called.
         kern_schedule = self.get_kernel_schedule()
         container = kern_schedule.ancestor(Container)
 
         # Use the suffix to create a new kernel name.  This will
         # conform to the PSyclone convention of ending in "_code"
         orig_mod_name = self.module_name[:]
-        orig_kern_name = self.name[:]
+        orig_kern_name = kern_schedule.name[:]  #  self.name[:]
 
         new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
         new_mod_name = self._new_name(orig_mod_name, suffix, "_mod")
