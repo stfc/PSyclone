@@ -39,7 +39,8 @@ to the code.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.transformations import OMPParallelLoopTrans, TransformationError
+from psyclone.transformations import (OMPParallelTrans, OMPLoopTrans,
+                                      TransformationError)
 from psyclone.domain.lfric import LFRicKern, LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 
@@ -55,8 +56,8 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    omp_parallel = OMPParallelLoopTrans(omp_schedule="dynamic")
-    omp_parallel.omp_schedule = "static"
+    omp_parallel = OMPParallelTrans()
+    omp_loop = OMPLoopTrans()
     inline = KernelModuleInlineTrans()
 
     for invoke in psy.invokes.invoke_list:
@@ -66,17 +67,12 @@ def trans(psy):
         for kern in schedule.walk(LFRicKern):
             inline.apply(kern)
 
-        fuse = LFRicLoopFuseTrans()
         all_loops = list(schedule.walk(LFRicLoop))
-        while len(all_loops) > 1:
-            try:
-                fuse.apply(all_loops[0], all_loops[1],
-                           options={"same_space": True})
-                # Delete loop 1, since it is merged with the previous loop
-                del all_loops[1]
-            except TransformationError:
-                break
-        for loop in all_loops:
-            omp_parallel.apply(loop)
+        # Can we use loop fusion? Note that we need to use the specific
+        # LFRic fusion (since in the LFRic API we potentially know the
+        # function space on which the fields are defined, while in general
+        # we don't know this).
+        fuse = LFRicLoopFuseTrans()
+        # Try loop fuse here
 
-        print(schedule.view())
+        # Now add OpenMP parallel do

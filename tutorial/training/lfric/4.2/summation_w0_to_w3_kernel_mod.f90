@@ -77,7 +77,10 @@ contains
 
       do k=0, nlayers-1
         do i=1, ndf_w0
-          field_w3(map_w3(1)+k) = field_w3(map_w3(1)+k) + field_w0(map_w0(i)+k)
+          ! Fill in the summation: field_w3 = field_w3 + field_w0
+          ! Make sure to use the right indices and mappings
+          ! Also be aware that field_w3 has just one degree of freedom
+
         end do
       end do
 

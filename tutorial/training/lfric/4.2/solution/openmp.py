@@ -39,7 +39,8 @@ to the code.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.transformations import OMPParallelLoopTrans, TransformationError
+from psyclone.transformations import (OMPParallelTrans, OMPLoopTrans,
+                                      TransformationError)
 from psyclone.domain.lfric import LFRicKern, LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 
@@ -55,8 +56,8 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    omp_parallel = OMPParallelLoopTrans(omp_schedule="dynamic")
-    omp_parallel.omp_schedule = "static"
+    omp_parallel = OMPParallelTrans()
+    omp_loop = OMPLoopTrans()
     inline = KernelModuleInlineTrans()
 
     for invoke in psy.invokes.invoke_list:
@@ -66,17 +67,28 @@ def trans(psy):
         for kern in schedule.walk(LFRicKern):
             inline.apply(kern)
 
-        fuse = LFRicLoopFuseTrans()
         all_loops = list(schedule.walk(LFRicLoop))
-        while len(all_loops) > 1:
-            try:
-                fuse.apply(all_loops[0], all_loops[1],
-                           options={"same_space": True})
-                # Delete loop 1, since it is merged with the previous loop
-                del all_loops[1]
-            except TransformationError:
-                break
+        # We can't fuse the two builtins, and PSyclone will raise
+        # an exception if you try. There is an option you can use
+        # to overwrite PSyclone's warning, but it would create
+        # incorrect core here. The field on w0 has 96 elements
+        # (count the dots - 4x4x6), while the one on w3 one has
+        # only 3*3*5 = 45. So the loops do not have the same loop
+        # boundaries!
+        fuse = LFRicLoopFuseTrans()
+        try:
+            fuse.apply(all_loops[0], all_loops[1])
+        except IndexError:
+            # We have two invokes, the second one has only one loop
+            print(f"There is only one loop in {str(invoke.name)}")
+        except TransformationError:
+            print(f"Loops 0 and 1 cannot be fused in {type(invoke.name)}")
+
+        # Add omp parallel around all loops
+        omp_parallel.apply(all_loops)
+
+        # And add omp do around all inner loop
         for loop in all_loops:
-            omp_parallel.apply(loop)
+            omp_loop.apply(loop)
 
         print(schedule.view())
