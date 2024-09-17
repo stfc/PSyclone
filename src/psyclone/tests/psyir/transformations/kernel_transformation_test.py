@@ -277,7 +277,6 @@ def test_transform_kern_with_interface(kernel_outputdir):
     rtrans.apply(kern)
     kern.rename_and_write()
     out_files = os.listdir(str(kernel_outputdir))
-    import pdb; pdb.set_trace()
     filename = os.path.join(str(kernel_outputdir), out_files[0])
     assert os.path.isfile(filename)
     with open(filename,

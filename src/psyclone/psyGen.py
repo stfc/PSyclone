@@ -1723,7 +1723,7 @@ class CodedKern(Kern):
         # Use the suffix to create a new kernel name.  This will
         # conform to the PSyclone convention of ending in "_code"
         orig_mod_name = self.module_name[:]
-        orig_kern_name = kern_schedule.name[:]  #  self.name[:]
+        orig_kern_name = kern_schedule.name[:]
 
         new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
         new_mod_name = self._new_name(orig_mod_name, suffix, "_mod")
