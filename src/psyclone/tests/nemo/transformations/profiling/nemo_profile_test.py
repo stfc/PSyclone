@@ -242,7 +242,7 @@ def test_profile_single_line_if(fortran_reader, fortran_writer):
     assert (
         "  if (do_this) then\n"
         "    call profile_psy_data % prestart(\"one_line_if_test\", \"r0\", 0,"
-        " 0)\n"
+        " 0)\n\n"
         "    ! psyclone codeblock (unsupported code) reason:\n"
         "    !  - unsupported statement: write_stmt\n"
         "    write(*, *) sto_tmp2(ji)\n"
