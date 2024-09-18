@@ -76,8 +76,6 @@ jobs:
         pip install jinja2
 
     # PSyclone, compile and run MetOffice gungho_model on GPU
-    # This currently uses revision 2222 of the LFRic source and needs to
-    # be updated to use LFRIC_APPS_REV.
     - name: LFRic GungHo with OpenACC offload
       run: |
         # Set up environment
@@ -86,8 +84,15 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        # TODO update revision 2222 below.
-        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_r2222
+        # The LFRic source must be patched to workaround bugs in the NVIDIA
+        # compiler's namelist handling.
+        rm -rf ${HOME}/LFRic/gpu_build
+        mkdir -p ${HOME}/LFRic/gpu_build
+        cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV} ${HOME}/LFRic/gpu_build/lfric_apps
+        cp -r ${HOME}/LFRic/lfric_core_50869 ${HOME}/LFRic/gpu_build/lfric
+        cd ${HOME}/LFRic/gpu_build
+        patch -p1 < ../lfric_${LFRIC_APPS_REV}_nvidia.patch
+        export LFRIC_DIR=${HOME}/LFRic/gpu_build/lfric_apps
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
         cd ${LFRIC_DIR}
         # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
@@ -97,10 +102,7 @@ jobs:
         rm -rf applications/gungho_model/working
         ./build/local_build.py -a gungho_model -p psyclone-test
         cd applications/gungho_model/example
-        # Run. NOTE, we do not use precisely the same configuration as the
-        # other LFRic tests. This is because we're not yet using the same
-        # LFRIC_APPS_REV as those tests.
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_gpu_4its.nml configuration.nml
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its.nml configuration.nml
         mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its_checksums.txt gungho_model-checksums.txt
         cat timer.txt
@@ -114,7 +116,7 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           # TODO - update revision 2222 below.
-          ci_test: "LFRic OpenACC", lfric_apps_version: '"2222"', system: "GlaDos",
+          ci_test: "LFRic OpenACC", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
           compiler:"spack-nvhpc-24.5", date: new Date(), elapsed_time: '"$VAR_TIME"',
           num_of_halo_exchanges: '"$VAR_HALOS"'})'
 
