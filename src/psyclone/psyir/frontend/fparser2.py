@@ -4202,8 +4202,7 @@ class Fparser2Reader():
                 except TransformationError:
                     pass
             elif (isinstance(ref.symbol, DataSymbol) and intrinsic_ancestor
-                  is not None and (intrinsic_ancestor.is_elemental or
-                  intrinsic_ancestor.is_inquiry)):
+                  is not None and intrinsic_ancestor.is_elemental):
                 try:
                     Reference2ArrayRangeTrans().apply(ref)
                 except TransformationError:
