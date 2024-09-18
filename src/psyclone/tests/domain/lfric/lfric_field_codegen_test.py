@@ -856,44 +856,50 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
     # Check that the qr-related variables are all declared
     assert ("    type(quadrature_xyoz_type), intent(in) :: qr_xyoz\n"
             "    type(quadrature_face_type), intent(in) :: qr_face\n"
-            == gen_code)
-    assert ("real(kind=r_def), allocatable :: basis_w2_qr_xyoz(:,:,:,:), "
-            "basis_w2_qr_face(:,:,:,:), diff_basis_wchi_qr_xyoz(:,:,:,:), "
-            "diff_basis_wchi_qr_face(:,:,:,:), "
-            "basis_adspc1_f3_qr_xyoz(:,:,:,:), "
-            "diff_basis_adspc1_f3_qr_xyoz(:,:,:,:), "
-            "basis_adspc1_f3_qr_face(:,:,:,:), "
-            "diff_basis_adspc1_f3_qr_face(:,:,:,:)\n" in gen_code)
-    assert ("    real(kind=r_def), pointer :: weights_xyz_qr_face(:,:) "
-            "=> null()\n"
-            "    integer(kind=i_def) np_xyz_qr_face, nfaces_qr_face\n"
+            in gen_code)
+    assert """
+    real(kind=r_def), allocatable :: basis_w2_qr_xyoz(:,:,:,:)
+    real(kind=r_def), allocatable :: basis_w2_qr_face(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_wchi_qr_xyoz(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_wchi_qr_face(:,:,:,:)
+    real(kind=r_def), allocatable :: basis_adspc1_f3_qr_xyoz(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_adspc1_f3_qr_xyoz(:,:,:,:)
+    real(kind=r_def), allocatable :: basis_adspc1_f3_qr_face(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_adspc1_f3_qr_face(:,:,:,:)
+""" in gen_code
+    assert ("    real(kind=r_def), pointer, dimension(:,:) :: "
+            "weights_xyz_qr_face => null()\n" in gen_code)
+    assert "    integer(kind=i_def) :: np_xyz_qr_face\n" in gen_code
+    assert "    integer(kind=i_def) :: nfaces_qr_face\n" in gen_code
+    assert (
+            "    integer(kind=i_def) :: np_xy_qr_xyoz\n"
+            "    integer(kind=i_def) :: np_z_qr_xyoz\n"
             "    real(kind=r_def), pointer :: weights_xy_qr_xyoz(:) => "
-            "null(), weights_z_qr_xyoz(:) => null()\n"
-            "    integer(kind=i_def) np_xy_qr_xyoz, np_z_qr_xyoz\n"
-
+            "null()\n"
+            "    real(kind=r_def), pointer :: weights_z_qr_xyoz(:) => "
+            "null()\n"
             in gen_code)
-    assert ("    type(quadrature_face_proxy_type) qr_face_proxy\n"
-            "    type(quadrature_xyoz_proxy_type) qr_xyoz_proxy\n"
-            in gen_code)
+    assert "type(quadrature_face_proxy_type) :: qr_face_proxy\n" in gen_code
+    assert "type(quadrature_xyoz_proxy_type) :: qr_xyoz_proxy\n" in gen_code
     # Allocation and computation of (some of) the basis/differential
     # basis functions
-    assert ("    ALLOCATE (basis_adspc1_f3_qr_xyoz(dim_adspc1_f3, "
-            "ndf_adspc1_f3, np_xy_qr_xyoz, np_z_qr_xyoz))\n"
-            "    ALLOCATE (diff_basis_adspc1_f3_qr_xyoz(diff_dim_adspc1_f3, "
-            "ndf_adspc1_f3, np_xy_qr_xyoz, np_z_qr_xyoz))\n"
-            "    ALLOCATE (basis_adspc1_f3_qr_face(dim_adspc1_f3, "
-            "ndf_adspc1_f3, np_xyz_qr_face, nfaces_qr_face))\n"
-            "    ALLOCATE (diff_basis_adspc1_f3_qr_face(diff_dim_adspc1_f3, "
-            "ndf_adspc1_f3, np_xyz_qr_face, nfaces_qr_face))\n"
+    assert ("    ALLOCATE(basis_adspc1_f3_qr_xyoz(dim_adspc1_f3,"
+            "ndf_adspc1_f3,np_xy_qr_xyoz,np_z_qr_xyoz))\n"
+            "    ALLOCATE(diff_basis_adspc1_f3_qr_xyoz(diff_dim_adspc1_f3,"
+            "ndf_adspc1_f3,np_xy_qr_xyoz,np_z_qr_xyoz))\n"
+            "    ALLOCATE(basis_adspc1_f3_qr_face(dim_adspc1_f3,"
+            "ndf_adspc1_f3,np_xyz_qr_face,nfaces_qr_face))\n"
+            "    ALLOCATE(diff_basis_adspc1_f3_qr_face(diff_dim_adspc1_f3,"
+            "ndf_adspc1_f3,np_xyz_qr_face,nfaces_qr_face))\n"
             in gen_code)
-    assert ("  call qr_xyoz%compute_function(BASIS, f3_proxy%vspace, "
+    assert ("    call qr_xyoz%compute_function(BASIS, f3_proxy%vspace, "
             "dim_adspc1_f3, ndf_adspc1_f3, basis_adspc1_f3_qr_xyoz)\n"
-            "  call qr_xyoz%compute_function(DIFF_BASIS, "
+            "    call qr_xyoz%compute_function(DIFF_BASIS, "
             "f3_proxy%vspace, diff_dim_adspc1_f3, ndf_adspc1_f3, "
             "diff_basis_adspc1_f3_qr_xyoz)\n"
-            "  call qr_face%compute_function(BASIS, f3_proxy%vspace, "
+            "    call qr_face%compute_function(BASIS, f3_proxy%vspace, "
             "dim_adspc1_f3, ndf_adspc1_f3, basis_adspc1_f3_qr_face)\n"
-            "  call qr_face%compute_function(DIFF_BASIS, "
+            "    call qr_face%compute_function(DIFF_BASIS, "
             "f3_proxy%vspace, diff_dim_adspc1_f3, ndf_adspc1_f3, "
             "diff_basis_adspc1_f3_qr_face)\n" in gen_code)
     # Check that the kernel call itself is correct
@@ -933,92 +939,92 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     output = (
         "module multikernel_invokes_real_int_field_fs_psy\n"
         "  use constants_mod\n"
-        "  use field_mod, only : field_type, field_proxy_type\n"
-        "  use integer_field_mod, only : integer_field_type, "
-        "integer_field_proxy_type\n"
+        "  use integer_field_mod, only : integer_field_proxy_type, "
+        "integer_field_type\n"
+        "  use field_mod, only : field_proxy_type, field_type\n"
         "  implicit none\n"
+        "  public\n\n"
         "  contains\n"
         "  subroutine invoke_integer_and_real_field(i1, i2, n1, n2, i3, "
         "i4, n3, n4, i5, i6, n5, n6, i7, i8, n7, f1, f2, m1, m2, f3, f4, "
         "m3, m4, f5, f6, m5, m6, m7)\n")
     assert output in generated_code
-    output = (
-        "    type(field_type), intent(in) :: f1, f2, m1, m2, f3, f4, "
-        "m3, m4, f5, f6, m5, m6, m7\n"
-        "    type(integer_field_type), intent(in) :: i1, i2, n1, n2, "
-        "i3, i4, n3, n4, i5, i6, n5, n6, i7, i8, n7\n"
-        "    integer(kind=i_def) cell\n"
-        "    integer(kind=i_def) loop1_start, loop1_stop\n"
-        "    integer(kind=i_def) loop0_start, loop0_stop\n"
-        "    integer(kind=i_def) nlayers\n"
-        "    integer(kind=i_def), pointer, dimension(:) :: n7_data => "
-        "null()\n"
-        "    integer(kind=i_def), pointer, dimension(:) :: i8_data => "
-        "null()\n"
-        "    integer(kind=i_def), pointer, dimension(:) :: i7_data => "
-        "null()\n"
-        "    integer(kind=i_def), pointer, dimension(:) :: n6_data => "
-        "null()\n"
-        "    integer(kind=i_def), pointer, dimension(:) :: n5_data => "
-        "null()\n"
-        "    integer(kind=i_def), pointer, dimension(:) :: i6_data => "
-        "null()\n"
-        "    integer(kind=i_def), pointer, dimension(:) :: i5_data => "
-        "null()\n"
-        "    integer(kind=i_def), pointer, dimension(:) :: n4_data => "
-        "null()\n"
-        "    integer(kind=i_def), pointer, dimension(:) :: n3_data => "
-        "null()\n"
-        "    integer(kind=i_def), pointer, dimension(:) :: i4_data => "
-        "null()\n"
-        "    integer(kind=i_def), pointer, dimension(:) :: i3_data => "
-        "null()\n"
-        "    integer(kind=i_def), pointer, dimension(:) :: n2_data => "
-        "null()\n"
-        "    integer(kind=i_def), pointer, dimension(:) :: n1_data => "
-        "null()\n"
-        "    integer(kind=i_def), pointer, dimension(:) :: i2_data => "
-        "null()\n"
-        "    integer(kind=i_def), pointer, dimension(:) :: i1_data => "
-        "null()\n"
-        "    type(integer_field_proxy_type) i1_proxy, i2_proxy, n1_proxy, "
-        "n2_proxy, i3_proxy, i4_proxy, n3_proxy, n4_proxy, i5_proxy, "
-        "i6_proxy, n5_proxy, n6_proxy, i7_proxy, i8_proxy, n7_proxy\n"
-        "    real(kind=r_def), pointer, dimension(:) :: m7_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: m6_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: m5_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: f6_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: f5_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: m4_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: m3_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: f4_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: f3_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: m2_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: f2_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
-        "    type(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
-        "m2_proxy, f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, "
-        "f6_proxy, m5_proxy, m6_proxy, m7_proxy\n")
-    assert output in generated_code
+    print(generated_code)
+    assert """
+    type(integer_field_type), intent(in) :: i1
+    type(integer_field_type), intent(in) :: i2
+    type(integer_field_type), intent(in) :: n1
+    type(integer_field_type), intent(in) :: n2
+    type(integer_field_type), intent(in) :: i3
+    type(integer_field_type), intent(in) :: i4
+    type(integer_field_type), intent(in) :: n3
+    type(integer_field_type), intent(in) :: n4
+    type(integer_field_type), intent(in) :: i5
+    type(integer_field_type), intent(in) :: i6
+    type(integer_field_type), intent(in) :: n5
+    type(integer_field_type), intent(in) :: n6
+    type(integer_field_type), intent(in) :: i7
+    type(integer_field_type), intent(in) :: i8
+    type(integer_field_type), intent(in) :: n7
+    type(field_type), intent(in) :: f1
+    type(field_type), intent(in) :: f2
+    type(field_type), intent(in) :: m1
+    type(field_type), intent(in) :: m2
+    type(field_type), intent(in) :: f3
+    type(field_type), intent(in) :: f4
+    type(field_type), intent(in) :: m3
+    type(field_type), intent(in) :: m4
+    type(field_type), intent(in) :: f5
+    type(field_type), intent(in) :: f6
+    type(field_type), intent(in) :: m5
+    type(field_type), intent(in) :: m6
+    type(field_type), intent(in) :: m7
+    """ in generated_code
+    assert """
+    real(kind=r_def), pointer, dimension(:) :: f1_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f2_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m1_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m2_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f3_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f4_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m3_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m4_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f5_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f6_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m5_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m6_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m7_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: i1_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: i2_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: n1_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: n2_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: i3_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: i4_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: n3_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: n4_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: i5_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: i6_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: n5_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: n6_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: i7_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: i8_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: n7_data => null()
+""" in generated_code
     # Number of layers and the mesh are determined from the first integer
     # field. Maps for function spaces are determined from the first kernel
     # call with integer fields
     output = (
         "    ! Initialise number of layers\n"
-        "    !\n"
         "    nlayers = i1_proxy%vspace%get_nlayers()\n"
-        "    !\n")
+        "\n")
     if dist_mem:
         output += (
             "    ! Create a mesh object\n"
-            "    !\n"
             "    mesh => i1_proxy%vspace%get_mesh()\n"
             "    max_halo_depth_mesh = mesh%get_halo_depth()\n"
-            "    !\n")
+            "\n")
     output += (
-        "   ! Look-up dofmaps for each function space\n"
-        "    !\n"
+        "    ! Look-up dofmaps for each function space\n"
         "    map_w1 => i1_proxy%vspace%get_whole_dofmap()\n"
         "    map_w2 => i2_proxy%vspace%get_whole_dofmap()\n"
         "    map_w0 => n1_proxy%vspace%get_whole_dofmap()\n"

@@ -56,7 +56,8 @@ from psyclone.psyir.nodes import (
     Loop, Literal, Reference, KernelSchedule, Container, Routine)
 from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, ArrayType, UnsupportedFortranType, DataTypeSymbol,
-    UnresolvedType, SymbolTable, ContainerSymbol, UnknownInterface)
+    UnresolvedType, SymbolTable, ContainerSymbol, UnknownInterface,
+    ArgumentInterface)
 
 
 class LFRicKern(CodedKern):
@@ -324,11 +325,16 @@ class LFRicKern(CodedKern):
                 tag = "AlgArgs_" + qr_arg.text
                 # qr_name = self.ancestor(InvokeSchedule).symbol_table.\
                 #     find_or_create_integer_symbol(qr_arg.varname, tag=tag).name
-                qr_name = symtab.find_or_create(
+                qr_sym = symtab.find_or_create(
                     qr_arg.varname, tag=tag, symbol_type=DataSymbol,
                     datatype=symtab.find_or_create(
                         quad_map["type"], symbol_type=DataTypeSymbol,
-                        datatype=UnresolvedType())).name
+                        datatype=UnresolvedType()),
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READ))
+                if qr_sym not in symtab._argument_list:
+                    symtab.append_argument(qr_sym)
+                qr_name = qr_sym.name
             else:
                 # If we don't have a name then we must be doing kernel-stub
                 # generation so create a suitable name.
