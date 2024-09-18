@@ -280,27 +280,26 @@ def test_transform_kern_with_interface(kernel_outputdir):
     kernels = sched.coded_kernels()
     # Have to use 'force' because the test kernel contains a WRITE which
     # becomes a CodeBlock.
-    #rtrans.apply(kernels[0], options={"force": True})
-    #kernels[0].rename_and_write()
-    #out_files = os.listdir(str(kernel_outputdir))
-    #filename = os.path.join(str(kernel_outputdir), out_files[0])
-    #assert os.path.isfile(filename)
-    #with open(filename,
-    #          "r", encoding="utf-8") as ffile:
-    #    contents = ffile.read()
+    rtrans.apply(kernels[0], options={"force": True})
+    kernels[0].rename_and_write()
+    out_files = os.listdir(str(kernel_outputdir))
+    filename = os.path.join(str(kernel_outputdir), out_files[0])
+    assert os.path.isfile(filename)
+    with open(filename,
+              "r", encoding="utf-8") as ffile:
+        contents = ffile.read()
     # Check that the routine name has been updated within the interface.
-    #assert "interface mixed_code" in contents
-    #assert ("module procedure :: mixed_code_32, mixed_code_64_0_code"
-    #        in contents)
+    assert "interface mixed_code" in contents
+    assert ("module procedure :: mixed_code_32, mixed_code_64_0_code"
+            in contents)
     # Check that the subroutine itself has been renamed.
-    #assert "subroutine mixed_code_64_0_code" in contents
-    #assert ('''real*8, dimension(ndf_w0,ndf_w0,op_ncell_3d), intent(in) :: op
-#
-#    !$acc routine seq''' in contents)
-    #assert LFRicBuild(kernel_outputdir).code_compiles(psy)
-    #import pdb; pdb.set_trace()
+    assert "subroutine mixed_code_64_0_code" in contents
+    assert ('''real*8, dimension(ndf_w0,ndf_w0,op_ncell_3d), intent(in) :: op
+
+    !$acc routine seq''' in contents)
+    assert LFRicBuild(kernel_outputdir).code_compiles(psy)
+    kernels = sched.coded_kernels()
     rtrans.apply(kernels[1], options={"force": True})
-    #kernels[1].rename_and_write()
     psy.gen
     assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
