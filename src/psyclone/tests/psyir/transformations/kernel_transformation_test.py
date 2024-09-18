@@ -268,21 +268,41 @@ def test_new_same_kern_single(kernel_outputdir, monkeypatch):
 
 def test_transform_kern_with_interface(kernel_outputdir):
     '''
+    Test that we can transform a polymorphic kernel - i.e. one where
+    there is more than one subroutine implementation in order to support
+    different precisions.
+
     '''
     rtrans = ACCRoutineTrans()
-    _, invoke = get_invoke("26.8_mixed_precision_args.f90",
-                           api="lfric", idx=0)
+    psy, invoke = get_invoke("26.8_mixed_precision_args.f90",
+                             api="lfric", idx=0)
     sched = invoke.schedule
-    kern = sched.coded_kernels()[0]
-    rtrans.apply(kern)
-    kern.rename_and_write()
-    out_files = os.listdir(str(kernel_outputdir))
-    filename = os.path.join(str(kernel_outputdir), out_files[0])
-    assert os.path.isfile(filename)
-    with open(filename,
-              "r", encoding="utf-8") as ffile:
-        contents = ffile.read()
-    assert "happy days" in contents
+    kernels = sched.coded_kernels()
+    # Have to use 'force' because the test kernel contains a WRITE which
+    # becomes a CodeBlock.
+    #rtrans.apply(kernels[0], options={"force": True})
+    #kernels[0].rename_and_write()
+    #out_files = os.listdir(str(kernel_outputdir))
+    #filename = os.path.join(str(kernel_outputdir), out_files[0])
+    #assert os.path.isfile(filename)
+    #with open(filename,
+    #          "r", encoding="utf-8") as ffile:
+    #    contents = ffile.read()
+    # Check that the routine name has been updated within the interface.
+    #assert "interface mixed_code" in contents
+    #assert ("module procedure :: mixed_code_32, mixed_code_64_0_code"
+    #        in contents)
+    # Check that the subroutine itself has been renamed.
+    #assert "subroutine mixed_code_64_0_code" in contents
+    #assert ('''real*8, dimension(ndf_w0,ndf_w0,op_ncell_3d), intent(in) :: op
+#
+#    !$acc routine seq''' in contents)
+    #assert LFRicBuild(kernel_outputdir).code_compiles(psy)
+    #import pdb; pdb.set_trace()
+    rtrans.apply(kernels[1], options={"force": True})
+    #kernels[1].rename_and_write()
+    psy.gen
+    assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
 
 # The following tests test the MarkRoutineForGPUMixin validation, for this

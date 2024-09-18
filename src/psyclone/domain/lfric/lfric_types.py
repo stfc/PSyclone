@@ -188,6 +188,12 @@ class LFRicTypes:
                           LFRicTypes("I_DEF")),
             GenericScalar("LFRicRealScalar", ScalarType.Intrinsic.REAL,
                           LFRicTypes("R_DEF")),
+            GenericScalar("LFRicRdefScalar", ScalarType.Intrinsic.REAL,
+                          LFRicTypes("R_DEF")),
+            GenericScalar("LFRicRsolverScalar", ScalarType.Intrinsic.REAL,
+                          LFRicTypes("R_SOLVER")),
+            GenericScalar("LFRicRtranScalar", ScalarType.Intrinsic.REAL,
+                          LFRicTypes("R_TRAN")),
             GenericScalar("LFRicLogicalScalar", ScalarType.Intrinsic.BOOLEAN,
                           LFRicTypes("L_DEF"))]
 

@@ -1739,6 +1739,7 @@ class CodedKern(Kern):
         try:
             kern_symbol = kern_schedule.symbol_table.lookup(orig_kern_name)
             container.symbol_table.rename_symbol(kern_symbol, new_kern_name)
+            kern_symbol.visibility = Symbol.Visibility.PUBLIC
         except KeyError:
             # TODO #1013. Right now not all tests have PSyIR symbols because
             # some only expect f2pygen generation.
@@ -1758,11 +1759,10 @@ class CodedKern(Kern):
             if isinstance(sym.datatype, UnsupportedFortranType):
                 new_declaration = sym.datatype.declaration.replace(
                     orig_kern_name, new_kern_name)
-                # pylint: disable=protected-access
+                # pylint: disable-next=protected-access
                 sym._datatype = UnsupportedFortranType(
                     new_declaration,
                     partial_datatype=sym.datatype.partial_datatype)
-                # pylint: enable=protected-access
 
     @property
     def modified(self):
