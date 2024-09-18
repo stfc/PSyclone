@@ -91,6 +91,9 @@ jobs:
         cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV} ${HOME}/LFRic/gpu_build/lfric_apps
         cp -r ${HOME}/LFRic/lfric_core_50869 ${HOME}/LFRic/gpu_build/.
         cd ${HOME}/LFRic/gpu_build
+        # We need 'lfric_core' for the patch to work but lfric_apps expects
+        # to find lfric_core in 'lfric_core_50869'
+        ln -sf lfric_core_50869 lfric_core
         patch -p1 < ../lfric_${LFRIC_APPS_REV}_nvidia.patch
         export LFRIC_DIR=${HOME}/LFRic/gpu_build/lfric_apps
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
