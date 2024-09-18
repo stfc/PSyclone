@@ -89,7 +89,7 @@ jobs:
         rm -rf ${HOME}/LFRic/gpu_build
         mkdir -p ${HOME}/LFRic/gpu_build
         cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV} ${HOME}/LFRic/gpu_build/lfric_apps
-        cp -r ${HOME}/LFRic/lfric_core_50869 ${HOME}/LFRic/gpu_build/lfric
+        cp -r ${HOME}/LFRic/lfric_core_50869 ${HOME}/LFRic/gpu_build/.
         cd ${HOME}/LFRic/gpu_build
         patch -p1 < ../lfric_${LFRIC_APPS_REV}_nvidia.patch
         export LFRIC_DIR=${HOME}/LFRic/gpu_build/lfric_apps
