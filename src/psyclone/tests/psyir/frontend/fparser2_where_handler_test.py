@@ -943,3 +943,30 @@ def test_non_array_reduction_intrinsic(fortran_reader, fortran_writer):
 
 end program where_test'''
     assert correct in out
+
+
+def test_non_elemental_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test that a non-elemental reduction intrinsic (such as DOT_PRODUCT)
+    produces the correct PSyIR.
+    '''
+    code = '''
+    program where_test
+    implicit none
+    integer, dimension(100) :: a, b, c
+
+    where(a < b)
+       c = DOT_PRODUCT(a, b)
+    end where
+    end program
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    # This should be a Loop I suppose, this is valid Fortran
+    # as long as a and b aren't expanded
+    assert isinstance(psyir.children[0].children[0], Loop)
+    intrinsic = psyir.walk(IntrinsicCall)[0]
+    assert intrinsic.intrinsic.name == "DOT_PRODUCT"
+    assert intrinsic.children[1].name == "a"
+    assert not isinstance(intrinsic.children[1], ArrayReference)
+    assert intrinsic.children[2].name == "b"
+    assert not isinstance(intrinsic.children[2], ArrayReference)
