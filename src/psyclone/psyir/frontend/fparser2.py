@@ -3972,6 +3972,7 @@ class Fparser2Reader():
         # of cases are more probable. If we find one of such cases we
         # preventively increase the python recursion limits.
         if len(clause_indices) > 150:
+            # TODO #11: It would be good to log this
             sys.setrecursionlimit(len(clause_indices) * 10)  # Default is 1000
 
         # Deal with each Case_Stmt

@@ -118,13 +118,15 @@ def test_very_large_select_construct_increases_recursion_limit(fortran_reader):
     code += '''
         END SELECT
     end subroutine'''
-    _ = fortran_reader.psyir_from_source(code)
 
-    # Check that the recursion limit has been increased
-    assert sys.getrecursionlimit() > default_recursion_limit
+    try:
+        _ = fortran_reader.psyir_from_source(code)
 
-    # Restore default value
-    sys.setrecursionlimit(default_recursion_limit)
+        # Check that the recursion limit has been increased
+        assert sys.getrecursionlimit() > default_recursion_limit
+    finally:
+        # Restore default value
+        sys.setrecursionlimit(default_recursion_limit)
 
 
 @pytest.mark.usefixtures("f2008_parser")

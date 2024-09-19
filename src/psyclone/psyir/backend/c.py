@@ -66,6 +66,8 @@ class CWriter(LanguageWriter):
 
     '''
     def __init__(self, **kwargs):
+        # Construct the base class using [] as array parenthesis, and
+        # '.' as structure access symbol
         super().__init__(("[", "]"), ".", **kwargs)
 
     def gen_indices(self, indices, var_name=None):
