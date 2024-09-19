@@ -692,7 +692,7 @@ class DynamoOMPParallelLoopTrans(OMPLoopTrans):
             'static'.
 
     '''
-    def __init__(self, omp_directive="do", omp_schedule="static"):
+    def __init__(self, omp_directive="paralleldo", omp_schedule="static"):
         super().__init__(omp_directive=omp_directive,
                          omp_schedule=omp_schedule)
 
@@ -752,7 +752,7 @@ class GOceanOMPParallelLoopTrans(OMPLoopTrans):
             'static'.
 
     '''
-    def __init__(self, omp_directive="do", omp_schedule="static"):
+    def __init__(self, omp_directive="paralleldo", omp_schedule="static"):
         super().__init__(omp_directive=omp_directive,
                          omp_schedule=omp_schedule)
 

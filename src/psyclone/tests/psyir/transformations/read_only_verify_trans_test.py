@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import colored, Node, ReadOnlyVerifyNode, Schedule
 from psyclone.psyir.transformations import (ReadOnlyVerifyTrans,
                                             TransformationError)
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import OMPParallelLoopTrans
+from psyclone.transformations import OMPLoopTrans
 
 # --------------------------------------------------------------------------- #
 # ================== ReadOnly Transformation tests ========================== #
@@ -118,7 +118,7 @@ def test_invalid_apply():
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0)
     read_only = ReadOnlyVerifyTrans()
-    omp = OMPParallelLoopTrans()
+    omp = OMPLoopTrans(omp_directive="paralleldo")
     omp.apply(invoke.schedule[0])
     with pytest.raises(TransformationError) as err:
         read_only.apply(invoke.schedule[0].dir_body[0],

@@ -42,7 +42,7 @@ from psyclone.psyir.nodes import Literal, Loop, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
     TransformationError
-from psyclone.transformations import OMPParallelLoopTrans
+from psyclone.transformations import OMPLoopTrans
 
 
 def test_str():

@@ -41,8 +41,7 @@ import pytest
 from psyclone.errors import GenerationError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, Loop
-from psyclone.transformations import OMPLoopTrans, OMPParallelTrans, \
-    OMPParallelLoopTrans
+from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
 
 NEMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "..", "..", "test_files")
@@ -55,7 +54,7 @@ def test_omp_explicit_gen(fortran_reader, fortran_writer):
         os.path.join(NEMO_BASE_PATH, "explicit_do.f90")
     )
     schedule = psyir.children[0]
-    omp_trans = TransInfo().get_trans_name('OMPParallelLoopTrans')
+    omp_trans = OMPLoopTrans(omp_directive="paralleldo")
     Loop.set_loop_type_inference_rules({
             "lon": {"variable": "ji"},
             "lat": {"variable": "jj"},
@@ -226,7 +225,7 @@ wmask(ji,jj,jk)
 
 def test_omp_do_within_if(fortran_reader, fortran_writer):
     ''' Check that we can insert an OpenMP parallel do within an if block. '''
-    otrans = OMPParallelLoopTrans()
+    otrans = OMPLoopTrans(omp_directive="paralleldo")
     psyir = fortran_reader.psyir_from_file(
         os.path.join(NEMO_BASE_PATH, "imperfect_nest.f90")
     )

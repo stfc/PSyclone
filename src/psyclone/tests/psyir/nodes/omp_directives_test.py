@@ -68,7 +68,7 @@ from psyclone.psyir.transformations import ChunkLoopTrans, OMPTaskTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import (
     Dynamo0p3OMPLoopTrans, OMPParallelTrans,
-    OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans,
+    DynamoOMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -232,7 +232,7 @@ def test_omp_paralleldo_clauses_gen_code(monkeypatch):
                            api="lfric")
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     tree = psy.invokes.invoke_list[0].schedule
-    ptrans = OMPParallelLoopTrans()
+    ptrans = OMPLoopTrans(omp_directive="paralleldo")
     loops = tree.walk(Loop)
     ptrans.apply(loops[0])
 
@@ -295,7 +295,7 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
     end subroutine
     '''
     tree = fortran_reader.psyir_from_source(code)
-    ptrans = OMPParallelLoopTrans()
+    ptrans = OMPLoopTrans(omp_directive="paralleldo")
     loops = tree.walk(Loop)
     ptrans.apply(loops[0])
     assert isinstance(tree.children[0].children[0], OMPParallelDoDirective)
@@ -619,7 +619,7 @@ def test_ompdo_equality():
 def test_omp_do_children_err(fortran_reader):
     ''' Tests that we raise the expected error when an OpenMP parallel do
     directive has more than one child or the child is not a loop. '''
-    otrans = OMPParallelLoopTrans()
+    otrans = OMPLoopTrans(omp_directive="paralleldo")
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
             integer :: i, scalar1
@@ -737,7 +737,7 @@ def test_directiveinfer_sharing_attributes(fortran_reader):
                array(i) = scalar2
             enddo
         end subroutine''')
-    omplooptrans = OMPParallelLoopTrans()
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop)
     directive = psyir.walk(OMPParallelDoDirective)[0]
@@ -811,7 +811,7 @@ def test_directiveinfer_sharing_attributes(fortran_reader):
                 array(i) = scalar1
             enddo
         end subroutine''')
-    omplooptrans = OMPParallelLoopTrans()
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop, options={'force': True})
     directive = psyir.walk(OMPParallelDoDirective)[0]
@@ -833,7 +833,6 @@ def test_directiveinfer_sharing_attributes(fortran_reader):
                scalar2 = scalar2 + scalar1
             enddo
         end subroutine''')
-    omplooptrans = OMPParallelLoopTrans()
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop, options={"force": True})
     directive = psyir.walk(OMPParallelDoDirective)[0]
@@ -856,7 +855,6 @@ def test_directiveinfer_sharing_attributes(fortran_reader):
                scalar2 = tmp
             enddo
         end subroutine''')
-    omplooptrans = OMPParallelLoopTrans()
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop, options={"force": True})
     directive = psyir.walk(OMPParallelDoDirective)[0]
@@ -978,7 +976,7 @@ def testinfer_sharing_attributes_sequential_semantics(fortran_reader):
                result = i
             enddo
         end subroutine''')
-    omplooptrans = OMPParallelLoopTrans()
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop, options={"force": True})
     directive = psyir.walk(OMPParallelDoDirective)[0]
@@ -1006,7 +1004,7 @@ def test_directive_lastprivate(fortran_reader, fortran_writer):
             enddo
             scalar1 = scalar2
         end subroutine''')
-    omplooptrans = OMPParallelLoopTrans()
+    omplooptrans = OMPLoopTrans(omp_directive="paralleldo")
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop)
     code = fortran_writer(psyir)
