@@ -221,10 +221,12 @@ class LFRicConstants():
 
         # Valid LFRic iteration spaces for user-supplied kernels and
         # built-in kernels
-        LFRicConstants.USER_KERNEL_ITERATION_SPACES = ["cell_column", "domain"]
+        LFRicConstants.USER_KERNEL_ITERATION_SPACES = ["cell_column", "domain",
+                                                       "dof"]
         LFRicConstants.VALID_ITERATION_SPACES = \
-            LFRicConstants.USER_KERNEL_ITERATION_SPACES + \
-            LFRicConstants.BUILTIN_ITERATION_SPACES
+            list(OrderedDict.fromkeys(
+                LFRicConstants.USER_KERNEL_ITERATION_SPACES +
+                LFRicConstants.BUILTIN_ITERATION_SPACES))
 
         # ---------- Function spaces (FS) -------------------------------------
         # Discontinuous FS

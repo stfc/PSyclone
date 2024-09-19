@@ -2451,7 +2451,7 @@ class Fparser2Reader():
             # UnsupportedFortranType with an internal name as we do
             # for unnamed interfaces.
             symbol_table.new_symbol(
-                root_name=f"_psyclone_internal_{name}",
+                root_name=f"_PSYCLONE_INTERNAL_{name}",
                 symbol_type=RoutineSymbol,
                 datatype=UnsupportedFortranType(str(node).lower()),
                 visibility=vis)
