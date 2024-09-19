@@ -714,7 +714,9 @@ def code_transformation_mode(input_file, recipe_file, output_file,
                 code_str = myfile.read()
                 if fll.long_lines(code_str):
                     print(f"'{filename}' does not conform to the specified "
-                          f"{fll.length} line length limit", file=sys.stderr)
+                          f"{fll.length} line-length limit. Either fix the "
+                          f"file or change the '-l/--limit' argument on the "
+                          f"PSyclone command line.", file=sys.stderr)
                     sys.exit(1)
 
         # Parse file
