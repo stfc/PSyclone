@@ -2504,9 +2504,7 @@ with PSyclone's naming conventions, are:
 
    3) Include the unique number of degrees of freedom for the function space.
       This is an ``integer`` of kind ``i_def`` with intent ``in``. The name of
-      this argument is simply ``undf`` without a function space suffix (as for
-      general purpose kernels) since all fields will be on the same function
-      space.
+      this argument is ``"undf_"<field_function_space>``.
 
 .. _lfric-kernel-arg-intents:
 
