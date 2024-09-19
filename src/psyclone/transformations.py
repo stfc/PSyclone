@@ -67,8 +67,8 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DataSymbol, UnresolvedType, INTEGER_TYPE,
-    ScalarType, Symbol, SymbolError)
+    ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
+    SymbolError, UnresolvedType)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import (
@@ -284,21 +284,21 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         Creates the type of directive needed for this sub-class of
         transformation.
 
-        :param children: list of Nodes that will be the children of \
+        :param children: list of Nodes that will be the children of
                          the created directive.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param int collapse: currently un-used but required to keep \
+        :param int collapse: currently un-used but required to keep
                              interface the same as in base class.
         :returns: the new node representing the directive in the AST.
         :rtype: :py:class:`psyclone.psyir.nodes.OMPTaskloopDirective`
 
         :raises NotImplementedError: if a collapse argument is supplied
         '''
-        # TODO 1370: OpenMP loop functions don't support collapse
+        # TODO 2672: OpenMP loop functions don't support collapse
         if collapse:
             raise NotImplementedError(
                 "The COLLAPSE clause is not yet supported for "
-                "'!$omp taskloop' directives.")
+                "'!$omp taskloop' directives (#2672).")
         _directive = OMPTaskloopDirective(children=children,
                                           grainsize=self.omp_grainsize,
                                           num_tasks=self.omp_num_tasks,
@@ -817,12 +817,10 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
             incorrect code.
 
         '''
-        if not options:
-            options = {}
-
         # Since this function potentially modifies the user's option
         # dictionary, create a copy:
-        options = options.copy()
+        options = options.copy() if options else {}
+
         # Make sure the default is set:
         options["reprod"] = options.get("reprod",
                                         Config.get().reproducible_reductions)
@@ -845,20 +843,17 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
         :param node: the Node in the Schedule to check.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations \
+        :param options: a dictionary with options for transformations
                         and validation.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["reprod"]: \
-                indicating whether reproducible reductions should be used. \
+        :type options: Optional[dict[str, Any]]
+        :param bool options["reprod"]:
+                indicating whether reproducible reductions should be used.
                 By default the value from the config file will be used.
 
         '''
-        if not options:
-            options = {}
-
         # Since this function potentially modifies the user's option
         # dictionary, create a copy:
-        options = options.copy()
+        options = options.copy() if options else {}
         # Make sure the default is set:
         options["reprod"] = options.get("reprod",
                                         Config.get().reproducible_reductions)
@@ -1158,6 +1153,7 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
             children of the same parent (siblings).
 
         '''
+        node_list = self.get_node_list(node_list)
         if isinstance(node_list[0], InvokeSchedule):
             raise TransformationError(
                 f"A {self.name} transformation cannot be applied to an "
@@ -1553,6 +1549,7 @@ class ACCParallelTrans(ParallelRegionTrans):
             inserted directive should include the default_present clause.
 
         '''
+        node_list = self.get_node_list(node_list)
         super().validate(node_list, options)
         if options is not None and "default_present" in options:
             if not isinstance(options["default_present"], bool):
@@ -1560,6 +1557,13 @@ class ACCParallelTrans(ParallelRegionTrans):
                     f"The provided 'default_present' option must be a "
                     f"boolean, but found '{options['default_present']}'."
                 )
+        for node in node_list:
+            for call in node.walk(Call):
+                if not call.is_available_on_device():
+                    raise TransformationError(
+                        f"'{call.routine.name}' is not available on the "
+                        f"accelerator device, and therefore it cannot "
+                        f"be called from within an ACC parallel region.")
 
     def apply(self, target_nodes, options=None):
         '''

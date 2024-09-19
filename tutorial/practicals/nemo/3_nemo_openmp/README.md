@@ -48,32 +48,17 @@ re-generate it.)
 
 The supplied `Makefile` processes the mini-app with PSyclone using the
 supplied `omp_trans.py` transformation script. Before we do anything
-else, let's take a look at the script. There are three key differences
+else, let's take a look at the script. There are two key differences
 compared to the script we used to introduce profiling in the previous
 tutorial:
 
  * the script uses the `OMPParallelLoopTrans` transformation which
    decorates the target loop with an `OMP PARALLEL DO` directive.
 
- * it blindly applies a transformation to each loop over vertical levels
-   that is an immediate child of the Schedule. As we did when inserting
-   profiling, we can identify loops over `levels` by the fact that they use
-   the 'jk' loop variable as required in the NEMO Code Conventions. To do this
-   we can set the following loop_type inference rule:
-   ```python
-    Loop.set_loop_type_inference_rules({"levels": {"variable": "jk"}})
-   ```
-   With this, we can use the `loop_type` property and then enclose each of
-   them within a profiling region:
-   ```python
-   for loop in psyir.walk(Loop):
-       if loop.loop_type == "levels":
-           OMP_TRANS.apply(child)
-   ```
-
-Hopefully that looks similar to what you may have ended up with at the
-end of the profiling part of this tutorial although we are applying a
-different transformation here.
+ * it blindly applies the transformation to each loop over vertical levels
+   that is an *immediate child* of the Routine. (This is *NOT* a
+   recommended approach and you will improve upon this as part of the
+   tutorial.)
 
 Note that in this tutorial, we will only be applying OpenMP
 parallelisation to the loops over vertical levels. This is because, in
@@ -90,7 +75,7 @@ the number of MPI processes and resulting inter-process communication.)
    ```bash
    psyclone -s ./omp_trans.py -o output.f90 -l output tra_adv_mod.F90
    ```
-   This will produce an error message. Can you see what causes this?
+   This will produce an **error message**. Can you see what causes this?
 
 2. The problem is that not all of the loops in the mini-app are
    parallelisable. The last loop nest contains:
@@ -120,7 +105,19 @@ the number of MPI processes and resulting inter-process communication.)
    ```
    Since, by definition, a `CodeBlock` contains code that PSyclone does not
    understand, it will refuse to parallelise any region that contains
-   one.
+   one. If you perform a 'pass-through' with PSyclone (i.e. do not provide
+   an optimisation script) then you will see that the generated Fortran
+   will have comments added to it identifying any `CodeBlock` nodes and the
+   reason for them:
+
+   ```fortran
+   do jk = 1, jpk - 1, 1
+     do jj = 2, jpj - 1, 1
+       do ji = 2, jpi - 1, 1
+         ! PSyclone CodeBlock (unsupported code) reason:
+         !  - Unsupported statement: Write_Stmt
+         WRITE(4, *) mydomain(ji, jj, jk)
+   ```
 
 3. We therefore need to edit the transformation script and make it a bit
    smarter. The easiest thing to do is to continue with our rather
@@ -220,7 +217,7 @@ Clearly, the optimisation script needs to be improved so that it finds
 all of the loops over vertical levels, rather than just those that are
 immediate children of the root Schedule.
 
-1. Edit the optimisation script so that it uses `sched.walk()` to do this
+1. Edit the optimisation script so that it uses `routine.walk()` to do this
    (in the same way as was done for profiling in tutorial 2). Check that
    the generated PSyIR looks as you would expect. (You can use a second
    `walk`, after the transformation is complete, to count the number of

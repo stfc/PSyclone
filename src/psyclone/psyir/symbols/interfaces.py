@@ -133,8 +133,8 @@ class ImportInterface(SymbolInterface):
     @property
     def orig_name(self):
         '''
-        :returns: the symbol's original name if it is renamed on \
-            import, or None otherwise.
+        :returns: the symbol's original name if it is renamed on
+                  import, or None otherwise.
         :rtype: Optional[str]
 
         '''
@@ -263,6 +263,11 @@ class ArgumentInterface(SymbolInterface):
         :rtype: :py:class:`psyclone.psyir.symbol.SymbolInterface`
         '''
         return self.__class__(access=self.access)
+
+    def __eq__(self, other):
+        if type(other) is not type(self):
+            return False
+        return self.access == other.access
 
 
 class PreprocessorInterface(SymbolInterface):

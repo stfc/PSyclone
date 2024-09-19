@@ -92,6 +92,7 @@ stretching_method='linear',
  ancil_option = 'none'
  lbc_option = 'none'
  coarse_aerosol_ancil=.false.
+zero_w2v_wind=.false.,
 /
 
 &files
@@ -105,7 +106,7 @@ stretching_method='linear',
 /
 
 &io
-  use_xios_io               = .true.
+  use_xios_io               = .false.
   write_conservation_diag   = .true.
   diag_active_files         = 'lfric_diag'
   diag_always_on_sampling   = .false.
@@ -196,14 +197,6 @@ stretching_method='linear',
   jacobi_relaxation              = 0.5
 /
 
-&subgrid
-  dep_pt_stencil_extent = 3
-  inner_order = 2
-  outer_order = 2
-  vertical_order = 2
-  calculate_detj = 'upwind'
-/
-
 &timestepping
   method             = 'semi_implicit'
   dt                 = 3600.0
@@ -214,9 +207,7 @@ stretching_method='linear',
   outer_iterations   = 2
   inner_iterations   = 2
   runge_kutta_method = 'forward_euler'
-  spinup_period      = 1
   spinup_alpha       = .false.
-  spinup_winds       = .false.
 /
 
 &departure_points
@@ -231,8 +222,11 @@ stretching_method='linear',
 &transport
   adjust_theta=.false.
   adjust_theta_above=0.0
+  adjust_vhv_wind=.false.
   broken_w2_projection = .false.
+  calculate_detj = 'upwind'
   cap_density_predictor = 0.01
+  dep_pt_stencil_extent = 3
   profile_size = 3
   field_names = 'density', 'potential_temperature', 'wind'
   equation_form = 1, 2, 2
@@ -248,7 +242,11 @@ stretching_method='linear',
   max_vert_cfl_calc='dep_point'
   min_val_method='iterative'
   min_value=0.0,0.0,-99999999.0,0.0
-  consistent_ffsl_splitting=3*1
+  ffsl_inner_order = 2
+  ffsl_outer_order = 2
+  ffsl_splitting=3*1
+  ffsl_unity_3d=.false.
+  ffsl_vertical_order=3*2
   cfl_mol_1d_stab = 1.0
   cfl_mol_2d_stab = 1.0
   cfl_mol_3d_stab = 1.0
@@ -261,6 +259,7 @@ stretching_method='linear',
   operators = 'fv'
   vertical_sl_order='cubic'
   slice_order='cubic'
+  si_outer_transport='none'
   reversible = .true., .true., .false.
   runge_kutta_method = 'ssp5'
   min_val_abs_tol=-1.0e-12

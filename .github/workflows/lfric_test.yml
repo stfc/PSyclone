@@ -46,8 +46,8 @@ jobs:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     env:
-      LFRIC_APPS_REV: 1192
-      PYTHON_VERSION: 3.12.3
+      LFRIC_APPS_REV: 3269
+      PYTHON_VERSION: 3.12.5
 
     steps:
     - uses: actions/checkout@v3
@@ -79,21 +79,21 @@ jobs:
     - name: LFRic passthrough (with DistributedMemory)
       run: |
         # Set up environment
-        source /apps/spack/spack-upstream/share/spack/setup-env.sh
-        spack load lfric-buildenv%gcc
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment%gcc@14
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=${HOME}/LFRic/lfric_apps
+        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
         cd ${LFRIC_DIR}
         # Clean previous version and compile again
-        rm -rf appplications/gungho_model/working
-        ./build/local_build.py -a gungho_model
+        rm -rf applications/gungho_model/working
+        ./build/local_build.py -a gungho_model -v
         # Run
         cd applications/gungho_model/example
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its.nml configuration.nml
-        mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_output.txt output.txt
+        mpirun -n 6 ../bin/gungho_model configuration.nml |& tee output.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
@@ -105,7 +105,7 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic Passthrough with DM", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
-          compiler:"spack-gfortran-11", date: new Date(), elapsed_time: '"$VAR_TIME"',
+          compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"',
           num_of_halo_exchanges: '"$VAR_HALOS"'})'
 
     - name: Upload LFRic passthrough results
@@ -119,26 +119,26 @@ jobs:
     - name: LFRic with all transformations
       run: |
         # Set up environment
-        source /apps/spack/spack-upstream/share/spack/setup-env.sh
-        spack load lfric-buildenv%gcc
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        spack load lfric-build-environment%gcc@14
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        export LFRIC_DIR=${HOME}/LFRic/lfric_apps
+        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
         cd ${LFRIC_DIR}
         # Psyclone scripts must now be under 'optimisation' and be called 'global.py'
         mkdir -p applications/gungho_model/optimisation/psyclone-test
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
-        rm -rf appplications/gungho_model/working
-        ./build/local_build.py -a gungho_model -p psyclone-test
+        rm -rf applications/gungho_model/working
+        ./build/local_build.py -a gungho_model -p psyclone-test -v
         # Run
         cd applications/gungho_model/example
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its.nml configuration.nml
         export OMP_NUM_THREADS=6
         mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_output.txt output.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
@@ -150,7 +150,7 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic all transformations", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
-          system: "GlaDos", compiler:"spack-gfortran-11", date: new Date(), elapsed_time: '"$VAR_TIME"',
+          system: "GlaDos", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"',
           num_of_halo_exchanges: '"$VAR_HALOS"'})'
 
     - name: Upload LFRic optimised results

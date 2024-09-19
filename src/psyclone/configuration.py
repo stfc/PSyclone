@@ -173,8 +173,9 @@ class Config:
         and stub APIs, it does not load a config file. The Config instance
         is a singleton, and as such will test that no instance already exists
         and raise an exception otherwise.
-        :raises GenerationError: If a singleton instance of Config already \
-                exists.
+
+        :raises ConfigurationError: If a singleton instance of Config already
+                                    exists.
         '''
 
         if Config._instance is not None:

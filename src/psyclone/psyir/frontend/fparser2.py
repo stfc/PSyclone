@@ -1110,6 +1110,7 @@ class Fparser2Reader():
             Fortran2003.Where_Construct: self._where_construct_handler,
             Fortran2003.Where_Stmt: self._where_construct_handler,
             Fortran2003.Call_Stmt: self._call_handler,
+            Fortran2003.Function_Reference: self._call_handler,
             Fortran2003.Subroutine_Subprogram: self._subroutine_handler,
             Fortran2003.Module: self._module_handler,
             Fortran2003.Main_Program: self._main_program_handler,
@@ -2449,7 +2450,7 @@ class Fparser2Reader():
             # UnsupportedFortranType with an internal name as we do
             # for unnamed interfaces.
             symbol_table.new_symbol(
-                root_name=f"_psyclone_internal_{name}",
+                root_name=f"_PSYCLONE_INTERNAL_{name}",
                 symbol_type=RoutineSymbol,
                 datatype=UnsupportedFortranType(str(node).lower()),
                 visibility=vis)
@@ -2590,6 +2591,7 @@ class Fparser2Reader():
 
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Save_Stmt,
+                                   Fortran2003.Data_Stmt,
                                    Fortran2003.Derived_Type_Def,
                                    Fortran2003.Stmt_Function_Stmt,
                                    Fortran2003.Common_Stmt,
@@ -2625,6 +2627,7 @@ class Fparser2Reader():
                     root_name="_PSYCLONE_INTERNAL_NAMELIST",
                     symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(str(node)))
+
             else:
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
@@ -2639,6 +2642,11 @@ class Fparser2Reader():
         # We do this here, after the main declarations loop, because they
         # modify the interface of existing symbols and can appear in any order.
         self._process_common_blocks(nodes, parent)
+
+        # Check for data statements. While data statements are only partially
+        # supported (they are turned into UnsupportedFortranTypes), all
+        # symbols in data statements get a static interface.
+        self._process_data_statements(nodes, parent)
 
         if visibility_map is not None:
             # Check for symbols named in an access statement but not explicitly
@@ -2717,6 +2725,65 @@ class Fparser2Reader():
                 raise NotImplementedError(
                     f"Could not process '{stmtfn}'. Statement Function "
                     f"declarations are not supported.") from err
+
+    @staticmethod
+    def _process_data_statements(nodes, psyir_parent):
+        '''Limited support for data statements: they will be converted
+        to UnsupportedFortranTypes, and added to the symbol table
+        using an internal PSyclone name. The complexity of data
+        statements come from implicit loops, e.g.:
+        DATA (es(ies),ies = 0, 5) / 0.966483e-02,... /
+
+        :param nodes: fparser2 AST nodes containing declaration statements.
+        :type nodes: List[:py:class:`fparser.two.utils.Base`]
+        :param psyir_parent: the PSyIR Node with a symbol table in which to
+            add the data statements and update the interfaces of the symbols
+            used in the data statement.
+        :type psyir_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
+        '''
+
+        # Traverse the tree, and find all Data_Stmt_Object_Lists, which
+        # contain the variables defined in the data statement.
+        for data_stmt in walk(nodes, Fortran2003.Data_Stmt):
+            # Add the data statement as a special symbol to the symbol
+            # table, so the backend can recreate the data statement
+            psyir_parent.symbol_table.new_symbol(
+                root_name="_PSYCLONE_INTERNAL_DATA_STMT",
+                symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(str(data_stmt)))
+            # Each Data_Stmt_Object_List contains either a variable
+            # (which is a Name or PartRef), or a (potentially nested)
+            # implied do loop ... which at the end will have an array_element
+            # or a scalar_structure_component.
+            # Collect all the variable names in a set
+            all_vars = set()
+            # Now find all variable (directly, or in implied do loops):
+            for data_obj in walk(data_stmt, Fortran2003.Data_Stmt_Object_List):
+                for var_or_implied_do in data_obj.children:
+                    # Check for implied do loops first. In case
+                    if isinstance(var_or_implied_do,
+                                  Fortran2003.Data_Implied_Do):
+                        for part_ref in walk(var_or_implied_do,
+                                             Fortran2003.Part_Ref):
+                            all_vars.add(str(part_ref.children[0]))
+                    elif isinstance(var_or_implied_do, Fortran2003.Name):
+                        # No implied do loop, just a name:
+                        all_vars.add(str(var_or_implied_do))
+                    else:
+                        # Now must be Data_Ref. Get the var name:
+                        name = var_or_implied_do.children[0]
+                        all_vars.add(str(name))
+
+            # Variables in a data statement have an implied static attribute.
+            # Add this explicit:
+            for var_name in all_vars:
+                try:
+                    sym = psyir_parent.symbol_table.lookup(var_name)
+                except KeyError:
+                    sym = _find_or_create_unresolved_symbol(
+                        psyir_parent, var_name, symbol_type=DataSymbol,
+                        datatype=UnresolvedType())
+                sym.interface = StaticInterface()
 
     @staticmethod
     def _process_common_blocks(nodes, psyir_parent):
@@ -5129,6 +5196,13 @@ class Fparser2Reader():
 
         '''
         call = Call(parent=parent)
+        # TODO fparser/#447 For now `null()` is treated as a
+        # `Function_Reference` by fparser, instead of an
+        # `Intrinsic_Function_Reference` so we redirect to the correct
+        # handler for fparser2 tests to pass. This should be removed once
+        # fparser2 is fixed.
+        if str(node.items[0]).lower() == "null" and node.items[1] is None:
+            return self._intrinsic_handler(node, parent)
         self.process_nodes(parent=call, nodes=[node.items[0]])
         routine = call.children[0]
         # If it's a plain reference, promote the symbol to a RoutineSymbol
