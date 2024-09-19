@@ -97,7 +97,7 @@ class LFRicKernMetadata(KernelType):
 
         # Whether or not this is a user-defined kernel operating on dofs. This
         # is set to True if the `_validate_operates_on_dof` method succeeds.
-        self._is_user_dofkern = False
+        self._is_dofkern = False
 
         # Parse the 'arg_type' metadata
         self._arg_descriptors = []
@@ -777,14 +777,14 @@ class LFRicKernMetadata(KernelType):
         return self._is_intergrid
 
     @property
-    def is_user_dofkern(self):
+    def is_dofkern(self):
         '''
         Returns whether or not this is a user-defined kernel operating on dofs.
 
         :return: True if kernel is a user-defined dof kernel, False otherwise
         :rtype: bool
         '''
-        return self._is_user_dofkern
+        return self._is_dofkern
 
 
 # ---------- Documentation utils -------------------------------------------- #

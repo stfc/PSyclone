@@ -111,7 +111,7 @@ class LFRicKern(CodedKern):
         # The mesh properties required by this kernel
         self._mesh_properties = None
         # An identifier for a user-defined dof kernel
-        self._is_dofkern = None
+        self._is_dofkern = False
         # Initialise kinds (precisions) of all kernel arguments (start
         # with 'real' and 'integer' kinds)
         api_config = Config.get().api_conf("lfric")
@@ -292,7 +292,7 @@ class LFRicKern(CodedKern):
             self._intergrid_ref = intergrid
 
         # Set the identifier for a dof kernels
-        self._is_dofkern = ktype.is_user_dofkern
+        self._is_dofkern = ktype.is_dofkern
 
         const = LFRicConstants()
         # Check that all specified evaluator shapes are recognised
