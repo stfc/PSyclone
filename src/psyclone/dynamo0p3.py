@@ -3577,7 +3577,7 @@ class DynBasisFunctions(LFRicCollection):
                     const.QUADRATURE_TYPE_MAP[shape]["type"])
                 dtp_symbol = self._symbol_table.lookup(
                     const.QUADRATURE_TYPE_MAP[shape]["proxy_type"])
-                arglist = self._symbol_table.argument_list[:]
+                # arglist = self._symbol_table.argument_list[:]
                 for name in  self._qr_vars[shape]:
                     new_arg = self._symbol_table.find_or_create(
                         name, symbol_type=DataSymbol, datatype=dt_symbol,
@@ -3585,8 +3585,8 @@ class DynBasisFunctions(LFRicCollection):
                     new_arg.interface = ArgumentInterface(
                         ArgumentInterface.Access.READ)
 
-                    arglist.append(new_arg)
-                self._symbol_table.specify_argument_list(arglist)
+                    # arglist.append(new_arg)
+                # self._symbol_table.specify_argument_list(arglist)
 
                 # parent.add(
                 #     TypeDeclGen(parent,
@@ -3788,8 +3788,11 @@ class DynBasisFunctions(LFRicCollection):
                 ))
             alloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.ALLOCATE,
-                [ArrayReference.create(symbol,
-                    [Reference(symtab.find_or_create(bn, symbol_type=DataSymbol, datatype=UnresolvedType())) for bn in basis_arrays[basis]])]
+                [ArrayReference.create(
+                    symbol,
+                    [Reference(symtab.find_or_create(bn, symbol_type=DataSymbol,
+                                                     datatype=UnresolvedType()))
+                     for bn in basis_arrays[basis]])]
             )
             self._invoke.schedule.addchild(alloc, cursor)
             cursor += 1

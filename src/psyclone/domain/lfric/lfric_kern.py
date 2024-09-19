@@ -316,6 +316,24 @@ class LFRicKern(CodedKern):
         else:
             symtab = SymbolTable()  # FIXME
         for idx, shape in enumerate(qr_shapes, -len(qr_shapes)):
+            # LFRic api kernels require quadrature rule arguments to be
+            # passed in if one or more basis functions are used by the kernel
+            # and gh_shape == "gh_quadrature_***".
+            # if self._eval_shape == "gh_quadrature_xyz":
+            #     self._qr_args = ["np_xyz", "weights_xyz"]
+            if shape == "gh_quadrature_xyoz":
+                qr_args = ["np_xy", "np_z", "weights_xy", "weights_z"]
+            # elif self._eval_shape == "gh_quadrature_xoyoz":
+            #     qr_args = ["np_x", "np_y", "np_z",
+            #                "weights_x", "weights_y", "weights_z"]
+            elif shape == "gh_quadrature_face":
+                qr_args = ["nfaces", "np_xyz", "weights_xyz"]
+            elif shape == "gh_quadrature_edge":
+                qr_args = ["nedges", "np_xyz", "weights_xyz"]
+            else:
+                raise InternalError(f"Unsupported quadrature shape "
+                                    f"('{shape}') found in LFRicKern._setup")
+
             qr_arg = args[idx]
             quad_map = const.QUADRATURE_TYPE_MAP[shape]
 
@@ -341,24 +359,6 @@ class LFRicKern(CodedKern):
                 # TODO #719 we don't yet have a symbol table to prevent
                 # clashes.
                 qr_name = "qr_"+shape.split("_")[-1]
-
-            # LFRic api kernels require quadrature rule arguments to be
-            # passed in if one or more basis functions are used by the kernel
-            # and gh_shape == "gh_quadrature_***".
-            # if self._eval_shape == "gh_quadrature_xyz":
-            #     self._qr_args = ["np_xyz", "weights_xyz"]
-            if shape == "gh_quadrature_xyoz":
-                qr_args = ["np_xy", "np_z", "weights_xy", "weights_z"]
-            # elif self._eval_shape == "gh_quadrature_xoyoz":
-            #     qr_args = ["np_x", "np_y", "np_z",
-            #                "weights_x", "weights_y", "weights_z"]
-            elif shape == "gh_quadrature_face":
-                qr_args = ["nfaces", "np_xyz", "weights_xyz"]
-            elif shape == "gh_quadrature_edge":
-                qr_args = ["nedges", "np_xyz", "weights_xyz"]
-            else:
-                raise InternalError(f"Unsupported quadrature shape "
-                                    f"('{shape}') found in LFRicKern._setup")
 
             # Append the name of the qr argument to the names of the qr-related
             # variables.
