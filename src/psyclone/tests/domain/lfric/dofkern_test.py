@@ -181,6 +181,36 @@ def test_is_dofkern():
     assert kern.is_dofkern
 
 
+def test_multiple_write_args():
+    '''
+    Check that a user-defined dof kernel raises no errors when more than one
+    metadata arg of type 'gh_field' have an access type of 'gh_write'.
+
+    '''
+    # Substitute field for field vector
+    code = CODE.replace(
+        """
+                type(arg_type), dimension(2) :: meta_args =        &
+                    (/ arg_type(gh_field, gh_real, gh_write, w1),  &
+                        arg_type(gh_field, gh_real, gh_read, w2)   &
+        """,
+        """
+                type(arg_type), dimension(3) :: meta_args =        &
+                    (/ arg_type(gh_field, gh_real, gh_write, w1),  &
+                        arg_type(gh_field, gh_real, gh_write, w1), &
+                        arg_type(gh_field, gh_real, gh_read, w1)   &
+        """,
+        1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_dofs_type"
+    # Load the metadata into an empty kernel
+    md = LFRicKernMetadata(ast, name=name)
+    kern = LFRicKern()
+    kern.load_meta(ktype=md)
+    # Assert that the identifier is set
+    assert kern.is_dofkern
+
+
 def test_upper_bound_undf():
     '''
     Checks that the correct upper bound is generated for a dof-kernel when

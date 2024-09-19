@@ -796,9 +796,6 @@ support for i-first kernels
 point the looping (and associated parallelisation) will be put
 back into the PSy layer.
 
-.. note:: Support for DoF kernels have not yet been implemented in PSyclone
-          (see PSyclone issue #1351 for progress).
-
 .. _lfric-user-kernel-rules:
 
 Rules for all User-Supplied Kernels that Operate on Cell-Columns
@@ -981,9 +978,6 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
 Rules for all User-Supplied Kernels that Operate on DoFs (DoF Kernels)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-.. note:: Support for DoF kernels have not yet been implemented in PSyclone
-          (see PSyclone issue #1351 for progress).
-
 Kernels that have ``operates_on = DOF`` and
 :ref:`LFRic Built-ins<lfric-built-ins>` overlap significantly in their
 scope, and the conventions that DoF Kernels must follow are influenced
@@ -1015,8 +1009,9 @@ The list of rules for DoF Kernels is as follows:
    to do this.) Any scalar arguments must therefore be declared in the metadata
    as `GH_READ` - see :ref:`below<lfric-kernel-valid-access>`
 
-6) Kernels must be written to operate on a single DoF, such that single DoFs
-   can be provided to the Kernel within a loop over the DoFs of a field.
+6) Kernels must be written to operate on a single DoF, such that field values
+   at the same dof location/index can be provided to the Kernel within a loop
+   over the DoFs of given fields.
 
 .. _lfric-api-kernel-metadata:
 
@@ -2474,9 +2469,6 @@ as the second argument to the kernel (after ``nlayers``).
 
 Rules for DoF Kernels
 #####################
-
-.. note:: Support for DoF kernels have not yet been implemented in PSyclone
-          (see PSyclone issue #1351 for progress).
 
 The rules for kernels that have ``operates_on = DOF`` are similar to those for
 general-purpose kernels but, due to the restriction that only fields and
