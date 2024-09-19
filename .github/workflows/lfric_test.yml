@@ -95,6 +95,9 @@ jobs:
         # Update the compiler definitions to build for GPU
         cp ../nvfortran.mk lfric/infrastructure/build/fortran/.
         cp ../nvc++.mk lfric/infrastructure/build/cxx/.
+        # Update the PSyclone commands to ensure transformed kernels are written
+        # to working directory.
+        cp ../psyclone.mk lfric/infrastructure/build/psyclone/.
         # Update dependencies.sh to point to our patched lfric core.
         sed -i -e 's/export lfric_core_sources=.*$/export lfric_core_sources\=\/home\/gh_runner\/LFRic\/gpu_build\/lfric/' lfric_apps/dependencies.sh
         export LFRIC_DIR=${HOME}/LFRic/gpu_build/lfric_apps
