@@ -207,7 +207,7 @@ def test_multiple_write_args():
     # Load the metadata into an empty kernel
     md = LFRicKernMetadata(ast, name=name)
     # Proxy assertion that validating dof kern passes
-    assert md.is_user_dofkern
+    assert md.is_dofkern
 
 
 def test_upper_bound_undf():

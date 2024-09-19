@@ -640,7 +640,7 @@ class LFRicKernMetadata(KernelType):
                 f"fields on different function spaces: {sorted(arg_fs_names)}."
                 f" This is not permitted in the LFRic API.")
 
-        self._is_user_dofkern = True
+        self._is_dofkern = True
 
     def _validate_only_scalars_and_fields(self):
         '''
