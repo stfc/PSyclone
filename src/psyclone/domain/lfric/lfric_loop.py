@@ -225,7 +225,7 @@ class LFRicLoop(PSyLoop):
         # Loop bounds
         self.set_lower_bound("start")
         const = LFRicConstants()
-        if isinstance(kern, LFRicBuiltIn):
+        if isinstance(kern, LFRicBuiltIn) or kern.is_dofkern:
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
             if Config.get().api_conf("lfric").compute_annexed_dofs \
@@ -234,10 +234,6 @@ class LFRicLoop(PSyLoop):
                 self.set_upper_bound("nannexed")
             else:
                 self.set_upper_bound("ndofs")
-        elif kern.is_dofkern:
-            # If the kernel is user-defined and operats on dofs, always
-            # set upper bound to 'ndofs'
-            self.set_upper_bound("ndofs")
         else:
             if Config.get().distributed_memory:
                 if self._field.is_operator:
@@ -477,22 +473,22 @@ class LFRicLoop(PSyLoop):
             sym = sym_tab.find_or_create_tag(root_name)
             return f"{sym.name}(colour, {depth})"
         if self._upper_bound_name in ["ndofs", "nannexed"]:
-            if isinstance(self._kern, LFRicBuiltIn):
-                if Config.get().distributed_memory:
-                    if self._upper_bound_name == "ndofs":
-                        result = (
-                            f"{self.field.proxy_name_indexed}%"
-                            f"{self.field.ref_name()}%get_last_dof_owned()")
-                    else:  # nannexed
-                        result = (
-                            f"{self.field.proxy_name_indexed}%"
-                            f"{self.field.ref_name()}%get_last_dof_annexed()")
-                else:
-                    result = self._kern.undf_name
+            if Config.get().distributed_memory:
+                if self._upper_bound_name == "ndofs":
+                    result = (
+                        f"{self.field.proxy_name_indexed}%"
+                        f"{self.field.ref_name()}%get_last_dof_owned()")
+                else:  # nannexed
+                    result = (
+                        f"{self.field.proxy_name_indexed}%"
+                        f"{self.field.ref_name()}%get_last_dof_annexed()")
             else:
-                # User-defined dof kernel has undf_name in a different location
-                # so use that here instead of calling `get_undf` again
-                result = self._field_space.undf_name
+                if isinstance(self._kern, LFRicBuiltIn):
+                    result = self._kern.undf_name
+                else:
+                    # User-defined dof kernel has undf_name in a different
+                    # location
+                    result = self._field_space.undf_name
             return result
         if self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:

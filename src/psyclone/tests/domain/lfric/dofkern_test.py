@@ -37,13 +37,15 @@
 This module tests the metadata validation in LFRicKernMetadata of
 user-supplied kernels operating on degrees of freedom (dofs)
 '''
-
+import os
 import pytest
 
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicKernMetadata
+from psyclone.domain.lfric import LFRicKernMetadata, LFRicKern, LFRicLoop
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
 from psyclone.parse.utils import ParseError
 
 
@@ -54,6 +56,9 @@ def setup():
     yield
     Config._instance = None
 
+BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__)))), "test_files", "dynamo0p3")
+TEST_API = "lfric"
 
 CODE = '''
         module testkern_dofs_mod
@@ -142,3 +147,37 @@ def test_dof_kernel_invalid_field_vector():
     assert ("Kernel 'testkern_dofs_type' operates on 'dof' but has a vector "
             "argument 'gh_field*3'. This is not permitted in the LFRic API."
             in str(excinfo.value))
+
+
+def test_dof_kernel():
+    ''' Check that we raise an exception if we encounter metadata
+    for a dof kernel with a field vector.
+
+    '''
+    # Substitute field for field vector
+    code = CODE.replace(
+        """
+                    (/ arg_type(gh_field, gh_real, gh_write, w1),  &
+                        arg_type(gh_field, gh_real, gh_read, w2)   &
+        """,
+        """
+                    (/ arg_type(gh_field, gh_real, gh_write, w1),  &
+                        arg_type(gh_field, gh_real, gh_read, w1)   &
+        """,
+        1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_dofs_type"
+    md = LFRicKernMetadata(ast, name=name)
+    kern = LFRicKern()
+    kern.load_meta(ktype=md)
+
+
+def test_gen():
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.14_single_invoke_dofs.f90"),
+                           api=TEST_API)
+    print(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    print(sched.view())
+    print(psy.gen)
