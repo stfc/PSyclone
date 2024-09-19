@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import (
     Schedule,
     Node,
 )
-from psyclone.psyir.symbols import Symbol, AutomaticInterface
+from psyclone.psyir.symbols import AutomaticInterface
 
 
 class DefinitionUseChain:
@@ -168,7 +168,6 @@ class DefinitionUseChain:
         node = self._reference
         while node.depth > routine.depth + 1:
             node = node.parent
-        ancestor_node_position = node.position
 
         # Setup the start and stop positions
         save_start_position = self._start_point
@@ -187,12 +186,13 @@ class DefinitionUseChain:
                 self._scope
             )
             chains = []
-            # If this is the top level access, we need to check if the reference has an
-            # ancestor loop. If it does, we find the highest ancestor Loop in the tree
-            # and add an DefinitionUseChain block at the start to search for things before
-            # the Reference that can also be looped back to.
-            # We should probably have this be any top level time this is called but thats hard to
-            # otherwise track.
+            # If this is the top level access, we need to check if the
+            # reference has an ancestor loop. If it does, we find the
+            # highest ancestor Loop in the tree and add a
+            # DefinitionUseChain block at the start to search for things
+            # before the Reference that can also be looped back to.
+            # We should probably have this be any top level time this is
+            # called but thats hard to otherwise track.
             if (
                 isinstance(self._scope[0], Routine)
                 or self._scope[0] is self._reference.root
@@ -207,16 +207,14 @@ class DefinitionUseChain:
                     # Create a basic block for the ancestor Loop.
                     body = ancestor.loop_body.children[:]
                     control_flow_nodes.insert(0, ancestor)
-                    # Find the stop point - this needs to be the node after the ancestor statement.
+                    # Find the stop point - this needs to be the node after
+                    # the ancestor statement.
                     sub_stop_point = (
                         self._reference.ancestor(Statement)
                         .walk(Node)[-1]
                         .abs_position
                         + 1
                     )
-                    # assignment = self._reference.ancestor(Assignment)
-                    # if assignment:
-                    #    sub_stop_point = assignment.rhs.children[-1].abs_position+1
                     chain = DefinitionUseChain(
                         self._reference.copy(),
                         body,
@@ -233,12 +231,12 @@ class DefinitionUseChain:
                     if ancestor.lhs is self._reference:
                         # Find the last node in the assignment
                         last_node = ancestor.walk(Node)[-1]
-                        # Modify the start_point to only include the node after this
-                        # assignment.
+                        # Modify the start_point to only include the node after
+                        # this assignment.
                         self._start_point = last_node.abs_position
                     else:
-                        # Add the lhs as a potential basic block with different start
-                        # and stop positions.
+                        # Add the lhs as a potential basic block with
+                        # different start and stop positions.
                         chain = DefinitionUseChain(
                             self._reference,
                             [ancestor.lhs],
@@ -248,9 +246,11 @@ class DefinitionUseChain:
                         )
                         control_flow_nodes.append(None)
                         chains.append(chain)
-                        # TODO For now I'm assuming the for an expression b = a * a, that next_access to the
-                        # first Reference to a should not return the second Reference to a.
-            # Now add all the other standardly handled basic_blocks to the list of chains.
+                        # TODO For now I'm assuming the for an expression
+                        # b = a * a, that next_access to the first Reference
+                        # to a should not return the second Reference to a.
+            # Now add all the other standardly handled basic_blocks to the
+            # list of chains.
             for block in basic_blocks:
                 chain = DefinitionUseChain(
                     self._reference,
@@ -262,7 +262,6 @@ class DefinitionUseChain:
                 chains.append(chain)
 
             for i, chain in enumerate(chains):
-                #                chain = DefinitionUseChain(self._reference, block, self._is_local)
                 # Compute the defsout, killed and reaches for the block.
                 chain._find_forward_accesses()
                 cfn = control_flow_nodes[i]
@@ -271,9 +270,9 @@ class DefinitionUseChain:
                     # We're outside a control flow region, updating the reaches
                     # here is to find all the reached nodes.
                     for ref in chain._reaches:
-                        # Add unique references to reaches. Can't just check with
-                        # in as unique references can be equal if they're basic
-                        # references to the same symbol.
+                        # Add unique references to reaches. Can't just check
+                        # with "in" as unique references can be equal if
+                        # they're basic references to the same symbol.
                         found = False
                         for ref2 in self._reaches:
                             if ref2 is ref:
@@ -283,19 +282,21 @@ class DefinitionUseChain:
                     # If we have a defsout in the chain then we can stop as we
                     # will never get past the write as its not conditional.
                     if len(chain.defsout) > 0:
-                        # Reset the start and stop points before returning the result.
+                        # Reset the start and stop points before returning
+                        # the result.
                         self._start_point = save_start_position
                         self._stop_point = save_stop_position
                         return self._reaches
                 else:
                     # We assume that the control flow here is "optional", i.e.
                     # that this doesn't kill the chain.
-                    # In theory we could analyse loop structures or if block structures
-                    # to see if we're guaranteed to write to the symbol.
+                    # In theory we could analyse loop structures or if block
+                    # structures to see if we're guaranteed to write to the
+                    # symbol.
                     for ref in chain._reaches:
-                        # Add unique references to reaches. Can't just check with
-                        # in as unique references can be equal if they're basic
-                        # references to the same symbol.
+                        # Add unique references to reaches. Can't just check
+                        # with "in" as unique references can be equal if
+                        # they're basic references to the same symbol.
                         found = False
                         for ref2 in self._reaches:
                             if ref2 is ref:
@@ -316,15 +317,16 @@ class DefinitionUseChain:
                 if ancestor.lhs is self._reference:
                     # Find the last node in the assignment
                     last_node = ancestor.walk(Node)[-1]
-                    # Modify the start_point to only include the node after this
-                    # assignment.
+                    # Modify the start_point to only include the node after
+                    # this assignment.
                     self._start_point = last_node.abs_position
                 elif ancestor.lhs is self._scope[0] and len(self._scope) == 1:
-                    # If the ancestor LHS is the scope of this chain then we do nothing.
+                    # If the ancestor LHS is the scope of this chain then we
+                    # do nothing.
                     pass
                 else:
-                    # Add the lhs as a potential basic block with different start
-                    # and stop positions.
+                    # Add the lhs as a potential basic block with different
+                    # start and stop positions.
                     chain = DefinitionUseChain(
                         self._reference,
                         [ancestor.lhs],
@@ -335,9 +337,9 @@ class DefinitionUseChain:
                     # Find any forward_accesses in the lhs.
                     chain._find_forward_accesses()
                     for ref in chain._reaches:
-                        # Add unique references to reaches. Can't just check with
-                        # in as unique references can be equal if they're basic
-                        # references to the same symbol.
+                        # Add unique references to reaches. Can't just check
+                        # with "in" as unique references can be equal if
+                        # they're basic references to the same symbol.
                         found = False
                         for ref2 in self._reaches:
                             if ref2 is ref:
@@ -347,7 +349,8 @@ class DefinitionUseChain:
                     # If we have a defsout in the chain then we can stop as we
                     # will never get past the write as its not conditional.
                     if len(chain.defsout) > 0:
-                        # Reset the start and stop points before returning the result.
+                        # Reset the start and stop points before returning
+                        # the result.
                         self._start_point = save_start_position
                         self._stop_point = save_stop_position
                         return self._reaches
@@ -406,8 +409,7 @@ class DefinitionUseChain:
                                  block to find the forward uses in.
         :type basic_block_list: list[:py:class:`psyclone.psyir.nodes.Node`]
         """
-        # TODO - This should maybe be Signature not symbol
-        symbol = self._reference.symbol
+        sig, _ = self._reference.get_signature_and_indices()
         # For a basic block we will only ever have one defsout
         defs_out = None
         for region in basic_block_list:
@@ -417,50 +419,57 @@ class DefinitionUseChain:
                 if abs_pos <= self._start_point or abs_pos >= self._stop_point:
                     continue
                 if isinstance(reference, Call):
-                    # If its a local variable we can ignore it as we'll catch the Reference later if its passed into the Call.
+                    # If its a local variable we can ignore it as we'll catch
+                    # the Reference later if its passed into the Call.
                     if self._is_local:
                         continue
                     if isinstance(reference, IntrinsicCall):
-                        # IntrinsicCall can only do stuff to arguments, these will be caught by Reference walk already.
+                        # IntrinsicCall can only do stuff to arguments, these
+                        # will be caught by Reference walk already.
                         continue
-                    # For now just assume calls are bad if we have a non-local variable and we count them
-                    # as killed and defsout and uses.
+                    # For now just assume calls are bad if we have a non-local
+                    # variable and we count them as killed and defsout
+                    # and uses.
                     if defs_out is None:
                         self._uses.append(reference)
                     if defs_out is not None:
                         self._killed.append(defs_out)
                     defs_out = reference
                     continue
-                if reference.symbol is symbol:
+                if reference.get_signature_and_indices()[0] == sig:
                     # Work out if its read only or not.
                     assign = reference.ancestor(Assignment)
                     if assign is not None:
                         if assign.lhs is reference:
-                            # This is a write to the reference, so kill the previous
-                            # defs_out and set this to be the defs_out.
+                            # This is a write to the reference, so kill the
+                            # previous defs_out and set this to be the
+                            # defs_out.
                             if defs_out is not None:
                                 self._killed.append(defs_out)
                             defs_out = reference
                         elif (
                             assign.lhs is defs_out
                             and len(self._killed) == 0
-                            and assign.lhs.symbol == reference.symbol
+                            and assign.lhs.get_signature_and_indices()[0]
+                            == sig
                             and assign.lhs is not self._reference
                         ):
-                            # reference is on the rhs of an assignment such as a = a + 1.
-                            # Since the PSyIR tree walk accesses the lhs of an assignment
-                            # before the rhs of an assignment we need to not ignore these
-                            # accesses.
+                            # reference is on the rhs of an assignment such as
+                            # a = a + 1. Since the PSyIR tree walk accesses
+                            # the lhs of an assignment before the rhs of an
+                            # assignment we need to not ignore these accesses.
                             self._uses.append(reference)
                         else:
-                            # Read only, so if we've not yet set written to this
-                            # variable this is a use. NB. We need to check the
-                            # if the write is the LHS of the parent assignment
-                            # and if so check if we killed any previous assignments.
+                            # Read only, so if we've not yet set written to
+                            # this variable this is a use. NB. We need to
+                            # check the if the write is the LHS of the parent
+                            # assignment and if so check if we killed any
+                            # previous assignments.
                             if defs_out is None:
                                 self._uses.append(reference)
                     elif reference.ancestor(Call):
-                        # It has a Call ancestor so assume read/write access for now.
+                        # It has a Call ancestor so assume read/write access
+                        # for now.
                         # We can do better for IntrinsicCalls realistically.
                         if defs_out is not None:
                             self._killed.append(defs_out)
@@ -496,18 +505,15 @@ class DefinitionUseChain:
         # Keep track of the control flow node that corresponds to a basic block
         # if one exists.
         control_flow_nodes = []
-        root_node = (
-            isinstance(nodelist[0], Routine)
-            or nodelist[0] == self._reference.root
-        )
         # If we have the top level routine then the nodelist needs to be the
         # Routine's children.
         if len(nodelist) == 1 and isinstance(nodelist[0], Routine):
             nodelist = nodelist[0].children[:]
         # We want to expand Schedules if they're in the nodelist.
-        # TODO I don't like this, can we instead expand this when placing it in?
-        # At the moment if we do this it breaks the is_basic_block check as we
-        # end up with a list inside a list
+        # TODO I don't like this, can we instead expand this when placing it
+        # in? At the moment if we do this it breaks the is_basic_block check
+        # as we end up with a list inside a list.
+        # Maybe this is ok now?
         new_nodelist = []
         for node in nodelist:
             if isinstance(node, Schedule):
