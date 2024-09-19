@@ -730,8 +730,10 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         for routine in psyir.walk(Routine):
             Profiler.add_profile_nodes(routine, Loop)
 
-        # Generate Fortran
-        output = FortranWriter()(psyir)
+        # Generate Fortran (We can disable the backend copy because at this
+        # point we also drop the PSyIR and we don't need to guarantee that
+        # is left unmodified)
+        output = FortranWriter(disable_copy=True)(psyir)
         # Fix line_length if requested
         if line_length in ("output", "all"):
             output = fll.process(output)
