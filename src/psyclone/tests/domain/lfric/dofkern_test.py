@@ -31,10 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors O. Brunt, Met Office
+# Author O. Brunt, Met Office
 
 '''
-This module tests the metadata validation in LFRicKernMetadata of
+This module tests metadata validation and code generation of
 user-supplied kernels operating on degrees of freedom (dofs)
 '''
 import os
@@ -160,7 +160,7 @@ def test_is_dofkern():
     'dof' for a valid kernel.
 
     '''
-    # Substitute field for field vector
+    # Substitute default args for valid args
     code = CODE.replace(
         """
                     (/ arg_type(gh_field, gh_real, gh_write, w1),  &
@@ -183,11 +183,12 @@ def test_is_dofkern():
 
 def test_multiple_write_args():
     '''
-    Check that a user-defined dof kernel raises no errors when more than one
-    metadata arg of type 'gh_field' have an access type of 'gh_write'.
+    Check that LFRicKernMetadata raises no errors when user-defined dof kernel
+    defines more than one metadata arg of type 'gh_field' with an access type
+    of 'gh_write'.
 
     '''
-    # Substitute field for field vector
+    # Substitute field for multiple writes
     code = CODE.replace(
         """
                 type(arg_type), dimension(2) :: meta_args =        &
@@ -205,10 +206,8 @@ def test_multiple_write_args():
     name = "testkern_dofs_type"
     # Load the metadata into an empty kernel
     md = LFRicKernMetadata(ast, name=name)
-    kern = LFRicKern()
-    kern.load_meta(ktype=md)
-    # Assert that the identifier is set
-    assert kern.is_dofkern
+    # Proxy assertion that validating dof kern passes
+    assert md.is_user_dofkern
 
 
 def test_upper_bound_undf():
@@ -264,7 +263,7 @@ def test_indexed_field_args():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    expected = ("      CALL testkern_dofs_code(f1_data(df), f2_data(df), "
-                "f3_data(df), f4_data(df)")
+    expected = ("CALL testkern_dofs_code("
+                "f1_data(df), f2_data(df), f3_data(df), f4_data(df)")
 
     assert expected in code

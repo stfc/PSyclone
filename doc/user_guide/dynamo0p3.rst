@@ -1892,8 +1892,7 @@ and their interpretation are summarised in the following table:
 operates_on  Data passed for each field/operator argument
 ===========  =========================================================
 cell_column  Single column of cells
-dof          Single DoF (currently :ref:`built-ins` only, but see PSyclone
-             issue #1351)
+dof          Single DoF (also used for :ref:`built-ins`)
 domain       All columns of cells
 ===========  =========================================================
 
