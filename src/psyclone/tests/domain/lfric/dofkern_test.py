@@ -56,6 +56,7 @@ def setup():
     yield
     Config._instance = None
 
+
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
                 os.path.abspath(__file__)))), "test_files", "dynamo0p3")
 TEST_API = "lfric"
@@ -82,7 +83,8 @@ CODE = '''
 
 
 def test_dof_kernel_mixed_function_spaces():
-    ''' Check that we raise an exception if we encounter a dof kernel
+    '''
+    Check that we raise an exception if we encounter a dof kernel
     call with arguments of different function spaces.
 
     '''
@@ -98,7 +100,8 @@ def test_dof_kernel_mixed_function_spaces():
 
 
 def test_dof_kernel_invalid_arg():
-    ''' Check that we raise an exception if we find metadata for a dof kernel
+    '''
+    Check that we raise an exception if we find metadata for a dof kernel
     which specifies arguments that are not fields or scalars.
 
     '''
@@ -125,7 +128,8 @@ def test_dof_kernel_invalid_arg():
 
 
 def test_dof_kernel_invalid_field_vector():
-    ''' Check that we raise an exception if we encounter metadata
+    '''
+    Check that we raise an exception if we encounter metadata
     for a dof kernel with a field vector.
 
     '''
@@ -149,9 +153,11 @@ def test_dof_kernel_invalid_field_vector():
             in str(excinfo.value))
 
 
-def test_dof_kernel():
-    ''' Check that we raise an exception if we encounter metadata
-    for a dof kernel with a field vector.
+def test_is_dofkern():
+    '''
+    Check that the attribute identifying an LFRicKern instance as a user-
+    defined dof kernel is set when 'operates_on' metadata arg is set to
+    'dof' for a valid kernel.
 
     '''
     # Substitute field for field vector
@@ -167,17 +173,68 @@ def test_dof_kernel():
         1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_dofs_type"
+    # Load the metadata into an empty kernel
     md = LFRicKernMetadata(ast, name=name)
     kern = LFRicKern()
     kern.load_meta(ktype=md)
+    # Assert that the identifier is set
+    assert kern.is_dofkern
 
 
-def test_gen():
+def test_upper_bound_undf():
+    '''
+    Checks that the correct upper bound is generated for a dof-kernel when
+    distributed memory is set to 'False'. This should be set to the unique
+    number of dofs for the single function space in the subroutine, denoted
+    by the 'undf' variable.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.14_single_invoke_dofs.f90"),
                            api=TEST_API)
-    print(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    code = str(psy.gen)
+
+    expected = ("      loop0_start = 1\n"
+                "      loop0_stop = undf_w1")
+
+    assert expected in code
+
+
+def test_upper_bound_dofowned():
+    '''
+    Checks that the correct upper bound is generated for a dof-kernel when
+    distributed memory is set to 'True'. This should be set to the last dof
+    owned by the vector space and be accessed by the 'get_last_dof_owned'
+    subroutine.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.14_single_invoke_dofs.f90"),
+                           api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    sched = psy.invokes.invoke_list[0].schedule
-    print(sched.view())
-    print(psy.gen)
+    code = str(psy.gen)
+
+    expected = ("      loop0_start = 1\n"
+                "      loop0_stop = f1_proxy%vspace%get_last_dof_owned()")
+
+    assert expected in code
+
+
+def test_indexed_field_args():
+    '''
+    Checks that the correct array references are generated for all field
+    arguments in a dof kernel. The index should be the same as the loop
+    index - 'df'.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.14_single_invoke_dofs.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    code = str(psy.gen)
+
+    expected = ("      CALL testkern_dofs_code(f1_data(df), f2_data(df), "
+                "f3_data(df), f4_data(df)")
+
+    assert expected in code
