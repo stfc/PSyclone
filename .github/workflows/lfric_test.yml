@@ -160,13 +160,6 @@ jobs:
           compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"',
           num_of_halo_exchanges: '"$VAR_HALOS"'})'
 
-    - name: Upload LFRic passthrough results
-      uses: exuanbo/actions-deploy-gist@v1
-      with:
-        token: ${{ secrets.GIST_TOKEN }}
-        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
-        file_path: ../../../../store_results/lfric_passthrough_performance_history
-
     # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 OpenMP threads
     - name: LFRic with all transformations
       run: |
@@ -204,10 +197,3 @@ jobs:
           ci_test: "LFRic all transformations", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
           system: "GlaDos", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"',
           num_of_halo_exchanges: '"$VAR_HALOS"'})'
-
-    - name: Upload LFRic optimised results
-      uses: exuanbo/actions-deploy-gist@v1
-      with:
-        token: ${{ secrets.GIST_TOKEN }}
-        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
-        file_path: ../../../../store_results/lfric_optimised_performance_history
