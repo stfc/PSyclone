@@ -945,7 +945,7 @@ end program where_test'''
     assert correct in out
 
 
-def test_non_elemental_intrinsic(fortran_reader, fortran_writer):
+def test_non_elemental_intrinsic(fortran_reader):
     '''
     Test that a non-elemental reduction intrinsic (such as DOT_PRODUCT)
     produces the correct PSyIR.
@@ -970,3 +970,25 @@ def test_non_elemental_intrinsic(fortran_reader, fortran_writer):
     assert not isinstance(intrinsic.children[1], ArrayReference)
     assert intrinsic.children[2].name == "b"
     assert not isinstance(intrinsic.children[2], ArrayReference)
+
+
+def test_intrinsic_transformation_error(fortran_reader):
+    '''
+    Test for coverage for the try/except in the intrinsic_ancestor section
+    of _array_syntax_to_indexed sub function.'''
+
+    code = '''
+    program where_test
+    implicit none
+    integer, dimension(100) :: a, b, c
+    real :: d
+
+    where(a < b)
+       c = sin(d)
+    end where
+    end program
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    references = psyir.walk(Reference)
+    # The d should not have been transformed into an array.
+    assert not isinstance(references[7], ArrayReference)
