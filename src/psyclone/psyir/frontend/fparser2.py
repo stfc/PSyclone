@@ -5441,7 +5441,7 @@ class Fparser2Reader():
             # we still need to ensure the symbol is in the parent's symbol
             # table. For this case the best we can do is place the symbol
             # in the tree without a coresponding Routine.
-            sym = parent.symbol_table.lookup(routine.name)
+            sym = routine.symbol
             routine.detach()
             # In some cases the symbol won't be removed when deatching the
             # symbol, e.g. if the function is called in something already

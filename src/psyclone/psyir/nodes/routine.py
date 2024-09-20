@@ -90,14 +90,11 @@ class Routine(Schedule, CommentableMixin):
                             f"but got '{type(is_program).__name__}'")
         self._is_program = is_program
 
-        # If the routine is detached we try to
-        # add the symbol into it's symbol table unless the symbol table
-        # already contains a symbol with that name (e.g. for a Function).
-        if self.parent is None and self.symbol_table:
-            try:
-                self.symbol_table.lookup(self._symbol.name)
-            except KeyError:
-                self.symbol_table.add(self._symbol)
+        # Add the symbol into the routine itself, unless the symbol table
+        # already contains a symbol with that name (e.g. a Function's return
+        # symbol).
+        if self._symbol.name not in self._symbol_table:
+            self.symbol_table.add(self._symbol)
 
     def __eq__(self, other):
         '''

@@ -1142,9 +1142,9 @@ def test_named_invoke_name_clash(tmpdir):
                            api="lfric")
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    assert ("SUBROUTINE invoke_a(invoke_a, b, istp, rdt, d, e, ascalar, "
+    assert ("SUBROUTINE invoke_a(invoke_a_1, b, istp, rdt, d, e, ascalar, "
             "f, c, g, qr)") in gen
-    assert "TYPE(field_type), intent(in) :: invoke_a" in gen
+    assert "TYPE(field_type), intent(in) :: invoke_a_1" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
