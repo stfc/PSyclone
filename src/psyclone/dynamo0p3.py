@@ -1301,7 +1301,10 @@ class DynFunctionSpaces(LFRicCollection):
             # from the field proxy and undf is not required.
             if not (self._dofs_only and Config.get().distributed_memory):
                 if self._invoke.field_on_space(function_space):
-                    undf_name = function_space.undf_name
+                    if self._invoke.operates_on_dofs_only:
+                        undf_name = function_space.bare_undf_name
+                    else:
+                        undf_name = function_space.undf_name
                     parent.add(AssignGen(parent, lhs=undf_name,
                                          rhs=name + "%" +
                                          arg.ref_name(function_space) +

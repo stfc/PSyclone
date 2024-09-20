@@ -226,8 +226,7 @@ class LFRicLoop(PSyLoop):
         self.set_lower_bound("start")
         const = LFRicConstants()
         if kern.iterates_over == "dof":
-            # If the kernel is a built-in/pointwise operation
-            # then this loop must be over DoFs
+            # This loop must be over DoFs
             if Config.get().api_conf("lfric").compute_annexed_dofs \
                and Config.get().distributed_memory \
                and not kern.is_reduction:

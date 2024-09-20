@@ -178,36 +178,7 @@ def test_is_dofkern():
     kern = LFRicKern()
     kern.load_meta(ktype=md)
     # Assert that the identifier is set
-    assert kern.is_dofkern
-
-
-def test_multiple_write_args():
-    '''
-    Check that LFRicKernMetadata raises no errors when user-defined dof kernel
-    defines more than one metadata arg of type 'gh_field' with an access type
-    of 'gh_write'.
-
-    '''
-    # Substitute field for multiple writes
-    code = CODE.replace(
-        """
-                type(arg_type), dimension(2) :: meta_args =        &
-                    (/ arg_type(gh_field, gh_real, gh_write, w1),  &
-                        arg_type(gh_field, gh_real, gh_read, w2)   &
-        """,
-        """
-                type(arg_type), dimension(3) :: meta_args =        &
-                    (/ arg_type(gh_field, gh_real, gh_write, w1),  &
-                        arg_type(gh_field, gh_real, gh_write, w1), &
-                        arg_type(gh_field, gh_real, gh_read, w1)   &
-        """,
-        1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_dofs_type"
-    # Load the metadata into an empty kernel
-    md = LFRicKernMetadata(ast, name=name)
-    # Proxy assertion that validating dof kern passes
-    assert md.is_dofkern
+    assert kern.iterates_over == "dof"
 
 
 def test_upper_bound_undf():
@@ -230,22 +201,40 @@ def test_upper_bound_undf():
     assert expected in code
 
 
-def test_upper_bound_dofowned():
+def test_upper_bounds(monkeypatch, annexed, dist_mem):
     '''
-    Checks that the correct upper bound is generated for a dof-kernel when
-    distributed memory is set to 'True'. This should be set to the last dof
-    owned by the vector space and be accessed by the 'get_last_dof_owned'
-    subroutine.
+    Checks that the correct upper bound is generated for a dof-kernel for all
+    permutations of the `DISTRIBUTED_MEMORY` and `COMPUTE_ANNEXED_DOFS`
+    configuration settings.
 
     '''
+    # Set up annexed dofs
+    config = Config.get()
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
+
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.14_single_invoke_dofs.f90"),
                            api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
-    expected = ("      loop0_start = 1\n"
-                "      loop0_stop = f1_proxy%vspace%get_last_dof_owned()")
+    # Distributed memory
+    if annexed and dist_mem:
+        expected = ("      loop0_start = 1\n"
+                    "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()"
+                    )
+    elif not annexed and dist_mem:
+        expected = ("      loop0_start = 1\n"
+                    "      loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
+                    )
+
+    # Shared memory
+    elif not annexed and not dist_mem or \
+        annexed and not dist_mem:
+        expected = ("      loop0_start = 1\n"
+                    "      loop0_stop = undf"
+                    )
 
     assert expected in code
 
@@ -263,7 +252,24 @@ def test_indexed_field_args():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    expected = ("CALL testkern_dofs_code("
-                "f1_data(df), f2_data(df), f3_data(df), f4_data(df)")
+    expected = ("CALL testkern_dofs_code(f1_data(df), f2_data(df), "
+                "f3_data(df), f4_data(df), scalar_arg, undf)")
+
+    assert expected in code
+
+
+def test_undf_initialisation():
+    '''
+    Test that the 'bare' undf name is used when intialising the undf
+    variable for dof kernels.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.14_single_invoke_dofs.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    code = str(psy.gen)
+
+    expected = "undf = f1_proxy%vspace%get_undf()"
 
     assert expected in code
