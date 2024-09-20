@@ -4190,19 +4190,20 @@ class Fparser2Reader():
         # Convert References to arrays to use the array range notation unless
         # they have an IntrinsicCall parent.
         for ref in parent.walk(Reference):
-            if isinstance(ref.symbol.interface, ImportInterface):
+            if isinstance(ref.symbol.interface, (ImportInterface,
+                                                 UnresolvedInterface)):
                 raise NotImplementedError(
                         "PSyclone doesn't yet support reference to imported "
                         "symbols inside WHERE clauses.")
-            intrinsic_ancestor = ref.ancestor(IntrinsicCall)
+            call_ancestor = ref.ancestor(Call)
             if (isinstance(ref.symbol, DataSymbol) and
-                    not intrinsic_ancestor):
+                    not call_ancestor):
                 try:
                     Reference2ArrayRangeTrans().apply(ref)
                 except TransformationError:
                     pass
-            elif (isinstance(ref.symbol, DataSymbol) and intrinsic_ancestor
-                  is not None and intrinsic_ancestor.is_elemental):
+            elif (isinstance(ref.symbol, DataSymbol) and call_ancestor
+                  is not None and call_ancestor.is_elemental):
                 try:
                     Reference2ArrayRangeTrans().apply(ref)
                 except TransformationError:

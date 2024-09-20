@@ -972,7 +972,7 @@ def test_non_elemental_intrinsic(fortran_reader):
     assert not isinstance(intrinsic.children[2], ArrayReference)
 
 
-def test_intrinsic_transformation_error(fortran_reader):
+def test_non_array_ref_intrinsic_transformation_error(fortran_reader):
     '''
     Test for coverage for the try/except in the intrinsic_ancestor section
     of _array_syntax_to_indexed sub function.'''
