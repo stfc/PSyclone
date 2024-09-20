@@ -51,8 +51,8 @@ from psyclone.psyir.nodes import Loop
 # Set up some loop_type inference rules in order to reference useful domain
 # loop constructs by name
 Loop.set_loop_type_inference_rules({
-        "lon": {"variable": "#Add the variable name used in inner loops"},
-        "lat": {"variable": "#Add the variable name used in outer loops"},
+        "lon": {"variable": "TODO #Add the variable name used in inner loops"},
+        "lat": {"variable": "TODO #Add the variable name used in outer loops"},
 })
 
 
@@ -68,5 +68,5 @@ def trans(psyir):
     ompt = OMPParallelLoopTrans()
     # Apply it to each loop over levels containing a kernel
     for loop in psyir.walk(Loop):
-        if loop.loop_type == "#loop type as defined in inference rules"
+        if loop.loop_type == "TODO #loop type as defined in inference rules"
             # Apply transformation
