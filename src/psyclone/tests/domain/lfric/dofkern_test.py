@@ -231,7 +231,7 @@ def test_upper_bounds(monkeypatch, annexed, dist_mem):
 
     # Shared memory
     elif not annexed and not dist_mem or \
-        annexed and not dist_mem:
+            annexed and not dist_mem:
         expected = ("      loop0_start = 1\n"
                     "      loop0_stop = undf"
                     )
