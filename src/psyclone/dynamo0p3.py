@@ -2118,7 +2118,7 @@ class DynMeshes():
         # required if distributed memory is enabled. We also require a
         # mesh object if any of the kernels require properties of
         # either the reference element or the mesh. (Colourmaps also
-        # require a mesh object but that is handled in _colourmap_init().)
+        # require a mesh object but that is handled in colourmap_init().)
         if not _name_set and Config.get().distributed_memory:
             # We didn't already have a requirement for a mesh so add one now.
             _name_set.add("mesh")
@@ -2170,12 +2170,11 @@ class DynMeshes():
                 self._symbol_table.find_or_create_integer_symbol(
                     var_name, tag=var_name)
 
-    def _colourmap_init(self):
+    def colourmap_init(self):
         '''
-        Sets-up information on any required colourmaps. This cannot be done
-        in the constructor since colouring is applied by Transformations
-        and happens after the Schedule has already been constructed. Therefore,
-        this method is called at code-generation time.
+        Sets-up information on any required colourmaps. Since colouring is
+        applied by Transformations, this method is called as the final step
+        of Dynamo0p3ColourTrans.apply().
 
         '''
         # pylint: disable=too-many-locals
@@ -2262,10 +2261,6 @@ class DynMeshes():
         # pylint: disable=too-many-locals, too-many-statements
         api_config = Config.get().api_conf("lfric")
         const = LFRicConstants()
-
-        # Since we're now generating code, any transformations must
-        # have been applied so we can set-up colourmap information
-        self._colourmap_init()
 
         # We'll need various typedefs from the mesh module
         mtype = const.MESH_TYPE_MAP["mesh"]["type"]
