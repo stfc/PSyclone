@@ -177,6 +177,19 @@ class KernCallArgList(ArgOrdering):
         self.psyir_append(ref)
         self.append(cell_ref_name)
 
+    def halo_depth(self, var_accesses=None):
+        '''Add halo depth to the argument list and store this
+        access in var_accesses (if supplied).
+
+        :param var_accesses: optional VariablesAccessInfo instance to store
+            the information about variable accesses.
+        :type var_accesses: Optional[
+            :py:class:`psyclone.core.VariablesAccessInfo`]
+        '''
+        sym = self.append_integer_reference("halo_depth")
+        self.append(f"{sym.name}", var_accesses=var_accesses,
+                    var_access_name=sym.name)
+
     def cell_map(self, var_accesses=None):
         '''Add cell-map and related cell counts (for inter-grid kernels)
         to the argument list. If supplied it also stores these accesses to the
@@ -218,13 +231,13 @@ class KernCallArgList(ArgOrdering):
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        if self._kern.iterates_over not in ["cell_column", "domain"]:
+        if (not self._kern.iterates_over.endswith("cell_column") and
+                self._kern.iterates_over != "domain"):
             return
         nlayers_symbol = self.append_integer_reference("nlayers")
         self.append(nlayers_symbol.name, var_accesses)
