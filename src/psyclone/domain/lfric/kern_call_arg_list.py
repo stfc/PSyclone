@@ -380,7 +380,7 @@ class KernCallArgList(ArgOrdering):
         # the data in this field.
         sym = self._symtab.lookup_with_tag(f"{arg.name}:{suffix}")
 
-        if self._kern.is_dofkern:
+        if self._kern.iterates_over == "dof":
             # If dof kernel, add access to the field by dof ref
             dof_sym = self._symtab.find_or_create_integer_symbol(
                 "df", tag="dof_loop_idx")
@@ -618,10 +618,10 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        if not self._kern.is_dofkern:
-            sym = self.append_integer_reference(function_space.undf_name)
-        else:
+        if self._kern.iterates_over == "dof":
             sym = self.append_integer_reference(function_space.bare_undf_name)
+        else:
+            sym = self.append_integer_reference(function_space.undf_name)
         self.append(sym.name, var_accesses)
 
         map_name = function_space.map_name
@@ -631,7 +631,7 @@ class KernCallArgList(ArgOrdering):
             sym = self.append_array_reference(map_name, [":", ":"],
                                               ScalarType.Intrinsic.INTEGER)
             self.append(sym.name, var_accesses, var_access_name=sym.name)
-        elif self._kern.is_dofkern:
+        elif self._kern.iterates_over == "dof":
             # Dofmaps are not required for DoF kernels
             pass
         else:

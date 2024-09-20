@@ -421,18 +421,6 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         return False
 
     @property
-    def is_dofkern(self):
-        '''
-        This distinguishes a user-defined kernel operating on DoFs from an
-        LFRic Built-in which also operate on DoFs.
-
-        :returns: False
-        :rtype: bool
-
-        '''
-        return False
-
-    @property
     def fs_descriptors(self):
         '''
         :returns: a list of function space descriptor objects which \
