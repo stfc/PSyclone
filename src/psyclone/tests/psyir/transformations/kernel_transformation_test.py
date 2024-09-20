@@ -282,6 +282,30 @@ def test_gpumixin_validate_wrong_node_type():
             "Routine but got 'FileContainer'" in str(err.value))
 
 
+def test_gpumixin_kernel_interface(kernel_outputdir, monkeypatch,
+                                   fortran_reader, fortran_writer):
+    '''
+    Test that the MarkRoutineForGPUMixin.validate() rejects a kernel that has
+    multiple implementations (i.e. for different precisions).
+
+    TODO this limitation is the subject of #1946.
+
+    '''
+    # Ensure kernel-output directory is uninitialised
+    config = Config.get()
+    monkeypatch.setattr(config, "_kernel_naming", "multiple")
+    psy, invoke = get_invoke("26.8_mixed_precision_args.f90",
+                             api="lfric", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    rtrans = ACCRoutineTrans()
+    # Use force because the kernel contains a WRITE statement.
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(kernels[0], options={"force": True})
+    assert ("Cannot apply ACCRoutineTrans to kernel 'mixed_code' as it has "
+            "multiple implementations - TODO #1946" in str(err.value))
+
+
 def test_gpumixin_validate_no_schedule(monkeypatch):
     '''
     Test that the MarkRoutineForGPUMixin.validate_it_can_run_on_gpu() method
