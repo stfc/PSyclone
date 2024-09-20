@@ -40,7 +40,7 @@ all invokes.
 
 from __future__ import print_function
 
-from psyclone.transformations import KernelModuleInlineTrans
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 
 
 def trans(psy):
@@ -62,5 +62,5 @@ def trans(psy):
         inline.apply(invoke.schedule[0].loop_body[0].loop_body[0])
     #inline.apply(schedule[1].loop_body[0].loop_body[0])
     #inline.apply(schedule[2].loop_body[0].loop_body[0])
-    invoke.schedule.view()
+    print(invoke.schedule.view())
     return psy
