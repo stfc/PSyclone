@@ -18,7 +18,7 @@ $(EXE): $(OBJ)
 .precious: $(SRC_X90:%.x90=%.f90)
 
 # This will need an additional flag
-%.f90: %.x90
+%.f90: %.x90 $(TRANS)
 	$(PSYCLONE) -s ./$(TRANS) -o $*.f90 $<
 
 %.o: %.f90

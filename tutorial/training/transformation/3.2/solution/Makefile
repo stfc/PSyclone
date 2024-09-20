@@ -18,10 +18,10 @@ $(EXE): $(OBJ)
 .precious: $(SRC_X90:%.x90=%.f90)
 
 ifeq ($(TRANS), omp_trans.py)
-%.f90: %.x90
+%.f90: %.x90 $(TRANS)
 	$(PSYCLONE) -s ./$(TRANS) -o $*.f90 $<
 else
-%.f90: %.x90
+%.f90: %.x90 $(TRANS)
 	$(PSYCLONE) --backend disable-validation -s ./$(TRANS) -o $*.f90 $<
 endif
 
