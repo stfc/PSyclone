@@ -71,7 +71,7 @@ class OperatesOnMetadata(CommonDeclarationMetadata):
         '''Create an instance of OperatesOnMetadata from an fparser2
         tree.
 
-        :param fparser2_tree: fparser2 tree capturing the operates_on \
+        :param fparser2_tree: fparser2 tree capturing the operates_on
             metadata.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.\
             Data_Component_Def_Stmt`

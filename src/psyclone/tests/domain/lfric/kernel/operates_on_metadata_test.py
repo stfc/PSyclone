@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module containing tests for the OperatesOnMetadata class.
 
@@ -96,19 +96,13 @@ def test_create_from_fparser2():
     assert operates_on_metadata.operates_on == "cell_column"
 
 
-def test_setter_getter():
+@pytest.mark.parametrize("value", ["domain", "cell_column", "DOMAIN",
+                                   "owned_cell_column", "halo_cell_column",
+                                   "owned_and_halo_cell_column"])
+def test_setter_getter(value):
     '''Test that the setters and getters work as expected.'''
-    value = "domain"
     operates_on_metadata = OperatesOnMetadata(value)
-    assert operates_on_metadata.operates_on == value
-
-    value = "cell_column"
-    operates_on_metadata.operates_on = value
-    assert operates_on_metadata._operates_on == value
-
-    value = "DOMAIN"
-    operates_on_metadata.operates_on = value
-    assert operates_on_metadata._operates_on == value.lower()
+    assert operates_on_metadata.operates_on == value.lower()
 
 
 def test_setter_errors():
@@ -124,5 +118,6 @@ def test_setter_errors():
     with pytest.raises(ValueError) as info:
         operates_on_metadata.operates_on = "invalid"
     assert ("The 'OPERATES_ON' metadata should be a recognised value (one of "
-            "['cell_column', 'domain', 'dof']) but found 'invalid'."
-            in str(info.value))
+            "['cell_column', 'domain', 'dof', 'halo_cell_column', "
+            "'owned_cell_column', 'owned_and_halo_cell_column']) but found "
+            "'invalid'." in str(info.value))

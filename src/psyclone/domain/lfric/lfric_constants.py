@@ -221,8 +221,13 @@ class LFRicConstants():
 
         # Valid LFRic iteration spaces for user-supplied kernels and
         # built-in kernels
-        LFRicConstants.USER_KERNEL_ITERATION_SPACES = ["cell_column", "domain",
-                                                       "dof"]
+        LFRicConstants.USER_KERNEL_ITERATION_SPACES = [
+            "cell_column", "domain",
+            "dof",
+            "halo_cell_column",
+            "owned_cell_column",
+            "owned_and_halo_cell_column"]
+
         LFRicConstants.VALID_ITERATION_SPACES = \
             list(OrderedDict.fromkeys(
                 LFRicConstants.USER_KERNEL_ITERATION_SPACES +
