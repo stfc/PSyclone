@@ -384,8 +384,7 @@ class KernCallArgList(ArgOrdering):
             # If dof kernel, add access to the field by dof ref
             dof_sym = self._symtab.find_or_create_integer_symbol(
                 "df", tag="dof_loop_idx")
-            dof_sym = Reference(dof_sym)
-            self.append_array_reference(sym.name, [dof_sym],
+            self.append_array_reference(sym.name, [Reference(dof_sym)],
                                         ScalarType.Intrinsic.INTEGER,
                                         symbol=sym)
         else:
@@ -619,7 +618,10 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        sym = self.append_integer_reference(function_space.undf_name)
+        if not self._kern.is_dofkern:
+            sym = self.append_integer_reference(function_space.undf_name)
+        else:
+            sym = self.append_integer_reference(function_space.bare_undf_name)
         self.append(sym.name, var_accesses)
 
         map_name = function_space.map_name
@@ -630,8 +632,7 @@ class KernCallArgList(ArgOrdering):
                                               ScalarType.Intrinsic.INTEGER)
             self.append(sym.name, var_accesses, var_access_name=sym.name)
         elif self._kern.is_dofkern:
-            # Dofmaps are not compatible with user-defined DoF kernels, so
-            # just pass without creating a dofmap.
+            # Dofmaps are not required for DoF kernels
             pass
         else:
             # Pass the dofmap for the cell column

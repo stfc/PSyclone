@@ -1215,10 +1215,16 @@ class DynFunctionSpaces(LFRicCollection):
             # field proxy and undf is not required.
             if self._invoke and self._invoke.field_on_space(function_space):
                 if not (self._dofs_only and Config.get().distributed_memory):
-                    self._var_list.append(function_space.undf_name)
+                    if not self._invoke.operates_on_dofs_only:
+                        self._var_list.append(function_space.undf_name)
+                    else:
+                        self._var_list.append(function_space.bare_undf_name)
             elif self._kernel and \
                     function_space.field_on_space(self._kernel.arguments):
-                self._var_list.append(function_space.undf_name)
+                if not self._kernel.is_dofkern:
+                    self._var_list.append(function_space.undf_name)
+                else:
+                    self._var_list.append(function_space.bare_undf_name)
 
     def _stub_declarations(self, parent):
         '''

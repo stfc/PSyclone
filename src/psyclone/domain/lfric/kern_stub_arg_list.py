@@ -325,7 +325,11 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        self.append(function_space.undf_name, var_accesses)
+        if not self._kern.is_dofkern:
+            self.append(function_space.undf_name, var_accesses)
+        else:
+            self.append(function_space.bare_undf_name, var_accesses)
+
         self.append(function_space.map_name, var_accesses)
 
     def basis(self, function_space, var_accesses=None):
