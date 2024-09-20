@@ -270,7 +270,9 @@ def test_kerncallarglist_evaluator(fortran_writer):
 
 
 def test_kerncallarglist_halo_depth():
-    '''Test the handling of a kernel that iterates over halo cells.
+    '''Test that a kernel that iterates over halo cells is passed the
+    halo depth.
+
     '''
     psy, _ = get_invoke("1.4_into_halos_invoke.f90", TEST_API,
                         dist_mem=False, idx=0)
