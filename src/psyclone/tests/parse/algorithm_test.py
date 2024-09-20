@@ -124,8 +124,10 @@ def test_parser_parse_linelength():
     parser = Parser(api="lfric", line_length=True)
     with pytest.raises(ParseError) as info:
         parser.parse(os.path.join(LFRIC_BASE_PATH, "13_alg_long_line.f90"))
-    assert ("the file does not conform to the specified 132 line length "
-            "limit" in str(info.value))
+    assert ("13_alg_long_line.f90' does not conform to the specified 132 "
+            "line-length limit. Either correct the file or change the "
+            "'-l/--limit' setting on the PSyclone command line." in
+            str(info.value))
 
 
 def test_parser_parse():
