@@ -1899,7 +1899,10 @@ and their interpretation are summarised in the following table:
 ============================== ========================================================
 operates_on                    Data passed for each field/operator argument
 ============================== ========================================================
-``owned_cell_column``          Single column of cells exclusively from owned region.
+``owned_cell_column``          Single column of cells exclusively from owned region. If
+                               performing an INC operation on continuous fields this
+			       will loop to depth one in the halo, but otherwise the
+			       columns are exclusively from the owned region.
 ``cell_column``                Synonym for ``owned_cell_column``.
 ``halo_cell_column``           Single column of cells exclusively from halo region.
 ``owned_and_halo_cell_column`` Single column of cells but iteration space will include
