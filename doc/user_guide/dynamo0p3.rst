@@ -85,7 +85,7 @@ objects and their use are discussed in the following sections.
 ::
 
   real(kind=r_def)           :: rscalar
-  integer(kind=i_def)        :: iscalar
+  integer(kind=i_def)        :: iscalar, halo_depth
   logical(kind=l_def)        :: lscalar
   integer(kind=i_def)        :: stencil_extent
   type(field_type)           :: field1, field2, field3
@@ -99,6 +99,7 @@ objects and their use are discussed in the following sections.
                builtin1(rscalar, field2, field3),                &
                int_builtin2(iscalar, field7),                    &
                kernel2(field1, stencil_extent, field3, lscalar), &
+	       kernel3(field1, halo_depth)
                assembly_kernel(cma_op1, operator1),              &
                name="some_calculation"                           &
              )
@@ -250,7 +251,9 @@ information (specified using e.g. ``gh_shape = gh_quadrature_XYoZ`` in
 the kernel metadata - see Section :ref:`lfric-gh-shape`). This
 information must be passed to the kernel from the Algorithm layer in
 the form of one or more ``quadrature_type`` objects. These must be the
-last arguments passed to the kernel and must be provided in the same
+last arguments passed to the kernel (with the exception of ``halo_depth``
+- :ref:`lfric-halo-depth` - if the kernel requires it) and must be
+provided in the same
 order that they are specified in the kernel metadata, e.g. if the
 metadata for kernel ``pressure_gradient_kernel_type`` specified
 ``gh_shape = gh_quadrature_XYoZ`` and that for kernel
@@ -267,6 +270,15 @@ invoke would look something like::
 
 These quadrature objects specify the set(s) of points at which the
 basis/differential-basis functions required by the kernel are to be evaluated.
+
+.. _lfric-halo-depth:
+
+Halo Depth
+++++++++++
+
+If a Kernel is written to iterate into the halo (has an ``OPERATES_ON`` of
+``HALO_CELL_COLUMN`` or ``OWNED_AND_HALO_CELL_COLUMN``) then the halo depth
+must be passed as a final, ``integer`` argument to the Kernel.
 
 .. _lfric-alg-stencil:
 
