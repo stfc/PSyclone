@@ -5437,17 +5437,17 @@ class Fparser2Reader():
             else:
                 self.process_nodes(routine, sub_exec.content)
         except NotImplementedError as err:
+            sym = routine.symbol
+            routine.detach()
             # If we will make a CodeBlock to represent this subroutine then
             # we still need to ensure the symbol is in the parent's symbol
             # table. For this case the best we can do is place the symbol
             # in the tree without a coresponding Routine.
-            sym = routine.symbol
-            routine.detach()
-            # In some cases the symbol won't be removed when deatching the
-            # symbol, e.g. if the function is called in something already
-            # declared in the scope. In this case we are ok to catch
-            # the KeyError and continue.
             try:
+                # In some cases the symbol won't be removed when deatching the
+                # symbol, e.g. if the function is called in something already
+                # declared in the scope. In this case we are ok to catch
+                # the KeyError and continue.
                 parent.symbol_table.add(sym)
             except KeyError:
                 pass
