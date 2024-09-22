@@ -1221,7 +1221,7 @@ class DynFunctionSpaces(LFRicCollection):
                         self._var_list.append(function_space.bare_undf_name)
             elif self._kernel and \
                     function_space.field_on_space(self._kernel.arguments):
-                if not self._kernel.is_dofkern:
+                if not self._kernel.iterates_over == "dof":
                     self._var_list.append(function_space.undf_name)
                 else:
                     self._var_list.append(function_space.bare_undf_name)

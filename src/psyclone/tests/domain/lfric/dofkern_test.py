@@ -47,6 +47,7 @@ from psyclone.domain.lfric import LFRicKernMetadata, LFRicKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.utils import ParseError
+from psyclone.tests.lfric_build import LFRicBuild
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -273,3 +274,16 @@ def test_undf_initialisation():
     expected = "undf = f1_proxy%vspace%get_undf()"
 
     assert expected in code
+
+
+def test_compiles(tmpdir):
+    '''
+    Test that the code PSyclone generates from a DoF kernel compiles without
+    error.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.14_single_invoke_dofs.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
