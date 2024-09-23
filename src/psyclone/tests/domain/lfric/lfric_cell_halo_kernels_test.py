@@ -43,7 +43,6 @@ import pytest
 from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
-from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop
 from psyclone.tests.lfric_build import LFRicBuild
