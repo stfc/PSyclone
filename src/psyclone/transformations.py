@@ -378,6 +378,8 @@ class MarkRoutineForGPUMixin:
         :raises TransformationError: if the target is a built-in kernel.
         :raises TransformationError: if it is a kernel but without an
                                      associated PSyIR.
+        :raises TransformationError: if it is a Kernel that has multiple
+                                     implementations (mixed precision).
         :raises TransformationError: if any of the symbols in the kernel are
                                      accessed via a module use statement (and
                                      are not compile-time constants).
@@ -410,6 +412,17 @@ class MarkRoutineForGPUMixin:
                 raise TransformationError(
                     f"Failed to create PSyIR for kernel '{node.name}'. "
                     f"Cannot transform such a kernel.") from error
+
+            # Check that it's not a mixed-precision kernel (which will have
+            # more than one Routine implementing it). We can't transform
+            # these at the moment because we can't correctly manipulate their
+            # metadata - TODO #1946.
+            routines = kernel_schedule.root.walk(Routine)
+            if len(routines) > 1:
+                raise TransformationError(
+                    f"Cannot apply {self.name} to kernel '{node.name}' as "
+                    f"it has multiple implementations - TODO #1946")
+
             k_or_r = "Kernel"
         else:
             # Supplied node is a PSyIR Routine which *is* a Schedule.
@@ -1127,7 +1140,16 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Cannot have a loop over colours "
                                       "within an OpenMP parallel region.")
 
+        # Get the ancestor InvokeSchedule as applying the transformation
+        # creates a new Loop node.
+        sched = node.ancestor(LFRicInvokeSchedule)
+
         super().apply(node, options=options)
+
+        # Finally, update the information on the colourmaps required for
+        # the mesh(es) in this invoke.
+        if sched and sched.invoke:
+            sched.invoke.meshes.colourmap_init()
 
     def _create_colours_loop(self, node):
         '''

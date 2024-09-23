@@ -57,18 +57,15 @@ from psyclone.psyir.nodes import (colored, Loop, Schedule, Literal, Directive,
 from psyclone.psyir.symbols import (AutomaticInterface, ScalarType, ArrayType,
                                     REAL_TYPE, INTEGER_TYPE)
 from psyclone.psyir.transformations import (
-    ACCKernelsTrans, LoopFuseTrans, LoopTrans, TransformationError)
+    ACCKernelsTrans, LoopFuseTrans, LoopTrans, OMPLoopTrans,
+    TransformationError)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import OMPParallelTrans, \
-    Dynamo0p3ColourTrans, \
-    Dynamo0p3OMPLoopTrans, \
-    DynamoOMPParallelLoopTrans, \
-    MoveTrans, \
-    Dynamo0p3RedundantComputationTrans, \
-    Dynamo0p3AsyncHaloExchangeTrans, \
-    Dynamo0p3KernelConstTrans, \
-    ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans
+from psyclone.transformations import (
+    OMPParallelTrans, Dynamo0p3ColourTrans, Dynamo0p3OMPLoopTrans,
+    DynamoOMPParallelLoopTrans, MoveTrans, Dynamo0p3RedundantComputationTrans,
+    Dynamo0p3AsyncHaloExchangeTrans, Dynamo0p3KernelConstTrans,
+    ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans)
 
 
 # The version of the API that the tests in this file
@@ -6307,10 +6304,12 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
-        print("OK for iteration ", idx)
 
-
-def test_intergrid_colour(dist_mem):
+@pytest.mark.parametrize("trans_class",
+                         [(None, None, ""),
+                          (ACCParallelTrans, ACCLoopTrans, "acc"),
+                          (OMPParallelTrans, OMPLoopTrans, "omp")])
+def test_intergrid_colour(dist_mem, trans_class, tmpdir):
     ''' Check that we can apply colouring to a loop containing
     an inter-grid kernel. '''
     # Use an example that contains both prolongation and restriction
@@ -6321,10 +6320,17 @@ def test_intergrid_colour(dist_mem):
     # First two kernels are prolongation, last two are restriction
     loops = schedule.walk(Loop)
     ctrans = Dynamo0p3ColourTrans()
+    reg_trans = trans_class[0]() if trans_class[0] else None
+    loop_trans = trans_class[1]() if trans_class[1] else None
     # To a prolong kernel
     ctrans.apply(loops[1])
     # To a restrict kernel
     ctrans.apply(loops[3])
+    if reg_trans and loop_trans:
+        for loop in schedule.walk(Loop):
+            if loop.loop_type == "colour":
+                reg_trans.apply(loop)
+                loop_trans.apply(loop)
     gen = str(psy.gen).lower()
     expected = '''\
       ncolour_fld_m = mesh_fld_m%get_ncolours()
@@ -6336,18 +6342,19 @@ def test_intergrid_colour(dist_mem):
     assert expected in gen
     assert "loop1_stop = ncolour_fld_m" in gen
     assert "loop2_stop" not in gen
+    assert "      do colour = loop1_start, loop1_stop, 1\n" in gen
+    if trans_class[2]:
+        assert f"!${trans_class[2]} " in gen
     if dist_mem:
         assert ("last_halo_cell_all_colours_fld_m = "
                 "mesh_fld_m%get_last_halo_cell_all_colours()" in gen)
         expected = (
-            "      do colour = loop1_start, loop1_stop, 1\n"
             "        do cell = loop2_start, last_halo_cell_all_colours_fld_m"
             "(colour,1), 1\n")
     else:
         assert ("last_edge_cell_all_colours_fld_m = "
                 "mesh_fld_m%get_last_edge_cell_all_colours()" in gen)
         expected = (
-            "      do colour = loop1_start, loop1_stop, 1\n"
             "        do cell = loop2_start, last_edge_cell_all_colours_fld_m"
             "(colour), 1\n")
     assert expected in gen
@@ -6358,6 +6365,8 @@ def test_intergrid_colour(dist_mem):
         "ndf_w1, undf_w1, map_w1, undf_w2, "
         "map_w2(:,cmap_fld_m(colour,cell)))\n")
     assert expected in gen
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_intergrid_colour_errors(dist_mem, monkeypatch):
@@ -6375,15 +6384,7 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     ctrans.apply(loop)
     # Update our list of loops
     loops = schedule.walk(Loop)
-    # Trigger the error by calling the internal method to get the upper
-    # bound before the colourmaps have been set-up
-    with pytest.raises(InternalError) as err:
-        _ = loops[1]._upper_bound_fortran()
-    assert ("All kernels within a loop over colours must have been coloured "
-            "but kernel 'prolong_test_kernel_code' has not" in str(err.value))
-    # Set-up the colourmaps
-    psy.invokes.invoke_list[0].meshes._colourmap_init()
-    # Check that the upper bound is now correct
+    # Check that the upper bound is correct
     upperbound = loops[1]._upper_bound_fortran()
     assert upperbound == "ncolour_fld_m"
     # Manually add an un-coloured kernel to the loop that we coloured
