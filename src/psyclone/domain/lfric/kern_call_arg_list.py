@@ -45,14 +45,16 @@ should be removed as we migrate to use PSyIR in LFRic.
 from collections import namedtuple
 
 from psyclone import psyGen
+from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 # Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import ArrayReference, Reference, StructureReference
+from psyclone.psyir.nodes import (
+    ArrayReference, Literal, Reference, StructureReference)
 from psyclone.psyir.symbols import (
-    DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
+    DataSymbol, DataTypeSymbol, INTEGER_TYPE, UnresolvedType, ContainerSymbol,
     ImportInterface, ScalarType)
 
 # psyir has classes created at runtime
@@ -186,9 +188,13 @@ class KernCallArgList(ArgOrdering):
         :type var_accesses: Optional[
             :py:class:`psyclone.core.VariablesAccessInfo`]
         '''
-        sym = self.append_integer_reference("halo_depth")
-        self.append(f"{sym.name}", var_accesses=var_accesses,
-                    var_access_name=sym.name)
+        if Config.get().distributed_memory:
+            sym = self.append_integer_reference("halo_depth")
+            self.append(f"{sym.name}", var_accesses=var_accesses,
+                        var_access_name=sym.name)
+        else:
+            self.psyir_append(Literal("0", INTEGER_TYPE))
+            self.append("0")
 
     def cell_map(self, var_accesses=None):
         '''Add cell-map and related cell counts (for inter-grid kernels)

@@ -170,6 +170,25 @@ def test_single_function_invoke_qr():
             in gen)
 
 
+def test_single_kernel_qr_and_halo_only():
+    '''
+    '''
+    alg, _ = generate(
+        os.path.join(BASE_PATH,
+                     "1.1.10_single_invoke_qr_plus_halo.f90"),
+        api="lfric")
+    gen = str(alg).lower()
+    assert "use testkern_qr_and_halo_only_mod" not in gen
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':'
+    assert "use single_invoke_psy, only" in gen
+    assert ": invoke_0_testkern_qr_and_halo_only_type" in gen
+    # Invoke call must be passed both the qr and halo-depth arguments.
+    assert ("call invoke_0_testkern_qr_and_halo_only_type(f1, f2, m1, a, "
+            "m2, istp, qr, hdepth)" in gen)
+
+
 def test_multi_function_invoke():
     ''' two functions specified in an invoke call'''
     alg, _ = generate(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),

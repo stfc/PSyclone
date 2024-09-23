@@ -110,6 +110,10 @@ class LFRicKern(CodedKern):
         self._reference_element = None
         # The mesh properties required by this kernel
         self._mesh_properties = None
+        # The depth of halo that this kernel expects to operate on. (Only
+        # applicable to kernels with operates_on=HALO_CELL_COLUMN or
+        # OWNED_AND_HALO_CELL_COLUMN.)
+        self._halo_depth = None
         # Initialise kinds (precisions) of all kernel arguments (start
         # with 'real' and 'integer' kinds)
         api_config = Config.get().api_conf("lfric")
@@ -298,6 +302,10 @@ class LFRicKern(CodedKern):
                 f"Evaluator shape(s) {list(invalid_shapes)} is/are not "
                 f"recognised. Must be one of {const.VALID_EVALUATOR_SHAPES}.")
 
+        if ktype.iterates_over in ["halo_cell_column",
+                                   "owned_and_halo_cell_column"]:
+            self._halo_depth = args[-1].text
+
         # If there are any quadrature rule(s), what are the names of the
         # corresponding algorithm arguments? Can't use set() here because
         # we need to preserve the ordering specified in the metadata.
@@ -306,7 +314,10 @@ class LFRicKern(CodedKern):
 
         # The quadrature-related arguments to a kernel always come last so
         # construct an enumerator with start value -<no. of qr rules>
-        for idx, shape in enumerate(qr_shapes, -len(qr_shapes)):
+        start_value = -len(qr_shapes)
+        if self._halo_depth:
+            start_value += 1
+        for idx, shape in enumerate(qr_shapes, start_value):
 
             qr_arg = args[idx]
 

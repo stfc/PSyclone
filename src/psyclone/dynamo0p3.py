@@ -1654,6 +1654,11 @@ class DynCellIterators(LFRicCollection):
                 "Cannot create an Invoke with no field/operator arguments.")
         self._first_var = first_var
 
+        import pdb; pdb.set_trace()
+        print(self._invoke)
+        self._halo_depth_name = self._symbol_table.find_or_create_tag(
+            "halo_depth", symbol_type=LFRicTypes("MeshHeightDataSymbol")).name
+
     def _invoke_declarations(self, parent):
         '''
         Declare entities required for iterating over cells in the Invoke.
@@ -4998,8 +5003,15 @@ def check_args(call, parent_call):
     qr_arg_count = len(set(call.ktype.eval_shapes).intersection(
         set(const.VALID_QUADRATURE_SHAPES)))
 
+    # If a kernel operates on halo columns then it takes an extra, halo-depth
+    # argument.
+    halo_depth_count = 0
+    if call.ktype.iterates_over in ["halo_cell_column",
+                                    "owned_and_halo_cell_column"]:
+        halo_depth_count = 1
+
     expected_arg_count = (len(call.ktype.arg_descriptors) +
-                          stencil_arg_count + qr_arg_count)
+                          stencil_arg_count + qr_arg_count + halo_depth_count)
 
     if expected_arg_count != len(call.args):
         msg = ""
@@ -5011,8 +5023,8 @@ def check_args(call, parent_call):
             f"to kernel '{call.ktype.name}' {msg}in the algorithm layer but "
             f"found '{len(call.args)}'. Expected "
             f"'{len(call.ktype.arg_descriptors)}' standard arguments, "
-            f"'{stencil_arg_count}' stencil arguments and '{qr_arg_count}' "
-            f"qr_arguments'")
+            f"'{stencil_arg_count}' stencil arguments, '{qr_arg_count}' "
+            f"qr_arguments' and '{halo_depth_count}' halo-depth arguments.")
 
 
 @dataclass(frozen=True)

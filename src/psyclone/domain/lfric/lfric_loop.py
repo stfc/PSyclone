@@ -228,54 +228,67 @@ class LFRicLoop(PSyLoop):
         if isinstance(kern, LFRicBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
-            if Config.get().api_conf("lfric").compute_annexed_dofs \
-               and Config.get().distributed_memory \
-               and not kern.is_reduction:
+            if (Config.get().api_conf("lfric").compute_annexed_dofs and
+                    Config.get().distributed_memory and not kern.is_reduction):
                 self.set_upper_bound("nannexed")
             else:
                 self.set_upper_bound("ndofs")
-        else:
+            return
+
+        if kern.iterates_over in ["halo_cell_column",
+                                  "owned_and_halo_cell_column"]:
             if Config.get().distributed_memory:
-                if self._field.is_operator:
-                    # We always compute operators redundantly out to the L1
-                    # halo
-                    self.set_upper_bound("cell_halo", index=1)
-                elif (self.field_space.orig_name in
-                      const.VALID_DISCONTINUOUS_NAMES):
-                    # Iterate to ncells for all discontinuous quantities,
-                    # including any_discontinuous_space
-                    self.set_upper_bound("ncells")
-                elif (self.field_space.orig_name in
-                      const.CONTINUOUS_FUNCTION_SPACES):
-                    # Must iterate out to L1 halo for continuous quantities
-                    # unless the only arguments that are updated all have
-                    # 'GH_WRITE' access. The only time such an access is
-                    # permitted for a field on a continuous space is when the
-                    # kernel is implemented such that any writes to a given
-                    # shared dof are guaranteed to write the same value. There
-                    # is therefore no need to iterate into the L1 halo in order
-                    # to get correct values for annexed dofs.
-                    if not kern.all_updates_are_writes:
-                        self.set_upper_bound("cell_halo", index=1)
-                    else:
-                        self.set_upper_bound("ncells")
-                elif (self.field_space.orig_name in
-                      const.VALID_ANY_SPACE_NAMES):
-                    # We don't know whether any_space is continuous or not
-                    # so we have to err on the side of caution and assume that
-                    # it is. Again, if the only arguments that are updated have
-                    # 'GH_WRITE' access then we can relax this condition.
-                    if not kern.all_updates_are_writes:
-                        self.set_upper_bound("cell_halo", index=1)
-                    else:
-                        self.set_upper_bound("ncells")
-                else:
-                    raise GenerationError(
-                        f"Unexpected function space found. Expecting one of "
-                        f"{const.VALID_FUNCTION_SPACES} but found "
-                        f"'{self.field_space.orig_name}'")
-            else:  # sequential
+                # assert 0, "ARPDBG: need to propagate halo depth from Alg"
+                # sym = self.scope.symbol_table.lookup_with_tag(
+                #     f"halo_depth:{kern.name}")
+                self.set_upper_bound("cell_halo", index=1)
+                return
+
+        if Config.get().distributed_memory:
+            if self._field.is_operator:
+                # We always compute operators redundantly out to the L1
+                # halo
+                self.set_upper_bound("cell_halo", index=1)
+                return
+            if (self.field_space.orig_name in
+                    const.VALID_DISCONTINUOUS_NAMES):
+                # Iterate to ncells for all discontinuous quantities,
+                # including any_discontinuous_space
                 self.set_upper_bound("ncells")
+                return
+            if (self.field_space.orig_name in
+                    const.CONTINUOUS_FUNCTION_SPACES):
+                # Must iterate out to L1 halo for continuous quantities
+                # unless the only arguments that are updated all have
+                # 'GH_WRITE' access. The only time such an access is
+                # permitted for a field on a continuous space is when the
+                # kernel is implemented such that any writes to a given
+                # shared dof are guaranteed to write the same value. There
+                # is therefore no need to iterate into the L1 halo in order
+                # to get correct values for annexed dofs.
+                if not kern.all_updates_are_writes:
+                    self.set_upper_bound("cell_halo", index=1)
+                    return
+                self.set_upper_bound("ncells")
+                return
+            if (self.field_space.orig_name in
+                    const.VALID_ANY_SPACE_NAMES):
+                # We don't know whether any_space is continuous or not
+                # so we have to err on the side of caution and assume that
+                # it is. Again, if the only arguments that are updated have
+                # 'GH_WRITE' access then we can relax this condition.
+                if not kern.all_updates_are_writes:
+                    self.set_upper_bound("cell_halo", index=1)
+                    return
+                self.set_upper_bound("ncells")
+                return
+
+            raise GenerationError(
+                f"Unexpected function space found. Expecting one of "
+                f"{const.VALID_FUNCTION_SPACES} but found "
+                f"'{self.field_space.orig_name}'")
+        # Sequential
+        self.set_upper_bound("ncells")
 
     def set_lower_bound(self, name, index=None):
         ''' Set the lower bounds of this loop '''
@@ -291,12 +304,15 @@ class LFRicLoop(PSyLoop):
         self._lower_bound_index = index
 
     def set_upper_bound(self, name, index=None):
-        '''Set the upper bound of this loop
+        '''Set the upper bound of this loop.
 
         :param name: A loop upper bound name. This should be a supported name.
-        :type name: String
+        :type name: str
         :param index: An optional argument indicating the depth of halo
-        :type index: int
+        :type index: Optional[int]
+
+        :raises GenerationError: if supplied with an invalid upper-bound name.
+        :raises GenerationError: if supplied with a halo depth < 1.
 
         '''
         const = LFRicConstants()

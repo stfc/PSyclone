@@ -98,7 +98,7 @@ class KernCallInvokeArgList(ArgOrdering):
     @property
     def quadrature_objects(self):
         '''
-        :returns: the symbols representing the quadrature objects required by \
+        :returns: the symbols representing the quadrature objects required by
                   the kernel along with the shape of each.
         :rtype: List[Tuple[:py:class:`psyclone.psyir.symbols.DataSymbol`, str]]
         '''
@@ -107,10 +107,10 @@ class KernCallInvokeArgList(ArgOrdering):
     @property
     def operators(self):
         '''
-        :returns: the symbols representing the operators required by the \
-                  kernel along with the names of the from- and to- function \
+        :returns: the symbols representing the operators required by the
+                  kernel along with the names of the from- and to- function
                   spaces.
-        :rtype: List[Tuple[:py:class:`psyclone.psyir.symbols.DataSymbol`, \
+        :rtype: List[Tuple[:py:class:`psyclone.psyir.symbols.DataSymbol`,
                            str, str]]
         '''
         return self._operators
@@ -120,15 +120,15 @@ class KernCallInvokeArgList(ArgOrdering):
         types are reset (as calling generate() populates them) before calling
         this method in the parent class.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
         '''
         self._fields = []
         self._scalars = []
         self._qr_objects = []
         self._operators = []
+        self._halo_depth = None
         super().generate(var_accesses)
 
     def scalar(self, scalar_arg, var_accesses=None):
@@ -355,6 +355,15 @@ class KernCallInvokeArgList(ArgOrdering):
                                           datatype=quad_type)
             self._qr_objects.append((sym, shape))
             self.append(sym.name, var_accesses)
+
+    def halo_depth(self, var_accesses=None):
+        '''
+        '''
+        if self._kern.iterates_over not in ["halo_cell_column",
+                                            "owned_and_halo_cell_column"]:
+            return
+        import pdb; pdb.set_trace()
+        dir(self._kern)
 
 
 # ============================================================================

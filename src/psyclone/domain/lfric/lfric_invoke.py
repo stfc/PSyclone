@@ -88,8 +88,8 @@ class LFRicInvoke(Invoke):
 
         # The base class works out the algorithm code's unique argument
         # list and stores it in the 'self._alg_unique_args'
-        # list. However, the base class currently ignores any stencil and qr
-        # arguments so we need to add them in.
+        # list. However, the base class currently ignores any stencil,
+        # quadrature and halo-depth arguments so we need to add them in.
 
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel

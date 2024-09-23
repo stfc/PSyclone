@@ -130,9 +130,12 @@ def test_psy_gen_halo_kernel(dist_mem, tmpdir, fortran_writer):
                 "f1_data, f2_data, m1_data, m2_data, undf_w1, map_w1(:,cell), "
                 "undf_w2, map_w2(:,cell), undf_w3, map_w3(:,cell))"
                 in gen_code)
+
+        # Check for appropriate set-dirty calls.
+        assert "this-is-dirty" in gen_code
     else:
         # No distributed memory so no halo region.
-        assert "loop0_stop == f1_proxy%vspace%get_ncell()\n" in gen_code
+        assert "loop0_stop = f1_proxy%vspace%get_ncell()\n" in gen_code
 
         assert ("      do cell = loop0_start, loop0_stop, 1\n"
                 "        call testkern_halo_only_code(nlayers, 0, a, "
@@ -158,9 +161,14 @@ def test_psy_gen_halo_kernel(dist_mem, tmpdir, fortran_writer):
         kern.lower_to_language_level()
     # Now call the loop handling method directly.
     out = fortran_writer.loop_node(schedule.walk(Loop)[0])
-    assert ("call testkern_halo_only_code(nlayers, halo_depth, a, "
-            "f1_data, f2_data, m1_data, m2_data, undf_w1, map_w1(:,cell), "
-            "undf_w2, map_w2(:,cell), undf_w3, map_w3(:,cell))" in out)
+    if dist_mem:
+        assert ("call testkern_halo_only_code(nlayers, halo_depth, a, "
+                "f1_data, f2_data, m1_data, m2_data, undf_w1, map_w1(:,cell), "
+                "undf_w2, map_w2(:,cell), undf_w3, map_w3(:,cell))" in out)
+    else:
+        assert ("call testkern_halo_only_code(nlayers, 0, a, "
+                "f1_data, f2_data, m1_data, m2_data, undf_w1, map_w1(:,cell), "
+                "undf_w2, map_w2(:,cell), undf_w3, map_w3(:,cell))" in out)
 
 
 def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
