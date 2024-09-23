@@ -45,6 +45,7 @@ from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.nodes import Loop
 from psyclone.tests.lfric_build import LFRicBuild
 
 BASE_PATH = os.path.join(
@@ -54,10 +55,16 @@ BASE_PATH = os.path.join(
 TEST_API = "lfric"
 
 
-def test_halo_cell_kernel():
+@pytest.fixture(name="operates_on",
+                params=["halo_cell_column", "owned_and_halo_cell_column"])
+def operates_on_fixture(request):
+    yield request.param
+
+
+def test_halo_cell_kernel(operates_on):
     ''' Check that we can successfully parse metadata that specifies a
     kernel with operates_on = HALO_CELL_COLUMN. '''
-    ast = fpapi.parse('''
+    ast = fpapi.parse(f'''
 module testkern_halo_mod
   type, extends(kernel_type) :: testkern_halo_type
      type(arg_type), meta_args(4) =                             &
@@ -66,7 +73,7 @@ module testkern_halo_mod
              arg_type(gh_field,  gh_real,    gh_read,      w2), &
              arg_type(gh_scalar, gh_integer, gh_read)           &
            /)
-     integer :: operates_on = halo_cell_column
+     integer :: operates_on = {operates_on}
    contains
      procedure, nopass :: code => testkern_halo_code
   end type testkern_halo_type
@@ -77,20 +84,20 @@ contains
 end module testkern_halo_mod
 ''', ignore_comments=False)
     dkm = LFRicKernMetadata(ast, name="testkern_halo_type")
-    assert dkm.iterates_over == "domain"
+    assert dkm.iterates_over == operates_on
 
 
-def test_stencil_halo_kernel():
+def test_stencil_halo_kernel(operates_on):
     ''' Check that we accept a halo kernel if it has an argument with a
     stencil access. '''
-    ast = fpapi.parse('''module testkern_domain_mod
+    ast = fpapi.parse(f'''module testkern_domain_mod
   type, extends(kernel_type) :: testkern_domain_type
      type(arg_type), meta_args(3) =                                         &
           (/ arg_type(gh_scalar, gh_real, gh_read),                         &
              arg_type(gh_field,  gh_real, gh_readwrite, w3),                &
              arg_type(gh_field,  gh_real, gh_read,      w3, stencil(cross)) &
            /)
-     integer :: operates_on = domain
+     integer :: operates_on = {operates_on}
    contains
      procedure, nopass :: code => testkern_domain_code
   end type testkern_domain_type
@@ -99,42 +106,11 @@ contains
   end subroutine testkern_domain_code
 end module testkern_domain_mod
 ''', ignore_comments=False)
-    with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name="testkern_domain_type")
-    assert ("domain are not permitted to have arguments with a stencil "
-            "access but found: 'arg_type(gh_field, gh_real, gh_read, "
-            "w3, stencil(cross))'" in str(err.value))
+    mdata = LFRicKernMetadata(ast, name="testkern_domain_type")
+    assert mdata.iterates_over == operates_on
 
 
-def test_invalid_mg_halo_kernel():
-    ''' Check that we reject a kernel with operates_on=domain if it involves
-    multi-grid (fields on different grids). '''
-    ast = fpapi.parse('''
-module restrict_mod
-type, public, extends(kernel_type) :: restrict_kernel_type
-   private
-   type(arg_type) :: meta_args(2) = (/                          &
-       arg_type(GH_FIELD, GH_REAL, GH_READWRITE,                &
-                ANY_DISCONTINUOUS_SPACE_1, mesh_arg=GH_COARSE), &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,                     &
-                ANY_DISCONTINUOUS_SPACE_2, mesh_arg=GH_FINE  )  &
-       /)
-  integer :: operates_on = halo_cell_column
-contains
-  procedure, nopass :: restrict_kernel_code
-end type restrict_kernel_type
-contains
-  subroutine restrict_kernel_code()
-  end subroutine restrict_kernel_code
-end module restrict_mod
-''')
-    with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name="restrict_kernel_type")
-    assert ("'restrict_kernel_type' operates on 'domain' but has fields on "
-            "different mesh resolutions" in str(err.value))
-
-
-def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
+def test_psy_gen_halo_kernel(dist_mem, tmpdir, fortran_writer):
     ''' Check the generation of the PSy layer for an invoke consisting of a
     single kernel with operates_on=halo_cell_column. '''
     _, info = parse(os.path.join(BASE_PATH, "1.4_into_halos_invoke.f90"),
@@ -143,24 +119,31 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     gen_code = str(psy.gen).lower()
 
     # A halo kernel needs to look up the last halo column in the mesh.
-    # Therefore # we require a mesh object.
-    assert "type(mesh_type), pointer :: mesh => null()" in gen_code
-    assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code
-    assert "integer(kind=i_def) ncell_2d_no_halos" in gen_code
-    assert "ncell_2d_no_halos = mesh%get_last_edge_cell()" in gen_code
-
-    # Kernel call should include whole dofmap and not be within a loop
+    # Therefore we require a mesh object.
     if dist_mem:
-        expected = "      ! call kernels and communication routines\n"
+        assert "type(mesh_type), pointer :: mesh => null()" in gen_code
+        assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code
+        assert ("loop0_stop = mesh%get_last_halo_cell(halo_depth)"
+                in gen_code)
+
+        assert ("      do cell = loop0_start, loop0_stop, 1\n"
+                "        call testkern_halo_only_code(nlayers, halo_depth, a, "
+                "f1_data, f2_data, m1_data, m2_data, undf_w1, map_w1(:,cell), "
+                "undf_w2, map_w2(:,cell), undf_w3, map_w3(:,cell))"
+                in gen_code)
     else:
-        expected = "      ! call our kernels\n"
-    assert (expected + "      !\n"
-            "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
-            "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
+        # No distributed memory so no halo region.
+        assert "loop0_stop == f1_proxy%vspace%get_ncell()\n" in gen_code
+
+        assert ("      do cell = loop0_start, loop0_stop, 1\n"
+                "        call testkern_halo_only_code(nlayers, 0, a, "
+                "f1_data, f2_data, m1_data, m2_data, undf_w1, map_w1(:,cell), "
+                "undf_w2, map_w2(:,cell), undf_w3, map_w3(:,cell))"
+                in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    # Also test that the FortranWriter handles domain kernels as expected.
+    # Also test that the FortranWriter handles halo kernels as expected.
     # ATM we have a `lower_to_language_level method` for LFRicLoop which
     # removes the loop node for a domain kernel entirely and only leaves the
     # body. So we can't call the FortranWriter directly, since it will first
@@ -175,9 +158,10 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     for kern in schedule.walk(LFRicKern):
         kern.lower_to_language_level()
     # Now call the loop handling method directly.
-    out = fortran_writer.loop_node(schedule.children[0])
-    assert ("call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
-            "f1_data, ndf_w3, undf_w3, map_w3)" in out)
+    out = fortran_writer.loop_node(schedule.walk(Loop)[0])
+    assert ("call testkern_halo_only_code(nlayers, halo_depth, a, "
+            "f1_data, f2_data, m1_data, m2_data, undf_w1, map_w1(:,cell), "
+            "undf_w2, map_w2(:,cell), undf_w3, map_w3(:,cell))" in out)
 
 
 def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):

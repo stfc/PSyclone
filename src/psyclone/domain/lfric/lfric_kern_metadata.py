@@ -320,6 +320,9 @@ class LFRicKernMetadata(KernelType):
         # Perform checks for a coded kernel with operates_on == dof
         self._validate_operates_on_dof(need_evaluator)
 
+        # Perform checks for a coded kernel that operates on halo columns
+        self._validate_operates_on_halo()
+
     def _validate_inter_grid(self):
         '''
         Checks that the kernel metadata obeys the rules for LFRic inter-grid
@@ -589,6 +592,17 @@ class LFRicKernMetadata(KernelType):
         self._validate_no_reference_element()
         self._validate_no_mesh_properties()
         self._validate_not_intergrid()
+
+    def _validate_operates_on_halo(self):
+        '''
+        Check whether a kernel that has operates_on == halo_cell_column or
+        owned_and_halo_cell_column obeys the rules for the LFRic API.
+
+        '''
+        if self.iterates_over not in ["halo_cell_column",
+                                      "owned_and_halo_cell_column"]:
+            return
+        # TODO
 
     def _validate_operates_on_dof(self, need_evaluator):
         '''
