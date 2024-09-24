@@ -1003,7 +1003,7 @@ class DependencyTools():
             other_index = other_access.component_indices[index[0]]
             if not SymbolicMaths.equal(
                     first_index, other_index,
-                    assume={loop_var_name1: loop_variable2.name}):
+                    identical_variables={loop_var_name1: loop_variable2.name}):
                 # If we have one accesses for the loop variable that is
                 # different from others (e.g. a(i) and a(i+1)), for now
                 # don't allow loop fusion.

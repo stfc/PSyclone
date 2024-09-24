@@ -567,7 +567,7 @@ def test_sym_writer_reserved_names(fortran_reader, expression):
                                          ("a-0*b", "b"),
                                          ("a+b+c", "2*b + c"),
                                          ])
-def test_sym_writer_assume_vars(fortran_reader, expressions):
+def test_sym_writer_identical_variables(fortran_reader, expressions):
     '''Test that we can indicate that certain variables are identical,
     in which case the sympy expression will replace one variable with
     the other. For example, if a=b --> a-b = b-b = 0
@@ -585,5 +585,6 @@ def test_sym_writer_assume_vars(fortran_reader, expressions):
     expr = psyir.children[0].children[0].rhs
 
     sympy_writer = SymPyWriter()
-    assume = {'a': 'b'}
-    assert str(sympy_writer(expr, assume=assume)) == expressions[1]
+    identical_variables = {'a': 'b'}
+    assert (str(sympy_writer(expr, identical_variables=identical_variables))
+            == expressions[1])
