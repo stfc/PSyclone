@@ -1666,11 +1666,12 @@ class DynProxies(LFRicCollection):
         # Add the Invoke subroutine declarations for the different
         # field-type proxies
         for (fld_type, fld_mod), args in field_datatype_map.items():
+            fld_mod_symbol = table.node.parent.symbol_table.lookup(fld_mod)
             fld_type_sym = table.node.parent.symbol_table.new_symbol(
                     fld_type,
                     symbol_type=DataTypeSymbol,
                     datatype=UnresolvedType(),
-                    interface=ImportInterface(table.node.parent.symbol_table.lookup(fld_mod)))
+                    interface=ImportInterface(fld_mod_symbol))
             for arg in args:
                 if arg._vector_size > 1:
                     decl_type = ArrayType(fld_type_sym, [arg._vector_size])
@@ -1725,10 +1726,14 @@ class DynProxies(LFRicCollection):
         # Declare the operator proxies
         for operator_datatype, operators_list in \
                 operators_datatype_map.items():
-            op_datatype_symbol = table.find_or_create(
-                                            operator_datatype,
-                                            symbol_type=DataTypeSymbol,
-                                            datatype=UnresolvedType())
+            mod_name = operators_list[0].module_name
+            mod_st = table.node.parent.symbol_table
+            fld_mod_symbol = mod_st.lookup(mod_name)
+            op_datatype_symbol = mod_st.find_or_create(
+                    operator_datatype,
+                    symbol_type=DataTypeSymbol,
+                    datatype=UnresolvedType(),
+                    interface=ImportInterface(fld_mod_symbol))
             for op in operators_list:
                 table.new_symbol(op.proxy_declaration_name,
                                  symbol_type=DataSymbol,
@@ -1768,11 +1773,20 @@ class DynProxies(LFRicCollection):
         # Declarations of CMA operator proxies
         cma_op_args = self._invoke.unique_declarations(
             argument_types=["gh_columnwise_operator"])
-        cma_op_proxy_decs = [arg.proxy_declaration_name for
-                             arg in cma_op_args]
-        if cma_op_proxy_decs:
+        if cma_op_args:
             op_type = cma_op_args[0].proxy_data_type
-            op_mod = cma_op_args[0].module_name
+            mod_name = cma_op_args[0].module_name
+            mod_st = table.node.parent.symbol_table
+            fld_mod_symbol = mod_st.lookup(mod_name)
+            op_datatype_symbol = mod_st.find_or_create(
+                    op_type,
+                    symbol_type=DataTypeSymbol,
+                    datatype=UnresolvedType(),
+                    interface=ImportInterface(fld_mod_symbol))
+            for arg in cma_op_args:
+                table.new_symbol(arg.proxy_declaration_name,
+                                 symbol_type=DataSymbol,
+                                 datatype=op_datatype_symbol)
             # parent.add(TypeDeclGen(parent,
             #                        datatype=op_type,
             #                        entity_decls=cma_op_proxy_decs))
@@ -1882,9 +1896,9 @@ class DynProxies(LFRicCollection):
                         self._invoke.schedule.addchild(
                             Assignment.create(
                                 lhs=Reference(symbol),
-                                rhs=Call.create(StructureReference.create(
-                                    symtab.lookup(arg.proxy_name),
-                                    ["local_stencil"])),
+                                rhs=StructureReference.create(
+                                        symtab.lookup(arg.proxy_name),
+                                        ["local_stencil"]),
                                 is_pointer=True),
                             cursor)
                         cursor += 1
@@ -2273,8 +2287,10 @@ class DynCMAOperators(LFRicCollection):
                 f"{op_name}:{suffix}")
             stmt = Assignment.create(
                     lhs=Reference(cma_name),
-                    rhs=self._cma_ops[op_name]["arg"].generate_method_call(
-                        f"columnwise_matrix", use_proxy=False),
+                    rhs=StructureReference.create(
+                             self._invoke.schedule.symbol_table.lookup(
+                                self._cma_ops[op_name]["arg"].proxy_name),
+                             ["columnwise_matrix"]),
                     is_pointer=True)
             if first:
                 stmt.preceding_comment = (
@@ -2289,11 +2305,17 @@ class DynCMAOperators(LFRicCollection):
             # Then make copies of the related integer parameters
             for param in self._cma_ops[op_name]["params"]:
                 param_name = self._symbol_table.find_or_create_tag(
-                    f"{op_name}:{param}:{suffix}")
+                    f"{op_name}:{param}:{suffix}",
+                    root_name=f"{op_name}_{param}",
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                )
                 stmt = Assignment.create(
                         lhs=Reference(param_name),
-                        rhs=self._cma_ops[op_name]["arg"].generate_method_call(
-                            param, use_proxy=False),
+                        rhs=StructureReference.create(
+                             self._invoke.schedule.symbol_table.lookup(
+                                self._cma_ops[op_name]["arg"].proxy_name),
+                             [param]),
                     )
                 self._invoke.schedule.addchild(stmt, cursor)
                 cursor += 1

@@ -65,22 +65,20 @@ def test_lbounds_construction():
     assert isinstance(lbounds, LFRicLoopBounds)
 
 
-def test_lbounds_initialise(monkeypatch):
+def test_lbounds_initialise(monkeypatch, fortran_writer):
     ''' Test the initialise method of LFRicLoopBounds. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.0.1_single_named_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    mod = ModuleGen()
-    fake_parent = SubroutineGen(mod)
     lbounds = LFRicLoopBounds(invoke)
 
     table = invoke.schedule.symbol_table
     assert "loop0_start" not in table
     assert "loop0_stop" not in table
 
-    lbounds.initialise(fake_parent)
+    lbounds.initialise(0)
 
     # Check that new symbols have been added.
     start_sym = table.lookup("loop0_start")
@@ -88,15 +86,13 @@ def test_lbounds_initialise(monkeypatch):
     stop_sym = table.lookup("loop0_stop")
     assert stop_sym.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
 
-    assert "Set-up all of the loop bounds" in str(fake_parent.children[1].root)
+    assert "Set-up all of the loop bounds" in fortran_writer(invoke.schedule)
     # Monkeypatch the schedule so that it appears to have no loops.
     monkeypatch.setattr(invoke.schedule, "loops", lambda: [])
     lbounds = LFRicLoopBounds(invoke)
-    fake_parent = SubroutineGen(mod)
     # The initialise() should not raise an error but nothing should be
     # added to the f2pygen tree.
-    lbounds.initialise(fake_parent)
-    assert fake_parent.children == []
+    lbounds.initialise(0)
     # Symbols representing loop bounds should be unaffected.
     assert table.lookup("loop0_start") is start_sym
     assert table.lookup("loop0_stop") is stop_sym

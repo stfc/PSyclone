@@ -235,8 +235,8 @@ class LFRicScalarArgs(LFRicCollection):
                         elif intent == "in":
                             symbol.interface = ArgumentInterface(
                                 ArgumentInterface.Access.READ)
-                    if symbol not in symtab._argument_list:
-                        symtab.append_argument(symbol)
+                        if symbol not in symtab._argument_list:
+                            symtab.append_argument(symbol)
 
         # Integer scalar arguments
         for intent in FORTRAN_INTENT_NAMES:

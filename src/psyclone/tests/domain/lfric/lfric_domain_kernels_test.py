@@ -357,7 +357,7 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
         expected += (
                      # "\n"
                      # "    ! set halos dirty/clean for fields modified in "
-                     "the above kernel\n"
+                     # "the above kernel\n"
                      "    call f1_proxy%set_dirty()\n"
                      "    if (f2_proxy%is_dirty(depth=1)) then\n"
                      "      call f2_proxy%halo_exchange(depth=1)\n"
@@ -372,32 +372,27 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     else:
         assert "loop1_stop = f2_proxy%vspace%get_ncell()\n" in gen_code
     expected += "    do cell = loop1_start, loop1_stop, 1\n"
-    # print(expected)
-    print(gen_code)
     assert expected in gen_code
 
     expected = (
-        "      end do\n")
+        "    enddo\n")
     if dist_mem:
         expected += (
-            "      !\n"
-            "      ! set halos dirty/clean for fields modified in the above "
-            "loop\n"
-            "      !\n"
-            "      call f1_proxy%set_dirty()\n"
-            "      !\n")
+            # "\n"
+            # "      ! set halos dirty/clean for fields modified in the above "
+            # "loop\n"
+            "    call f1_proxy%set_dirty()\n")
     expected += (
-        "      call testkern_domain_code(nlayers, ncell_2d_no_halos, c, "
+        "    call testkern_domain_code(nlayers, ncell_2d_no_halos, c, "
         "f1_data, ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
-        assert ("      ! set halos dirty/clean for fields modified in the "
-                "above kernel\n"
-                "      !\n"
-                "      call f5_proxy%set_dirty()\n"
-                "      !\n"
-                "      !\n"
-                "    end subroutine invoke_0" in gen_code)
+        assert (
+                # "    ! set halos dirty/clean for fields modified in the "
+                # "above kernel\n"
+                "    call f5_proxy%set_dirty()\n"
+                "\n"
+                "  end subroutine invoke_0" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 

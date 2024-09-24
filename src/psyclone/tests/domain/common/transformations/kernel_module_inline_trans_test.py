@@ -402,7 +402,7 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
 
     # And the import has been remove from both
     # check that the associated use no longer exists
-    assert 'use compute_cv_mod, only: compute_cv_code' not in code
+    assert 'use compute_cv_mod, only : compute_cv_code' not in code
     assert 'USE compute_cv_mod, ONLY: compute_cv_code' not in gen
 
     # Do the gen_code check again because repeating the call resets some
@@ -426,8 +426,8 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
 
     # By default the kernel is imported once per invoke
     gen = str(psy.gen)
-    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 2
-    assert gen.count("END SUBROUTINE testkern_qr_code") == 0
+    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 2
+    assert gen.count("end subroutine testkern_qr_code") == 0
 
     # Module inline kernel in invoke 1
     inline_trans = KernelModuleInlineTrans()
@@ -439,8 +439,8 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
 
     # After this, one invoke uses the inlined top-level subroutine
     # and the other imports it (shadowing the top-level symbol)
-    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 1
-    assert gen.count("END SUBROUTINE testkern_qr_code") == 1
+    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 1
+    assert gen.count("end subroutine testkern_qr_code") == 1
 
     # Module inline kernel in invoke 2
     schedule1 = psy.invokes.invoke_list[1].schedule
@@ -450,8 +450,8 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     gen = str(psy.gen)
     # After this, no imports are remaining and both use the same
     # top-level implementation
-    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 0
-    assert gen.count("END SUBROUTINE testkern_qr_code") == 1
+    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 0
+    assert gen.count("end subroutine testkern_qr_code") == 1
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -725,9 +725,9 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     inline_trans.apply(kern_call)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
-    assert 'SUBROUTINE ru_code(' in gen
+    assert 'subroutine ru_code(' in gen
     # check that the associated psy "use" does not exist
-    assert 'USE ru_kernel_mod, only : ru_code' not in gen
+    assert 'use ru_kernel_mod, only : ru_code' not in gen
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -746,8 +746,8 @@ def test_module_inline_with_interfaces(tmpdir):
     gen = str(psy.gen)
     # Both the caller and the callee are in the file and use the specialized
     # implementation name.
-    assert "CALL mixed_code_64(" in gen
-    assert "SUBROUTINE mixed_code_64(" in gen
+    assert "call mixed_code_64(" in gen
+    assert "subroutine mixed_code_64(" in gen
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)

@@ -203,9 +203,10 @@ class LFRicDofmaps(LFRicCollection):
         for dmap, cma in self._unique_cbanded_maps.items():
             stmt = Assignment.create(
                     lhs=Reference(self._symbol_table.lookup(dmap)),
-                    rhs=cma['argument'].generate_method_call(
-                        f"column_banded_dofmap_{cma['direction']}",
-                        use_proxy=False),
+                    rhs=StructureReference.create(
+                         self._invoke.schedule.symbol_table.lookup(
+                            cma["argument"].proxy_name),
+                         [f"column_banded_dofmap_{cma['direction']}"]),
                     is_pointer=True)
             if first:
                 stmt.preceding_comment = (
@@ -229,9 +230,10 @@ class LFRicDofmaps(LFRicCollection):
         for dmap, cma in self._unique_indirection_maps.items():
             stmt = Assignment.create(
                     lhs=Reference(self._symbol_table.lookup(dmap)),
-                    rhs=cma['argument'].generate_method_call(
-                        f"indirection_dofmap_{cma['direction']}",
-                        use_proxy=False),
+                    rhs=StructureReference.create(
+                            self._invoke.schedule.symbol_table.lookup(
+                                cma["argument"].proxy_name_indexed),
+                            [f"indirection_dofmap_{cma['direction']}"]),
                     is_pointer=True)
             if first:
                 stmt.preceding_comment = (

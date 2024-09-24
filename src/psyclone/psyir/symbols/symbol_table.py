@@ -958,7 +958,7 @@ class SymbolTable():
                           `otherwise` is not supplied.
 
         '''
-        # if name in ("qr_face", ):
+        # if name in ("cma_op1", ):
         #      import pdb; pdb.set_trace()
         if not isinstance(name, str):
             raise TypeError(

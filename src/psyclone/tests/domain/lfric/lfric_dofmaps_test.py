@@ -178,31 +178,29 @@ def test_unique_fs_comments():
     assert output in code
 
 
-def test_stub_daecl_dofmaps(fortran_writer):
+def test_stub_daecl_dofmaps():
     '''
     Check that LFRicDofmaps generates the expected declarations in the stub.
 
     '''
 
     stub_psyir = generate(os.path.join(BASE_PATH,
-                                   "columnwise_op_asm_kernel_mod.F90"),
-                      api=TEST_API)
-    result = fortran_writer(stub_psyir)
+                                       "columnwise_op_asm_kernel_mod.F90"),
+                          api=TEST_API)
 
-    assert "integer(kind=i_def), intent(in) :: cma_op_2_ncol" in result
-    assert "integer(kind=i_def), intent(in) :: cma_op_2_nrow" in result
+    assert "integer(kind=i_def), intent(in) :: cma_op_2_ncol" in stub_psyir
+    assert "integer(kind=i_def), intent(in) :: cma_op_2_nrow" in stub_psyir
 
 
-def test_lfricdofmaps_stub_gen(fortran_writer):
+def test_lfricdofmaps_stub_gen():
     '''
     Test the kernel-stub generator for a CMA apply kernel. This has
     two fields and one CMA operator as arguments.
 
     '''
     stub_psyir = generate(os.path.join(BASE_PATH,
-                                   "columnwise_op_app_kernel_mod.F90"),
-                      api=TEST_API)
-    result = fortran_writer(stub_psyir)
+                                       "columnwise_op_app_kernel_mod.F90"),
+                          api=TEST_API)
 
     expected = (
         "  subroutine columnwise_op_app_kernel_code(cell, ncell_2d, "
@@ -214,4 +212,4 @@ def test_lfricdofmaps_stub_gen(fortran_writer):
         "undf_aspc2_field_2, map_aspc2_field_2, "
         "cma_indirection_map_aspc2_field_2)\n"
         )
-    assert expected in str(result)
+    assert expected in stub_psyir

@@ -391,19 +391,17 @@ def test_stencil_args_unique_3(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "integer(kind=i_def), intent(in) :: my_info_f2_info\n" in result
-    assert "integer(kind=i_def), intent(in) :: my_info_f2_info_2\n" in result
     assert "integer(kind=i_def), intent(in) :: my_info_f2_info_1\n" in result
-    assert "integer(kind=i_def), intent(in) :: my_info_f2_info_3\n" in result
     assert (
         "f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap(STENCIL_1DX, "
         "my_info_f2_info)" in result)
     if dist_mem:
         assert (
             "if (f2_proxy%is_dirty(depth=MAX(my_info_f2_info + 1, "
-            "my_info_f2_info_2 + 1))) then" in result)
+            "my_info_f2_info_1 + 1))) then" in result)
         assert (
             "call f2_proxy%halo_exchange(depth=MAX(my_info_f2_info + 1, "
-            "my_info_f2_info_2 + 1))" in result)
+            "my_info_f2_info_1 + 1))" in result)
         assert "if (f3_proxy%is_dirty(depth=1)) then" in result
         assert "call f3_proxy%halo_exchange(depth=1)" in result
         assert "if (f4_proxy%is_dirty(depth=1)) then" in result
