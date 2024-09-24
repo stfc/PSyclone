@@ -1654,11 +1654,6 @@ class DynCellIterators(LFRicCollection):
                 "Cannot create an Invoke with no field/operator arguments.")
         self._first_var = first_var
 
-        import pdb; pdb.set_trace()
-        print(self._invoke)
-        self._halo_depth_name = self._symbol_table.find_or_create_tag(
-            "halo_depth", symbol_type=LFRicTypes("MeshHeightDataSymbol")).name
-
     def _invoke_declarations(self, parent):
         '''
         Declare entities required for iterating over cells in the Invoke.

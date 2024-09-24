@@ -316,7 +316,7 @@ class LFRicKern(CodedKern):
         # construct an enumerator with start value -<no. of qr rules>
         start_value = -len(qr_shapes)
         if self._halo_depth:
-            start_value += 1
+            start_value -= 1
         for idx, shape in enumerate(qr_shapes, start_value):
 
             qr_arg = args[idx]
