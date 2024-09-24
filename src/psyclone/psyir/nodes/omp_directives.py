@@ -1536,7 +1536,7 @@ class OMPParallelDirective(OMPRegionDirective):
 
         This method analyses the directive body and automatically classifies
         each symbol using the following rules:
-        - All arrays are shared unless listed in a explicit private list.
+        - All arrays are shared unless listed in the explicitly private list.
         - Scalars that are accessed only once are shared.
         - Scalars that are read-only or written outside a loop are shared.
         - Scalars written in multiple iterations of a loop are private, unless:
@@ -1604,7 +1604,7 @@ class OMPParallelDirective(OMPRegionDirective):
                 symbol = None
 
             # If it is manually marked as private, add it to private or
-            # firstprivate sets depending if it has a value before
+            # firstprivate set
             if (isinstance(symbol, DataSymbol) and
                     isinstance(self.dir_body[0], Loop) and
                     symbol in self.dir_body[0].explicitly_private_symbols):

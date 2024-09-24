@@ -1406,29 +1406,6 @@ class Node():
             and self.position == node.position + 1
         )
 
-    def is_inside_of(self, node):
-        '''
-        :param node: the node to compare it to.
-
-        :returns: whether this node is a decendant of the given node.
-        :rtype: bool
-        '''
-        if self.root != node.root:
-            return False
-
-        if self.abs_position < node.abs_position:
-            # It is before node, not inside
-            return False
-
-        if node.parent and len(node.parent.children) > node.position + 1:
-            next_node = node.parent.children[node.position + 1]
-            if self.abs_position >= next_node.abs_position:
-                # It is after node, not inside
-                return False
-
-        # If its not before or after, and root is the same, it must be inside
-        return True
-
     def coded_kernels(self):
         '''
         Returns a list of all of the user-supplied kernels (as opposed to

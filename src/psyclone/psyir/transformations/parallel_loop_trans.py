@@ -146,8 +146,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         if not isinstance(privatise_arrays, bool):
             raise TypeError(
-                f"The 'privatise_arrays' option must be a bool"
-                f"but got an object of type {type(privatise_arrays)}")
+                f"The 'privatise_arrays' option must be a bool "
+                f"but got an object of type {type(privatise_arrays).__name__}")
 
         routine = node.ancestor(Routine)
         if routine is not None and routine.parent is not None:

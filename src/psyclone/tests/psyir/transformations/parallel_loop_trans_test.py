@@ -611,3 +611,10 @@ def test_paralooptranas_with_array_privatisation(fortran_reader,
     assert ("The write-write dependency in 'mystruct%array' cannot be solved "
             "by array privatisation because it is not a plain array or it is "
             "used outside the loop" in str(err.value))
+
+    # The privatise_arrays only accepts bools
+
+    with pytest.raises(TypeError) as err:
+        trans.apply(loop, {"privatise_arrays": 3})
+    assert ("The 'privatise_arrays' option must be a bool but got an object "
+            "of type int" in str(err.value))

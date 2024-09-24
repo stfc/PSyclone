@@ -1861,6 +1861,9 @@ def test_following_node(fortran_reader):
     assert loops[0].following_node(routine_scope=False) is routines[1]
     assert assignments[1].following_node(routine_scope=False) is routines[1]
 
+    # If it has no parent, they return None
+    assert loops[0].detach().following_node(routine_scope=False) is None
+
 
 def test_following(fortran_reader):
     '''Tests that the following method works as expected.'''
