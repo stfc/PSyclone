@@ -45,9 +45,9 @@ from collections import OrderedDict, namedtuple
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
-from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
 from psyclone.parse.algorithm import Arg, KernelCall
@@ -379,6 +379,13 @@ class LFRicKern(CodedKern):
         self._mesh_properties = ktype.mesh
 
     @property
+    def halo_depth(self):
+        '''
+        TODO
+        '''
+        return self._halo_depth
+
+    @property
     def qr_rules(self):
         '''
         :return: details of each of the quadrature rules required by this \
@@ -614,14 +621,13 @@ class LFRicKern(CodedKern):
         # Add all the declarations
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric import (
-            LFRicCellIterators, LFRicScalarArgs, LFRicFields,
-            LFRicDofmaps, LFRicStencils)
-        from psyclone.dynamo0p3 import (DynFunctionSpaces,
+        from psyclone.domain.lfric import (LFRicScalarArgs, LFRicFields,
+                                           LFRicDofmaps, LFRicStencils)
+        from psyclone.dynamo0p3 import (DynCellIterators, DynFunctionSpaces,
                                         DynCMAOperators, DynBoundaryConditions,
                                         DynLMAOperators, LFRicMeshProperties,
                                         DynBasisFunctions, DynReferenceElement)
-        for entities in [LFRicCellIterators, LFRicDofmaps, DynFunctionSpaces,
+        for entities in [DynCellIterators, LFRicDofmaps, DynFunctionSpaces,
                          DynCMAOperators, LFRicScalarArgs, LFRicFields,
                          DynLMAOperators, LFRicStencils, DynBasisFunctions,
                          DynBoundaryConditions, DynReferenceElement,

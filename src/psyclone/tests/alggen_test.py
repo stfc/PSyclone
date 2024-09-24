@@ -172,6 +172,9 @@ def test_single_function_invoke_qr():
 
 def test_single_kernel_qr_and_halo_only():
     '''
+    Check the transformation of the algorithm layer for an invoke of a kernel
+    that requires quadrature and halo depth.
+
     '''
     alg, _ = generate(
         os.path.join(BASE_PATH,
@@ -187,6 +190,19 @@ def test_single_kernel_qr_and_halo_only():
     # Invoke call must be passed both the qr and halo-depth arguments.
     assert ("call invoke_0_testkern_qr_and_halo_only_type(f1, f2, m1, a, "
             "m2, istp, qr, hdepth)" in gen)
+
+
+def test_multi_kernel_halo_only():
+    '''
+    Check the transformation of the algorithm layer for an invoke containing
+    two kernels that both require a halo depth.
+
+    '''
+    alg, _ = generate(
+        os.path.join(BASE_PATH,
+                     "1.1.11_two_halo_only.f90"),
+        api="lfric")
+    gen = str(alg).lower()
 
 
 def test_multi_function_invoke():

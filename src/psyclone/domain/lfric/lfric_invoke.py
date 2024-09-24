@@ -174,6 +174,13 @@ class LFRicInvoke(Invoke):
                 if rule.psy_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(rule.psy_name)
 
+        # Add the halo depth(s) for any kernel(s) that operate in the halos
+        for call in self.schedule.kernels():
+            if call.iterates_over not in ["halo_cell_column",
+                                          "owned_and_halo_cell_column"]:
+                continue
+            self._alg_unique_args.append(call.halo_depth)
+
         # Lastly, add in halo exchange calls and global sums if
         # required. We only need to add halo exchange calls for fields
         # since operators are assembled in place and scalars don't
