@@ -560,8 +560,11 @@ class LFRicMeshProperties(LFRicCollection):
                         name = sym.name
                     else:
                         name = self._symbol_table.\
-                            find_or_create_integer_symbol(
-                                "nfaces_re_h", tag="nfaces_re_h").name
+                            find_or_create(
+                                "nfaces_re_h", tag="nfaces_re_h",
+                                symbol_type=DataSymbol,
+                                datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                            ).name
                     arg_list.append(name)
                     if var_accesses is not None:
                         var_accesses.add_access(Signature(name),
@@ -647,15 +650,20 @@ class LFRicMeshProperties(LFRicCollection):
                 #                    kind=api_config.default_kind["integer"],
                 #                    pointer=True, entity_decls=[adj_face]))
             elif prop == MeshProperty.NCELL_2D_NO_HALOS:
-                name = self._symbol_table.find_or_create_integer_symbol(
+                name = self._symbol_table.find_or_create(
                     "ncell_2d_no_halos",
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")(),
                     tag="ncell_2d_no_halos").name
                 # parent.add(DeclGen(parent, datatype="integer",
                 #                    kind=api_config.default_kind["integer"],
                 #                    entity_decls=[name]))
             elif prop == MeshProperty.NCELL_2D:
-                name = self._symbol_table.find_or_create_integer_symbol(
-                    "ncell_2d", tag="ncell_2d").name
+                name = self._symbol_table.find_or_create(
+                    "ncell_2d", tag="ncell_2d",
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                ).name
                 # parent.add(DeclGen(parent, datatype="integer",
                 #                    kind=api_config.default_kind["integer"],
                 #                    entity_decls=[name]))
@@ -691,14 +699,21 @@ class LFRicMeshProperties(LFRicCollection):
 
         for prop in self._properties:
             if prop == MeshProperty.ADJACENT_FACE:
-                adj_face = self._symbol_table.find_or_create_array(
-                    "adjacent_face", 2, ScalarType.Intrinsic.INTEGER,
+                adj_face = self._symbol_table.find_or_create(
+                    "adjacent_face",
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*2),
                     tag="adjacent_face").name
                 # 'nfaces_re_h' will have been declared by the
                 # DynReferenceElement class.
                 dimension = self._symbol_table.\
-                    find_or_create_integer_symbol("nfaces_re_h",
-                                                  tag="nfaces_re_h").name
+                    find_or_create(
+                        "nfaces_re_h", tag="nfaces_re_h",
+                        symbol_type=DataSymbol,
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                    ).name
                 # parent.add(
                 #     DeclGen(
                 #         parent, datatype="integer",
@@ -777,8 +792,11 @@ class LFRicMeshProperties(LFRicCollection):
                 cursor += 1
 
             elif prop == MeshProperty.NCELL_2D_NO_HALOS:
-                symbol = self._symbol_table.find_or_create_integer_symbol(
-                    "ncell_2d_no_halos", tag="ncell_2d_no_halos")
+                symbol = self._symbol_table.find_or_create(
+                    "ncell_2d_no_halos", tag="ncell_2d_no_halos",
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                )
                 # parent.add(AssignGen(parent, lhs=name,
                 #                      rhs=mesh+"%get_last_edge_cell()"))
                 assignment = Assignment.create(
@@ -789,8 +807,11 @@ class LFRicMeshProperties(LFRicCollection):
                 cursor += 1
 
             elif prop == MeshProperty.NCELL_2D:
-                symbol = self._symbol_table.find_or_create_integer_symbol(
-                    "ncell_2d", tag="ncell_2d")
+                symbol = self._symbol_table.find_or_create(
+                    "ncell_2d", tag="ncell_2d",
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                )
                 # parent.add(AssignGen(parent, lhs=name,
                 #                      rhs=mesh+"%get_ncells_2d()"))
                 assignment = Assignment.create(
@@ -904,22 +925,25 @@ class DynReferenceElement(LFRicCollection):
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_HORIZONTAL_FACES
                 in self._properties or
                 self._nfaces_h_required):
-            self._nfaces_h_symbol = symtab.find_or_create_integer_symbol(
-                "nfaces_re_h", tag="nfaces_re_h")
+            self._nfaces_h_symbol = symtab.find_or_create(
+                "nfaces_re_h", tag="nfaces_re_h", symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
         # Provide no. of vertical faces if required
         if (RefElementMetaData.Property.NORMALS_TO_VERTICAL_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_VERTICAL_FACES
                 in self._properties):
-            self._nfaces_v_symbol = symtab.find_or_create_integer_symbol(
-                "nfaces_re_v", tag="nfaces_re_v")
+            self._nfaces_v_symbol = symtab.find_or_create(
+                "nfaces_re_v", tag="nfaces_re_v", symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
         # Provide no. of all faces if required
         if (RefElementMetaData.Property.NORMALS_TO_FACES
                 in self._properties or
                 RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES
                 in self._properties):
-            self._nfaces_symbol = symtab.find_or_create_integer_symbol(
-                "nfaces_re", tag="nfaces_re")
+            self._nfaces_symbol = symtab.find_or_create(
+                "nfaces_re", tag="nfaces_re", symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
         # Now the arrays themselves, in the order specified in the
         # kernel metadata (in the case of a kernel stub)
@@ -928,9 +952,12 @@ class DynReferenceElement(LFRicCollection):
             if prop == RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES:
                 name = "normals_to_horiz_faces"
                 self._horiz_face_normals_symbol = \
-                    symtab.find_or_create_array(name, 2,
-                                                ScalarType.Intrinsic.REAL,
-                                                tag=name)
+                    symtab.find_or_create(
+                        name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicRealScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*2),
+                        tag=name)
                 if self._horiz_face_normals_symbol not in self._arg_properties:
                     self._arg_properties[self._horiz_face_normals_symbol] = \
                          self._nfaces_h_symbol
@@ -939,9 +966,12 @@ class DynReferenceElement(LFRicCollection):
                           OUTWARD_NORMALS_TO_HORIZONTAL_FACES):
                 name = "out_normals_to_horiz_faces"
                 self._horiz_face_out_normals_symbol = \
-                    symtab.find_or_create_array(name, 2,
-                                                ScalarType.Intrinsic.REAL,
-                                                tag=name)
+                    symtab.find_or_create(
+                        name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicRealScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*2),
+                        tag=name)
                 if self._horiz_face_out_normals_symbol not in \
                         self._arg_properties:
                     self._arg_properties[self._horiz_face_out_normals_symbol] \
@@ -950,9 +980,12 @@ class DynReferenceElement(LFRicCollection):
                           NORMALS_TO_VERTICAL_FACES):
                 name = "normals_to_vert_faces"
                 self._vert_face_normals_symbol = \
-                    symtab.find_or_create_array(name, 2,
-                                                ScalarType.Intrinsic.REAL,
-                                                tag=name)
+                    symtab.find_or_create(
+                        name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicRealScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*2),
+                        tag=name)
                 if self._vert_face_normals_symbol not in self._arg_properties:
                     self._arg_properties[self._vert_face_normals_symbol] = \
                          self._nfaces_v_symbol
@@ -961,9 +994,12 @@ class DynReferenceElement(LFRicCollection):
                           OUTWARD_NORMALS_TO_VERTICAL_FACES):
                 name = "out_normals_to_vert_faces"
                 self._vert_face_out_normals_symbol = \
-                    symtab.find_or_create_array(name, 2,
-                                                ScalarType.Intrinsic.REAL,
-                                                tag=name)
+                    symtab.find_or_create(
+                        name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicRealScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*2),
+                        tag=name)
                 if self._vert_face_out_normals_symbol not in \
                         self._arg_properties:
                     self._arg_properties[self._vert_face_out_normals_symbol] \
@@ -972,9 +1008,12 @@ class DynReferenceElement(LFRicCollection):
             elif prop == RefElementMetaData.Property.NORMALS_TO_FACES:
                 name = "normals_to_faces"
                 self._face_normals_symbol = \
-                    symtab.find_or_create_array(name, 2,
-                                                ScalarType.Intrinsic.REAL,
-                                                tag=name)
+                    symtab.find_or_create(
+                        name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicRealScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*2),
+                        tag=name)
                 if self._face_normals_symbol not in self._arg_properties:
                     self._arg_properties[self._face_normals_symbol] = \
                         self._nfaces_symbol
@@ -982,9 +1021,12 @@ class DynReferenceElement(LFRicCollection):
             elif prop == RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES:
                 name = "out_normals_to_faces"
                 self._face_out_normals_symbol = \
-                    symtab.find_or_create_array(name, 2,
-                                                ScalarType.Intrinsic.REAL,
-                                                tag=name)
+                    symtab.find_or_create(
+                        name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                                LFRicTypes("LFRicRealScalarDataType")(),
+                                [ArrayType.Extent.DEFERRED]*2),
+                        tag=name)
                 if self._face_out_normals_symbol not in \
                    self._arg_properties:
                     self._arg_properties[self._face_out_normals_symbol] = \
@@ -1102,23 +1144,40 @@ class DynReferenceElement(LFRicCollection):
 
         # Declare the necessary scalars (duplicates are ignored by parent.add)
         scalars = list(self._arg_properties.values())
-        nfaces_h = self._symbol_table.find_or_create_integer_symbol(
-            "nfaces_re_h", tag="nfaces_re_h")
+        nfaces_h = self._symbol_table.find_or_create(
+            "nfaces_re_h", tag="nfaces_re_h",
+            symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+        )
         if self._nfaces_h_required and nfaces_h not in scalars:
             scalars.append(nfaces_h)
 
         for nface in scalars:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[nface.name]))
+            self._symbol_table.find_or_create(
+                nface.name,
+                symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")(),
+                interface=ArgumentInterface(ArgumentInterface.Access.READ)
+            )
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    intent="in", entity_decls=[nface.name]))
 
         # Declare the necessary arrays
         for arr, sym in self._arg_properties.items():
             dimension = f"3,{sym.name}"
-            parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
-                               intent="in", dimension=dimension,
-                               entity_decls=[arr.name]))
+            self._symbol_table.find_or_create(
+                arr.name,
+                symbol_type=DataSymbol,
+                datatype=ArrayType(
+                    LFRicTypes("LFRicRealScalarDataType")(),
+                    [Literal("3", INTEGER_TYPE), Reference(sym)]),
+                interface=ArgumentInterface(ArgumentInterface.Access.READ)
+            )
+            # parent.add(DeclGen(parent, datatype="real",
+            #                    kind=api_config.default_kind["real"],
+            #                    intent="in", dimension=dimension,
+            #                    entity_decls=[arr.name]))
         return cursor
 
     def initialise(self, cursor):
@@ -1984,7 +2043,8 @@ class DynLMAOperators(LFRicCollection):
                 "cell", symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
-            self._symbol_table.append_argument(arg)
+            if arg not in self._symbol_table._argument_list:
+                self._symbol_table.append_argument(arg)
             # parent.add(DeclGen(parent, datatype="integer",
             #                    kind=api_config.default_kind["integer"],
             #                    intent="in", entity_decls=["cell"]))
@@ -2306,8 +2366,11 @@ class DynCMAOperators(LFRicCollection):
             for param in self._cma_ops[op_name]["params"]:
                 name = f"{op_name}_{param}"
                 tag = f"{op_name}:{param}:{suffix}"
-                sym = self._symbol_table.find_or_create_integer_symbol(
-                    name, tag=tag)
+                sym = self._symbol_table.find_or_create(
+                    name, tag=tag,
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                )
                 param_names.append(sym.name)
             # parent.add(DeclGen(parent, datatype="integer",
             #                    kind=api_config.default_kind["integer"],
@@ -2339,7 +2402,8 @@ class DynCMAOperators(LFRicCollection):
             "cell", symbol_type=DataSymbol,
             datatype=LFRicTypes("LFRicIntegerScalarDataType")())
         symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
-        symtab.append_argument(symbol)
+        if symbol not in symtab._argument_list:
+            symtab.append_argument(symbol)
         symbol = symtab.find_or_create(
             "ncell_2d", symbol_type=DataSymbol,
             datatype=LFRicTypes("LFRicIntegerScalarDataType")())
@@ -2539,8 +2603,11 @@ class DynMeshes():
             # holding the maximum halo depth for each mesh.
             for name in mesh_tags:
                 var_name = f"max_halo_depth_{name}"
-                self._symbol_table.find_or_create_integer_symbol(
-                    var_name, tag=var_name)
+                self._symbol_table.find_or_create(
+                    var_name, tag=var_name,
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                )
 
     def _colourmap_init(self):
         '''
@@ -2576,27 +2643,44 @@ class DynMeshes():
             carg_name = call._intergrid_ref.coarse.name
             # Colour map
             base_name = "cmap_" + carg_name
-            colour_map = sym_tab.find_or_create_array(
-                base_name, 2, ScalarType.Intrinsic.INTEGER,
+            colour_map = sym_tab.find_or_create(
+                base_name,
+                symbol_type=DataSymbol,
+                datatype=ArrayType(
+                        LFRicTypes("LFRicIntegerScalarDataType")(),
+                        [ArrayType.Extent.DEFERRED]*2),
                 tag=base_name)
             # No. of colours
             base_name = "ncolour_" + carg_name
-            ncolours = sym_tab.find_or_create_integer_symbol(
-                base_name, tag=base_name)
+            ncolours = sym_tab.find_or_create(
+                base_name, tag=base_name,
+                symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+            )
             # Array holding the last cell of a given colour.
             if (Config.get().distributed_memory and
                     not call.all_updates_are_writes):
                 # This will require a loop into the halo and so the array is
                 # 2D (indexed by colour *and* halo depth).
                 base_name = "last_halo_cell_all_colours_" + carg_name
-                last_cell = self._schedule.symbol_table.find_or_create_array(
-                    base_name, 2, ScalarType.Intrinsic.INTEGER, tag=base_name)
+                last_cell = self._schedule.symbol_table.find_or_create(
+                    base_name,
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*2),
+                    tag=base_name)
             else:
                 # Array holding the last edge cell of a given colour. Just 1D
                 # as indexed by colour only.
                 base_name = "last_edge_cell_all_colours_" + carg_name
-                last_cell = self._schedule.symbol_table.find_or_create_array(
-                    base_name, 1, ScalarType.Intrinsic.INTEGER, tag=base_name)
+                last_cell = self._schedule.symbol_table.find_or_create(
+                    base_name,
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*1),
+                    tag=base_name)
             # Add these symbols into the DynInterGrid entry for this kernel
             call._intergrid_ref.set_colour_info(colour_map, ncolours,
                                                 last_cell)
@@ -2610,17 +2694,26 @@ class DynMeshes():
             # don't already have one.
             colour_map = non_intergrid_kern.colourmap
             # No. of colours
-            ncolours = sym_tab.find_or_create_integer_symbol(
-                "ncolour", tag="ncolour").name
+            ncolours = sym_tab.find_or_create(
+                "ncolour", tag="ncolour",
+                symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+            ).name
             if self._needs_colourmap_halo:
-                sym_tab.find_or_create_array(
-                    "last_halo_cell_all_colours", 2,
-                    ScalarType.Intrinsic.INTEGER,
+                sym_tab.find_or_create(
+                    "last_halo_cell_all_colours",
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*2),
                     tag="last_halo_cell_all_colours")
             if self._needs_colourmap:
-                sym_tab.find_or_create_array(
-                    "last_edge_cell_all_colours", 1,
-                    ScalarType.Intrinsic.INTEGER,
+                sym_tab.find_or_create(
+                    "last_edge_cell_all_colours",
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*1),
                     tag="last_edge_cell_all_colours")
 
     def declarations(self, cursor):
@@ -3072,21 +3165,34 @@ class DynInterGrid():
 
         # Generate name for ncell variables
         name = f"ncell_{fine_arg.name}"
-        self.ncell_fine = symtab.find_or_create_integer_symbol(
-            name, tag=name).name
+        self.ncell_fine = symtab.find_or_create(
+            name, tag=name,
+            symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+        ).name
         # No. of fine cells per coarse cell in x
         name = f"ncpc_{fine_arg.name}_{coarse_arg.name}_x"
-        self.ncellpercellx = symtab.find_or_create_integer_symbol(
-            name, tag=name).name
+        self.ncellpercellx = symtab.find_or_create(
+            name, tag=name,
+            symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+        ).name
         # No. of fine cells per coarse cell in y
         name = f"ncpc_{fine_arg.name}_{coarse_arg.name}_y"
-        self.ncellpercelly = symtab.find_or_create_integer_symbol(
-            name, tag=name).name
+        self.ncellpercelly = symtab.find_or_create(
+            name, tag=name,
+            symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+        ).name
         # Name for cell map
         base_name = "cell_map_" + coarse_arg.name
-        sym = symtab.find_or_create_array(base_name, 3,
-                                          ScalarType.Intrinsic.INTEGER,
-                                          tag=base_name)
+        sym = symtab.find_or_create(
+                base_name,
+                symbol_type=DataSymbol,
+                datatype=ArrayType(
+                        LFRicTypes("LFRicIntegerScalarDataType")(),
+                        [ArrayType.Extent.DEFERRED]*3),
+                tag=base_name)
         self.cell_map = sym.name
 
         # We have no colourmap information when first created
@@ -4092,8 +4198,11 @@ class DynBasisFunctions(LFRicCollection):
             # of quadrature points by appending the name of the quadrature
             # argument
             decl_list = [
-                symbol_table.find_or_create_integer_symbol(
-                    name+"_"+qr_arg_name, tag=name+"_"+qr_arg_name).name
+                symbol_table.find_or_create(
+                    name+"_"+qr_arg_name, tag=name+"_"+qr_arg_name,
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                ).name
                 for name in self.qr_dim_vars[qr_type]]
             # parent.add(DeclGen(parent, datatype="integer",
             #                    kind=api_config.default_kind["integer"],
@@ -6063,8 +6172,11 @@ class DynKernelArguments(Arguments):
                     # it is unique in the PSy layer
                     tag = "AlgArgs_" + arg.stencil.direction_arg.text
                     root = arg.stencil.direction_arg.varname
-                    symbol = symtab.find_or_create_integer_symbol(
-                        root, tag=tag)
+                    symbol = symtab.find_or_create(
+                        root, tag=tag,
+                        symbol_type=DataSymbol,
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                    )
                     arg.stencil.direction_arg.varname = symbol.name
 
         self._dofs = []

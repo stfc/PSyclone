@@ -353,7 +353,8 @@ class LFRicDofmaps(LFRicCollection):
                 ndf_name, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
-            # self._symbol_table.append_argument(symbol)
+            if symbol not in self._symbol_table._argument_list:
+                self._symbol_table.append_argument(symbol)
 
             nlayers = self._symbol_table.lookup("nlayers")
             dmap_symbol = self._symbol_table.find_or_create(
@@ -361,7 +362,8 @@ class LFRicDofmaps(LFRicCollection):
                 datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                                    [Reference(symbol), Reference(nlayers)]))
             dmap_symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
-            self._symbol_table.append_argument(dmap_symbol)
+            if dmap_symbol not in self._symbol_table._argument_list:
+                self._symbol_table.append_argument(dmap_symbol)
             # parent.add(DeclGen(parent, datatype="integer",
             #                    kind=api_config.default_kind["integer"],
             #                    intent="in", entity_decls=[ndf_name]))

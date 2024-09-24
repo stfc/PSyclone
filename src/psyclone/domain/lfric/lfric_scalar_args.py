@@ -225,41 +225,52 @@ class LFRicScalarArgs(LFRicCollection):
                 for real_scalar_kind, real_scalars_list in \
                         real_scalars_precision_map.items():
                     for arg in real_scalars_list:
-                        symbol = symtab.lookup(arg.declaration_name)
+                        symbol = symtab.find_or_create(
+                            arg.declaration_name,
+                            symbol_type=DataSymbol,
+                            datatype=LFRicTypes("LFRicRealScalarDataType")())
                         if intent == "out":
-                            symbol.interface.access = \
-                                ArgumentInterface.Access.WRITE
+                            symbol.interface = ArgumentInterface(
+                                ArgumentInterface.Access.WRITE)
                         elif intent == "in":
-                            symbol.interface.access = \
-                                ArgumentInterface.Access.READ
+                            symbol.interface = ArgumentInterface(
+                                ArgumentInterface.Access.READ)
+                    if symbol not in symtab._argument_list:
+                        symtab.append_argument(symbol)
 
         # Integer scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._integer_scalars[intent]:
-                dtype = self._integer_scalars[intent][0].intrinsic_type
-                dkind = self._integer_scalars[intent][0].precision
                 for arg in self._integer_scalars[intent]:
-                    symbol = symtab.lookup(arg.declaration_name)
+                    symbol = symtab.find_or_create(
+                        arg.declaration_name,
+                        symbol_type=DataSymbol,
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                     if intent == "out":
-                        symbol.interface.access = \
-                            ArgumentInterface.Access.WRITE
+                        symbol.interface = ArgumentInterface(
+                            ArgumentInterface.Access.WRITE)
                     elif intent == "in":
-                        symbol.interface.access = \
-                            ArgumentInterface.Access.READ
+                        symbol.interface = ArgumentInterface(
+                            ArgumentInterface.Access.READ)
+                    if symbol not in symtab._argument_list:
+                        symtab.append_argument(symbol)
 
         # Logical scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._logical_scalars[intent]:
-                dtype = self._logical_scalars[intent][0].intrinsic_type
-                dkind = self._logical_scalars[intent][0].precision
                 for arg in self._logical_scalars[intent]:
-                    symbol = symtab.lookup(arg.declaration_name)
+                    symbol = symtab.find_or_create(
+                        arg.declaration_name,
+                        symbol_type=DataSymbol,
+                        datatype=LFRicTypes("LFRicLogicalScalarDataType")())
                     if intent == "out":
-                        symbol.interface.access = \
-                            ArgumentInterface.Access.WRITE
+                        symbol.interface = ArgumentInterface(
+                            ArgumentInterface.Access.WRITE)
                     elif intent == "in":
-                        symbol.interface.access = \
-                            ArgumentInterface.Access.READ
+                        symbol.interface = ArgumentInterface(
+                            ArgumentInterface.Access.READ)
+                    if symbol not in symtab._argument_list:
+                        symtab.append_argument(symbol)
         return cursor
 
 

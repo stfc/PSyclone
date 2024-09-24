@@ -283,55 +283,55 @@ def test_real_int_field_gen_stub(fortran_writer):
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
-    print(generated_code)
-    output = (
-        "module testkern_field_mod\n"
-        "  implicit none\n"
-        "  contains\n"
-        "  subroutine testkern_field_code(nlayers, rscalar_1, field_2_w1, "
-        "field_3_w2, field_4_wtheta, field_5_w3, iscalar_6, ndf_w1, undf_w1, "
-        "map_w1, basis_w1_qr_xyoz, diff_basis_w1_qr_xyoz, ndf_w2, undf_w2, "
-        "map_w2, ndf_wtheta, undf_wtheta, map_wtheta, ndf_w3, undf_w3, "
-        "map_w3, basis_w3_qr_xyoz, diff_basis_w3_qr_xyoz, np_xy_qr_xyoz, "
-        "np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
-        "    use constants_mod\n"
-        "    implicit none\n"
-        "    integer(kind=i_def), intent(in) :: nlayers\n"
-        "    integer(kind=i_def), intent(in) :: ndf_w1\n"
-        "    integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
-        "    integer(kind=i_def), intent(in) :: ndf_w2\n"
-        "    integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
-        "    integer(kind=i_def), intent(in) :: ndf_w3\n"
-        "    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
-        "    integer(kind=i_def), intent(in) :: ndf_wtheta\n"
-        "    integer(kind=i_def), intent(in), dimension(ndf_wtheta) :: "
-        "map_wtheta\n"
-        "    integer(kind=i_def), intent(in) :: undf_w1, undf_w2, "
-        "undf_wtheta, undf_w3\n"
-        "      REAL(kind=r_def), intent(in) :: rscalar_1\n"
-        "    integer(kind=i_def), intent(in) :: iscalar_6\n"
-        "      REAL(kind=r_def), intent(inout), dimension(undf_w1) :: "
-        "field_2_w1\n"
-        "      REAL(kind=r_def), intent(in), dimension(undf_w2) :: "
-        "field_3_w2\n"
-        "    integer(kind=i_def), intent(inout), dimension(undf_wtheta) :: "
-        "field_4_wtheta\n"
-        "    integer(kind=i_def), intent(in), dimension(undf_w3) :: "
-        "field_5_w3\n"
-        "    integer(kind=i_def), intent(in) :: np_xy_qr_xyoz, "
-        "np_z_qr_xyoz\n"
-        "      REAL(kind=r_def), intent(in), dimension(3,ndf_w1,"
-        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w1_qr_xyoz\n"
-        "      REAL(kind=r_def), intent(in), dimension(3,ndf_w1,"
-        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w1_qr_xyoz\n"
-        "      REAL(kind=r_def), intent(in), dimension(1,ndf_w3,"
-        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w3_qr_xyoz\n"
-        "      REAL(kind=r_def), intent(in), dimension(3,ndf_w3,"
-        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w3_qr_xyoz\n"
-        "      REAL(kind=r_def), intent(in), dimension(np_xy_qr_xyoz) :: "
-        "weights_xy_qr_xyoz\n"
-        "      REAL(kind=r_def), intent(in), dimension(np_z_qr_xyoz) :: "
-        "weights_z_qr_xyoz\n"
-        "    END SUBROUTINE testkern_field_code\n"
-        "  END MODULE testkern_field_mod")
-    assert output in generated_code
+    assert """\
+module testkern_field_mod
+  implicit none
+  public
+
+  contains
+  subroutine testkern_field_code(nlayers, rscalar_1, field_2_w1, field_3_w2, \
+field_4_wtheta, field_5_w3, iscalar_6, ndf_w1, undf_w1, map_w1, \
+basis_w1_qr_xyoz, diff_basis_w1_qr_xyoz, ndf_w2, undf_w2, map_w2, ndf_wtheta, \
+undf_wtheta, map_wtheta, ndf_w3, undf_w3, map_w3, basis_w3_qr_xyoz, \
+diff_basis_w3_qr_xyoz, np_xy_qr_xyoz, np_z_qr_xyoz, weights_xy_qr_xyoz, \
+weights_z_qr_xyoz)
+    use constants_mod
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
+    integer(kind=i_def), intent(in) :: ndf_w2
+    integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+    integer(kind=i_def), intent(in) :: ndf_w3
+    integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+    integer(kind=i_def), intent(in) :: ndf_wtheta
+    integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
+    integer(kind=i_def), intent(in) :: undf_w1
+    integer(kind=i_def), intent(in) :: undf_w2
+    integer(kind=i_def), intent(in) :: undf_wtheta
+    integer(kind=i_def), intent(in) :: undf_w3
+    real(kind=r_def), intent(in) :: rscalar_1
+    integer(kind=i_def), intent(in) :: iscalar_6
+    real(kind=r_def), dimension(undf_w1), intent(inout) :: field_2_w1
+    real(kind=r_def), dimension(undf_w2), intent(in) :: field_3_w2
+    integer(kind=i_def), dimension(undf_wtheta), intent(inout) :: \
+field_4_wtheta
+    integer(kind=i_def), dimension(undf_w3), intent(in) :: field_5_w3
+    integer(kind=i_def), intent(in) :: np_xy_qr_xyoz
+    integer(kind=i_def), intent(in) :: np_z_qr_xyoz
+    real(kind=r_def), dimension(3,ndf_w1,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: basis_w1_qr_xyoz
+    real(kind=r_def), dimension(3,ndf_w1,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: diff_basis_w1_qr_xyoz
+    real(kind=r_def), dimension(1,ndf_w3,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: basis_w3_qr_xyoz
+    real(kind=r_def), dimension(3,ndf_w3,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: diff_basis_w3_qr_xyoz
+    real(kind=r_def), dimension(np_xy_qr_xyoz), intent(in) :: \
+weights_xy_qr_xyoz
+    real(kind=r_def), dimension(np_z_qr_xyoz), intent(in) :: \
+weights_z_qr_xyoz
+
+
+  end subroutine testkern_field_code
+
+end module testkern_field_mod\n""" == generated_code
