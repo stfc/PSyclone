@@ -40,12 +40,11 @@ directives into Nemo code. '''
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
     enhance_tree_information, NOT_PERFORMANT, NOT_WORKING)
-from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
     Loop, Routine, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
-# from psyclone.transformations import OMPLoopTrans
-from psyclone.transformations import OMPDeclareTargetTrans, TransformationError
+from psyclone.transformations import (
+    OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
 
 PROFILING_ENABLED = False
 
@@ -54,20 +53,19 @@ FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING + [
     "lbclnk.f90",   # TODO #2685: effective shape bug
     "asminc.f90",
     "trosk.f90",    # TODO #1254
-    "vremap.f90",   # bulk assignment of a structure component
-    # "ldfslp.f90",   # Dependency analysis mistake? see Cray compiler comment
+    "vremap.f90",   # Bulk assignment of a structure component
+    "ldfslp.f90",   # Dependency analysis mistake? see Cray compiler comment
     "lib_mpp.f90",  # Compiler Error: Illegal substring expression
     "prtctl.f90",   # Compiler Error: Illegal substring expression
     "sbcblk.f90",   # Compiler Error: Vector expression used where scalar
                     # expression required
     "diadct.f90",   # Compiler Error: Wrong number of arguments in reshape
-    # "seddta.f90",  # Cannot be uncommented?
     "stpctl.f90",
     "lbcndf.f90",
     "flread.f90",
     "sedini.f90",
     "diu_bulk.f90",  # Linking undefined reference
-    "bdyini.f90",  # Linking undefined reference
+    "bdyini.f90",    # Linking undefined reference
 ]
 
 
@@ -82,10 +80,8 @@ def trans(psyir):
     '''
 
     omp_target_trans = OMPTargetTrans()
-    omp_loop_trans = TransInfo().get_trans_name('OMPLoopTrans')
+    omp_loop_trans = OMPLoopTrans(omp_schedule="static")
     omp_loop_trans.omp_directive = "loop"
-    # omp_loop_trans = OMPLoopTrans(omp_schedule="static")
-    # omp_loop_trans.omp_directive = "teamsdistributeparalleldo"
 
     # TODO #2317: Has structure accesses that can not be offloaded and has
     # a problematic range to loop expansion of (1:1)
@@ -163,5 +159,5 @@ def trans(psyir):
                 loop_directive_trans=omp_loop_trans,
                 # Collapse is necessary to give GPUs enough parallel items
                 collapse=True,
-                # privatise_arrays=(psyir.name in ["zdftke.f90", ])
+                privatise_arrays=(psyir.name in ["zdftke.f90", ])
         )

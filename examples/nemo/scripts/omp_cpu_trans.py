@@ -51,9 +51,8 @@ FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING + [
     "lbclnk.f90",  # TODO #2685: effective shape bug
     "asminc.f90",
     "trosk.f90",  # TODO #1254
-    "vremap.f90",  # bulk assignment of a structure component
+    "vremap.f90",  # Bulk assignment of a structure component
     "ldfslp.f90",  # Dependency analysis mistake? see Cray compiler comment
-    # "seddta.f90",  # Cannot be uncommented?
 ]
 
 
