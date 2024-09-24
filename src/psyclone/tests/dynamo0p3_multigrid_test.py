@@ -355,7 +355,7 @@ def test_field_prolong(tmpdir, dist_mem):
         assert "loop0_stop = field2_proxy%vspace%get_ncell()\n" in gen_code
 
     expected = (
-        "        CALL prolong_test_kernel_code(nlayers, "
+        "        CALL prolong_test_kernel_code(nlayers_field2, "
         "cell_map_field2(:,:,cell), ncpc_field1_field2_x, "
         "ncpc_field1_field2_y, ncell_field1, field1_data, "
         "field2_data, ndf_w1, undf_w1, map_w1, undf_w2, "
@@ -397,7 +397,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     assert defs in output
 
     defs2 = (
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_field1\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: field2_data => "
         "null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: field1_data => "
@@ -486,7 +486,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     # We pass the whole dofmap for the fine mesh (we are reading from).
     # This is associated with the second kernel argument.
     kern_call = (
-        "        CALL restrict_test_kernel_code(nlayers, "
+        "        CALL restrict_test_kernel_code(nlayers_field1, "
         "cell_map_field1(:,:,cell), ncpc_field2_field1_x, "
         "ncpc_field2_field1_y, ncell_field2, "
         "field1_data, field2_data, undf_aspc1_field1, "
@@ -662,27 +662,27 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
         assert "loop3_stop = cmap_fld_c_proxy%vspace%get_ncell()\n" in output
         expected = (
             "      DO cell = loop0_start, loop0_stop, 1\n"
-            "        CALL prolong_test_kernel_code(nlayers, "
+            "        CALL prolong_test_kernel_code(nlayers_cmap_fld_c, "
             "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
             "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, fld_m_data, "
             "cmap_fld_c_data, ndf_w1, undf_w1, map_w1, undf_w2, "
             "map_w2(:,cell))\n"
             "      END DO\n"
             "      DO cell = loop1_start, loop1_stop, 1\n"
-            "        CALL prolong_test_kernel_code(nlayers, cell_map_fld_m"
-            "(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
-            "fld_f_data, fld_m_data, ndf_w1, undf_w1, map_w1, "
+            "        CALL prolong_test_kernel_code(nlayers_fld_m, "
+            "cell_map_fld_m(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y,"
+            " ncell_fld_f, fld_f_data, fld_m_data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cell))\n"
             "      END DO\n"
             "      DO cell = loop2_start, loop2_stop, 1\n"
-            "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_m"
-            "(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
-            "fld_m_data, fld_f_data, undf_aspc1_fld_m, "
+            "        CALL restrict_test_kernel_code(nlayers_fld_m, "
+            "cell_map_fld_m(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y,"
+            " ncell_fld_f, fld_m_data, fld_f_data, undf_aspc1_fld_m, "
             "map_aspc1_fld_m(:,cell), ndf_aspc2_fld_f, undf_aspc2_fld_f, "
             "map_aspc2_fld_f)\n"
             "      END DO\n"
             "      DO cell = loop3_start, loop3_stop, 1\n"
-            "        CALL restrict_test_kernel_code(nlayers, "
+            "        CALL restrict_test_kernel_code(nlayers_cmap_fld_c, "
             "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
             "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, cmap_fld_c_data, "
             "fld_m_data, undf_aspc1_cmap_fld_c, map_aspc1_cmap_fld_c"
@@ -800,9 +800,9 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         "      ! Call kernels and communication routines\n"
         "      !\n"
         "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL restrict_kernel_code(nlayers, cell_map_fld_m(:,:,cell), "
-        "ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
-        "fld_m_data, fld_f_data, undf_adspc1_fld_m, "
+        "        CALL restrict_kernel_code(nlayers_fld_m, "
+        "cell_map_fld_m(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, "
+        "ncell_fld_f, fld_m_data, fld_f_data, undf_adspc1_fld_m, "
         "map_adspc1_fld_m(:,cell), ndf_adspc2_fld_f, "
         "undf_adspc2_fld_f, map_adspc2_fld_f)\n"
         "      END DO\n")
