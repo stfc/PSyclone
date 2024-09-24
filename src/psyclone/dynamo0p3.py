@@ -36,8 +36,8 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone Dynamo 0.3 API by 1)
-    specialising the required base classes in parser.py (KernelType) and
+''' This module implements the PSyclone LFRic API by 1) specialising the
+    required base classes in parser.py (KernelType) and
     adding a new class (DynFuncDescriptor03) to capture function descriptor
     metadata and 2) specialising the required base classes in psyGen.py
     (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
@@ -1619,90 +1619,6 @@ class DynProxies(LFRicCollection):
                         f"Kernel argument '{arg.name}' of type "
                         f"'{arg.argument_type}' not "
                         f"handled in DynProxies.initialise()")
-
-
-class DynCellIterators(LFRicCollection):
-    '''
-    Handles all entities required by kernels that operate on cell-columns.
-
-    :param kern_or_invoke: the Kernel or Invoke for which to manage cell \
-                           iterators.
-    :type kern_or_invoke: :py:class:`psyclone.domain.lfric.LFRicKern` or \
-                          :py:class:`psyclone.dynamo0p3.LFRicInvoke`
-
-    : raises GenerationError: if an Invoke has no field or operator arguments.
-
-    '''
-    def __init__(self, kern_or_invoke):
-        super().__init__(kern_or_invoke)
-
-        self._nlayers_name = self._symbol_table.find_or_create_tag(
-            "nlayers", symbol_type=LFRicTypes("MeshHeightDataSymbol")).name
-
-        # Store a reference to the first field/operator object that
-        # we can use to look-up nlayers in the PSy layer.
-        if not self._invoke:
-            # We're not generating a PSy layer so we're done here.
-            return
-        first_var = None
-        for var in self._invoke.psy_unique_vars:
-            if not var.is_scalar:
-                first_var = var
-                break
-        if not first_var:
-            raise GenerationError(
-                "Cannot create an Invoke with no field/operator arguments.")
-        self._first_var = first_var
-
-    def _invoke_declarations(self, parent):
-        '''
-        Declare entities required for iterating over cells in the Invoke.
-
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("lfric")
-
-        # We only need the number of layers in the mesh if we are calling
-        # one or more kernels that operate on cell-columns.
-        if not self._dofs_only:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=[self._nlayers_name]))
-
-    def _stub_declarations(self, parent):
-        '''
-        Declare entities required for a kernel stub that operates on
-        cell-columns.
-
-        :param parent: the f2pygen node representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("lfric")
-
-        if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[self._nlayers_name]))
-
-    def initialise(self, parent):
-        '''
-        Look-up the number of vertical layers in the mesh in the PSy layer.
-
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        if not self._dofs_only:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Initialise number of layers"))
-            parent.add(CommentGen(parent, ""))
-            parent.add(AssignGen(
-                parent, lhs=self._nlayers_name,
-                rhs=self._first_var.proxy_name_indexed + "%" +
-                self._first_var.ref_name() + "%get_nlayers()"))
 
 
 class DynLMAOperators(LFRicCollection):
@@ -6227,7 +6143,6 @@ __all__ = [
     'DynamoPSy',
     'DynFunctionSpaces',
     'DynProxies',
-    'DynCellIterators',
     'DynLMAOperators',
     'DynCMAOperators',
     'DynMeshes',

@@ -225,6 +225,9 @@
 
 	77) PR #2708 for #2663. Add LFRic OpenACC in the integration tests.
 
+	78) PR #2678 for #2636. Alter LFRic PSy-layer to lookup nlevels for
+	each kernel
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data

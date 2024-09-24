@@ -245,7 +245,8 @@ class KernCallArgList(ArgOrdering):
         if (not self._kern.iterates_over.endswith("cell_column") and
                 self._kern.iterates_over != "domain"):
             return
-        nlayers_symbol = self.append_integer_reference("nlayers")
+        name = f"nlayers_{self._kern.arguments.iteration_space_arg().name}"
+        nlayers_symbol = self.append_integer_reference(name, tag=name)
         self.append(nlayers_symbol.name, var_accesses)
         self._nlayers_positions.append(self.num_args)
 

@@ -1956,7 +1956,9 @@ conventions, are:
 1) If an LMA operator is passed then include the ``cells`` argument.
    ``cells`` is an ``integer`` of kind ``i_def`` and has intent ``in``.
 2) Include ``nlayers``, the number of layers in a column. ``nlayers``
-   is an ``integer`` of kind ``i_def`` and has intent ``in``.
+   is an ``integer`` of kind ``i_def`` and has intent ``in``. PSyclone
+   will obtain the value of ``nlayers`` to use for a particular kernel
+   from the first field (in the argument list) that is written to.
 3) If the kernel operates_on_ either ``HALO_CELL_COLUMN`` or
    ``OWNED_AND_HALO_CELL_COLUMN`` then include the ``halo_depth``
    argument. This is an ``integer`` of kind ``i_def`` and has intent
