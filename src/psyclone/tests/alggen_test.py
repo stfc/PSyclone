@@ -203,6 +203,9 @@ def test_multi_kernel_halo_only():
                      "1.1.11_two_halo_only.f90"),
         api="lfric")
     gen = str(alg).lower()
+    # There should be two distinct halo depths and no duplication.
+    assert ("call invoke_0(f1, f2, m1, a, m2, istp, b, qr, hdepth, hdepth2)"
+            in gen)
 
 
 def test_multi_function_invoke():

@@ -179,7 +179,8 @@ class LFRicInvoke(Invoke):
             if call.iterates_over not in ["halo_cell_column",
                                           "owned_and_halo_cell_column"]:
                 continue
-            self._alg_unique_args.append(call.halo_depth)
+            if call.halo_depth not in self._alg_unique_args:
+                self._alg_unique_args.append(call.halo_depth)
 
         # Lastly, add in halo exchange calls and global sums if
         # required. We only need to add halo exchange calls for fields

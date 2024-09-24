@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2024, Science and Technology Facilities Council
+! Copyright (c) 2024, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -34,8 +34,8 @@
 
 program single_invoke
 
-  ! Description: a single kernel that requires XYoZ quadrature and that operates
-  ! on halo cells specified in an invoke call.
+  ! Description: an invoke containing multiple calls to a kernel that requires
+  ! XYoZ quadrature and that operates on halo cells specified in an invoke call.
   use constants_mod,       only: r_def, i_def
   use field_mod,           only: field_type
   use quadrature_xyoz_mod, only: quadrature_xyoz_type
@@ -45,11 +45,13 @@ program single_invoke
 
   type(field_type)           :: f1, f2, m1, m2
   type(quadrature_xyoz_type) :: qr
-  real(r_def)                :: a
-  integer(i_def)             :: istp, hdepth
+  real(r_def)                :: a, b
+  integer(i_def)             :: istp, hdepth, hdepth2
 
   call invoke(                                       &
-       testkern_qr_and_halo_only_type(f1, f2, m1, a, m2, istp, qr, hdepth) &
+       testkern_qr_and_halo_only_type(f1, f2, m1, a, m2, istp, qr, hdepth), &
+       testkern_qr_and_halo_only_type(f1, f2, m1, b, m2, istp, qr, hdepth), &
+       testkern_qr_and_halo_only_type(f2, f1, m1, a, m2, istp, qr, hdepth2) &
           )
 
 end program single_invoke

@@ -306,7 +306,7 @@ class LFRicKern(CodedKern):
 
         if ktype.iterates_over in ["halo_cell_column",
                                    "owned_and_halo_cell_column"]:
-            self._halo_depth = args[-1].text
+            self._halo_depth = args[-1].text.lower()
 
         # If there are any quadrature rule(s), what are the names of the
         # corresponding algorithm arguments? Can't use set() here because
