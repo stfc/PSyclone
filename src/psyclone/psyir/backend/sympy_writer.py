@@ -45,6 +45,7 @@ from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.errors import InternalError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (
     DataNode, Range, Reference, IntrinsicCall, Call)
@@ -449,8 +450,20 @@ class SymPyWriter(FortranWriter):
                       List[:py:class:`sympy.core.basic.Basic`]]
 
         :raises VisitorError: if an invalid SymPy expression is found.
+        :raises InternalError: if the identical_variables parameter is not
+            a dict, or does contain a key or value that is not a string.
 
         '''
+        if identical_variables:
+            if not isinstance(identical_variables, dict):
+                raise InternalError(f"Expected identical_variables to be "
+                                    f"a dictionary, but got "
+                                    f"{type(identical_variables)}.")
+            if any(not isinstance(key, str) or not isinstance(value, str)
+                   for key, value in identical_variables.items()):
+                raise InternalError("Dictionary identical_variables "
+                                    "contains a non-string key or value.")
+
         is_list = isinstance(list_of_expressions, (tuple, list))
         if not is_list:
             list_of_expressions = [list_of_expressions]

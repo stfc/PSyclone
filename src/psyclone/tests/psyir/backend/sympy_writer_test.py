@@ -43,10 +43,11 @@ import pytest
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
+from psyclone.errors import InternalError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Assignment, Literal
+from psyclone.psyir.nodes import Assignment, Literal, Node
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
                                     INTEGER_TYPE)
 
@@ -587,3 +588,25 @@ def test_sym_writer_identical_variables(fortran_reader, expressions):
     identical_variables = {'a': 'b'}
     assert (str(sympy_writer(expr, identical_variables=identical_variables))
             == expressions[1])
+
+
+def test_sym_writer_identical_variables_errors():
+    '''Test that we raise appropriate errors if identical_variables is or
+    contains unexpected types.
+    '''
+
+    sympy_writer = SymPyWriter()
+    with pytest.raises(InternalError) as err:
+        sympy_writer(Node(), identical_variables=1)
+    assert ("Expected identical_variables to be a dictionary, but got "
+            "<class 'int'>" in str(err.value))
+
+    with pytest.raises(InternalError) as err:
+        sympy_writer(Node(), identical_variables={1: 1})
+    assert ("Dictionary identical_variables contains a non-string key or "
+            "value" in str(err.value))
+
+    with pytest.raises(InternalError) as err:
+        sympy_writer(Node(), identical_variables={"var": 1})
+    assert ("Dictionary identical_variables contains a non-string key or "
+            "value" in str(err.value))
