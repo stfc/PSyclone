@@ -320,8 +320,7 @@ class SymPyWriter(FortranWriter):
                 unique_sym = self._symbol_table.new_symbol(name, tag=name)
                 # Test if an array or an array expression is used:
                 if not ref.is_array:
-                    if unique_sym.name not in self._sympy_type_map:
-                        self._sympy_type_map[unique_sym.name] = Symbol(name)
+                    self._sympy_type_map[unique_sym.name] = Symbol(name)
                     continue
 
                 # A Fortran array is used which has not been seen before.
