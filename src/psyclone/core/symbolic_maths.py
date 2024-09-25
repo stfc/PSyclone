@@ -85,7 +85,7 @@ class SymbolicMaths:
     def equal(exp1, exp2, identical_variables=None):
         '''Test if the two PSyIR expressions are symbolically equivalent.
         The optional identical_variables dictionary can contain information
-        which variables are known to be the same. For example, if
+        about variables which are known to be the same. For example, if
         `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
         considered equal.
 
@@ -95,7 +95,7 @@ class SymbolicMaths:
         :type exp2: :py:class:`psyclone.psyir.nodes.Node`
         :param identical_variables: which variable names are known to be
             identical
-        :type identical_variables: dict[str, str]
+        :type identical_variables: Optional[dict[str, str]]
 
         :returns: whether the two expressions are mathematically \
             identical.
@@ -179,13 +179,18 @@ class SymbolicMaths:
         stop, step). In this case, each of the components will be handled
         individually, and a list will be returned.
 
+        The optional identical_variables dictionary can contain information
+        about variables which are known to be the same. For example, if
+        `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
+        considered equal.
+
         :param exp1: the first expression to be compared.
         :type exp1: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         :param exp2: the second expression to be compared.
         :type exp2: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         :param identical_variables: which variable names are known to be
             identical
-        :type identical_variables: dict[str, str]
+        :type identical_variables: Optional[dict[str, str]]
 
         :returns: the sympy expression resulting from subtracting exp2 \
             from exp1.

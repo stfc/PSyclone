@@ -818,8 +818,8 @@ class DependencyTools():
 
         :param loop1: the first loop.
         :type loop1: :py:class:`psyclone.psyir.nodes.Loop`
-        :param loop1: the first loop.
-        :type loop1: :py:class:`psyclone.psyir.nodes.Loop`
+        :param loop2: the second loop.
+        :type loop2: :py:class:`psyclone.psyir.nodes.Loop`
 
         :return: whether the loops can be fused or not.
         :rtype: bool
@@ -935,7 +935,7 @@ class DependencyTools():
                                      loop_variable1, loop_variable2):
         '''Validates if the accesses to an array, which is at least written
         once, allows loop fusion. The access pattern to this array is
-        specified in the two parameters `var_info1` and `var_info2`. Ff
+        specified in the two parameters `var_info1` and `var_info2`. If
         loop fusion is not possible, a message is added to the dependency
         tools:
             - an array that is written to uses inconsistent indices, e.g.

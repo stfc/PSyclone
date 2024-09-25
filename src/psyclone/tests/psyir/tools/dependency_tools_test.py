@@ -48,7 +48,7 @@ from psyclone.tests.utilities import get_invoke
 
 @pytest.fixture(scope="function", autouse=True)
 def clear_config_instance():
-    '''The tests in this file all assume that the Nemo API is used.'''
+    '''The tests in this file all assume that no DSL API is used.'''
     Config.get().api = ""
 
 
@@ -740,7 +740,7 @@ def test_gocean_parallel():
 
 def test_fuse_different_variables_with_access(fortran_reader):
     '''Test that fusing loops with different variables is disallowed when
-    either loop uses the other loops variable for any reason.'''
+    either loop uses the other loop's variable for any reason.'''
     code = '''subroutine sub()
     integer :: ji, jj, n, jk
     integer, dimension(10, 10) :: s, t
@@ -949,7 +949,7 @@ def test_fuse_scalars(fortran_reader):
 
 # ----------------------------------------------------------------------------
 def test_fuse_dimension_change(fortran_reader):
-    '''Test that inconsistent use of dimemsions are detected, e.g.:
+    '''Test that inconsistent use of dimensions are detected, e.g.:
     loop1:  a(i,j)
     loop2:  a(j,i)
     when at least one operation is a write

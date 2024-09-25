@@ -270,13 +270,13 @@ class SymPyWriter(FortranWriter):
         use the renamed value when creating the string representation.
 
         The optional identical_variables dictionary can contain information
-        which variables are known to be the same. For example, if
+        about variables which are known to be the same. For example, if
         `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
         considered equal.
 
         :param identical_variables: which variable names are known to be
             identical
-        :type identical_variables: dict[str, str]
+        :type identical_variables: Optional[dict[str, str]]
 
         :param list_of_expressions: the list of expressions from which all
             references are taken and added to a symbol table to avoid
@@ -384,13 +384,13 @@ class SymPyWriter(FortranWriter):
         argument can either be a single element (in which case a single string
         is returned) or a list/tuple, in which case a list is returned.
         The optional identical_variables dictionary can contain information
-        which variables are known to be the same. For example, if
+        about variables which are known to be the same. For example, if
         `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
         considered equal.
 
         :param identical_variables: which variable names are known to be
             identical
-        :type identical_variables: dict[str, str]
+        :type identical_variables: Optional[dict[str, str]]
 
         :param list_of_expressions: the list of expressions which are to be
             converted into SymPy-parsable strings.
@@ -430,7 +430,7 @@ class SymPyWriter(FortranWriter):
         member accesses, as described in
         https://psyclone-dev.readthedocs.io/en/latest/sympy.html#sympy
         The optional identical_variables dictionary can contain information
-        which variables are known to be the same. For example, if
+        about variables which are known to be the same. For example, if
         `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
         considered equal.
 
@@ -440,7 +440,7 @@ class SymPyWriter(FortranWriter):
             :py:class:`psyclone.psyir.nodes.Node`
         :param identical_variables: which variable names are known to be
             identical
-        :type identical_variables: dict[str, str]
+        :type identical_variables: Optional[dict[str, str]]
 
         :returns: a 2-tuple consisting of the the converted PSyIR
             expressions, followed by a dictionary mapping the symbol names

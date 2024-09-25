@@ -46,7 +46,7 @@ from sympy.parsing.sympy_parser import parse_expr
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Literal
+from psyclone.psyir.nodes import Assignment, Literal
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
                                     INTEGER_TYPE)
 
@@ -580,9 +580,8 @@ def test_sym_writer_identical_variables(fortran_reader, expressions):
                 x = {expressions[0]}
                 end program test_prog '''
     psyir = fortran_reader.psyir_from_source(source)
-    # psyir is a FileContainer, its first child the program, and its
-    # first child the assignment, of which we take the right hand side
-    expr = psyir.children[0].children[0].rhs
+    # Take the right-hand-side of the assignment:
+    expr = psyir.walk(Assignment)[0].rhs
 
     sympy_writer = SymPyWriter()
     identical_variables = {'a': 'b'}
