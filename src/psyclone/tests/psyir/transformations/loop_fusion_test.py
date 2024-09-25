@@ -664,8 +664,8 @@ end subroutine sub'''
     fuse = LoopFuseTrans()
     with pytest.raises(TransformationError) as err:
         fuse.apply(loops[2], loops[1])
-    assert ("Error in LoopFuseTrans transformation. The second loop comes "
-            "before the first loop" in str(err.value))
+    assert ("Error in LoopFuseTrans transformation. The second loop does not "
+            "immediately follow the first loop" in str(err.value))
 
 
 def test_loop_fuse_different_variables_with_access(fortran_reader):
