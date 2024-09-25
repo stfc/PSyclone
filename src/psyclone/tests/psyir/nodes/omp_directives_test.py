@@ -691,7 +691,32 @@ def test_directiveinfer_sharing_attributes_lfric():
             "not 'shared'." in str(excinfo.value))
 
 
-def test_directiveinfer_sharing_attributes(fortran_reader):
+def test_infer_sharing_attributes_with_explicitly_local_symbols(
+        fortran_reader):
+    ''' Tests the infer_sharing_attributes() method when some of the loops have
+    explictly declared local symbols.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, j, scalar1, scalar2
+            real, dimension(10) :: array
+            do j = 1, 10
+               do i = 1, 10
+                   array(i) = scalar2
+               enddo
+            enddo
+        end subroutine''')
+    omplooptrans = OMPLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, options={'force': True})
+    omptrans = OMPParallelTrans()
+    routine = psyir.walk(Routine)[0]
+    omptrans.apply(routine.children)
+    directive = psyir.walk(OMPParallelDirective)[0]
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
+
+
+def test_infer_sharing_attributes(fortran_reader):
     ''' Tests for the infer_sharing_attributes() method of OpenMP directives
     with generic code inside the directive body.
     '''

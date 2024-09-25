@@ -1603,11 +1603,11 @@ class OMPParallelDirective(OMPRegionDirective):
             except KeyError:
                 symbol = None
 
-            # If it is manually marked as private, add it to private or
+            # If it is manually marked as a local symbol, add it to private or
             # firstprivate set
             if (isinstance(symbol, DataSymbol) and
                     isinstance(self.dir_body[0], Loop) and
-                    symbol in self.dir_body[0].explicitly_private_symbols):
+                    symbol in self.dir_body[0].explicitly_local_symbols):
                 if any(ref.symbol is symbol for ref in self.preceding()
                        if isinstance(ref, Reference)):
                     # If it's used before the loop, make it firstprivate

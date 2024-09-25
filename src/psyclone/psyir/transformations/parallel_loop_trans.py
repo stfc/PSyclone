@@ -232,7 +232,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                             privatisable = False
                             break
 
-                        node.explicitly_private_symbols.add(sym)
+                        node.explicitly_local_symbols.add(sym)
                     if not privatisable:
                         errors.append(
                             f"The write-write dependency in '{var_name}'"
