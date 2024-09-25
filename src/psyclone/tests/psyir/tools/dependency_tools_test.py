@@ -765,6 +765,9 @@ def test_fuse_different_variables_with_access(fortran_reader):
             in str(msg))
     assert msg.var_names[0] == "ji"
 
+    # We provide the loops in the reverse order. The loop fusion
+    # transformation would reject this, but the dependency tools only
+    # check the dependencies, so this issue would not be raised here.
     assert not dep_tools.can_loops_be_fused(loops[2], loops[1])
     msg = dep_tools.get_all_messages()[0]
     assert ("First loop contains accesses to the second loop's variable: ji"
