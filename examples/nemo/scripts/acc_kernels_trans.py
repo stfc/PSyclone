@@ -395,14 +395,8 @@ def trans(psyir):
         # In the lib_fortran file we annotate each routine that does not
         # have a Loop or unsupported Calls with the OpenACC Routine Directive
         if psyir.name == "lib_fortran.f90":
-            if not subroutine.walk(Loop):
-                calls = subroutine.walk(Call)
-                if all(call.is_available_on_device() for call in calls):
-                    # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
-                    # array notation. (TODO #717)
-                    ACC_ROUTINE_TRANS.apply(subroutine,
-                                            options={"force": True})
-                    continue
+            if subroutine.name.lower().startswith("sign_"):
+                OMPDeclareTargetTrans().apply(subroutine)
 
         # Attempt to add OpenACC directives unless we are ignoring this routine
         if subroutine.name.lower() not in ACC_IGNORE:

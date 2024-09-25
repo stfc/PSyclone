@@ -4245,6 +4245,7 @@ class Fparser2Reader():
             base_ref = _copy_full_base_reference(array)
             array_ref = array.ancestor(Reference, include_self=True)
             if not isinstance(array_ref.datatype, ArrayType):
+                print(array_ref.debug_string())
                 raise NotImplementedError(
                     f"We can not get the resulting shape of the expression: "
                     f"{array_ref.debug_string()}")

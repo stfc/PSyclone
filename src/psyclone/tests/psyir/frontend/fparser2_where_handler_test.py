@@ -49,8 +49,7 @@ from psyclone.psyir.nodes import (
     Call, CodeBlock, Container, IfBlock, IntrinsicCall, Literal, Loop, Range,
     Reference, Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
-    DataSymbol, ScalarType, INTEGER_TYPE,
-    UnresolvedInterface)
+    DataSymbol, ScalarType, INTEGER_TYPE)
 
 
 def process_where(code, fparser_cls, symbols=None):
@@ -239,8 +238,8 @@ def test_where_symbol_clash(fortran_reader):
 
 
 def test_where_within_loop(fortran_reader):
-    ''' Test for correct operation when we have a WHERE within an existing
-    loop and the referenced arrays are brought in from a module. '''
+    ''' Test for correct operation (Codeblock) when we have a WHERE within an
+    existing loop and the referenced arrays are brought in from a module. '''
     code = ("module my_mod\n"
             " use some_mod\n"
             "contains\n"
@@ -259,27 +258,8 @@ def test_where_within_loop(fortran_reader):
     mymod = psyir.children[0]
     assert isinstance(mymod, Container)
     sub = mymod.children[0]
-    assert "var" in sub.symbol_table
-    assert "var2" in sub.symbol_table
-    assert isinstance(sub.symbol_table.lookup("var").interface,
-                      UnresolvedInterface)
-    assert isinstance(sub.symbol_table.lookup("var2").interface,
-                      UnresolvedInterface)
     assert isinstance(sub, Routine)
-    assert isinstance(sub[0], Loop)
-    assert sub[0].variable.name == "jl"
-    where_loop = sub[0].loop_body[0]
-    assert isinstance(where_loop, Loop)
-    assert where_loop.variable.name == "widx1"
-    assert len(where_loop.loop_body.children) == 1
-    assert isinstance(where_loop.loop_body[0], IfBlock)
-    assign = where_loop.loop_body[0].if_body[0]
-    assert isinstance(assign, Assignment)
-    assert (assign.lhs.indices[0].debug_string() ==
-            "LBOUND(var2, dim=1) + widx1 - 1")
-    assert assign.lhs.indices[1].debug_string() == "jl"
-    assert where_loop.start_expr.value == "1"
-    assert where_loop.stop_expr.debug_string() == "SIZE(var, dim=1)"
+    assert isinstance(sub[0].loop_body.children[0], CodeBlock)
 
 
 @pytest.mark.usefixtures("parser")
@@ -349,10 +329,17 @@ def test_where_mask_starting_value(fortran_reader, fortran_writer):
     code = '''\
     program my_sub
       use some_mod
+      type :: thing
+        real, dimension(100000, 100000, 1) :: z3
+      end type
+      integer, parameter :: jpl = 123435
+      integer, parameter :: jpr_ievp = 123
+      type(thing), dimension(10000) :: frcv
       real, dimension(-5:5,-5:5) :: picefr
       real, DIMENSION(11,11,jpl) :: zevap_ice
       real, dimension(-2:8,jpl,-3:7) :: snow
       real, dimension(-22:0,jpl,-32:0) :: slush
+      integer, dimension(jpl) :: map
 
       WHERE( picefr(:,:) > 1.e-10 )
         zevap_ice(:,:,1) = snow(:,3,:) * frcv(jpr_ievp)%z3(:,:,1) / picefr(:,:)
@@ -368,8 +355,7 @@ def test_where_mask_starting_value(fortran_reader, fortran_writer):
     do widx1 = 1, 5 - (-5) + 1, 1
       if (picefr(-5 + widx1 - 1,-5 + widx2 - 1) > 1.e-10) then
         zevap_ice(widx1,widx2,1) = snow(-2 + widx1 - 1,3,-3 + widx2 - 1) * \
-frcv(jpr_ievp)%z3(LBOUND(frcv(jpr_ievp)%z3, dim=1) + widx1 - 1,\
-LBOUND(frcv(jpr_ievp)%z3, dim=2) + widx2 - 1,1) / \
+frcv(jpr_ievp)%z3(widx1,widx2,1) / \
 picefr(-5 + widx1 - 1,-5 + widx2 - 1)
       else
         zevap_ice(widx1,widx2,1) = snow(-2 + widx1 - 1,map(jpl),\
@@ -385,7 +371,14 @@ def test_where_mask_is_slice(fortran_reader, fortran_writer):
     '''
     code = '''\
     program my_sub
-      use some_mod
+      type :: thing
+        real, dimension(100000, 100000, 1) :: z3
+      end type
+      type(thing), dimension(10000) :: frcv
+      real, dimension(-5:5,-5:5) :: picefr
+      real, DIMENSION(11,11,jpl) :: zevap_ice
+      integer :: jstart, jstop, jpl, jpr_ievp
+
       WHERE( picefr(2:4,jstart:jstop) > 1.e-10 )
         zevap_ice(:,:,1) = frcv(jpr_ievp)%z3(:,:,1) / picefr(:,:)
       ELSEWHERE ( picefr(1:3,jstart:jstop) > 4.e-10)
@@ -398,11 +391,8 @@ def test_where_mask_is_slice(fortran_reader, fortran_writer):
     # Check that created loops have the correct number of iterations
     assert "do widx2 = 1, jstop - jstart + 1, 1" in out
     assert "do widx1 = 1, 4 - 2 + 1, 1" in out
-    # Check that the indexing into the mask expression uses the lower bounds
-    # specified in the original slice.
     assert "if (picefr(2 + widx1 - 1,jstart + widx2 - 1) > 1.e-10)" in out
-    assert ("zevap_ice(LBOUND(zevap_ice, dim=1) + widx1 - 1,"
-            "LBOUND(zevap_ice, dim=2) + widx2 - 1,1) = 0.0" in out)
+    assert ("zevap_ice(widx1,widx2,1) = 0.0" in out)
     # If the lower bound of the slice is unity then we can use the loop
     # index directly.
     assert "if (picefr(widx1,jstart + widx2 - 1) > 4.e-10)" in out
@@ -416,8 +406,13 @@ def test_where_mask_is_slice_lower_limit(fortran_reader, fortran_writer):
     '''
     code = '''\
     subroutine my_sub(picefr)
-      use some_mod
       real, dimension(3:,2:) :: picefr
+      type :: thing
+        real, dimension(100000, 100000, 1) :: z3
+      end type
+      type(thing), dimension(10000) :: frcv
+      real, DIMENSION(11,11,jpl) :: zevap_ice
+      integer :: jstart, jstop, jpl, jpr_ievp
       WHERE( picefr(:4,jstart:) > 1.e-10 )
         zevap_ice(:,:,1) = frcv(jpr_ievp)%z3(:,:,1) / picefr(:,:)
       ELSEWHERE ( picefr(4:5,jstart:) > 4.e-10)
@@ -434,8 +429,7 @@ def test_where_mask_is_slice_lower_limit(fortran_reader, fortran_writer):
     # specified in the original slice.
     assert ("if (picefr(LBOUND(picefr, dim=1) + widx1 - 1,"
             "jstart + widx2 - 1) > 1.e-10)" in out)
-    assert ("zevap_ice(LBOUND(zevap_ice, dim=1) + widx1 - 1,"
-            "LBOUND(zevap_ice, dim=2) + widx2 - 1,1) = 0.0" in out)
+    assert ("zevap_ice(widx1,widx2,1) = 0.0" in out)
     assert "if (picefr(4 + widx1 - 1,jstart + widx2 - 1) > 4.e-10)" in out
 
 
@@ -484,6 +478,11 @@ def test_where_containing_sum_no_dim(fortran_reader, fortran_writer):
       REAL(wp), INTENT(in), DIMENSION(:,:) ::   picefr
       REAL(wp), DIMENSION(jpi,jpj,jpl) :: zevap_ice
       REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: a_i_last_couple
+      type :: thing
+        real, dimension(100000, 100000, 1) :: z3
+      end type
+      integer :: jpr_ievp
+      type(thing), dimension(10000) :: frcv
       WHERE( picefr(:,:) > SUM(picefr) )
         zevap_ice(:,:,1) = frcv(jpr_ievp)%z3(:,:,1) * &
                            SUM( a_i_last_couple ) / picefr(:,:)
@@ -764,21 +763,32 @@ def test_where_ordering(parser):
     [("where (my_type%var(:) > epsi20)\n"
       "my_type%array(:,jl) = 3.0\n", "my_type%var"),
      ("where (my_type%var(:) > epsi20)\n"
-      "my_type(jl)%array(:,jl) = 3.0\n", "my_type%var"),
+      "my_type2(jl)%array2(:,jl) = 3.0\n", "my_type%var"),
      ("where (my_type%block(jl)%var(:) > epsi20)\n"
       "my_type%block%array(:,jl) = 3.0\n", "my_type%block(jl)%var"),
      ("where (my_type%block(jl)%var(:) > epsi20)\n"
-      "my_type%block(jl)%array(:,jl) = 3.0\n", "my_type%block(jl)%var"),
-     ("where (my_type(:)%var > epsi20)\n"
-      "my_type%array(:,jl) = 3.0\n", "my_type")])
-def test_where_derived_type(fortran_reader, fortran_writer, code, size_arg):
+      "my_type%block(jl)%array(:,jl) = 3.0\n", "my_type%block(jl)%var"),])
+def test_where_derived_type(fortran_reader, code, size_arg):
     ''' Test that we handle the case where array members of a derived type
     are accessed within a WHERE. '''
     code = (f"module my_mod\n"
             f" use some_mod\n"
             f"contains\n"
             f"subroutine my_sub()\n"
+            f"  type :: subtype\n"
+            f"    real, dimension(:) :: var\n"
+            f"    real, dimension(:,:) :: array\n"
+            f" end type\n"
+            f"  type :: sometype\n"
+            f"    real, dimension(:) :: var\n"
+            f"    real, dimension(:) :: array\n"
+            f"    real, dimension(:,:) :: array2\n"
+            f"    type(subtype), dimension(:) :: block\n"
+            f"  end type\n"
+            f"  type(sometype) :: my_type\n"
+            f"  type(sometype), dimension(:) :: my_type2\n"
             f"  integer :: jl\n"
+            f"  real :: epsi20\n"
             f"  do jl = 1, 10\n"
             f"{code}"
             f"    end where\n"

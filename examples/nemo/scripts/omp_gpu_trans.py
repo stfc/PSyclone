@@ -100,15 +100,8 @@ def trans(psyir):
 
         # For performance in lib_fortran, mark serial routines as GPU-enabled
         if psyir.name == "lib_fortran.f90":
-            if not subroutine.walk(Loop):
-                try:
-                    # We need the 'force' option.
-                    # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
-                    # array notation. (TODO #717)
-                    OMPDeclareTargetTrans().apply(subroutine,
-                                                  options={"force": True})
-                except TransformationError as err:
-                    print(err)
+            if subroutine.name.lower().startswith("sign_"):
+                OMPDeclareTargetTrans().apply(subroutine)
 
         # For now this is a special case for stpctl.f90 because it forces
         # loops to parallelise without many safety checks
