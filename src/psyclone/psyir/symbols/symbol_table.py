@@ -1296,6 +1296,8 @@ class SymbolTable():
         :raises ValueError: if the supplied argument is not marked as a
                             kernel argument.
         '''
+        if argument.name == "qr":
+            import pdb; pdb.set_trace()
         if not isinstance(argument, DataSymbol):
             raise TypeError(
                 f"Expected a DataSymbol for the argument to insert but found "

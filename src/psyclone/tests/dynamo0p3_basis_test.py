@@ -225,14 +225,13 @@ def test_single_kern_eval(tmpdir):
     assert "    integer(kind=i_def) :: ndf_w1" in gen_code
     assert "    integer(kind=i_def) :: undf_w1" in gen_code
     # Second, check the executable statements
-    print(gen_code)
     expected_code = (
         "\n"
         "    ! Initialise field and/or operator proxies\n"
         "    f0_proxy = f0%get_proxy()\n"
         "    f0_data => f0_proxy%data\n"
-        # "    cmap_proxy = cmap%get_proxy()\n"
-        # "    cmap_data => cmap_proxy%data\n"
+        "    cmap_proxy = cmap%get_proxy()\n"
+        "    cmap_data => cmap_proxy%data\n"
         "\n"
         "    ! Initialise number of layers\n"
         "    nlayers = f0_proxy%vspace%get_nlayers()\n"
@@ -385,7 +384,7 @@ def test_two_qr_same_shape(tmpdir):
     assert "use field_mod, only : field_proxy_type, field_type" in gen_code
 
     assert ("subroutine invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
-            "n2, qr, qr2)" in gen_code)
+            "n2, qr, qr2)" == gen_code)
     assert "use testkern_qr_mod, only : testkern_qr_code" in gen_code
     assert ("use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, "
             "quadrature_xyoz_type" in gen_code)

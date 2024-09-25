@@ -287,27 +287,27 @@ def test_field_prolong(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected = (
-        "      USE prolong_test_kernel_mod, "
-        "ONLY: prolong_test_kernel_code\n"
-        "      USE mesh_map_mod, ONLY: mesh_map_type\n"
-        "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(in) :: field1, field2\n"
-        "      INTEGER(KIND=i_def) cell\n")
+        "    use mesh_mod, only : mesh_type\n"
+        "    use mesh_map_mod, only : mesh_map_type\n"
+        "    use prolong_test_kernel_mod, only : prolong_test_kernel_code\n"
+        "    type(field_type), intent(in) :: field1\n"
+        "    type(field_type), intent(in) :: field2\n"
+        "    integer(kind=i_def) :: cell\n")
     assert expected in gen_code
 
-    expected = (
-        "      INTEGER(KIND=i_def) ncell_field1, ncpc_field1_field2_x, "
-        "ncpc_field1_field2_y\n"
-        "      INTEGER(KIND=i_def), pointer :: "
-        "cell_map_field2(:,:,:) => null()\n"
-        "      TYPE(mesh_map_type), pointer :: "
-        "mmap_field1_field2 => null()\n")
+    assert "integer(kind=i_def) :: ncell_field1" in gen_code
+    assert "integer(kind=i_def) :: ncpc_field1_field2_x" in gen_code
+    assert "integer(kind=i_def) :: ncpc_field1_field2_y" in gen_code
+    assert ("integer(kind=i_def), pointer :: "
+            "cell_map_field2(:,:,:) => null()\n" == gen_code)
+    assert ("type(mesh_map_type), pointer :: "
+            "mmap_field1_field2 => null()\n" == gen_code)
     if dist_mem:
-        expected += "      INTEGER(KIND=i_def) max_halo_depth_mesh_field2\n"
-    expected += "      TYPE(mesh_type), pointer :: mesh_field2 => null()\n"
+        expected += "      integer(kind=i_def) max_halo_depth_mesh_field2\n"
+    expected += "      type(mesh_type), pointer :: mesh_field2 => null()\n"
     if dist_mem:
-        expected += "      INTEGER(KIND=i_def) max_halo_depth_mesh_field1\n"
-    expected += "      TYPE(mesh_type), pointer :: mesh_field1 => null()\n"
+        expected += "      integer(kind=i_def) max_halo_depth_mesh_field1\n"
+    expected += "      type(mesh_type), pointer :: mesh_field1 => null()\n"
     assert expected in gen_code
 
     expected = (
@@ -389,40 +389,40 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     defs = (
-        "      USE restrict_test_kernel_mod, "
-        "ONLY: restrict_test_kernel_code\n"
-        "      USE mesh_map_mod, ONLY: mesh_map_type\n"
-        "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(field_type), intent(in) :: field1, field2\n")
+        "      use restrict_test_kernel_mod, "
+        "only : restrict_test_kernel_code\n"
+        "      use mesh_map_mod, only : mesh_map_type\n"
+        "      use mesh_mod, only : mesh_type\n"
+        "      type(field_type), intent(in) :: field1, field2\n")
     assert defs in output
 
     defs2 = (
-        "      INTEGER(KIND=i_def) nlayers\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: field2_data => "
+        "      integer(kind=i_def) nlayers\n"
+        "      real(kind=r_def), pointer, dimension(:) :: field2_data => "
         "null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: field1_data => "
+        "      real(kind=r_def), pointer, dimension(:) :: field1_data => "
         "null()\n"
-        "      TYPE(field_proxy_type) field1_proxy, field2_proxy\n"
-        "      INTEGER(KIND=i_def), pointer :: "
+        "      type(field_proxy_type) field1_proxy, field2_proxy\n"
+        "      integer(kind=i_def), pointer :: "
         "map_aspc1_field1(:,:) => null(), map_aspc2_field2(:,:) => null()\n"
-        "      INTEGER(KIND=i_def) ndf_aspc1_field1, undf_aspc1_field1, "
+        "      integer(kind=i_def) ndf_aspc1_field1, undf_aspc1_field1, "
         "ndf_aspc2_field2, undf_aspc2_field2\n"
-        "      INTEGER(KIND=i_def) ncell_field2, ncpc_field2_field1_x, "
+        "      integer(kind=i_def) ncell_field2, ncpc_field2_field1_x, "
         "ncpc_field2_field1_y\n"
-        "      INTEGER(KIND=i_def), pointer :: "
+        "      integer(kind=i_def), pointer :: "
         "cell_map_field1(:,:,:) => null()\n"
-        "      TYPE(mesh_map_type), pointer :: mmap_field2_field1 => "
+        "      type(mesh_map_type), pointer :: mmap_field2_field1 => "
         "null()\n")
     if dist_mem:
         defs2 += (
-            "      INTEGER(KIND=i_def) max_halo_depth_mesh_field2\n"
-            "      TYPE(mesh_type), pointer :: mesh_field2 => null()\n"
-            "      INTEGER(KIND=i_def) max_halo_depth_mesh_field1\n"
-            "      TYPE(mesh_type), pointer :: mesh_field1 => null()\n")
+            "      integer(kind=i_def) max_halo_depth_mesh_field2\n"
+            "      type(mesh_type), pointer :: mesh_field2 => null()\n"
+            "      integer(kind=i_def) max_halo_depth_mesh_field1\n"
+            "      type(mesh_type), pointer :: mesh_field1 => null()\n")
     else:
         defs2 += (
-            "      TYPE(mesh_type), pointer :: mesh_field2 => null()\n"
-            "      TYPE(mesh_type), pointer :: mesh_field1 => null()\n")
+            "      type(mesh_type), pointer :: mesh_field2 => null()\n"
+            "      type(mesh_type), pointer :: mesh_field1 => null()\n")
     assert defs2 in output
 
     inits = (
@@ -735,8 +735,8 @@ def test_prolong_vector(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "TYPE(field_type), intent(in) :: field1(3)" in output
-    assert "TYPE(field_proxy_type) field1_proxy(3)" in output
+    assert "type(field_type), intent(in) :: field1(3)" in output
+    assert "type(field_proxy_type) field1_proxy(3)" in output
     # Make sure we always index into the field arrays
     assert " field1%" not in output
     assert " field2%" not in output

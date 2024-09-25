@@ -2759,15 +2759,24 @@ class DynMeshes():
         # We'll need various typedefs from the mesh module
         mtype = const.MESH_TYPE_MAP["mesh"]["type"]
         mmod = const.MESH_TYPE_MAP["mesh"]["module"]
-        mmap_type = const.MESH_TYPE_MAP["mesh_map"]["type"]
-        mmap_mod = const.MESH_TYPE_MAP["mesh_map"]["module"]
         # if self._mesh_tag_names:
         #     name = self._symbol_table.lookup_with_tag(mtype).name
         #     parent.add(UseGen(parent, name=mmod, only=True,
         #                       funcnames=[name]))
-        # if self.intergrid_kernels:
+        if self.intergrid_kernels:
+            mmap_type = const.MESH_TYPE_MAP["mesh_map"]["type"]
+            mmap_mod = const.MESH_TYPE_MAP["mesh_map"]["module"]
+            # Create a Container symbol for the module
+            csym = self._symbol_table.find_or_create_tag(
+                mmap_mod, symbol_type=ContainerSymbol)
+            # Create a TypeSymbol for the mesh type
+            mtype_sym = self._symbol_table.find_or_create_tag(
+                mmap_type, symbol_type=DataTypeSymbol,
+                datatype=UnresolvedType(),
+                interface=ImportInterface(csym))
         #     parent.add(UseGen(parent, name=mmap_mod, only=True,
         #                       funcnames=[mmap_type]))
+
         # Declare the mesh object(s) and associated halo depths
         # for tag_name in self._mesh_tag_names:
         #     name = self._symbol_table.lookup_with_tag(tag_name).name
@@ -2781,45 +2790,44 @@ class DynMeshes():
         #                            kind=api_config.default_kind["integer"],
         #                            entity_decls=[name]))
 
-        return cursor
         # Declare the inter-mesh map(s) and cell map(s)
-        for kern in self.intergrid_kernels:
-            parent.add(TypeDeclGen(parent, pointer=True,
-                                   datatype=mmap_type,
-                                   entity_decls=[kern.mmap + " => null()"]))
-            parent.add(
-                DeclGen(parent, pointer=True, datatype="integer",
-                        kind=api_config.default_kind["integer"],
-                        entity_decls=[kern.cell_map + "(:,:,:) => null()"]))
+        # for kern in self.intergrid_kernels:
+        #     parent.add(TypeDeclGen(parent, pointer=True,
+        #                            datatype=mmap_type,
+        #                            entity_decls=[kern.mmap + " => null()"]))
+        #     parent.add(
+        #         DeclGen(parent, pointer=True, datatype="integer",
+        #                 kind=api_config.default_kind["integer"],
+        #                 entity_decls=[kern.cell_map + "(:,:,:) => null()"]))
 
-            # Declare the number of cells in the fine mesh and how many fine
-            # cells there are per coarse cell
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=[kern.ncell_fine,
-                                             kern.ncellpercellx,
-                                             kern.ncellpercelly]))
-            # Declare variables to hold the colourmap information if required
-            if kern.colourmap_symbol:
-                parent.add(
-                    DeclGen(parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            pointer=True,
-                            entity_decls=[kern.colourmap_symbol.name+"(:,:)"]))
-                parent.add(
-                    DeclGen(parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            entity_decls=[kern.ncolours_var_symbol.name]))
-                # The cell-count array is 2D if we go into the halo and 1D
-                # otherwise (i.e. no DM or this kernel is GH_WRITE only and
-                # does not access the halo).
-                dim_list = len(kern.last_cell_var_symbol.datatype.shape)*":"
-                decln = (f"{kern.last_cell_var_symbol.name}("
-                         f"{','.join(dim_list)})")
-                parent.add(
-                    DeclGen(parent, datatype="integer", allocatable=True,
-                            kind=api_config.default_kind["integer"],
-                            entity_decls=[decln]))
+        #     # Declare the number of cells in the fine mesh and how many fine
+        #     # cells there are per coarse cell
+        #     parent.add(DeclGen(parent, datatype="integer",
+        #                        kind=api_config.default_kind["integer"],
+        #                        entity_decls=[kern.ncell_fine,
+        #                                      kern.ncellpercellx,
+        #                                      kern.ncellpercelly]))
+        #     # Declare variables to hold the colourmap information if required
+        #     if kern.colourmap_symbol:
+        #         parent.add(
+        #             DeclGen(parent, datatype="integer",
+        #                     kind=api_config.default_kind["integer"],
+        #                     pointer=True,
+        #                     entity_decls=[kern.colourmap_symbol.name+"(:,:)"]))
+        #         parent.add(
+        #             DeclGen(parent, datatype="integer",
+        #                     kind=api_config.default_kind["integer"],
+        #                     entity_decls=[kern.ncolours_var_symbol.name]))
+        #         # The cell-count array is 2D if we go into the halo and 1D
+        #         # otherwise (i.e. no DM or this kernel is GH_WRITE only and
+        #         # does not access the halo).
+        #         dim_list = len(kern.last_cell_var_symbol.datatype.shape)*":"
+        #         decln = (f"{kern.last_cell_var_symbol.name}("
+        #                  f"{','.join(dim_list)})")
+        #         parent.add(
+        #             DeclGen(parent, datatype="integer", allocatable=True,
+        #                     kind=api_config.default_kind["integer"],
+        #                     entity_decls=[decln]))
 
         if not self.intergrid_kernels and (self._needs_colourmap or
                                            self._needs_colourmap_halo):
@@ -2937,7 +2945,6 @@ class DynMeshes():
                         is_pointer=True)
                 self._schedule.addchild(assignment, cursor)
                 cursor += 1
-            return cursor
 
         # parent.add(CommentGen(
         #     parent,
