@@ -830,8 +830,6 @@ class DependencyTools():
         # has done tests for loop boundaries (depending on domain)
 
         self._clear_messages()
-        assert isinstance(loop1, Loop)
-        assert isinstance(loop2, Loop)
         vars1 = VariablesAccessInfo(loop1)
         vars2 = VariablesAccessInfo(loop2)
 
