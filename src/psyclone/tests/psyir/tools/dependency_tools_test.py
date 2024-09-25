@@ -776,15 +776,11 @@ def test_fuse_different_variables_with_access(fortran_reader):
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_independent_array_stencil(fortran_reader):
-    '''Test that using arrays which are not dependent on the loop variable
-    are handled correctly. Example:
-    do j  ... a(1) = b(j) * c(j)
-    do j ...  d(j) = a(1)
+def test_fuse_inconsistent_array_stencil(fortran_reader):
+    '''Test that accessing an array with inconsistent index usage (e.g. s(i,j)
+    and s(j,i)) is detected.
     '''
 
-    # The first example can be merged, since 's' does not
-    # depend on the loop variable, and it is written and read.
     code = '''subroutine sub()
               integer :: ji, jj, n
               integer, dimension(10,10) :: s, t
@@ -812,15 +808,14 @@ def test_fuse_independent_array_stencil(fortran_reader):
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_independent_array(fortran_reader):
+def test_fuse_loop_independent_array_access(fortran_reader):
     '''Test that using arrays which are not dependent on the loop variable
     are handled correctly. Example:
     do j  ... a(1) = b(j) * c(j)
     do j ...  d(j) = a(1)
     '''
-
-    # The first example can be merged, since 's' does not
-    # depend on the loop variable, and it is written and read.
+    # In this example s(1,1) is used as a scalar (i.e. not dependent
+    # on the loop variable), and fusing is invalid
     code = '''subroutine sub()
               integer :: ji, jj, n
               integer, dimension(10,10) :: s, t

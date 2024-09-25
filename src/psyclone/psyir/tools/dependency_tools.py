@@ -983,8 +983,9 @@ class DependencyTools():
                                   [var_info1.signature[0]])
                 return False
 
-            # If the loop variable contains more than one index, it is
-            # used inconsistent:
+            # If the loop variable is used in different dimensions or
+            # members of a derived type. E.g. a(i,j) and a(j,i), or
+            # a(i)%b(j) and a(j)%b(i) it is used inconsistent:
             if len(index) > 1:
                 # Add the appropriate error message:
                 access1 = all_accesses[0].node.debug_string()
