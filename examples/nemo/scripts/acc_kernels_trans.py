@@ -63,7 +63,7 @@ from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
     IfBlock, ArrayReference, Assignment, BinaryOperation, Loop, Routine,
-    Literal, Call, ACCLoopDirective)
+    Literal, ACCLoopDirective)
 from psyclone.psyir.transformations import (ACCKernelsTrans, ACCUpdateTrans,
                                             TransformationError, ProfileTrans)
 from psyclone.transformations import ACCEnterDataTrans
@@ -396,7 +396,7 @@ def trans(psyir):
         # have a Loop or unsupported Calls with the OpenACC Routine Directive
         if psyir.name == "lib_fortran.f90":
             if subroutine.name.lower().startswith("sign_"):
-                OMPDeclareTargetTrans().apply(subroutine)
+                ACC_ROUTINE_TRANS.apply(subroutine)
 
         # Attempt to add OpenACC directives unless we are ignoring this routine
         if subroutine.name.lower() not in ACC_IGNORE:

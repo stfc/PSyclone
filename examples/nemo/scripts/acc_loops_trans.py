@@ -40,9 +40,9 @@ directives into Nemo code. '''
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
     enhance_tree_information, NOT_PERFORMANT, NOT_WORKING)
-from psyclone.psyir.nodes import Loop, Routine
+from psyclone.psyir.nodes import Routine
 from psyclone.transformations import (
-    ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans, TransformationError)
+    ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans)
 
 PROFILING_ENABLED = True
 
@@ -111,7 +111,7 @@ def trans(psyir):
         # For performance in lib_fortran, mark serial routines as GPU-enabled
         if psyir.name == "lib_fortran.f90":
             if subroutine.name.lower().startswith("sign_"):
-                OMPDeclareTargetTrans().apply(subroutine)
+                ACCRoutineTrans().apply(subroutine)
 
         insert_explicit_loop_parallelism(
             subroutine,
