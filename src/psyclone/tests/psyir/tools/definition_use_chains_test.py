@@ -492,7 +492,7 @@ def test_definition_use_chain_find_forward_accesses_while_loop_example(
     )
     reaches = chains._find_forward_accesses()
 
-    assert len(reaches) == 2
+    assert len(reaches) == 3 # FIXME This needs to check the while condition.
     assert reaches[0] is routine.children[2].loop_body.children[0].rhs.children[0]
     assert reaches[1] is routine.children[2].loop_body.children[0].lhs
 

@@ -102,6 +102,7 @@ class DefinitionUseChain:
 
         # The output map, mapping between nodes and the reach of that node.
         self._reaches = []
+        self._writes = []
 
     @property
     def uses(self):
@@ -159,6 +160,8 @@ class DefinitionUseChain:
                   DefinitionUseChain
         :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
         """
+        # FIXME If all defsout is in control flow we should add a None into the defsout
+        # array.
         # Find the position of the Reference's highest-level parent in
         # the Routine.
         routine = self._reference.ancestor(Routine)
@@ -215,6 +218,9 @@ class DefinitionUseChain:
                         .abs_position
                         + 1
                     )
+                    # We make a copy of the reference to have a detached
+                    # node to avoid handling the special cases based on
+                    # the parents of the reference.
                     chain = DefinitionUseChain(
                         self._reference.copy(),
                         body,
@@ -409,6 +415,7 @@ class DefinitionUseChain:
                                  block to find the forward uses in.
         :type basic_block_list: list[:py:class:`psyclone.psyir.nodes.Node`]
         """
+        # FIXME Codeblocks
         sig, _ = self._reference.get_signature_and_indices()
         # For a basic block we will only ever have one defsout
         defs_out = None
@@ -426,6 +433,8 @@ class DefinitionUseChain:
                     if isinstance(reference, IntrinsicCall):
                         # IntrinsicCall can only do stuff to arguments, these
                         # will be caught by Reference walk already.
+                        # Note that this assumption two symbols are not
+                        # aliases of each other.
                         continue
                     # For now just assume calls are bad if we have a non-local
                     # variable and we count them as killed and defsout
@@ -531,6 +540,7 @@ class DefinitionUseChain:
                 # The start/stop/step expr are non-conditional (but also
                 # read only).
                 control_flow_nodes.append(None)
+                # FIXME - What about the loop variable, we should check this.
                 current_block.append(node.start_expr)
                 current_block.append(node.stop_expr)
                 current_block.append(node.step_expr)
