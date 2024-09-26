@@ -397,6 +397,7 @@ def trans(psyir):
         if psyir.name == "lib_fortran.f90":
             if subroutine.name.lower().startswith("sign_"):
                 ACC_ROUTINE_TRANS.apply(subroutine)
+                continue
 
         # Attempt to add OpenACC directives unless we are ignoring this routine
         if subroutine.name.lower() not in ACC_IGNORE:
