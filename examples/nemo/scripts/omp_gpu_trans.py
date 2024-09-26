@@ -61,11 +61,12 @@ FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING + [
                     # expression required
     "diadct.f90",   # Compiler Error: Wrong number of arguments in reshape
     "stpctl.f90",
-    "lbcndf.f90",
+    "lbcnfd.f90",
     "flread.f90",
     "sedini.f90",
     "diu_bulk.f90",  # Linking undefined reference
     "bdyini.f90",    # Linking undefined reference
+    "trcrad.f90"
 ]
 
 
@@ -159,5 +160,4 @@ def trans(psyir):
                 loop_directive_trans=omp_loop_trans,
                 # Collapse is necessary to give GPUs enough parallel items
                 collapse=True,
-                privatise_arrays=(psyir.name in ["zdftke.f90", ])
         )
