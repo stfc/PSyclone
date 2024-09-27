@@ -767,7 +767,9 @@ def test_where_ordering(parser):
      ("where (my_type%block(jl)%var(:) > epsi20)\n"
       "my_type%block%array(:,jl) = 3.0\n", "my_type%block(jl)%var"),
      ("where (my_type%block(jl)%var(:) > epsi20)\n"
-      "my_type%block(jl)%array(:,jl) = 3.0\n", "my_type%block(jl)%var")])
+      "my_type%block(jl)%array(:,jl) = 3.0\n", "my_type%block(jl)%var"),
+     ("where (my_type2(:)%var > epsi20)\n"
+      "mytype2(:)%var = 3.0\n", "my_type2")])
 def test_where_derived_type(fortran_reader, code, size_arg):
     ''' Test that we handle the case where array members of a derived type
     are accessed within a WHERE. '''
