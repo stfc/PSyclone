@@ -743,11 +743,12 @@ def test_module_inline_with_interfaces(tmpdir):
     kern_call = invoke.schedule.walk(CodedKern)[0]
     inline_trans = KernelModuleInlineTrans()
     inline_trans.apply(kern_call)
-    gen = str(psy.gen)
-    # Both the caller and the callee are in the file and use the specialized
-    # implementation name.
-    assert "CALL mixed_code_64(" in gen
-    assert "SUBROUTINE mixed_code_64(" in gen
+    gen = str(psy.gen).lower()
+    # Both the caller and the callee are in the file and use the interface
+    # name.
+    assert "call mixed_code(" in gen
+    assert "subroutine mixed_code_64(" in gen
+    assert "subroutine mixed_code_32(" in gen
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
