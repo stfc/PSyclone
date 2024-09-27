@@ -43,6 +43,9 @@
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.symbols.datatypes import UnresolvedType
 
@@ -93,6 +96,46 @@ class Reference(DataNode):
 
         '''
         return self.symbol.is_array
+
+    @property
+    def is_read(self):
+        '''
+        :returns: whether this reference is a read to its symbol.
+        :rtype: bool
+        '''
+        parent = self.parent
+        if isinstance(parent, Call):
+            # For now we assume that all arguments of a Call (or non-
+            # inquiry or pure IntrinsicCalls) are read (they may also be
+            # written to. This can be improved in the future by looking
+            # at intents.
+            return True
+        if isinstance(parent, Assignment):
+            if parent.lhs is self:
+                return False
+        # All references other than LHS of assignments represent a read.
+        return True
+
+    @property
+    def is_write(self):
+        '''
+        :returns: whether this reference is a write to its symbol.
+        :rtype: bool
+        '''
+        parent = self.parent
+        # pure or inquiry IntrinsicCall nodes do not write to their arguments.
+        if (isinstance(parent, IntrinsicCall) and (parent.is_inquiry or
+                                                   parent.is_pure)):
+            return False
+        # All other arguments of all other Calls are assumed to write to their
+        # arguments. This could be improved in the future by looking at
+        # intents where available.
+        if isinstance(parent, Call):
+            return True
+        # The reference that is the LHS of an assignment is a write.
+        if isinstance(parent, Assignment) and parent.lhs is self:
+            return True
+        return False
 
     @property
     def symbol(self):
