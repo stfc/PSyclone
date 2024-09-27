@@ -846,8 +846,8 @@ def _process_routine_symbols(module_ast, container,
     RoutineSymbols for every routine (function or subroutine) that it
     contains.
 
-    :param module_ast: fparser2 parse tree for module.
-    :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
+    :param module_ast: fparser2 parse tree.
+    :type module_ast: :py:class:`fparser.two.Fortran2003.Base`
     :param container: the PSyIR node in which to add the empty Routine nodes.
     :type container: :py:class:`psyclone.psyir.nodes.Container`
     :param visibility_map: dict of symbol names with explicit visibilities.
@@ -855,8 +855,23 @@ def _process_routine_symbols(module_ast, container,
         :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
 
     '''
-    routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
-                                 Fortran2003.Function_Subprogram))
+    # If we are in a FileContainer, then the input here will be the Subroutine
+    # or Function we are interested in.
+    if isinstance(module_ast, (Fortran2003.Subroutine_Subprogram,
+                               Fortran2003.Function_Subprogram)):
+        routines = [module_ast]
+    else:
+        # Otherwise we have a module, so we search for the Subroutines and
+        # Functions that are children of the module (to avoid finding
+        # Subroutines or Functions contained within sub-scopes of this
+        # Module).
+        routine_parent = [x for x in module_ast.children if isinstance(x,
+                          Fortran2003.Module_Subprogram_Part)]
+        if len(routine_parent) == 1:
+            routines = [x for x in routine_parent[0].children if isinstance(
+                        x,
+                        (Fortran2003.Subroutine_Subprogram,
+                         Fortran2003.Function_Subprogram))]
     # A subroutine has no type but a function does. However, we don't know what
     # it is at this stage so we give all functions a UnresolvedType.
     # TODO #1314 extend the frontend to ensure that the type of a Routine's

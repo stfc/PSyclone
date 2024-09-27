@@ -563,3 +563,28 @@ def test_entry_stmt(parser):
     assert ("PSyclone does not support routines that contain one or more ENTRY"
             " statements but found 'ENTRY a_no_really(b, c, d)'"
             in str(err.value))
+
+
+def test_module_contains_subroutine_contains_subroutine(
+        fortran_reader):
+    ''' Test to check that subroutines contained within subroutines
+    do not put their symbols into the container ancestor.'''
+    code = """
+    module my_mod
+    contains
+    function func_a(i)
+      integer :: i
+      i = i + 1
+      func_a = i + s(i)
+
+      contains
+        function s(i)
+        integer :: i
+        s = i * i
+        end function s
+    end function func_a
+    end module my_mod"""
+    psyir = fortran_reader.psyir_from_source(code)
+    # s symbol should not be in my_mod
+    with pytest.raises(KeyError):
+        psyir.children[0].symbol_table.lookup("s")
