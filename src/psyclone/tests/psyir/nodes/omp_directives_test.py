@@ -707,13 +707,58 @@ def test_infer_sharing_attributes_with_explicitly_local_symbols(
             enddo
         end subroutine''')
     omplooptrans = OMPLoopTrans()
+    omplooptrans.omp_directive = "paralleldo"
     loop = psyir.walk(Loop)[0]
-    omplooptrans.apply(loop, options={'force': True})
-    omptrans = OMPParallelTrans()
     routine = psyir.walk(Routine)[0]
-    omptrans.apply(routine.children)
-    directive = psyir.walk(OMPParallelDirective)[0]
+    omplooptrans.apply(loop, options={'force': True})
+    directive = psyir.walk(OMPParallelDoDirective)[0]
+
+    # If no symbols are explicitly local, the infer sharing
+    # attributes uses its default rules
     pvars, fpvars, sync = directive.infer_sharing_attributes()
+    assert len(pvars) == 2
+    assert len(fpvars) == 0
+    assert len(sync) == 0
+    assert "i" in [x.name for x in pvars]
+    assert "j" in [x.name for x in pvars]
+
+    # If the loop has some explict locals, this are provided with the
+    array_symbol = routine.symbol_table.lookup("array")
+    loop.explicitly_local_symbols.add(array_symbol)
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
+    assert len(pvars) == 3
+    assert len(fpvars) == 0
+    assert len(sync) == 0
+    assert "i" in [x.name for x in pvars]
+    assert "j" in [x.name for x in pvars]
+    assert "array" in [x.name for x in pvars]
+
+    # Scalar symbols can also be set as explicitly local
+    scalar_symbol = routine.symbol_table.lookup("scalar2")
+    loop.explicitly_local_symbols.add(scalar_symbol)
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
+    assert len(pvars) == 4
+    assert len(fpvars) == 0
+    assert len(sync) == 0
+    assert "i" in [x.name for x in pvars]
+    assert "j" in [x.name for x in pvars]
+    assert "array" in [x.name for x in pvars]
+    assert "scalar2" in [x.name for x in pvars]
+
+    # If this have a value before the loop (used in any way), they
+    # are firstprivate
+    routine.addchild(Assignment.create(
+        lhs=Reference(array_symbol),
+        rhs=Reference(scalar_symbol)
+    ), 0)
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
+    assert len(pvars) == 2
+    assert len(fpvars) == 2
+    assert len(sync) == 0
+    assert "i" in [x.name for x in pvars]
+    assert "j" in [x.name for x in pvars]
+    assert "array" in [x.name for x in fpvars]
+    assert "scalar2" in [x.name for x in fpvars]
 
 
 def test_infer_sharing_attributes(fortran_reader):
