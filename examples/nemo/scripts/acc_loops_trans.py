@@ -112,6 +112,7 @@ def trans(psyir):
         if psyir.name == "lib_fortran.f90":
             if subroutine.name.lower().startswith("sign_"):
                 ACCRoutineTrans().apply(subroutine)
+                continue
 
         insert_explicit_loop_parallelism(
             subroutine,
