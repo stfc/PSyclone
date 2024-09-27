@@ -66,7 +66,9 @@ FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING + [
     "sedini.f90",
     "diu_bulk.f90",  # Linking undefined reference
     "bdyini.f90",    # Linking undefined reference
-    "trcrad.f90"
+    "trcrad.f90",
+    "mppini.f90",  # TODO #2723: can_loop_be_parallelised fails with TypeError
+                   # in SymbolicMath comparison (NENOv5 -r ORCA2_ICE_PISCES)
 ]
 
 
