@@ -43,6 +43,7 @@
 from collections import OrderedDict
 from dataclasses import dataclass, field
 import os
+import sys
 from typing import Optional, List
 
 from fparser.common.readfortran import FortranStringReader
@@ -3964,6 +3965,15 @@ class Fparser2Reader():
                 clause_indices.append(idx)
             if isinstance(child, Fortran2003.End_Select_Stmt):
                 clause_indices.append(idx)
+
+        # Deeply-nested ifblocks are problematic because they will exceed the
+        # python recursion limits for some psyir analysis. These are not
+        # typically found in input code, but select-case with a large number
+        # of cases are more probable. If we find one of such cases we
+        # preventively increase the python recursion limits.
+        if len(clause_indices) > 150:
+            # TODO #11: It would be good to log this
+            sys.setrecursionlimit(len(clause_indices) * 10)  # Default is 1000
 
         # Deal with each Case_Stmt
         rootif = None

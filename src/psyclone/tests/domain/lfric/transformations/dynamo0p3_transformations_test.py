@@ -226,7 +226,7 @@ def test_colour_trans(tmpdir, dist_mem):
 
     # Check that we're using the colour map when getting the cell dof maps
     assert (
-        "call testkern_code(nlayers, a, f1_data, f2_data, "
+        "call testkern_code(nlayers_f1, a, f1_data, f2_data, "
         "m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cmap(colour,cell)), ndf_w2, undf_w2, "
         "map_w2(:,cmap(colour,cell)), ndf_w3, undf_w3, "
@@ -312,8 +312,9 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
 
     assert (
         "          CALL columnwise_op_asm_field_kernel_code(cmap(colour,"
-        "cell), nlayers, ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
-        "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
+        "cell), nlayers_cma_op1, ncell_2d, afield_data, "
+        "lma_op1_proxy%ncell_3d, lma_op1_local_stencil, "
+        "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, "
         "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
         "ndf_aspc1_afield, undf_aspc1_afield, "
@@ -345,7 +346,7 @@ def test_colour_trans_stencil(dist_mem, tmpdir):
 
     # Check that we index the stencil dofmap appropriately
     assert (
-        "          CALL testkern_stencil_code(nlayers, f1_data, "
+        "          CALL testkern_stencil_code(nlayers_f1, f1_data, "
         "f2_data, f2_stencil_size(cmap(colour,cell)), "
         "f2_stencil_dofmap(:,:,cmap(colour,cell)), f3_data, "
         "f4_data, ndf_w1, undf_w1, map_w1(:,cmap(colour,cell)), "
@@ -381,7 +382,7 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
 
     # Check that we index the adjacent face dofmap appropriately
     assert (
-        "CALL testkern_mesh_prop_code(nlayers, a, f1_data, ndf_w1, "
+        "CALL testkern_mesh_prop_code(nlayers_f1, a, f1_data, ndf_w1, "
         "undf_w1, map_w1(:,cmap(colour,cell)), nfaces_re_h, "
         "adjacent_face(:,cmap(colour,cell))" in gen)
 
@@ -1296,7 +1297,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         f"        !$omp parallel default(shared), private(cell)\n"
         f"        !$omp do schedule(static)\n"
         f"        DO cell = loop1_start, {lookup}, 1\n"
-        f"          CALL ru_code(nlayers, a_data, b_data, "
+        f"          CALL ru_code(nlayers_a, a_data, b_data, "
         f"istp, rdt, d_data, e_1_data, e_2_data, "
         f"e_3_data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
@@ -1307,7 +1308,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         f"        !$omp end do\n"
         f"        !$omp do schedule(static)\n"
         f"        DO cell = loop2_start, {lookup}, 1\n"
-        f"          CALL ru_code(nlayers, f_data, b_data, "
+        f"          CALL ru_code(nlayers_f, f_data, b_data, "
         f"istp, rdt, d_data, e_1_data, e_2_data, "
         f"e_3_data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
@@ -1379,7 +1380,7 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "      cma_op1_gamma_p = cma_op1_proxy%gamma_p\n"
     ) in code
     assert (
-        "CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
+        "CALL columnwise_op_asm_field_kernel_code(cell, nlayers_cma_op1, "
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
@@ -1387,7 +1388,7 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "undf_aspc1_afield, map_aspc1_afield(:,cell), "
         "cbanded_map_aspc1_afield, ndf_aspc2_lma_op1, "
         "cbanded_map_aspc2_lma_op1)\n"
-        "        CALL testkern_two_real_scalars_code(nlayers, scalar1, "
+        "        CALL testkern_two_real_scalars_code(nlayers_afield, scalar1, "
         "afield_data, bfield_data, cfield_data, "
         "dfield_data, scalar2, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
@@ -5752,7 +5753,7 @@ def test_rc_then_colour(tmpdir):
         "      DO colour = loop0_start, loop0_stop, 1\n"
         "        DO cell = loop1_start, last_halo_cell_all_colours(colour,3),"
         " 1\n"
-        "          CALL testkern_code(nlayers, a, f1_data,"
+        "          CALL testkern_code(nlayers_f1, a, f1_data,"
         " f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cmap(colour,cell)), ndf_w2, undf_w2, "
         "map_w2(:,cmap(colour,cell)), ndf_w3, undf_w3, "
@@ -6358,7 +6359,7 @@ def test_intergrid_colour(dist_mem, trans_class, tmpdir):
             "(colour), 1\n")
     assert expected in gen
     expected = (
-        "          call prolong_test_kernel_code(nlayers, cell_map_fld_m"
+        "          call prolong_test_kernel_code(nlayers_fld_m, cell_map_fld_m"
         "(:,:,cmap_fld_m(colour,cell)), ncpc_fld_f_fld_m_x, "
         "ncpc_fld_f_fld_m_y, ncell_fld_f, fld_f_data, fld_m_data, "
         "ndf_w1, undf_w1, map_w1, undf_w2, "
@@ -6472,7 +6473,7 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
             f"        !$omp parallel default(shared), private(cell)\n"
             f"        !$omp do schedule(static)\n"
             f"        DO cell = loop1_start, {upper_bound}, 1\n"
-            f"          CALL prolong_test_kernel_code(nlayers, "
+            f"          CALL prolong_test_kernel_code(nlayers_cmap_fld_c, "
             f"cell_map_cmap_fld_c(:,:,cmap_cmap_fld_c(colour,cell)), "
             f"ncpc_fld_m_cmap_fld_c_x, ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, "
             f"fld_m_data, cmap_fld_c_data, ndf_w1, undf_w1, "
@@ -6574,7 +6575,7 @@ def test_accenterdata_builtin(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert ("!$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
-            "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+            "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
             "undf_w1,undf_w2,undf_w3)" in output)
     assert "loop2_stop = undf_aspc1_f1" in output
     assert ("      !$acc loop independent\n"
@@ -6663,7 +6664,7 @@ def test_accparalleltrans(tmpdir):
     assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
     assert (
         "      !$acc enter data copyin(f1_data,f2_data,m1_data,"
-        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
         "undf_w1,undf_w2,undf_w3)\n"
         "      !\n"
         "      !$acc parallel default(present)\n"
@@ -6699,7 +6700,7 @@ def test_accparalleltrans_dm(tmpdir):
 
     assert ("      !$acc parallel default(present)\n"
             "      DO cell = loop0_start, loop0_stop, 1\n"
-            "        CALL testkern_code(nlayers, a, f1_data, "
+            "        CALL testkern_code(nlayers_f1, a, f1_data, "
             "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell))\n"
@@ -6738,7 +6739,7 @@ def test_acclooptrans():
     assert "loop0_stop = ncolour" in code
     assert (
         "      !$acc enter data copyin(f1_data,f2_data,m1_data,"
-        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
         "undf_w1,undf_w2,undf_w3)\n"
         "      !\n"
         "      !$acc parallel default(present)\n"
@@ -6929,7 +6930,7 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
     assert (
         "      CALL f2_proxy%halo_exchange_start(depth=1)\n"
         "      DO cell = loop3_start, loop3_stop, 1\n"
-        "        CALL testkern_any_space_3_code(cell, nlayers, "
+        "        CALL testkern_any_space_3_code(cell, nlayers_op, "
         "op_proxy%ncell_3d, op_local_stencil, ndf_aspc1_op, "
         "ndf_aspc2_op)\n"
         "      END DO\n"
