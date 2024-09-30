@@ -108,7 +108,8 @@ def trans(psyir):
                 hoist_expressions=True
         )
 
-        # For performance in lib_fortran, mark serial routines as GPU-enabled
+        # In the lib_fortran file we annotate each routine of the SIGN_*
+        # interface with the OpenACC Routine Directive
         if psyir.name == "lib_fortran.f90":
             if subroutine.name.lower().startswith("sign_"):
                 ACCRoutineTrans().apply(subroutine)

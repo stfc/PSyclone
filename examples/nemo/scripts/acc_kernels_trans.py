@@ -392,8 +392,8 @@ def trans(psyir):
     for subroutine in psyir.walk(Routine):
         print(f"Transforming subroutine: {subroutine.name}")
 
-        # In the lib_fortran file we annotate each routine that does not
-        # have a Loop or unsupported Calls with the OpenACC Routine Directive
+        # In the lib_fortran file we annotate each routine of the SIGN_*
+        # interface with the OpenACC Routine Directive
         if psyir.name == "lib_fortran.f90":
             if subroutine.name.lower().startswith("sign_"):
                 ACC_ROUTINE_TRANS.apply(subroutine)

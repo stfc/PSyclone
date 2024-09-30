@@ -4179,15 +4179,13 @@ class Fparser2Reader():
 
     def _array_syntax_to_indexed(self, parent, loop_vars):
         '''
-        Utility function that modifies each ArrayReference object in the
-        supplied PSyIR fragment so that they are indexed using the supplied
-        loop variables rather than having colon array notation. This indexing
-        is always done relative to the declared lower bound of the array being
-        accessed.
+        Utility function that modifies bare References to arrays as
+        ArrayReferences, and each ArrayReference that is not inside an
+        elemental call to use the provided loop index.
 
         :param parent: root of PSyIR sub-tree to search for Array
                        references to modify.
-        :type parent:  :py:class:`psyclone.psyir.nodes.Node`
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param loop_vars: the variable names for the array indices.
         :type loop_vars: list of str
 
@@ -4206,8 +4204,7 @@ class Fparser2Reader():
                         "PSyclone doesn't yet support reference to imported "
                         "symbols inside WHERE clauses.")
             call_ancestor = ref.ancestor(Call)
-            if (isinstance(ref.symbol, DataSymbol) and
-                    not call_ancestor):
+            if (isinstance(ref.symbol, DataSymbol) and not call_ancestor):
                 try:
                     Reference2ArrayRangeTrans().apply(ref)
                 except TransformationError:
@@ -4245,7 +4242,6 @@ class Fparser2Reader():
             base_ref = _copy_full_base_reference(array)
             array_ref = array.ancestor(Reference, include_self=True)
             if not isinstance(array_ref.datatype, ArrayType):
-                print(array_ref.debug_string())
                 raise NotImplementedError(
                     f"We can not get the resulting shape of the expression: "
                     f"{array_ref.debug_string()}")
@@ -4425,10 +4421,8 @@ class Fparser2Reader():
         self.process_nodes(fake_parent, logical_expr)
         # We want to convert all the plain references that are arrays to use
         # explicit array syntax.
-        # TODO 1799 If we have two arrays where one uses a non-maximal range
-        # that is defined we will not convert this correctly yet.
-        # Convert References to arrays to use the array range notation unless
-        # they have an IntrinsicCall parent.
+        # TODO 2722: Should have the same logic as array_syntax_to_indexed
+        # regarding UnresolvedInterface and Elemental calls?
         references = fake_parent.walk(Reference)
         for ref in references:
             if isinstance(ref.symbol.interface, ImportInterface):
