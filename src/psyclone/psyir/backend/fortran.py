@@ -1135,14 +1135,7 @@ class FortranWriter(LanguageWriter):
 
         :returns: the Fortran code for this node.
         :rtype: str
-
-        :raises VisitorError: if the name attribute of the supplied \
-                              node is empty or None.
-
         '''
-        if not node.name:
-            raise VisitorError("Expected node name to have a value.")
-
         if node.is_program:
             result = f"{self._nindent}program {node.name}\n"
             routine_type = "program"

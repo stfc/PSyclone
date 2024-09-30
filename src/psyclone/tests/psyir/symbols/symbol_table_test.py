@@ -529,6 +529,12 @@ end module my_mod
     assert ("Cannot remove RoutineSymbol 'my_sub' because it is referenced by "
             "'call my_sub()" in str(err))
 
+    # Add the routine symbol into the filecontainer then we should be able
+    # to remove it from the module - this validates the
+    # _validate_remove_routinesymbol check.
+    psyir.symbol_table.add(my_sub)
+    table.remove(my_sub)
+
 
 def test_no_remove_routinesymbol_interface(fortran_reader):
     '''Check that remove() refuses to remove a RoutineSymbol if it is
