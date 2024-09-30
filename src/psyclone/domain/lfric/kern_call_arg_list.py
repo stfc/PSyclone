@@ -245,8 +245,8 @@ class KernCallArgList(ArgOrdering):
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        if (not self._kern.iterates_over.endswith("cell_column") and
-                self._kern.iterates_over != "domain"):
+        if not (self._kern.iterates_over.endswith("cell_column") or
+                self._kern.iterates_over == "domain"):
             return
         name = f"nlayers_{self._kern.arguments.iteration_space_arg().name}"
         nlayers_symbol = self.append_integer_reference(name, tag=name)
