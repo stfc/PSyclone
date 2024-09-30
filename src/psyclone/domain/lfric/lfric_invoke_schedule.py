@@ -46,7 +46,8 @@ the new InvokeSchedule.
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
-from psyclone.domain.lfric import LFRicSymbolTable, LFRicKernCallFactory
+from psyclone.domain.lfric.lfric_kern_call_factory import LFRicKernCallFactory
+from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.psyGen import InvokeSchedule
 
 
