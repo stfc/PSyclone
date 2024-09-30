@@ -90,7 +90,8 @@ class LFRicDofmaps(LFRicCollection):
         for call in self._calls:
             # We only need a dofmap if the kernel operates on a cell_column
             # or the domain.
-            if call.iterates_over in ["cell_column", "domain"]:
+            if call.iterates_over in ["owned_cell_column", "halo_cell_column",
+                                      "owned_and_halo_cell_column", "domain"]:
                 for unique_fs in call.arguments.unique_fss:
                     # We only need a dofmap if there is a *field* on this
                     # function space. If there is then we use it to look

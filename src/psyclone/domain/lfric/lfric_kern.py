@@ -597,8 +597,9 @@ class LFRicKern(CodedKern):
         :returns: root of fparser1 AST for the stub routine.
         :rtype: :py:class:`fparser.one.block_statements.Module`
 
-        :raises GenerationError: if the supplied kernel stub does not operate \
-            on a supported subset of the domain (currently only "cell_column").
+        :raises GenerationError: if the supplied kernel stub does not operate
+            on a supported subset of the domain (currently only
+            "owned_cell_column").
 
         '''
         # The operates-on/iterates-over values supported by the stub generator.
@@ -913,7 +914,7 @@ class LFRicKern(CodedKern):
         tree to be complete).
 
         :raises GenerationError: if this kernel does not have a supported
-                        operates-on (currently only "cell_column").
+                        operates-on (currently only "owned_cell_column").
         :raises GenerationError: if the loop goes beyond the level 1
                         halo and an operator is accessed.
         :raises GenerationError: if a kernel in the loop has an inc access

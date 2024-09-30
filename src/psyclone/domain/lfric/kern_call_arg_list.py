@@ -613,7 +613,8 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        if self._kern.iterates_over not in ["cell_column", "domain"]:
+        if not (self._kern.iterates_over.endswith("cell_column")
+                or self._kern.iterates_over == "domain"):
             return
         super().fs_common(function_space, var_accesses)
         self._ndf_positions.append(
