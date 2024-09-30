@@ -381,7 +381,12 @@ class LFRicKern(CodedKern):
     @property
     def halo_depth(self):
         '''
-        TODO
+        If this is a kernel that has metadata specifying that it operates on
+        halo cells then this property gives the depth of halo that is written.
+
+        :returns: the name of the variable holding the depth of halo that is
+                  modified.
+        :rtype: str
         '''
         return self._halo_depth
 

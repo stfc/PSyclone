@@ -47,7 +47,8 @@ from collections import namedtuple
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric import ArgOrdering, LFRicConstants
+from psyclone.domain.lfric.arg_ordering import ArgOrdering
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
 # Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
@@ -189,7 +190,9 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`]
         '''
         if Config.get().distributed_memory:
-            sym = self.append_integer_reference("halo_depth")
+            tag_name = f"{self._kern.name}:halo_depth"
+            sym = self._symtab.lookup_with_tag(tag_name)
+            self.append_integer_reference(f"{sym.name}", tag=tag_name)
             self.append(f"{sym.name}", var_accesses=var_accesses,
                         var_access_name=sym.name)
         else:

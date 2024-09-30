@@ -120,28 +120,32 @@ def test_psy_gen_halo_kernel(dist_mem, tmpdir, fortran_writer):
     # A halo kernel needs to look up the last halo column in the mesh.
     # Therefore we require a mesh object.
     if dist_mem:
+        assert "integer, intent(in) :: hdepth" in gen_code
+
         assert "type(mesh_type), pointer :: mesh => null()" in gen_code
         assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code
-        assert ("loop0_stop = mesh%get_last_halo_cell(halo_depth)"
+        # Loop must be over halo cells only
+        assert "loop0_start = mesh%get_last_edge_cell()+1" in gen_code
+        assert ("loop0_stop = mesh%get_last_halo_cell(hdepth)"
                 in gen_code)
 
         assert ("      do cell = loop0_start, loop0_stop, 1\n"
-                "        call testkern_halo_only_code(nlayers, halo_depth, a, "
+                "        call testkern_halo_only_code(nlayers_f1, hdepth, a, "
                 "f1_data, f2_data, m1_data, m2_data, undf_w1, map_w1(:,cell), "
                 "undf_w2, map_w2(:,cell), undf_w3, map_w3(:,cell))"
                 in gen_code)
 
-        # Check for appropriate set-dirty calls.
-        assert "this-is-dirty" in gen_code
+        # Check for appropriate set-dirty/clean calls.
+        assert ("      call f1_proxy%set_dirty()\n"
+                "      call f1_proxy%set_clean(hdepth)" in gen_code)
     else:
-        # No distributed memory so no halo region.
-        assert "loop0_stop = f1_proxy%vspace%get_ncell()\n" in gen_code
-
-        assert ("      do cell = loop0_start, loop0_stop, 1\n"
-                "        call testkern_halo_only_code(nlayers, 0, a, "
-                "f1_data, f2_data, m1_data, m2_data, undf_w1, map_w1(:,cell), "
-                "undf_w2, map_w2(:,cell), undf_w3, map_w3(:,cell))"
-                in gen_code)
+        # No distributed memory so no halo region => no halo depths passed
+        # from Alg layer.
+        assert (" subroutine invoke_0_testkern_halo_only_type"
+                "(a, f1, f2, m1, m2)" in gen_code)
+        assert "integer, intent(in) :: hdepth" not in gen_code
+        # No kernel call.
+        assert "call testkern" not in gen_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -157,16 +161,13 @@ def test_psy_gen_halo_kernel(dist_mem, tmpdir, fortran_writer):
     # and then we can just call `fortran_writer(schedule)` here.
     schedule = psy.invokes.invoke_list[0].schedule
     # Lower the LFRicKern:
-    for kern in schedule.walk(LFRicKern):
-        kern.lower_to_language_level()
+    #for kern in schedule.walk(LFRicKern):
+    #    kern.lower_to_language_level()
     # Now call the loop handling method directly.
-    out = fortran_writer.loop_node(schedule.walk(Loop)[0])
+    #out = fortran_writer.loop_node(schedule.walk(Loop)[0])
+    out = fortran_writer(schedule)
     if dist_mem:
-        assert ("call testkern_halo_only_code(nlayers, halo_depth, a, "
-                "f1_data, f2_data, m1_data, m2_data, undf_w1, map_w1(:,cell), "
-                "undf_w2, map_w2(:,cell), undf_w3, map_w3(:,cell))" in out)
-    else:
-        assert ("call testkern_halo_only_code(nlayers, 0, a, "
+        assert ("call testkern_halo_only_code(nlayers_f1, halo_depth, a, "
                 "f1_data, f2_data, m1_data, m2_data, undf_w1, map_w1(:,cell), "
                 "undf_w2, map_w2(:,cell), undf_w3, map_w3(:,cell))" in out)
 

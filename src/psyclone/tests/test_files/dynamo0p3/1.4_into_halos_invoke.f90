@@ -36,7 +36,7 @@
 
 program single_invoke
 
-  ! Invokes a kernel that includes the halo in its iteration space.
+  ! Invokes a kernel that includes just the halo in its iteration space.
   use constants_mod, only: r_def
   use field_mod,     only: field_type
   use testkern_halo_only_mod,  only: testkern_halo_only_type
@@ -45,8 +45,8 @@ program single_invoke
 
   type(field_type) :: f1, f2, m1, m2
   real(r_def)      :: a
+  integer :: hdepth
 
-  call invoke(                           &
-       testkern_halo_only_type(a, f1, f2, m1 ,m2))
+  call invoke( testkern_halo_only_type(a, f1, f2, m1 ,m2, hdepth) )
 
 end program single_invoke

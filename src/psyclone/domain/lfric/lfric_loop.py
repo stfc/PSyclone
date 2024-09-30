@@ -130,6 +130,7 @@ class LFRicLoop(PSyLoop):
 
         '''
         if self._loop_type != "null":
+
             # This is not a 'domain' loop (i.e. there is a real loop). First
             # check that there isn't any validation issues with the node.
             for child in self.loop_body.children:
@@ -238,10 +239,13 @@ class LFRicLoop(PSyLoop):
         if kern.iterates_over in ["halo_cell_column",
                                   "owned_and_halo_cell_column"]:
             if Config.get().distributed_memory:
-                # assert 0, "ARPDBG: need to propagate halo depth from Alg"
-                # sym = self.scope.symbol_table.lookup_with_tag(
-                #     f"halo_depth:{kern.name}")
-                self.set_upper_bound("cell_halo", index=1)
+                if kern.iterates_over == "halo_cell_column":
+                    self.set_lower_bound("cell_halo_start")
+                sym = self.scope.symbol_table.find_or_create_tag(
+                    f"{kern.name}:halo_depth", root_name=kern.halo_depth,
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                self.set_upper_bound("cell_halo", index=sym.name)
                 return
 
         if Config.get().distributed_memory:
@@ -326,8 +330,8 @@ class LFRicLoop(PSyLoop):
         # test for index here and assume that index is None for other
         # types of bounds, but checking the type of bound as well is a
         # safer option.
-        if name in (["inner"] + const.HALO_ACCESS_LOOP_BOUNDS) and \
-           index is not None:
+        if (name in (["inner"] + const.HALO_ACCESS_LOOP_BOUNDS) and
+                isinstance(index, int)):
             if index < 1:
                 raise GenerationError(
                     f"The specified index '{index}' for this upper loop bound "
@@ -363,13 +367,13 @@ class LFRicLoop(PSyLoop):
         :returns: the Fortran code for the lower bound.
         :rtype: str
 
-        :raises GenerationError: if self._lower_bound_name is not "start" \
+        :raises GenerationError: if self._lower_bound_name is not "start"
                                  for sequential code.
         :raises GenerationError: if self._lower_bound_name is unrecognised.
 
         '''
-        if not Config.get().distributed_memory and \
-           self._lower_bound_name != "start":
+        if (not Config.get().distributed_memory and
+                self._lower_bound_name != "start"):
             raise GenerationError(
                 f"The lower bound must be 'start' if we are sequential but "
                 f"found '{self._upper_bound_name}'")
@@ -386,6 +390,9 @@ class LFRicLoop(PSyLoop):
         elif (self._lower_bound_name == "cell_halo" and
               self._lower_bound_index == 1):
             prev_space_name = "ncells"
+            prev_space_index_str = ""
+        elif self._lower_bound_name == "cell_halo_start":
+            prev_space_name = "edge"
             prev_space_index_str = ""
         elif (self._lower_bound_name == "cell_halo" and
               self._lower_bound_index > 1):
@@ -862,6 +869,11 @@ class LFRicLoop(PSyLoop):
 
         '''
         # pylint: disable=too-many-statements, too-many-branches
+        if (not Config.get().distributed_memory and
+            all(kern.iterates_over == "halo_cell_column" for
+                kern in self.kernels())):
+            return
+
         # Check that we're not within an OpenMP parallel region if
         # we are a loop over colours.
         if self._loop_type == "colours" and self.is_openmp_parallel():
@@ -945,7 +957,7 @@ class LFRicLoop(PSyLoop):
                 halo_depth = hwa.literal_depth
                 if hwa.dirty_outer:
                     halo_depth -= 1
-                if halo_depth > 0:
+                if halo_depth:
                     if field.vector_size > 1:
                         # The range function below returns values from 1 to the
                         # vector size, as required in our Fortran code.

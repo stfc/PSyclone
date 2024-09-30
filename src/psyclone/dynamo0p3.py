@@ -3612,15 +3612,15 @@ def _create_depth_list(halo_info_list, sym_table):
     needs_clean_outer, which indicates whether the outermost halo
     needs to be clean (and therefore whether there is a dependence).
 
-    :param halo_info_list: a list containing halo access information \
+    :param halo_info_list: a list containing halo access information
         derived from all read fields dependent on this halo exchange.
-    :type: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloReadAccess`
+    :type: list[:py:class:`psyclone.dynamo0p3.HaloReadAccess`]
     :param sym_table: the symbol table of the enclosing InvokeSchedule.
     :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-    :returns: a list containing halo depth information derived from \
+    :returns: a list containing halo depth information derived from
         the halo access information.
-    :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
+    :rtype: list[:py:class:`psyclone.dynamo0p3.HaloDepth]`
 
     '''
     # pylint: disable=too-many-branches
@@ -3676,7 +3676,7 @@ def _create_depth_list(halo_info_list, sym_table):
             continue
         var_depth = halo_info.var_depth
         literal_depth = halo_info.literal_depth
-        if literal_depth and not halo_info.needs_clean_outer:
+        if isinstance(literal_depth, int) and not halo_info.needs_clean_outer:
             # Decrease depth by 1 if we don't care about the outermost
             # access.
             literal_depth -= 1
@@ -4720,8 +4720,11 @@ class HaloReadAccess(HaloDepth):
         if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
             # this loop performs redundant computation
             if loop.upper_bound_halo_depth:
-                # loop redundant computation is to a fixed literal depth
-                self._literal_depth = loop.upper_bound_halo_depth
+                if isinstance(loop.upper_bound_halo_depth, int):
+                    # loop redundant computation is to a fixed literal depth
+                    self._literal_depth = loop.upper_bound_halo_depth
+                else:
+                    self._var_depth = loop.upper_bound_halo_depth
             else:
                 # loop redundant computation is to the maximum depth
                 self._max_depth = True
