@@ -857,6 +857,7 @@ def _process_routine_symbols(module_ast, container,
     '''
     # If we are in a FileContainer, then the input here will be the Subroutine
     # or Function we are interested in.
+    routines = []
     if isinstance(module_ast, (Fortran2003.Subroutine_Subprogram,
                                Fortran2003.Function_Subprogram)):
         routines = [module_ast]
