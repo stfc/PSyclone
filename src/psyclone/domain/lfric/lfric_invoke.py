@@ -47,7 +47,6 @@ from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen, SubroutineGen,
                               UseGen)
 from psyclone.psyGen import Invoke
-from psyclone.psyir.nodes import Loop, Reference
 
 
 class LFRicInvoke(Invoke):

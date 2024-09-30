@@ -362,8 +362,7 @@ class KernCallInvokeArgList(ArgOrdering):
         if self._kern.iterates_over not in ["halo_cell_column",
                                             "owned_and_halo_cell_column"]:
             return
-        import pdb; pdb.set_trace()
-        dir(self._kern)
+        assert 0, "TODO: Implement KernCallInvokeArgList.halo_depth"
 
 
 # ============================================================================
