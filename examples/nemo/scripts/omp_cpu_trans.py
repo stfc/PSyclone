@@ -53,8 +53,6 @@ FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING + [
     "trosk.f90",   # TODO #1254
     "vremap.f90",  # Bulk assignment of a structure component
     "ldfslp.f90",  # Dependency analysis mistake? see Cray compiler comment
-    "mppini.f90",  # TODO #2723: can_loop_be_parallelised fails with TypeError
-                   # in SymbolicMath comparison (NENOv5 -r ORCA2_ICE_PISCES)
 ]
 
 
