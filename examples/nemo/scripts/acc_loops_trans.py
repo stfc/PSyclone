@@ -100,10 +100,9 @@ def trans(psyir):
         )
 
         # This are functions that are called from inside parallel regions,
-        # annotate them with 'omp declare target'
+        # annotate them with 'acc routine'
         if subroutine.name.lower().startswith("sign_") or subroutine.name in (
-                "q_sat", "sbc_dcy", "gamma_moist", "cd_neutral_10m", "psi_h",
-                "psi_m", "solfrac"):
+                "solfrac", ):
             ACCRoutineTrans().apply(subroutine)
             print(f"Marked {subroutine.name} as GPU-enabled")
             continue

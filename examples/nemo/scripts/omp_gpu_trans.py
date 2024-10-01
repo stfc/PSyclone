@@ -76,17 +76,6 @@ def trans(psyir):
         if PROFILING_ENABLED:
             add_profiling(subroutine.children)
 
-        # This are functions that are called from inside parallel regions,
-        # annotate them with 'omp declare target'
-        if subroutine.name.lower().startswith("sign_") or subroutine.name in (
-                "q_sat", "sbc_dcy", "gamma_moist", "cd_neutral_10m", "psi_h",
-                "psi_m", "solfrac"):
-            OMPDeclareTargetTrans().apply(subroutine)
-            print(f"Marked {subroutine.name} as GPU-enabled")
-            # We continue parallelising inside the routine, but this could
-            # change if the parallelisation directive are not nestable, in
-            # which case we could add a 'continue' here
-
         print(f"Transforming subroutine: {subroutine.name}")
 
         enhance_tree_information(subroutine)
@@ -99,6 +88,16 @@ def trans(psyir):
                 convert_range_loops=True,
                 hoist_expressions=True
         )
+
+        # This are functions that are called from inside parallel regions,
+        # annotate them with 'omp declare target'
+        if subroutine.name.lower().startswith("sign_") or subroutine.name in (
+                "solfrac", ):
+            OMPDeclareTargetTrans().apply(subroutine)
+            print(f"Marked {subroutine.name} as GPU-enabled")
+            # We continue parallelising inside the routine, but this could
+            # change if the parallelisation directives added below are not
+            # nestable, in that case we could add a 'continue' here
 
         # For now this is a special case for stpctl.f90 because it forces
         # loops to parallelise without many safety checks
