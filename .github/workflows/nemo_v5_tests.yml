@@ -187,7 +187,7 @@ jobs:
         tail run.stat
         python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.small.100steps run.stat
         export TIME_microsec=$(grep "Mean:" timing.output | head -n 1 | awk '{print $2}')
-        export TIME_sec=$(bc <<< "${TIME_US} / 10000")
+        export TIME_sec=$(bc <<< "${TIME_microsec} / 10000")
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
@@ -227,7 +227,7 @@ jobs:
         tail run.stat
         python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.small.100steps run.stat
         export TIME_microsec=$(grep "Mean:" timing.output | head -n 1 | awk '{print $2}')
-        export TIME_sec=$(bc <<< "${TIME_US} / 10000")
+        export TIME_sec=$(bc <<< "${TIME_microsec} / 10000")
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
