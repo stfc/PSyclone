@@ -566,7 +566,7 @@ def test_entry_stmt(parser):
 
 
 def test_module_contains_subroutine_contains_subroutine(
-        fortran_reader):
+        fortran_reader, fortran_writer):
     ''' Test to check that subroutines contained within subroutines
     do not put their symbols into the container ancestor.'''
     code = """
@@ -588,3 +588,5 @@ def test_module_contains_subroutine_contains_subroutine(
     # s symbol should not be in my_mod
     with pytest.raises(KeyError):
         psyir.children[0].symbol_table.lookup("s")
+    out = fortran_writer(psyir)
+    assert "subroutine func_a" not in out

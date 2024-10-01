@@ -5309,8 +5309,18 @@ class Fparser2Reader():
 
         '''
         try:
-            _first_type_match(node.children,
-                              Fortran2003.Internal_Subprogram_Part)
+            x = _first_type_match(node.children,
+                                  Fortran2003.Internal_Subprogram_Part)
+            name = str(x.parent.children[0].children[1])
+            # If we will make a CodeBlock to represent this subroutine then
+            # we still need to ensure the symbol is in the parent's symbol
+            # table. For this case the best we can do is place the symbol
+            # in the tree without a coresponding Routine.
+            for routine in parent.children:
+                if isinstance(routine, Routine) and routine.name == name:
+                    sym = routine.symbol
+                    routine.detach()
+                    parent.symbol_table.add(sym)
             raise NotImplementedError("PSyclone doesn't yet support 'Contains'"
                                       " inside a Subroutine or Function")
         except ValueError:
