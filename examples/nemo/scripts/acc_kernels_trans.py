@@ -109,19 +109,6 @@ ACC_IGNORE = ["day_mth",  # Just calendar operations
               "bdytide_init", "bdy_init", "bdy_segs", "sbc_cpl_init",
               "asm_inc_init", "dia_obs_init"]  # Str handling, init routine
 
-# Currently fparser has no way of distinguishing array accesses from
-# function calls if the symbol is imported from some other module.
-# We therefore work-around this by keeping a list of known NEMO
-# functions that must be excluded from within KERNELS regions.
-NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
-                  "eos_pt_from_ct", "gamma_moist", "l_vap",
-                  "sbc_dcy", "solfrac", "psi_h", "psi_m", "psi_m_coare",
-                  "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf", "q_sat",
-                  "rho_air", "visc_air", "sbc_dcy", "glob_sum",
-                  "glob_sum_full", "ptr_sj", "ptr_sjk", "interp1", "interp2",
-                  "interp3", "integ_spline"]
-
-
 class ExcludeSettings():
     '''
     Class to hold settings on what to exclude from OpenACC KERNELS regions.
@@ -260,17 +247,6 @@ def valid_acc_kernel(node):
                                     "other loops", enode)
                             return False
 
-    # Finally, check that we haven't got any 'array accesses' that are in
-    # fact function calls.
-    refs = node.walk(ArrayReference)
-    for ref in refs:
-        # Check if this reference has the name of a known function and if that
-        # reference appears outside said known function.
-        if ref.name.lower() in NEMO_FUNCTIONS and \
-           ref.name.lower() != routine_name.lower():
-            log_msg(routine_name,
-                    f"Loop contains function call: {ref.name}", ref)
-            return False
     return True
 
 

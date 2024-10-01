@@ -70,6 +70,18 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
                     "sum", "sign_", "ddpdd"]
 
+# Currently fparser has no way of distinguishing array accesses from
+# function calls if the symbol is imported from some other module.
+# We therefore work-around this by keeping a list of known NEMO functions.
+NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
+                  "eos_pt_from_ct", "gamma_moist", "l_vap",
+                  "sbc_dcy", "solfrac", "psi_h", "psi_m", "psi_m_coare",
+                  "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf", "q_sat",
+                  "rho_air", "visc_air", "sbc_dcy", "glob_sum",
+                  "glob_sum_full", "ptr_sj", "ptr_sjk", "interp1", "interp2",
+                  "interp3", "integ_spline"]
+
+
 VERBOSE = False
 
 
@@ -131,15 +143,18 @@ def enhance_tree_information(schedule):
                         ArrayType.Extent.ATTRIBUTE,
                         ArrayType.Extent.ATTRIBUTE,
                         ArrayType.Extent.ATTRIBUTE]))
-        elif reference.symbol.name == "sbc_dcy":
-            # The parser gets this wrong, it is a Call not an Array access
-            if not isinstance(reference.symbol, RoutineSymbol):
-                # We haven't already specialised this Symbol.
-                reference.symbol.specialise(RoutineSymbol)
-            call = Call.create(reference.symbol)
-            for child in reference.children:
-                call.addchild(child.detach())
-            reference.replace_with(call)
+        elif reference.symbol.name in NEMO_FUNCTIONS:
+            if reference.symbol.is_import or reference.symbol.is_unresolved:
+                # The parser gets these wrong, they are Calls not ArrayRefs
+                if not isinstance(reference.symbol, RoutineSymbol):
+                    # We haven't already specialised this Symbol.
+                    reference.symbol.specialise(RoutineSymbol)
+                if not (isinstance(reference.parent, Call) and
+                        reference.parent.routine is reference):
+                    call = Call.create(reference.symbol)
+                    for child in reference.children[:]:
+                        call.addchild(child.detach())
+                    reference.replace_with(call)
 
 
 def inline_calls(schedule):

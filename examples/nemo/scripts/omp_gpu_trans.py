@@ -91,8 +91,7 @@ def trans(psyir):
 
         # This are functions that are called from inside parallel regions,
         # annotate them with 'omp declare target'
-        if subroutine.name.lower().startswith("sign_") or subroutine.name in (
-                "solfrac", ):
+        if subroutine.name.lower().startswith("sign_"):
             OMPDeclareTargetTrans().apply(subroutine)
             print(f"Marked {subroutine.name} as GPU-enabled")
             # We continue parallelising inside the routine, but this could
