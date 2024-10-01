@@ -49,7 +49,7 @@ from psyclone.transformations import OMPDeclareTargetTrans, TransformationError
 PROFILING_ENABLED = True
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT 
+FILES_TO_SKIP = NOT_PERFORMANT
 
 
 def trans(psyir):
@@ -76,14 +76,16 @@ def trans(psyir):
         if PROFILING_ENABLED:
             add_profiling(subroutine.children)
 
-        # This are functions with scalar bodies, we don't want to parallelise
-        # them, but we could:
-        # - Inine them
-        # - Annotate them with 'omp declare target' and allow to call from gpus
-        if subroutine.name in ("q_sat", "sbc_dcy", "gamma_moist",
-                               "cd_neutral_10m", "psi_h", "psi_m"):
-            print("Skipping", subroutine.name)
-            continue
+        # This are functions that are called from inside parallel regions,
+        # annotate them with 'omp declare target'
+        if subroutine.name.lower().startswith("sign_") or subroutine.name in (
+                "q_sat", "sbc_dcy", "gamma_moist", "cd_neutral_10m", "psi_h",
+                "psi_m", "solfrac"):
+            OMPDeclareTargetTrans().apply(subroutine)
+            print(f"Marked {subroutine.name} as GPU-enabled")
+            # We continue parallelising inside the routine, but this could
+            # change if the parallelisation directive are not nestable, in
+            # which case we could add a 'continue' here
 
         print(f"Transforming subroutine: {subroutine.name}")
 
@@ -97,15 +99,6 @@ def trans(psyir):
                 convert_range_loops=True,
                 hoist_expressions=True
         )
-
-        # In the lib_fortran file we annotate each routine of the SIGN_*
-        # interface with the OpenMP Declare Target Directive
-        if psyir.name == "lib_fortran.f90":
-            if subroutine.name.lower().startswith("sign_"):
-                OMPDeclareTargetTrans().apply(subroutine)
-                # We continue parallelising inside the routine, but this could
-                # change if the parallelisation directive are not nestable, in
-                # which case we could add a 'continue' here
 
         # For now this is a special case for stpctl.f90 because it forces
         # loops to parallelise without many safety checks

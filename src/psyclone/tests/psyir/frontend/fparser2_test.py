@@ -55,7 +55,7 @@ from psyclone.psyir.frontend.fparser2 import (
     default_real_type, _first_type_match, _get_arg_names)
 from psyclone.psyir.nodes import (
     Schedule, CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation,
-    IfBlock, Reference, ArrayReference, Literal, Range, KernelSchedule,
+    IfBlock, Reference, ArrayReference, Literal, KernelSchedule,
     RegionDirective, Routine, StandaloneDirective,
     Call, IntrinsicCall)
 from psyclone.psyir.symbols import (

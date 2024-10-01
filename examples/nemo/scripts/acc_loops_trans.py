@@ -81,15 +81,6 @@ def trans(psyir):
             print("Skipping", subroutine.name)
             continue
 
-        # This are functions with scalar bodies, we don't want to parallelise
-        # them, but we could:
-        # - Inline them
-        # - Annotate them with 'omp declare target' and allow to call from gpus
-        if subroutine.name in ("q_sat", "sbc_dcy", "gamma_moist",
-                               "cd_neutral_10m", "psi_h", "psi_m"):
-            print("Skipping", subroutine.name)
-            continue
-
         # OpenACC fails in the following routines with the Compiler error:
         # Could not find allocated-variable index for symbol - xxx
         # This all happen on characters arrays, e.g. cd_nat
@@ -108,12 +99,14 @@ def trans(psyir):
                 hoist_expressions=True
         )
 
-        # In the lib_fortran file we annotate each routine of the SIGN_*
-        # interface with the OpenACC Routine Directive
-        if psyir.name == "lib_fortran.f90":
-            if subroutine.name.lower().startswith("sign_"):
-                ACCRoutineTrans().apply(subroutine)
-                continue
+        # This are functions that are called from inside parallel regions,
+        # annotate them with 'omp declare target'
+        if subroutine.name.lower().startswith("sign_") or subroutine.name in (
+                "q_sat", "sbc_dcy", "gamma_moist", "cd_neutral_10m", "psi_h",
+                "psi_m", "solfrac"):
+            ACCRoutineTrans().apply(subroutine)
+            print(f"Marked {subroutine.name} as GPU-enabled")
+            continue
 
         insert_explicit_loop_parallelism(
             subroutine,
