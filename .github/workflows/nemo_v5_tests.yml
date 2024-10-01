@@ -90,7 +90,7 @@ jobs:
         # Clean up and compile
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
-            add_key "key_nosignedzero" -j 4 -v 1 &> compiler_output.txt || cat compiler_output.txt && false
+            add_key "key_nosignedzero" -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
@@ -120,7 +120,7 @@ jobs:
         # Without key_mpi_off it fails to compile (even without psyclone)
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
-          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1 &> compiler_output.txt || cat compiler_output.txt && false
+          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
@@ -150,7 +150,7 @@ jobs:
         # Clean up and compile
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
-          add_key "key_nosignedzero" -j 4 -v 1 &> compiler_output.txt || cat compiler_output.txt && false
+          add_key "key_nosignedzero" -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
@@ -178,7 +178,7 @@ jobs:
         # Clean up and compile
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py \
-          add_key "key_nosignedzero" -j 4 -v 1 &> compiler_output.txt || cat compiler_output.txt && false
+          add_key "key_nosignedzero" -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
@@ -218,7 +218,7 @@ jobs:
         # Without key_mpi_off it fails to compile (even without psyclone)
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
-          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1 &> compiler_output.txt || cat compiler_output.txt && false
+          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
