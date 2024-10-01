@@ -862,7 +862,7 @@ def test_restrict_prolong_chain_acc(tmpdir):
     const = LFRicConstants()
 
     for loop in schedule.walk(Loop):
-        if (loop.iteration_space == "cell_column" and
+        if (loop.iteration_space.endswith("cell_column") and
                 loop.field_space.orig_name not in
                 const.VALID_DISCONTINUOUS_NAMES):
             ctrans.apply(loop)

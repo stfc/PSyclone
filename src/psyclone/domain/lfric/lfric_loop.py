@@ -956,7 +956,10 @@ class LFRicLoop(PSyLoop):
                 # halo access(es) is/are to a fixed depth
                 halo_depth = hwa.literal_depth
                 if hwa.dirty_outer:
-                    halo_depth -= 1
+                    if isinstance(halo_depth, int):
+                        halo_depth -= 1
+                    else:
+                        halo_depth += " - 1"
                 if halo_depth:
                     if field.vector_size > 1:
                         # The range function below returns values from 1 to the

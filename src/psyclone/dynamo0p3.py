@@ -3676,7 +3676,8 @@ def _create_depth_list(halo_info_list, sym_table):
             continue
         var_depth = halo_info.var_depth
         literal_depth = halo_info.literal_depth
-        if isinstance(literal_depth, int) and not halo_info.needs_clean_outer:
+        if (literal_depth and isinstance(literal_depth, int) and
+                not halo_info.needs_clean_outer):
             # Decrease depth by 1 if we don't care about the outermost
             # access.
             literal_depth -= 1
