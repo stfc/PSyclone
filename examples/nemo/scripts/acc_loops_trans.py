@@ -39,7 +39,7 @@ directives into Nemo code. '''
 
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT, NOT_WORKING)
+    enhance_tree_information, NOT_PERFORMANT)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import (
     ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans)
@@ -47,7 +47,7 @@ from psyclone.transformations import (
 PROFILING_ENABLED = True
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING
+FILES_TO_SKIP = NOT_PERFORMANT
 
 
 def trans(psyir):

@@ -58,7 +58,7 @@ Tested with the NVIDIA HPC SDK version 23.7.
 
 import logging
 from utils import (add_profiling, enhance_tree_information, inline_calls,
-                   NOT_PERFORMANT, NOT_WORKING)
+                   NOT_PERFORMANT)
 from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
@@ -94,7 +94,7 @@ PROFILE_NONACC = False
 ACC_EXPLICIT_MEM_MANAGEMENT = False
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING
+FILES_TO_SKIP = NOT_PERFORMANT
 
 # Routines we do not attempt to add any OpenACC to (because it breaks with
 # the Nvidia compiler or because it just isn't worth it)

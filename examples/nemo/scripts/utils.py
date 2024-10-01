@@ -61,14 +61,6 @@ NOT_PERFORMANT = [
     "tide_mod.f90", "zdfosm.f90",
 ]
 
-# Files that we won't touch at all, either because PSyclone actually fails
-# or because it produces incorrect Fortran.
-NOT_WORKING = [
-    # NEMOv4 bugs:
-    # TODO #717 - array accessed inside WHERE does not use array notation
-    "diurnal_bulk.f90",
-]
-
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "macho", "mpp_", "nemo_gcm",
