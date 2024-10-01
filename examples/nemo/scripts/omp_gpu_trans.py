@@ -119,17 +119,14 @@ def trans(psyir):
                 hoist_expressions=True
         )
 
-        # For performance in lib_fortran, mark serial routines as GPU-enabled
+        # In the lib_fortran file we annotate each routine of the SIGN_*
+        # interface with the OpenMP Declare Target Directive
         if psyir.name == "lib_fortran.f90":
-            if not subroutine.walk(Loop):
-                try:
-                    # We need the 'force' option.
-                    # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
-                    # array notation. (TODO #717)
-                    OMPDeclareTargetTrans().apply(subroutine,
-                                                  options={"force": True})
-                except TransformationError as err:
-                    print(err)
+            if subroutine.name.lower().startswith("sign_"):
+                OMPDeclareTargetTrans().apply(subroutine)
+                # We continue parallelising inside the routine, but this could
+                # change if the parallelisation directive are not nestable, in
+                # which case we could add a 'continue' here
 
         # For now this is a special case for stpctl.f90 because it forces
         # loops to parallelise without many safety checks
