@@ -497,7 +497,7 @@ def test_alg_lines_too_long_tested():
     alg_filename = os.path.join(DYN03_BASE_PATH, "13_alg_long_line.f90")
     with pytest.raises(ParseError) as excinfo:
         _, _ = generate(alg_filename, api="lfric", line_length=True)
-    assert 'file does not conform' in str(excinfo.value)
+    assert "/13_alg_long_line.f90' does not conform" in str(excinfo.value)
 
 
 def test_alg_lines_too_long_not_tested():
@@ -521,7 +521,7 @@ def test_kern_lines_too_long_tested():
     alg_filename = os.path.join(DYN03_BASE_PATH, "13.1_kern_long_line.f90")
     with pytest.raises(ParseError) as excinfo:
         _, _ = generate(alg_filename, api="lfric", line_length=True)
-    assert 'file does not conform' in str(excinfo.value)
+    assert "/longkern_mod.f90' does not conform" in str(excinfo.value)
 
 
 def test_kern_lines_too_long_not_tested():
@@ -993,14 +993,14 @@ def test_main_fort_line_length_all(capsys):
     with pytest.raises(SystemExit):
         main([filename, '-api', 'lfric', '-l', 'all'])
     _, output = capsys.readouterr()
-    assert ("does not conform to the specified 132 line length limit"
+    assert ("does not conform to the specified 132 line-length limit"
             in output)
     # And for code transformations
     filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
     with pytest.raises(SystemExit):
         main([filename, '-l', 'all'])
     _, output = capsys.readouterr()
-    assert ("does not conform to the specified 132 line length limit"
+    assert ("does not conform to the specified 132 line-length limit"
             in output)
 
 
