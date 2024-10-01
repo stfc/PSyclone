@@ -40,9 +40,9 @@ directives into Nemo code. '''
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
     enhance_tree_information, NOT_PERFORMANT, NOT_WORKING)
-from psyclone.psyir.nodes import Loop, Routine
+from psyclone.psyir.nodes import Routine
 from psyclone.transformations import (
-    ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans, TransformationError)
+    ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans)
 
 PROFILING_ENABLED = True
 
@@ -108,17 +108,12 @@ def trans(psyir):
                 hoist_expressions=True
         )
 
-        # For performance in lib_fortran, mark serial routines as GPU-enabled
+        # In the lib_fortran file we annotate each routine of the SIGN_*
+        # interface with the OpenACC Routine Directive
         if psyir.name == "lib_fortran.f90":
-            if not subroutine.walk(Loop):
-                try:
-                    # We need the 'force' option.
-                    # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
-                    # array notation. (TODO #717)
-                    ACCRoutineTrans().apply(subroutine,
-                                            options={"force": True})
-                except TransformationError as err:
-                    print(err)
+            if subroutine.name.lower().startswith("sign_"):
+                ACCRoutineTrans().apply(subroutine)
+                continue
 
         insert_explicit_loop_parallelism(
             subroutine,
