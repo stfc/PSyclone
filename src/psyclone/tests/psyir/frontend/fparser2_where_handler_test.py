@@ -692,16 +692,24 @@ def test_where_stmt_validity():
 
 
 @pytest.mark.usefixtures("parser")
-def test_where_stmt():
+def test_where_stmt(fortran_reader):
     ''' Basic check that we handle a WHERE statement correctly.
 
     '''
-    fake_parent, _ = process_where(
-        "WHERE( at_i(:,:) > rn_amax_2d(:,:) )   "
-        "a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)",
-        Fortran2003.Where_Stmt, ["at_i", "rn_amax_2d", "jl", "a_i"])
-    assert len(fake_parent.children) == 1
-    assert isinstance(fake_parent[0], Loop)
+    code = '''\
+    program where_test
+      implicit none
+      integer :: jl
+      real, dimension(:,:), allocatable :: at_i, rn_amax_2d
+      real, dimension(:,:,:), allocatable :: a_i
+      WHERE( at_i(:,:) > rn_amax_2d(:,:) ) &
+            a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)
+    end program where_test
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert len(routine.children) == 1
+    assert isinstance(routine[0], Loop)
 
 
 def test_where_stmt_no_reduction(fortran_reader, fortran_writer):

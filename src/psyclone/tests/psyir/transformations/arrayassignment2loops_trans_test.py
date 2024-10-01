@@ -656,9 +656,9 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
     with pytest.raises(TransformationError) as info:
         trans.apply(psyir.walk(Assignment)[4], opts)
     assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
-            "contains the access 'ishtsi(map,scalar)' and whether or not the "
-            "index expression 'map' is itself an array is unknown" in
-            str(info.value))
+            "contains the access 'ishtsi(map,scalar)' which is an "
+            "UnresolvedType and therefore cannot be guaranteed to be "
+            "ScalarType" in str(info.value))
 
     # The end result should look like:
     assert (
@@ -679,8 +679,8 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
         "cannot be guaranteed to be ScalarType.\n"
         "  x(:) = unsupported\n"
         "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "
-        "contains the access 'ishtsi(map,scalar)' and whether or not the "
-        "index expression 'map' is itself an array is unknown.\n"
+        "contains the access 'ishtsi(map,scalar)' which is an UnresolvedType "
+        "and therefore cannot be guaranteed to be ScalarType.\n"
         "  x(:) = ishtsi(map,scalar)\n"
     ) in fortran_writer(psyir)
 
@@ -796,5 +796,5 @@ def test_validate_indirect_indexing(fortran_reader):
     with pytest.raises(TransformationError) as err:
         trans.validate(assignments[3])
     assert ("cannot expand expression because it contains the access "
-            "'ishtsi(my_func(1),jf)' and whether or not the index expression "
-            "'my_func(1)' is itself an array is unknown." in str(err.value))
+            "'ishtsi(my_func(1),jf)' which is an UnresolvedType and therefore "
+            "cannot be guaranteed to be ScalarType." in str(err.value))
