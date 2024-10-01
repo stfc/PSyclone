@@ -46,6 +46,7 @@ from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import Loop, Reference, Call, Routine
+from psyclone.psyir.symbols import AutomaticInterface
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -126,6 +127,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         force = options.get("force", False)
         ignore_dependencies_for = options.get("ignore_dependencies_for", [])
         sequential = options.get("sequential", False)
+        privatise_arrays = options.get("privatise_arrays", False)
 
         # Check we are not a sequential loop
         if (not sequential and isinstance(node, PSyLoop) and
@@ -141,6 +143,11 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 raise TypeError(
                     f"The 'collapse' argument must be an integer or a bool but"
                     f" got an object of type {type(collapse)}")
+
+        if not isinstance(privatise_arrays, bool):
+            raise TypeError(
+                f"The 'privatise_arrays' option must be a bool "
+                f"but got an object of type {type(privatise_arrays).__name__}")
 
         routine = node.ancestor(Routine)
         if routine is not None and routine.parent is not None:
@@ -169,7 +176,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             message = (
                 f"Loop cannot be parallelised because it cannot "
                 f"guarantee that the following calls are pure: "
-                f"{set(not_pure)}")
+                f"{sorted(set(not_pure))}")
             if verbose:
                 node.append_preceding_comment(message)
             raise TransformationError(message)
@@ -193,16 +200,57 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                        signatures_to_ignore=signatures):
             # The DependencyTools also returns False for things that are
             # not an issue, so we ignore specific messages.
+            errors = []
             for message in dep_tools.get_all_messages():
                 if message.code == DTCode.WARN_SCALAR_WRITTEN_ONCE:
                     continue
-                all_msg_str = "\n".join([str(m) for m in
-                                         dep_tools.get_all_messages()])
-                messages = (f"Loop cannot be parallelised because the "
-                            f"dependency analysis reported:\n{all_msg_str}\n"
+                if (privatise_arrays and
+                        message.code == DTCode.ERROR_WRITE_WRITE_RACE):
+                    privatisable = True
+                    for var_name in message.var_names:
+                        try:
+                            sym = node.scope.symbol_table.lookup(var_name)
+                        except KeyError:
+                            # Structures are reported with the full expression:
+                            # "mystruct%myfield" by the DA var_name, we
+                            # purposely avoid privatising these.
+                            privatisable = False
+                            break
+
+                        # If it's not a local symbol, we cannot safely analyse
+                        # its lifetime
+                        if not isinstance(sym.interface, AutomaticInterface):
+                            privatisable = False
+                            break
+
+                        # It must not be referenced after this loop (before the
+                        # loop is fine because we can use OpenMP/OpenACC
+                        # first-private or Fortran do concurrent local_init())
+                        if any(r.symbol is sym
+                               for r in node.following(include_children=False)
+                               if isinstance(r, Reference)):
+                            privatisable = False
+                            break
+
+                        node.explicitly_local_symbols.add(sym)
+                    if not privatisable:
+                        errors.append(
+                            f"The write-write dependency in '{var_name}'"
+                            f" cannot be solved by array privatisation "
+                            f"because it is not a plain array or it is "
+                            f"used outside the loop.")
+                    continue
+                errors.append(str(message))
+
+            if errors:
+                error_lines = "\n".join(errors)
+                messages = (f"Loop cannot be parallelised because:\n"
+                            f"{error_lines}\n"
                             f"Consider using the \"ignore_dependencies_for\""
                             f" transformation option if this is a false "
-                            f"dependency.")
+                            f"dependency\nConsider using the \"array_"
+                            f"privatisation\" transformation option if "
+                            f"this is a write-write dependency")
                 if verbose:
                     # This message can get quite long, we will skip it if an
                     # ancestor loop already has the exact same message
