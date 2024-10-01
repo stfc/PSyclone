@@ -4603,7 +4603,7 @@ class HaloWriteAccess(HaloDepth):
         # over cells
         self._dirty_outer = (
             not field.discontinuous and
-            loop.iteration_space == "cell_column" and
+            loop.iteration_space.endswith("cell_column") and
             loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS)
         depth = 0
         max_depth = False
