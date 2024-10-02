@@ -273,8 +273,18 @@ class StructureReference(Reference, StructureAccessorMixin):
                                      an array of arrays.
 
         '''
-        def _cursor_shape(cursor, cursor_type):
+        def _get_cursor_shape(cursor, cursor_type):
             '''
+            Utility that returns the shape of the supplied node.
+
+            :param cursor: the node to get the shape of.
+            :type cursor: :py:class:`psyclone.psyir.nodes.Node`
+            :param cursor_type: the type of the node.
+            :type cursor_type: :py:class:`psyclone.psyir.symbols.DataType`
+
+            :returns: the shape of the node or None if it is not an array.
+            :rtype: Optional[list[:py:class:`psyclone.psyir.nodes.Node`]]
+
             '''
             if not (isinstance(cursor, ArrayMixin) or
                     isinstance(cursor_type, ArrayType)):
@@ -283,11 +293,9 @@ class StructureReference(Reference, StructureAccessorMixin):
                 # It is an ArrayMixin and has indices so could be a single
                 # element or a slice.
                 # pylint: disable=protected-access
-                cursor_shape = cursor._get_effective_shape()
-            else:
-                # No indices so it is an access to a whole array.
-                cursor_shape = cursor_type.shape
-            return cursor_shape
+                return cursor._get_effective_shape()
+            # No indices so it is an access to a whole array.
+            return cursor_type.shape
 
         # pylint: disable=too-many-return-statements, too-many-branches
         if self._overwrite_datatype:
@@ -312,19 +320,13 @@ class StructureReference(Reference, StructureAccessorMixin):
 
         # If the reference has explicit array syntax, we need to consider it
         # to calculate the resulting shape.
-        if isinstance(cursor, ArrayMixin):
-            try:
-                # pylint: disable=protected-access
-                shape = cursor._get_effective_shape()
-            except NotImplementedError:
-                return UnresolvedType()
-        else:
-            shape = []
+        try:
+            shape = _get_cursor_shape(cursor, cursor_type)
+        except NotImplementedError:
+            return UnresolvedType()
 
         # Walk down the structure, collecting information on any array slices
         # as we go.
-        #if cursor.name == "grid":
-        #    import pdb; pdb.set_trace()
         while isinstance(cursor, (StructureMember, StructureReference)):
             cursor = cursor.member
             if isinstance(cursor_type, ArrayType):
@@ -335,29 +337,20 @@ class StructureReference(Reference, StructureAccessorMixin):
                 # Once we've hit an Unresolved/UnsupportedType the cursor_type
                 # will remain set to that as we can't do any better.
                 cursor_type = cursor_type.components[cursor.name].datatype
-            if isinstance(cursor, ArrayMixin) or isinstance(cursor_type,
-                                                            ArrayType):
-                # pylint: disable=protected-access
-                try:
-                    cursor_shape = _cursor_shape(cursor, cursor_type)
-                    if cursor_shape:
-                        shape.extend(cursor_shape)
-                except NotImplementedError:
-                    return UnresolvedType()
+            try:
+                cursor_shape = _get_cursor_shape(cursor, cursor_type)
+            except NotImplementedError:
+                return UnresolvedType()
+            if cursor_shape:
+                if shape:
+                    raise NotImplementedError(
+                        f"Array of arrays not supported: the ultimate member "
+                        f"'{cursor.name}' of the StructureAccess represents "
+                        f"an array but other array notation is present in the "
+                        f"full access expression: '{self.debug_string()}'")
+                shape = cursor_shape
 
-        # We've reached the ultimate member of the structure access.
         if shape:
-            cursor_shape = _cursor_shape(cursor, cursor_type)
-            if cursor_shape and len(shape) != len(cursor_shape):
-                # This ultimate access is an array but we've already
-                # encountered one or more slices earlier in the access
-                # expression.
-                raise NotImplementedError(
-                    f"Array of arrays not supported: the ultimate member "
-                    f"'{cursor.name}' of the StructureAccess represents "
-                    f"an array but other array notation is present in the "
-                    f"full access expression: '{self.debug_string()}'")
-
             return ArrayType(cursor_type, shape)
 
         # We don't have an explicit array access (because `shape` is Falsey)
