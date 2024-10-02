@@ -608,6 +608,7 @@ def test_get_effective_shape(fortran_reader):
     code = (
         "subroutine test()\n"
         "  use some_mod\n"
+        "  integer :: idx = 2\n"
         "  integer :: indices(8,3)\n"
         "  real a(10), b(10,10)\n"
         "  a(1:10) = 0.0\n"
@@ -621,6 +622,8 @@ def test_get_effective_shape(fortran_reader):
         "  b(indices(2:3,1:2), 2:5) = 2.0\n"
         "  a(f()) = 2.0\n"
         "  a(2+3) = 1.0\n"
+        "  b(idx, a) = -1.0\n"
+        "  b(scalarval, arrayval) = 1\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
@@ -691,6 +694,49 @@ def test_get_effective_shape(fortran_reader):
     with pytest.raises(NotImplementedError) as err:
         _ = routine.children[child_idx].lhs._get_effective_shape()
     assert "include a function call or expression" in str(err.value)
+    # Array access with indices given by another array that is not explicitly
+    # indexed.
+    child_idx += 1
+    shape = routine.children[child_idx].lhs._get_effective_shape()
+    assert len(shape) == 1
+    assert "SIZE(a)" in shape[0].debug_string()
+    # Array-index expressions are symbols of unknown type so we don't know
+    # whether we have an array slice or just a scalar.
+    child_idx += 1
+    with pytest.raises(NotImplementedError) as err:
+        _ = routine.children[child_idx].lhs._get_effective_shape()
+    assert ("index expression 'scalarval' in access 'b(scalarval,arrayval)' is"
+            " of 'UnresolvedType' type and therefore whether it is an array "
+            "slice (i.e. an indirect access) cannot be determined."
+            in str(err.value))
+
+
+def test_struct_get_effective_shape(fortran_reader):
+    '''Tests for the _get_effective_shape() method for ArrayMember and
+    ArrayOfStructuresMixin (since they inherit it from ArrayMixin).'''
+    code = (
+        "subroutine test()\n"
+        "  type :: my_type\n"
+        "    real, dimension(21,12) :: data\n"
+        "  end type my_type\n"
+        "  type(my_type) :: grid\n"
+        "  type(my_type), dimension(5) :: grid_list\n"
+        "  grid%data(:,:) = 0.0\n"
+        "  grid_list(:)%data(1) = 0.0\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    # Slice of ArrayMember
+    child_idx = 0
+    shape = routine.children[child_idx].lhs.member._get_effective_shape()
+    assert len(shape) == 2
+    assert "SIZE(grid%data, dim=1)" in shape[0].debug_string()
+    assert "SIZE(grid%data, dim=2)" in shape[1].debug_string()
+    # Slice of ArrayOfStructuresMixin
+    child_idx += 1
+    shape = routine.children[child_idx].lhs._get_effective_shape()
+    assert len(shape) == 1
+    assert isinstance(shape[0], IntrinsicCall)
 
 
 # get_outer_range_index

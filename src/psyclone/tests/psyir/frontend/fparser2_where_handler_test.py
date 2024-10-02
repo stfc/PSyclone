@@ -692,16 +692,24 @@ def test_where_stmt_validity():
 
 
 @pytest.mark.usefixtures("parser")
-def test_where_stmt():
+def test_where_stmt(fortran_reader):
     ''' Basic check that we handle a WHERE statement correctly.
 
     '''
-    fake_parent, _ = process_where(
-        "WHERE( at_i(:,:) > rn_amax_2d(:,:) )   "
-        "a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)",
-        Fortran2003.Where_Stmt, ["at_i", "rn_amax_2d", "jl", "a_i"])
-    assert len(fake_parent.children) == 1
-    assert isinstance(fake_parent[0], Loop)
+    code = '''\
+    program where_test
+      implicit none
+      integer :: jl
+      real, dimension(:,:), allocatable :: at_i, rn_amax_2d
+      real, dimension(:,:,:), allocatable :: a_i
+      WHERE( at_i(:,:) > rn_amax_2d(:,:) ) &
+            a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)
+    end program where_test
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert len(routine.children) == 1
+    assert isinstance(routine[0], Loop)
 
 
 def test_where_stmt_no_reduction(fortran_reader, fortran_writer):
@@ -765,11 +773,11 @@ def test_where_ordering(parser):
      ("where (my_type%var(:) > epsi20)\n"
       "my_type2(jl)%array2(:,jl) = 3.0\n", "my_type%var"),
      ("where (my_type%block(jl)%var(:) > epsi20)\n"
-      "my_type%block%array(:,jl) = 3.0\n", "my_type%block(jl)%var"),
+      "my_type%block(jl)%array(:,jl) = 3.0\n", "my_type%block(jl)%var"),
      ("where (my_type%block(jl)%var(:) > epsi20)\n"
       "my_type%block(jl)%array(:,jl) = 3.0\n", "my_type%block(jl)%var"),
-     ("where (my_type2(:)%var > epsi20)\n"
-      "my_type2(:)%var = 3.0\n", "my_type2")])
+     ("where (my_type2(:)%var(jl) > epsi20)\n"
+      "my_type2(:)%var(jl) = 3.0\n", "my_type2")])
 def test_where_derived_type(fortran_reader, code, size_arg):
     ''' Test that we handle the case where array members of a derived type
     are accessed within a WHERE. '''
@@ -805,10 +813,12 @@ def test_where_derived_type(fortran_reader, code, size_arg):
     assert isinstance(loops[1].loop_body[0], IfBlock)
     # All Range nodes should have been replaced
     assert not loops[0].walk(Range)
-    # All ArrayMember accesses should now use the `widx1` loop variable
+    # All ArrayMember accesses other than 'var' should now use the `widx1`
+    # loop variable
     array_members = loops[0].walk(ArrayMember)
     for member in array_members:
-        assert "+ widx1 - 1" in member.indices[0].debug_string()
+        if member.name != "var":
+            assert "+ widx1 - 1" in member.indices[0].debug_string()
 
 
 @pytest.mark.parametrize(
