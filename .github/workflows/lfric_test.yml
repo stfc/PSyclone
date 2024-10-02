@@ -105,7 +105,7 @@ jobs:
         cd ${LFRIC_DIR}
         # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
         mkdir -p ${OPT_DIR}
-        cp ${PSYCLONE_LFRIC_DIR}/acc_parallel.py ${OPT_DIR}/global.py
+        cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
         rm -rf applications/gungho_model/working
         ./build/local_build.py -a gungho_model -p psyclone-test
