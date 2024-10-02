@@ -43,7 +43,6 @@ import pytest
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
-from psyclone.errors import InternalError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
@@ -596,17 +595,17 @@ def test_sym_writer_identical_variables_errors():
     '''
 
     sympy_writer = SymPyWriter()
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(TypeError) as err:
         sympy_writer(Node(), identical_variables=1)
     assert ("Expected identical_variables to be a dictionary, but got "
             "<class 'int'>" in str(err.value))
 
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(TypeError) as err:
         sympy_writer(Node(), identical_variables={1: 1})
     assert ("Dictionary identical_variables contains a non-string key or "
             "value" in str(err.value))
 
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(TypeError) as err:
         sympy_writer(Node(), identical_variables={"var": 1})
     assert ("Dictionary identical_variables contains a non-string key or "
             "value" in str(err.value))
