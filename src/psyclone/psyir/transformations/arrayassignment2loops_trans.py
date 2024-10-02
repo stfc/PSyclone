@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, INTEGER_TYPE, ScalarType, SymbolError,
-    UnresolvedType, UnsupportedType)
+    UnresolvedType)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
