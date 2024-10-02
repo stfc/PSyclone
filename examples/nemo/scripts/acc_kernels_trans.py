@@ -109,6 +109,7 @@ ACC_IGNORE = ["day_mth",  # Just calendar operations
               "bdytide_init", "bdy_init", "bdy_segs", "sbc_cpl_init",
               "asm_inc_init", "dia_obs_init"]  # Str handling, init routine
 
+
 class ExcludeSettings():
     '''
     Class to hold settings on what to exclude from OpenACC KERNELS regions.

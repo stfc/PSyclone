@@ -81,6 +81,9 @@ NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
                   "glob_sum_full", "ptr_sj", "ptr_sjk", "interp1", "interp2",
                   "interp3", "integ_spline"]
 
+# Currently fparser has no way of distinguishing array accesses from statement
+# functions, the following subroutines contains known statement functions
+CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
 VERBOSE = False
 
@@ -233,9 +236,10 @@ def normalise_loops(
         statements out of the loop nest.
     '''
 
-    # TODO #1902: NEMO4 mpi_ini.f90 has a HoistLocalArraysTrans bug
-    if hoist_local_arrays and schedule.root.name != "mpp_ini.f90":
-        # Apply the HoistLocalArraysTrans when possible
+    if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
+        # Apply the HoistLocalArraysTrans when possible, it cannot be applied
+        # to files with statement functions because it will attempt to put the
+        # allocate avobe it, which is not valid Fortran.
         try:
             HoistLocalArraysTrans().apply(schedule)
         except TransformationError:
