@@ -137,8 +137,8 @@ def trans(psy):
         # Add GPU offloading to loops unless they are over colours or are null.
         schedule = invoke.schedule
         for loop in schedule.walk(Loop):
-            if offload or all(kern.name.lower() in failed_to_offload for
-                              kern in loop.kernels()):
+            if offload and all(kern.name.lower() not in failed_to_offload for
+                               kern in loop.kernels()):
                 try:
                     if loop.loop_type == "colours":
                         pass
