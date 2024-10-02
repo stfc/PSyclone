@@ -776,7 +776,7 @@ def test_fuse_different_variables_with_access(fortran_reader):
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_inconsistent_array_stencil(fortran_reader):
+def test_fuse_inconsistent_array_indexing(fortran_reader):
     '''Test that accessing an array with inconsistent index usage (e.g. s(i,j)
     and s(j,i)) is detected.
     '''
