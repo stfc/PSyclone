@@ -835,7 +835,7 @@ def test_table_merge():
     table2.add(symbols.DataSymbol("beeblebrox", symbols.INTEGER_TYPE))
     # A symbol we will exclude from the merge.
     dent = symbols.RoutineSymbol("dent")
-    table2.add(dent, tag="own_routine_symbol")
+    table2.add(dent)
     # Precision symbol should be included.
     wp_sym = symbols.DataSymbol("wp", symbols.INTEGER_TYPE, is_constant=True,
                                 initial_value=8)

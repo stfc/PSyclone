@@ -838,8 +838,7 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         return _kind_find_or_create(precision_name, symbol_table)
 
 
-def _process_routine_symbols(module_ast, container,
-                             visibility_map):
+def _process_routine_symbols(module_ast, container, visibility_map):
     '''
     Examines the supplied fparser2 parse tree for a module and creates
     RoutineSymbols for every routine (function or subroutine) that it
@@ -2526,9 +2525,7 @@ class Fparser2Reader():
                         try:
                             routine_name = parent.name
                             if routine_name.lower() == symbol_name:
-                                parent.symbol_table.remove(
-                                        parent.symbol_table.lookup(
-                                            routine_name))
+                                parent.symbol_table.remove(parent.symbol)
                         except KeyError:
                             pass
 

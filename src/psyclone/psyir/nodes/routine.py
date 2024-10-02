@@ -74,12 +74,12 @@ class Routine(Schedule, CommentableMixin):
     _text_name = "Routine"
 
     def __init__(self, symbol, is_program=False, **kwargs):
-        # These attributes need to be set before anything, as the _symbol
-        # is required for setting the parent links.
         if not isinstance(symbol, RoutineSymbol):
             raise TypeError(f"Routine argument 'symbol' must be present and "
                             f"must be a RoutineSymbol but got "
                             f"'{type(symbol).__name__}'")
+        # These attributes need to be set before anything, as the _symbol
+        # is required for setting the parent links.
         self._parent = None
         self._symbol = symbol
         super().__init__(**kwargs)
@@ -185,7 +185,7 @@ class Routine(Schedule, CommentableMixin):
         return self.coloured_name(colour) + "[name:'" + self.name + "']"
 
     def update_parent_symbol_table(self, new_parent):
-        ''' Update's the Routine's new parent's symbol tables with the
+        ''' Update the Routine's new parent's symbol tables with the
         corresponding RoutineSymbol.
 
         :param new_parent: The new parent of this node.
@@ -306,8 +306,7 @@ class Routine(Schedule, CommentableMixin):
         :param str new_name: new name for the Routine.
 
         :raises TypeError: if new_name is not a string.
-        :raises KeyError: if there already is a different named symbol with \
-            the 'own_routine_tag' in the symbol_table.
+        :raises KeyError: if the symbol is not in the expected symbol table.
 
         '''
         if not isinstance(new_name, str):

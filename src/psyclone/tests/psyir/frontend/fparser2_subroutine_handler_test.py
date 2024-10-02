@@ -91,9 +91,7 @@ def test_subroutine_handler(parser, fortran_writer, code, expected):
     # Check the expected PSyIR nodes are being created
     assert isinstance(psyir, Routine)
     assert psyir.parent is None
-    # Fix the one directional parent adding
-    fake_parent.addchild(psyir)
-    result = fortran_writer(fake_parent.children[0])
+    result = fortran_writer(psyir)
     assert expected == result
 
 
@@ -275,7 +273,6 @@ def test_function_result_suffix(fortran_reader, fortran_writer,
     assert len(routines) == 1
     assert (routines[0].return_symbol is
             routines[0].symbol_table.lookup("my_val"))
-    print(psyir.children[0].symbol_table)
     result = fortran_writer(psyir)
     assert expected in result
 

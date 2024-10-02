@@ -162,7 +162,7 @@ class InlineTrans(Transformation):
         # Shallow copy the symbols from the routine into the table at the
         # call site.
         table.merge(routine_table,
-                    symbols_to_skip=self._symbols_to_skip(routine_table))
+                    symbols_to_skip=routine_table.argument_list[:])
 
         # When constructing new references to replace references to formal
         # args, we need to know whether any of the actual arguments are array
@@ -230,38 +230,6 @@ class InlineTrans(Transformation):
             replacement = type(scope.symbol_table)()
             scope.symbol_table.detach()
             replacement.attach(scope)
-
-    def _symbols_to_skip(self, table):
-        '''
-        Constructs a list of those Symbols in the table of the called routine
-        that must be excluded when merging that table with the one at the
-        call site.
-
-        These are:
-         - those Symbols representing routine arguments;
-         - any RoutineSymbol representing the called routine itself.
-
-        :param table: the symbol table of the routine to be inlined.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-        :returns: those Symbols that must be skipped when merging the
-                  supplied table into the one at the call site.
-        :rtype: list[:py:class:`psyclone.psyir.symbols.Symbol`]
-
-        '''
-        # We need to exclude formal arguments and any RoutineSymbol
-        # representing the routine itself.
-        symbols_to_skip = table.argument_list[:]
-        try:
-            # We don't want or need the symbol representing that routine.
-            rsym = table.lookup_with_tag("own_routine_symbol")
-            if isinstance(rsym, RoutineSymbol):
-                # We only want to skip RoutineSymbols, not DataSymbols (which
-                # we may have if we have a Fortran function).
-                symbols_to_skip.append(rsym)
-        except KeyError:
-            pass
-        return symbols_to_skip
 
     def _replace_formal_arg(self, ref, call_node, formal_args):
         '''
@@ -737,7 +705,7 @@ class InlineTrans(Transformation):
         try:
             table.check_for_clashes(
                 routine_table,
-                symbols_to_skip=self._symbols_to_skip(routine_table))
+                symbols_to_skip=routine_table.argument_list[:])
         except SymbolError as err:
             raise TransformationError(
                 f"One or more symbols from routine '{routine.name}' cannot be "
