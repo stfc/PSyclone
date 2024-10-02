@@ -393,10 +393,10 @@ class KernelModuleInlineTrans(Transformation):
             if not existing_symbol:
                 # If it doesn't exist already, module-inline the subroutine by:
                 # 1) Registering the subroutine symbol in the Container
-                routine_symbol = RoutineSymbol(
-                    callee_name, interface=DefaultModuleInterface(),
-                    visibility=Symbol.Visibility.PRIVATE)
-                container.symbol_table.add(routine_symbol)
+                #routine_symbol = RoutineSymbol(
+                #    callee_name, interface=DefaultModuleInterface(),
+                #    visibility=Symbol.Visibility.PRIVATE)
+                #container.symbol_table.add(routine_symbol)
                 # 2) Insert the relevant code into the tree.
                 container.addchild(code_to_inline.detach())
             else:
@@ -414,8 +414,7 @@ class KernelModuleInlineTrans(Transformation):
                     existing_symbol.visibility = Symbol.Visibility.PRIVATE
                     if remove_csym:
                         ctable.remove(csym)
-                    for routine in code_to_inline:
-                        container.addchild(routine.detach())
+                    container.addchild(routine.detach())
                 else:
                     # The routine symbol already exists, and we know from the
                     # validation that it's a Routine. Now check if they are

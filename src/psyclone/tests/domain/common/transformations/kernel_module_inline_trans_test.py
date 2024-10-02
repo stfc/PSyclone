@@ -526,7 +526,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
+    sym = routine.scope.symbol_table.lookup(routine.name)
+    inline_trans._prepare_code_to_inline([routine], sym)
     result = fortran_writer(routine)
     assert "use external_mod1" in result
     assert "use external_mod2" in result
@@ -548,7 +549,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
+    sym = routine.scope.symbol_table.lookup(routine.name)
+    inline_trans._prepare_code_to_inline([routine], sym)
     result = fortran_writer(routine)
     assert "use external_mod1, only : a" in result
     assert "use external_mod2, only : b=>var1, c=>var2" in result
@@ -572,7 +574,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
+    sym = routine.scope.symbol_table.lookup(routine.name)
+    inline_trans._prepare_code_to_inline([routine], sym)
     result = fortran_writer(routine)
     assert "use external_mod1, only : a, d" in result
     assert "use external_mod2, only : b=>var1, c=>var2, var1" in result
@@ -596,7 +599,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
+    sym = routine.scope.symbol_table.lookup(routine.name)
+    inline_trans._prepare_code_to_inline([routine], sym)
     result = fortran_writer(routine)
     assert "use external_mod1, only : r_def" in result
     assert "use external_mod2, only : my_user_type" in result
@@ -617,7 +621,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
+    sym = routine.scope.symbol_table.lookup(routine.name)
+    inline_trans._prepare_code_to_inline([routine], sym)
     result = fortran_writer(routine)
     assert "use external_mod1, only : r_def" in result
     assert "use not_needed" not in result
@@ -637,7 +642,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
+    sym = routine.scope.symbol_table.lookup(routine.name)
+    inline_trans._prepare_code_to_inline([routine], sym)
     result = fortran_writer(routine)
     assert "use external_mod1, only : my_sub" in result
 
@@ -654,7 +660,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
+    sym = routine.scope.symbol_table.lookup(routine.name)
+    inline_trans._prepare_code_to_inline([routine], sym)
     result = fortran_writer(routine)
     assert "use external_mod1, only : a, b" in result
 
@@ -674,7 +681,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
+    sym = routine.scope.symbol_table.lookup(routine.name)
+    inline_trans._prepare_code_to_inline([routine], sym)
     result = fortran_writer(routine)
     assert "use external_mod1, only : c" in result
 
@@ -692,7 +700,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
+    sym = routine.scope.symbol_table.lookup(routine.name)
+    inline_trans._prepare_code_to_inline([routine], sym)
     result = fortran_writer(routine)
     assert "use external_mod\n" in result
     assert "use external_mod, only : r_def" not in result
@@ -708,7 +717,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline(routine)
+    sym = routine.scope.symbol_table.lookup(routine.name)
+    inline_trans._prepare_code_to_inline([routine], sym)
     result = fortran_writer(routine)
     assert "use external_mod, only : a" in result
 

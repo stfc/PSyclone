@@ -702,7 +702,7 @@ class LFRicKern(CodedKern):
 
         #import pdb; pdb.set_trace()
         if len(routines) > 1:
-            table = self._kern_schedule[0].scope.symbol_table
+            table = routines[0].scope.symbol_table
             sym = table.lookup(self.name)
         else:
             sym = None
