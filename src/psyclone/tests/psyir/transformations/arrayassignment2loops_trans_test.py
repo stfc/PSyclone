@@ -798,3 +798,40 @@ def test_validate_indirect_indexing(fortran_reader):
     assert ("cannot expand expression because it contains the access "
             "'ishtsi(my_func(1),jf)' which is an UnresolvedType and therefore "
             "cannot be guaranteed to be ScalarType." in str(err.value))
+
+
+def test_validate_structure(fortran_reader):
+    '''
+    Check the validation of the transformation when it is a structure access
+    on the RHS.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    program test
+      integer, parameter :: ngrids = 4, kfld=5
+      integer, dimension(8,kfld)  :: ishtSi
+      type :: sub_grid_type
+        integer, dimension(kfld,kfld) :: map
+      end type sub_grid_type
+      type :: grid_type
+        real, dimension(:,:), allocatable :: data
+        type(sub_grid_type), dimension(ngrids) :: subgrid
+      end type grid_type
+      type(grid_type) :: grid
+      integer :: jf
+      ! Cannot tell whether or not the access on the RHS is an array.
+      ishtSi(5:8,jf) = grid%data(my_func(1), jf)
+      ! The array access to subgrid is not yet supported.
+      ishtSi(5:8,jf) = grid%subgrid%map(1,1)
+    end program test
+    ''')
+    assignments = psyir.walk(Assignment)
+    trans = ArrayAssignment2LoopsTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignments[0])
+    assert ("contains the access 'grid%data(my_func(1),jf)' which is an "
+            "UnresolvedType" in str(err.value))
+    # TODO #1858 - once we've extended Reference2ArrayRangeTrans to support
+    # StructureMembers we can use it as part of this transformation and this
+    # example will be supported.
+    trans.validate(assignments[1])

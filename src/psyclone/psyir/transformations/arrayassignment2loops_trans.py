@@ -367,39 +367,6 @@ class ArrayAssignment2LoopsTrans(Transformation):
                 # pylint: disable=cell-var-from-loop
                 raise TransformationError(LazyString(
                     lambda: f"{message} In:\n{node.debug_string()}"))
-            # We must understand any array accesses on the RHS. This means all
-            # array indices must be known (because otherwise they themselves
-            # might be arrays, e.g.
-            #      a(:) = b(c) where `c` can be a scalar or an array
-            #  or  a(:) = grid%b(c)
-            if isinstance(reference, ArrayMixin):
-                # Check the index expressions
-                range_count = len([x for x in accessor.indices
-                                   if isinstance(x, Range)])
-                if range_count != num_of_ranges:
-                    # If the number of ranges in this access is not the same as
-                    # on the LHS then we may or may not have a scalar. To
-                    # determine this we must know the type of every one of the
-                    # index expressions.
-                    for exprn in reference.indices:
-                        if not isinstance(exprn, Reference):
-                            # We don't have a Reference so it cannot be of
-                            # array type (we rejected CodeBlocks earlier).
-                            continue
-                        if not isinstance(exprn.datatype, (UnsupportedType,
-                                                           UnresolvedType)):
-                            continue
-                        message = (
-                            f"{self.name} cannot expand expression because it "
-                            f"contains the access '{reference.debug_string()}'"
-                            f" and whether or not the index "
-                            f"expression '{exprn.debug_string()}' is "
-                            f"itself an array is unknown.")
-                        if verbose:
-                            node.append_preceding_comment(message)
-                        # pylint: disable=cell-var-from-loop
-                        raise TransformationError(LazyString(
-                            lambda: f"{message} In:\n{node.debug_string()}"))
 
 
 __all__ = [
