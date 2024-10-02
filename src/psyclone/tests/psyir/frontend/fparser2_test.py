@@ -382,7 +382,7 @@ def test_get_partial_datatype():
     works as expected.
 
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
 
     # Entry in symbol table with unmodified properties.
@@ -459,7 +459,7 @@ def test_process_declarations():
     parent Kernel Schedule.
 
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
 
@@ -589,7 +589,7 @@ def test_process_declarations_unsupportedfortrantype():
     get_partial_datatype method, also from Fparser2Reader.
 
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
     reader = FortranStringReader(
@@ -613,7 +613,7 @@ def test_process_declarations_errors():
     TODO fparser/#413 could also fix these issues.
 
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
 
     reader = FortranStringReader("integer, parameter, save :: l1 = 1")
@@ -710,7 +710,7 @@ def test_declarations_with_initialisations(fortran_reader):
 def test_process_declarations_accessibility():
     ''' Check that process_declarations behaves as expected when a visibility
     map is or is not supplied. '''
-    sched = KernelSchedule("dummy_schedule")
+    sched = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("private :: x\n"
                                  "real :: x\n")
@@ -758,7 +758,7 @@ def test_process_multiple_access_statements():
 def test_process_unsupported_declarations(fortran_reader):
     ''' Check that the frontend handles unsupported declarations by
     creating symbols of UnsupportedFortranType. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
 
     # Multiple symbols with a single attribute
@@ -830,10 +830,10 @@ def test_process_unsupported_declarations(fortran_reader):
     assert ssym.initial_value.symbol.name == "fbsp"
 
 
-def test_unsupported_decln_function_type(fortran_reader):
+def test_unsupported_decln(fortran_reader):
     '''
     Check that the frontend raises the expected error if it hits trouble
-    while creating a DataSymbol representing the return value of a function.
+    while creating a DataSymbol.
 
     '''
     code = '''
@@ -847,15 +847,37 @@ def test_unsupported_decln_function_type(fortran_reader):
     '''
     with pytest.raises(InternalError) as err:
         _ = fortran_reader.psyir_from_source(code)
-    assert ("declarations where the routine name is of UnsupportedType, but "
-            "found this case in 'problem'" in str(err.value))
+    assert ("Invalid variable declaration found in _process_decln for "
+            "'problem'" in str(err.value))
+
+
+def test_unsupported_decln_structure_type(fortran_reader):
+    '''
+    Check that the frontend generated code for unsupported values when
+    creating a DataSymbol.
+    '''
+    code = '''
+    module my_mod
+    use some_other_mod
+    contains
+    subroutine my_sub
+       type(some_type), parameter :: x = func()
+    end subroutine my_sub
+    end module my_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine.symbol_table.lookup('x').datatype,
+                      UnsupportedFortranType)
+    assert (routine.symbol_table.lookup('x').datatype.declaration ==
+            "TYPE(some_type), PARAMETER :: x = func()")
 
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_unsupported_decln_duplicate_symbol():
     ''' Check that we raise the expected error when an unsupported declaration
     of only one symbol clashes with an existing entry in the symbol table. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     fake_parent.symbol_table.add(Symbol("var"))
     processor = Fparser2Reader()
     # Note leading white space to ensure fparser doesn't identify a comment
@@ -879,7 +901,7 @@ def test_process_declarations_precision(precision, type_name, fort_name):
     precision in the provided parent Kernel Schedule.
 
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
 
     reader = FortranStringReader(f"{fort_name}*{precision} :: l1")
@@ -900,7 +922,7 @@ def test_process_declarations_double_precision():
     with the expected precision.
 
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
 
     reader = FortranStringReader("double precision :: x")
@@ -919,7 +941,7 @@ def test_process_array_declarations():
     ''' Test that Fparser2Reader.process_declarations() handles various forms
     of array declaration.
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
 
     # RHS array specifications
@@ -1087,7 +1109,7 @@ def test_process_array_declarations_bound_expressions():
     ''' Test that Fparser2Reader.process_declarations() handles
     array declarations that use expressions to specify the bounds.
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
 
     # Simple expression for upper bound
@@ -1121,7 +1143,7 @@ def test_process_not_supported_declarations():
     '''Test that process_declarations method raises the proper errors when
     declarations contain unsupported attributes.
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
 
     reader = FortranStringReader("integer, external :: arg1")
@@ -1188,7 +1210,7 @@ def test_process_not_supported_declarations():
 def test_process_save_attribute_declarations(parser):
     ''' Test that the SAVE attribute in a declaration is supported. '''
 
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
 
     # Test with no context about where the declaration. Not even that is
@@ -1250,7 +1272,7 @@ def test_process_declarations_intent():
     '''Test that process_declarations method handles various different
     specifications of variable attributes.
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
 
     reader = FortranStringReader("integer, intent(in) :: arg1, arg1a")
@@ -1310,7 +1332,7 @@ def test_process_declarations_stmt_functions():
     '''Test that process_declarations method handles statement functions
     appropriately.
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
 
     # If 'a' is not declared it could be a statement function, which are
@@ -1336,7 +1358,7 @@ def test_process_declarations_stmt_functions():
     assert array.name == "a"
 
     # Test that it works with multi-dimensional arrays
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     reader = FortranStringReader("b(x, y) = 1")
     fparser2spec = Stmt_Function_Stmt(reader)
     array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE,
@@ -1364,7 +1386,7 @@ def test_process_declarations_stmt_functions():
 def test_process_declarations_unsupported_node():
     ''' Check that process_declarations raises the expected error if it
     encounters an unsupported fparser2 node. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("integer, parameter :: r_def = KIND(1.0D0)\n"
                                  "real(kind=r_def) :: var2")
@@ -1384,7 +1406,7 @@ def test_parse_array_dimensions_attributes():
 
     '''
     processor = Fparser2Reader()
-    sched = KernelSchedule("a_test")
+    sched = KernelSchedule.create("a_test")
     sym_table = sched.symbol_table
     reader = FortranStringReader("dimension(:)")
     fparser2spec = Dimension_Attr_Spec(reader)
@@ -1464,7 +1486,7 @@ def test_parse_array_dimensions_attributes():
     assert isinstance(shape[0][1].symbol.interface, ImportInterface)
 
     # Test dimension and intent arguments together
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     reader = FortranStringReader("real, intent(in), dimension(:) :: array3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec],
@@ -1480,7 +1502,7 @@ def test_parse_array_dimensions_attributes():
 def test_deferred_array_size():
     ''' Check that we handle the case of an array being declared with an
     extent specified by a variable that is declared after it. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("real, intent(in), dimension(n) :: array3\n"
                                  "integer, intent(in) :: n")
@@ -1496,7 +1518,7 @@ def test_deferred_array_size():
 def test_unresolved_array_size():
     ''' Check that we handle the case where we do not find an explicit
     declaration of a symbol used in the definition of an array extent. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("real, dimension(n) :: array3")
     fparser2spec = Specification_Part(reader).content
@@ -1515,7 +1537,7 @@ def test_unresolved_array_size():
 def test_process_use_stmts_with_default_visibility():
     ''' Check that SymbolTable entries are correctly created from
     module use statements. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod, only: some_var\n"
                                  "use this_mod\n"
@@ -1620,7 +1642,7 @@ def test_intrinsic_use_stmt(parser):
 def test_use_stmt_error(monkeypatch):
     ''' Check that we raise the expected error if the parse tree representing
     a USE statement doesn't have the expected structure. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod, only: some_var\n"
                                  "use this_mod\n"
@@ -1639,7 +1661,7 @@ def test_use_stmt_error(monkeypatch):
 def test_process_declarations_unrecognised_attribute():
     ''' Check that a declaration with an unrecognised attribute results in
     a symbol with UnsupportedFortranType and the correct visibility. '''
-    fake_parent = KernelSchedule("dummy")
+    fake_parent = KernelSchedule.create("dummy")
     processor = Fparser2Reader()
     reader = FortranStringReader("integer, private, target :: idx1\n")
     fparser2spec = Specification_Part(reader)
@@ -1745,7 +1767,7 @@ def test_handling_name():
     reader = FortranStringReader("x=1")
     fparser2name = Execution_Part.match(reader)[0][0]
 
-    fake_parent = KernelSchedule('kernel')
+    fake_parent = KernelSchedule.create('kernel')
     processor = Fparser2Reader()
 
     fake_parent.symbol_table.add(DataSymbol('x', INTEGER_TYPE))

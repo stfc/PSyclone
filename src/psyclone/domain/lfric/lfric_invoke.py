@@ -77,7 +77,6 @@ class LFRicInvoke(Invoke):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicInvokeSchedule
-        self._schedule = LFRicInvokeSchedule('name', None)  # for pyreverse
         reserved_names_list = []
         const = LFRicConstants()
         reserved_names_list.extend(const.STENCIL_MAPPING.values())

@@ -238,11 +238,13 @@ def generate_adjoint(tl_psyir, active_variables):
             kernel_sym = container.symbol_table.lookup(routine.name)
             adj_kernel_name = create_adjoint_name(routine.name)
             # A symbol's name is immutable so create a new RoutineSymbol
+            # and add it to the Routine
             adj_kernel_sym = container.symbol_table.new_symbol(
                 adj_kernel_name, symbol_type=RoutineSymbol,
                 visibility=kernel_sym.visibility)
             container.symbol_table.remove(kernel_sym)
-            routine.name = adj_kernel_sym.name
+            routine.symbol = adj_kernel_sym
+
         else:
             routine.name = routine.symbol_table.next_available_name(
                 create_adjoint_name(routine.name))
