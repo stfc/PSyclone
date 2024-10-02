@@ -63,7 +63,7 @@ from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
     IfBlock, ArrayReference, Assignment, BinaryOperation, Loop, Routine,
-    Literal, Call, ACCLoopDirective)
+    Literal, ACCLoopDirective)
 from psyclone.psyir.transformations import (ACCKernelsTrans, ACCUpdateTrans,
                                             TransformationError, ProfileTrans)
 from psyclone.transformations import ACCEnterDataTrans
@@ -392,17 +392,12 @@ def trans(psyir):
     for subroutine in psyir.walk(Routine):
         print(f"Transforming subroutine: {subroutine.name}")
 
-        # In the lib_fortran file we annotate each routine that does not
-        # have a Loop or unsupported Calls with the OpenACC Routine Directive
+        # In the lib_fortran file we annotate each routine of the SIGN_*
+        # interface with the OpenACC Routine Directive
         if psyir.name == "lib_fortran.f90":
-            if not subroutine.walk(Loop):
-                calls = subroutine.walk(Call)
-                if all(call.is_available_on_device() for call in calls):
-                    # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
-                    # array notation. (TODO #717)
-                    ACC_ROUTINE_TRANS.apply(subroutine,
-                                            options={"force": True})
-                    continue
+            if subroutine.name.lower().startswith("sign_"):
+                ACC_ROUTINE_TRANS.apply(subroutine)
+                continue
 
         # Attempt to add OpenACC directives unless we are ignoring this routine
         if subroutine.name.lower() not in ACC_IGNORE:
