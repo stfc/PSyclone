@@ -648,11 +648,11 @@ class LFRicKern(CodedKern):
         :returns: Schedule representing the kernel code.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
 
-        :raises GenerationError: if no subroutine matching this kernel can \
+        :raises GenerationError: if no subroutine matching this kernel can
             be found in the parse tree of the associated source code.
         '''
         if self._kern_schedule:
-            return self._kern_schedule
+            return self._interface_symbol, self._kern_schedule
 
         # Get the PSyIR Kernel Schedule(s)
         routines = Fparser2Reader().get_routine_schedules(self.name, self.ast)
@@ -676,42 +676,54 @@ class LFRicKern(CodedKern):
             # problem in LFRic that this fixes.
             routine.debug_string()
 
-        if len(routines) == 1:
-            sched = routines[0]
-            # TODO #928: We don't validate the arguments yet because the
-            # validation has many false negatives.
-            # self.validate_kernel_code_args(sched.symbol_table)
+#        if len(routines) == 1:
+#            sched = routines[0]
+#            # TODO #928: We don't validate the arguments yet because the
+#            # validation has many false negatives.
+#            # self.validate_kernel_code_args(sched.symbol_table)
+#        else:
+#            # The kernel name corresponds to an interface block. Find which
+#            # of the routines matches the precision of the arguments.
+#            for routine in routines:
+#                try:
+#                    # The validity check for the kernel arguments will raise
+#                    # an exception if the precisions don't match.
+#                    self.validate_kernel_code_args(routine.symbol_table)
+#                    sched = routine
+#                    break
+#                except GenerationError:
+#                    pass
+#            else:
+#                raise GenerationError(
+#                    f"Failed to find a kernel implementation with an interface"
+#                    f" that matches the invoke of '{self.name}'. (Tried "
+#                    f"routines {[item.name for item in routines]}.)")
+#
+
+        #import pdb; pdb.set_trace()
+        if len(routines) > 1:
+            table = self._kern_schedule[0].scope.symbol_table
+            sym = table.lookup(self.name)
         else:
-            # The kernel name corresponds to an interface block. Find which
-            # of the routines matches the precision of the arguments.
-            for routine in routines:
-                try:
-                    # The validity check for the kernel arguments will raise
-                    # an exception if the precisions don't match.
-                    self.validate_kernel_code_args(routine.symbol_table)
-                    sched = routine
-                    break
-                except GenerationError:
-                    pass
-            else:
-                raise GenerationError(
-                    f"Failed to find a kernel implementation with an interface"
-                    f" that matches the invoke of '{self.name}'. (Tried "
-                    f"routines {[item.name for item in routines]}.)")
+            sym = None
 
-        # TODO #935 - replace the PSyIR argument data symbols with LFRic data
-        # symbols. For the moment we just return the unmodified PSyIR schedule
-        # but this should use RaisePSyIR2LFRicKernTrans once KernelInterface
-        # is fully functional (#928).
-        ksched = KernelSchedule(sched.name,
-                                symbol_table=sched.symbol_table.detach())
-        for child in sched.pop_all_children():
-            ksched.addchild(child)
-        sched.replace_with(ksched)
+        new_schedules = []
+        for sched in routines:
+            
+            # TODO #935 - replace the PSyIR argument data symbols with LFRic data
+            # symbols. For the moment we just return the unmodified PSyIR schedule
+            # but this should use RaisePSyIR2LFRicKernTrans once KernelInterface
+            # is fully functional (#928).
+            ksched = KernelSchedule(sched.name,
+                                    symbol_table=sched.symbol_table.detach())
+            for child in sched.pop_all_children():
+                ksched.addchild(child)
+            sched.replace_with(ksched)
+            new_schedules.append(ksched)
 
-        self._kern_schedule = ksched
+        self._kern_schedule = new_schedules
 
-        return self._kern_schedule
+        return sym, self._kern_schedule
 
     def validate_kernel_code_args(self, table):
         '''Check that the arguments in the kernel code match the expected

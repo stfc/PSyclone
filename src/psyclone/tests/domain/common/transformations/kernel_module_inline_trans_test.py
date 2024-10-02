@@ -102,7 +102,8 @@ def test_validate_with_imported_subroutine_call():
     schedule = invoke.schedule
     kern_call = schedule.walk(CodedKern)[0]
     # Create a call to made up subroutine and module symbols
-    kern_schedule = kern_call.get_kernel_schedule()
+    _, kern_schedules = kern_call.get_kernel_schedule()
+    kern_schedule = kern_schedules[0]
     mymod = kern_schedule.symbol_table.new_symbol(
             "mymod",
             symbol_type=ContainerSymbol)
@@ -161,8 +162,10 @@ def test_validate_no_inline_global_var(parser):
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
     block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
-    kernels[0].get_kernel_schedule().pop_all_children()
-    kernels[0].get_kernel_schedule().addchild(block)
+    _, kschedules = kernels[0].get_kernel_schedule()
+    ksched = kschedules[0]
+    ksched.pop_all_children()
+    ksched.addchild(block)
 
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kernels[0])
@@ -177,8 +180,10 @@ def test_validate_no_inline_global_var(parser):
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
     block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
-    kernels[0].get_kernel_schedule().pop_all_children()
-    kernels[0].get_kernel_schedule().addchild(block)
+    _, kschedules = kernels[0].get_kernel_schedule()
+    ksched = kschedules[0]
+    ksched.pop_all_children()
+    ksched.addchild(block)
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kernels[0])
     assert ("Kernel 'kernel_with_global_code' contains accesses to 'unknown' "
@@ -187,8 +192,10 @@ def test_validate_no_inline_global_var(parser):
 
     # But make sure that an IntrinsicCall routine name is not considered
     # a global symbol, as they are implicitly declared everywhere
-    kernels[0].get_kernel_schedule().pop_all_children()
-    kernels[0].get_kernel_schedule().addchild(
+    _, kschedules = kernels[0].get_kernel_schedule()
+    ksched = kschedules[0]
+    ksched.pop_all_children()
+    ksched.addchild(
         IntrinsicCall.create(IntrinsicCall.Intrinsic.DATE_AND_TIME, []))
     inline_trans.validate(kernels[0])
 
@@ -253,7 +260,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    monkeypatch.setattr(kern_call, "_kern_schedule", routine)
+    monkeypatch.setattr(kern_call, "_kern_schedule", [routine])
 
     # and try to apply the transformation
     inline_trans = KernelModuleInlineTrans()
@@ -276,7 +283,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    monkeypatch.setattr(kern_call, "_kern_schedule", routine)
+    monkeypatch.setattr(kern_call, "_kern_schedule", [routine])
 
     # and try to apply the transformation
     with pytest.raises(TransformationError) as err:
@@ -298,7 +305,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    monkeypatch.setattr(kern_call, "_kern_schedule", routine)
+    monkeypatch.setattr(kern_call, "_kern_schedule", [routine])
 
     container = kern_call.ancestor(Container)
     assert "compute_cv_code" not in container.symbol_table

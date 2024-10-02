@@ -1355,7 +1355,8 @@ class CodedKern(Kern):
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._fp2_ast = None  # The fparser2 AST for the kernel
-        self._kern_schedule = None  # PSyIR schedule for the kernel
+        self._kern_schedule = None  # PSyIR schedules for the kernel
+        self._interface_symbol = None
         # Whether or not this kernel has been transformed
         self._modified = False
         # Whether or not to in-line this kernel into the module containing
@@ -1370,15 +1371,17 @@ class CodedKern(Kern):
         is just generated on first invocation, this allows us to retain
         transformations that may subsequently be applied to the Schedule.
 
-        :returns: Schedule representing the kernel code.
-        :rtype: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+        :returns: Interface symbol (if any) and Schedule(s) representing the
+                  kernel code.
+        :rtype: tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
+                      list[:py:class:`psyclone.psyir.nodes.KernelSchedule`]]
         '''
         from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         if self._kern_schedule is None:
             astp = Fparser2Reader()
-            self._kern_schedule = astp.generate_schedule(self.name, self.ast)
+            self._kern_schedule = [astp.generate_schedule(self.name, self.ast)]
             # TODO: Validate kernel with metadata (issue #288).
-        return self._kern_schedule
+        return None, self._kern_schedule
 
     @property
     def opencl_options(self):

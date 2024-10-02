@@ -153,6 +153,8 @@ class KernelModuleInlineTrans(Transformation):
                 f"'{kname}' due to: {error}"
             ) from error
 
+        if not isinstance(kernels, list):
+            import pdb; pdb.set_trace()
         # TODO ARPDBG - need to examine every kernel implementation, not just
         # the first one.
         kernel_schedule = kernels[0]
@@ -324,12 +326,13 @@ class KernelModuleInlineTrans(Transformation):
             # Where mixed-precision kernels are supported (e.g. in LFRic) the
             # call to get_kernel_schedule() will return the one which has an
             # interface matching the arguments in the call.
-            routines = [node.get_kernel_schedule()]
+            interface_sym, routines = node.get_kernel_schedule()
             caller_name = node.name.lower()
-            interface_sym = None
         else:
             # We have a generic routine call.
             routines = node.get_callees()
+            if not isinstance(routines, list):
+                routines = [routines]
             caller_name = node.routine.name.lower()
             # TODO #924 - at this point we may have found (an interface to)
             # multiple implementations. We can try to work out which one this
@@ -340,6 +343,7 @@ class KernelModuleInlineTrans(Transformation):
                     f"The target of the call to '{caller_name}' cannot be "
                     f"inserted because multiple implementations were found: "
                     f"{[rout.name for rout in routines]}. TODO #924")
+            interface_sym = None  # TODO
         return (caller_name, routines, interface_sym)
 
     def apply(self, node, options=None):
@@ -370,76 +374,76 @@ class KernelModuleInlineTrans(Transformation):
         # may already be in use, but the equality check below guarantees
         # that if it exists it is only valid when it references the exact same
         # implementation.
-        caller_name, code_to_inline, interface_sym = (
+        caller_name, codes_to_inline, interface_sym = (
             KernelModuleInlineTrans._get_psyir_to_inline(node))
         if interface_sym:
             callee_name = interface_sym.name
         else:
-            callee_name = code_to_inline[0].name
+            callee_name = codes_to_inline[0].name
 
         try:
             existing_symbol = node.scope.symbol_table.lookup(callee_name)
         except KeyError:
             existing_symbol = None
 
-        self._prepare_code_to_inline(code_to_inline, interface_sym)
+        self._prepare_code_to_inline(codes_to_inline, interface_sym)
 
-        container = node.ancestor(Container)
-        if not existing_symbol:
-            # If it doesn't exist already, module-inline the subroutine by:
-            # 1) Registering the subroutine symbol in the Container
-            routine_symbol = RoutineSymbol(
-                callee_name, interface=DefaultModuleInterface(),
-                visibility=Symbol.Visibility.PRIVATE)
-            container.symbol_table.add(routine_symbol)
-            # 2) Insert the relevant code into the tree.
-            for routine in code_to_inline:
-                container.addchild(routine.detach())
-        else:
-            if existing_symbol.is_import:
-                # The RoutineSymbol is in the table but that is because it is
-                # imported. We must therefore update its interface and
-                # potentially remove the ContainerSymbol (from which it is
-                # imported) altogether.
-                csym = existing_symbol.interface.container_symbol
-                # The import of the routine symbol may be in an outer scope.
-                ctable = csym.find_symbol_table(node)
-                remove_csym = (ctable.symbols_imported_from(csym) ==
-                               [existing_symbol])
-                existing_symbol.interface = DefaultModuleInterface()
-                existing_symbol.visibility = Symbol.Visibility.PRIVATE
-                if remove_csym:
-                    ctable.remove(csym)
-                for routine in code_to_inline:
-                    container.addchild(routine.detach())
-            else:
-                # The routine symbol already exists, and we know from the
-                # validation that it's a Routine. Now check if they are
-                # exactly the same.
-                for routine in container.walk(Routine, stop_type=Routine):
-                    if routine.name == caller_name:
-                        # This TransformationError happens here and not in the
-                        # validation because it needs the symbols_to_bring_in
-                        # applied to effectively compare both versions.
-                        # This will be fixed when module-inlining versioning is
-                        # implemented.
-                        # (It is OK to fail here because we have not yet made
-                        # any modifications to the tree - code_to_inline is a
-                        # detached copy.)
-                        if routine != code_to_inline:
-                            raise TransformationError(
-                                f"Cannot inline subroutine '{caller_name}' "
-                                f"because another, different, subroutine with "
-                                f"the same name already exists and versioning "
-                                f"of module-inlined subroutines is not "
-                                f"implemented yet.")
-            # Finally, ensure that the RoutineSymbol for the inlined routine is
-            # in the correct symbol table.
-            routine_symbol = existing_symbol
-            table = routine_symbol.find_symbol_table(node)
-            if table.node is not container:
+        for code_to_inline in codes_to_inline:
+            container = node.ancestor(Container)
+            if not existing_symbol:
+                # If it doesn't exist already, module-inline the subroutine by:
+                # 1) Registering the subroutine symbol in the Container
+                routine_symbol = RoutineSymbol(
+                    callee_name, interface=DefaultModuleInterface(),
+                    visibility=Symbol.Visibility.PRIVATE)
                 container.symbol_table.add(routine_symbol)
-                table.remove(routine_symbol)
+                # 2) Insert the relevant code into the tree.
+                container.addchild(code_to_inline.detach())
+            else:
+                if existing_symbol.is_import:
+                    # The RoutineSymbol is in the table but that is because it is
+                    # imported. We must therefore update its interface and
+                    # potentially remove the ContainerSymbol (from which it is
+                    # imported) altogether.
+                    csym = existing_symbol.interface.container_symbol
+                    # The import of the routine symbol may be in an outer scope.
+                    ctable = csym.find_symbol_table(node)
+                    remove_csym = (ctable.symbols_imported_from(csym) ==
+                                   [existing_symbol])
+                    existing_symbol.interface = DefaultModuleInterface()
+                    existing_symbol.visibility = Symbol.Visibility.PRIVATE
+                    if remove_csym:
+                        ctable.remove(csym)
+                    for routine in code_to_inline:
+                        container.addchild(routine.detach())
+                else:
+                    # The routine symbol already exists, and we know from the
+                    # validation that it's a Routine. Now check if they are
+                    # exactly the same.
+                    for routine in container.walk(Routine, stop_type=Routine):
+                        if routine.name == caller_name:
+                            # This TransformationError happens here and not in the
+                            # validation because it needs the symbols_to_bring_in
+                            # applied to effectively compare both versions.
+                            # This will be fixed when module-inlining versioning is
+                            # implemented.
+                            # (It is OK to fail here because we have not yet made
+                            # any modifications to the tree - code_to_inline is a
+                            # detached copy.)
+                            if routine != code_to_inline:
+                                raise TransformationError(
+                                    f"Cannot inline subroutine '{caller_name}' "
+                                    f"because another, different, subroutine with "
+                                    f"the same name already exists and versioning "
+                                    f"of module-inlined subroutines is not "
+                                    f"implemented yet.")
+                # Finally, ensure that the RoutineSymbol for the inlined routine is
+                # in the correct symbol table.
+                routine_symbol = existing_symbol
+                table = routine_symbol.find_symbol_table(node)
+                if table.node is not container:
+                    container.symbol_table.add(routine_symbol)
+                    table.remove(routine_symbol)
 
         # We only modify the kernel call name after the equality check to
         # ensure the apply will succeed and we don't leave with an inconsistent
