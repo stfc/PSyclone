@@ -20,9 +20,13 @@ FFLAGS_DEBUG              = -g -traceback
 FFLAGS_RUNTIME            = -Mchkptr -Mchkstk
 # Option for checking code meets Fortran standard (not available for PGI)
 FFLAGS_FORTRAN_STANDARD   =
-OPENMP_ARG = -acc=gpu -gpu=managed -mp=multicore
-
-LDFLAGS_COMPILER = -g -acc=gpu -gpu=managed -mp=multicore -cuda
+ifdef OFFLOAD_USING_OMP
+	OPENMP_ARG = -mp=gpu -gpu=managed
+	LDFLAGS_COMPILER = -g -mp=gpu -gpu=managed -cuda
+else
+	OPENMP_ARG = -acc=gpu -gpu=managed -mp=multicore
+	LDFLAGS_COMPILER = -g -acc=gpu -gpu=managed -mp=multicore -cuda
+endif
 
 FPP = cpp -traditional-cpp
 FPPFLAGS = -P
