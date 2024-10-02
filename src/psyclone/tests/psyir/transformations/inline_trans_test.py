@@ -43,8 +43,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine, Loop
 from psyclone.psyir.symbols import (
-    ArgumentInterface, AutomaticInterface, DataSymbol, INTEGER_TYPE,
-    RoutineSymbol, SymbolTable, UnresolvedType)
+    AutomaticInterface, DataSymbol, UnresolvedType)
 from psyclone.psyir.transformations import (
     InlineTrans, TransformationError)
 from psyclone.tests.utilities import Compile

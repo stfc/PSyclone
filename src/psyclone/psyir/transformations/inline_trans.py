@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, UnresolvedType, INTEGER_TYPE,
-    RoutineSymbol, StaticInterface, SymbolError, UnknownInterface,
+    StaticInterface, SymbolError, UnknownInterface,
     UnsupportedType, IntrinsicSymbol)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
