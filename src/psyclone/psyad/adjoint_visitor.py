@@ -48,7 +48,7 @@ from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
                                   CodeBlock, BinaryOperation, Assignment,
                                   IfBlock, IntrinsicCall, Call)
-from psyclone.psyir.symbols import ArgumentInterface
+from psyclone.psyir.symbols import ArgumentInterface, GenericInterfaceSymbol
 from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 
 
@@ -442,6 +442,22 @@ class AdjointVisitor(PSyIRVisitor):
             if isinstance(result, Node):
                 result = [result]
             node_copy.children.extend(result)
+
+        # TODO #2596 Update any GenericInterfaceSymbols to the use the new
+        # routine symbols created during copying.
+        sym_tab = node_copy.symbol_table
+        for symbol in node_copy.symbol_table.get_symbols():
+            symbol_obj = sym_tab.lookup(symbol)
+            if isinstance(symbol_obj,
+                          GenericInterfaceSymbol):
+                new_routines = []
+                for rsym, mod_pro in symbol_obj.routines:
+                    new_routines.append((
+                            sym_tab.lookup(rsym.name),
+                            mod_pro
+                    ))
+                symbol_obj.routines = new_routines
+
         return node_copy
 
 

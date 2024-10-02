@@ -228,14 +228,14 @@ def test_psy_data_generate_symbols():
     ''' Check that the generate_symbols method inserts the appropriate
     symbols in the provided symbol table if they don't exist already. '''
 
-    # By inserting the psy_data no symbols are created (only the routine symbol
-    # name exists)
-    routine = Routine('my_routine')
+    # By inserting the psy_data no symbols are created.
+    routine = Routine.create('my_routine')
     psy_data = PSyDataNode()
     psy_data2 = PSyDataNode()
     routine.addchild(psy_data)
     routine.addchild(psy_data2)
     assert len(routine.symbol_table.symbols) == 1
+
     # Add a symbol of the wrong type for the module.
     tmp_sym = routine.symbol_table.new_symbol(psy_data.fortran_module)
     with pytest.raises(InternalError) as err:
@@ -447,7 +447,7 @@ def test_psy_data_node_lower_to_language_level():
             in str(excinfo.value))
 
     # Add the ancestor Routine and empty body
-    routine = Routine("my_routine")
+    routine = Routine.create("my_routine")
     routine.addchild(psy_node)
     psy_node.lower_to_language_level()
     # The PSyDataNode is substituted by 2 CodeBlocks, the first one with the
@@ -462,7 +462,7 @@ def test_psy_data_node_lower_to_language_level():
         'CALL psy_data % PostEnd'
 
     # Now try with a PSyDataNode with specified module and region names
-    routine = Routine("my_routine")
+    routine = Routine.create("my_routine")
     psy_node = PSyDataNode.create([], SymbolTable())
     routine.addchild(psy_node)
     psy_node._module_name = "my_module"
