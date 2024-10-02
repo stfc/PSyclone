@@ -2402,6 +2402,19 @@ class OMPTargetDirective(OMPRegionDirective):
         '''
         return "omp end target"
 
+    def gen_code(self, parent):
+        '''Generate the OpenMP Target Directive and any associated code.
+
+        :param parent: the parent Node in the Schedule to which to add our
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        # Check the constraints are correct
+        self.validate_global_constraints()
+
+        # Generate the code for this Directive
+        parent.add(DirectiveGen(parent, "omp", "begin", "target"))
+
 
 class OMPLoopDirective(OMPRegionDirective):
     ''' Class for the !$OMP LOOP directive that specifies that the iterations

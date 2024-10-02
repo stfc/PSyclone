@@ -546,10 +546,21 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
 
         '''
         self.validate(node, options)
-        for child in node.children:
+
+        if isinstance(node, Kern):
+            # Flag that the kernel has been modified
+            node.modified = True
+
+            # Get the schedule representing the kernel subroutine
+            routine = node.get_kernel_schedule()
+        else:
+            routine = node
+
+        for child in routine.children:
             if isinstance(child, OMPDeclareTargetDirective):
                 return  # The routine is already marked with OMPDeclareTarget
-        node.children.insert(0, OMPDeclareTargetDirective())
+
+        routine.children.insert(0, OMPDeclareTargetDirective())
 
     def validate(self, node, options=None):
         ''' Check that an OMPDeclareTargetDirective can be inserted.
