@@ -99,7 +99,7 @@ def trans(psyir):
                 hoist_expressions=True
         )
 
-        # This are functions that are called from inside parallel regions,
+        # These are functions that are called from inside parallel regions,
         # annotate them with 'acc routine'
         if subroutine.name.lower().startswith("sign_"):
             ACCRoutineTrans().apply(subroutine)

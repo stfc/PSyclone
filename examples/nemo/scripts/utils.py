@@ -150,10 +150,11 @@ def enhance_tree_information(schedule):
             if reference.symbol.is_import or reference.symbol.is_unresolved:
                 # The parser gets these wrong, they are Calls not ArrayRefs
                 if not isinstance(reference.symbol, RoutineSymbol):
-                    # We haven't already specialised this Symbol.
+                    # We need to specialise the generic Symbol to a Routine
                     reference.symbol.specialise(RoutineSymbol)
                 if not (isinstance(reference.parent, Call) and
                         reference.parent.routine is reference):
+                    # We also need to replace the Reference node with a Call
                     call = Call.create(reference.symbol)
                     for child in reference.children[:]:
                         call.addchild(child.detach())
@@ -239,7 +240,7 @@ def normalise_loops(
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
         # to files with statement functions because it will attempt to put the
-        # allocate avobe it, which is not valid Fortran.
+        # allocate above it, which is not valid Fortran.
         try:
             HoistLocalArraysTrans().apply(schedule)
         except TransformationError:
