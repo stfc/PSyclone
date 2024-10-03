@@ -1723,29 +1723,33 @@ class CodedKern(Kern):
 
         '''
         # We need to get the kernel schedule before modifying self.name.
-        _, kern_schedules = self.get_kernel_schedule()
-        if len(kern_schedules) > 1:
-            raise NotImplementedError("TODO")
-        kern_schedule = kern_schedules[0]
-        container = kern_schedule.ancestor(Container)
+        interface_sym, kern_schedules = self.get_kernel_schedule()
+        container = kern_schedules[0].ancestor(Container)
 
         # Use the suffix to create a new kernel name.  This will
         # conform to the PSyclone convention of ending in "_code"
         orig_mod_name = self.module_name[:]
-        orig_kern_name = kern_schedule.name[:]
-
-        new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
         new_mod_name = self._new_name(orig_mod_name, suffix, "_mod")
 
-        # Change the name of this kernel and the associated
-        # module. These names are used when generating the PSy-layer.
-        self.name = new_kern_name[:]
-        self._module_name = new_mod_name[:]
-        kern_schedule.name = new_kern_name[:]
-        container.name = new_mod_name[:]
+        # If the kernel is polymorphic, we can just change the name of
+        # the interface.
+        if interface_sym:
+            orig_kern_name = interface_sym.name
+            new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
+            container.symbol_table.rename_symbol(interface_sym, new_kern_name)
+            self.name = new_kern_name
+        else:
+            kern_schedule = kern_schedules[0]
+            orig_kern_name = kern_schedule.name[:]
+            new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
 
-        # Change the name of the Kernel Schedule
-        kern_schedule.name = new_kern_name
+            # Change the name of this kernel and the associated
+            # module. These names are used when generating the PSy-layer.
+            self.name = new_kern_name[:]
+            kern_schedule.name = new_kern_name[:]
+
+        self._module_name = new_mod_name[:]
+        container.name = new_mod_name[:]
 
         # Ensure the metadata points to the correct procedure now. Since this
         # routine is general purpose, we won't always have a domain-specific

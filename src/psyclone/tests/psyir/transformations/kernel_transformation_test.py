@@ -288,12 +288,17 @@ def test_transform_kern_with_interface(kernel_outputdir):
     with open(filename,
               "r", encoding="utf-8") as ffile:
         contents = ffile.read()
-    # Check that the routine name has been updated within the interface.
-    assert "interface mixed_code" in contents
-    assert ("module procedure :: mixed_code_32, mixed_code_64_0_code"
+    # Check that the interface name has been updated.
+    assert "interface mixed_0_code" in contents
+    assert ("module procedure :: mixed_code_32, mixed_code_64"
             in contents)
-    # Check that the subroutine itself has been renamed.
-    assert "subroutine mixed_code_64_0_code" in contents
+    # Check that the subroutines themselves haven't been renamed.
+    assert "subroutine mixed_code_32" in contents
+    assert "subroutine mixed_code_64" in contents
+    # But they have been transformed.
+    assert ('''real*4, dimension(ndf_w0,ndf_w0,op_ncell_3d), intent(in) :: op
+
+    !$acc routine seq''' in contents)
     assert ('''real*8, dimension(ndf_w0,ndf_w0,op_ncell_3d), intent(in) :: op
 
     !$acc routine seq''' in contents)
@@ -318,30 +323,6 @@ def test_gpumixin_validate_wrong_node_type():
         rtrans.apply(FileContainer("fred"))
     assert ("The ACCRoutineTrans must be applied to a sub-class of Kern or "
             "Routine but got 'FileContainer'" in str(err.value))
-
-
-def test_gpumixin_kernel_interface(kernel_outputdir, monkeypatch,
-                                   fortran_reader, fortran_writer):
-    '''
-    Test that the MarkRoutineForGPUMixin.validate() rejects a kernel that has
-    multiple implementations (i.e. for different precisions).
-
-    TODO this limitation is the subject of #1946.
-
-    '''
-    # Ensure kernel-output directory is uninitialised
-    config = Config.get()
-    monkeypatch.setattr(config, "_kernel_naming", "multiple")
-    psy, invoke = get_invoke("26.8_mixed_precision_args.f90",
-                             api="lfric", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    rtrans = ACCRoutineTrans()
-    # Use force because the kernel contains a WRITE statement.
-    with pytest.raises(TransformationError) as err:
-        rtrans.apply(kernels[0], options={"force": True})
-    assert ("Cannot apply ACCRoutineTrans to kernel 'mixed_code' as it has "
-            "multiple implementations - TODO #1946" in str(err.value))
 
 
 def test_gpumixin_validate_no_schedule(monkeypatch):
@@ -456,7 +437,8 @@ def test_gpumixin_validate_no_call():
             in str(err.value))
 
     # The same error happens for unsupported GPU intrinsics
-    call = kernel.get_kernel_schedule().walk(Call)[0]
+    _, kschedules = kernel.get_kernel_schedule()
+    call = kschedules[0].walk(Call)[0]
     call.replace_with(
         IntrinsicCall.create(IntrinsicCall.Intrinsic.GET_COMMAND))
     with pytest.raises(TransformationError) as err:
@@ -464,8 +446,7 @@ def test_gpumixin_validate_no_call():
     assert ("Kernel 'testkern_with_call_code' calls another routine "
             "'GET_COMMAND()' which is not available on the accelerator device "
             "and therefore cannot have ACCRoutineTrans applied to it "
-            "(TODO #342)."
-            in str(err.value))
+            "(TODO #342)." in str(err.value))
 
 
 def test_1kern_trans(kernel_outputdir):

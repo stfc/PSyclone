@@ -453,14 +453,14 @@ class MarkRoutineForGPUMixin:
                                   + "\n")
                     option_txt = "options={'force': True}"
                     raise TransformationError(
-                        f"Cannot safely apply {type(self).__name__} to {k_or_r} "
-                        f"'{node.name}' because its PSyIR contains one or more "
-                        f"CodeBlocks:{cblock_txt}You may use '{option_txt}' to "
-                        f"override this check.")
+                        f"Cannot safely apply {type(self).__name__} to "
+                        f"{k_or_r} '{node.name}' because its PSyIR contains "
+                        f"one or more CodeBlocks:{cblock_txt}You may use "
+                        f"'{option_txt}' to override this check.")
             else:
                 # Check any accesses within CodeBlocks.
-                # TODO #2271 - this will be handled as part of the checking to be
-                # implemented using the dependence analysis.
+                # TODO #2271 - this will be handled as part of the checking to
+                # be implemented using the dependence analysis.
                 for cblock in cblocks:
                     names = cblock.get_symbol_names()
                     for name in names:
@@ -468,9 +468,9 @@ class MarkRoutineForGPUMixin:
                         if sym.is_import:
                             raise TransformationError(
                                 f"{k_or_r} '{node.name}' accesses the symbol "
-                                f"'{sym.name}' within a CodeBlock and this symbol "
-                                f"is imported. {type(self).__name__} cannot be "
-                                f"applied to such a {k_or_r}.")
+                                f"'{sym.name}' within a CodeBlock and this "
+                                f"symbol is imported. {type(self).__name__} "
+                                f"cannot be applied to such a {k_or_r}.")
 
             calls = ksched.walk(Call)
             for call in calls:
@@ -2290,8 +2290,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
                 else:
                     raise TransformationError(
                         f"Error in Dynamo0p3KernelConstTrans transformation. "
-                        f"Support is currently limited to 'xyoz' quadrature but "
-                        f"found {kernel.eval_shapes}.")
+                        f"Support is currently limited to 'xyoz' quadrature "
+                        f"but found {kernel.eval_shapes}.")
 
             const = LFRicConstants()
             if element_order is not None:
@@ -2301,9 +2301,10 @@ class Dynamo0p3KernelConstTrans(Transformation):
                             (const.VALID_ANY_SPACE_NAMES +
                              const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES +
                              ["any_w2"])):
-                        # skip any_space_*, any_discontinuous_space_* and any_w2
-                        print(f"    Skipped dofs, arg position {info.position}, "
-                              f"function space {info.function_space}")
+                        # skip any_space_*, any_discontinuous_space_* & any_w2
+                        print(f"    Skipped dofs, arg position "
+                              f"{info.position}, function space "
+                              f"{info.function_space}")
                     else:
                         try:
                             ndofs = Dynamo0p3KernelConstTrans. \
@@ -2313,7 +2314,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
                             raise InternalError(
                                 f"Error in Dynamo0p3KernelConstTrans "
                                 f"transformation. Unsupported function space "
-                                f"'{info.function_space}' found. Expecting one of "
+                                f"'{info.function_space}' found. Expecting one"
+                                f" of "
                                 f"""{Dynamo0p3KernelConstTrans.
                                      space_to_dofs.keys()}.""") from err
                         make_constant(symbol_table, info.position, ndofs,
