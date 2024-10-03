@@ -270,12 +270,16 @@ class Reference(DataNode):
 
     def next_access(self):
         '''
-        :returns: the next reference to the same symbol.
-        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :returns: the following References to the same symbol. There may be
+                  multiple References returned as control flow may result
+                  in many possible next_accesses and all may need to be
+                  checked.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.routine import Routine
+        from psyclone.psyir.tools import DefinitionUseChain
         # The scope is as far as the Routine that contains this
         # Reference.
         routine = self.ancestor(Routine)
@@ -283,19 +287,11 @@ class Reference(DataNode):
         # Routine
         if routine is None:
             routine = self.root
-        var_access = VariablesAccessInfo(nodes=routine)
-        signature, _ = self.get_signature_and_indices()
-        all_accesses = var_access[signature].all_accesses
-        index = len(all_accesses)
-        # Find my position in the VariablesAccesInfo
-        for i, access in enumerate(all_accesses):
-            if access.node is self:
-                index = i
-                break
-
-        if len(all_accesses) > index+1:
-            return all_accesses[index+1].node
-        return None
+        chain = DefinitionUseChain(
+                self,
+                [routine]
+        )
+        return chain.find_forward_accesses()
 
     def replace_symbols_using(self, table):
         '''
