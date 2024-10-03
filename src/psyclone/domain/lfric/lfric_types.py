@@ -183,18 +183,11 @@ class LFRicTypes:
         '''
         GenericScalar = namedtuple('GenericScalar', ["name", "intrinsic",
                                                      "precision"])
-
         generic_scalar_datatypes = [
             GenericScalar("LFRicIntegerScalar", ScalarType.Intrinsic.INTEGER,
                           LFRicTypes("I_DEF")),
             GenericScalar("LFRicRealScalar", ScalarType.Intrinsic.REAL,
                           LFRicTypes("R_DEF")),
-            GenericScalar("LFRicRdefScalar", ScalarType.Intrinsic.REAL,
-                          LFRicTypes("R_DEF")),
-            GenericScalar("LFRicRsolverScalar", ScalarType.Intrinsic.REAL,
-                          LFRicTypes("R_SOLVER")),
-            GenericScalar("LFRicRtranScalar", ScalarType.Intrinsic.REAL,
-                          LFRicTypes("R_TRAN")),
             GenericScalar("LFRicLogicalScalar", ScalarType.Intrinsic.BOOLEAN,
                           LFRicTypes("L_DEF"))]
 

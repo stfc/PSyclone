@@ -408,15 +408,15 @@ class KernelInterface(ArgOrdering):
 
         :param scalar_arg: the scalar to add.
         :type scalar_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: an unused optional argument that stores
+        :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :\
+            py:class:`psyclone.core.VariablesAccessInfo`
 
-        :raises NotImplementedError: if the datatype of the scalar is
+        :raises NotImplementedError: if the datatype of the scalar is \
             not supported.
 
         '''
-        # TODO this needs to distinguish between precisions.
         mapping = {
             "integer": LFRicTypes("LFRicIntegerScalarDataSymbol"),
             "real": LFRicTypes("LFRicRealScalarDataSymbol"),
