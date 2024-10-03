@@ -1447,7 +1447,8 @@ class OMPParallelDirective(OMPRegionDirective):
             for call in reprod_red_call_list:
                 call.reduction_sum_loop(parent)
 
-        self.gen_post_region_code(parent)
+        if not self.ancestor(OMPRegionDirective):
+            self.gen_post_region_code(parent)
 
     def lower_to_language_level(self):
         '''
@@ -2387,7 +2388,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # Add directive to the f2pygen tree
         parent.add(
             DirectiveGen(
-                parent, "omp", "begin", "parallel do", ", ".join(
+                parent, "omp", "begin", self.begin_string()[4:], " ".join(
                     text for text in [default_str, private_str, fprivate_str,
                                       schedule_str, self._reduction_string()]
                     if text)))
@@ -2397,10 +2398,24 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         # make sure the directive occurs straight after the loop body
         position = parent.previous_loop()
-        parent.add(DirectiveGen(parent, *self.end_string().split()),
+
+        # DirectiveGen only accepts 3 terms, e.g. "omp end loop", so for longer
+        # directive e.g. "omp end teams distribute parallel do", we split them
+        # between arguments and content (which is an additional string appended
+        # at the end)
+        terms = self.end_string().split()
+        if len(terms) > 3:
+            arguments = terms[:3]
+            content = " ".join(terms[3:])
+        else:
+            arguments = terms
+            content = ""
+
+        parent.add(DirectiveGen(parent, *arguments, content=content),
                    position=["after", position])
 
-        self.gen_post_region_code(parent)
+        if not self.ancestor(OMPRegionDirective):
+            self.gen_post_region_code(parent)
 
     def lower_to_language_level(self):
         '''
@@ -2501,6 +2516,16 @@ class OMPTargetDirective(OMPRegionDirective):
 
         # Generate the code for this Directive
         parent.add(DirectiveGen(parent, "omp", "begin", "target"))
+
+        # Generate the code for all of this node's children
+        for child in self.dir_body:
+            child.gen_code(parent)
+
+        # Generate the end code for this node
+        parent.add(DirectiveGen(parent, "omp", "end", "target", ""))
+
+        if not self.ancestor(OMPRegionDirective):
+            self.gen_post_region_code(parent)
 
 
 class OMPLoopDirective(OMPRegionDirective):

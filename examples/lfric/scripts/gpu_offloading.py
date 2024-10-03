@@ -75,8 +75,10 @@ def trans(psy):
 
     if OFFLOAD_USING_OMP:
         # Use OpenMP offloading
-        loop_offloading_trans = OMPLoopTrans()
-        loop_offloading_trans.omp_directive = "teamsdistributeparalleldo"
+        loop_offloading_trans = OMPLoopTrans(
+            omp_directive="teamsdistributeparalleldo",
+            omp_schedule="none"
+        )
         kernels_trans = None
         gpu_region_trans = OMPTargetTrans()
         gpu_annotation_trans = OMPDeclareTargetTrans()
@@ -133,12 +135,16 @@ def trans(psy):
                             print(f"Failed to annotate '{kern.name}' with "
                                   f"GPU-enabled directive due to:\n"
                                   f"{err.value}")
+                        # For annotated or inlined kernels we could attempt to
+                        # provide compile-time dimensions for the temporary
+                        # arrays and convert to code unsupported intrinsics.
 
         # Add GPU offloading to loops unless they are over colours or are null.
         schedule = invoke.schedule
         for loop in schedule.walk(Loop):
-            if offload and all(kern.name.lower() not in failed_to_offload for
-                               kern in loop.kernels()):
+            kernel_names = [k.name.lower() for k in loop.kernels()]
+            if offload and all(name not in failed_to_offload for name in
+                               kernel_names):
                 try:
                     if loop.loop_type == "colours":
                         pass
@@ -151,13 +157,23 @@ def trans(psy):
                             loop, options={"independent": True})
                         gpu_region_trans.apply(loop.ancestor(Directive))
                     if loop.loop_type == "dof":
-                        if kernels_trans:
-                            # Loops over dofs can contain reductions, so we
-                            # don't add loop parallelism (is not supported yet)
-                            # but we can add 'kernel' parallelism if available
+                        # Loops over dofs can contains reductions that ...
+                        if OFFLOAD_USING_OMP:
+                            # with loop offloading will be detected by the
+                            # dependencyAnalysis and raise TransformationErrors
+                            loop_offloading_trans.apply(
+                                loop, options={"independent": True})
+                            gpu_region_trans.apply(loop.ancestor(Directive))
+                        elif kernels_trans:
+                            # if kernel offloading is available it should
+                            # manage them
                             kernels_trans.apply(loop)
+                        # Alternatively with could use loop parallelism with
+                        # reduction clauses
+                    print(f"Successfully offloaded loop with {kernel_names}")
                 except TransformationError as err:
-                    print(f"Failed to offload loop because: {err}")
+                    print(f"Failed to offload loop with {kernel_names} "
+                          f"because: {err}")
 
         # Apply OpenMP thread parallelism for any kernels we've not been able
         # to offload to GPU.
