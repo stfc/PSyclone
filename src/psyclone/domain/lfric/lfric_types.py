@@ -185,8 +185,6 @@ class LFRicTypes:
                                                      "precision"])
         api_config = Config.get().api_conf("lfric")
 
-        lfric_kinds = list(api_config.precision_map.keys())
-
         generic_scalar_datatypes = [
             GenericScalar("LFRicIntegerScalar", ScalarType.Intrinsic.INTEGER,
                           LFRicTypes("I_DEF")),

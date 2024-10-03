@@ -48,7 +48,7 @@ from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
+    ContainerSymbol, DataSymbol, DataTypeSymbol,
     IntrinsicSymbol, RoutineSymbol, Symbol)
 from psyclone.psyir.nodes import (
     Container, Reference, Routine, ScopingNode,
@@ -153,8 +153,6 @@ class KernelModuleInlineTrans(Transformation):
                 f"'{kname}' due to: {error}"
             ) from error
 
-        if not isinstance(kernels, list):
-            import pdb; pdb.set_trace()
         # TODO ARPDBG - need to examine every kernel implementation, not just
         # the first one.
         kernel_schedule = kernels[0]
@@ -259,13 +257,14 @@ class KernelModuleInlineTrans(Transformation):
                 for name in cblock.get_symbol_names():
                     all_symbols.add(cblock.scope.symbol_table.lookup(name))
 
-            # Then decide which symbols need to be brought inside the subroutine
+            # Decide which symbols need to be brought inside the subroutine
             symbols_to_bring_in = set()
             for symbol in all_symbols:
                 if symbol.is_unresolved or symbol.is_import:
                     # This symbol is already in the symbol table, but adding it
-                    # to the 'symbols_to_bring_in' will make the next step bring
-                    # into the subroutine all modules that it could come from.
+                    # to the 'symbols_to_bring_in' will make the next step
+                    # bring into the subroutine all modules that it could come
+                    # from.
                     symbols_to_bring_in.add(symbol)
                 if isinstance(symbol, DataSymbol):
                     # DataTypes can reference other symbols
@@ -295,10 +294,11 @@ class KernelModuleInlineTrans(Transformation):
                     if module_symbol.name not in code_to_inline.symbol_table:
                         code_to_inline.symbol_table.add(module_symbol)
                     else:
-                        # If it already exists, we know it's a container (from the
-                        # validation) so we just need to point to it
+                        # If it already exists, we know it's a container (from
+                        # the validation) so we just need to point to it
                         symbol.interface.container_symbol = \
-                            code_to_inline.symbol_table.lookup(module_symbol.name)
+                            code_to_inline.symbol_table.lookup(
+                                module_symbol.name)
 
     @staticmethod
     def _get_psyir_to_inline(node):
@@ -397,26 +397,26 @@ class KernelModuleInlineTrans(Transformation):
                 node.ancestor(Container).addchild(code_to_inline.detach())
             else:
                 if existing_symbol.is_import:
-                    # The RoutineSymbol is in the table but that is because it is
-                    # imported. We must therefore update its interface and
-                    # potentially remove the ContainerSymbol (from which it is
-                    # imported) altogether.
+                    # The RoutineSymbol is in the table but that is
+                    # because it is imported. We must therefore update
+                    # its interface and potentially remove the
+                    # ContainerSymbol (from which it is imported)
+                    # altogether.
                     csym = existing_symbol.interface.container_symbol
-                    # The import of the routine symbol may be in an outer scope.
+                    # The import of the routine symbol may be in an
+                    # outer scope.
                     ctable = csym.find_symbol_table(node)
                     remove_csym = (ctable.symbols_imported_from(csym) ==
                                    [existing_symbol])
-                    #existing_symbol.interface = DefaultModuleInterface()
-                    #existing_symbol.visibility = Symbol.Visibility.PRIVATE
                     if code_to_inline.name == existing_symbol.name:
                         # Have to remove Symbol as adding the Routine into
                         # the Container will insert it again.
                         ctable._symbols.pop(existing_symbol.name)
                     if remove_csym:
                         ctable.remove(csym)
+                    # Inline the code. This will automatically add the
+                    # associated RoutineSymbol into the Container.
                     code_to_inline = code_to_inline.detach()
-                    # Set the routine's symbol to the existing_symbol
-                    #code_to_inline.symbol = existing_symbol
                     container.addchild(code_to_inline)
                     sym = ctable.lookup(code_to_inline.name)
                     sym.visibility = Symbol.Visibility.PRIVATE
@@ -426,31 +426,31 @@ class KernelModuleInlineTrans(Transformation):
                     # exactly the same.
                     for routine in container.walk(Routine, stop_type=Routine):
                         if routine.name == caller_name:
-                            # This TransformationError happens here and not in the
-                            # validation because it needs the symbols_to_bring_in
-                            # applied to effectively compare both versions.
-                            # This will be fixed when module-inlining versioning is
-                            # implemented.
-                            # (It is OK to fail here because we have not yet made
-                            # any modifications to the tree - code_to_inline is a
-                            # detached copy.)
+                            # This TransformationError happens here and not in
+                            # the validation because it needs the
+                            # symbols_to_bring_in applied to effectively
+                            # compare both versions.  This will be fixed when
+                            # module-inlining versioning is implemented.  (It
+                            # is OK to fail here because we have not yet made
+                            # any modifications to the tree - code_to_inline
+                            # is a detached copy.)
                             if routine != code_to_inline:
                                 raise TransformationError(
-                                    f"Cannot inline subroutine '{caller_name}' "
-                                    f"because another, different, subroutine with "
-                                    f"the same name already exists and versioning "
-                                    f"of module-inlined subroutines is not "
-                                    f"implemented yet.")
-                # Finally, ensure that the RoutineSymbol for the inlined routine is
-                # in the correct symbol table.
+                                    f"Cannot inline subroutine '{caller_name}'"
+                                    f" because another, different, subroutine "
+                                    f"with the same name already exists and "
+                                    f"versioning of module-inlined subroutines"
+                                    f" is not implemented yet.")
+                # Finally, ensure that the RoutineSymbol for the inlined
+                # routine is in the correct symbol table.
                 routine_symbol = existing_symbol
                 table = routine_symbol.find_symbol_table(node)
                 if table.node is not container:
                     # Set the visibility of the symbol to always be private.
                     sym = container.symbol_table.lookup(routine_symbol.name)
                     sym.visibility = Symbol.Visibility.PRIVATE
-                    # Force removal of the routine_symbol if its also present in
-                    # the Routine's symbol table.
+                    # Force removal of the routine_symbol if it's also present
+                    # in the Routine's symbol table.
                     table.lookup(routine_symbol.name)
                     norm_name = table._normalize(routine_symbol.name)
                     table._symbols.pop(norm_name)

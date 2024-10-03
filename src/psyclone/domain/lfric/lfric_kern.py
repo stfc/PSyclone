@@ -679,29 +679,23 @@ class LFRicKern(CodedKern):
             # problem in LFRic that this fixes.
             routine.debug_string()
 
-#        if len(routines) == 1:
-#            sched = routines[0]
-#            # TODO #928: We don't validate the arguments yet because the
-#            # validation has many false negatives.
-#            # self.validate_kernel_code_args(sched.symbol_table)
+#       # The kernel name corresponds to an interface block. Find which
+#       # of the routines matches the precision of the arguments.
+#       for routine in routines:
+#           try:
+#               # The validity check for the kernel arguments should raise
+#               # an exception if the precisions don't match but currently
+#               # does not!
+#               self.validate_kernel_code_args(routine.symbol_table)
+#               sched = routine
+#               break
+#            except GenerationError:
+#               pass
 #        else:
-#            # The kernel name corresponds to an interface block. Find which
-#            # of the routines matches the precision of the arguments.
-#            for routine in routines:
-#                try:
-#                    # The validity check for the kernel arguments will raise
-#                    # an exception if the precisions don't match.
-#                    self.validate_kernel_code_args(routine.symbol_table)
-#                    sched = routine
-#                    break
-#                except GenerationError:
-#                    pass
-#            else:
-#                raise GenerationError(
-#                    f"Failed to find a kernel implementation with an interface"
-#                    f" that matches the invoke of '{self.name}'. (Tried "
-#                    f"routines {[item.name for item in routines]}.)")
-#
+#            raise GenerationError(
+#                f"Failed to find a kernel implementation with an interface"
+#                f" that matches the invoke of '{self.name}'. (Tried "
+#                f"routines {[item.name for item in routines]}.)")
 
         if len(routines) > 1:
             table = routines[0].scope.symbol_table
@@ -711,10 +705,11 @@ class LFRicKern(CodedKern):
 
         new_schedules = []
         for sched in routines:
-            # TODO #935 - replace the PSyIR argument data symbols with LFRic data
-            # symbols. For the moment we just return the unmodified PSyIR schedule
-            # but this should use RaisePSyIR2LFRicKernTrans once KernelInterface
-            # is fully functional (#928).
+            # TODO #935 - replace the PSyIR argument data symbols with
+            # LFRic data symbols. For the moment we just return the
+            # unmodified PSyIR schedule but this should use
+            # RaisePSyIR2LFRicKernTrans once KernelInterface is fully
+            # functional (#928).
             ksched = KernelSchedule(sched.symbol,
                                     symbol_table=sched.symbol_table.detach())
             for child in sched.pop_all_children():
