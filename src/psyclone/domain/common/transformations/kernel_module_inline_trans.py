@@ -223,7 +223,7 @@ class KernelModuleInlineTrans(Transformation):
                 f"subroutines is not supported yet.")
 
     @staticmethod
-    def _prepare_code_to_inline(routines_to_inline, symbol):
+    def _prepare_code_to_inline(routines_to_inline):
         '''Prepare the PSyIR tree to inline by bringing in to the subroutine
         all referenced symbols so that the implementation is self contained.
 
@@ -295,7 +295,7 @@ class KernelModuleInlineTrans(Transformation):
                     if module_symbol.name not in code_to_inline.symbol_table:
                         code_to_inline.symbol_table.add(module_symbol)
                     else:
-                        # If it already exists, we know its a container (from the
+                        # If it already exists, we know it's a container (from the
                         # validation) so we just need to point to it
                         symbol.interface.container_symbol = \
                             code_to_inline.symbol_table.lookup(module_symbol.name)
@@ -334,15 +334,6 @@ class KernelModuleInlineTrans(Transformation):
             if not isinstance(routines, list):
                 routines = [routines]
             caller_name = node.routine.name.lower()
-            # TODO #924 - at this point we may have found (an interface to)
-            # multiple implementations. We can try to work out which one this
-            # call will map to. Failing that, we'll have to insert all of them
-            # plus the interface definition.
-            if len(routines) > 1:
-                raise TransformationError(
-                    f"The target of the call to '{caller_name}' cannot be "
-                    f"inserted because multiple implementations were found: "
-                    f"{[rout.name for rout in routines]}. TODO #924")
             interface_sym = None  # TODO
         return (caller_name, routines, interface_sym)
 
@@ -376,19 +367,25 @@ class KernelModuleInlineTrans(Transformation):
         # implementation.
         caller_name, codes_to_inline, interface_sym = (
             KernelModuleInlineTrans._get_psyir_to_inline(node))
-        if interface_sym:
-            callee_name = interface_sym.name
+
+        # This will be the name of the interface if the call is to a
+        # polymorphic routine.
+        if isinstance(node, Call):
+            callee_name = node.routine.name
         else:
-            callee_name = codes_to_inline[0].name
+            callee_name = node.name
 
         try:
             existing_symbol = node.scope.symbol_table.lookup(callee_name)
         except KeyError:
             existing_symbol = None
 
-        self._prepare_code_to_inline(codes_to_inline, interface_sym)
+        self._prepare_code_to_inline(codes_to_inline)
 
         container = node.ancestor(Container)
+
+        if interface_sym:
+            container.symbol_table.add(interface_sym)
 
         for code_to_inline in codes_to_inline:
             if not existing_symbol:
@@ -409,14 +406,20 @@ class KernelModuleInlineTrans(Transformation):
                     ctable = csym.find_symbol_table(node)
                     remove_csym = (ctable.symbols_imported_from(csym) ==
                                    [existing_symbol])
-                    existing_symbol.interface = DefaultModuleInterface()
-                    existing_symbol.visibility = Symbol.Visibility.PRIVATE
+                    #existing_symbol.interface = DefaultModuleInterface()
+                    #existing_symbol.visibility = Symbol.Visibility.PRIVATE
+                    if code_to_inline.name == existing_symbol.name:
+                        # Have to remove Symbol as adding the Routine into
+                        # the Container will insert it again.
+                        ctable._symbols.pop(existing_symbol.name)
                     if remove_csym:
                         ctable.remove(csym)
                     code_to_inline = code_to_inline.detach()
                     # Set the routine's symbol to the existing_symbol
-                    code_to_inline.symbol = existing_symbol
+                    #code_to_inline.symbol = existing_symbol
                     container.addchild(code_to_inline)
+                    sym = ctable.lookup(code_to_inline.name)
+                    sym.visibility = Symbol.Visibility.PRIVATE
                 else:
                     # The routine symbol already exists, and we know from the
                     # validation that it's a Routine. Now check if they are

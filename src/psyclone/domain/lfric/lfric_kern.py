@@ -645,8 +645,11 @@ class LFRicKern(CodedKern):
         Once issue #935 is implemented, this routine will return the
         PSyIR Schedule using LFRic-specific PSyIR where possible.
 
-        :returns: Schedule representing the kernel code.
-        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+        :returns: the Symbol defining the interface to this kernel (if it is
+            polymorphic and a list of the Schedule(s) representing the kernel
+            code.
+        :rtype: tuple[Optional[:py:class:`psyclone.psyir.symbols.Symbol`],
+                      list[:py:class:`psyclone.psyGen.KernelSchedule`]]
 
         :raises GenerationError: if no subroutine matching this kernel can
             be found in the parse tree of the associated source code.
@@ -700,7 +703,6 @@ class LFRicKern(CodedKern):
 #                    f"routines {[item.name for item in routines]}.)")
 #
 
-        #import pdb; pdb.set_trace()
         if len(routines) > 1:
             table = routines[0].scope.symbol_table
             sym = table.lookup(self.name)
@@ -720,9 +722,10 @@ class LFRicKern(CodedKern):
             sched.replace_with(ksched)
             new_schedules.append(ksched)
 
+        self._interface_symbol = sym
         self._kern_schedule = new_schedules
 
-        return sym, self._kern_schedule
+        return self._interface_symbol, self._kern_schedule
 
     def validate_kernel_code_args(self, table):
         '''Check that the arguments in the kernel code match the expected

@@ -1528,7 +1528,7 @@ class CodedKern(Kern):
                         shadowing=True,
                         interface=ImportInterface(csymbol))
         else:
-            # If its inlined, the symbol must exist
+            # If it's inlined, the symbol must exist
             try:
                 rsymbol = self.scope.symbol_table.lookup(self._name)
             except KeyError as err:
