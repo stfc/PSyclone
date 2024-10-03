@@ -183,7 +183,6 @@ class LFRicTypes:
         '''
         GenericScalar = namedtuple('GenericScalar', ["name", "intrinsic",
                                                      "precision"])
-        api_config = Config.get().api_conf("lfric")
 
         generic_scalar_datatypes = [
             GenericScalar("LFRicIntegerScalar", ScalarType.Intrinsic.INTEGER,
