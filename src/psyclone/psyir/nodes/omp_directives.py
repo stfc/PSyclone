@@ -2319,12 +2319,9 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # between arguments and content (which is an additional string appended
         # at the end)
         terms = self.end_string().split()
-        if len(terms) > 3:
-            arguments = terms[:3]
-            content = " ".join(terms[3:])
-        else:
-            arguments = terms
-            content = ""
+        # If its < 3 the array slices still work as expected
+        arguments = terms[:3]
+        content = " ".join(terms[3:])
 
         parent.add(DirectiveGen(parent, *arguments, content=content),
                    position=["after", position])
