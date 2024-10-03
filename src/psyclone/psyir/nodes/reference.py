@@ -43,9 +43,6 @@
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.assignment import Assignment
-from psyclone.psyir.nodes.call import Call
-from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.symbols.datatypes import UnresolvedType
 
@@ -103,6 +100,9 @@ class Reference(DataNode):
         :returns: whether this reference is a read to its symbol.
         :rtype: bool
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.assignment import Assignment
+        from psyclone.psyir.nodes.call import Call
         parent = self.parent
         if isinstance(parent, Call):
             # For now we assume that all arguments of a Call (or non-
@@ -122,6 +122,10 @@ class Reference(DataNode):
         :returns: whether this reference is a write to its symbol.
         :rtype: bool
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.assignment import Assignment
+        from psyclone.psyir.nodes.call import Call
+        from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
         parent = self.parent
         # pure or inquiry IntrinsicCall nodes do not write to their arguments.
         if (isinstance(parent, IntrinsicCall) and (parent.is_inquiry or

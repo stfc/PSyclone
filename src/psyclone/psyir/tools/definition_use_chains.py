@@ -38,17 +38,18 @@
 import sys
 
 from psyclone.psyir.nodes import (
-    Routine,
-    IfBlock,
-    Loop,
-    WhileLoop,
-    Call,
-    Reference,
     Assignment,
-    Statement,
+    Call,
+    CodeBlock,
+    IfBlock,
     IntrinsicCall,
-    Schedule,
+    Loop,
     Node,
+    Reference,
+    Routine,
+    Schedule,
+    Statement,
+    WhileLoop,
 )
 from psyclone.psyir.symbols import AutomaticInterface
 
@@ -64,13 +65,14 @@ class DefinitionUseChain:
         start_point=None,
         stop_point=None,
     ):
+        # FIXME We should check if this is a reference probably.
         self._reference = reference
         # Store the absolute position for later.
-        # TODO To enable loops to work correctly we should be able to set this
-        # and not just use the reference's absolute position
+        self._reference_abs_pos = reference.abs_position
+        # To enable loops to work correctly we can set the start/stop point
+        # and not just use base it on the reference's absolute position
         self._start_point = start_point
         self._stop_point = stop_point
-        self._reference_abs_pos = reference.abs_position
         if control_flow_region is None:
             self._scope = [reference.ancestor(Routine)]
             if self._scope is None:
@@ -229,6 +231,19 @@ class DefinitionUseChain:
                         stop_point=sub_stop_point,
                     )
                     chains.insert(0, chain)
+                    # If its a while loop, create a basic block for the while
+                    # condition.
+                    if isinstance(ancestor, WhileLoop):
+                        control_flow_nodes.insert(0, None)
+                        sub_stop_point = ancestor.loop_body.abs_position
+                        chain = DefinitionUseChain(
+                            self._reference.copy(),
+                            [ancestor.condition],
+                            self._is_local,
+                            start_point=ancestor.abs_position,
+                            stop_point=sub_stop_point,
+                        )
+                        chains.insert(0, chain)
 
                 # Check if there is an ancestor Assignment.
                 ancestor = self._reference.ancestor(Assignment)
@@ -299,6 +314,17 @@ class DefinitionUseChain:
                     # In theory we could analyse loop structures or if block
                     # structures to see if we're guaranteed to write to the
                     # symbol.
+                    # If the control flow node is a Loop we have to check
+                    # if the variable is the same symbol as the _reference.
+                    if isinstance(cfn, Loop):
+                        if cfn.variable == self._reference.symbol:
+                            # The loop variable is always written to and so
+                            # we're done if its reached.
+                            self._reaches.append(cfn)
+                            self._start_point = save_start_position
+                            self._stop_point = save_stop_position
+                            return self._reaches
+
                     for ref in chain._reaches:
                         # Add unique references to reaches. Can't just check
                         # with "in" as unique references can be equal if
@@ -309,8 +335,6 @@ class DefinitionUseChain:
                                 found = True
                         if not found:
                             self._reaches.append(ref)
-                    # FIXME Should defsout or killed be updated as well?
-                    # I think we don't need it for this implementation.
         else:
             # Check if there is an ancestor Assignment.
             ancestor = self._reference.ancestor(Assignment)
@@ -415,17 +439,28 @@ class DefinitionUseChain:
                                  block to find the forward uses in.
         :type basic_block_list: list[:py:class:`psyclone.psyir.nodes.Node`]
         """
-        # FIXME Codeblocks
         sig, _ = self._reference.get_signature_and_indices()
         # For a basic block we will only ever have one defsout
         defs_out = None
         for region in basic_block_list:
-            for reference in region.walk((Reference, Call)):
+            for reference in region.walk((Reference, Call, CodeBlock)):
                 # Store the position instead of computing it twice.
                 abs_pos = reference.abs_position
                 if abs_pos <= self._start_point or abs_pos >= self._stop_point:
                     continue
-                if isinstance(reference, Call):
+                if isinstance(reference, CodeBlock):
+                    # CodeBlocks only find symbols, so we can only do as good
+                    # as checking the symbol - this means we can get false
+                    # positives for structure accesses inside CodeBlocks.
+                    if self._reference.symbol in reference.get_symbol_names():
+                        # Assume the worst for a CodeBlock and we count them
+                        # as killed and defsout and uses.
+                        if defs_out is None:
+                            self._uses.append(reference)
+                        if defs_out is not None:
+                            self._killed.append(defs_out)
+                        defs_out = reference
+                elif isinstance(reference, Call):
                     # If its a local variable we can ignore it as we'll catch
                     # the Reference later if its passed into the Call.
                     if self._is_local:
@@ -445,7 +480,7 @@ class DefinitionUseChain:
                         self._killed.append(defs_out)
                     defs_out = reference
                     continue
-                if reference.get_signature_and_indices()[0] == sig:
+                elif reference.get_signature_and_indices()[0] == sig:
                     # Work out if its read only or not.
                     assign = reference.ancestor(Assignment)
                     if assign is not None:
@@ -484,9 +519,10 @@ class DefinitionUseChain:
                             self._killed.append(defs_out)
                         defs_out = reference
                     else:
-                        # Reference outside an Assignment - assume read only.
-                        # TODO - Could this be a loop variable or similar?
-                        if defs_out is None and self._uses is None:
+                        # Reference outside an Assignment - read only
+                        # This could be References inside a While loop
+                        # condition for example.
+                        if defs_out is None:
                             self._uses.append(reference)
         if defs_out is not None:
             self._defsout.append(defs_out)
@@ -540,7 +576,6 @@ class DefinitionUseChain:
                 # The start/stop/step expr are non-conditional (but also
                 # read only).
                 control_flow_nodes.append(None)
-                # FIXME - What about the loop variable, we should check this.
                 current_block.append(node.start_expr)
                 current_block.append(node.stop_expr)
                 current_block.append(node.step_expr)

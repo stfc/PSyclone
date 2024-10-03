@@ -536,3 +536,48 @@ def test_reference_replace_symbols_using():
     ref.replace_symbols_using(table)
     assert ref.symbol is asym2
     assert ref.symbol.datatype.precision is wp
+
+
+def test_reference_is_read(fortran_reader):
+    '''Test the reference is_read property.'''
+    code = """subroutine my_subroutine()
+        b = a
+        call somecall(c)
+    end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    references = psyir.walk(Reference)
+    assert not references[0].is_read
+    assert references[1].is_read
+    assert references[3].symbol.name == "c"
+    assert references[3].is_read
+
+
+def test_reference_is_write(fortran_reader):
+    '''Test the reference is_write property.'''
+    code = """subroutine my_subroutine()
+       a = LBOUND(b)
+       a(i) = 3
+       a = SIN(c)
+       call somecall(a)
+       a = b
+       end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    references = psyir.walk(Reference)
+    # a = LBOUND(b) has a as write and b not.
+    assert references[0].is_write
+    assert references[2].symbol.name == "b"
+    assert not references[2].is_write
+    # a(i) = 3 has a as write and i as not.
+    assert references[3].is_write
+    assert not references[4].is_write
+    # a = SIN(c) has a as write and c as not.
+    assert references[5].is_write
+    assert references[7].symbol.name == "c"
+    assert not references[7].is_write
+    # call has a as write.
+    assert references[9].symbol.name == "a"
+    assert references[9].is_write
+    # a = b has a as write and b as not
+    assert references[10].is_write
+    assert not references[11].is_write
