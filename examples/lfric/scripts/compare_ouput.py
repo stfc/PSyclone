@@ -38,14 +38,13 @@
 
 import sys
 import os
-import math
 
-TOLERANCE = 1e-04
+TOLERANCE_DIGITS = 10
 
 
 def main():
     ''' Compare the two provided LFRic output files, it checks that the
-    Conservation and Residual values are equivalent (within a tolerance). '''
+    checksum values are equivalent (within a tolerance). '''
 
     # Parse input arguments
     if len(sys.argv) - 1 != 2:
@@ -64,14 +63,10 @@ def main():
         line_f1 = file1.readline()
         line_f2 = file2.readline()
         while line_f1 and line_f2:
-            if (
-                "Conservation" in line_f1
-                or "Residual" in line_f1
-            ):
-                value_f1 = float(line_f1.split()[-1])
-                value_f2 = float(line_f2.split()[-1])
-                if not math.isclose(value_f1, value_f2, rel_tol=TOLERANCE):
-                    sys.exit(f"The values are not equal:\n{line_f1}{line_f2}")
+            value1 = line_f1.split('=')[-1][:TOLERANCE_DIGITS]
+            value2 = line_f2.split('=')[-1][:TOLERANCE_DIGITS]
+            if value1 != value2:
+                sys.exit(f"The values are not equal:\n{line_f1}{line_f2}")
 
             # Get next lines
             line_f1 = file1.readline()

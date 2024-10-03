@@ -371,9 +371,10 @@ def test_single_stencil_broken():
     path = os.path.join(BASE_PATH, "19.2_single_stencil_broken.f90")
     with pytest.raises(GenerationError) as excinfo:
         _, _ = generate(path, api="lfric")
-    # TODO issue #1618 different error messages for the different versions.
-    assert ("expected '5' arguments in the algorithm layer but found '4'"
-            in str(excinfo.value) or "The invoke kernel functor "
+    assert ("expected '5' arguments for the call to kernel "
+            "'testkern_stencil_type' from invoke "
+            "'invoke_0_testkern_stencil_type' in the algorithm layer but "
+            "found '4'" in str(excinfo.value) or "The invoke kernel functor "
             "'testkern_stencil_type' has 4 arguments, but the kernel "
             "metadata expects there to be 5 arguments." in str(excinfo.value))
 
