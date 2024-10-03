@@ -50,7 +50,8 @@ from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Routine, FileContainer, IntrinsicCall, Call
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import ACCRoutineTrans, Dynamo0p3KernelConstTrans
+from psyclone.transformations import (
+    ACCRoutineTrans, OMPDeclareTargetTrans, Dynamo0p3KernelConstTrans)
 
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -428,6 +429,24 @@ def test_gpumixin_validate_no_call():
             "and therefore cannot have ACCRoutineTrans applied to it "
             "(TODO #342)."
             in str(err.value))
+
+
+@pytest.mark.parametrize(
+    "rtrans, expected_directive",
+    [(ACCRoutineTrans(), "!$acc routine"),
+     (OMPDeclareTargetTrans(), "!$omp declare target")])
+def test_kernel_gpu_annotation_trans(rtrans, expected_directive,
+                                     fortran_writer):
+    ''' Check that the kernel GPU annotation transformations insert the
+    porper directive into the kernel '''
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
+    sched = invoke.schedule
+    kern = sched.coded_kernels()[0]
+    rtrans.apply(kern)
+
+    # Check that the directive has been added to the kernel code
+    code = fortran_writer(kern.get_kernel_schedule())
+    assert expected_directive in code
 
 
 def test_1kern_trans(kernel_outputdir):
