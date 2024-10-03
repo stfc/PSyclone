@@ -231,9 +231,11 @@ def test_reference_next_access(fortran_reader):
     b = routine.children[1].lhs
     a_2 = routine.children[2].lhs
     b_2 = routine.children[2].rhs
-    assert a.next_access() is a_2
-    assert b.next_access() is b_2
-    assert a_2.next_access() is None
+    assert len(a.next_access()) == 1
+    assert a.next_access()[0] is a_2
+    assert len(b.next_access()) == 1
+    assert b.next_access()[0] is b_2
+    assert len(a_2.next_access()) == 0
 
     code = '''subroutine my_sub()
     integer :: a
@@ -249,8 +251,10 @@ def test_reference_next_access(fortran_reader):
     loop = routine.children[1]
     b_a = loop.loop_body.children[0].lhs
     a_2 = loop.loop_body.children[0].rhs
-    assert a.next_access() is loop
-    assert b_a.next_access() is None
+    assert len(a.next_access()) == 1
+    assert a.next_access()[0] is loop
+    assert len(b_a.next_access()) == 1
+    assert b_a.next_access()[0] == b_a
 
     # Check the function for basic structures
     code = '''subroutine my_sub()
@@ -270,10 +274,12 @@ def test_reference_next_access(fortran_reader):
     b = routine.children[1].lhs
     a_2 = routine.children[2].lhs
     b_2 = routine.children[3].lhs
-    assert a.next_access() is a_2
-    assert b.next_access() is b_2
-    assert a_2.next_access() is None
-    assert b_2.next_access() is None
+    assert len(a.next_access()) == 1
+    assert len(b.next_access()) == 1
+    assert a.next_access()[0] is a_2
+    assert b.next_access()[0] is b_2
+    assert len(a_2.next_access()) == 0
+    assert len(b_2.next_access()) == 0
 
     # Check the function for array access
     code = '''subroutine my_sub()
@@ -285,8 +291,9 @@ def test_reference_next_access(fortran_reader):
     routine = psyir.children[0]
     a = routine.children[0].lhs
     a_2 = routine.children[1].lhs
-    assert a.next_access() is a_2
-    assert a_2.next_access() is None
+    assert len(a.next_access()) == 1
+    assert a.next_access()[0] is a_2
+    assert len(a_2.next_access()) == 0
 
     # Check if statements don't affect
     code = '''subroutine my_sub()
@@ -303,9 +310,12 @@ def test_reference_next_access(fortran_reader):
     a = routine.children[0].lhs
     a_2 = routine.children[1].if_body.children[0].lhs
     a_3 = routine.children[2].lhs
-    assert a.next_access() is a_2
-    assert a_2.next_access() is a_3
-    assert a_3.next_access() is None
+    assert len(a.next_access()) == 2
+    assert a.next_access()[0] is a_2
+    assert a.next_access()[1] is a_3
+    assert len(a_2.next_access()) == 1
+    assert a_2.next_access()[0] is a_3
+    assert len(a_3.next_access()) == 0
 
     # Check else block behaviour
     code = '''subroutine my_sub()
@@ -325,10 +335,12 @@ def test_reference_next_access(fortran_reader):
     a_2 = routine.children[1].if_body.children[0].lhs
     a_3 = routine.children[1].else_body.children[0].lhs
     a_4 = routine.children[2].lhs
-    assert a.next_access() is a_2
-    assert a_2.next_access() is a_3
-    assert a_3.next_access() is a_4
-    assert a_4.next_access() is None
+    assert a.next_access()[0] is a_2
+    assert a.next_access()[1] is a_3
+    assert a.next_access()[2] is a_4
+    assert a_2.next_access()[0] is a_4
+    assert a_3.next_access()[0] is a_4
+    assert len(a_4.next_access()) == 0
 
 
 def test_reference_next_access_with_codeblock(fortran_reader):
@@ -487,10 +499,10 @@ end module my_mod'''
     symbols = sym_tab.get_symbols()
     b_sym = symbols['b']
     refs = b_sym.initial_value.walk(Reference)
-    assert refs[0].next_access() == refs[1]
+    assert refs[0].next_access()[0] == refs[1]
     assert refs[1].previous_access() == refs[0]
     assert refs[0].previous_access() is None
-    assert refs[1].next_access() is None
+    assert len(refs[1].next_access()) == 0
 
 
 def test_reference_previous_access_with_codeblock(fortran_reader):

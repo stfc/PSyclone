@@ -201,9 +201,9 @@ def test_definition_use_chain_compute_forward_uses(fortran_reader):
     assert len(duc.killed) == 0
     assert duc.defsout[0] is psyir.walk(Reference)[2]  # The lhs of a = 2
 
-    # Finally test a Reference with a write then another write - the defsout should
-    # be the final write and the first write should be killed. The use in b=a is after
-    # a write so we should ignore it.
+    # Finally test a Reference with a write then another write.
+    # The defsout should be the final write and the first write should be
+    # killed. The use in b=a is after a write so we should ignore it.
     code = """
     subroutine x()
     integer :: a, b, c
@@ -220,7 +220,8 @@ def test_definition_use_chain_compute_forward_uses(fortran_reader):
         a_1, control_flow_region=[routine], is_local=False
     )
     basic_block_list = routine.children[:]
-    # Need to set the start point and stop points similar to what forward_accesses would do
+    # Need to set the start point and stop points similar to what
+    # forward_accesses would do
     duc._start_point = a_1.ancestor(Assignment).walk(Node)[-1].abs_position
     duc._stop_point = 100000000
     duc._compute_forward_uses(basic_block_list)
@@ -273,7 +274,8 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
 
     # Try for the basic blocks in the if_body
     cfn, blocks = duc._find_basic_blocks(ifblock.if_body.children[:])
-    # Our blocks are the first assignment, the start/top/step expressions and the loop body.
+    # Our blocks are the first assignment, the start/top/step expressions
+    # and the loop body.
     assert len(cfn) == 3
     assert cfn[0] is None
     assert cfn[1] is None
@@ -287,10 +289,11 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
     assert blocks[1][2] is ifblock.if_body.children[1].step_expr
     assert blocks[2] == ifblock.if_body.children[1].loop_body.children[:]
 
-    # Try for the basic blocks in the else_body. Since else if we have a nested if.
+    # Try for the basic blocks in the else_body. Since else if we have a
+    # nested if.
     cfn, blocks = duc._find_basic_blocks(ifblock.else_body.children[:])
     assert len(cfn) == 2
-    assert cfn[0] == None
+    assert cfn[0] is None
     assert cfn[1] is ifblock.else_body.children[0]
     assert len(blocks) == 2
     assert blocks[0][0] is ifblock.else_body.children[0].condition
@@ -300,10 +303,10 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
     ifblock2 = ifblock.else_body.children[0]
     cfn, blocks = duc._find_basic_blocks(ifblock2.if_body.children[:])
     assert len(cfn) == 4
-    assert cfn[0] == None
-    assert cfn[1] == None
+    assert cfn[0] is None
+    assert cfn[1] is None
     assert cfn[2] is ifblock2.if_body.children[1]
-    assert cfn[3] == None
+    assert cfn[3] is None
     assert len(blocks) == 4
     assert blocks[0][0] is ifblock2.if_body.children[0]
     assert blocks[1][0] is ifblock2.if_body.children[1].condition
@@ -314,7 +317,8 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
 def test_definition_use_chain_find_forward_accesses_basic_example(
     fortran_reader,
 ):
-    # Now we're essentially doing tests of the full functionality gives the expected results.
+    # Now we're essentially doing tests of the full functionality
+    # gives the expected results.
 
     code = """
 subroutine foo(a, b)
@@ -346,7 +350,7 @@ end subroutine bar
     chains = DefinitionUseChain(
         routine.children[0].children[1].children[0], [routine]
     )
-    reaches = chains._find_forward_accesses()
+    reaches = chains.find_forward_accesses()
     # We find 3 results
     # the a in e = a**2
     # the a in c = d * a
@@ -358,7 +362,7 @@ end subroutine bar
 
     # Create use chain for d in d = c + 2.0
     chains = DefinitionUseChain(routine.children[3].lhs, [routine])
-    reaches = chains._find_forward_accesses()
+    reaches = chains.find_forward_accesses()
     # We should find 2 results
     # c = D * a
     # b = c + D
@@ -368,7 +372,7 @@ end subroutine bar
 
     # Create use chain for c in c = d * a
     chains = DefinitionUseChain(routine.children[4].lhs, [routine])
-    reaches = chains._find_forward_accesses()
+    reaches = chains.find_forward_accesses()
     # 2 results:
     # b = C + d
     # call bar(c, d)
@@ -392,7 +396,7 @@ def test_definition_use_chain_find_forward_accesses_assignment(
     routine = psyir.walk(Routine)[0]
     # Start chain from A = 1
     chains = DefinitionUseChain(routine.children[0].lhs)
-    reaches = chains._find_forward_accesses()
+    reaches = chains.find_forward_accesses()
     # We should find 3 results, all 3 references in
     # A = A * A
     assert len(reaches) == 3
@@ -421,15 +425,23 @@ def test_definition_use_chain_find_forward_accesses_ifelse_example(
     routine = psyir.walk(Routine)[0]
     # Start the chain from a = 1.
     chains = DefinitionUseChain(routine.children[0].lhs)
-    reaches = chains._find_forward_accesses()
-    # TODO For now the if statement doesn't kill the accesses, even though it will
-    # always be written to.
+    reaches = chains.find_forward_accesses()
+    # TODO For now the if statement doesn't kill the accesses,
+    # even though it will always be written to.
     # FIXME Add issue to the previous comment
     assert len(reaches) == 4
     assert reaches[0] is routine.children[1].rhs.children[0]
     assert reaches[1] is routine.children[2].if_body.children[0].lhs
     assert reaches[2] is routine.children[2].else_body.children[0].lhs
     assert reaches[3] is routine.children[3].rhs.children[0]
+
+    # Also check that a = 3 forward access is not a = 4.
+    a_3 = routine.children[2].if_body.children[0].lhs
+    a_4 = routine.children[2].else_body.children[0].rhs
+    chains = DefinitionUseChain(a_3)
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 1
+    assert reaches[0] is not a_4
 
 
 def test_definition_use_chain_find_forward_accesses_loop_example(
@@ -453,7 +465,7 @@ def test_definition_use_chain_find_forward_accesses_loop_example(
     chains = DefinitionUseChain(
         routine.children[1].loop_body.children[1].rhs.children[0]
     )
-    reaches = chains._find_forward_accesses()
+    reaches = chains.find_forward_accesses()
     # We should have 3 reaches
     # First two are A = A + i
     # Second is c = a + b
@@ -483,7 +495,7 @@ def test_definition_use_chain_find_forward_accesses_loop_example(
     chains = DefinitionUseChain(
         routine.children[0].lhs
     )
-    reaches = chains._find_forward_accesses()
+    reaches = chains.find_forward_accesses()
     # We should have 1 reaches
     # It should be the loop
     assert len(reaches) == 1
@@ -507,7 +519,7 @@ def test_definition_use_chain_find_forward_accesses_while_loop_example(
     routine = psyir.walk(Routine)[0]
     # Start the chain from A = a + 3.
     chains = DefinitionUseChain(routine.children[2].loop_body.children[0].lhs)
-    reaches = chains._find_forward_accesses()
+    reaches = chains.find_forward_accesses()
 
     assert len(reaches) == 3
     assert reaches[0] is routine.children[2].condition.children[0]
@@ -530,5 +542,5 @@ def test_definition_use_chain_find_forward_accesses_structure_example(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     chains = DefinitionUseChain(routine.children[0].lhs)
-    reaches = chains._find_forward_accesses()
+    reaches = chains.find_forward_accesses()
     assert len(reaches) == 0

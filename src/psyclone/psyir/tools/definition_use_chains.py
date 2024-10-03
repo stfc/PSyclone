@@ -148,7 +148,7 @@ class DefinitionUseChain:
                 return False
         return True
 
-    def _find_forward_accesses(self):
+    def find_forward_accesses(self):
         """
         Find all the forward accesses for the reference defined in this
         DefinitionUseChain.
@@ -162,8 +162,8 @@ class DefinitionUseChain:
                   DefinitionUseChain
         :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
         """
-        # FIXME If all defsout is in control flow we should add a None into the defsout
-        # array.
+        # FIXME If all defsout is in control flow we should add a None into
+        # the defsout array.
         # Find the position of the Reference's highest-level parent in
         # the Routine.
         routine = self._reference.ancestor(Routine)
@@ -284,7 +284,7 @@ class DefinitionUseChain:
 
             for i, chain in enumerate(chains):
                 # Compute the defsout, killed and reaches for the block.
-                chain._find_forward_accesses()
+                chain.find_forward_accesses()
                 cfn = control_flow_nodes[i]
 
                 if cfn is None:
@@ -365,7 +365,7 @@ class DefinitionUseChain:
                         stop_point=ancestor.lhs.abs_position + 1,
                     )
                     # Find any forward_accesses in the lhs.
-                    chain._find_forward_accesses()
+                    chain.find_forward_accesses()
                     for ref in chain._reaches:
                         # Add unique references to reaches. Can't just check
                         # with "in" as unique references can be equal if
@@ -608,7 +608,16 @@ class DefinitionUseChain:
                 basic_blocks.append([node.condition])
                 control_flow_nodes.append(node)
                 basic_blocks.append(node.if_body.children[:])
-                if node.else_body:
+                # Check if the node is in the if_body
+                in_if_body = False
+                # FIXME We could potentially optimise this loop if its
+                # expensive
+                refs = node.if_body.walk(Reference)
+                for ref in refs:
+                    if ref is self._reference:
+                        in_if_body = True
+                        break
+                if node.else_body and not in_if_body:
                     control_flow_nodes.append(node)
                     basic_blocks.append(node.else_body.children[:])
             else:
