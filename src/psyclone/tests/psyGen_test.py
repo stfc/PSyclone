@@ -466,8 +466,10 @@ def test_kern_get_kernel_schedule():
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
-    kern_schedule = kern.get_kernel_schedule()
-    assert isinstance(kern_schedule, KernelSchedule)
+    sym, kern_schedules = kern.get_kernel_schedule()
+    assert sym is None
+    assert len(kern_schedules) == 1
+    assert isinstance(kern_schedules[0], KernelSchedule)
 
 
 def test_codedkern_node_str():

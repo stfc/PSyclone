@@ -81,7 +81,9 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
 
     # Add some name conflicting symbols in the Invoke and the Kernel
     kernel.ancestor(Container).symbol_table.new_symbol("xstop")
-    kernel.get_kernel_schedule().symbol_table.new_symbol("ystart")
+    _, routines = kernel.get_kernel_schedule()
+    ksched = routines[0]
+    ksched.symbol_table.new_symbol("ystart")
 
     # Apply the transformation
     trans = GOMoveIterationBoundariesInsideKernelTrans()
@@ -118,7 +120,8 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
     assert kernel.arguments.args[-1].argument_type == "scalar"
 
     # Check that the kernel subroutine has been transformed:
-    kschedule = kernel.get_kernel_schedule()
+    _, kschedules = kernel.get_kernel_schedule()
+    kschedule = kschedules[0]
 
     # - It has the boundary conditions mask
     assert isinstance(kschedule.children[0], IfBlock)

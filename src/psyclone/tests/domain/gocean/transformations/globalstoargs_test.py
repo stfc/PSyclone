@@ -220,7 +220,8 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch):
     trans.apply(kernel)
 
     fwriter = FortranWriter()
-    kernel_code = fwriter(kernel.get_kernel_schedule())
+    _, kernels = kernel.get_kernel_schedule()
+    kernel_code = fwriter(kernels[0])
 
     assert ("subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
             "magic)" in kernel_code)
@@ -298,7 +299,8 @@ def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
     monkeypatch.setattr(DataSymbol, "resolve_type", create_data_symbol)
 
     for num, kernel in enumerate(invoke.schedule.coded_kernels()):
-        kschedule = kernel.get_kernel_schedule()
+        _, kernels = kernel.get_kernel_schedule()
+        kschedule = kernels[0]
 
         trans.apply(kernel)
 

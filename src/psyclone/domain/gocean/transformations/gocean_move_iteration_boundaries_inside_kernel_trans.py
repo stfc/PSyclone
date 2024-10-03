@@ -109,6 +109,12 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
                 f"can only be applied to 'GOKern' nodes, but found "
                 f"'{type(node).__name__}'.")
 
+        _, kschedules = node.get_kernel_schedule()
+        if len(kschedules) > 1:
+            raise TransformationError(
+                f"Error in {self.name} transformation. Polymorphic kernels "
+                f"are not supported but kernel '{node.name}' corresponds to ")
+
     def apply(self, node, options=None):
         '''Apply this transformation to the supplied node.
 
@@ -180,7 +186,9 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         outer_loop.iteration_space = "go_all_pts"
 
         # Update Kernel
-        kschedule = node.get_kernel_schedule()
+        _, kschedules = node.get_kernel_schedule()
+        # validate() has checked that this kernel is not polymorphic.
+        kschedule = kschedules[0]
         kernel_st = kschedule.symbol_table
         iteration_indices = kernel_st.iteration_indices
         data_arguments = kernel_st.data_arguments

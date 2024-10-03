@@ -405,7 +405,7 @@ class MarkRoutineForGPUMixin:
             # or that the frontend failed to convert it into PSyIR) reraise it
             # as a TransformationError
             try:
-                kernel_schedule = node.get_kernel_schedule()
+                _, kernel_schedules = node.get_kernel_schedule()
             except Exception as error:
                 raise TransformationError(
                     f"Failed to create PSyIR for kernel '{node.name}'. "
@@ -414,72 +414,73 @@ class MarkRoutineForGPUMixin:
             k_or_r = "Kernel"
         else:
             # Supplied node is a PSyIR Routine which *is* a Schedule.
-            kernel_schedule = node
+            kernel_schedules = [node]
             k_or_r = "routine"
 
         # Check that the routine does not access any data that is imported via
         # a 'use' statement.
         # TODO #2271 - this implementation will not catch symbols from literal
         # precisions or intialisation expressions.
-        refs = kernel_schedule.walk(Reference)
-        for ref in refs:
-            if ref.symbol.is_import:
-                # resolve_type does nothing if the Symbol type is known.
-                try:
-                    ref.symbol.resolve_type()
-                except (SymbolError, FileNotFoundError):
-                    # TODO #11 - log that we failed to resolve this Symbol.
-                    pass
-                if (isinstance(ref.symbol, DataSymbol) and
-                        ref.symbol.is_constant):
-                    # An import of a compile-time constant is fine.
-                    continue
-                raise TransformationError(
-                    f"{k_or_r} '{node.name}' accesses the symbol "
-                    f"'{ref.symbol}' which is imported. If this symbol "
-                    f"represents data then it must first be converted to a "
-                    f"{k_or_r} argument using the KernelImportsToArguments "
-                    f"transformation.")
+        for ksched in kernel_schedules:
+            refs = ksched.walk(Reference)
+            for ref in refs:
+                if ref.symbol.is_import:
+                    # resolve_type does nothing if the Symbol type is known.
+                    try:
+                        ref.symbol.resolve_type()
+                    except (SymbolError, FileNotFoundError):
+                        # TODO #11 - log that we failed to resolve this Symbol.
+                        pass
+                    if (isinstance(ref.symbol, DataSymbol) and
+                            ref.symbol.is_constant):
+                        # An import of a compile-time constant is fine.
+                        continue
+                    raise TransformationError(
+                        f"{k_or_r} '{node.name}' accesses the symbol "
+                        f"'{ref.symbol}' which is imported. If this symbol "
+                        f"represents data then it must first be converted to a"
+                        f" {k_or_r} argument using the "
+                        f"KernelImportsToArguments transformation.")
 
-        # We forbid CodeBlocks because we can't be certain that what they
-        # contain can be executed on a GPU. However, we do permit the user
-        # to override this check.
-        cblocks = kernel_schedule.walk(CodeBlock)
-        if not force:
-            if cblocks:
-                cblock_txt = ("\n  " + "\n  ".join(str(node) for node in
-                                                   cblocks[0].get_ast_nodes)
-                              + "\n")
-                option_txt = "options={'force': True}"
-                raise TransformationError(
-                    f"Cannot safely apply {type(self).__name__} to {k_or_r} "
-                    f"'{node.name}' because its PSyIR contains one or more "
-                    f"CodeBlocks:{cblock_txt}You may use '{option_txt}' to "
-                    f"override this check.")
-        else:
-            # Check any accesses within CodeBlocks.
-            # TODO #2271 - this will be handled as part of the checking to be
-            # implemented using the dependence analysis.
-            for cblock in cblocks:
-                names = cblock.get_symbol_names()
-                for name in names:
-                    sym = kernel_schedule.symbol_table.lookup(name)
-                    if sym.is_import:
-                        raise TransformationError(
-                            f"{k_or_r} '{node.name}' accesses the symbol "
-                            f"'{sym.name}' within a CodeBlock and this symbol "
-                            f"is imported. {type(self).__name__} cannot be "
-                            f"applied to such a {k_or_r}.")
+            # We forbid CodeBlocks because we can't be certain that what they
+            # contain can be executed on a GPU. However, we do permit the user
+            # to override this check.
+            cblocks = ksched.walk(CodeBlock)
+            if not force:
+                if cblocks:
+                    cblock_txt = ("\n  " + "\n  ".join(
+                        str(node) for node in cblocks[0].get_ast_nodes)
+                                  + "\n")
+                    option_txt = "options={'force': True}"
+                    raise TransformationError(
+                        f"Cannot safely apply {type(self).__name__} to {k_or_r} "
+                        f"'{node.name}' because its PSyIR contains one or more "
+                        f"CodeBlocks:{cblock_txt}You may use '{option_txt}' to "
+                        f"override this check.")
+            else:
+                # Check any accesses within CodeBlocks.
+                # TODO #2271 - this will be handled as part of the checking to be
+                # implemented using the dependence analysis.
+                for cblock in cblocks:
+                    names = cblock.get_symbol_names()
+                    for name in names:
+                        sym = ksched.symbol_table.lookup(name)
+                        if sym.is_import:
+                            raise TransformationError(
+                                f"{k_or_r} '{node.name}' accesses the symbol "
+                                f"'{sym.name}' within a CodeBlock and this symbol "
+                                f"is imported. {type(self).__name__} cannot be "
+                                f"applied to such a {k_or_r}.")
 
-        calls = kernel_schedule.walk(Call)
-        for call in calls:
-            if not call.is_available_on_device():
-                call_str = call.debug_string().rstrip("\n")
-                raise TransformationError(
-                    f"{k_or_r} '{node.name}' calls another routine "
-                    f"'{call_str}' which is not available on the "
-                    f"accelerator device and therefore cannot have "
-                    f"{type(self).__name__} applied to it (TODO #342).")
+            calls = ksched.walk(Call)
+            for call in calls:
+                if not call.is_available_on_device():
+                    call_str = call.debug_string().rstrip("\n")
+                    raise TransformationError(
+                        f"{k_or_r} '{node.name}' calls another routine "
+                        f"'{call_str}' which is not available on the "
+                        f"accelerator device and therefore cannot have "
+                        f"{type(self).__name__} applied to it (TODO #342).")
 
 
 class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
@@ -2264,58 +2265,59 @@ class Dynamo0p3KernelConstTrans(Transformation):
         arg_list_info = KernCallArgList(kernel)
         arg_list_info.generate()
         try:
-            kernel_schedule = kernel.get_kernel_schedule()
+            _, kernel_schedules = kernel.get_kernel_schedule()
         except NotImplementedError as excinfo:
             raise TransformationError(
                 f"Failed to parse kernel '{kernel.name}'. Error reported was "
                 f"'{excinfo}'.") from excinfo
 
-        symbol_table = kernel_schedule.symbol_table
-        if number_of_layers:
-            make_constant(symbol_table, arg_list_info.nlayers_positions[0],
-                          number_of_layers)
+        for kernel_schedule in kernel_schedules:
+            symbol_table = kernel_schedule.symbol_table
+            if number_of_layers:
+                make_constant(symbol_table, arg_list_info.nlayers_positions[0],
+                              number_of_layers)
 
-        if quadrature and arg_list_info.nqp_positions:
-            # TODO #705 - support the transformation of kernels requiring
-            # other quadrature types (face/edge, multiple).
-            if kernel.eval_shapes == ["gh_quadrature_xyoz"]:
-                make_constant(symbol_table,
-                              arg_list_info.nqp_positions[0]["horizontal"],
-                              element_order+3)
-                make_constant(symbol_table,
-                              arg_list_info.nqp_positions[0]["vertical"],
-                              element_order+3)
-            else:
-                raise TransformationError(
-                    f"Error in Dynamo0p3KernelConstTrans transformation. "
-                    f"Support is currently limited to 'xyoz' quadrature but "
-                    f"found {kernel.eval_shapes}.")
-
-        const = LFRicConstants()
-        if element_order is not None:
-            # Modify the symbol table for degrees of freedom here.
-            for info in arg_list_info.ndf_positions:
-                if (info.function_space.lower() in
-                        (const.VALID_ANY_SPACE_NAMES +
-                         const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES +
-                         ["any_w2"])):
-                    # skip any_space_*, any_discontinuous_space_* and any_w2
-                    print(f"    Skipped dofs, arg position {info.position}, "
-                          f"function space {info.function_space}")
+            if quadrature and arg_list_info.nqp_positions:
+                # TODO #705 - support the transformation of kernels requiring
+                # other quadrature types (face/edge, multiple).
+                if kernel.eval_shapes == ["gh_quadrature_xyoz"]:
+                    make_constant(symbol_table,
+                                  arg_list_info.nqp_positions[0]["horizontal"],
+                                  element_order+3)
+                    make_constant(symbol_table,
+                                  arg_list_info.nqp_positions[0]["vertical"],
+                                  element_order+3)
                 else:
-                    try:
-                        ndofs = Dynamo0p3KernelConstTrans. \
-                                space_to_dofs[
-                                    info.function_space](element_order)
-                    except KeyError as err:
-                        raise InternalError(
-                            f"Error in Dynamo0p3KernelConstTrans "
-                            f"transformation. Unsupported function space "
-                            f"'{info.function_space}' found. Expecting one of "
-                            f"""{Dynamo0p3KernelConstTrans.
-                                 space_to_dofs.keys()}.""") from err
-                    make_constant(symbol_table, info.position, ndofs,
-                                  function_space=info.function_space)
+                    raise TransformationError(
+                        f"Error in Dynamo0p3KernelConstTrans transformation. "
+                        f"Support is currently limited to 'xyoz' quadrature but "
+                        f"found {kernel.eval_shapes}.")
+
+            const = LFRicConstants()
+            if element_order is not None:
+                # Modify the symbol table for degrees of freedom here.
+                for info in arg_list_info.ndf_positions:
+                    if (info.function_space.lower() in
+                            (const.VALID_ANY_SPACE_NAMES +
+                             const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES +
+                             ["any_w2"])):
+                        # skip any_space_*, any_discontinuous_space_* and any_w2
+                        print(f"    Skipped dofs, arg position {info.position}, "
+                              f"function space {info.function_space}")
+                    else:
+                        try:
+                            ndofs = Dynamo0p3KernelConstTrans. \
+                                    space_to_dofs[
+                                        info.function_space](element_order)
+                        except KeyError as err:
+                            raise InternalError(
+                                f"Error in Dynamo0p3KernelConstTrans "
+                                f"transformation. Unsupported function space "
+                                f"'{info.function_space}' found. Expecting one of "
+                                f"""{Dynamo0p3KernelConstTrans.
+                                     space_to_dofs.keys()}.""") from err
+                        make_constant(symbol_table, info.position, ndofs,
+                                      function_space=info.function_space)
 
         # Flag that the kernel has been modified
         kernel.modified = True
@@ -2568,18 +2570,19 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
             node.modified = True
 
             # Get the schedule representing the kernel subroutine
-            routine = node.get_kernel_schedule()
+            sym, routines = node.get_kernel_schedule()
         else:
-            routine = node
-
-        # Insert the directive to the routine if it doesn't already exist
-        for child in routine.children:
-            if isinstance(child, ACCRoutineDirective):
-                return  # The routine is already marked with ACCRoutine
+            routines = [node]
 
         para = options.get("parallelism", "seq") if options else "seq"
+        for routine in routines:
+            # Insert the directive to the routine if it doesn't already exist
+            for child in routine.children:
+                if isinstance(child, ACCRoutineDirective):
+                    return  # The routine is already marked with ACCRoutine
 
-        routine.children.insert(0, ACCRoutineDirective(parallelism=para))
+            routine.children.insert(
+                0, ACCRoutineDirective(parallelism=para))
 
     def validate(self, node, options=None):
         '''
@@ -2786,10 +2789,12 @@ class KernelImportsToArguments(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a CodedKern.
-        :raises TransformationError: if this transformation is not applied to \
+        :raises TransformationError: if this transformation is not applied to
             a Gocean API Invoke.
-        :raises TransformationError: if the supplied kernel contains wildcard \
-            imports of symbols from one or more containers (e.g. a USE without\
+        :raises TransformationError: if the supplied node is a polymorphic
+            Kernel.
+        :raises TransformationError: if the supplied kernel contains wildcard
+            imports of symbols from one or more containers (e.g. a USE without
             an ONLY clause in Fortran).
         '''
         if not isinstance(node, CodedKern):
@@ -2806,19 +2811,26 @@ class KernelImportsToArguments(Transformation):
 
         # Check that there are no unqualified imports or undeclared symbols
         try:
-            kernel = node.get_kernel_schedule()
+            _, kernels = node.get_kernel_schedule()
         except SymbolError as err:
             raise TransformationError(
                 f"Kernel '{node.name}' contains undeclared symbol: "
                 f"{err.value}") from err
 
-        symtab = kernel.symbol_table
-        for container in symtab.containersymbols:
-            if container.wildcard_import:
-                raise TransformationError(
-                    f"Kernel '{node.name}' has a wildcard import of symbols "
-                    f"from container '{container.name}'. This is not "
-                    f"supported.")
+        if len(kernels) > 1:
+            raise TransformationError(
+                f"The {self.name} transformation does not support polymorphic "
+                f"kernels but found the following implementations for kernel "
+                f"'{node.name}': {[kern.name for kern in kernels]}")
+
+        for kernel in kernels:
+            symtab = kernel.symbol_table
+            for container in symtab.containersymbols:
+                if container.wildcard_import:
+                    raise TransformationError(
+                        f"Kernel '{node.name}' has a wildcard import of "
+                        f"symbols from container '{container.name}'. This is "
+                        f"not supported.")
 
         # TODO #649. Check for variables accessed by the kernel but declared
         # in an outer scope.
@@ -2838,7 +2850,9 @@ class KernelImportsToArguments(Transformation):
 
         self.validate(node, options)
 
-        kernel = node.get_kernel_schedule()
+        _, kernels = node.get_kernel_schedule()
+        # validate() has ensured that there is only one kernel routine.
+        kernel = kernels[0]
         symtab = kernel.symbol_table
         invoke_symtab = node.ancestor(InvokeSchedule).symbol_table
         count_imported_vars_removed = 0

@@ -1683,7 +1683,8 @@ class CodedKern(Kern):
         # Start from the root of the schedule as we want to output
         # any module information surrounding the kernel subroutine
         # as well as the subroutine itself.
-        new_kern_code = fortran_writer(self.get_kernel_schedule().root)
+        _, schedules = self.get_kernel_schedule()
+        new_kern_code = fortran_writer(schedules[0].root)
         fll = FortLineLength()
         new_kern_code = fll.process(new_kern_code)
 
@@ -1722,9 +1723,10 @@ class CodedKern(Kern):
 
         '''
         # We need to get the kernel schedule before modifying self.name.
-        # If the kernel corresponds to an interface, this will get the
-        # implementation that is actually being called.
-        kern_schedule = self.get_kernel_schedule()
+        _, kern_schedules = self.get_kernel_schedule()
+        if len(kern_schedules) > 1:
+            raise NotImplementedError("TODO")
+        kern_schedule = kern_schedules[0]
         container = kern_schedule.ancestor(Container)
 
         # Use the suffix to create a new kernel name.  This will

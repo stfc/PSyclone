@@ -192,7 +192,10 @@ class GOOpenCLTrans(Transformation):
         # any form of global data (that is not a routine argument).
         for kern in node.kernels():
             KernelModuleInlineTrans().validate(kern)
-            ksched = kern.get_kernel_schedule()
+            _, kschedules = kern.get_kernel_schedule()
+            if len(kschedules) > 1:
+                raise TransformationError("TODO")
+            ksched = kschedules[0]
             global_variables = ksched.symbol_table.imported_symbols
             if global_variables:
                 raise TransformationError(
@@ -749,7 +752,9 @@ class GOOpenCLTrans(Transformation):
 
         # Create a copy of the kernel and remove precision symbols since they
         # are not supported in the OpenCL backend.
-        kernel_copy = kernel.get_kernel_schedule().copy()
+        _, schedules = kernel.get_kernel_schedule()
+        # validate() has checked that the kernel is not polymorphic.
+        kernel_copy = schedules[0].copy()
         symtab = kernel_copy.symbol_table
 
         # TODO #898: Removing symbols is not properly supported by PSyIR
