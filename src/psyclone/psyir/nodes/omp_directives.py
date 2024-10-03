@@ -2388,7 +2388,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # Add directive to the f2pygen tree
         parent.add(
             DirectiveGen(
-                parent, "omp", "begin", self.begin_string()[4:], " ".join(
+                parent, "omp", "begin", self._directive_string, ", ".join(
                     text for text in [default_str, private_str, fprivate_str,
                                       schedule_str, self._reduction_string()]
                     if text)))
