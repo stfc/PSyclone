@@ -709,12 +709,11 @@ class LFRicKern(CodedKern):
 
         new_schedules = []
         for sched in routines:
-            
             # TODO #935 - replace the PSyIR argument data symbols with LFRic data
             # symbols. For the moment we just return the unmodified PSyIR schedule
             # but this should use RaisePSyIR2LFRicKernTrans once KernelInterface
             # is fully functional (#928).
-            ksched = KernelSchedule(sched.name,
+            ksched = KernelSchedule(sched.symbol,
                                     symbol_table=sched.symbol_table.detach())
             for child in sched.pop_all_children():
                 ksched.addchild(child)

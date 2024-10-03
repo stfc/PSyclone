@@ -41,7 +41,6 @@
 
 import pytest
 
-from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir import nodes, symbols
 from psyclone.psyir.nodes import Routine
 from psyclone.tests.utilities import Compile
@@ -89,14 +88,6 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
         "end subroutine tmp\n")
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
-    # Repeat for the situation where the 'own_routine_symbol' is not present
-    # in the Routine's symbol table.
-    routine = psyir.walk(nodes.Routine)[0]
-    rsym = routine.symbol_table.lookup_with_tag("own_routine_symbol")
-    assert isinstance(rsym, symbols.RoutineSymbol)
-    routine.symbol_table.remove(rsym)
-    result = fortran_writer(schedule)
-    assert expected in result
 
     # Add distinctly named symbols in the routine sub-scopes
     sub_scopes = schedule.walk(nodes.Schedule)[1:]
@@ -138,11 +129,6 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
         "  integer :: symbol1_1\n"
         "\n") in result
     assert Compile(tmpdir).string_compiles(result)
-
-    monkeypatch.setattr(schedule, "_name", None)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer(schedule)
-    assert "Expected node name to have a value." in str(excinfo.value)
 
 
 def test_fw_routine_nameclash(fortran_writer):
@@ -369,8 +355,7 @@ def test_fw_routine_prefixes(fortran_reader, fortran_writer):
     container = fortran_reader.psyir_from_source(code)
     output = fortran_writer(container)
     routine = container.walk(Routine)[0]
-    rsym = routine.symbol_table.lookup_with_tag("own_routine_symbol",
-                                                scope_limit=routine)
+    rsym = routine._symbol
     assert rsym.is_elemental
     assert rsym.is_pure is None
     assert "elemental" in output
@@ -385,8 +370,7 @@ def test_fw_routine_prefixes(fortran_reader, fortran_writer):
     container = fortran_reader.psyir_from_source(code)
     output = fortran_writer(container)
     routine = container.walk(Routine)[0]
-    rsym = routine.symbol_table.lookup_with_tag("own_routine_symbol",
-                                                scope_limit=routine)
+    rsym = routine._symbol
     assert not rsym.is_elemental
     assert rsym.is_pure
     assert "pure" in output
@@ -399,8 +383,7 @@ def test_fw_routine_prefixes(fortran_reader, fortran_writer):
     container = fortran_reader.psyir_from_source(code)
     output = fortran_writer(container)
     routine = container.walk(Routine)[0]
-    rsym = routine.symbol_table.lookup_with_tag("own_routine_symbol",
-                                                scope_limit=routine)
+    rsym = routine._symbol
     assert rsym.is_elemental
     assert not rsym.is_pure
     assert "impure elemental" in output
@@ -468,3 +451,25 @@ def test_fw_routine_prefixes_nomodule(fortran_reader, fortran_writer):
     container = fortran_reader.psyir_from_source(code)
     output = fortran_writer(container)
     assert "impure elemental subroutine sub" in output
+
+
+def test_fw_standalone_routine(fortran_reader, fortran_writer):
+    '''
+    Test for a routine that is not part of a PSyIR tree.
+    '''
+    code = '''subroutine sub()
+    integer :: a
+    a = 1
+    end subroutine sub'''
+    container = fortran_reader.psyir_from_source(code)
+    routine = container.children[0]
+    routine.detach()
+    output = fortran_writer(routine)
+    correct = '''subroutine sub()
+  integer :: a
+
+  a = 1
+
+end subroutine sub
+'''
+    assert correct == output

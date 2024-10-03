@@ -53,7 +53,7 @@ def test_parameter_statements_work():
     constant_value symbol attribute. '''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 
@@ -116,7 +116,7 @@ def test_parameter_statements_complex_case_work():
     references between them. '''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 
@@ -148,7 +148,7 @@ def test_parameter_statements_with_unsupported_symbols():
     with an appropriate error message is produced.'''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 
