@@ -443,10 +443,10 @@ def test_profile_fused_kernels_dynamo0p3():
     expected = '''\
     CALL profile_psy_data % PreStart("multi_invoke_psy", "invoke_0-r0", 0, 0)
     do cell = loop0_start, loop0_stop, 1
-      call testkern_code(nlayers_v1, a, f1_data, f2_data, m1_data, m2_data, \
+      call testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, m2_data, \
 ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
 undf_w3, map_w3(:,cell))
-      call testkern_code(nlayers_v1, a, f1_data, f3_data, m2_data, m1_data, \
+      call testkern_code(nlayers_f1, a, f1_data, f3_data, m2_data, m1_data, \
 ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
 undf_w3, map_w3(:,cell))
     enddo

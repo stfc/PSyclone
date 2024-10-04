@@ -384,7 +384,7 @@ def test_two_qr_same_shape(tmpdir):
     assert "use field_mod, only : field_proxy_type, field_type" in gen_code
 
     assert ("subroutine invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
-            "n2, qr, qr2)" == gen_code)
+            "n2, qr, qr2)" in gen_code)
     assert "use testkern_qr_mod, only : testkern_qr_code" in gen_code
     assert ("use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, "
             "quadrature_xyoz_type" in gen_code)
@@ -834,7 +834,7 @@ def test_qr_plus_eval(tmpdir):
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "    enddo\n"
         "    do cell = loop5_start, loop5_stop, 1\n"
-        "      call testkern_qr_code(nlayers, f1_data, f2_data, "
+        "      call testkern_qr_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
@@ -899,7 +899,7 @@ def test_two_eval_same_space(tmpdir):
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "    enddo\n"
         "    do cell = loop5_start, loop5_stop, 1\n"
-        "      call testkern_eval_code(nlayers, f2_data, "
+        "      call testkern_eval_code(nlayers_f2, f2_data, "
         "f3_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "    enddo\n"
@@ -982,7 +982,7 @@ def test_two_eval_diff_space(tmpdir):
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "    enddo\n"
         "    do cell = loop9_start, loop9_stop, 1\n"
-        "      call testkern_eval_op_code(cell, nlayers, op1_proxy%ncell_3d,"
+        "      call testkern_eval_op_code(cell, nlayers_op1, op1_proxy%ncell_3d,"
         " op1_local_stencil, f2_data, ndf_w0, ndf_w2, "
         "basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), "
         "diff_basis_w3_on_w0)\n"
@@ -1115,7 +1115,7 @@ def test_two_eval_op_to_space(tmpdir):
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "    enddo\n"
         "    do cell = loop11_start, loop11_stop, 1\n"
-        "      call testkern_eval_op_to_code(cell, nlayers, "
+        "      call testkern_eval_op_to_code(cell, nlayers_f2, "
         "op1_proxy%ncell_3d, op1_local_stencil, f2_data, "
         "ndf_w2, basis_w2_on_w3, diff_basis_w2_on_w3, ndf_w0, ndf_w3, "
         "undf_w3, map_w3(:,cell), diff_basis_w3_on_w3)\n"
@@ -1213,7 +1213,7 @@ def test_eval_diff_nodal_space(tmpdir):
         "undf_w3, map_w3(:,cell), diff_basis_w3_on_w3)\n"
         "    enddo\n"
         "    do cell = loop13_start, loop13_stop, 1\n"
-        "      call testkern_eval_op_to_w0_code(cell, nlayers, "
+        "      call testkern_eval_op_to_w0_code(cell, nlayers_f2, "
         "op1_proxy%ncell_3d, op1_local_stencil, f0_data, "
         "f2_data, ndf_w2, basis_w2_on_w0, diff_basis_w2_on_w0, "
         "ndf_w0, undf_w0, map_w0(:,cell), ndf_w3, undf_w3, map_w3(:,cell), "
@@ -1374,13 +1374,13 @@ def test_2eval_1qr_2fs(tmpdir):
             " map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)\n"
             "    enddo\n"
             "    do cell = loop9_start, loop9_stop, 1\n"
-            "      call testkern_eval_op_code(cell, nlayers, "
+            "      call testkern_eval_op_code(cell, nlayers_op1, "
             "op1_proxy%ncell_3d, op1_local_stencil, m2_data, "
             "ndf_w0, ndf_w2, basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell),"
             " diff_basis_w3_on_w0)\n"
             "    enddo\n"
             "    do cell = loop10_start, loop10_stop, 1\n"
-            "      call testkern_qr_code(nlayers, f1_data, "
+            "      call testkern_qr_code(nlayers_f1, f1_data, "
             "f2_data, m1_data, a, m2_data, istp, ndf_w1, "
             "undf_w1, map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, "
             "map_w2(:,cell), diff_basis_w2_qr, ndf_w3, undf_w3, "
@@ -1839,7 +1839,7 @@ end module dummy_mod
 '''
 
 
-def test_diff_basis_eval():
+def test_diff_basis_eval(fortran_writer):
     ''' Test that differential basis functions are handled correctly
     for kernel stubs with an evaluator.
 
@@ -1848,13 +1848,15 @@ def test_diff_basis_eval():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    generated_code = str(kernel.gen_stub)
+    generated_code = fortran_writer(kernel.gen_stub)
 
     output_args = (
-        "  MODULE dummy_mod\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "module dummy_mod\n"
+        "  implicit none\n"
+        "  public\n"
+        "\n"
+        "  contains\n"
+        "  subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
         "op_10_ncell_3d, op_10, field_11_w2vtrace, op_12_ncell_3d, op_12, "
@@ -1869,88 +1871,86 @@ def test_diff_basis_eval():
         "diff_basis_w2vtrace_on_w2, ndf_w2htrace, "
         "diff_basis_w2htrace_on_w2)\n")
     assert output_args in generated_code
-    output_declns = (
-        "      integer(kind=i_def), intent(in) :: nlayers\n"
-        "      integer(kind=i_def), intent(in) :: ndf_w0\n"
-        "      integer(kind=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      integer(kind=i_def), intent(in) :: ndf_w2\n"
-        "      integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      integer(kind=i_def), intent(in) :: ndf_w2v\n"
-        "      integer(kind=i_def), intent(in), dimension(ndf_w2v) "
-        ":: map_w2v\n"
-        "      integer(kind=i_def), intent(in) :: ndf_w2vtrace\n"
-        "      integer(kind=i_def), intent(in), dimension(ndf_w2vtrace) "
-        ":: map_w2vtrace\n"
-        "      integer(kind=i_def), intent(in) :: ndf_wchi\n"
-        "      integer(kind=i_def), intent(in), dimension(ndf_wchi) "
-        ":: map_wchi\n"
-        "      integer(kind=i_def), intent(in) :: ndf_wtheta\n"
-        "      integer(kind=i_def), intent(in), dimension(ndf_wtheta) "
-        ":: map_wtheta\n"
-        "      integer(kind=i_def), intent(in) :: undf_w0, undf_w2, ndf_w1, "
-        "ndf_w3, undf_wtheta, ndf_w2h, undf_w2v, ndf_w2broken, undf_wchi, "
-        "ndf_w2trace, undf_w2vtrace, ndf_w2htrace\n"
-        "      real(kind=r_def), intent(in), dimension(undf_w0) "
-        ":: field_1_w0\n"
-        "      real(kind=r_def), intent(in), dimension(undf_w2) "
-        ":: field_3_w2\n"
-        "      real(kind=r_def), intent(in), dimension(undf_wtheta) "
-        ":: field_5_wtheta\n"
-        "      real(kind=r_def), intent(in), dimension(undf_w2v) "
-        ":: field_7_w2v\n"
-        "      real(kind=r_def), intent(in), dimension(undf_wchi) "
-        ":: field_9_wchi\n"
-        "      real(kind=r_def), intent(in), dimension(undf_w2vtrace) "
-        ":: field_11_w2vtrace\n"
-        "      integer(kind=i_def), intent(in) :: cell\n"
-        "      integer(kind=i_def), intent(in) :: op_2_ncell_3d\n"
-        "      real(kind=r_def), intent(inout), dimension(ndf_w2,ndf_w1,"
-        "op_2_ncell_3d) :: op_2\n"
-        "      integer(kind=i_def), intent(in) :: op_4_ncell_3d\n"
-        "      real(kind=r_def), intent(in), dimension(ndf_w3,ndf_w3,"
-        "op_4_ncell_3d) :: op_4\n"
-        "      integer(kind=i_def), intent(in) :: op_6_ncell_3d\n"
-        "      real(kind=r_def), intent(in), dimension(ndf_w2h,ndf_w2h,"
-        "op_6_ncell_3d) :: op_6\n"
-        "      integer(kind=i_def), intent(in) :: op_8_ncell_3d\n"
-        "      real(kind=r_def), intent(in), dimension(ndf_w2broken,"
-        "ndf_w2broken,op_8_ncell_3d) :: op_8\n"
-        "      integer(kind=i_def), intent(in) :: op_10_ncell_3d\n"
-        "      real(kind=r_def), intent(in), dimension(ndf_w2trace,"
-        "ndf_w2trace,op_10_ncell_3d) :: op_10\n"
-        "      integer(kind=i_def), intent(in) :: op_12_ncell_3d\n"
-        "      real(kind=r_def), intent(in), dimension(ndf_w2htrace,"
-        "ndf_w2htrace,op_12_ncell_3d) :: op_12\n"
-        "      real(kind=r_def), intent(in), dimension(3,ndf_w0,ndf_w2) "
-        ":: diff_basis_w0_on_w2\n"
-        "      real(kind=r_def), intent(in), dimension(3,ndf_w1,ndf_w2) "
-        ":: diff_basis_w1_on_w2\n"
-        "      real(kind=r_def), intent(in), dimension(1,ndf_w2,ndf_w2) "
-        ":: diff_basis_w2_on_w2\n"
-        "      real(kind=r_def), intent(in), dimension(3,ndf_w3,ndf_w2) "
-        ":: diff_basis_w3_on_w2\n"
-        "      real(kind=r_def), intent(in), dimension(3,ndf_wtheta,ndf_w2) "
-        ":: diff_basis_wtheta_on_w2\n"
-        "      real(kind=r_def), intent(in), dimension(1,ndf_w2h,ndf_w2) "
-        ":: diff_basis_w2h_on_w2\n"
-        "      real(kind=r_def), intent(in), dimension(1,ndf_w2v,ndf_w2) "
-        ":: diff_basis_w2v_on_w2\n"
-        "      real(kind=r_def), intent(in), dimension(1,ndf_w2broken,"
-        "ndf_w2) :: diff_basis_w2broken_on_w2\n"
-        "      real(kind=r_def), intent(in), dimension(3,ndf_wchi,ndf_w2) "
-        ":: diff_basis_wchi_on_w2\n"
-        "      real(kind=r_def), intent(in), dimension(3,ndf_w2trace,"
-        "ndf_w2) :: diff_basis_w2trace_on_w2\n"
-        "      real(kind=r_def), intent(in), dimension(3,ndf_w2vtrace,"
-        "ndf_w2) :: diff_basis_w2vtrace_on_w2\n"
-        "      real(kind=r_def), intent(in), dimension(3,ndf_w2htrace,"
-        "ndf_w2) :: diff_basis_w2htrace_on_w2\n"
-        "    end subroutine dummy_code\n"
-    )
-    assert output_declns in generated_code
+    assert """\
+    use constants_mod
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w0
+    integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
+    integer(kind=i_def), intent(in) :: ndf_w2
+    integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+    integer(kind=i_def), intent(in) :: ndf_w2v
+    integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
+    integer(kind=i_def), intent(in) :: ndf_w2vtrace
+    integer(kind=i_def), dimension(ndf_w2vtrace), intent(in) :: map_w2vtrace
+    integer(kind=i_def), intent(in) :: ndf_wchi
+    integer(kind=i_def), dimension(ndf_wchi), intent(in) :: map_wchi
+    integer(kind=i_def), intent(in) :: ndf_wtheta
+    integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
+    integer(kind=i_def), intent(in) :: undf_w0
+    integer(kind=i_def), intent(in) :: undf_w2
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), intent(in) :: ndf_w3
+    integer(kind=i_def), intent(in) :: undf_wtheta
+    integer(kind=i_def), intent(in) :: ndf_w2h
+    integer(kind=i_def), intent(in) :: undf_w2v
+    integer(kind=i_def), intent(in) :: ndf_w2broken
+    integer(kind=i_def), intent(in) :: undf_wchi
+    integer(kind=i_def), intent(in) :: ndf_w2trace
+    integer(kind=i_def), intent(in) :: undf_w2vtrace
+    integer(kind=i_def), intent(in) :: ndf_w2htrace
+    real(kind=r_def), dimension(undf_w0), intent(in) :: field_1_w0
+    real(kind=r_def), dimension(undf_w2), intent(in) :: field_3_w2
+    real(kind=r_def), dimension(undf_wtheta), intent(in) :: field_5_wtheta
+    real(kind=r_def), dimension(undf_w2v), intent(in) :: field_7_w2v
+    real(kind=r_def), dimension(undf_wchi), intent(in) :: field_9_wchi
+    real(kind=r_def), dimension(undf_w2vtrace), intent(in) :: field_11_w2vtrace
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: op_2_ncell_3d
+    real(kind=r_def), dimension(ndf_w2,ndf_w1,op_2_ncell_3d), intent(inout) \
+:: op_2
+    integer(kind=i_def), intent(in) :: op_4_ncell_3d
+    real(kind=r_def), dimension(ndf_w3,ndf_w3,op_4_ncell_3d), intent(in) \
+:: op_4
+    integer(kind=i_def), intent(in) :: op_6_ncell_3d
+    real(kind=r_def), dimension(ndf_w2h,ndf_w2h,op_6_ncell_3d), intent(in) \
+:: op_6
+    integer(kind=i_def), intent(in) :: op_8_ncell_3d
+    real(kind=r_def), dimension(ndf_w2broken,ndf_w2broken,op_8_ncell_3d), \
+intent(in) :: op_8
+    integer(kind=i_def), intent(in) :: op_10_ncell_3d
+    real(kind=r_def), dimension(ndf_w2trace,ndf_w2trace,op_10_ncell_3d), \
+intent(in) :: op_10
+    integer(kind=i_def), intent(in) :: op_12_ncell_3d
+    real(kind=r_def), dimension(ndf_w2htrace,ndf_w2htrace,op_12_ncell_3d), \
+intent(in) :: op_12
+    real(kind=r_def), dimension(3,ndf_w0,ndf_w2), intent(in) :: \
+diff_basis_w0_on_w2
+    real(kind=r_def), dimension(3,ndf_w1,ndf_w2), intent(in) :: \
+diff_basis_w1_on_w2
+    real(kind=r_def), dimension(1,ndf_w2,ndf_w2), intent(in) :: \
+diff_basis_w2_on_w2
+    real(kind=r_def), dimension(3,ndf_w3,ndf_w2), intent(in) :: \
+diff_basis_w3_on_w2
+    real(kind=r_def), dimension(3,ndf_wtheta,ndf_w2), intent(in) :: \
+diff_basis_wtheta_on_w2
+    real(kind=r_def), dimension(1,ndf_w2h,ndf_w2), intent(in) :: \
+diff_basis_w2h_on_w2
+    real(kind=r_def), dimension(1,ndf_w2v,ndf_w2), intent(in) :: \
+diff_basis_w2v_on_w2
+    real(kind=r_def), dimension(1,ndf_w2broken,ndf_w2), intent(in) :: \
+diff_basis_w2broken_on_w2
+    real(kind=r_def), dimension(3,ndf_wchi,ndf_w2), intent(in) :: \
+diff_basis_wchi_on_w2
+    real(kind=r_def), dimension(3,ndf_w2trace,ndf_w2), intent(in) :: \
+diff_basis_w2trace_on_w2
+    real(kind=r_def), dimension(3,ndf_w2vtrace,ndf_w2), intent(in) :: \
+diff_basis_w2vtrace_on_w2
+    real(kind=r_def), dimension(3,ndf_w2htrace,ndf_w2), intent(in) :: \
+diff_basis_w2htrace_on_w2
+""" in generated_code
 
 
-def test_2eval_stubgen():
+def test_2eval_stubgen(fortran_writer):
     ''' Check that we generate the correct kernel stub when an evaluator is
     required on more than one space.
 
@@ -1965,7 +1965,7 @@ def test_2eval_stubgen():
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    generated_code = str(kernel.gen_stub)
+    generated_code = fortran_writer(kernel.gen_stub)
 
     assert (
         "subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
@@ -1989,59 +1989,107 @@ def test_2eval_stubgen():
         "diff_basis_w2vtrace_on_wtheta, ndf_w2htrace, "
         "diff_basis_w2htrace_on_w2h, diff_basis_w2htrace_on_wtheta)\n" in
         generated_code)
-    assert (
-        "      integer(kind=i_def), intent(in) :: nlayers\n"
-        "      integer(kind=i_def), intent(in) :: ndf_w0\n"
-        "      integer(kind=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      integer(kind=i_def), intent(in) :: ndf_w2\n"
-        "      integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      integer(kind=i_def), intent(in) :: ndf_w2v\n"
-        "      integer(kind=i_def), intent(in), dimension(ndf_w2v) "
-        ":: map_w2v\n"
-        "      integer(kind=i_def), intent(in) :: ndf_w2vtrace\n"
-        "      integer(kind=i_def), intent(in), dimension(ndf_w2vtrace) "
-        ":: map_w2vtrace\n"
-        "      integer(kind=i_def), intent(in) :: ndf_wchi\n"
-        "      integer(kind=i_def), intent(in), dimension(ndf_wchi) "
-        ":: map_wchi\n"
-        "      integer(kind=i_def), intent(in) :: ndf_wtheta\n"
-        "      integer(kind=i_def), intent(in), dimension(ndf_wtheta) "
-        ":: map_wtheta\n"
-        "      integer(kind=i_def), intent(in) :: undf_w0, undf_w2, ndf_w1, "
-        "ndf_w3, undf_wtheta, ndf_w2h, undf_w2v, ndf_w2broken, undf_wchi, "
-        "ndf_w2trace, undf_w2vtrace, ndf_w2htrace\n" in generated_code)
-
-    for space in ["w2h", "wtheta"]:
-        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_w0,"
-                f"ndf_{space}) :: diff_basis_w0_on_{space}" in generated_code)
-        assert (f"real(kind=r_def), intent(in), dimension(1,ndf_w2,"
-                f"ndf_{space}) :: diff_basis_w2_on_{space}" in generated_code)
-        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_w1,"
-                f"ndf_{space}) :: diff_basis_w1_on_{space}" in generated_code)
-        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_w3,"
-                f"ndf_{space}) :: diff_basis_w3_on_{space}" in generated_code)
-        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_wtheta,"
-                f"ndf_{space}) :: diff_basis_wtheta_on_{space}" in
-                generated_code)
-        assert (f"real(kind=r_def), intent(in), dimension(1,ndf_w2h,"
-                f"ndf_{space}) :: diff_basis_w2h_on_{space}" in generated_code)
-        assert (f"real(kind=r_def), intent(in), dimension(1,ndf_w2v,"
-                f"ndf_{space}) :: diff_basis_w2v_on_{space}" in generated_code)
-        assert (f"real(kind=r_def), intent(in), dimension(1,ndf_w2broken,"
-                f"ndf_{space}) :: diff_basis_w2broken_on_{space}" in
-                generated_code)
-        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_wchi,"
-                f"ndf_{space}) :: diff_basis_wchi_on_{space}" in
-                generated_code)
-        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_w2trace,"
-                f"ndf_{space}) :: diff_basis_w2trace_on_{space}" in
-                generated_code)
-        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_w2vtrace,"
-                f"ndf_{space}) :: diff_basis_w2vtrace_on_{space}" in
-                generated_code)
-        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_w2htrace,"
-                f"ndf_{space}) :: diff_basis_w2htrace_on_{space}" in
-                generated_code)
+    assert """\
+    use constants_mod
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w0
+    integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
+    integer(kind=i_def), intent(in) :: ndf_w2
+    integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+    integer(kind=i_def), intent(in) :: ndf_w2v
+    integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
+    integer(kind=i_def), intent(in) :: ndf_w2vtrace
+    integer(kind=i_def), dimension(ndf_w2vtrace), intent(in) :: map_w2vtrace
+    integer(kind=i_def), intent(in) :: ndf_wchi
+    integer(kind=i_def), dimension(ndf_wchi), intent(in) :: map_wchi
+    integer(kind=i_def), intent(in) :: ndf_wtheta
+    integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
+    integer(kind=i_def), intent(in) :: undf_w0
+    integer(kind=i_def), intent(in) :: undf_w2
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), intent(in) :: ndf_w3
+    integer(kind=i_def), intent(in) :: undf_wtheta
+    integer(kind=i_def), intent(in) :: ndf_w2h
+    integer(kind=i_def), intent(in) :: undf_w2v
+    integer(kind=i_def), intent(in) :: ndf_w2broken
+    integer(kind=i_def), intent(in) :: undf_wchi
+    integer(kind=i_def), intent(in) :: ndf_w2trace
+    integer(kind=i_def), intent(in) :: undf_w2vtrace
+    integer(kind=i_def), intent(in) :: ndf_w2htrace
+    real(kind=r_def), dimension(undf_w0), intent(in) :: field_1_w0
+    real(kind=r_def), dimension(undf_w2), intent(in) :: field_3_w2
+    real(kind=r_def), dimension(undf_wtheta), intent(in) :: field_5_wtheta
+    real(kind=r_def), dimension(undf_w2v), intent(in) :: field_7_w2v
+    real(kind=r_def), dimension(undf_wchi), intent(in) :: field_9_wchi
+    real(kind=r_def), dimension(undf_w2vtrace), intent(in) :: field_11_w2vtrace
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: op_2_ncell_3d
+    real(kind=r_def), dimension(ndf_w2,ndf_w1,op_2_ncell_3d), intent(inout) \
+:: op_2
+    integer(kind=i_def), intent(in) :: op_4_ncell_3d
+    real(kind=r_def), dimension(ndf_w3,ndf_w3,op_4_ncell_3d), intent(in) \
+:: op_4
+    integer(kind=i_def), intent(in) :: op_6_ncell_3d
+    real(kind=r_def), dimension(ndf_w2h,ndf_w2h,op_6_ncell_3d), intent(in) \
+:: op_6
+    integer(kind=i_def), intent(in) :: op_8_ncell_3d
+    real(kind=r_def), dimension(ndf_w2broken,ndf_w2broken,op_8_ncell_3d), \
+intent(in) :: op_8
+    integer(kind=i_def), intent(in) :: op_10_ncell_3d
+    real(kind=r_def), dimension(ndf_w2trace,ndf_w2trace,op_10_ncell_3d), \
+intent(in) :: op_10
+    integer(kind=i_def), intent(in) :: op_12_ncell_3d
+    real(kind=r_def), dimension(ndf_w2htrace,ndf_w2htrace,op_12_ncell_3d), \
+intent(in) :: op_12
+    real(kind=r_def), dimension(3,ndf_w0,ndf_w2h), intent(in) :: \
+diff_basis_w0_on_w2h
+    real(kind=r_def), dimension(3,ndf_w0,ndf_wtheta), intent(in) :: \
+diff_basis_w0_on_wtheta
+    real(kind=r_def), dimension(3,ndf_w1,ndf_w2h), intent(in) :: \
+diff_basis_w1_on_w2h
+    real(kind=r_def), dimension(3,ndf_w1,ndf_wtheta), intent(in) :: \
+diff_basis_w1_on_wtheta
+    real(kind=r_def), dimension(1,ndf_w2,ndf_w2h), intent(in) :: \
+diff_basis_w2_on_w2h
+    real(kind=r_def), dimension(1,ndf_w2,ndf_wtheta), intent(in) :: \
+diff_basis_w2_on_wtheta
+    real(kind=r_def), dimension(3,ndf_w3,ndf_w2h), intent(in) :: \
+diff_basis_w3_on_w2h
+    real(kind=r_def), dimension(3,ndf_w3,ndf_wtheta), intent(in) :: \
+diff_basis_w3_on_wtheta
+    real(kind=r_def), dimension(3,ndf_wtheta,ndf_w2h), intent(in) :: \
+diff_basis_wtheta_on_w2h
+    real(kind=r_def), dimension(3,ndf_wtheta,ndf_wtheta), intent(in) :: \
+diff_basis_wtheta_on_wtheta
+    real(kind=r_def), dimension(1,ndf_w2h,ndf_w2h), intent(in) :: \
+diff_basis_w2h_on_w2h
+    real(kind=r_def), dimension(1,ndf_w2h,ndf_wtheta), intent(in) :: \
+diff_basis_w2h_on_wtheta
+    real(kind=r_def), dimension(1,ndf_w2v,ndf_w2h), intent(in) :: \
+diff_basis_w2v_on_w2h
+    real(kind=r_def), dimension(1,ndf_w2v,ndf_wtheta), intent(in) :: \
+diff_basis_w2v_on_wtheta
+    real(kind=r_def), dimension(1,ndf_w2broken,ndf_w2h), intent(in) :: \
+diff_basis_w2broken_on_w2h
+    real(kind=r_def), dimension(1,ndf_w2broken,ndf_wtheta), intent(in) :: \
+diff_basis_w2broken_on_wtheta
+    real(kind=r_def), dimension(3,ndf_wchi,ndf_w2h), intent(in) :: \
+diff_basis_wchi_on_w2h
+    real(kind=r_def), dimension(3,ndf_wchi,ndf_wtheta), intent(in) :: \
+diff_basis_wchi_on_wtheta
+    real(kind=r_def), dimension(3,ndf_w2trace,ndf_w2h), intent(in) :: \
+diff_basis_w2trace_on_w2h
+    real(kind=r_def), dimension(3,ndf_w2trace,ndf_wtheta), intent(in) :: \
+diff_basis_w2trace_on_wtheta
+    real(kind=r_def), dimension(3,ndf_w2vtrace,ndf_w2h), intent(in) :: \
+diff_basis_w2vtrace_on_w2h
+    real(kind=r_def), dimension(3,ndf_w2vtrace,ndf_wtheta), intent(in) :: \
+diff_basis_w2vtrace_on_wtheta
+    real(kind=r_def), dimension(3,ndf_w2htrace,ndf_w2h), intent(in) :: \
+diff_basis_w2htrace_on_w2h
+    real(kind=r_def), dimension(3,ndf_w2htrace,ndf_wtheta), intent(in) :: \
+diff_basis_w2htrace_on_wtheta
+""" in generated_code
 
 
 DIFF_BASIS_UNSUPPORTED_SPACE = '''

@@ -83,7 +83,7 @@ def test_kernel_stub_invalid_iteration_space():
             "'testkern_dofs_code'." in str(excinfo.value))
 
 
-def test_stub_generate_with_anyw2(fortran_writer):
+def test_stub_generate_with_anyw2():
     '''check that the stub generate produces the expected output when we
     have any_w2 fields. In particular, check basis functions as these
     have specific sizes associated with the particular function space'''
@@ -95,7 +95,7 @@ def test_stub_generate_with_anyw2(fortran_writer):
         "np_z_qr_xyoz), intent(in) :: basis_any_w2_qr_xyoz\n"
         "    real(kind=r_def), dimension(1,ndf_any_w2,np_xy_qr_xyoz,"
         "np_z_qr_xyoz), intent(in) :: diff_basis_any_w2_qr_xyoz")
-    assert expected_output in fortran_writer(result)
+    assert expected_output in result
 
 
 SIMPLE = (
@@ -120,11 +120,11 @@ SIMPLE = (
     "end module simple_mod\n")
 
 
-def test_stub_generate_working(fortran_writer):
+def test_stub_generate_working():
     ''' Check that the stub generate produces the expected output '''
     result = generate(os.path.join(BASE_PATH, "testkern_simple_mod.f90"),
                       api=TEST_API)
-    assert SIMPLE == fortran_writer(result)
+    assert SIMPLE == result
 
 
 # Fields : intent

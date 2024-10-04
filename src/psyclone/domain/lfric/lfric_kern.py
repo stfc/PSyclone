@@ -348,11 +348,13 @@ class LFRicKern(CodedKern):
                     qr_arg.varname, tag=tag, symbol_type=DataSymbol,
                     datatype=symtab.find_or_create(
                         quad_map["type"], symbol_type=DataTypeSymbol,
-                        datatype=UnresolvedType()),
-                        interface=ArgumentInterface(
-                            ArgumentInterface.Access.READ))
-                if qr_sym not in symtab._argument_list:
-                    symtab.append_argument(qr_sym)
+                        datatype=UnresolvedType()))
+                # We don't specify the argument interface yet as this argument
+                # is placed later.
+                        # interface=ArgumentInterface(
+                        #     ArgumentInterface.Access.READ))
+                # if qr_sym not in symtab._argument_list:
+                #     symtab.append_argument(qr_sym)
                 qr_name = qr_sym.name
             else:
                 # If we don't have a name then we must be doing kernel-stub

@@ -568,7 +568,7 @@ class SymbolTable():
         if not isinstance(new_symbol, Symbol):
             raise InternalError(f"Symbol '{new_symbol}' is not a symbol, but "
                                 f"'{type(new_symbol).__name__}'.'")
-        # if new_symbol.name in ("cbanded_map_adspc1_op_1", ):
+        # if new_symbol.name in ("qr_face", ):
         #      import pdb; pdb.set_trace()
 
         key = self._normalize(new_symbol.name)
@@ -958,13 +958,11 @@ class SymbolTable():
                           `otherwise` is not supplied.
 
         '''
-        # if name in ("cma_op1", ):
-        #      import pdb; pdb.set_trace()
         if not isinstance(name, str):
             raise TypeError(
                 f"Expected the name argument to the lookup() method to be "
                 f"a str but found '{type(name).__name__}'.")
-        # if name in ("f1_proxy", "f2_proxy" ):
+        # if name in ("qr_face", ):
         #      import pdb; pdb.set_trace()
 
         try:
@@ -1296,7 +1294,7 @@ class SymbolTable():
         :raises ValueError: if the supplied argument is not marked as a
                             kernel argument.
         '''
-        # if argument.name == "qr":
+        # if argument.name == "qr_face":
         #     import pdb; pdb.set_trace()
         if not isinstance(argument, DataSymbol):
             raise TypeError(

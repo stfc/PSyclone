@@ -3458,6 +3458,10 @@ class DynBasisFunctions(LFRicCollection):
         for shape in self._qr_vars:
             qr_name = "_qr_" + shape.split("_")[-1]
             # Create the PSyIR intrinsic DataType
+            if shape not in const.QUADRATURE_TYPE_MAP:
+                raise InternalError(
+                    f"Quadrature shapes other than {supported_shapes} are not "
+                    f"yet supported - got: '{shape}'")
             kind_sym = self._symbol_table.find_or_create(
                 const.QUADRATURE_TYPE_MAP[shape]["kind"],
                 symbol_type=DataSymbol, datatype=UnresolvedType(),
@@ -3539,10 +3543,6 @@ class DynBasisFunctions(LFRicCollection):
                 #     kind=const.QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
                 #     dimension=",".join(["np_xyz"+qr_name, "nedges"+qr_name]),
                 #     entity_decls=["weights_xyz"+qr_name]))
-            else:
-                raise InternalError(
-                    f"Quadrature shapes other than {supported_shapes} are not "
-                    f"yet supported - got: '{shape}'")
 
     def _invoke_declarations(self, cursor):
         '''
@@ -3598,16 +3598,14 @@ class DynBasisFunctions(LFRicCollection):
                     const.QUADRATURE_TYPE_MAP[shape]["type"])
                 dtp_symbol = self._symbol_table.lookup(
                     const.QUADRATURE_TYPE_MAP[shape]["proxy_type"])
-                # arglist = self._symbol_table.argument_list[:]
-                for name in  self._qr_vars[shape]:
+                for name in self._qr_vars[shape]:
                     new_arg = self._symbol_table.find_or_create(
                         name, symbol_type=DataSymbol, datatype=dt_symbol,
                     )
                     new_arg.interface = ArgumentInterface(
                         ArgumentInterface.Access.READ)
-
-                    # arglist.append(new_arg)
-                # self._symbol_table.specify_argument_list(arglist)
+                    if new_arg not in self._symbol_table._argument_list:
+                         self._symbol_table.append_argument(new_arg)
 
                 # parent.add(
                 #     TypeDeclGen(parent,
@@ -4109,6 +4107,15 @@ class DynBasisFunctions(LFRicCollection):
         symbol_table = self._symbol_table
 
         for qr_arg_name in self._qr_vars[quadrature_name]:
+
+            # This doent feel the right place, but at this point this is
+            # not yet in the argument list
+            arg_symbol = symbol_table.lookup(qr_arg_name)
+            if arg_symbol not in symbol_table._argument_list:
+                arg_symbol.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+                symbol_table.append_argument(arg_symbol)
+
             # We generate unique names for the integers holding the numbers
             # of quadrature points by appending the name of the quadrature
             # argument

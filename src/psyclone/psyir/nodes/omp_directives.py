@@ -1470,8 +1470,8 @@ class OMPParallelDirective(OMPRegionDirective):
         # name in this Schedule. If so, raise an error as this is not
         # supported for a parallel region.
         names = []
-        calls = self.reductions()
-        for call in calls:
+        reduction_kernels = self.reductions()
+        for call in reduction_kernels:
             name = call.reduction_arg.name
             if name in names:
                 raise GenerationError(
@@ -1490,7 +1490,7 @@ class OMPParallelDirective(OMPRegionDirective):
 
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import zero_reduction_variables
-        zero_reduction_variables(calls)
+        zero_reduction_variables(reduction_kernels)
 
         # Reproducible reduction will be done serially by accumulating the
         # partial results in an array indexed by the thread index
@@ -1540,8 +1540,9 @@ class OMPParallelDirective(OMPRegionDirective):
         fprivate_clause = OMPFirstprivateClause.create(
                             sorted(fprivate, key=lambda x: x.name))
         # Check all of the need_sync nodes are synchronized in children.
+        # unless it has reduction_kernels which are handled separately
         sync_clauses = self.walk(OMPDependClause)
-        if sync_clauses and need_sync:
+        if not reduction_kernels and need_sync:
             for sym in need_sync:
                 found = False
                 for clause in sync_clauses:
@@ -1552,7 +1553,6 @@ class OMPParallelDirective(OMPRegionDirective):
                     if sym.name in [child.symbol.name for child in
                                     clause.children]:
                         found = True
-                    if found:
                         break
                 if not found:
                     raise GenerationError(
