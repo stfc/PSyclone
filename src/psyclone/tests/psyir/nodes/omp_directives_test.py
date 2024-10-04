@@ -1197,7 +1197,7 @@ def test_omp_single_gencode(nowait):
     '''Check that the gen_code method in the OMPSingleDirective class
     generates the expected code.
     '''
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     temporary_module = ModuleGen("test")
     parallel = OMPParallelDirective.create()
     single = OMPSingleDirective(nowait=nowait)
@@ -1226,7 +1226,7 @@ def test_omp_master_gencode():
     '''Check that the gen_code method in the OMPMasterDirective class
     generates the expected code.
     '''
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     temporary_module = ModuleGen("test")
     parallel = OMPParallelDirective.create()
     master = OMPMasterDirective()
@@ -1292,7 +1292,7 @@ def test_omptaskwait_gencode():
     '''Check that the gen_code method in the OMPTaskwaitDirective
     class generates the expected code.
     '''
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     temporary_module = ModuleGen("test")
     parallel = OMPParallelDirective.create()
     directive = OMPTaskwaitDirective()
@@ -1358,7 +1358,7 @@ def test_omp_taskloop_gencode(grainsize, num_tasks, nogroup, clauses):
     class generates the expected code.
     '''
     temporary_module = ModuleGen("test")
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     single = OMPSingleDirective()
     directive = OMPTaskloopDirective(grainsize=grainsize, num_tasks=num_tasks,
@@ -1473,7 +1473,7 @@ def test_omp_declare_target_directive_validate_global_constraints():
     target.validate_global_constraints()
 
     # If it is the child 0 of a Routine it passes the tests
-    subroutine = Routine("test")
+    subroutine = Routine.create("test")
     subroutine.addchild(target)
     target.validate_global_constraints()
 
@@ -2672,7 +2672,7 @@ def test_omp_serial_validate_task_dependencies_outout():
     '''
 
     # Check outout Array dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -2736,7 +2736,7 @@ def test_omp_serial_validate_task_dependencies_outout():
     sing._validate_task_dependencies()
 
     # Check outout Reference dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -2822,7 +2822,7 @@ def test_omp_serial_validate_task_dependencies_outout():
         ]
     )
     # Check outout StructureReference non-array dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -2897,7 +2897,7 @@ def test_omp_serial_validate_task_dependencies_outout():
     sing._validate_task_dependencies()
 
     # Check outout StructureReference with array access
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -2980,7 +2980,7 @@ def test_omp_serial_validate_task_dependencies_outout():
             ),
         ]
     )
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3066,7 +3066,7 @@ def test_omp_serial_validate_task_dependencies_outout():
             ),
         ]
     )
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3134,7 +3134,7 @@ def test_omp_serial_validate_task_dependencies_outout():
     sing._validate_task_dependencies()
 
     # Check outout accesses to range and literal indexes.
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3211,7 +3211,7 @@ def test_omp_serial_validate_task_dependencies_inout():
     for inout dependency types
     '''
     # Check inout Array dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3277,7 +3277,7 @@ def test_omp_serial_validate_task_dependencies_inout():
     sing._validate_task_dependencies()
 
     # Check inout Reference dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3365,7 +3365,7 @@ def test_omp_serial_validate_task_dependencies_inout():
         ]
     )
     # Check inout StructureReference non-array dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3442,7 +3442,7 @@ def test_omp_serial_validate_task_dependencies_inout():
     sing._validate_task_dependencies()
 
     # Check inout StructureReference with array access
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3527,7 +3527,7 @@ def test_omp_serial_validate_task_dependencies_inout():
             ),
         ]
     )
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3613,7 +3613,7 @@ def test_omp_serial_validate_task_dependencies_inout():
             ),
         ]
     )
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3682,7 +3682,7 @@ def test_omp_serial_validate_task_dependencies_inout():
     sing._validate_task_dependencies()
 
     # Check inout accesses to range and literal indexes.
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3761,7 +3761,7 @@ def test_omp_serial_validate_task_dependencies_outin():
     for outin dependency types
     '''
     # Check outin Array dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3827,7 +3827,7 @@ def test_omp_serial_validate_task_dependencies_outin():
     sing._validate_task_dependencies()
 
     # Check outin Reference dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3915,7 +3915,7 @@ def test_omp_serial_validate_task_dependencies_outin():
         ]
     )
     # Check inout StructureReference non-array dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3992,7 +3992,7 @@ def test_omp_serial_validate_task_dependencies_outin():
     sing._validate_task_dependencies()
 
     # Check inout StructureReference with array access
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -4077,7 +4077,7 @@ def test_omp_serial_validate_task_dependencies_outin():
             ),
         ]
     )
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -4163,7 +4163,7 @@ def test_omp_serial_validate_task_dependencies_outin():
             ),
         ]
     )
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -4232,7 +4232,7 @@ def test_omp_serial_validate_task_dependencies_outin():
     sing._validate_task_dependencies()
 
     # Check outin accesses to range and literal indexes.
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()

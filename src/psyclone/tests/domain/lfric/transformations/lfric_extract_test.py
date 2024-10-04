@@ -320,7 +320,7 @@ def test_single_node_dynamo0p3():
     CALL extract_psy_data % PreDeclareVariable("ndf_w1", ndf_w1)
     CALL extract_psy_data % PreDeclareVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % PreDeclareVariable("ndf_w3", ndf_w3)
-    CALL extract_psy_data % PreDeclareVariable("nlayers", nlayers)
+    CALL extract_psy_data % PreDeclareVariable("nlayers_f1", nlayers_f1)
     CALL extract_psy_data % PreDeclareVariable("undf_w1", undf_w1)
     CALL extract_psy_data % PreDeclareVariable("undf_w2", undf_w2)
     CALL extract_psy_data % PreDeclareVariable("undf_w3", undf_w3)
@@ -347,7 +347,7 @@ def test_single_node_dynamo0p3():
     CALL extract_psy_data % ProvideVariable("undf_w3", undf_w3)
     CALL extract_psy_data % PreEnd
     do cell = loop0_start, loop0_stop, 1
-      call testkern_code(nlayers, a, f1_data, f2_data, ''' + \
+      call testkern_code(nlayers_f1, a, f1_data, f2_data, ''' + \
         "m1_data, m2_data, ndf_w1, undf_w1, " + \
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, " + \
         '''undf_w3, map_w3(:,cell))
@@ -384,7 +384,7 @@ def test_node_list_dynamo0p3():
     """
     CALL extract_psy_data % PreDeclareVariable("map_w2", map_w2)
     CALL extract_psy_data % PreDeclareVariable("ndf_w2", ndf_w2)
-    CALL extract_psy_data % PreDeclareVariable("nlayers", nlayers)
+    CALL extract_psy_data % PreDeclareVariable("nlayers_f3", nlayers_f3)
     CALL extract_psy_data % PreDeclareVariable("undf_w2", undf_w2)
     CALL extract_psy_data % PreDeclareVariable("cell_post", cell)
     CALL extract_psy_data % PreDeclareVariable("df_post", df)
@@ -414,7 +414,7 @@ def test_node_list_dynamo0p3():
       f2_data(df) = 0.0
     enddo
     do cell = loop2_start, loop2_stop, 1
-      call testkern_w2_only_code(nlayers, f3_data, """ + \
+      call testkern_w2_only_code(nlayers_f3, f3_data, """ + \
         """f2_data, ndf_w2, undf_w2, map_w2(:,cell))
     enddo
     CALL extract_psy_data % PostStart
@@ -448,7 +448,7 @@ def test_dynamo0p3_builtin():
     output = """
     CALL extract_psy_data % PreDeclareVariable("map_w2", map_w2)
     CALL extract_psy_data % PreDeclareVariable("ndf_w2", ndf_w2)
-    CALL extract_psy_data % PreDeclareVariable("nlayers", nlayers)
+    CALL extract_psy_data % PreDeclareVariable("nlayers_f3", nlayers_f3)
     CALL extract_psy_data % PreDeclareVariable("undf_w2", undf_w2)
     CALL extract_psy_data % PreDeclareVariable("cell_post", cell)
     CALL extract_psy_data % PreDeclareVariable("df_post", df)
@@ -466,7 +466,7 @@ def test_dynamo0p3_builtin():
     """
     CALL extract_psy_data % ProvideVariable("map_w2", map_w2)
     CALL extract_psy_data % ProvideVariable("ndf_w2", ndf_w2)
-    CALL extract_psy_data % ProvideVariable("nlayers", nlayers)
+    CALL extract_psy_data % ProvideVariable("nlayers_f3", nlayers_f3)
     CALL extract_psy_data % ProvideVariable("undf_w2", undf_w2)
     CALL extract_psy_data % PreEnd
     do df = loop0_start, loop0_stop, 1
@@ -478,7 +478,7 @@ def test_dynamo0p3_builtin():
       f2_data(df) = 0.0
     enddo
     do cell = loop2_start, loop2_stop, 1
-      call testkern_w2_only_code(nlayers, f3_data, f2_data, """\
+      call testkern_w2_only_code(nlayers_f3, f3_data, f2_data, """\
         """ndf_w2, undf_w2, map_w2(:,cell))
     enddo
     CALL extract_psy_data % PostStart
@@ -609,7 +609,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
     """
     CALL extract_psy_data % ProvideVariable("map_w2", map_w2)
     CALL extract_psy_data % ProvideVariable("ndf_w2", ndf_w2)
-    CALL extract_psy_data % ProvideVariable("nlayers", nlayers)
+    CALL extract_psy_data % ProvideVariable("nlayers_f3", nlayers_f3)
     CALL extract_psy_data % ProvideVariable("undf_w2", undf_w2)
     CALL extract_psy_data % PreEnd
     do df = loop1_start, loop1_stop, 1
@@ -696,7 +696,7 @@ last_edge_cell_all_colours)"""
     CALL extract_psy_data % PreDeclareVariable("ndf_w0", ndf_w0)
     CALL extract_psy_data % PreDeclareVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % PreDeclareVariable("ndf_w3", ndf_w3)
-    CALL extract_psy_data % PreDeclareVariable("nlayers", nlayers)
+    CALL extract_psy_data % PreDeclareVariable("nlayers_b", nlayers_b)
     CALL extract_psy_data % PreDeclareVariable("np_xy_qr", np_xy_qr)
     CALL extract_psy_data % PreDeclareVariable("np_z_qr", np_z_qr)
     CALL extract_psy_data % PreDeclareVariable("rdt", rdt)
@@ -734,7 +734,7 @@ last_edge_cell_all_colours)"""
     CALL extract_psy_data % ProvideVariable("ndf_w0", ndf_w0)
     CALL extract_psy_data % ProvideVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % ProvideVariable("ndf_w3", ndf_w3)
-    CALL extract_psy_data % ProvideVariable("nlayers", nlayers)
+    CALL extract_psy_data % ProvideVariable("nlayers_b", nlayers_b)
     CALL extract_psy_data % ProvideVariable("np_xy_qr", np_xy_qr)
     CALL extract_psy_data % ProvideVariable("np_z_qr", np_z_qr)
     CALL extract_psy_data % ProvideVariable("rdt", rdt)
@@ -747,7 +747,7 @@ last_edge_cell_all_colours)"""
     do colour = loop4_start, loop4_stop, 1
       !$omp parallel do default(shared), private(cell), schedule(static)
       do cell = loop5_start, last_edge_cell_all_colours(colour), 1
-        call ru_code(nlayers, b_data, a_data, istp, rdt, """
+        call ru_code(nlayers_b, b_data, a_data, istp, rdt, """
               "c_data, e_1_data, e_2_data, "
               "e_3_data, ndf_w2, undf_w2, "
               "map_w2(:,cmap(colour,cell)), "

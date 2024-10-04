@@ -821,13 +821,6 @@ def test_gen_access_stmts(fortran_writer):
     symbol_table.default_visibility = Symbol.Visibility.PRIVATE
     code = fortran_writer.gen_access_stmts(symbol_table)
     assert code.strip() == "public :: my_sub1, some_var"
-    # Check that we don't generate an accessibility statement for a
-    # RoutineSymbol tagged with 'own_routine_symbol'
-    symbol_table.add(RoutineSymbol("my_routine",
-                                   visibility=Symbol.Visibility.PUBLIC),
-                     tag='own_routine_symbol')
-    code = fortran_writer.gen_access_stmts(symbol_table)
-    assert "my_routine" not in code
     # Accessibility should also be generated for a GenericInterfaceSymbol.
     symbol_table.add(GenericInterfaceSymbol("overloaded", [(sub2, True)]))
     code = fortran_writer.gen_access_stmts(symbol_table)
@@ -890,7 +883,7 @@ def test_fw_filecontainer_2(fortran_writer):
 
     '''
     container = Container("mod_name")
-    routine = Routine("sub_name")
+    routine = Routine.create("sub_name")
     file_container = FileContainer.create(
         "None", SymbolTable(), [container, routine])
     result = fortran_writer(file_container)
@@ -1865,7 +1858,7 @@ def test_fw_comments(fortran_writer):
     ''' Test the generation of Fortran from PSyIR with comments. '''
 
     container = Container("my_container")
-    routine = Routine("my_routine")
+    routine = Routine.create("my_routine")
     container.addchild(routine)
     statement1 = Return()
     statement2 = Return()

@@ -414,8 +414,9 @@ def test_invokeschedule_node_str():
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="lfric")
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
+    symbol = RoutineSymbol("name")
     # Create a plain InvokeSchedule
-    sched = InvokeSchedule('name', None, None)
+    sched = InvokeSchedule(symbol, None, None)
     # Manually supply it with an Invoke object created with the Dynamo API.
     sched._invoke = psy.invokes.invoke_list[0]
     output = sched.node_str()

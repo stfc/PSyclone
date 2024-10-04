@@ -65,7 +65,7 @@ def make_loop():
     start = Literal("0", INTEGER_SINGLE_TYPE)
     stop = Literal("1", INTEGER_SINGLE_TYPE)
     step = Literal("1", INTEGER_SINGLE_TYPE)
-    sched = Routine("loop_test_sub")
+    sched = Routine.create("loop_test_sub")
     tmp = sched.symbol_table.new_symbol("tmp", symbol_type=DataSymbol,
                                         datatype=REAL_SINGLE_TYPE)
     isym = sched.symbol_table.new_symbol("i", symbol_type=DataSymbol,

@@ -297,10 +297,27 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     #     expected = "    ! call kernels and communication routines\n"
     # else:
     #     expected = "    ! call our kernels\n"
-    assert ("    call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
-            "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
+    assert ("    call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, "
+            "b, f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+    # Also test that the FortranWriter handles domain kernels as expected.
+    # ATM we have a `lower_to_language_level method` for LFRicLoop which
+    # removes the loop node for a domain kernel entirely and only leaves the
+    # body. So we can't call the FortranWriter directly, since it will first
+    # lower the tree, which removes the domain kernel.
+    # In order to test the actual writer atm, we have to call the
+    # `loop_node` directly. But in order for this to work, we need to
+    # lower the actual kernel call. Once #1731 is fixed, the temporary
+    # `lower_to_language_level` method in LFRicLoop can (likely) be removed,
+    # and then we can just call `fortran_writer(schedule)` here.
+    schedule = psy.invokes.invoke_list[0].schedule
+    # Now call the loop handling method directly.
+    out = fortran_writer(schedule)
+    assert ("call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, b, "
+            "f1_data, ndf_w3, undf_w3, map_w3)" in out)
 
 
 def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
@@ -324,7 +341,7 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
             # "loop\n"
             "    call f2_proxy%set_dirty()\n")
     expected += (
-        "    call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
+        "    call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, b, "
         "f1_data, ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
@@ -350,7 +367,7 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     assert gen_code.count("ncell_2d_no_halos = mesh%get_last_edge_cell()") == 1
 
     expected = (
-                "    call testkern_domain_code(nlayers, ncell_2d_no_halos, "
+                "    call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, "
                 "b, f1_data, ndf_w3, undf_w3, map_w3)\n")
     if dist_mem:
         assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in gen_code
@@ -383,7 +400,7 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
             # "loop\n"
             "    call f1_proxy%set_dirty()\n")
     expected += (
-        "    call testkern_domain_code(nlayers, ncell_2d_no_halos, c, "
+        "    call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, c, "
         "f1_data, ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
@@ -413,9 +430,9 @@ def test_domain_plus_cma_kernels(dist_mem, tmpdir):
     assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code
     assert "ncell_2d = mesh%get_ncells_2d()" in gen_code
     assert "ncell_2d_no_halos = mesh%get_last_edge_cell()" in gen_code
-    assert ("call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
+    assert ("call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, b, "
             "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
-    assert ("call columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
-            "lma_op1_proxy%ncell_3d," in gen_code)
+    assert ("call columnwise_op_asm_kernel_code(cell, nlayers_cma_op1, "
+            "ncell_2d, lma_op1_proxy%ncell_3d," in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)

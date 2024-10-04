@@ -59,18 +59,15 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (AutomaticInterface, ScalarType, ArrayType,
                                     REAL_TYPE, INTEGER_TYPE)
 from psyclone.psyir.transformations import (
-    ACCKernelsTrans, LoopFuseTrans, LoopTrans, TransformationError)
+    ACCKernelsTrans, LoopFuseTrans, LoopTrans, OMPLoopTrans,
+    TransformationError)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import OMPParallelTrans, \
-    Dynamo0p3ColourTrans, \
-    Dynamo0p3OMPLoopTrans, \
-    DynamoOMPParallelLoopTrans, \
-    MoveTrans, \
-    Dynamo0p3RedundantComputationTrans, \
-    Dynamo0p3AsyncHaloExchangeTrans, \
-    Dynamo0p3KernelConstTrans, \
-    ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans
+from psyclone.transformations import (
+    OMPParallelTrans, Dynamo0p3ColourTrans, Dynamo0p3OMPLoopTrans,
+    DynamoOMPParallelLoopTrans, MoveTrans, Dynamo0p3RedundantComputationTrans,
+    Dynamo0p3AsyncHaloExchangeTrans, Dynamo0p3KernelConstTrans,
+    ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans)
 
 
 # The version of the API that the tests in this file
@@ -232,7 +229,7 @@ def test_colour_trans(tmpdir, dist_mem):
 
     # Check that we're using the colour map when getting the cell dof maps
     assert (
-        "call testkern_code(nlayers, a, f1_data, f2_data, "
+        "call testkern_code(nlayers_f1, a, f1_data, f2_data, "
         "m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cmap(colour,cell)), ndf_w2, undf_w2, "
         "map_w2(:,cmap(colour,cell)), ndf_w3, undf_w3, "
@@ -317,8 +314,9 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
 
     assert (
         "        call columnwise_op_asm_field_kernel_code(cmap(colour,"
-        "cell), nlayers, ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
-        "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
+        "cell), nlayers_cma_op1, ncell_2d, afield_data, "
+        "lma_op1_proxy%ncell_3d, lma_op1_local_stencil, "
+        "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, "
         "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
         "ndf_aspc1_afield, undf_aspc1_afield, "
@@ -350,7 +348,7 @@ def test_colour_trans_stencil(dist_mem, tmpdir):
 
     # Check that we index the stencil dofmap appropriately
     assert (
-        "        call testkern_stencil_code(nlayers, f1_data, "
+        "        call testkern_stencil_code(nlayers_f1, f1_data, "
         "f2_data, f2_stencil_size(cmap(colour,cell)), "
         "f2_stencil_dofmap(:,:,cmap(colour,cell)), f3_data, "
         "f4_data, ndf_w1, undf_w1, map_w1(:,cmap(colour,cell)), "
@@ -386,7 +384,7 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
 
     # Check that we index the adjacent face dofmap appropriately
     assert (
-        "call testkern_mesh_prop_code(nlayers, a, f1_data, ndf_w1, "
+        "call testkern_mesh_prop_code(nlayers_f1, a, f1_data, ndf_w1, "
         "undf_w1, map_w1(:,cmap(colour,cell)), nfaces_re_h, "
         "adjacent_face(:,cmap(colour,cell))" in gen)
 
@@ -1301,7 +1299,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         f"      !$omp parallel default(shared), private(cell)\n"
         f"      !$omp do schedule(static)\n"
         f"      do cell = loop1_start, {lookup}, 1\n"
-        f"        call ru_code(nlayers, a_data, b_data, "
+        f"        call ru_code(nlayers_a, a_data, b_data, "
         f"istp, rdt, d_data, e_1_data, e_2_data, "
         f"e_3_data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
@@ -1312,7 +1310,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         f"      !$omp end do\n"
         f"      !$omp do schedule(static)\n"
         f"      do cell = loop2_start, {lookup}, 1\n"
-        f"        call ru_code(nlayers, f_data, b_data, "
+        f"        call ru_code(nlayers_f, f_data, b_data, "
         f"istp, rdt, d_data, e_1_data, e_2_data, "
         f"e_3_data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
@@ -1384,7 +1382,7 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "      cma_op1_gamma_p = cma_op1_proxy%gamma_p\n"
     ) in code
     assert (
-        "call columnwise_op_asm_field_kernel_code(cell, nlayers, "
+        "call columnwise_op_asm_field_kernel_code(cell, nlayers_cma_op1, "
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
@@ -1392,7 +1390,7 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "undf_aspc1_afield, map_aspc1_afield(:,cell), "
         "cbanded_map_aspc1_afield, ndf_aspc2_lma_op1, "
         "cbanded_map_aspc2_lma_op1)\n"
-        "        call testkern_two_real_scalars_code(nlayers, scalar1, "
+        "        call testkern_two_real_scalars_code(nlayers_afield, scalar1, "
         "afield_data, bfield_data, cfield_data, "
         "dfield_data, scalar2, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
@@ -5696,7 +5694,7 @@ def test_rc_then_colour(tmpdir):
         "    do colour = loop0_start, loop0_stop, 1\n"
         "      do cell = loop1_start, last_halo_cell_all_colours(colour,3),"
         " 1\n"
-        "        call testkern_code(nlayers, a, f1_data,"
+        "        call testkern_code(nlayers_f1, a, f1_data,"
         " f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cmap(colour,cell)), ndf_w2, undf_w2, "
         "map_w2(:,cmap(colour,cell)), ndf_w3, undf_w3, "
@@ -6246,10 +6244,12 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
-        print("OK for iteration ", idx)
 
-
-def test_intergrid_colour(dist_mem):
+@pytest.mark.parametrize("trans_class",
+                         [(None, None, ""),
+                          (ACCParallelTrans, ACCLoopTrans, "acc"),
+                          (OMPParallelTrans, OMPLoopTrans, "omp")])
+def test_intergrid_colour(dist_mem, trans_class, tmpdir):
     ''' Check that we can apply colouring to a loop containing
     an inter-grid kernel. '''
     # Use an example that contains both prolongation and restriction
@@ -6260,10 +6260,17 @@ def test_intergrid_colour(dist_mem):
     # First two kernels are prolongation, last two are restriction
     loops = schedule.walk(Loop)
     ctrans = Dynamo0p3ColourTrans()
+    reg_trans = trans_class[0]() if trans_class[0] else None
+    loop_trans = trans_class[1]() if trans_class[1] else None
     # To a prolong kernel
     ctrans.apply(loops[1])
     # To a restrict kernel
     ctrans.apply(loops[3])
+    if reg_trans and loop_trans:
+        for loop in schedule.walk(Loop):
+            if loop.loop_type == "colour":
+                reg_trans.apply(loop)
+                loop_trans.apply(loop)
     gen = str(psy.gen).lower()
     expected = '''\
     ncolour_fld_m = mesh_fld_m%get_ncolours()
@@ -6275,28 +6282,31 @@ def test_intergrid_colour(dist_mem):
     assert expected in gen
     assert "loop1_stop = ncolour_fld_m" in gen
     assert "loop2_stop" not in gen
+    assert "    do colour = loop1_start, loop1_stop, 1\n" in gen
+    if trans_class[2]:
+        assert f"!${trans_class[2]} " in gen
     if dist_mem:
         assert ("last_halo_cell_all_colours_fld_m = "
                 "mesh_fld_m%get_last_halo_cell_all_colours()" in gen)
         expected = (
-            "    do colour = loop1_start, loop1_stop, 1\n"
             "      do cell = loop2_start, last_halo_cell_all_colours_fld_m"
             "(colour,1), 1\n")
     else:
         assert ("last_edge_cell_all_colours_fld_m = "
                 "mesh_fld_m%get_last_edge_cell_all_colours()" in gen)
         expected = (
-            "    do colour = loop1_start, loop1_stop, 1\n"
             "      do cell = loop2_start, last_edge_cell_all_colours_fld_m"
             "(colour), 1\n")
     assert expected in gen
     expected = (
-        "        call prolong_test_kernel_code(nlayers, cell_map_fld_m"
+        "        call prolong_test_kernel_code(nlayers_fld_m, cell_map_fld_m"
         "(:,:,cmap_fld_m(colour,cell)), ncpc_fld_f_fld_m_x, "
         "ncpc_fld_f_fld_m_y, ncell_fld_f, fld_f_data, fld_m_data, "
         "ndf_w1, undf_w1, map_w1, undf_w2, "
         "map_w2(:,cmap_fld_m(colour,cell)))\n")
     assert expected in gen
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_intergrid_colour_errors(dist_mem, monkeypatch):
@@ -6314,15 +6324,7 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     ctrans.apply(loop)
     # Update our list of loops
     loops = schedule.walk(Loop)
-    # Trigger the error by calling the internal method to get the upper
-    # bound before the colourmaps have been set-up
-    with pytest.raises(InternalError) as err:
-        _ = loops[1]._upper_bound_fortran()
-    assert ("All kernels within a loop over colours must have been coloured "
-            "but kernel 'prolong_test_kernel_code' has not" in str(err.value))
-    # Set-up the colourmaps
-    psy.invokes.invoke_list[0].meshes._colourmap_init()
-    # Check that the upper bound is now correct
+    # Check that the upper bound is correct
     upperbound = loops[1]._upper_bound_fortran()
     assert upperbound == "ncolour_fld_m"
     # Manually add an un-coloured kernel to the loop that we coloured
@@ -6411,7 +6413,7 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
             f"      !$omp parallel default(shared), private(cell)\n"
             f"      !$omp do schedule(static)\n"
             f"      do cell = loop1_start, {upper_bound}, 1\n"
-            f"        call prolong_test_kernel_code(nlayers, "
+            f"        call prolong_test_kernel_code(nlayers_cmap_fld_c, "
             f"cell_map_cmap_fld_c(:,:,cmap_cmap_fld_c(colour,cell)), "
             f"ncpc_fld_m_cmap_fld_c_x, ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, "
             f"fld_m_data, cmap_fld_c_data, ndf_w1, undf_w1, "
@@ -6513,7 +6515,7 @@ def test_accenterdata_builtin(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert ("!$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
-            "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+            "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
             "undf_w1,undf_w2,undf_w3)" in output)
     assert "loop2_stop = undf_aspc1_f1" in output
     assert ("    !$acc loop independent\n"
@@ -6601,7 +6603,7 @@ def test_accparalleltrans(tmpdir):
     assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
     assert (
         "    !$acc enter data copyin(f1_data,f2_data,m1_data,"
-        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
         "undf_w1,undf_w2,undf_w3)\n"
         "    !$acc parallel default(present)\n"
         "    do cell = loop0_start, loop0_stop, 1") in code
@@ -6636,7 +6638,7 @@ def test_accparalleltrans_dm(tmpdir):
 
     assert ("    !$acc parallel default(present)\n"
             "    do cell = loop0_start, loop0_stop, 1\n"
-            "      call testkern_code(nlayers, a, f1_data, "
+            "      call testkern_code(nlayers_f1, a, f1_data, "
             "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell))\n"
@@ -6674,7 +6676,7 @@ def test_acclooptrans():
     assert "loop0_stop = ncolour" in code
     assert (
         "    !$acc enter data copyin(f1_data,f2_data,m1_data,"
-        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
         "undf_w1,undf_w2,undf_w3)\n"
         "    !$acc parallel default(present)\n"
         "    do colour = loop0_start, loop0_stop, 1\n"
@@ -6862,7 +6864,7 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
     assert (
         "    call f2_proxy%halo_exchange_start(depth=1)\n"
         "    do cell = loop3_start, loop3_stop, 1\n"
-        "      call testkern_any_space_3_code(cell, nlayers, "
+        "      call testkern_any_space_3_code(cell, nlayers_op, "
         "op_proxy%ncell_3d, op_local_stencil, ndf_aspc1_op, "
         "ndf_aspc2_op)\n"
         "    enddo\n"

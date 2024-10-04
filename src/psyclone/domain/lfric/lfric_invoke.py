@@ -42,7 +42,7 @@
 # Imports
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.lfric import LFRicConstants, LFRicTypes
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen, SubroutineGen,
                               UseGen)
@@ -79,7 +79,6 @@ class LFRicInvoke(Invoke):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicInvokeSchedule
-        self._schedule = LFRicInvokeSchedule('name', None)  # for pyreverse
         reserved_names_list = []
         const = LFRicConstants()
         # reserved_names_list.extend(const.STENCIL_MAPPING.values())
@@ -99,11 +98,10 @@ class LFRicInvoke(Invoke):
                                         DynLMAOperators, DynReferenceElement,
                                         DynCMAOperators, DynBasisFunctions,
                                         DynMeshes, DynBoundaryConditions,
-                                        DynProxies, DynCellIterators,
-                                        LFRicMeshProperties)
-        from psyclone.domain.lfric import (LFRicLoopBounds, LFRicRunTimeChecks,
-                                           LFRicScalarArgs, LFRicFields,
-                                           LFRicDofmaps, LFRicStencils)
+                                        DynProxies, LFRicMeshProperties)
+        from psyclone.domain.lfric import (
+            LFRicCellIterators, LFRicLoopBounds, LFRicRunTimeChecks,
+            LFRicScalarArgs, LFRicFields, LFRicDofmaps, LFRicStencils)
 
         self.scalar_args = LFRicScalarArgs(self)
 
@@ -146,7 +144,7 @@ class LFRicInvoke(Invoke):
         self.run_time_checks = LFRicRunTimeChecks(self)
 
         # Information required by kernels that operate on cell-columns
-        self.cell_iterators = DynCellIterators(self)
+        self.cell_iterators = LFRicCellIterators(self)
 
         # Information on the required properties of the reference element
         self.reference_element_properties = DynReferenceElement(self)
@@ -279,8 +277,9 @@ class LFRicInvoke(Invoke):
             # print("Declare", type(entities))
             cursor = entities.declarations(cursor)
             if not isinstance(cursor, int):
-                cursor = 0
+                # assert False, f"Cursor is not int after {entities}"
                 import pdb; pdb.set_trace()
+                cursor = 0
                 cursor = entities.declarations(cursor)
         for entities in [self.proxies, self.run_time_checks,
                          self.cell_iterators, self.meshes,
@@ -292,10 +291,10 @@ class LFRicInvoke(Invoke):
             # print("Initialise", type(entities))
             cursor = entities.initialise(cursor)
             if cursor is None:
+                # assert False, f"Cursor is not int after {entities}"
                 import pdb; pdb.set_trace()
+                cursor = 0
                 cursor = entities.initialise(cursor)
-        if cursor is None:
-            import pdb; pdb.set_trace()
 
         if self.schedule.reductions(reprod=True):
             # We have at least one reproducible reduction so we need

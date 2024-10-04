@@ -106,7 +106,7 @@ def test_field_xyoz(tmpdir):
     real(kind=r_def), pointer, dimension(:) :: f2_data => null()
     real(kind=r_def), pointer, dimension(:) :: m1_data => null()
     real(kind=r_def), pointer, dimension(:) :: m2_data => null()
-    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: nlayers_f1
     integer(kind=i_def) :: ndf_w1
     integer(kind=i_def) :: undf_w1
     integer(kind=i_def) :: ndf_w2
@@ -148,7 +148,7 @@ def test_field_xyoz(tmpdir):
         "    m2_data => m2_proxy%data\n"
         "\n"
         "    ! Initialise number of layers\n"
-        "    nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "    nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
         "\n"
         "    ! Create a mesh object\n"
         "    mesh => f1_proxy%vspace%get_mesh()\n"
@@ -220,7 +220,7 @@ def test_field_xyoz(tmpdir):
         "      call m2_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
         "    do cell = loop0_start, loop0_stop, 1\n"
-        "      call testkern_qr_code(nlayers, f1_data, f2_data, "
+        "      call testkern_qr_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
@@ -270,7 +270,7 @@ def test_edge_qr(tmpdir, dist_mem):
         "    call qr%compute_function(diff_basis, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n" in gen_code)
 
-    assert ("call testkern_qr_edges_code(nlayers, f1_data, "
+    assert ("call testkern_qr_edges_code(nlayers_f1, f1_data, "
             "f2_data, m1_data, a, m2_data, istp, "
             "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, "
             "map_w2(:,cell), diff_basis_w2_qr, ndf_w3, undf_w3, "
@@ -303,19 +303,26 @@ def test_face_qr(tmpdir, dist_mem):
         "quadrature_face_type\n"
         "    use testkern_qr_faces_mod, only : testkern_qr_faces_code\n")
     assert output_decls in generated_code
-    return  # FIXME: why do the assert below fail?
-    assert """
+    assert """\
     type(field_type), intent(in) :: f1
     type(field_type), intent(in) :: f2
     type(field_type), intent(in) :: m1
     type(field_type), intent(in) :: m2
     type(quadrature_face_type), intent(in) :: qr
-    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: cell""" in generated_code
+    
+    if dist_mem:
+        assert """\
+
+    type(mesh_type), pointer :: mesh => null()
+    integer(kind=i_def) :: max_halo_depth_mesh""" in generated_code
+
+    assert """\
     real(kind=r_def), pointer, dimension(:) :: f1_data => null()
     real(kind=r_def), pointer, dimension(:) :: f2_data => null()
     real(kind=r_def), pointer, dimension(:) :: m1_data => null()
     real(kind=r_def), pointer, dimension(:) :: m2_data => null()
-    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: nlayers_f1
     integer(kind=i_def) :: ndf_w1
     integer(kind=i_def) :: undf_w1
     integer(kind=i_def) :: ndf_w2
@@ -357,7 +364,7 @@ def test_face_qr(tmpdir, dist_mem):
         "    m2_data => m2_proxy%data\n"
         "\n"
         "    ! Initialise number of layers\n"
-        "    nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "    nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
         "\n")
     if dist_mem:
         init_output += ("    ! Create a mesh object\n"
@@ -417,8 +424,8 @@ def test_face_qr(tmpdir, dist_mem):
     if dist_mem:
         init_output2 += (
             "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-            "\n"
-            "    ! Call kernels and communication routines\n"
+            # "\n"
+            # "    ! Call kernels and communication routines\n"
             "    if (f1_proxy%is_dirty(depth=1)) then\n"
             "      call f1_proxy%halo_exchange(depth=1)\n"
             "    end if\n"
@@ -440,7 +447,7 @@ def test_face_qr(tmpdir, dist_mem):
 
     compute_output = (
         "    do cell = loop0_start, loop0_stop, 1\n"
-        "      call testkern_qr_faces_code(nlayers, f1_data, f2_data, "
+        "      call testkern_qr_faces_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
@@ -451,8 +458,7 @@ def test_face_qr(tmpdir, dist_mem):
             # "\n"
             # "    ! Set halos dirty/clean for fields modified in the above "
             # "loop\n"
-            "    call f1_proxy%set_dirty()\n"
-            "    !\n")
+            "    call f1_proxy%set_dirty()\n")
     compute_output += (
         "\n"
         "    ! Deallocate basis arrays\n"
@@ -529,7 +535,7 @@ nedges_qr_edge))""" in gen_code
             "diff_dim_w3, ndf_w3, diff_basis_w3_qr_edge)\n" in gen_code)
     # Check that the kernel call itself is correct
     assert (
-        "call testkern_2qr_code(nlayers, f1_data, f2_data, "
+        "call testkern_2qr_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr_face, basis_w1_qr_edge, "
         "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr_face, "

@@ -98,7 +98,7 @@ def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
     ctu = CallTreeUtils()
     rw_info = ctu.get_in_out_parameters([invoke.schedule[0]],
                                         collect_non_local_symbols=True)
-    new_routine = Routine("driver_test")
+    new_routine = Routine.create("driver_test")
     for mod_name, sig in rw_info.set_of_all_used_vars:
         if not mod_name:
             new_routine.symbol_table.find_or_create_tag(
@@ -179,7 +179,7 @@ def test_lfric_driver_add_call(fortran_writer):
     '''Tests that adding a call detects errors and adds calls
     with and without parameters as expected.
     '''
-    program = Routine("routine", is_program=True)
+    program = Routine.create("routine", is_program=True)
     program.symbol_table.find_or_create_tag("test")
     driver_creator = LFRicExtractDriverCreator()
     with pytest.raises(TypeError) as err:
@@ -201,7 +201,7 @@ def test_lfric_driver_add_call(fortran_writer):
 def test_lfric_driver_import_modules():
     '''Tests that adding a call detects errors as expected.
     '''
-    program = Routine("routine", is_program=True)
+    program = Routine.create("routine", is_program=True)
     _, invoke = get_invoke("8_vector_field_2.f90", API,
                            dist_mem=False, idx=0)
 
@@ -211,12 +211,13 @@ def test_lfric_driver_import_modules():
 
     driver_creator = LFRicExtractDriverCreator()
 
-    # Initially we should only have one symbol:
-    assert ["routine"] == [sym.name for sym in program.symbol_table.symbols]
+    # Initially we should only have no symbol other than the routine:
+    assert ['routine'] == [sym.name for sym in program.symbol_table.symbols]
 
     driver_creator._import_modules(program.scope.symbol_table, sched)
     # We should now have two more symbols:
-    all_symbols = ["routine", "testkern_coord_w0_2_mod",
+    all_symbols = ["routine",
+                   "testkern_coord_w0_2_mod",
                    "testkern_coord_w0_2_code"]
     assert (all_symbols == [sym.name for sym in program.symbol_table.symbols])
 
@@ -242,11 +243,11 @@ def test_lfric_driver_import_modules_no_import_interface(fortran_reader):
     sched = psyir.walk(Schedule)[0]
     sched.lower_to_language_level()
     driver_creator = LFRicExtractDriverCreator()
-    program = Routine("routine", is_program=True)
+    program = Routine.create("routine", is_program=True)
     driver_creator._import_modules(program.scope.symbol_table, sched)
-    # Only the program routine itself should be in the symbol table after
+    # No symbols other than the routine should be in the symbol table after
     # calling `import_modules`.
-    assert (["routine"] == [sym.name for sym in program.symbol_table.symbols])
+    assert (['routine'] == [sym.name for sym in program.symbol_table.symbols])
 
 
 # ----------------------------------------------------------------------------
@@ -288,7 +289,8 @@ def test_lfric_driver_simple_test():
                  "call extract_psy_data % ReadVariable('ndf_w1', ndf_w1)",
                  "call extract_psy_data % ReadVariable('ndf_w2', ndf_w2)",
                  "call extract_psy_data % ReadVariable('ndf_w3', ndf_w3)",
-                 "call extract_psy_data % ReadVariable('nlayers', nlayers)",
+                 "call extract_psy_data%ReadVariable('nlayers_x_ptr_vector', "
+                 "nlayers_x_ptr_vector)",
                  "call extract_psy_data % ReadVariable('"
                  "self_vec_type_vector_data', self_vec_type_vector_data)",
                  "call extract_psy_data % ReadVariable('undf_w1', undf_w1)",

@@ -288,7 +288,7 @@ def test_lfric():
         "m1_data: READ, "
         "m2_data: READ, map_w1: READ, map_w2: READ, "
         "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "
-        "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ")
+        "nlayers_f1: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ")
 
 
 def test_lfric_kern_cma_args():

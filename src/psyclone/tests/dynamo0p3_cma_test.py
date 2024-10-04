@@ -840,8 +840,8 @@ def test_cma_asm(tmpdir, dist_mem):
             "=> null()") in code
     assert "ncell_2d = mesh%get_ncells_2d" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
-    assert ("call columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
-            "lma_op1_proxy%ncell_3d, lma_op1_local_stencil, "
+    assert ("call columnwise_op_asm_kernel_code(cell, nlayers_cma_op1, "
+            "ncell_2d, lma_op1_proxy%ncell_3d, lma_op1_local_stencil, "
             "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, cma_op1_ncol, "
             "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
             "cma_op1_gamma_p, ndf_adspc1_lma_op1, cbanded_map_adspc1_lma_op1, "
@@ -879,8 +879,8 @@ def test_cma_asm_field(tmpdir, dist_mem):
     assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     expected = (
-        "call columnwise_op_asm_field_kernel_code(cell, nlayers, ncell_2d, "
-        "afield_data, lma_op1_proxy%ncell_3d, "
+        "call columnwise_op_asm_field_kernel_code(cell, nlayers_cma_op1, "
+        "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
         "cma_op1_gamma_m, cma_op1_gamma_p, ndf_aspc1_afield, "
@@ -922,7 +922,7 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
     assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     expected = ("call columnwise_op_asm_kernel_scalar_code(cell, "
-                "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
+                "nlayers_cma_op1, ncell_2d, lma_op1_proxy%ncell_3d, "
                 "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), "
                 "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
                 "cma_op1_alpha_1, cma_op1_beta, cma_op1_gamma_m, "
@@ -972,7 +972,7 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
         assert "loop0_stop = cma_op1_proxy%fs_from%get_ncell()\n" in code
     assert "do cell = loop0_start, loop0_stop, 1\n" in code
     expected = ("call columnwise_op_asm_same_fs_kernel_code(cell, "
-                "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
+                "nlayers_cma_op1, ncell_2d, lma_op1_proxy%ncell_3d, "
                 "lma_op1_local_stencil, afield_data, "
                 "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, cma_op1_bandwidth, "
                 "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
@@ -1278,7 +1278,7 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
                 "    loop2_stop = cma_opc_proxy%fs_from%get_ncell()\n"
                 in code)
 
-    assert ("call columnwise_op_asm_field_kernel_code(cell, nlayers, "
+    assert ("call columnwise_op_asm_field_kernel_code(cell, nlayers_cma_op1, "
             "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
             "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
             "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
