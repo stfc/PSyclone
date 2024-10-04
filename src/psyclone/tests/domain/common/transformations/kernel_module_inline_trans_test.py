@@ -523,8 +523,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1" in result
     assert "use external_mod2" in result
     assert "not_needed" not in result
@@ -545,8 +545,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : a" in result
     assert "use external_mod2, only : b=>var1, c=>var2" in result
     assert "not_needed" not in result
@@ -569,8 +569,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : a, d" in result
     assert "use external_mod2, only : b=>var1, c=>var2, var1" in result
     assert "not_needed" not in result
@@ -593,8 +593,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : r_def" in result
     assert "use external_mod2, only : my_user_type" in result
     assert "use not_needed" not in result
@@ -614,8 +614,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : r_def" in result
     assert "use not_needed" not in result
 
@@ -634,8 +634,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : my_sub" in result
 
     # Also, if they are inside CodeBlocks
@@ -651,8 +651,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : a, b" in result
 
     # Check that symbol shadowing is respected (in this example
@@ -671,8 +671,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : c" in result
 
     # Another shadowing example where the local module should be
@@ -689,8 +689,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod\n" in result
     assert "use external_mod, only : r_def" not in result
 
@@ -705,8 +705,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    inline_trans._prepare_code_to_inline([routine])
-    result = fortran_writer(routine)
+    new_routines = inline_trans._prepare_code_to_inline([routine])
+    result = fortran_writer(new_routines[0])
     assert "use external_mod, only : a" in result
 
 
@@ -758,9 +758,10 @@ def test_module_inline_with_interfaces(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-@pytest.mark.parametrize("mod_use, sub_use",
-                         [("use my_mod, only: my_sub, my_other_sub", ""),
-                          ("", "use my_mod, only: my_sub, my_other_sub")])
+@pytest.mark.parametrize(
+    "mod_use, sub_use",
+    [("use my_mod, only: my_sub, my_other_sub, my_interface", ""),
+     ("", "use my_mod, only: my_sub, my_other_sub, my_interface")])
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
                           monkeypatch, mod_use, sub_use):
@@ -776,9 +777,11 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     contains
       subroutine a_sub()
         {sub_use}
-        real, dimension(10) :: a
+        real*8, dimension(10) :: a
+        real*4, dimension(10) :: b
         call my_sub(a)
-        call my_other_sub(a)
+        call my_other_sub(b)
+        call my_interface(b)
       end subroutine a_sub
     end module a_mod
     '''
@@ -791,13 +794,16 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
               "w", encoding="utf-8") as mfile:
         mfile.write('''\
     module my_mod
+      interface my_interface
+        module procedure :: my_sub, my_other_sub
+      end interface my_interface
     contains
       subroutine my_sub(arg)
-        real, dimension(10), intent(inout) :: arg
+        real*8, dimension(10), intent(inout) :: arg
         arg(1:10) = 1.0
       end subroutine my_sub
       subroutine my_other_sub(arg)
-        real, dimension(10), intent(inout) :: arg
+        real*4, dimension(10), intent(inout) :: arg
         arg(1:10) = 1.0
       end subroutine my_other_sub
     end module my_mod
@@ -817,8 +823,15 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     output = fortran_writer(psyir)
     assert "subroutine a_sub" in output
     assert "subroutine my_sub" in output
-    assert "use my_mod, only : my_other_sub\n" in output
+    assert "use my_mod, only : my_interface, my_other_sub\n" in output
     # We can't test the compilation of this code because of the 'use my_mod.'
+
+    intrans.apply(calls[2])
+    routines = container.walk(Routine)
+    output = fortran_writer(psyir)
+    assert "use my_mod" not in output
+    assert "subroutine my_other_sub" in output
+    assert "interface my_interface" in output
 
 
 def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
