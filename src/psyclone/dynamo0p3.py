@@ -700,21 +700,15 @@ class LFRicMeshProperties(LFRicCollection):
 
         for prop in self._properties:
             if prop == MeshProperty.ADJACENT_FACE:
-                adj_face = self._symbol_table.find_or_create(
-                    "adjacent_face",
-                    symbol_type=DataSymbol,
-                    datatype=ArrayType(
+                adj_face = self._symbol_table.lookup("adjacent_face")
+                dimension = self._symbol_table.lookup("nfaces_re_h")
+                adj_face.datatype = ArrayType(
                             LFRicTypes("LFRicIntegerScalarDataType")(),
-                            [ArrayType.Extent.DEFERRED]*2),
-                    tag="adjacent_face").name
-                # 'nfaces_re_h' will have been declared by the
-                # DynReferenceElement class.
-                dimension = self._symbol_table.\
-                    find_or_create(
-                        "nfaces_re_h", tag="nfaces_re_h",
-                        symbol_type=DataSymbol,
-                        datatype=LFRicTypes("LFRicIntegerScalarDataType")()
-                    ).name
+                            [Reference(dimension)])
+                if adj_face not in self._symbol_table._argument_list:
+                    adj_face.interface = ArgumentInterface(
+                                                ArgumentInterface.Access.READ)
+                    self._symbol_table.append_argument(adj_face)
                 # parent.add(
                 #     DeclGen(
                 #         parent, datatype="integer",
@@ -722,10 +716,11 @@ class LFRicMeshProperties(LFRicCollection):
                 #         dimension=dimension,
                 #         intent="in", entity_decls=[adj_face]))
             elif prop == MeshProperty.NCELL_2D:
-                ncell_2d = self._symbol_table.find_or_create(
-                    "ncell_2d", tag="ncell_2d",
-                    symbol_type=DataSymbol,
-                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                ncell_2d = self._symbol_table.lookup("ncell_2d")
+                if ncell_2d not in self._symbol_table._argument_list:
+                    ncell_2d.interface = ArgumentInterface(
+                                                ArgumentInterface.Access.READ)
+                    self._symbol_table.append_argument(ncell_2d)
                 # parent.add(
                 #     DeclGen(parent, datatype="integer",
                 #             kind=api_config.default_kind["integer"],
@@ -1154,27 +1149,28 @@ class DynReferenceElement(LFRicCollection):
             scalars.append(nfaces_h)
 
         for nface in scalars:
-            self._symbol_table.find_or_create(
+            sym = self._symbol_table.find_or_create(
                 nface.name,
                 symbol_type=DataSymbol,
-                datatype=LFRicTypes("LFRicIntegerScalarDataType")(),
-                interface=ArgumentInterface(ArgumentInterface.Access.READ)
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")()
             )
+            if sym not in self._symbol_table._argument_list:
+                sym.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+                self._symbol_table.append_argument(sym)
             # parent.add(DeclGen(parent, datatype="integer",
             #                    kind=api_config.default_kind["integer"],
             #                    intent="in", entity_decls=[nface.name]))
 
         # Declare the necessary arrays
         for arr, sym in self._arg_properties.items():
-            dimension = f"3,{sym.name}"
-            self._symbol_table.find_or_create(
-                arr.name,
-                symbol_type=DataSymbol,
-                datatype=ArrayType(
+            arrsym = self._symbol_table.lookup(arr.name)
+            arrsym.datatype=ArrayType(
                     LFRicTypes("LFRicRealScalarDataType")(),
-                    [Literal("3", INTEGER_TYPE), Reference(sym)]),
-                interface=ArgumentInterface(ArgumentInterface.Access.READ)
-            )
+                    [Literal("3", INTEGER_TYPE), Reference(sym)])
+            if arrsym not in self._symbol_table._argument_list:
+                arrsym.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+                self._symbol_table.append_argument(arrsym)
             # parent.add(DeclGen(parent, datatype="real",
             #                    kind=api_config.default_kind["real"],
             #                    intent="in", dimension=dimension,
