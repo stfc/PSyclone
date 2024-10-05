@@ -133,9 +133,10 @@ class LFRicCellIterators(LFRicCollection):
             # Already declared
             for name in self._nlayers_names.keys():
                 sym = self._symbol_table.lookup(name)
-                sym.interface = ArgumentInterface(
-                                    ArgumentInterface.Access.READ)
-                self._symbol_table.append_argument(sym)
+                if sym not in self._symbol_table._argument_list:
+                    sym.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+                    self._symbol_table.append_argument(sym)
         return cursor
 
     def initialise(self, cursor):

@@ -3149,7 +3149,6 @@ def test_multi_anyw2(dist_mem, tmpdir):
         assert output in generated_code
 
 
-@pytest.mark.xfail(reason="FIXME")
 def test_anyw2_vectors():
     '''Check generated code works correctly when we have any_w2 field
     vectors'''

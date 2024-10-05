@@ -1830,14 +1830,13 @@ class DynProxies(LFRicCollection):
                 #         ttext = f"{arg.name}_{idx}:{suffix}"
                 #         vsym = table.lookup_with_tag(ttext)
                 for idx in range(1, arg.vector_size+1):
-                    vsym = symtab.lookup_with_tag(f"{arg.name}_{idx}:{suffix}")
                     self._invoke.schedule.addchild(
                         Assignment.create(
                             lhs=ArrayReference.create(
                                 symtab.lookup(arg.proxy_name),
                                 [Literal(str(idx), INTEGER_TYPE)]),
                             rhs=Call.create(ArrayOfStructuresReference.create(
-                                vsym,
+                                symtab.lookup(arg.name),
                                 [Literal(str(idx), INTEGER_TYPE)],
                                 ["get_proxy"]))),
                         cursor)
@@ -2841,6 +2840,7 @@ class DynMeshes():
         # that we don't generate duplicate assignments
         initialised = []
 
+        comment_cursor = cursor
         # Loop over the DynInterGrid objects
         for dig in self.intergrid_kernels:
             # We need pointers to both the coarse and the fine mesh as well
@@ -2911,7 +2911,8 @@ class DynMeshes():
                 assignment = Assignment.create(
                         lhs=Reference(digmmap),
                         rhs=Call.create(StructureReference.create(
-                            coarse_mesh, ["get_mesh_map"])),
+                                coarse_mesh, ["get_mesh_map"]),
+                            arguments=[Reference(fine_mesh)]),
                         is_pointer=True)
                 self._schedule.addchild(assignment, cursor)
                 cursor += 1
@@ -2946,7 +2947,9 @@ class DynMeshes():
                     assignment = Assignment.create(
                             lhs=Reference(digncellfine),
                             rhs=Call.create(StructureReference.create(
-                                digmmap, ["get_last_halo_cell"])))
+                                fine_mesh, ["get_last_halo_cell"])))
+                    assignment.rhs.append_named_arg("depth",
+                                                    Literal("2", INTEGER_TYPE))
                     self._schedule.addchild(assignment, cursor)
                     cursor += 1
                     # parent.add(
@@ -2956,9 +2959,7 @@ class DynMeshes():
                 else:
                     assignment = Assignment.create(
                             lhs=Reference(digncellfine),
-                            rhs=Call.create(StructureReference.create(
-                                digmmap, ["get_ncell"])),
-                            is_pointer=True)
+                            rhs=dig.fine.generate_method_call("get_ncell"))
                     self._schedule.addchild(assignment, cursor)
                     cursor += 1
                     # parent.add(
@@ -2975,8 +2976,7 @@ class DynMeshes():
                 assignment = Assignment.create(
                         lhs=Reference(digncellpercellx),
                         rhs=Call.create(StructureReference.create(
-                            digmmap, ["get_ncell"])),
-                        is_pointer=True)
+                            digmmap, ["get_ntarget_cells_per_source_x"])))
                 self._schedule.addchild(assignment, cursor)
                 cursor += 1
                 # parent.add(
@@ -2992,8 +2992,7 @@ class DynMeshes():
                 assignment = Assignment.create(
                         lhs=Reference(digncellpercelly),
                         rhs=Call.create(StructureReference.create(
-                            digmmap, ["get_ncell"])),
-                        is_pointer=True)
+                            digmmap, ["get_ntarget_cells_per_source_y"])))
                 self._schedule.addchild(assignment, cursor)
                 cursor += 1
                 # parent.add(
@@ -3039,6 +3038,9 @@ class DynMeshes():
                 cursor += 1
                 # parent.add(AssignGen(parent, lhs=sym.name,
                 #                      rhs=coarse_mesh + name))
+        self._schedule[comment_cursor].preceding_comment = (
+            "Look-up mesh objects and loop limits for inter-grid kernels")
+
         return cursor
 
     @property
@@ -3076,7 +3078,13 @@ class DynInterGrid():
 
         # Generate name for inter-mesh map
         base_mmap_name = f"mmap_{fine_arg.name}_{coarse_arg.name}"
-        self.mmap = symtab.find_or_create_tag(base_mmap_name).name
+        self.mmap = symtab.find_or_create(
+                base_mmap_name, tag=base_mmap_name,
+                symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(
+                    f"type(mesh_map_type), pointer :: {base_mmap_name}"
+                    f" => null()")
+            ).name
 
         # Generate name for ncell variables
         name = f"ncell_{fine_arg.name}"
@@ -3101,13 +3109,20 @@ class DynInterGrid():
         ).name
         # Name for cell map
         base_name = "cell_map_" + coarse_arg.name
+        # sym = symtab.find_or_create(
+        #         base_name,
+        #         symbol_type=DataSymbol,
+        #         datatype=ArrayType(
+        #                 LFRicTypes("LFRicIntegerScalarDataType")(),
+        #                 [ArrayType.Extent.DEFERRED]*3),
+        #         tag=base_name)
         sym = symtab.find_or_create(
                 base_name,
                 symbol_type=DataSymbol,
-                datatype=ArrayType(
-                        LFRicTypes("LFRicIntegerScalarDataType")(),
-                        [ArrayType.Extent.DEFERRED]*3),
-                tag=base_name)
+                datatype=UnsupportedFortranType(
+                    f"integer(kind=i_def), pointer :: {base_name}"
+                    f"(:,:,:) => null()"))
+        
         self.cell_map = sym.name
 
         # We have no colourmap information when first created
