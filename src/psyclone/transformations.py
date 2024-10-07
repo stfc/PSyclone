@@ -537,12 +537,17 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
 
     '''
     def apply(self, node, options=None):
-        ''' Insert an OMPDeclareTargetDirective inside the provided routine.
+        ''' Insert an OMPDeclareTargetDirective inside the provided routine or
+        associated PSyKAl kernel.
 
-        :param node: the PSyIR routine to insert the directive into.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine`
+        :param node: the kernel or routine which is the target of this
+            transformation.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine` |
+                    :py:class:`psyclone.psyGen.Kern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["force"]: whether to allow routines with
+            CodeBlocks to run on the GPU.
 
         '''
         self.validate(node, options)

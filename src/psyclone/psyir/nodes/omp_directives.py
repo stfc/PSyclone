@@ -1447,6 +1447,8 @@ class OMPParallelDirective(OMPRegionDirective):
             for call in reprod_red_call_list:
                 call.reduction_sum_loop(parent)
 
+        # If there are nested OMPRegions, the post region code should be after
+        # the top-level one
         if not self.ancestor(OMPRegionDirective):
             self.gen_post_region_code(parent)
 
@@ -2411,6 +2413,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         parent.add(DirectiveGen(parent, *arguments, content=content),
                    position=["after", position])
 
+        # If there are nested OMPRegions, the post region code should be after
+        # the top-level one
         if not self.ancestor(OMPRegionDirective):
             self.gen_post_region_code(parent)
 
@@ -2521,6 +2525,8 @@ class OMPTargetDirective(OMPRegionDirective):
         # Generate the end code for this node
         parent.add(DirectiveGen(parent, "omp", "end", "target", ""))
 
+        # If there are nested OMPRegions, the post region code should be after
+        # the top-level one
         if not self.ancestor(OMPRegionDirective):
             self.gen_post_region_code(parent)
 

@@ -20,12 +20,19 @@ FFLAGS_DEBUG              = -g -traceback
 FFLAGS_RUNTIME            = -Mchkptr -Mchkstk
 # Option for checking code meets Fortran standard (not available for PGI)
 FFLAGS_FORTRAN_STANDARD   =
-ifdef OFFLOAD_USING_OMP
+
+# Flags for OpenMP threading / OpenMP offloading / OpenACC Offloading
+# The LFRIC_OFFLOAD_DIRECTIVES env_variable is also queried in the PSyclone
+# script to generate matching directives
+ifeq $(LFRIC_OFFLOAD_DIRECTIVES) "omp"
 	OPENMP_ARG = -mp=gpu -gpu=managed
-	LDFLAGS_COMPILER = -g -mp=gpu -gpu=managed -cuda
-else
+	LDFLAGS_COMPILER = -mp=gpu -gpu=managed -cuda
+else ifeq $(LFRIC_OFFLOAD_DIRECTIVES) "acc"
 	OPENMP_ARG = -acc=gpu -gpu=managed -mp=multicore
-	LDFLAGS_COMPILER = -g -acc=gpu -gpu=managed -mp=multicore -cuda
+	LDFLAGS_COMPILER = -acc=gpu -gpu=managed -mp=multicore -cuda
+else
+	OPENMP_ARG = -mp
+	LDFLAGS_COMPILER = -mp
 endif
 
 FPP = cpp -traditional-cpp
