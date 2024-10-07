@@ -218,16 +218,15 @@ class KernCallArgList(ArgOrdering):
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
-        :type var_accesses:
+        :type var_accesses: \
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         if self._kern.iterates_over not in ["cell_column", "domain"]:
             return
-        name = f"nlayers_{self._kern.arguments.iteration_space_arg().name}"
-        nlayers_symbol = self.append_integer_reference(name, tag=name)
+        nlayers_symbol = self.append_integer_reference("nlayers")
         self.append(nlayers_symbol.name, var_accesses)
         self._nlayers_positions.append(self.num_args)
 
@@ -385,10 +384,11 @@ class KernCallArgList(ArgOrdering):
             # If dof kernel, add access to the field by dof ref
             dof_sym = self._symtab.find_or_create_integer_symbol(
                 "df", tag="dof_loop_idx")
-            dof_idx_sym = Reference(dof_sym)
-            self.append_array_reference(sym.name, [dof_idx_sym],
+            self.append_array_reference(sym.name, [Reference(dof_sym)],
                                         ScalarType.Intrinsic.INTEGER,
                                         symbol=sym)
+            name = f"{sym.name}({Reference(dof_sym)})"
+            self.append(name, var_accesses, var_access_name=sym.name)
         else:
             # Add the field data array as being read.
             self.append(sym.name, var_accesses, var_access_name=sym.name,
