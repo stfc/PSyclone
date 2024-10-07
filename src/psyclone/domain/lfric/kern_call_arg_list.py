@@ -384,7 +384,8 @@ class KernCallArgList(ArgOrdering):
             # If dof kernel, add access to the field by dof ref
             dof_sym = self._symtab.find_or_create_integer_symbol(
                 "df", tag="dof_loop_idx")
-            self.append_array_reference(sym.name, [Reference(dof_sym)],
+            dof_idx_sym = Reference(dof_sym)
+            self.append_array_reference(sym.name, [dof_idx_sym],
                                         ScalarType.Intrinsic.INTEGER,
                                         symbol=sym)
         else:
