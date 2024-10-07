@@ -275,8 +275,6 @@ def test_undf_initialisation():
 
     assert expected in code
 
-    print(code)
-
 
 def test_compiles(tmpdir):
     '''
