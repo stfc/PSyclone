@@ -4684,7 +4684,7 @@ def test_omptarget_gen_code():
     schedule.addchild(target)
     target.dir_body.addchild(kern.detach())
 
-    # Check that the "omp target" is produces, and that the set_dirty is
+    # Check that the "omp target" is produced, and that the set_dirty is
     # generated after it
     code = str(psy.gen)
     assert """

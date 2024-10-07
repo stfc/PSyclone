@@ -437,8 +437,8 @@ def test_gpumixin_validate_no_call():
      (OMPDeclareTargetTrans(), "!$omp declare target")])
 def test_kernel_gpu_annotation_trans(rtrans, expected_directive,
                                      fortran_writer):
-    ''' Check that the kernel GPU annotation transformations insert the
-    porper directive into the kernel '''
+    ''' Check that the GPU annotation transformations insert the
+    proper directive inside PSyKAl kernel code '''
     _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
     sched = invoke.schedule
     kern = sched.coded_kernels()[0]

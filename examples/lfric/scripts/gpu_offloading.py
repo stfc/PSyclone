@@ -42,6 +42,7 @@ setval_* generically.
 
 '''
 import os
+import sys
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.nodes import Directive, Loop
 from psyclone.psyir.transformations import (
@@ -57,7 +58,7 @@ from psyclone.transformations import (
 INVOKE_EXCLUSIONS = [
 ]
 
-OFFLOAD_USING_OMP = os.getenv('OFFLOAD_USING_OMP', False)
+OFFLOAD_DIRECTIVES = os.getenv('LFRIC_OFFLOAD_DIRECTIVES', "none")
 
 
 def trans(psy):
@@ -73,21 +74,28 @@ def trans(psy):
     const = LFRicConstants()
     cpu_parallel = OMPParallelTrans()
 
-    if OFFLOAD_USING_OMP:
+    if OFFLOAD_DIRECTIVES == "omp":
         # Use OpenMP offloading
         loop_offloading_trans = OMPLoopTrans(
             omp_directive="teamsdistributeparalleldo",
             omp_schedule="none"
         )
+        # OpenMP does not have a kernels parallelism directive equivalent
+        # to OpenACC 'kernels'
         kernels_trans = None
         gpu_region_trans = OMPTargetTrans()
         gpu_annotation_trans = OMPDeclareTargetTrans()
-    else:
+    elif OFFLOAD_DIRECTIVES == "acc":
         # Use OpenACC offloading
         loop_offloading_trans = ACCLoopTrans()
         kernels_trans = ACCKernelsTrans()
         gpu_region_trans = ACCParallelTrans(default_present=False)
         gpu_annotation_trans = ACCRoutineTrans()
+    else:
+        print(f"The PSyclone transformation script expects the "
+              f"LFRIC_OFFLOAD_DIRECTIVES to be set to 'omp' or 'acc' "
+              f"but found '{OFFLOAD_DIRECTIVES}'.")
+        sys.exit(-1)
 
     print(f"PSy name = '{psy.name}'")
 
@@ -157,18 +165,19 @@ def trans(psy):
                             loop, options={"independent": True})
                         gpu_region_trans.apply(loop.ancestor(Directive))
                     if loop.loop_type == "dof":
-                        # Loops over dofs can contains reductions that ...
-                        if OFFLOAD_USING_OMP:
-                            # with loop offloading will be detected by the
-                            # dependencyAnalysis and raise TransformationErrors
+                        # Loops over dofs can contains reductions
+                        if kernels_trans:
+                            # If kernel offloading is available it should
+                            # manage them
+                            kernels_trans.apply(loop)
+                        else:
+                            # Otherwise, if the reductions exists, they will
+                            # be detected by the dependencyAnalysis and raise
+                            # a TransformationError captured below
                             loop_offloading_trans.apply(
                                 loop, options={"independent": True})
                             gpu_region_trans.apply(loop.ancestor(Directive))
-                        elif kernels_trans:
-                            # if kernel offloading is available it should
-                            # manage them
-                            kernels_trans.apply(loop)
-                        # Alternatively with could use loop parallelism with
+                        # Alternatively we could use loop parallelism with
                         # reduction clauses
                     print(f"Successfully offloaded loop with {kernel_names}")
                 except TransformationError as err:
