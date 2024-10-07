@@ -1379,13 +1379,13 @@ class CodedKern(Kern):
                   kernel code.
         :rtype: tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
                       list[:py:class:`psyclone.psyir.nodes.KernelSchedule`]]
+
+        :raises NotImplementedError: must be overridden in sub-class.
+
         '''
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-        if self._kern_schedule is None:
-            astp = Fparser2Reader()
-            self._kern_schedule = [astp.generate_schedule(self.name, self.ast)]
-            # TODO: Validate kernel with metadata (issue #288).
-        return None, self._kern_schedule
+        raise NotImplementedError(
+            f"get_kernel_schedule() must be overridden in class "
+            f"{self.__class__}")
 
     @property
     def opencl_options(self):

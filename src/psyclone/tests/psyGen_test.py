@@ -703,6 +703,23 @@ def test_kern_children_validation():
             "is a LeafNode and doesn't accept children.") in str(excinfo.value)
 
 
+def test_codedkern_get_kernel_schedule(monkeypatch):
+    '''
+    Check that CodedKern.get_kernel_schedule() raises a NotImplementedError
+    (as it must be implemented by sub-classes).
+
+    '''
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
+    metadata = LFRicKernMetadata(ast)
+    kern = LFRicKern()
+    kern.load_meta(metadata)
+    monkeypatch.setattr(kern, "__class__", CodedKern)
+    with pytest.raises(NotImplementedError) as err:
+        kern.get_kernel_schedule()
+    assert ("get_kernel_schedule() must be overridden in class "
+            in str(err.value))
+
+
 def test_inlinedkern_children_validation():
     '''Test that children added to InlinedKern are validated. An InlinedKern
     must have one child that is a Schedule (which is created by its
