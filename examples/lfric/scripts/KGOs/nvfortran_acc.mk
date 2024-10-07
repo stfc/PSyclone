@@ -24,10 +24,10 @@ FFLAGS_FORTRAN_STANDARD   =
 # Flags for OpenMP threading / OpenMP offloading / OpenACC Offloading
 # The LFRIC_OFFLOAD_DIRECTIVES env_variable is also queried in the PSyclone
 # script to generate matching directives
-ifeq $(LFRIC_OFFLOAD_DIRECTIVES) "omp"
+ifeq ("$(LFRIC_OFFLOAD_DIRECTIVES)", "omp")
 	OPENMP_ARG = -mp=gpu -gpu=managed
 	LDFLAGS_COMPILER = -mp=gpu -gpu=managed -cuda
-else ifeq $(LFRIC_OFFLOAD_DIRECTIVES) "acc"
+else ifeq ("$(LFRIC_OFFLOAD_DIRECTIVES)", "acc")
 	OPENMP_ARG = -acc=gpu -gpu=managed -mp=multicore
 	LDFLAGS_COMPILER = -acc=gpu -gpu=managed -mp=multicore -cuda
 else
