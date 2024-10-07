@@ -113,7 +113,8 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         if len(kschedules) > 1:
             raise TransformationError(
                 f"Error in {self.name} transformation. Polymorphic kernels "
-                f"are not supported but kernel '{node.name}' corresponds to ")
+                f"are not supported but kernel '{node.name}' has "
+                f"implementations: {[sched.name for sched in kschedules]}")
 
     def apply(self, node, options=None):
         '''Apply this transformation to the supplied node.
