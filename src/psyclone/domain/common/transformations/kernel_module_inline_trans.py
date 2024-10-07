@@ -377,6 +377,9 @@ class KernelModuleInlineTrans(Transformation):
         actual_table = (symbol.find_symbol_table(table.node) if
                         symbol.name not in table else table)
         remove_csym = actual_table.symbols_imported_from(csym) == [symbol]
+        # We have to force the removal as there will be calls that reference
+        # this Symbol.
+        # pylint:disable-next=protected-access
         actual_table._symbols.pop(symbol.name)
         if remove_csym:
             actual_table.remove(csym)

@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import (
     Container, Routine, CodeBlock, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, ImportInterface, RoutineSymbol, REAL_TYPE,
-    Symbol, SymbolError)
+    Symbol, SymbolError, SymbolTable)
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -372,6 +372,28 @@ def test_validate_fail_to_get_psyir(fortran_reader):
             " search path is set to []. Searching for external routines that "
             "are only resolved at link time is not supported."
             in str(err.value))
+
+
+def test_rm_imported_symbol():
+    '''
+    Tests for the _rm_imported_symbol() utility method.
+
+    '''
+    table = SymbolTable()
+    csym = ContainerSymbol("ankh")
+    table.add(csym)
+    moist_sym = DataSymbol("moist", REAL_TYPE,
+                           interface=ImportInterface(csym))
+    table.add(moist_sym)
+    local_sym = DataSymbol("local", REAL_TYPE)
+    table.add(local_sym)
+    KernelModuleInlineTrans._rm_imported_symbol("moist", table)
+    assert "moist" not in table
+    # Container has been removed too.
+    assert "ankh" not in table
+    # If the symbol is not imported then it is left unchanged.
+    KernelModuleInlineTrans._rm_imported_symbol("local", table)
+    assert "local" in table
 
 
 def test_module_inline_apply_transformation(tmpdir, fortran_writer):
