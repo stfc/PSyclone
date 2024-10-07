@@ -109,13 +109,6 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
                 f"can only be applied to 'GOKern' nodes, but found "
                 f"'{type(node).__name__}'.")
 
-        _, kschedules = node.get_kernel_schedule()
-        if len(kschedules) > 1:
-            raise TransformationError(
-                f"Error in {self.name} transformation. Polymorphic kernels "
-                f"are not supported but kernel '{node.name}' has "
-                f"implementations: {[sched.name for sched in kschedules]}")
-
     def apply(self, node, options=None):
         '''Apply this transformation to the supplied node.
 
@@ -188,7 +181,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
 
         # Update Kernel
         _, kschedules = node.get_kernel_schedule()
-        # validate() has checked that this kernel is not polymorphic.
+        # GOcean Kernels must have a single implementation.
         kschedule = kschedules[0]
         kernel_st = kschedule.symbol_table
         iteration_indices = kernel_st.iteration_indices

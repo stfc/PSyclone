@@ -1235,8 +1235,15 @@ class GOKern(CodedKern):
 
     def get_kernel_schedule(self):
         '''
+        Obtains and returns the PSyIR Schedule representing the kernel code.
+
+        For consistency with LFRic kernels (which may be polymorphic), this
+        method actually returns a tuple with the second element containing a
+        list comprising just one Schedule.
+
         :returns: a schedule representing the GOcean kernel code.
-        :rtype: :py:class:`psyclone.gocean1p0.GOKernelSchedule`
+        :rtype: tuple[NoneType,
+                      list[:py:class:`psyclone.gocean1p0.GOKernelSchedule`]]
 
         :raises GenerationError: if there is a problem raising the language-
                                  level PSyIR of this kernel to GOcean PSyIR.
