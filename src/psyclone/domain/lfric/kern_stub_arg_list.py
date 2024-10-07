@@ -39,7 +39,9 @@
 for a kernel subroutine.
 '''
 
-from psyclone.domain.lfric import ArgOrdering, LFRicConstants, LFRicSymbolTable
+from psyclone.domain.lfric.arg_ordering import ArgOrdering
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.errors import InternalError
 
 

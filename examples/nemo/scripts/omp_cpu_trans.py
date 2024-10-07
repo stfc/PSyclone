@@ -39,14 +39,14 @@ directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT, NOT_WORKING)
+    enhance_tree_information, NOT_PERFORMANT)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
 PROFILING_ENABLED = False
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING + [
+FILES_TO_SKIP = NOT_PERFORMANT + [
     "lbclnk.f90",  # TODO #2685: effective shape bug
     "asminc.f90",
     "trosk.f90",

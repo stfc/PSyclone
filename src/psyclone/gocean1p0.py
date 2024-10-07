@@ -217,7 +217,7 @@ class GOInvoke(Invoke):
 
     '''
     def __init__(self, alg_invocation, idx, invokes):
-        self._schedule = GOInvokeSchedule('name', None)  # for pyreverse
+        self._schedule = GOInvokeSchedule.create('name')
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
 
         if Config.get().distributed_memory:
@@ -309,9 +309,12 @@ class GOInvokeSchedule(InvokeSchedule):
     constructor and pass it factories to create GO-specific calls to both
     user-supplied kernels and built-ins.
 
-    :param str name: name of the Invoke.
-    :param alg_calls: list of KernelCalls parsed from the algorithm layer.
-    :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param symbol: RoutineSymbol representing the Invoke.
+    :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+    :param alg_calls: optional list of KernelCalls parsed from the algorithm
+                      layer.
+    :type alg_calls: Optional[list of
+                              :py:class:`psyclone.parse.algorithm.KernelCall`]
     :param reserved_names: optional list of names that are not allowed in the \
                            new InvokeSchedule SymbolTable.
     :type reserved_names: list of str
@@ -322,10 +325,14 @@ class GOInvokeSchedule(InvokeSchedule):
     # Textual description of the node.
     _text_name = "GOInvokeSchedule"
 
-    def __init__(self, name, alg_calls, reserved_names=None, parent=None):
-        InvokeSchedule.__init__(self, name, GOKernCallFactory,
+    def __init__(self, symbol, alg_calls=None, reserved_names=None,
+                 parent=None, **kwargs):
+        if not alg_calls:
+            alg_calls = []
+        InvokeSchedule.__init__(self, symbol, GOKernCallFactory,
                                 GOBuiltInCallFactory,
-                                alg_calls, reserved_names, parent=parent)
+                                alg_calls, reserved_names, parent=parent,
+                                **kwargs)
 
 
 # pylint: disable=too-many-instance-attributes
@@ -2152,11 +2159,6 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
             # generated first.
             pass
 
-        # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol(
-            "read_from_device", symbol_type=RoutineSymbol,
-            tag="openacc_read_func").name
-
         code = '''
             subroutine read_openacc(from, to, startx, starty, nx, ny, blocking)
                 use iso_c_binding, only: c_ptr
@@ -2168,6 +2170,9 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
             end subroutine read_openacc
             '''
 
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_symbol = RoutineSymbol("read_from_device")
+
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
         container = fortran_reader.psyir_from_source(code)
@@ -2175,17 +2180,19 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         # Add an ACCUpdateDirective inside the subroutine
         subroutine.addchild(ACCUpdateDirective([Signature("to")], "host",
                                                if_present=False))
-
-        # Rename subroutine
-        subroutine.name = subroutine_name
-
         # Insert the routine as a child of the ancestor Container
         if not self.ancestor(Container):
             raise GenerationError(
                 f"The GOACCEnterDataDirective can only be generated/lowered "
                 f"inside a Container in order to insert a sibling "
                 f"subroutine, but '{self}' is not inside a Container.")
-        self.ancestor(Container).addchild(subroutine.detach())
+
+        self.ancestor(Container).symbol_table.add(subroutine_symbol,
+                                                  tag="openacc_read_func")
+        subroutine.detach()
+        subroutine.symbol = subroutine_symbol
+
+        self.ancestor(Container).addchild(subroutine)
 
         return symtab.lookup_with_tag("openacc_read_func")
 

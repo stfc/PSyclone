@@ -74,7 +74,7 @@ def create_prog_fixture(parser):
     # The tests below sometime fail (depending of the number of parallel
     # jobs) if the LFRicSymbolTable has not been not set up.
     ScopingNode._symbol_table_class = LFRicSymbolTable
-    prog = Routine("test_prog", is_program=True)
+    prog = Routine.create("test_prog", is_program=True)
     mesh_mod = prog.symbol_table.new_symbol("mesh_mod",
                                             symbol_type=ContainerSymbol)
     prog.symbol_table.new_symbol("mesh", symbol_type=DataSymbol,

@@ -532,7 +532,7 @@ def has_cmp_interface(code):
 def test_find_or_create_psyclone_internal_cmp(fortran_writer):
     '''Test that the find_or_create_psyclone_internal_cmp returns the expected
     symbol and creates the interface if it does not exist. '''
-    subroutine = Routine("mysub", children=[Return()])
+    subroutine = Routine.create("mysub", children=[Return()])
     node_in_subroutine = subroutine.children[0]
 
     # If it is not inside a Container it producess a NotImplementedError
@@ -716,7 +716,6 @@ def test_derived_types_case(fortran_reader, fortran_writer):
 
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
-
     # Check that the interface implementation has been inserted
     has_cmp_interface(output)
 

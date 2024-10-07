@@ -182,6 +182,7 @@ class ChildrenList(list):
 
         '''
         # pylint: disable=protected-access
+        node.update_parent_symbol_table(self._node_reference)
         node._parent = self._node_reference
         node._has_constructor_parent = False
 
@@ -197,6 +198,7 @@ class ChildrenList(list):
         # This is done from here with protected access because it's the parent
         # which is in charge of maintaining its children connections.
         # pylint: disable=protected-access
+        node.update_parent_symbol_table(None)
         node._parent = None
         node._has_constructor_parent = False
 
@@ -1746,6 +1748,18 @@ class Node():
         '''
         for child in self.children:
             child.replace_symbols_using(table)
+
+    def update_parent_symbol_table(self, new_parent):
+        '''
+        Specify how this node must update its parent's symbol table (if it has
+        one) when its parent is updated.
+
+        This base implementation does nothing.
+
+        :param new_parent: The new parent of this node.
+        :type new_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
+
+        '''
 
 
 # For automatic documentation generation
