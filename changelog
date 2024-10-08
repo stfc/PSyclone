@@ -235,7 +235,10 @@
 	symbols from their parent scope.
 
 	81) PR #2725 to close #717. Removes some TODOs and associated utility code
-        from the fparser2 frontend that is now unused.
+	from the fparser2 frontend that is now unused.
+
+	82) PR #2733 for #2730. Adds OpenMP offloading support for LFRic plus
+	associated integration test.
 
 release 2.5.0 14th of February 2024
 
