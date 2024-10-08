@@ -718,3 +718,24 @@ def test_definition_use_chain_find_forward_accesses_codeblock_and_call_local(
     reaches = chains.find_forward_accesses()
     assert len(reaches) == 1
     assert reaches[0] is routine.children[1]
+
+
+def test_definition_use_chain_find_forward_accesses_call_and_codeblock_nlocal(
+    fortran_reader,
+):
+    """Functionality test for the find_forward_accesses routine. This
+    tests the behaviour for a simple case with a Call then a Codeblock, and
+    where the variable is not a local variable."""
+    code = """
+    subroutine x()
+    use some_mod
+    a = a + 2
+    call b(a)
+    print *, a
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(routine.children[0].lhs)
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 1
+    assert reaches[0] is routine.children[1]
