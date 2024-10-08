@@ -551,10 +551,9 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
             routines = [node]
 
         for routine in routines:
-            for child in routine.children:
-                if isinstance(child, OMPDeclareTargetDirective):
-                    break  # routine is already marked with OMPDeclareTarget
-            routine.children.insert(0, OMPDeclareTargetDirective())
+            if not any(isinstance(child, OMPDeclareTargetDirective) for
+                       child in routine.children):
+                routine.children.insert(0, OMPDeclareTargetDirective())
 
     def validate(self, node, options=None):
         ''' Check that an OMPDeclareTargetDirective can be inserted.
