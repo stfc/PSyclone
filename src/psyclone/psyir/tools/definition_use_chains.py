@@ -75,7 +75,7 @@ class DefinitionUseChain:
         self._stop_point = stop_point
         if control_flow_region is None:
             self._scope = [reference.ancestor(Routine)]
-            if self._scope is None:
+            if self._scope[0] is None:
                 self._scope = reference.root.children[:]
         else:
             # We need a list of regions for control flow.
@@ -291,15 +291,11 @@ class DefinitionUseChain:
                     # We're outside a control flow region, updating the reaches
                     # here is to find all the reached nodes.
                     for ref in chain._reaches:
-                        # Add unique references to reaches. Can't just check
-                        # with "in" as unique references can be equal if
-                        # they're basic references to the same symbol.
-                        found = False
-                        for ref2 in self._reaches:
-                            if ref2 is ref:
-                                found = True
-                        if not found:
-                            self._reaches.append(ref)
+                        # Add unique references to reaches. Since we're not
+                        # in a control flow region, we can't have added
+                        # these references into the reaches array yet so
+                        # they're guaranteed to be unique.
+                        self._reaches.append(ref)
                     # If we have a defsout in the chain then we can stop as we
                     # will never get past the write as its not conditional.
                     if len(chain.defsout) > 0:
@@ -326,15 +322,9 @@ class DefinitionUseChain:
                             return self._reaches
 
                     for ref in chain._reaches:
-                        # Add unique references to reaches. Can't just check
-                        # with "in" as unique references can be equal if
-                        # they're basic references to the same symbol.
-                        found = False
-                        for ref2 in self._reaches:
-                            if ref2 is ref:
-                                found = True
-                        if not found:
-                            self._reaches.append(ref)
+                        # We will only ever reach a reference once, so
+                        # we don't need to check uniqueness.
+                        self._reaches.append(ref)
         else:
             # Check if there is an ancestor Assignment.
             ancestor = self._reference.ancestor(Assignment)
@@ -367,15 +357,7 @@ class DefinitionUseChain:
                     # Find any forward_accesses in the lhs.
                     chain.find_forward_accesses()
                     for ref in chain._reaches:
-                        # Add unique references to reaches. Can't just check
-                        # with "in" as unique references can be equal if
-                        # they're basic references to the same symbol.
-                        found = False
-                        for ref2 in self._reaches:
-                            if ref2 is ref:
-                                found = True
-                        if not found:
-                            self._reaches.append(ref)
+                        self._reaches.append(ref)
                     # If we have a defsout in the chain then we can stop as we
                     # will never get past the write as its not conditional.
                     if len(chain.defsout) > 0:
@@ -387,36 +369,15 @@ class DefinitionUseChain:
             # We can compute the rest of the accesses
             self._compute_forward_uses(self._scope)
             for ref in self._uses:
-                # Add unique references to reaches. Can't just check with
-                # in as unique references can be equal if they're basic
-                # references to the same symbol.
-                found = False
-                for ref2 in self._reaches:
-                    if ref2 is ref:
-                        found = True
-                if not found:
-                    self._reaches.append(ref)
+                self._reaches.append(ref)
             # If this block doesn't kill any accesses, then we add
             # the defsout into the reaches array.
             if len(self.killed) == 0:
                 for ref in self._defsout:
-                    found = False
-                    for ref2 in self._reaches:
-                        if ref2 is ref:
-                            found = True
-                    if not found:
-                        self._reaches.append(ref)
-            else:
-                # TODO I think we should only add the first killed reference?
-                # Not sure, I think we probably should but we need to use
-                # some complex control flow before I'm sure.
-                for ref in self.killed:
-                    found = False
-                    for ref2 in self._reaches:
-                        if ref2 is ref:
-                            found = True
-                    if not found:
-                        self._reaches.append(ref)
+                    self._reaches.append(ref)
+            # We're not in a control flow region, so we stop if the
+            # reference is written to, so we don't need to ever add
+            # elements of the killed array here.
 
         # Reset the start and stop points before returning the result.
         self._start_point = save_start_position
@@ -452,7 +413,10 @@ class DefinitionUseChain:
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
                     # positives for structure accesses inside CodeBlocks.
-                    if self._reference.symbol in reference.get_symbol_names():
+                    if (
+                        self._reference.symbol.name
+                        in reference.get_symbol_names()
+                    ):
                         # Assume the worst for a CodeBlock and we count them
                         # as killed and defsout and uses.
                         if defs_out is None:
@@ -460,6 +424,7 @@ class DefinitionUseChain:
                         if defs_out is not None:
                             self._killed.append(defs_out)
                         defs_out = reference
+                        continue
                 elif isinstance(reference, Call):
                     # If its a local variable we can ignore it as we'll catch
                     # the Reference later if its passed into the Call.

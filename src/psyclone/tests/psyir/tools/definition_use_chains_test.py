@@ -35,13 +35,18 @@
 # -----------------------------------------------------------------------------
 # TODO Info
 
-
+import pytest
 from psyclone.psyir.nodes import (
     Routine,
     IfBlock,
     Reference,
     Assignment,
     Node,
+    WhileLoop,
+)
+from psyclone.psyir.symbols import (
+    DataSymbol,
+    INTEGER_TYPE,
 )
 from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
 
@@ -92,11 +97,24 @@ def test_definition_use_chain_init_and_properties(fortran_reader):
     assert duc._start_point == 0
     assert duc._stop_point == 1
 
-    # TODO - We probably should have some more type checking functionality.
-
     assert len(duc.uses) == 0
     assert len(duc.defsout) == 0
     assert len(duc.killed) == 0
+
+    # Test exception when passed a non_list
+    with pytest.raises(TypeError) as excinfo:
+        duc = DefinitionUseChain(a_1, control_flow_region=2)
+    assert ("The control_flow_region passed into a DefinitionUseChain "
+            "must be a list but found 'int'." in str(excinfo.value))
+
+    # Check if we don't pass a routine child then we get the root
+    sym = DataSymbol("sym", INTEGER_TYPE)
+    r1 = Reference(sym)
+    r2 = Reference(sym)
+    assign = Assignment.create(r1, r2)
+    duc = DefinitionUseChain(r1)
+    assert duc._scope[0] is assign.lhs
+    assert duc._scope[1] is assign.rhs
 
 
 def test_definition_use_chain_is_basic_block(fortran_reader):
@@ -529,6 +547,34 @@ def test_definition_use_chain_find_forward_accesses_while_loop_example(
     assert reaches[2] is routine.children[2].loop_body.children[0].lhs
 
 
+def test_definition_use_chain_foward_accesses_nested_loop_example(
+    fortran_reader,
+):
+    code = """
+    subroutine x()
+    integer :: a, b, c, d, e, f, i
+    i = 100
+    a = 1
+    do while(a < i)
+       a = a + 3
+       do while(b < 5 * i)
+          b = b + a
+       end do
+    end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    # Start the chain from b = b + A.
+    loops = routine.walk(WhileLoop)
+    chains = DefinitionUseChain(loops[1].loop_body.children[0].rhs.children[1])
+    reaches = chains.find_forward_accesses()
+    # Results should be A = A + 3 and the a < i condition
+    assert len(reaches) == 3
+    assert reaches[0] is loops[0].condition.children[0]
+    assert reaches[1] is loops[0].loop_body.children[0].rhs.children[0]
+    assert reaches[2] is loops[0].loop_body.children[0].lhs
+
+
 def test_definition_use_chain_find_forward_accesses_structure_example(
     fortran_reader,
 ):
@@ -544,3 +590,91 @@ def test_definition_use_chain_find_forward_accesses_structure_example(
     chains = DefinitionUseChain(routine.children[0].lhs)
     reaches = chains.find_forward_accesses()
     assert len(reaches) == 0
+
+
+def test_definition_use_chain_find_forward_accesses_no_control_flow_example(
+    fortran_reader,
+):
+    code = """
+    subroutine x()
+    integer :: a
+    a = a + 2
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(routine.children[0].rhs.children[0])
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 1
+    assert reaches[0] is routine.children[0].lhs
+
+
+def test_definition_use_chain_find_forward_accesses_no_control_flow_example2(
+    fortran_reader,
+):
+    code = """
+    subroutine x()
+    integer :: a
+    a = a + 2
+    a = 3
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(routine.children[0].rhs.children[0])
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 1
+    assert reaches[0] is routine.children[0].lhs
+
+
+def test_definition_use_chain_find_forward_accesses_codeblock(
+    fortran_reader,
+):
+    code = """
+    subroutine x()
+    integer :: a
+    a = a + 2
+    print *, a
+    a = 3
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(routine.children[0].lhs)
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 1
+    assert reaches[0] is routine.children[1]
+
+
+def test_definition_use_chain_find_forward_accesses_codeblock_and_call_nlocal(
+    fortran_reader,
+):
+    code = """
+    subroutine x()
+    use some_mod
+    a = a + 2
+    print *, a
+    call b(a)
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(routine.children[0].lhs)
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 1
+    assert reaches[0] is routine.children[1]
+
+
+def test_definition_use_chain_find_forward_accesses_codeblock_and_call_local(
+    fortran_reader,
+):
+    code = """
+    subroutine x()
+    use some_mod
+    integer :: a
+    a = a + 2
+    print *, a
+    call b(a)
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(routine.children[0].lhs)
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 1
+    assert reaches[0] is routine.children[1]
