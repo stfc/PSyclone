@@ -327,10 +327,7 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        if self._kern.iterates_over == "dof":
-            self.append(function_space.bare_undf_name, var_accesses)
-        else:
-            self.append(function_space.undf_name, var_accesses)
+        self.append(function_space.undf_name, var_accesses)
 
         self.append(function_space.map_name, var_accesses)
 

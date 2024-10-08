@@ -271,10 +271,13 @@ def test_undf_initialisation():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    expected = "undf = f1_proxy%vspace%get_undf()"
+    declaration = "INTEGER(KIND=i_def) undf"
+    initalisation = "undf = f1_proxy%vspace%get_undf()"
 
-    assert expected in code
+    assert declaration in code
+    assert initalisation in code
 
+    print(code)
 
 def test_compiles(tmpdir):
     '''
