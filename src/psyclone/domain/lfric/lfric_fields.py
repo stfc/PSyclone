@@ -139,10 +139,7 @@ class LFRicFields(LFRicCollection):
         fld_args = psyGen.args_filter(
             self._kernel.args, arg_types=const.VALID_FIELD_NAMES)
         for fld in fld_args:
-            if self._kernel.iterates_over == "dof":
-                undf_name = fld.function_space.bare_undf_name
-            else:
-                undf_name = fld.function_space.undf_name
+            undf_name = fld.function_space.undf_name
             fld_dtype = fld.intrinsic_type
             fld_kind = fld.precision
 
