@@ -711,14 +711,6 @@ class InvokeSchedule(Routine):
                 self.addchild(KernFactory.create(call, parent=self))
 
     @property
-    def symbol_table(self):
-        '''
-        :returns: Table containing symbol information for the schedule.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        '''
-        return self._symbol_table
-
-    @property
     def invoke(self):
         return self._invoke
 

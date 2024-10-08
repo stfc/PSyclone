@@ -60,7 +60,7 @@ from psyclone.domain.lfric import (
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeallocateGen, DeclGen, DoGen,
+                              DeallocateGen, DeclGen, DoGen, InterfaceDeclGen,
                               ModuleGen, TypeDeclGen, UseGen, PSyIRGen)
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
@@ -71,10 +71,10 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Reference, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
     StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall)
-from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
-                                    UnresolvedType, DataTypeSymbol,
-                                    ContainerSymbol, ImportInterface,
-                                    ArrayType, UnsupportedFortranType)
+from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
+                                    DataTypeSymbol, GenericInterfaceSymbol,
+                                    INTEGER_TYPE, ScalarType, ImportInterface,
+                                    UnresolvedType, UnsupportedFortranType)
 
 
 # pylint: disable=too-many-lines
@@ -472,6 +472,14 @@ class DynamoPSy(PSy):
         for routine in self.container.children:
             if not isinstance(routine, InvokeSchedule):
                 psy_module.add(PSyIRGen(psy_module, routine))
+
+        # Similarly, we have to take care of any Interface symbols (which
+        # we may have if we've inlined a polymorphic Kernel).
+        for sym in self.container.symbol_table.symbols:
+            if isinstance(sym, GenericInterfaceSymbol):
+                names = [rt.symbol.name for rt in sym.routines]
+                psy_module.add(
+                    InterfaceDeclGen(psy_module, sym.name, names))
 
         # Add all invoke-specific information
         self.invokes.gen_code(psy_module)

@@ -766,13 +766,17 @@ def test_module_inline_with_interfaces(tmpdir):
     '''
     psy, invoke = get_invoke("26.8_mixed_precision_args.f90", "lfric",
                              name="invoke_0", dist_mem=False)
-    kern_call = invoke.schedule.walk(CodedKern)[0]
+    kern_calls = invoke.schedule.walk(CodedKern)
     inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(kern_call)
+    inline_trans.apply(kern_calls[0])
+    # Check that module-inlining the second kernel call (which is to the
+    # same interface) doesn't break anything.
+    inline_trans.apply(kern_calls[1])
     gen = str(psy.gen).lower()
     # Both the caller and the callee are in the file and use the interface
     # name.
     assert "call mixed_code(" in gen
+    assert "interface mixed_code" in gen
     assert "subroutine mixed_code_64(" in gen
     assert "subroutine mixed_code_32(" in gen
 
