@@ -365,8 +365,8 @@ class KernelModuleInlineTrans(Transformation):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        symbol = table.lookup(name)
-        if not symbol.is_import:
+        symbol = table.lookup(name, otherwise=None)
+        if not symbol or not symbol.is_import:
             return
 
         # The RoutineSymbol is in the table (or an outer scope) and is
@@ -482,12 +482,10 @@ class KernelModuleInlineTrans(Transformation):
                                     f" is not implemented yet.")
 
         if interface_sym:
-            local_sym = local_table.lookup(interface_sym.name, otherwise=None)
-            if local_sym:
-                self._rm_imported_symbol(interface_sym.name,
-                                         local_table)
-            container.symbol_table.add(interface_sym)
-            interface_sym.replace_symbols_using(container.symbol_table)
+            self._rm_imported_symbol(interface_sym.name, local_table)
+            if interface_sym.name not in container.symbol_table:
+                container.symbol_table.add(interface_sym)
+                interface_sym.replace_symbols_using(container.symbol_table)
 
         # Set the module-inline flag to avoid generating the kernel imports
         # TODO #1823. If the kernel imports were generated at PSy-layer
