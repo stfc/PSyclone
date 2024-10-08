@@ -344,6 +344,20 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
     assert blocks[2] == ifblock2.if_body.children[1].loop_body.children[:]
     assert blocks[3][0] is ifblock2.if_body.children[2]
 
+    # Check if we're passed a Schedule into _find_basic_blocks we get whats
+    # expected.
+    cfn, blocks = duc._find_basic_blocks([ifblock2.if_body])
+    assert len(cfn) == 4
+    assert cfn[0] is None
+    assert cfn[1] is None
+    assert cfn[2] is ifblock2.if_body.children[1]
+    assert cfn[3] is None
+    assert len(blocks) == 4
+    assert blocks[0][0] is ifblock2.if_body.children[0]
+    assert blocks[1][0] is ifblock2.if_body.children[1].condition
+    assert blocks[2] == ifblock2.if_body.children[1].loop_body.children[:]
+    assert blocks[3][0] is ifblock2.if_body.children[2]
+
 
 def test_definition_use_chain_find_forward_accesses_basic_example(
     fortran_reader,
