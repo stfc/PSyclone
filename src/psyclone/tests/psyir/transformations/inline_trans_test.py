@@ -43,8 +43,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine, Loop
 from psyclone.psyir.symbols import (
-    ArgumentInterface, AutomaticInterface, DataSymbol, INTEGER_TYPE,
-    RoutineSymbol, SymbolTable, UnresolvedType)
+    AutomaticInterface, DataSymbol, UnresolvedType)
 from psyclone.psyir.transformations import (
     InlineTrans, TransformationError)
 from psyclone.tests.utilities import Compile
@@ -834,10 +833,10 @@ def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"    grid%data2d(:,:) = 1.0\n"
         f"    do i=1,10\n"
         f"      a(i) = 1.0\n"
-        f"      call sub(grid%local%data)\n"
         f"      call sub(micah%grids(3)%region%data(:))\n"
         f"      call sub(grid%data2d(:,i))\n"
         f"      call sub(grid%data2d(1:5,i))\n"
+        f"      call sub(grid%local%data)\n"
         f"    end do\n"
         f"  end subroutine run_it\n"
         f"  subroutine sub(x)\n"
@@ -855,35 +854,42 @@ def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
     inline_trans = InlineTrans()
     for call in psyir.walk(Call):
         if not isinstance(call, IntrinsicCall):
+            if call.arguments[0].debug_string() == "grid%local%data":
+                # TODO #1858: this if construct can be removed once we
+                # support getting the type of `grid%local%data`.
+                continue
             inline_trans.apply(call)
     output = fortran_writer(psyir)
     assert ("    do i = 1, 10, 1\n"
             "      a(i) = 1.0\n"
             "      do ji = 1, 5, 1\n"
-            "        grid%local%data(ji) = 2.0 * grid%local%data(ji)\n"
-            "      enddo\n"
-            "      grid%local%data(1:2) = 0.0\n"
-            "      grid%local%data(:) = 3.0\n"
-            "      grid%local%data = 5.0\n"
-            "      do ji_1 = 1, 5, 1\n"
-            "        micah%grids(3)%region%data(ji_1) = 2.0 * "
-            "micah%grids(3)%region%data(ji_1)\n"
+            "        micah%grids(3)%region%data(ji) = 2.0 * "
+            "micah%grids(3)%region%data(ji)\n"
             "      enddo\n"
             "      micah%grids(3)%region%data(1:2) = 0.0\n"
             "      micah%grids(3)%region%data(:) = 3.0\n"
             "      micah%grids(3)%region%data(:) = 5.0\n"
-            "      do ji_2 = 1, 5, 1\n"
-            "        grid%data2d(ji_2,i) = 2.0 * grid%data2d(ji_2,i)\n"
+            "      do ji_1 = 1, 5, 1\n"
+            "        grid%data2d(ji_1,i) = 2.0 * grid%data2d(ji_1,i)\n"
             "      enddo\n"
             "      grid%data2d(1:2,i) = 0.0\n"
             "      grid%data2d(:,i) = 3.0\n"
             "      grid%data2d(:,i) = 5.0\n"
-            "      do ji_3 = 1, 5, 1\n"
-            "        grid%data2d(ji_3,i) = 2.0 * grid%data2d(ji_3,i)\n"
+            "      do ji_2 = 1, 5, 1\n"
+            "        grid%data2d(ji_2,i) = 2.0 * grid%data2d(ji_2,i)\n"
             "      enddo\n"
             "      grid%data2d(1:2,i) = 0.0\n"
             "      grid%data2d(1:5,i) = 3.0\n"
             "      grid%data2d(1:5,i) = 5.0\n"
+            # TODO #1858: replace the following line with the commented-out
+            # lines below.
+            "      call sub(grid%local%data)\n"
+            # "      do ji_3 = 1, 5, 1\n"
+            # "        grid%local%data(ji_3) = 2.0 * grid%local%data(ji_3)\n"
+            # "      enddo\n"
+            # "      grid%local%data(1:2) = 0.0\n"
+            # "      grid%local%data(:) = 3.0\n"
+            # "      grid%local%data = 5.0\n"
             "    enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
@@ -2156,38 +2162,6 @@ SUB_IN_MODULE = (
     f"contains\n"
     f"{SUB}"
     f"end module inline_mod\n")
-
-
-# _symbols_to_skip
-
-def test_symbols_to_skip():
-    '''Test that the _symbols_to_skip() utility method returns the expected
-    list of symbols to skip when merging the table of a called routine into
-    the table of the call site.
-
-    '''
-    inline_trans = InlineTrans()
-    table = SymbolTable()
-    # A locally-scoped symbol should not be skipped.
-    not_arg = DataSymbol("not_arg", INTEGER_TYPE)
-    table.add(not_arg)
-    skipped = inline_trans._symbols_to_skip(table)
-    assert not skipped
-    # Add an 'argument' Symbol. This should be skipped.
-    arg1 = DataSymbol(
-        "arg1", INTEGER_TYPE,
-        interface=ArgumentInterface(ArgumentInterface.Access.READ))
-    table.add(arg1)
-    table.specify_argument_list([arg1])
-    skipped = inline_trans._symbols_to_skip(table)
-    assert skipped == [arg1]
-    # Add a RoutineSymbol and tag it so that it appears to represents the
-    # routine associated with the table. This too should be skipped.
-    rsym = RoutineSymbol("me_myself")
-    table.add(rsym, tag="own_routine_symbol")
-    skipped = inline_trans._symbols_to_skip(table)
-    assert len(skipped) == 2
-    assert arg1 in skipped and rsym in skipped
 
 
 def test_apply_merges_symbol_table_with_routine(fortran_reader):
