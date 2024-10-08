@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
-# TODO Info
+'''This module contains the DefinitionUseChain class'''
 
 import sys
 
@@ -55,7 +55,29 @@ from psyclone.psyir.symbols import AutomaticInterface
 
 
 class DefinitionUseChain:
-    """TODO"""
+    """The DefinitionUseChain class is used to find References in a tree
+    that have data dependencies on the input reference.
+
+    :param reference: The Reference for which the dependencies will be
+                      computed.
+    :type reference: :py:class:`psyclone.psyir.nodes.Reference`
+    :param control_flow_region: Optional region to search for data
+                                dependencies. Default is the parent Routine or
+                                the root of the tree's children if no ancestor
+                                Routine exists.
+    :type control_flow_region: None or
+                               List[:py:class:`psyclone.psyir.nodes.Node`]
+    :param bool is_local: Optional argument to define whether reference is a
+                          local variable or not. Default behaviour is to check
+                          if its interface is an AutomaticInterface or not.
+    :param int start_point: Optional argument to define a start point for the
+                            dependency search.
+    :param int stop_point: Optional argument to define a stop point for the
+                           dependency search.
+
+    :raises TypeError: If one of the arguments is the wrong type.
+
+    """
 
     def __init__(
         self,
@@ -65,12 +87,23 @@ class DefinitionUseChain:
         start_point=None,
         stop_point=None,
     ):
-        # FIXME We should check if this is a reference probably.
+        if not isinstance(reference, Reference):
+            raise TypeError(f"The reference passed into a DefinitionUseChain "
+                            f"must be a Reference but found "
+                            f"'{type(reference).__name__}'.")
         self._reference = reference
         # Store the absolute position for later.
         self._reference_abs_pos = reference.abs_position
         # To enable loops to work correctly we can set the start/stop point
         # and not just use base it on the reference's absolute position
+        if start_point and not isinstance(start_point, int):
+            raise TypeError(f"The start_point passed into a "
+                            f"DefinitionUseChain must be an int but found "
+                            f"'{type(start_point).__name__}'.")
+        if stop_point and not isinstance(stop_point, int):
+            raise TypeError(f"The stop_point passed into a "
+                            f"DefinitionUseChain must be an int but found "
+                            f"'{type(stop_point).__name__}'.")
         self._start_point = start_point
         self._stop_point = stop_point
         if control_flow_region is None:
@@ -163,7 +196,9 @@ class DefinitionUseChain:
         :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
         """
         # FIXME If all defsout is in control flow we should add a None into
-        # the defsout array.
+        # the defsout array. @Reviewer not sure about this - should we make
+        # it clear somehow its not guaranteed to be written to or does it not
+        # matter?
         # Find the position of the Reference's highest-level parent in
         # the Routine.
         routine = self._reference.ancestor(Routine)

@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
-# TODO Info
+'''This module contains the tests for the DefinitionUseChain class'''
 
 import pytest
 from psyclone.psyir.nodes import (
@@ -116,6 +116,20 @@ def test_definition_use_chain_init_and_properties(fortran_reader):
     assert duc._scope[0] is assign.lhs
     assert duc._scope[1] is assign.rhs
 
+    # Test remaining TypeErrors
+    with pytest.raises(TypeError) as excinfo:
+        duc = DefinitionUseChain("123")
+    assert ("The reference passed into a DefinitionUseChain must be a "
+            "Reference but found 'str'." in str(excinfo.value))
+    with pytest.raises(TypeError) as excinfo:
+        duc = DefinitionUseChain(r1, start_point="123")
+    assert ("The start_point passed into a DefinitionUseChain must be an "
+            "int but found 'str'." in str(excinfo.value))
+    with pytest.raises(TypeError) as excinfo:
+        duc = DefinitionUseChain(r1, stop_point="123")
+    assert ("The stop_point passed into a DefinitionUseChain must be an "
+            "int but found 'str'." in str(excinfo.value))
+
 
 def test_definition_use_chain_is_basic_block(fortran_reader):
     """Test the is_basic_block property gives the correct result
@@ -165,6 +179,7 @@ end subroutine foo"""
 
 
 def test_definition_use_chain_compute_forward_uses(fortran_reader):
+    """ Test the _compute_forward_uses functionality."""
 
     # First test is a simple Reference with a following read.
     code = """
@@ -249,11 +264,9 @@ def test_definition_use_chain_compute_forward_uses(fortran_reader):
     assert duc.defsout[0] is psyir.walk(Reference)[5]  # The lhs of a = 3
     assert duc.killed[0] is psyir.walk(Reference)[2]  # The lhs of a = 2
 
-    # TODO Check something with a Call
-
 
 def test_definition_use_chain_find_basic_blocks(fortran_reader):
-    # TODO
+    """ Test the _find_basic_blocks functionality."""
     code = """
     subroutine x()
     use some_mod
@@ -335,8 +348,8 @@ def test_definition_use_chain_find_basic_blocks(fortran_reader):
 def test_definition_use_chain_find_forward_accesses_basic_example(
     fortran_reader,
 ):
-    # Now we're essentially doing tests of the full functionality
-    # gives the expected results.
+    """Functionality test for the find_forward_accesses routine. This
+    tests the basic functionality of the routine."""
 
     code = """
 subroutine foo(a, b)
@@ -426,6 +439,8 @@ def test_definition_use_chain_find_forward_accesses_assignment(
 def test_definition_use_chain_find_forward_accesses_ifelse_example(
     fortran_reader,
 ):
+    """Functionality test for the find_forward_accesses routine. This
+    tests the behaviour when there is an if/else block."""
 
     code = """
     subroutine x()
@@ -465,6 +480,8 @@ def test_definition_use_chain_find_forward_accesses_ifelse_example(
 def test_definition_use_chain_find_forward_accesses_loop_example(
     fortran_reader,
 ):
+    """Functionality test for the find_forward_accesses routine. This
+    tests the behaviour when there is a loop."""
     code = """
     subroutine x()
     integer :: a, b, c, d, e, f, i
@@ -523,6 +540,8 @@ def test_definition_use_chain_find_forward_accesses_loop_example(
 def test_definition_use_chain_find_forward_accesses_while_loop_example(
     fortran_reader,
 ):
+    """Functionality test for the find_forward_accesses routine. This
+    tests the behaviour when there is a while loop."""
     code = """
     subroutine x()
     integer :: a, b, c, d, e, f, i
@@ -550,6 +569,8 @@ def test_definition_use_chain_find_forward_accesses_while_loop_example(
 def test_definition_use_chain_foward_accesses_nested_loop_example(
     fortran_reader,
 ):
+    """Functionality test for the find_forward_accesses routine. This
+    tests the behaviour when there is a nested loop."""
     code = """
     subroutine x()
     integer :: a, b, c, d, e, f, i
@@ -578,23 +599,30 @@ def test_definition_use_chain_foward_accesses_nested_loop_example(
 def test_definition_use_chain_find_forward_accesses_structure_example(
     fortran_reader,
 ):
+    """Functionality test for the find_forward_accesses routine. This
+    tests the behaviour when a structureReference is provided."""
     code = """
     subroutine x()
     use some_mod
     a%b = 1
     a%c = 2
+    a%b = 3
     end subroutine"""
 
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     chains = DefinitionUseChain(routine.children[0].lhs)
     reaches = chains.find_forward_accesses()
-    assert len(reaches) == 0
+    assert len(reaches) == 1
+    assert reaches[0] is routine.children[2].lhs
 
 
 def test_definition_use_chain_find_forward_accesses_no_control_flow_example(
     fortran_reader,
 ):
+    """Functionality test for the find_forward_accesses routine. This
+    tests the behaviour for a simple case with no control flow with
+    an assignment."""
     code = """
     subroutine x()
     integer :: a
@@ -611,6 +639,10 @@ def test_definition_use_chain_find_forward_accesses_no_control_flow_example(
 def test_definition_use_chain_find_forward_accesses_no_control_flow_example2(
     fortran_reader,
 ):
+    """Functionality test for the find_forward_accesses routine. This
+    tests the behaviour for a simple case with no control flow with
+    two assignments where the first assignment should kill the dependencies.
+    """
     code = """
     subroutine x()
     integer :: a
@@ -628,6 +660,8 @@ def test_definition_use_chain_find_forward_accesses_no_control_flow_example2(
 def test_definition_use_chain_find_forward_accesses_codeblock(
     fortran_reader,
 ):
+    """Functionality test for the find_forward_accesses routine. This
+    tests the behaviour for a simple case with a CodeBlock."""
     code = """
     subroutine x()
     integer :: a
@@ -646,6 +680,9 @@ def test_definition_use_chain_find_forward_accesses_codeblock(
 def test_definition_use_chain_find_forward_accesses_codeblock_and_call_nlocal(
     fortran_reader,
 ):
+    """Functionality test for the find_forward_accesses routine. This
+    tests the behaviour for a simple case with a CodeBlock and a Call, and
+    where the variable is not a local variable."""
     code = """
     subroutine x()
     use some_mod
@@ -664,6 +701,9 @@ def test_definition_use_chain_find_forward_accesses_codeblock_and_call_nlocal(
 def test_definition_use_chain_find_forward_accesses_codeblock_and_call_local(
     fortran_reader,
 ):
+    """Functionality test for the find_forward_accesses routine. This
+    tests the behaviour for a simple case with a CodeBlock and a Call, and
+    where the variable is a local variable."""
     code = """
     subroutine x()
     use some_mod
