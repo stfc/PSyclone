@@ -537,19 +537,35 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
 
     '''
     def apply(self, node, options=None):
-        ''' Insert an OMPDeclareTargetDirective inside the provided routine.
+        ''' Insert an OMPDeclareTargetDirective inside the provided routine or
+        associated PSyKAl kernel.
 
-        :param node: the PSyIR routine to insert the directive into.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine`
+        :param node: the kernel or routine which is the target of this
+            transformation.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine` |
+                    :py:class:`psyclone.psyGen.Kern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["force"]: whether to allow routines with
+            CodeBlocks to run on the GPU.
 
         '''
         self.validate(node, options)
-        for child in node.children:
+
+        if isinstance(node, Kern):
+            # Flag that the kernel has been modified
+            node.modified = True
+
+            # Get the schedule representing the kernel subroutine
+            routine = node.get_kernel_schedule()
+        else:
+            routine = node
+
+        for child in routine.children:
             if isinstance(child, OMPDeclareTargetDirective):
                 return  # The routine is already marked with OMPDeclareTarget
-        node.children.insert(0, OMPDeclareTargetDirective())
+
+        routine.children.insert(0, OMPDeclareTargetDirective())
 
     def validate(self, node, options=None):
         ''' Check that an OMPDeclareTargetDirective can be inserted.
