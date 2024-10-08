@@ -464,7 +464,8 @@ def test_kernel_gpu_annotation_trans(rtrans, expected_directive,
     rtrans.apply(kern)
 
     # Check that the directive has been added to the kernel code
-    code = fortran_writer(kern.get_kernel_schedule())
+    _, kschedules = kern.get_kernel_schedule()
+    code = fortran_writer(kschedules[0])
     assert expected_directive in code
 
 
