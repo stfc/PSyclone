@@ -197,7 +197,7 @@ def test_upper_bound_undf():
     code = str(psy.gen)
 
     expected = ("      loop0_start = 1\n"
-                "      loop0_stop = undf_w1")
+                "      loop0_stop = undf")
 
     assert expected in code
 

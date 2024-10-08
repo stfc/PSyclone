@@ -388,6 +388,7 @@ class KernCallArgList(ArgOrdering):
             self.append_array_reference(sym.name, [Reference(dof_sym)],
                                         ScalarType.Intrinsic.INTEGER,
                                         symbol=sym)
+            # Then append our symbol
             name = f"{sym.name}({Reference(dof_sym)})"
             self.append(name, var_accesses, var_access_name=sym.name)
         else:
