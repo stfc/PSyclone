@@ -50,7 +50,6 @@ PROFILING_ENABLED = False
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING + [
-    "lbclnk.f90",   # TODO #2685: effective shape bug
     "asminc.f90",
     "trosk.f90",    # TODO #1254
     "vremap.f90",   # Bulk assignment of a structure component
