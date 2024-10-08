@@ -1275,6 +1275,58 @@ class TypeDeclGen(BaseDeclGen):
             "for derived-type declarations are not supported.")
 
 
+class InterfaceDeclGen(BaseDeclGen):
+    '''
+    Generates the declaration for a Fortran interface block of the form:
+
+        interface my_wrapper
+          module procedure :: name1, name1, ...
+        end interface my_wrapper
+
+    The declaration is added to the supplied parent node.
+
+    :param parent: f2pygen node to which to add this declaration as a child.
+    :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+    :param str name: the name of the interface block.
+    :param entity_decls: names of procedures to declare within the block.
+    :type entity_decls: list[str]
+
+    :raises TypeError: if the supplied parent is not a ModuleGen (since
+                       interfaces must be declared within modules).
+    :raises ValueError: if a list of procedure names is not supplied.
+
+    '''
+    def __init__(self, parent, name, entity_decls):
+        if not isinstance(parent, ModuleGen):
+            raise TypeError(f"An InterfaceDeclGen must have a ModuleGen as "
+                            f"parent but got '{type(parent).__name__}'")
+        if not isinstance(entity_decls, list) or not entity_decls:
+            raise ValueError(
+                f"The routine names to use within Interface '{name}' must be "
+                f"supplied as a list of str to 'entity_decls' but got "
+                f"{entity_decls}")
+        name_list = ", ".join(entity_decls)
+        reader = FortranStringReader(f"interface {name}\n"
+                                     f"  module procedure :: {name_list}\n"
+                                     f"end interface {name}\n")
+        reader.set_format(FortranFormat(True, True))  # free form, strict
+        line1 = reader.next()
+        interf = fparser1.block_statements.Interface(parent.root, line1)
+        line2 = reader.next()
+        procedures = fparser1.block_statements.ModuleProcedure(parent.root,
+                                                               line2)
+        interf.content.append(procedures)
+        line3 = reader.next()
+        end_interf = fparser1.block_statements.EndInterface(interf, line3)
+        self._decl = interf
+        interf.content.append(end_interf)
+
+    def _check_initial_values(self):
+        '''
+        Empty routine required to override that from abstract base class.
+        '''
+
+
 class TypeCase(Case):
     ''' Generate a Fortran SELECT CASE statement '''
     # TODO can this whole class be deleted?
