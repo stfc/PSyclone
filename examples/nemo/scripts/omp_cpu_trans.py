@@ -39,19 +39,26 @@ directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT, NOT_WORKING)
+    enhance_tree_information, NOT_PERFORMANT)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
 PROFILING_ENABLED = False
 
-# List of all files that psyclone will skip processing (the NOT_PERFORMANT
-# list also has files that fail for NEMOv5)
-FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING + [
+# List of all files that psyclone will skip processing
+FILES_TO_SKIP = NOT_PERFORMANT + [
     "asminc.f90",
     "trosk.f90",   # TODO #1254
     "vremap.f90",  # Bulk assignment of a structure component
     "ldfslp.f90",  # Dependency analysis mistake? see Cray compiler comment
+
+    "stpctl.f90",
+    "lbcnfd.f90",
+    "flread.f90",
+    "sedini.f90",
+    "diu_bulk.f90",  # Linking undefined reference
+    "bdyini.f90",    # Linking undefined reference
+    "trcrad.f90",
 ]
 
 

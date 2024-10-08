@@ -4739,3 +4739,34 @@ def test_omp_serial_check_dependency_valid_pairing():
     assert test_dir._check_dependency_pairing_valid(
                array_reference1, array_reference2, None, None
            )
+
+
+def test_omptarget_gen_code():
+    ''' Check that the OMPTarget gen_code produces the right code '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.children[-1]
+
+    # Add an OMPTarget and move the kernel inside it
+    target = OMPTargetDirective()
+    schedule.addchild(target)
+    target.dir_body.addchild(kern.detach())
+
+    # Check that the "omp target" is produced, and that the set_dirty is
+    # generated after it
+    code = str(psy.gen)
+    assert """
+      !$omp target
+      DO cell = loop0_start, loop0_stop, 1
+        CALL testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, \
+m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), \
+ndf_w3, undf_w3, map_w3(:,cell))
+      END DO
+      !$omp end target
+      !
+      ! Set halos dirty/clean for fields modified in the above loop(s)
+      !
+      CALL f1_proxy%set_dirty()
+    """ in code

@@ -58,7 +58,7 @@ Tested with the NVIDIA HPC SDK version 23.7.
 
 import logging
 from utils import (add_profiling, enhance_tree_information, inline_calls,
-                   NOT_PERFORMANT, NOT_WORKING)
+                   NOT_PERFORMANT)
 from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
@@ -94,7 +94,7 @@ PROFILE_NONACC = False
 ACC_EXPLICIT_MEM_MANAGEMENT = False
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING
+FILES_TO_SKIP = NOT_PERFORMANT
 
 # Routines we do not attempt to add any OpenACC to (because it breaks with
 # the Nvidia compiler or because it just isn't worth it)
@@ -108,18 +108,6 @@ ACC_IGNORE = ["day_mth",  # Just calendar operations
               "trc_bc_ini", "p2z_ini", "p4z_ini", "sto_par_init",
               "bdytide_init", "bdy_init", "bdy_segs", "sbc_cpl_init",
               "asm_inc_init", "dia_obs_init"]  # Str handling, init routine
-
-# Currently fparser has no way of distinguishing array accesses from
-# function calls if the symbol is imported from some other module.
-# We therefore work-around this by keeping a list of known NEMO
-# functions that must be excluded from within KERNELS regions.
-NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
-                  "eos_pt_from_ct", "gamma_moist", "l_vap",
-                  "sbc_dcy", "solfrac", "psi_h", "psi_m", "psi_m_coare",
-                  "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf", "q_sat",
-                  "rho_air", "visc_air", "sbc_dcy", "glob_sum",
-                  "glob_sum_full", "ptr_sj", "ptr_sjk", "interp1", "interp2",
-                  "interp3", "integ_spline"]
 
 
 class ExcludeSettings():
@@ -260,17 +248,6 @@ def valid_acc_kernel(node):
                                     "other loops", enode)
                             return False
 
-    # Finally, check that we haven't got any 'array accesses' that are in
-    # fact function calls.
-    refs = node.walk(ArrayReference)
-    for ref in refs:
-        # Check if this reference has the name of a known function and if that
-        # reference appears outside said known function.
-        if ref.name.lower() in NEMO_FUNCTIONS and \
-           ref.name.lower() != routine_name.lower():
-            log_msg(routine_name,
-                    f"Loop contains function call: {ref.name}", ref)
-            return False
     return True
 
 
