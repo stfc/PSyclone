@@ -103,7 +103,7 @@ class ArgOrdering:
         if self._forced_symtab:
             return self._forced_symtab
         elif self._kern and self._kern.ancestor(psyGen.InvokeSchedule):
-            return self._kern.ancestor(psyGen.InvokeSchedule).symbol_table
+            return self._kern.ancestor(psyGen.InvokeSchedule).invoke.schedule.symbol_table
         else:
             return LFRicSymbolTable()
 

@@ -71,7 +71,7 @@ class LFRicCellIterators(LFRicCollection):
             # We are dealing with a single Kernel so there is only one
             # 'nlayers' variable and we don't need to store the associated
             # argument.
-            self._nlayers_names[self._symbol_table.find_or_create_tag(
+            self._nlayers_names[self.symtab.find_or_create_tag(
                 "nlayers",
                 symbol_type=LFRicTypes("MeshHeightDataSymbol")).name] = None
             # We're not generating a PSy layer so we're done here.
@@ -82,7 +82,7 @@ class LFRicCellIterators(LFRicCollection):
         for kern in self._invoke.schedule.walk(LFRicKern):
             if kern.iterates_over in ["cell_column", "domain"]:
                 arg = kern.arguments.iteration_space_arg()
-                self._nlayers_names[self._symbol_table.find_or_create_tag(
+                self._nlayers_names[self.symtab.find_or_create_tag(
                     f"nlayers_{arg.name}",
                     symbol_type=LFRicTypes("MeshHeightDataSymbol")).name] = arg
 
@@ -132,11 +132,11 @@ class LFRicCellIterators(LFRicCollection):
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
             # Already declared
             for name in self._nlayers_names.keys():
-                sym = self._symbol_table.lookup(name)
-                if sym not in self._symbol_table._argument_list:
+                sym = self.symtab.lookup(name)
+                if sym not in self.symtab._argument_list:
                     sym.interface = ArgumentInterface(
                                         ArgumentInterface.Access.READ)
-                    self._symbol_table.append_argument(sym)
+                    self.symtab.append_argument(sym)
         return cursor
 
     def initialise(self, cursor):
@@ -157,7 +157,7 @@ class LFRicCellIterators(LFRicCollection):
         sorted_names.sort()
         init_cursor = cursor
         for name in sorted_names:
-            symbol = self._symbol_table.lookup(name)
+            symbol = self.symtab.lookup(name)
             var = self._nlayers_names[name]
             stmt = Assignment.create(
                     lhs=Reference(symbol),

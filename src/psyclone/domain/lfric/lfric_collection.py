@@ -67,21 +67,14 @@ class LFRicCollection():
             # We are handling declarations/initialisations for an Invoke
             self._invoke = node
             self._kernel = None
-            self._symbol_table = self._invoke.schedule.symbol_table
             # The list of Kernel calls we are responsible for
-            self._calls = node.schedule.kernels()
         elif isinstance(node, LFRicKern):
             # We are handling declarations for a Kernel stub
             self._invoke = None
             self._kernel = node
-            if node._stub_symbol_table:
-                self._symbol_table = node._stub_symbol_table
-            else:
-                self._symbol_table = LFRicSymbolTable()
             # We only have a single Kernel call in this case
-            self._calls = [node]
         else:
-            raise InternalError(f"LFRicCollection takes only an LFRicInvoke "
+             raise InternalError(f"LFRicCollection takes only an LFRicInvoke "
                                 f"or an LFRicKern but got: {type(node)}")
 
         # Whether or not the associated Invoke contains only Kernels that
@@ -90,6 +83,22 @@ class LFRicCollection():
             self._dofs_only = self._invoke.operates_on_dofs_only
         else:
             self._dofs_only = False
+
+    @property
+    def symtab(self):
+        if self._invoke:
+            return self._invoke.schedule.symbol_table
+        if self._kernel._stub_symbol_table:
+            return self._kernel._stub_symbol_table
+        else:
+            self._kernel._stub_symbol_table = LFRicSymbolTable()
+            return self._kernel._stub_symbol_table
+
+    @property
+    def _calls(self):
+        if self._invoke:
+            return self._invoke.schedule.kernels()
+        return [self._kernel]
 
     def declarations(self, cursor):
         '''

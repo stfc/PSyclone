@@ -140,7 +140,7 @@ class LFRicStencils(LFRicCollection):
         extent_arg = arg.stencil.extent_arg
         if extent_arg.is_literal():
             return Literal(extent_arg.text, INTEGER_TYPE)
-        return Reference(self._symbol_table.lookup(extent_arg.varname))
+        return Reference(self.symtab.lookup(extent_arg.varname))
 
     @staticmethod
     def stencil_unique_str(arg, context):
@@ -189,7 +189,7 @@ class LFRicStencils(LFRicCollection):
         root_name = arg.name + "_stencil_map"
         unique = LFRicStencils.stencil_unique_str(arg, "map")
         # FIXME: This is not the type
-        return self._symbol_table.find_or_create_tag(
+        return self.symtab.find_or_create_tag(
             unique, root_name=root_name, symbol_type=DataSymbol,
             datatype=UnresolvedType()).name
 
@@ -233,7 +233,7 @@ class LFRicStencils(LFRicCollection):
 
         '''
         if symtab is None:
-            symtab = self._symbol_table
+            symtab = self.symtab
         root_name = arg.name + "_stencil_size"
         unique = LFRicStencils.stencil_unique_str(arg, "size")
         return symtab.find_or_create_tag(
@@ -336,7 +336,7 @@ class LFRicStencils(LFRicCollection):
 
         '''
         api_config = Config.get().api_conf("lfric")
-        table = self._symbol_table
+        table = self.symtab
 
         if self._unique_extent_vars:
             if self._kernel:
@@ -401,7 +401,7 @@ class LFRicStencils(LFRicCollection):
             if arg.stencil.direction_arg.varname:
                 names.append(arg.stencil.direction_arg.varname)
             else:
-                names.append(self.direction_name(self._symbol_table, arg).name)
+                names.append(self.direction_name(self.symtab, arg).name)
         return names
 
     def _declare_unique_direction_vars(self, cursor):
@@ -419,14 +419,14 @@ class LFRicStencils(LFRicCollection):
         api_config = Config.get().api_conf("lfric")
 
         for var in self._unique_direction_vars:
-            symbol = self._symbol_table.find_or_create(
+            symbol = self.symtab.find_or_create(
                 var, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
-            if symbol not in self._symbol_table.argument_list:
+            if symbol not in self.symtab.argument_list:
                 symbol.interface = ArgumentInterface(
                             ArgumentInterface.Access.READ)
-                self._symbol_table.append_argument(symbol)
+                self.symtab.append_argument(symbol)
 
             # parent.add(DeclGen(parent, datatype="integer",
             #                    kind=api_config.default_kind["integer"],
@@ -503,7 +503,7 @@ class LFRicStencils(LFRicCollection):
                 # Only initialise maps once.
                 stencil_map_names.append(map_name)
                 stencil_type = arg.descriptor.stencil['type']
-                symtab = self._symbol_table
+                symtab = self.symtab
                 if stencil_type == "xory1d":
                     direction_name = arg.stencil.direction_arg.varname
                     for direction in ["x", "y"]:
@@ -659,7 +659,7 @@ class LFRicStencils(LFRicCollection):
         if not self._kern_args:
             return cursor
 
-        symtab = self._symbol_table
+        symtab = self.symtab
         stencil_map_names = []
         const = LFRicConstants()
 
@@ -672,15 +672,15 @@ class LFRicStencils(LFRicCollection):
             stencil_map_names.append(map_name)
             stencil_type = arg.descriptor.stencil['type']
             if stencil_type == "cross2d":
-                smap_mod = self._symbol_table.find_or_create(
+                smap_mod = self.symtab.find_or_create(
                         const.STENCIL_TYPE_MAP["stencil_2D_dofmap"]["module"],
                         symbol_type=ContainerSymbol)
-                smap_type = self._symbol_table.find_or_create(
+                smap_type = self.symtab.find_or_create(
                         const.STENCIL_TYPE_MAP["stencil_2D_dofmap"]["type"],
                         symbol_type=DataTypeSymbol,
                         datatype=UnresolvedType(),
                         interface=ImportInterface(smap_mod))
-                self._symbol_table.find_or_create(
+                self.symtab.find_or_create(
                         "STENCIL_2D_CROSS",
                         symbol_type=DataSymbol,
                         datatype=UnresolvedType(),
@@ -719,10 +719,10 @@ class LFRicStencils(LFRicCollection):
                 #                    entity_decls=[self.max_branch_length_name(
                 #                        symtab, arg)]))
             else:
-                smap_mod = self._symbol_table.find_or_create(
+                smap_mod = self.symtab.find_or_create(
                         const.STENCIL_TYPE_MAP["stencil_dofmap"]["module"],
                         symbol_type=ContainerSymbol)
-                smap_type = self._symbol_table.find_or_create(
+                smap_type = self.symtab.find_or_create(
                         const.STENCIL_TYPE_MAP["stencil_dofmap"]["type"],
                         symbol_type=DataTypeSymbol,
                         datatype=UnresolvedType(),
@@ -730,25 +730,25 @@ class LFRicStencils(LFRicCollection):
                 # parent.add(UseGen(parent, name=smap_mod,
                 #                   only=True, funcnames=[smap_type]))
                 if stencil_type == 'xory1d':
-                    drct_mod = self._symbol_table.find_or_create(
+                    drct_mod = self.symtab.find_or_create(
                             const.STENCIL_TYPE_MAP["direction"]["module"],
                             symbol_type=ContainerSymbol)
-                    self._symbol_table.find_or_create(
+                    self.symtab.find_or_create(
                             "x_direction",
                             symbol_type=DataSymbol,
                             datatype=UnresolvedType(),
                             interface=ImportInterface(drct_mod))
-                    self._symbol_table.find_or_create(
+                    self.symtab.find_or_create(
                             "y_direction",
                             symbol_type=DataSymbol,
                             datatype=UnresolvedType(),
                             interface=ImportInterface(drct_mod))
-                    self._symbol_table.find_or_create(
+                    self.symtab.find_or_create(
                             "STENCIL_1DX",
                             symbol_type=DataSymbol,
                             datatype=UnresolvedType(),
                             interface=ImportInterface(smap_mod))
-                    self._symbol_table.find_or_create(
+                    self.symtab.find_or_create(
                             "STENCIL_1DY",
                             symbol_type=DataSymbol,
                             datatype=UnresolvedType(),
@@ -768,7 +768,7 @@ class LFRicStencils(LFRicCollection):
                             f"'{arg.descriptor.stencil['type']}' supplied. "
                             f"Supported mappings are "
                             f"{const.STENCIL_MAPPING}") from err
-                    self._symbol_table.find_or_create(
+                    self.symtab.find_or_create(
                             stencil_name,
                             symbol_type=DataSymbol,
                             datatype=UnresolvedType(),
@@ -815,7 +815,7 @@ class LFRicStencils(LFRicCollection):
         '''
         api_config = Config.get().api_conf("lfric")
 
-        symtab = self._symbol_table
+        symtab = self.symtab
         for arg in self._kern_args:
             symbol = self.dofmap_symbol(symtab, arg)
             if arg.descriptor.stencil['type'] == "cross2d":

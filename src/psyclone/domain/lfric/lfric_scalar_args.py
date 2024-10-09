@@ -197,16 +197,7 @@ class LFRicScalarArgs(LFRicCollection):
 
         '''
         const_mod_uses = None
-        if self._invoke:
-            symtab = self._invoke.schedule.symbol_table
-        elif self._kernel:
-            symtab = self._symbol_table
-        else:
-            raise InternalError(
-                "Expected the declaration of the scalar kernel "
-                "arguments to be for either an invoke or a "
-                "kernel stub, but it is neither.")
-            
+
         # Real scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
@@ -225,7 +216,7 @@ class LFRicScalarArgs(LFRicCollection):
                 for real_scalar_kind, real_scalars_list in \
                         real_scalars_precision_map.items():
                     for arg in real_scalars_list:
-                        symbol = symtab.find_or_create(
+                        symbol = self.symtab.find_or_create(
                             arg.declaration_name,
                             symbol_type=DataSymbol,
                             datatype=LFRicTypes("LFRicRealScalarDataType")())
@@ -235,14 +226,14 @@ class LFRicScalarArgs(LFRicCollection):
                         elif intent == "in":
                             symbol.interface = ArgumentInterface(
                                 ArgumentInterface.Access.READ)
-                        if symbol not in symtab._argument_list:
-                            symtab.append_argument(symbol)
+                        if symbol not in self.symtab._argument_list:
+                            self.symtab.append_argument(symbol)
 
         # Integer scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._integer_scalars[intent]:
                 for arg in self._integer_scalars[intent]:
-                    symbol = symtab.find_or_create(
+                    symbol = self.symtab.find_or_create(
                         arg.declaration_name,
                         symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
@@ -252,14 +243,14 @@ class LFRicScalarArgs(LFRicCollection):
                     elif intent == "in":
                         symbol.interface = ArgumentInterface(
                             ArgumentInterface.Access.READ)
-                    if symbol not in symtab._argument_list:
-                        symtab.append_argument(symbol)
+                    if symbol not in self.symtab._argument_list:
+                        self.symtab.append_argument(symbol)
 
         # Logical scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._logical_scalars[intent]:
                 for arg in self._logical_scalars[intent]:
-                    symbol = symtab.find_or_create(
+                    symbol = self.symtab.find_or_create(
                         arg.declaration_name,
                         symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicLogicalScalarDataType")())
@@ -269,8 +260,8 @@ class LFRicScalarArgs(LFRicCollection):
                     elif intent == "in":
                         symbol.interface = ArgumentInterface(
                             ArgumentInterface.Access.READ)
-                    if symbol not in symtab._argument_list:
-                        symtab.append_argument(symbol)
+                    if symbol not in self.symtab._argument_list:
+                        self.symtab.append_argument(symbol)
         return cursor
 
 

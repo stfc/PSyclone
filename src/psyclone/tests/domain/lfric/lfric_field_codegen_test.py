@@ -65,8 +65,6 @@ def test_field(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
     generated_code = psy.gen
     output = (
         "module single_invoke_psy\n"
@@ -150,6 +148,7 @@ def test_field(tmpdir):
         "\n"
         "end module single_invoke_psy\n")
     assert output == str(generated_code)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_field_deref(tmpdir, dist_mem):

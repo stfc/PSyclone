@@ -159,17 +159,17 @@ class LFRicFields(LFRicCollection):
                     f"{const.VALID_FIELD_DATA_TYPES}.")
 
             # Create the PSyIR DataType
-            kind_sym = self._symbol_table.find_or_create(
+            kind_sym = self.symtab.find_or_create(
                 fld_kind, symbol_type=DataSymbol, datatype=UnresolvedType(),
                 interface=ImportInterface(
-                    self._symbol_table.lookup("constants_mod")))
+                    self.symtab.lookup("constants_mod")))
             if fld.intrinsic_type == "real":
                 intr = ScalarType(ScalarType.Intrinsic.REAL, kind_sym)
             elif fld.intrinsic_type == "integer":
                 intr = ScalarType(ScalarType.Intrinsic.INTEGER, kind_sym)
             else:
                 raise NotImplementedError()
-            undf_sym = self._symbol_table.find_or_create(undf_name)
+            undf_sym = self.symtab.find_or_create(undf_name)
             datatype = ArrayType(intr, [Reference(undf_sym)])
 
             if fld.intent == "in":
@@ -184,20 +184,20 @@ class LFRicFields(LFRicCollection):
                     text = (fld.name + "_" +
                             fld.function_space.mangled_name +
                             "_v" + str(idx))
-                    arg = self._symbol_table.find_or_create(
+                    arg = self.symtab.find_or_create(
                         text, symbol_type=DataSymbol, datatype=datatype)
                     arg.interface = ArgumentInterface(intent)
-                    self._symbol_table.append_argument(arg)
+                    self.symtab.append_argument(arg)
                     # parent.add(
                     #     DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
                     #             dimension=undf_name,
                     #             intent=fld.intent, entity_decls=[text]))
             else:
                 name = fld.name + "_" + fld.function_space.mangled_name
-                arg = self._symbol_table.find_or_create(
+                arg = self.symtab.find_or_create(
                     name, symbol_type=DataSymbol, datatype=datatype)
                 arg.interface = ArgumentInterface(intent)
-                self._symbol_table.append_argument(arg)
+                self.symtab.append_argument(arg)
                 # parent.add(
                 #     DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
                 #             intent=fld.intent,

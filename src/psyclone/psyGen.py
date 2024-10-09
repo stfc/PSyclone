@@ -719,14 +719,6 @@ class InvokeSchedule(Routine):
                 self.addchild(KernFactory.create(call, parent=self))
 
     @property
-    def symbol_table(self):
-        '''
-        :returns: Table containing symbol information for the schedule.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        '''
-        return self._symbol_table
-
-    @property
     def invoke(self):
         return self._invoke
 
@@ -880,12 +872,14 @@ class HaloExchange(Statement):
         self._halo_depth = None
         self._check_dirty = check_dirty
         self._vector_index = vector_index
-        # Keep a reference to the SymbolTable associated with the
-        # InvokeSchedule.
-        self._symbol_table = None
+
+
+    @property
+    def symtab(self):
         isched = self.ancestor(InvokeSchedule)
         if isched:
-            self._symbol_table = isched.symbol_table
+            return isched.symbol_table
+        raise InternalError("Could not find associated symbol table")
 
     @property
     def vector_index(self):
@@ -2030,9 +2024,6 @@ class DataAccess():
         '''
         # the `psyclone.psyGen.Argument` we are concerned with
         self._arg = arg
-        # The call (Kern, HaloExchange, GlobalSum or subclass)
-        # instance with which the argument is associated
-        self._call = arg.call
         # initialise _covered and _vector_index_access to keep pylint
         # happy
         self._covered = None
@@ -2061,7 +2052,7 @@ class DataAccess():
             # the arguments are different args so do not overlap
             return False
 
-        if isinstance(self._call, HaloExchange) and \
+        if isinstance(self._arg._call, HaloExchange) and \
            isinstance(arg.call, HaloExchange) and \
            (self._arg.vector_size > 1 or arg.vector_size > 1):
             # This is a vector field and both accesses come from halo
@@ -2075,7 +2066,7 @@ class DataAccess():
                     f"DataAccess.overlaps(): vector sizes differ for field "
                     f"'{arg.name}' in two halo exchange calls. Found "
                     f"'{self._arg.vector_size}' and '{arg.vector_size}'")
-            if self._call.vector_index != arg.call.vector_index:
+            if self._arg._call.vector_index != arg.call.vector_index:
                 # accesses are to different vector indices so do not overlap
                 return False
         # accesses do overlap
@@ -2120,7 +2111,7 @@ class DataAccess():
             # halo exchange and therefore only accesses one of the
             # vectors
 
-            if isinstance(self._call, HaloExchange):
+            if isinstance(self._arg._call, HaloExchange):
                 # I am also a halo exchange so only access one of the
                 # vectors. At this point the vector indices of the two
                 # halo exchange fields must be the same, which should

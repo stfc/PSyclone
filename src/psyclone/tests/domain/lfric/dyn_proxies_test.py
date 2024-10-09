@@ -62,9 +62,9 @@ def test_creation():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     proxies = DynProxies(invoke)
-    tags = proxies._symbol_table.get_tags()
+    tags = proxies.symtab.get_tags()
     assert "f1:data" in tags
-    sym = proxies._symbol_table.lookup_with_tag("f1:data")
+    sym = proxies.symtab.lookup_with_tag("f1:data")
     assert isinstance(sym, symbols.DataSymbol)
     assert "f2:data" in tags
 

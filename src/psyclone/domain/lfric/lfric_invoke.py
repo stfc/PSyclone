@@ -265,7 +265,6 @@ class LFRicInvoke(Invoke):
     def declare(self):
         # Declare all quantities required by this PSy routine (Invoke)
         cursor = 0
-        # self.schedule.parent.symbol_table.new_symbol("i_def")
         for entities in [self.scalar_args, self.fields, self.lma_ops,
                          self.stencil, self.meshes,
                          self.function_spaces, self.dofmaps, self.cma_ops,
@@ -274,13 +273,7 @@ class LFRicInvoke(Invoke):
                          self.reference_element_properties,
                          self.mesh_properties, self.loop_bounds,
                          self.run_time_checks]:
-            # print("Declare", type(entities))
             cursor = entities.declarations(cursor)
-            if not isinstance(cursor, int):
-                # assert False, f"Cursor is not int after {entities}"
-                import pdb; pdb.set_trace()
-                cursor = 0
-                cursor = entities.declarations(cursor)
         for entities in [self.proxies, self.run_time_checks,
                          self.cell_iterators, self.meshes,
                          self.stencil, self.dofmaps,
@@ -288,13 +281,7 @@ class LFRicInvoke(Invoke):
                          self.function_spaces, self.evaluators,
                          self.reference_element_properties,
                          self.mesh_properties, self.loop_bounds]:
-            # print("Initialise", type(entities))
             cursor = entities.initialise(cursor)
-            if cursor is None:
-                # assert False, f"Cursor is not int after {entities}"
-                import pdb; pdb.set_trace()
-                cursor = 0
-                cursor = entities.initialise(cursor)
 
         if self.schedule.reductions(reprod=True):
             # We have at least one reproducible reduction so we need
@@ -306,9 +293,6 @@ class LFRicInvoke(Invoke):
             omp_get_max_threads = symtab.find_or_create(
                 "omp_get_max_threads", symbol_type=RoutineSymbol,
                 interface=ImportInterface(omp_lib))
-            # thread_idx = self.scope.symbol_table.find_or_create(
-            #     "th_idx", symbol_type=DataSymbol,
-            #     datatype=INTEGER_TYPE)
 
             assignment = Assignment.create(
                 lhs=Reference(nthreads),
@@ -318,20 +302,6 @@ class LFRicInvoke(Invoke):
             self.schedule.addchild(assignment, 0)
             cursor += 1
 
-            # invoke_sub.add(UseGen(invoke_sub, name="omp_lib", only=True,
-            #                       funcnames=[omp_function_name]))
-            # # Note: There is no assigned kind for 'integer' 'nthreads' as this
-            # # would imply assigning 'kind' to 'th_idx' and other elements of
-            # # the OMPParallelDirective
-            # invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-            #                        entity_decls=[nthreads_name]))
-            # invoke_sub.add(CommentGen(invoke_sub, ""))
-            # invoke_sub.add(CommentGen(
-            #     invoke_sub, " Determine the number of OpenMP threads"))
-            # invoke_sub.add(CommentGen(invoke_sub, ""))
-            # invoke_sub.add(AssignGen(invoke_sub, lhs=nthreads_name,
-            #                          rhs=omp_function_name+"()"))
-            
         # Now that all initialisation is done, add the comment before
         # the start of the kernels
         if Config.get().distributed_memory:

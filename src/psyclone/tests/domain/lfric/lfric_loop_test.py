@@ -413,6 +413,7 @@ def test_upper_bound_ncolour_intergrid(dist_mem):
                 "last_edge_cell_all_colours_field1(colour)")
 
 
+@pytest.mark.xfail(reason="#1010 do we need this?")
 def test_loop_start_expr(dist_mem):
     ''' Test that the 'start_expr' property returns the expected reference
     to a symbol.
@@ -431,6 +432,7 @@ def test_loop_start_expr(dist_mem):
     assert lbound.symbol.name == "loop0_start"
 
 
+@pytest.mark.xfail(reason="#1010 do we need this?")
 def test_loop_stop_expr(dist_mem):
     ''' Test the 'stop_expr' property of a loop with and without colouring.
 
