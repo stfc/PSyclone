@@ -3,7 +3,7 @@
 This directory contains files related to testing all input and output
 parameters of a kernel to make sure they are within a user-specified range,
 and not [``NaN`` or infinite](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#psydata-value-range-check). 
+https://psyclone.readthedocs.io/en/latest/psy_data.html#psydata-value-range-check).
 
 There is a [PSyData base class](
 https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-base-class)
