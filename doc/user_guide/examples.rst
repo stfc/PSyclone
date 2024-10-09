@@ -361,6 +361,7 @@ will create the same warnings):
 
 Notice that now a warning is created for both kernels: ``init`` and ``update``.
 
+Support for checking arbitrary Fortran code is tracked as issue #2741.
 
 
 Example 6: PSy-layer Code Creation using PSyIR

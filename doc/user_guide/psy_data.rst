@@ -278,6 +278,19 @@ a few warnings raised by the value range checker)::
     PSYVERIFY__time_evolution__perturbation_data=0.0:4000
     PSYVERIFY__perturbation_data=0.0:4000
     
+.. warning:: Note that while the field variable is called `perturbation`, PSyclone will
+             append `_data` when the LFRic domain is used, so the name becomes
+             `perturbation_data`. You have to use
+             this name in LFRic in order to trigger the value range check. To verify
+             that the tests are done as expected, set the environment variable
+             `PSYDATA_VERBOSE` to 1, which will print which data is taken from the
+             environment variables:
+
+             .. code-block:: bash
+
+                 PSyData: checking 'time_evolution' region 'invoke_initialise_perturbation' :   0.0000000000000000       <= perturbation_data <=    4000.0000000000000
+
+
 If values outside the specified range are found, appropriate warnings are printed,
 but the program is not aborted::
 
