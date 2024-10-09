@@ -104,7 +104,7 @@ def test_field_xyoz(tmpdir):
         "      REAL(KIND=r_def), pointer :: weights_xy_qr(:) => null(), "
         "weights_z_qr(:) => null()\n"
         "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_f1\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
@@ -131,7 +131,7 @@ def test_field_xyoz(tmpdir):
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
@@ -213,7 +213,7 @@ def test_field_xyoz(tmpdir):
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_qr_code(nlayers, f1_data, f2_data, "
+        "        CALL testkern_qr_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
@@ -266,7 +266,7 @@ def test_edge_qr(tmpdir, dist_mem):
         "      call qr%compute_function(diff_basis, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n" in gen_code)
 
-    assert ("call testkern_qr_edges_code(nlayers, f1_data, "
+    assert ("call testkern_qr_edges_code(nlayers_f1, f1_data, "
             "f2_data, m1_data, a, m2_data, istp, "
             "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, "
             "map_w2(:,cell), diff_basis_w2_qr, ndf_w3, undf_w3, "
@@ -308,7 +308,7 @@ def test_face_qr(tmpdir, dist_mem):
         "      INTEGER(KIND=i_def) dim_w1, diff_dim_w2, dim_w3, diff_dim_w3\n"
         "      REAL(KIND=r_def), pointer :: weights_xyz_qr(:,:) => null()\n"
         "      INTEGER(KIND=i_def) np_xyz_qr, nfaces_qr\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_f1\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
@@ -335,7 +335,7 @@ def test_face_qr(tmpdir, dist_mem):
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
         "      !\n")
     if dist_mem:
         init_output += ("      ! Create a mesh object\n"
@@ -428,7 +428,7 @@ def test_face_qr(tmpdir, dist_mem):
 
     compute_output = (
         "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_qr_faces_code(nlayers, f1_data, f2_data, "
+        "        CALL testkern_qr_faces_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
@@ -501,7 +501,7 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
             "diff_dim_w3, ndf_w3, diff_basis_w3_qr_edge)\n" in gen_code)
     # Check that the kernel call itself is correct
     assert (
-        "CALL testkern_2qr_code(nlayers, f1_data, f2_data, "
+        "CALL testkern_2qr_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr_face, basis_w1_qr_edge, "
         "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr_face, "

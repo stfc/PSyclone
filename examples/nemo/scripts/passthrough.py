@@ -37,10 +37,8 @@
 ''' Process Nemo code with PSyclone but don't do any changes. This file is only
 needed to provide a FILES_TO_SKIP list. '''
 
-from utils import NOT_WORKING
-
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_WORKING
+FILES_TO_SKIP = []
 
 
 def trans(_):

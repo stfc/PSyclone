@@ -1934,7 +1934,9 @@ conventions, are:
 1) If an LMA operator is passed then include the ``cells`` argument.
    ``cells`` is an ``integer`` of kind ``i_def`` and has intent ``in``.
 2) Include ``nlayers``, the number of layers in a column. ``nlayers``
-   is an ``integer`` of kind ``i_def`` and has intent ``in``.
+   is an ``integer`` of kind ``i_def`` and has intent ``in``. PSyclone
+   will obtain the value of ``nlayers`` to use for a particular kernel
+   from the first field (in the argument list) that is written to.
 3) For each scalar/field/vector_field/operator in the order specified by
    the meta_args metadata:
 

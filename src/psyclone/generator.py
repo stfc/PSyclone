@@ -714,7 +714,9 @@ def code_transformation_mode(input_file, recipe_file, output_file,
                 code_str = myfile.read()
                 if fll.long_lines(code_str):
                     print(f"'{filename}' does not conform to the specified "
-                          f"{fll.length} line length limit", file=sys.stderr)
+                          f"{fll.length} line-length limit. Either fix the "
+                          f"file or change the '-l/--limit' argument on the "
+                          f"PSyclone command line.", file=sys.stderr)
                     sys.exit(1)
 
         # Parse file
@@ -728,8 +730,10 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         for routine in psyir.walk(Routine):
             Profiler.add_profile_nodes(routine, Loop)
 
-        # Generate Fortran
-        output = FortranWriter()(psyir)
+        # Generate Fortran (We can disable the backend copy because at this
+        # point we also drop the PSyIR and we don't need to guarantee that
+        # is left unmodified)
+        output = FortranWriter(disable_copy=True)(psyir)
         # Fix line_length if requested
         if line_length in ("output", "all"):
             output = fll.process(output)

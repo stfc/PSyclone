@@ -51,10 +51,9 @@ from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
                                    LFRicConstants, LFRicKern,
                                    LFRicKernMetadata, LFRicLoop)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import (DynACCEnterDataDirective,
-                                DynBoundaryConditions, DynCellIterators,
-                                DynGlobalSum, DynKernelArguments, DynProxies,
-                                HaloReadAccess, KernCallArgList)
+from psyclone.dynamo0p3 import (
+    DynACCEnterDataDirective, DynBoundaryConditions, DynGlobalSum,
+    DynKernelArguments, DynProxies, HaloReadAccess, KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
@@ -352,7 +351,7 @@ def test_any_space_1(tmpdir):
             generated_code)
     assert ("map_aspc2_b => b_proxy%vspace%get_whole_dofmap()" in
             generated_code)
-    assert ("CALL testkern_any_space_1_code(nlayers, a_data, rdt, "
+    assert ("CALL testkern_any_space_1_code(nlayers_a, a_data, rdt, "
             "b_data, c_1_data, c_2_data, c_3_data, "
             "ndf_aspc1_a, undf_aspc1_a, map_aspc1_a(:,cell), "
             "basis_aspc1_a_qr, ndf_aspc2_b, undf_aspc2_b, "
@@ -384,7 +383,7 @@ def test_any_space_2(tmpdir):
     assert "undf_aspc1_a = a_proxy%vspace%get_undf()" in generated_code
     assert ("map_aspc1_a => a_proxy%vspace%get_whole_dofmap()"
             in generated_code)
-    assert ("CALL testkern_any_space_2_code(cell, nlayers, a_data, "
+    assert ("CALL testkern_any_space_2_code(cell, nlayers_a, a_data, "
             "b_data, c_proxy%ncell_3d, c_local_stencil, istp, "
             "ndf_aspc1_a, undf_aspc1_a, map_aspc1_a(:,cell))"
             in generated_code)
@@ -462,8 +461,8 @@ def test_op_any_discontinuous_space_1(tmpdir):
             in generated_code)
     assert "ndf_adspc3_op4 = op4_proxy%fs_to%get_ndf()" in generated_code
     assert "ndf_adspc7_op4 = op4_proxy%fs_from%get_ndf()" in generated_code
-    assert ("CALL testkern_any_discontinuous_space_op_1_code(cell, nlayers, "
-            "f1_1_data, f1_2_data, f1_3_data, "
+    assert ("CALL testkern_any_discontinuous_space_op_1_code(cell, "
+            "nlayers_op4, f1_1_data, f1_2_data, f1_3_data, "
             "f2_data, op3_proxy%ncell_3d, op3_local_stencil, "
             "op4_proxy%ncell_3d, op4_local_stencil, rdt, "
             "ndf_adspc1_f1, undf_adspc1_f1, map_adspc1_f1(:,cell), "
@@ -824,7 +823,7 @@ def test_field_bc_kernel(tmpdir):
     assert ("INTEGER(KIND=i_def), pointer :: boundary_dofs_a(:,:) => "
             "null()" in gen_code)
     assert "boundary_dofs_a => a_proxy%vspace%get_boundary_dofs()" in gen_code
-    assert ("CALL enforce_bc_code(nlayers, a_data, ndf_aspc1_a, "
+    assert ("CALL enforce_bc_code(nlayers_a, a_data, ndf_aspc1_a, "
             "undf_aspc1_a, map_aspc1_a(:,cell), boundary_dofs_a)"
             in gen_code)
 
@@ -987,12 +986,12 @@ def test_2kern_invoke_any_space(tmpdir):
     assert "map_aspc1_f1 => f1_proxy%vspace%get_whole_dofmap()\n" in gen
     assert "map_aspc1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
     assert (
-        "        CALL testkern_any_space_2_code(cell, nlayers, f1_data,"
+        "        CALL testkern_any_space_2_code(cell, nlayers_f1, f1_data,"
         " f2_data, op_proxy%ncell_3d, op_local_stencil, scalar, "
         "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1(:,cell))\n" in gen)
     assert "map_aspc1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
     assert (
-        "        CALL testkern_any_space_2_code(cell, nlayers, f2_data,"
+        "        CALL testkern_any_space_2_code(cell, nlayers_f2, f2_data,"
         " f1_data, op_proxy%ncell_3d, op_local_stencil, scalar, "
         "ndf_aspc1_f2, undf_aspc1_f2, map_aspc1_f2(:,cell))\n" in gen)
 
@@ -1030,7 +1029,7 @@ def test_multikern_invoke_any_space(tmpdir):
         "      map_aspc1_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_aspc2_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
         in gen)
-    assert ("CALL testkern_any_space_1_code(nlayers, f1_data, rdt, "
+    assert ("CALL testkern_any_space_1_code(nlayers_f1, f1_data, rdt, "
             "f2_data, f3_1_data, f3_2_data, "
             "f3_3_data, ndf_aspc1_f1, undf_aspc1_f1, "
             "map_aspc1_f1(:,cell), basis_aspc1_f1_qr, ndf_aspc2_f2, "
@@ -2814,22 +2813,22 @@ def test_derived_type_arg(dist_mem, tmpdir):
     # Check that they are still named correctly when passed to the
     # kernels
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "CALL testkern_one_int_scalar_code(nlayers_f1, f1_data, "
         "my_obj_iflag, f2_data, m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "CALL testkern_one_int_scalar_code(nlayers_f1, f1_data, "
         "my_obj_get_flag, f2_data, m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "CALL testkern_one_int_scalar_code(nlayers_f1, f1_data, "
         "my_obj_get_flag_1, f2_data, m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "CALL testkern_one_int_scalar_code(nlayers_f1, f1_data, "
         "my_obj_get_flag_2, f2_data, m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
@@ -2861,22 +2860,22 @@ def test_multiple_derived_type_args(dist_mem, tmpdir):
     # Check that they are still named correctly when passed to the
     # kernels
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "CALL testkern_one_int_scalar_code(nlayers_f1, f1_data, "
         "obj_a_iflag, f2_data, m1_data, m2_data, ndf_w1, "
         "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
         "undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "CALL testkern_one_int_scalar_code(nlayers_f1, f1_data, "
         "obj_b_iflag, f2_data, m1_data, m2_data, ndf_w1, "
         "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
         "undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "CALL testkern_one_int_scalar_code(nlayers_f1, f1_data, "
         "obj_a_obj_b_iflag, f2_data, m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "CALL testkern_one_int_scalar_code(nlayers_f1, f1_data, "
         "obj_b_obj_a_iflag, f2_data, m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
@@ -3121,7 +3120,7 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "        CALL f3_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
             "      DO cell = loop0_start, loop0_stop, 1\n"
-            "        CALL testkern_multi_anyw2_code(nlayers, "
+            "        CALL testkern_multi_anyw2_code(nlayers_f1, "
             "f1_data, f2_data, f3_data, ndf_any_w2, "
             "undf_any_w2, map_any_w2(:,cell))\n"
             "      END DO\n"
@@ -3150,7 +3149,7 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO cell = loop0_start, loop0_stop, 1\n"
-            "        CALL testkern_multi_anyw2_code(nlayers, "
+            "        CALL testkern_multi_anyw2_code(nlayers_f1, "
             "f1_data, f2_data, f3_data, ndf_any_w2, "
             "undf_any_w2, map_any_w2(:,cell))\n"
             "      END DO")
@@ -3680,25 +3679,6 @@ def test_lfriccollection_err2(monkeypatch):
     assert "LFRicCollection has neither a Kernel nor an Invoke" \
         in str(err.value)
 
-
-def test_dyncelliterators_err(monkeypatch):
-    ''' Check that the DynCellIterators constructor raises the expected
-    error if it fails to find any field or operator arguments. '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    # The list of arguments is dynamically generated if it is empty so
-    # monkeypatch it to contain a single, scalar argument.
-    monkeypatch.setattr(invoke._psy_unique_vars[0], "_argument_type",
-                        "gh_scalar")
-    monkeypatch.setattr(invoke, "_psy_unique_vars",
-                        [invoke._psy_unique_vars[0]])
-    with pytest.raises(GenerationError) as err:
-        _ = DynCellIterators(invoke)
-    assert ("Cannot create an Invoke with no field/operator arguments."
-            in str(err.value))
-
 # tests for class kerncallarglist position methods
 
 
@@ -3774,7 +3754,7 @@ def test_dynkernelarguments_acc_args_1():
     kern_args = kern.arguments
     acc_args = kern_args.acc_args
     assert acc_args == [
-        'nlayers', 'f1_data', 'f2_data', 'm1_data', 'm2_data', 'ndf_w1',
+        'nlayers_f1', 'f1_data', 'f2_data', 'm1_data', 'm2_data', 'ndf_w1',
         'undf_w1', 'map_w1', 'ndf_w2', 'undf_w2',
         'map_w2', 'ndf_w3', 'undf_w3', 'map_w3']
 
@@ -3794,7 +3774,7 @@ def test_dynkernelarguments_acc_args_2():
     kern_args = kern.arguments
     acc_args = kern_args.acc_args
     assert acc_args == [
-        'nlayers', 'f1_1_data', 'f1_2_data', 'f1_3_data',
+        'nlayers_f1', 'f1_1_data', 'f1_2_data', 'f1_3_data',
         'f2_1_data', 'f2_2_data', 'f2_3_data',
         'ndf_w3', 'undf_w3', 'map_w3']
 
@@ -3814,7 +3794,7 @@ def test_dynkernelarguments_acc_args_3():
     kern_args = kern.arguments
     acc_args = kern_args.acc_args
     assert acc_args == [
-        'nlayers', 'f1_data', 'f2_data',
+        'nlayers_f1', 'f1_data', 'f2_data',
         'f2_stencil_size', 'f2_stencil_dofmap', 'f3_data',
         'f4_data', 'ndf_w1', 'undf_w1', 'map_w1', 'ndf_w2',
         'undf_w2', 'map_w2', 'ndf_w3', 'undf_w3', 'map_w3']
@@ -3835,7 +3815,7 @@ def test_dynkernelarguments_acc_args_4():
     kern_args = kern.arguments
     acc_args = kern_args.acc_args
     assert acc_args == [
-        'nlayers', 'f1_data', 'f2_data', 'f2_stencil_size',
+        'nlayers_f1', 'f1_data', 'f2_data', 'f2_stencil_size',
         'f2_max_branch_length', 'f2_stencil_dofmap',
         'f3_data', 'f4_data', 'ndf_w1',
         'undf_w1', 'map_w1', 'ndf_w2', 'undf_w2', 'map_w2', 'ndf_w3',
@@ -3857,7 +3837,7 @@ def test_dynkernelarguments_acc_args_5():
     kern_args = kern.arguments
     acc_args = kern_args.acc_args
     assert acc_args == [
-        'cell', 'nlayers', 'mm_w0_proxy', 'mm_w0_proxy%ncell_3d',
+        'cell', 'nlayers_mm_w0', 'mm_w0_proxy', 'mm_w0_proxy%ncell_3d',
         'mm_w0_local_stencil', 'coord_1_data', 'coord_2_data',
         'coord_3_data', 'ndf_w0', 'undf_w0', 'map_w0',
         'basis_w0_qr', 'diff_basis_w0_qr', 'np_xy_qr', 'np_z_qr',
@@ -4394,7 +4374,8 @@ def test_mixed_precision_args(tmpdir):
         "      INTEGER(KIND=i_def) loop2_start, loop2_stop\n"
         "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_field_r_bl, nlayers_field_r_def, "
+        "nlayers_field_r_phys, nlayers_field_r_solver, nlayers_field_r_tran\n"
         "      REAL(KIND=r_tran), pointer, dimension(:,:,:) :: "
         "operator_r_tran_local_stencil => null()\n"
         "      TYPE(r_tran_operator_proxy_type) operator_r_tran_proxy\n"
@@ -4439,7 +4420,8 @@ def test_dynpsy_gen_container_routines(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
     # Manually add a new top-level routine
-    psy.invokes.invoke_list[0].schedule.root.addchild(Routine("new_routine"))
+    psy.invokes.invoke_list[0].schedule.root.addchild(
+            Routine.create("new_routine"))
 
     # Search the routine in the code_gen output
     generated_code = str(psy.gen)
