@@ -225,9 +225,8 @@ class LFRicLoop(PSyLoop):
         # Loop bounds
         self.set_lower_bound("start")
         const = LFRicConstants()
-        if isinstance(kern, LFRicBuiltIn):
-            # If the kernel is a built-in/pointwise operation
-            # then this loop must be over DoFs
+        if kern.iterates_over == "dof":
+            # This loop must be over DoFs
             if Config.get().api_conf("lfric").compute_annexed_dofs \
                and Config.get().distributed_memory \
                and not kern.is_reduction:
@@ -475,14 +474,20 @@ class LFRicLoop(PSyLoop):
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
-                    result = (f"{self.field.proxy_name_indexed}%"
-                              f"{self.field.ref_name()}%get_last_dof_owned()")
+                    result = (
+                        f"{self.field.proxy_name_indexed}%"
+                        f"{self.field.ref_name()}%get_last_dof_owned()")
                 else:  # nannexed
                     result = (
                         f"{self.field.proxy_name_indexed}%"
                         f"{self.field.ref_name()}%get_last_dof_annexed()")
             else:
-                result = self._kern.undf_name
+                if isinstance(self._kern, LFRicBuiltIn):
+                    result = self._kern.undf_name
+                else:
+                    # User-defined dof kernel has undf_name in a different
+                    # location
+                    result = self._field_space.bare_undf_name
             return result
         if self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:
