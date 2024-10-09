@@ -38,7 +38,7 @@
 adds ValueRangeCheck code to the invokes.
 '''
 
-from psyclone.psyir.transformations import ValueRangeCheck
+from psyclone.psyir.transformations import ValueRangeCheckTrans
 
 
 def trans(psy):
@@ -52,7 +52,7 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    value_range_check = ValueRangeCheck()
+    value_range_check = ValueRangeCheckTrans()
 
     for invoke_name in psy.invokes.names:
 

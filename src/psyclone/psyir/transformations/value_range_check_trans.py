@@ -49,7 +49,7 @@ from psyclone.psyir.transformations.read_only_verify_trans \
     import ReadOnlyVerifyTrans
 
 
-class ValueRangeCheck(ReadOnlyVerifyTrans):
+class ValueRangeCheckTrans(ReadOnlyVerifyTrans):
     '''This transformation inserts a ValueRangeCheckNode into the PSyIR of a
     schedule. At code creation time this node will use the PSyData API
     to create code that will verify all input parameters are not NANs
@@ -103,4 +103,4 @@ class ValueRangeCheck(ReadOnlyVerifyTrans):
 
 # ============================================================================
 # For automatic documentation creation:
-__all__ = ["ValueRangeCheck"]
+__all__ = ["ValueRangeCheckTrans"]

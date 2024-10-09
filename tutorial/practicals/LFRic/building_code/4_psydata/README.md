@@ -271,7 +271,7 @@ out of range error or an invalid value, an error message like the following will
                            NaN  at index/indices           11
 
 
-The transformation ``ValueRangeCheck`` is imported from ``psyclone.psyir.transformations``.
+The transformation ``ValueRangeCheckTrans`` is imported from ``psyclone.psyir.transformations``.
 You can use the template ``value_range_check_transform.py`` for your script,
 and ``Makefile.value_range_check`` for the makefile to use.
 

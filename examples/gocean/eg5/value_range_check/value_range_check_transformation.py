@@ -41,7 +41,7 @@ all input and output parameters of a region are a valid number, i.e.
 not infinity or NAN.
 '''
 
-from psyclone.psyir.transformations import ValueRangeCheck
+from psyclone.psyir.transformations import ValueRangeCheckTrans
 
 
 def trans(psy):
@@ -56,7 +56,7 @@ def trans(psy):
     :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    value_range_check = ValueRangeCheck()
+    value_range_check = ValueRangeCheckTrans()
 
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule

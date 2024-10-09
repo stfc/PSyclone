@@ -35,7 +35,7 @@
 # Modified by: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Module containing tests for ValueRangeCheck and ValueRangeCheckNode
+''' Module containing tests for ValueRangeCheckTrans and ValueRangeCheckNode
 '''
 
 import pytest
@@ -43,7 +43,7 @@ import pytest
 
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import colored, Node, ValueRangeCheckNode, Schedule
-from psyclone.psyir.transformations import (ValueRangeCheck,
+from psyclone.psyir.transformations import (ValueRangeCheckTrans,
                                             TransformationError)
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPParallelLoopTrans
@@ -51,12 +51,12 @@ from psyclone.transformations import OMPParallelLoopTrans
 
 # ---------------------------------------------------------------------------
 def test_value_range_check_trans():
-    '''Tests basic functions in ValueRangeCheck.'''
-    value_range = ValueRangeCheck()
+    '''Tests basic functions in ValueRangeCheckTrans.'''
+    value_range = ValueRangeCheckTrans()
     assert str(value_range) == ("Create a sub-tree of the PSyIR that has a "
                                 "node of type ValueRangeCheckNode at its "
                                 "root.")
-    assert value_range.name == "ValueRangeCheck"
+    assert value_range.name == "ValueRangeCheckTrans"
 
 
 # -----------------------------------------------------------------------------
@@ -80,7 +80,7 @@ def test_value_range_check_basic():
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0, dist_mem=False)
-    value_range_check = ValueRangeCheck()
+    value_range_check = ValueRangeCheckTrans()
     value_range_check.apply(invoke.schedule[0].loop_body[0])
     result = invoke.schedule.view()
 
@@ -100,7 +100,7 @@ def test_value_range_check_options():
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0, dist_mem=False)
-    value_range_check = ValueRangeCheck()
+    value_range_check = ValueRangeCheckTrans()
     value_range_check.apply(invoke.schedule[0].loop_body[0],
                             options={"region_name": ("a", "b")})
     code = str(invoke.gen())
@@ -109,26 +109,26 @@ def test_value_range_check_options():
 
 # -----------------------------------------------------------------------------
 def test_invalid_apply():
-    '''Test the exceptions that should be raised by ValueRangeCheck.
+    '''Test the exceptions that should be raised by ValueRangeCheckTrans.
 
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0)
-    value_range_check = ValueRangeCheck()
+    value_range_check = ValueRangeCheckTrans()
     omp = OMPParallelLoopTrans()
     omp.apply(invoke.schedule[0])
     with pytest.raises(TransformationError) as err:
         value_range_check.apply(invoke.schedule[0].dir_body[0],
                                 options={"region_name": ("a", "b")})
 
-    assert "Error in ValueRangeCheck: Application to a Loop without its "\
+    assert "Error in ValueRangeCheckTrans: Application to a Loop without its "\
            "parent Directive is not allowed." in str(err.value)
 
     with pytest.raises(TransformationError) as err:
         value_range_check.apply(invoke.schedule[0].dir_body[0].loop_body[0],
                                 options={"region_name": ("a", "b")})
 
-    assert "Error in ValueRangeCheck: Application to Nodes enclosed within a "\
+    assert "Error in ValueRangeCheckTrans: Application to Nodes enclosed within a "\
            "thread-parallel region is not allowed." in str(err.value)
 
 
@@ -143,7 +143,7 @@ def test_value_range_check_psyir_visitor(fortran_writer):
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0, dist_mem=False)
 
-    value_range_check = ValueRangeCheck()
+    value_range_check = ValueRangeCheckTrans()
     value_range_check.apply(invoke.schedule,
                             options={"region_name": ("a", "b")})
 
@@ -181,7 +181,7 @@ def test_value_range_check_lfric():
     psy, invoke = get_invoke("1.2_multi_invoke.f90", api="lfric",
                              idx=0, dist_mem=False)
 
-    value_range_check = ValueRangeCheck()
+    value_range_check = ValueRangeCheckTrans()
     value_range_check.apply(invoke.schedule)
 
     code = str(psy.gen)

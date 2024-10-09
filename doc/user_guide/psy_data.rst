@@ -260,7 +260,7 @@ The syntax for the environment variable is one of:
 
 ``PSYVERIFY__module__variable``
     The specified variable name is tested in all kernel calls of the
-    specified module that are instrumented with the ValueRangeCheck
+    specified module that are instrumented with the ValueRangeCheckTrans
     transformation.
 
 ``PSYVERIFY__variable``
