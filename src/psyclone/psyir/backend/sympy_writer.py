@@ -246,7 +246,7 @@ class SymPyWriter(FortranWriter):
         return new_func
 
     # -------------------------------------------------------------------------
-    def _create_type_map(self, list_of_expressions):
+    def _create_type_map(self, list_of_expressions, identical_variables=None):
         '''This function creates a dictionary mapping each Reference in any
         of the expressions to either a SymPy Function (if the reference
         is an array reference) or a Symbol (if the reference is not an
@@ -268,6 +268,15 @@ class SymPyWriter(FortranWriter):
         name, a new name will be created (e.g. ``lambda`` might become
         ``lambda_1``). The SymPyWriter (e.g. in ``reference_node``) will
         use the renamed value when creating the string representation.
+
+        The optional identical_variables dictionary can contain information
+        about variables which are known to be the same. For example, if
+        `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
+        considered equal.
+
+        :param identical_variables: which variable names are known to be
+            identical
+        :type identical_variables: Optional[dict[str, str]]
 
         :param list_of_expressions: the list of expressions from which all
             references are taken and added to a symbol table to avoid
@@ -320,6 +329,16 @@ class SymPyWriter(FortranWriter):
                 self._sympy_type_map[unique_sym.name] = \
                     self._create_sympy_array_function(name)
 
+        if not identical_variables:
+            identical_variables = {}
+        # For all variables that are the same, set the symbols to be
+        # identical. This means if e.g. identical_variables={'i': 'j'},
+        # the expression i-j becomes j-j = 0
+
+        for var1, var2 in identical_variables.items():
+            if var1 in self._sympy_type_map and var2 in self._sympy_type_map:
+                self._sympy_type_map[var1] = self._sympy_type_map[var2]
+
         # Now all symbols have been added to the symbol table, create
         # unique names for the lower- and upper-bounds using special tags:
         self._lower_bound = \
@@ -358,11 +377,19 @@ class SymPyWriter(FortranWriter):
         return self._sympy_type_map
 
     # -------------------------------------------------------------------------
-    def _to_str(self, list_of_expressions):
+    def _to_str(self, list_of_expressions, identical_variables=None):
         '''Converts PSyIR expressions to strings. It will replace Fortran-
         specific expressions with code that can be parsed by SymPy. The
         argument can either be a single element (in which case a single string
         is returned) or a list/tuple, in which case a list is returned.
+        The optional identical_variables dictionary can contain information
+        about variables which are known to be the same. For example, if
+        `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
+        considered equal.
+
+        :param identical_variables: which variable names are known to be
+            identical
+        :type identical_variables: Optional[dict[str, str]]
 
         :param list_of_expressions: the list of expressions which are to be
             converted into SymPy-parsable strings.
@@ -379,7 +406,8 @@ class SymPyWriter(FortranWriter):
 
         # Create the type map in `self._sympy_type_map`, which is required
         # when converting these strings to SymPy expressions
-        self._create_type_map(list_of_expressions)
+        self._create_type_map(list_of_expressions,
+                              identical_variables=identical_variables)
 
         expression_str_list = []
         for expr in list_of_expressions:
@@ -392,7 +420,7 @@ class SymPyWriter(FortranWriter):
         return expression_str_list
 
     # -------------------------------------------------------------------------
-    def __call__(self, list_of_expressions):
+    def __call__(self, list_of_expressions, identical_variables=None):
         '''
         This function takes a list of PSyIR expressions, and converts
         them all into Sympy expressions using the SymPy parser.
@@ -400,11 +428,18 @@ class SymPyWriter(FortranWriter):
         constants with kind specification, ...), including the renaming of
         member accesses, as described in
         https://psyclone-dev.readthedocs.io/en/latest/sympy.html#sympy
+        The optional identical_variables dictionary can contain information
+        about variables which are known to be the same. For example, if
+        `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
+        considered equal.
 
         :param list_of_expressions: the list of expressions which are to be
             converted into SymPy-parsable strings.
         :type list_of_expressions: list of
             :py:class:`psyclone.psyir.nodes.Node`
+        :param identical_variables: which variable names are known to be
+            identical
+        :type identical_variables: Optional[dict[str, str]]
 
         :returns: a 2-tuple consisting of the the converted PSyIR
             expressions, followed by a dictionary mapping the symbol names
@@ -413,12 +448,25 @@ class SymPyWriter(FortranWriter):
                       List[:py:class:`sympy.core.basic.Basic`]]
 
         :raises VisitorError: if an invalid SymPy expression is found.
+        :raises TypeError: if the identical_variables parameter is not
+            a dict, or does contain a key or value that is not a string.
 
         '''
+        if identical_variables:
+            if not isinstance(identical_variables, dict):
+                raise TypeError(f"Expected identical_variables to be "
+                                f"a dictionary, but got "
+                                f"{type(identical_variables)}.")
+            if any(not isinstance(key, str) or not isinstance(value, str)
+                   for key, value in identical_variables.items()):
+                raise TypeError("Dictionary identical_variables "
+                                "contains a non-string key or value.")
+
         is_list = isinstance(list_of_expressions, (tuple, list))
         if not is_list:
             list_of_expressions = [list_of_expressions]
-        expression_str_list = self._to_str(list_of_expressions)
+        expression_str_list = self._to_str(
+            list_of_expressions, identical_variables=identical_variables)
 
         result = []
         for expr in expression_str_list:
