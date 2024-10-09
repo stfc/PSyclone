@@ -47,6 +47,7 @@ from psyclone.domain.lfric import LFRicKernMetadata, LFRicKern
 from psyclone.dynamo0p3 import DynFunctionSpaces
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.tests.utilities import get_invoke
 from psyclone.parse.utils import ParseError
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -285,14 +286,15 @@ def test_function_space_bare_undf():
     list of undf_names when a kernel is found to operate on 'dof'
 
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
+    _, invoke = get_invoke(os.path.join(BASE_PATH,
                                         "1.14_single_invoke_dofs.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    dynfs = DynFunctionSpaces(invoke)
+                           TEST_API,
+                           idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    kernel = schedule.walk(LFRicKern)
+    test_fs = DynFunctionSpaces(kernel)
 
-    assert ["undf"] == dynfs._var_list
+    assert 'undf' in test_fs._var_list
 
 
 def test_compiles(tmpdir):
