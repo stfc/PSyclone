@@ -41,8 +41,6 @@ all input and output parameters of a region are a valid number, i.e.
 not infinity or NAN.
 '''
 
-from __future__ import print_function
-
 from psyclone.psyir.transformations import ValueRangeCheck
 
 

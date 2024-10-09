@@ -1,17 +1,18 @@
-# ``NaN``-Test Verification Libraries
+# ``ValueRangeCheck``- Libraries
 
 This directory contains files related to testing all input and output
-parameters of a kernel to make sure they are not [``NaN`` or infinite](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#nan-test),
-i.e. checks at runtime that a read-only parameter of a subroutine is indeed
-not changed in a kernel. There is a [PSyData base class](
+parameters of a kernel to make sure they are within a user-specified range,
+and not [``NaN`` or infinite](
+https://psyclone.readthedocs.io/en/latest/psy_data.html#psydata-value-range-check). 
+
+There is a [PSyData base class](
 https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#psydata-base-class)
 as a Jinja template that can be used to simplify the creation of API-specific
 wrapper libraries.
 
-## NANTest base class
+## ValueRangeCheck base class
 
-The file ``nan_test_base.jinja`` contains a Jinja template that is used
+The file ``value_range_check_base.jinja`` contains a Jinja template that is used
 by the [GOcean ``dl_esm_inf``-](./dl_esm_inf/README.md) and [LFRic-specific](
 ./lfric/README.md) wrapper libraries. It implements the required [PSyData API](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) calls for
@@ -29,13 +30,13 @@ this directory.
 
 ## [``dl_esm_inf``](./dl_esm_inf) directory
 
-Contains the ``NaN``-test, PSyData-API-based, wrapper library for the
+Contains the ``ValueRangeCheck``, PSyData-API-based, wrapper library for the
 ``dl_esm_inf`` [GOcean API](
 https://psyclone.readthedocs.io/en/latest/gocean1p0.html).
 
 ## [``lfric``](./lfric) directory
 
-Contains the ``NaN``-test, PSyData-API-based, wrapper library for the
+Contains the ``ValueRangeCheck``, PSyData-API-based, wrapper library for the
 [LFRic (Dynamo 0.3) API](
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
 
@@ -46,7 +47,7 @@ https://psyclone.readthedocs.io/en/stable/dynamo0p3.html).
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2024, Science and Technology Facilities Council.
+Copyright (c) 2024, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -78,5 +79,4 @@ POSSIBILITY OF SUCH DAMAGE.
 
 -------------------------------------------------------------------------------
 Authors: J. Henrichs, Bureau of Meteorology,
-         I. Kavcic, Met Office
 -->

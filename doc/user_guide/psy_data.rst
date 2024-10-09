@@ -75,7 +75,7 @@ Access Verification:
 Value Range Check:
   The callbacks can be used to make sure that all floating point input
   and output parameters of a kernel are within a user-specified range.
-  Additionally, it will also verified that the values are not a ``NaN``
+  Additionally, it will also verify that the values are not a ``NaN``
   (not-a-number) or infinite. See :ref:`psydata_value_range_check` for
   the full description.
 
@@ -101,7 +101,7 @@ Read-Only Verification
 ----------------------
 
 The PSyData interface is being used to verify that read-only variables
-in a kernel are not overwritten. The ``ReadOnlyVerifyTrans`` (in 
+in a kernel are not overwritten. The ``ReadOnlyVerifyTrans`` (in
 ``psyir.transformations.read_only_verify_trans``, or the
 :ref_guide:`Transformation Reference Guide psyclone.psyir.transformations.html#classes`) uses the dependency
 analysis to determine all read-only variables (i.e. arguments declared
@@ -147,10 +147,11 @@ Both libraries support the environment variable ``PSYDATA_VERBOSE``.
 This can be used to control how much output is generated
 by the read-only-verification library at runtime. If the
 variable is not specified or has the value '0', warnings will only
-be printed if checksums change. If it is set to '1', a message will be 
+be printed if checksums change. If it is set to '1', a message will be
 printed before and after each kernel call that is checked. If the
 variable is set to '2', it will additionally print the name of each
 variable that is checked.
+
 
 Read-Only Verification Library for LFRic
 ++++++++++++++++++++++++++++++++++++++++
@@ -186,6 +187,13 @@ the required variables:
     make LFRIC_INF_DIR=some_path F90=ifort F90FLAGS="--some-flag"
 
 This will create a library called ``lib_read_only.a``.
+
+An executable example for using the LFRic read-only-verification library is
+included in ``tutorial/practicals/LFRic/building_code/4_psydata`` directory,
+see `this link for more information
+<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals/LFRic/building_code/4_psydata>`_.
+
+
 
 Read-Only-Verification Library for GOcean
 +++++++++++++++++++++++++++++++++++++++++
@@ -232,9 +240,9 @@ Value Range Check
 -----------------
 
 This transformation can be used for both LFRic and GOcean APIs. It will
-test all input and output parameters of a kernel to make sure they are 
-within a user-specified range. Additionally, it will also very that floating
-point values are not ``NaN`` or infinite. 
+test all input and output parameters of a kernel to make sure they are
+within a user-specified range. Additionally, it will also verify that floating
+point values are not ``NaN`` or infinite.
 
 At runtime, environment variables must be specified to indicate which variables
 are within what expected range, and optionally also at which location.
@@ -258,7 +266,7 @@ The syntax for the environment variable is one of:
 ``PSYVERIFY__variable``
     The specified variable name is tested in any instrumented code region.
 
-If the module name or kernel name should contain a `-` (which can be inserted
+If the module name or kernel name contains a `-` (which can be inserted
 by PSyclone, e.g. `invoke_compute-r1`), it needs to be replaced with an
 underscore character in the environment variable (`_`)
 
@@ -270,13 +278,13 @@ a few warnings raised by the value range checker)::
     PSYVERIFY__time_evolution__perturbation_data=0.0:4000
     PSYVERIFY__perturbation_data=0.0:4000
     
-If values out of the specified range are found, appropriate warnings are printed,
+If values outside the specified range are found, appropriate warnings are printed,
 but the program is not aborted::
 
-    PSyData: Variable 'perturbation_data' has the value 4227.3587826606408 at index/indices 27051 in module 'time_evolution' region 'invoke_initialise_perturbation', which is not between '0.0000000000000000' and '4000.0000000000000'.
+    PSyData: Variable 'perturbation_data' has the value 4227.3587826606408 at index/indices 27051 in module 'time_evolution', region 'invoke_initialise_perturbation', which is not between '0.0000000000000000' and '4000.0000000000000'.
 
 
-Is uses the function ``IEEE_IS_FINITE`` from the ieee_arithmetic module
+The library uses the function ``IEEE_IS_FINITE`` from the ieee_arithmetic module
 for additionally verifying that values are not ``NAN`` or ``infinity``
 for any floating point variable, even if no ``PSY_VERIFY...`` environment
 variable is set for this variable. Integer numbers do not have a bit pattern
@@ -293,12 +301,6 @@ The relevant libraries for the LFRic and GOcean APIs are contained in
 the ``lib/value_range_check/lfric`` and ``lib/value_range_check/dl_esm_inf`` subdirectories,
 respectively. For more information on how to build and link these libraries,
 please refer to the relevant ``README.md`` files.
-
-An executable example for using the LFRic read-only-verification library is
-included in ``tutorial/practicals/LFRic/building_code/4_psydata`` directory,
-see `this link for more information
-<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals/LFRic/building_code/4_psydata>`_.
-
 
 .. _integrating_psy_data_lfric:
 

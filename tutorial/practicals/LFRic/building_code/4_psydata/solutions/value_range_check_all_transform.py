@@ -34,9 +34,8 @@
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: R. W. Ford, STFC Daresbury Lab
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds value range checking code to
-the invokes.
+'''Python script passed to the psyclone command via the -s option. It
+adds ValueRangeCheck code to the invokes.
 '''
 
 from psyclone.psyir.transformations import ValueRangeCheck

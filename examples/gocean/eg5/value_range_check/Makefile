@@ -40,7 +40,7 @@
 # The dl_esm_inf infrastructure library:
 #     export INF_DIR=../../../external/dl_esm_inf/finite_difference/src
 # The value-range-check wrapper library:
-#     export VALUE_RANGE_CHECK_DIR = ../../../lib/value_range_check/dl_esm_inf
+#     export VALUE_RANGE_CHECK_DIR=../../../lib/value_range_check/dl_esm_inf
 
 PSYROOT=../../../..
 include $(PSYROOT)/examples/common.mk

@@ -322,14 +322,14 @@ Example 5.4: Value Range Check
 This example shows the use of valid number verification with PSyclone.
 It instruments each of the two invokes in the example program
 with the PSyData-based Value-Range-Check code.
-It uses the dl_esm_inf-specific nan_test library
+It uses the dl_esm_inf-specific value range check library
 (``lib/value_range_check/dl_esm_inf/``).
 
 .. note:: The ``update_field_mod`` subroutine contains code
     that will trigger a division by 0 to create NaNs. If
-    the compiler should add code that handles floating point
-    exceptions , this will take effect before the NaN testing is
-    done by the PSyData-based verification code.
+    the compiler happens to add code that handles floating point
+    exceptions , this will take effect before the value testing
+    is done by the PSyData-based verification code.
 
 The ``Makefile`` in this example will link with the compiled
 value_range_check library. You can then execute the binary
@@ -341,9 +341,9 @@ details).
 
     PSYVERIFY__main__init__b_fld=2:3 ./value_range_check
     ...
-    PSyData: Variable b_fld has the value 0.0000000000000000 at index/indices 6 1 in module 'main' region 'init', which is not between '2.0000000000000000' and '3.0000000000000000'.
+    PSyData: Variable b_fld has the value 0.0000000000000000 at index/indices 6 1 in module 'main', region 'init', which is not between '2.0000000000000000' and '3.0000000000000000'.
     ...
-    PSyData: Variable a_fld has the invalid value 'Inf' at index/indices 1 1 in module 'main' region 'update'.
+    PSyData: Variable a_fld has the invalid value 'Inf' at index/indices 1 1 in module 'main', region 'update'.
 
 As indicated in :ref:`value range check<psydata_value_range_check>`, you can
 also check a variable in all kernels of a module, or in any instrumented
@@ -355,9 +355,9 @@ will create the same warnings):
     PSYVERIFY__main__b_fld=2:3 ./value_range_check
     PSYVERIFY__b_fld=2:3 ./value_range_check
     ...
-    PSyData: Variable b_fld has the value 0.0000000000000000 at index/indices 6 1 in module 'main' region 'init', which is not between '2.0000000000000000' and '3.0000000000000000'.
+    PSyData: Variable b_fld has the value 0.0000000000000000 at index/indices 6 1 in module 'main', region 'init', which is not between '2.0000000000000000' and '3.0000000000000000'.
     ...
-    PSyData: Variable b_fld has the value 0.0000000000000000 at index/indices 6 1 in module 'main' region 'update', which is not between '2.0000000000000000' and '3.0000000000000000'.
+    PSyData: Variable b_fld has the value 0.0000000000000000 at index/indices 6 1 in module 'main', region 'update', which is not between '2.0000000000000000' and '3.0000000000000000'.
 
 Notice that now a warning is created for both kernels: ``init`` and ``update``.
 

@@ -53,7 +53,6 @@ Program test
 
     ! Initialise dl_esm_inf and create a grid:
     call parallel_init()
-    call value_range_check_PSyDataInit()
     ! Just to show how to use the start function. It is not
     ! actually required, since the previous call enables it anyway.
     call value_range_check_PSyDataStart()
@@ -79,6 +78,5 @@ Program test
     ! the output field `a_fld`.
     call invoke (update_field(a_fld, b_fld) )
     print *,"a_fld is", a_fld%data
-    call value_range_check_PSyDataShutdown()
 
 end program test

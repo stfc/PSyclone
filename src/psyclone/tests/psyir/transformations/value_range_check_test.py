@@ -50,7 +50,7 @@ from psyclone.transformations import OMPParallelLoopTrans
 
 
 # ---------------------------------------------------------------------------
-def test_extract_trans():
+def test_value_range_check_trans():
     '''Tests basic functions in ValueRangeCheck.'''
     value_range = ValueRangeCheck()
     assert str(value_range) == ("Create a sub-tree of the PSyIR that has a "
@@ -60,7 +60,7 @@ def test_extract_trans():
 
 
 # -----------------------------------------------------------------------------
-def test_malformed_extract_node(monkeypatch):
+def test_malformed_value_range_check_node(monkeypatch):
     ''' Check that we raise the expected error if a ValueRangeCheckNode does
     not have a single Schedule node as its child. '''
     value_range_check_node = ValueRangeCheckNode()

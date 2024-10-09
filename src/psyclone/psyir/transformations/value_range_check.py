@@ -60,10 +60,10 @@ class ValueRangeCheck(ReadOnlyVerifyTrans):
     Nodes to verify can be individual constructs within an Invoke (e.g.
     Loops containing a Kernel or BuiltIn call) or entire Invokes.
 
-    :param node_class: The class of Node which will be inserted \
-        into the tree (defaults to ValueRangeCheckNode), but can be any \
+    :param node_class: The class of Node which will be inserted
+        into the tree (defaults to ValueRangeCheckNode), but can be any
         derived class.
-    :type node_class: :py:class:`psyclone.psyir.nodes.ValueRangeCheckNode` or \
+    :type node_class: :py:class:`psyclone.psyir.nodes.ValueRangeCheckNode` or
         derived class
 
     '''
