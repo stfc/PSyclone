@@ -852,12 +852,15 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     assert "use my_mod, only : my_interface, my_other_sub\n" in output
     # We can't test the compilation of this code because of the 'use my_mod.'
 
+    # Finally, inline the call to the interface. This should then remove all
+    # imports from 'my_mod'.
     intrans.apply(calls[2])
     routines = container.walk(Routine)
     output = fortran_writer(psyir)
     assert "use my_mod" not in output
     assert "subroutine my_other_sub" in output
     assert "interface my_interface" in output
+    assert Compile(tmpdir).string_compiles(output)
 
 
 def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,

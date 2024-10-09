@@ -385,10 +385,11 @@ class KernelModuleInlineTrans(Transformation):
             actual_table.remove(csym)
 
     def apply(self, node, options=None):
-        ''' Bring the kernel subroutine into this Container.
+        ''' Bring the kernel/subroutine into this Container.
 
-        :param node: the kernel to module-inline.
-        :type node: :py:class:`psyclone.psyGen.CodedKern`
+        :param node: the Kernel or Call to module-inline.
+        :type node: :py:class:`psyclone.psyGen.CodedKern` |
+                    :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -412,10 +413,21 @@ class KernelModuleInlineTrans(Transformation):
         # may already be in use, but the equality check below guarantees
         # that if it exists it is only valid when it references the exact same
         # implementation.
-        caller_name, codes_to_inline, interface_sym = (
+        # TODO - get rid of 'caller name' return value from
+        # _get_psyir_to_inline?
+        _, codes_to_inline, interface_sym = (
             KernelModuleInlineTrans._get_psyir_to_inline(node))
 
         updated_routines = self._prepare_code_to_inline(codes_to_inline)
+        # Update the Kernel to point to the updated PSyIR.
+        if isinstance(node, CodedKern):
+            # TODO - add setter for these properties to Kern?
+            # pylint: disable=protected-access
+            node._kern_schedule = updated_routines
+            if interface_sym:
+                node._interface_symbol = (
+                    updated_routines[0].scope.symbol_table.lookup(
+                        interface_sym.name))
 
         container = node.ancestor(Container)
         local_table = node.scope.symbol_table
@@ -475,7 +487,7 @@ class KernelModuleInlineTrans(Transformation):
                             # is a detached copy.)
                             if routine != code_to_inline:
                                 raise TransformationError(
-                                    f"Cannot inline subroutine '{caller_name}'"
+                                    f"Cannot inline subroutine '{node.name}'"
                                     f" because another, different, subroutine "
                                     f"with the same name already exists and "
                                     f"versioning of module-inlined subroutines"

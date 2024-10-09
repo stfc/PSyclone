@@ -581,12 +581,14 @@ class Call(Statement, DataNode):
 
         if isinstance(container, Container):
             routines = []
-            for name in container.resolve_routine(rsym.name):
+            all_names = container.resolve_routine(rsym.name)
+            for name in all_names:
                 psyir = container.find_routine_psyir(
                     name, allow_private=can_be_private)
                 if psyir:
                     routines.append(psyir)
-            if routines:
+            if len(routines) == len(all_names):
+                # We've resolved everything.
                 return routines
 
         raise SymbolError(
