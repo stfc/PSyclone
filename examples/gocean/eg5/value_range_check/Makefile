@@ -39,13 +39,13 @@
 #     export F90FLAGS="-O3"
 # The dl_esm_inf infrastructure library:
 #     export INF_DIR=../../../external/dl_esm_inf/finite_difference/src
-# The nan-test wrapper library:
-#     export NAN_TEST_DIR = ../../../lib/nan_test/dl_esm_inf
+# The value-range-check wrapper library:
+#     export VALUE_RANGE_CHECK_DIR=../../../lib/value_range_check/dl_esm_inf
 
 PSYROOT=../../../..
 include $(PSYROOT)/examples/common.mk
 
-GENERATED_FILES += *.o *.mod nan_test alg.f90 psy.f90
+GENERATED_FILES += *.o *.mod value_range_check alg.f90 psy.f90
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -53,41 +53,41 @@ SHARED_DIR ?= $(PSYROOT)/external
 INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
 INF_LIB = $(INF_DIR)/src/lib_fd.a
-NAN_TEST_DIR = $(PSYROOT)/lib/nan_test/dl_esm_inf
-F90FLAGS += -I$(INF_INC) -I $(NAN_TEST_DIR)
-LIB_NAME = lib_nan_test.a
+VALUE_RANGE_CHECK_DIR = $(PSYROOT)/lib/value_range_check/dl_esm_inf
+F90FLAGS += -I$(INF_INC) -I $(VALUE_RANGE_CHECK_DIR)
+LIB_NAME = lib_value_range_check.a
 
 # The two kernels used in the application.
 KERNELS = init_field_mod.o update_field_mod.o
 
 # The name of the executable
-NAME = nan_test
+NAME = value_range_check
 
-.PHONY: default $(NAN_TEST_DIR)/$(LIB_NAME) $(INF_LIB)
+.PHONY: default $(VALUE_RANGE_CHECK_DIR)/$(LIB_NAME) $(INF_LIB)
 
 compile: transform $(NAME)
 
 alg.f90 psy.f90: transform
 
-transform: test.x90 test_nan_transform.py
-	${PSYCLONE} -nodm -api "gocean" -s ./test_nan_transform.py \
+transform: test.x90 value_range_check_transformation.py
+	${PSYCLONE} -nodm -api "gocean" -s ./value_range_check_transformation.py\
 				-opsy psy.f90 -oalg alg.f90 test.x90
 
 run: compile
 	# Note that if the output line is not found, the make will abort with error
-	./nan_test 2>&1| grep "PSyData: Variable a_fld has the invalid value"
+	./value_range_check 2>&1| grep "PSyData: Variable a_fld has the invalid value"
 
-$(NAME): $(INF_LIB) $(NAN_TEST_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
+$(NAME): $(INF_LIB) $(VALUE_RANGE_CHECK_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
 	$(F90) $(F90FLAGS) $(KERNELS) alg.o psy.o -o $(NAME) \
-	-L$(NAN_TEST_DIR) -l_nan_test $(INF_LIB)
+	-L$(VALUE_RANGE_CHECK_DIR) -l_value_range_check $(INF_LIB)
 
-# The nan-test library
-$(NAN_TEST_DIR)/$(LIB_NAME):
-	@echo "Making dl_esm_inf nan-test wrapper library"
-	@echo "=========================================="
-	$(MAKE) -C $(NAN_TEST_DIR) F90=$(F90)
-	@echo "Finished making dl_esm_inf nan-test wrapper library"
+# The value_range_check library
+$(VALUE_RANGE_CHECK_DIR)/$(LIB_NAME):
+	@echo "Making dl_esm_inf value-range-check wrapper library"
 	@echo "==================================================="
+	$(MAKE) -C $(VALUE_RANGE_CHECK_DIR) F90=$(F90)
+	@echo "Finished making dl_esm_inf value-range-check wrapper library"
+	@echo "============================================================"
 	@echo
 
 # The dl_esm_inf library
@@ -110,5 +110,5 @@ psy.o:	$(KERNELS)
 	$(F90) $(F90FLAGS) -c $<
 
 allclean: clean
-	$(MAKE) -C $(NAN_TEST_DIR) allclean
+	$(MAKE) -C $(VALUE_RANGE_CHECK_DIR) allclean
 	$(MAKE) -C $(INF_DIR) allclean

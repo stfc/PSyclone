@@ -50,16 +50,20 @@ PSYDATA_LIB_DIR ?= ./..
 
 # The nan-test library is implemented for int, real and
 # double scalars and 2-dimension arrays
-PROCESS_ARGS = -prefix=nan_test_ -types=int,real,double \
+PROCESS_ARGS = -prefix=value_range_check_ -types=int,real,double \
 		       -dims=2
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
 
-default: nan_test_base.o psy_data_base.o
+default: value_range_check_base.o psy_data_base.o
 
-process: nan_test_base.f90
+process: value_range_check_base.f90
 
-.PHONY: default process clean
+.PHONY: default process clean all
+
+all:
+	$(MAKE) -C dl_esm_inf
+	$(MAKE) -C lfric
 
 %.f90:	%.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > $*.f90
@@ -67,10 +71,10 @@ process: nan_test_base.f90
 psy_data_base.f90:	$(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
-nan_test_base.o: psy_data_base.o
+value_range_check_base.o: psy_data_base.o
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f nan_test_base.f90 psy_data_base.f90 *.o *.mod
+	rm -f value_range_check_base.f90 psy_data_base.f90 *.o *.mod
