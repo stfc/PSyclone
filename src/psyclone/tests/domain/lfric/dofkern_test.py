@@ -289,3 +289,18 @@ def test_compiles(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_function_space_bar_undf():
+    '''
+    Test that the correct undf name ("undf") is stored in an LFRicInvoke when
+    a kernel is found to operate on 'dof'
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.14_single_invoke_dofs.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+
+    assert "undf" in invoke.function_spaces._var_list
