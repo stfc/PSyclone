@@ -121,15 +121,16 @@ def test_invalid_apply():
         value_range_check.apply(invoke.schedule[0].dir_body[0],
                                 options={"region_name": ("a", "b")})
 
-    assert "Error in ValueRangeCheckTrans: Application to a Loop without its "\
-           "parent Directive is not allowed." in str(err.value)
+    assert ("Error in ValueRangeCheckTrans: Application to a Loop without "
+            "its parent Directive is not allowed." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
         value_range_check.apply(invoke.schedule[0].dir_body[0].loop_body[0],
                                 options={"region_name": ("a", "b")})
 
-    assert "Error in ValueRangeCheckTrans: Application to Nodes enclosed within a "\
-           "thread-parallel region is not allowed." in str(err.value)
+    assert ("Error in ValueRangeCheckTrans: Application to Nodes enclosed "
+            "within a thread-parallel region is not allowed."
+            in str(err.value))
 
 
 # -----------------------------------------------------------------------------
