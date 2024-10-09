@@ -120,7 +120,7 @@ def trans(psyir):
         )
 
         # For performance in lib_fortran, mark serial routines as GPU-enabled
-        if psyir.name == "lib_fortran.f90":
+        if psyir.name == "lib_fortran.f90" or psyir.name == "sbc_phy.f90":
             if not subroutine.walk(Loop):
                 try:
                     # We need the 'force' option.
