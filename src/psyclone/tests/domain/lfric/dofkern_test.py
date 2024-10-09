@@ -291,7 +291,7 @@ def test_function_space_bare_undf():
                            TEST_API,
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
-    kernel = schedule.walk(LFRicKern)
+    kernel = schedule.walk(LFRicKern)[0]
     test_fs = DynFunctionSpaces(kernel)
 
     assert 'undf' in test_fs._var_list
