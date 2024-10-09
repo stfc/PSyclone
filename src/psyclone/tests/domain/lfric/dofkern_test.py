@@ -44,6 +44,7 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicKernMetadata, LFRicKern
+from psyclone.dynamo0p3 import DynFunctionSpaces
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.utils import ParseError
@@ -278,6 +279,22 @@ def test_undf_initialisation():
     assert initalisation in code
 
 
+def test_function_space_bare_undf():
+    '''
+    Test that the correct undf name ("undf") is stored in DynFunctionSpaces
+    list of undf_names when a kernel is found to operate on 'dof'
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.14_single_invoke_dofs.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    dynfs = DynFunctionSpaces(invoke)
+
+    assert ["undf"] == dynfs._var_list
+
+
 def test_compiles(tmpdir):
     '''
     Test that the code PSyclone generates from a DoF kernel compiles without
@@ -289,18 +306,3 @@ def test_compiles(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_function_space_bar_undf():
-    '''
-    Test that the correct undf name ("undf") is stored in an LFRicInvoke when
-    a kernel is found to operate on 'dof'
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.14_single_invoke_dofs.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-
-    assert "undf" in invoke.function_spaces._var_list
