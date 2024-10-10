@@ -97,12 +97,6 @@ class KernelModuleInlineTrans(Transformation):
         :raises TransformationError: if there is no explicit import of the
             called Routine and there is already a Routine of that name in the
             parent Container.
-        :raises TransformationError: if the PSyIR of the implementation of the
-            called Routine/kernel cannot be retrieved.
-        :raises TransformationError: if the name of the routine that
-            implements the kernel is not the same as the kernel name. This
-            will happen if the kernel is polymorphic (uses a Fortran
-            INTERFACE) and will be resolved by #1824.
         :raises TransformationError: if the kernel cannot be safely inlined.
 
         '''
@@ -151,9 +145,29 @@ class KernelModuleInlineTrans(Transformation):
                 f"'{kname}' due to: {error}"
             ) from error
 
-        # TODO ARPDBG - need to examine every kernel implementation, not just
-        # the first one.
-        kernel_schedule = kernels[0]
+        # Validate the PSyIR of each routine/kernel.
+        for kernel_schedule in kernels:
+            self._validate_schedule(node, kname, kern_or_call, kernel_schedule)
+
+    def _validate_schedule(self, node, kname, kern_or_call, kernel_schedule):
+        '''
+        Validates that the supplied schedule can be module-inlined.
+
+        :param node: the candidate kernel/routine call to inline.
+        :type node: :py:class:`psyclone.psyGen.CodedKern` |
+                    :py:class:`psyclone.psyir.nodes.Call`
+        :param str kname: the name of the kernel/routine.
+        :param str kern_or_call: text for readable error messages.
+        :param kernel_schedule: the schedule of the routine to inline.
+        :type kernel_schedule: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :raises TransformationError: if the called routine contains accesses
+             to data declared in the same module scope or of unknown origin.
+        :raises TransformationError: if the called routine has the same
+             name as an existing Symbol in the calling scope (other than the
+             one representing the routine itself).
+
+        '''
         # We do not support kernels that use symbols representing data
         # declared in their own parent module (we would need to new imports
         # from this module for those, and we don't do this yet).
@@ -207,11 +221,13 @@ class KernelModuleInlineTrans(Transformation):
                             f"symbol name of the module container "
                             f"'{symbol.name}'.")
 
-        # If the symbol already exist at the call site it must be referring
+        # If the symbol already exists at the call site it must be referring
         # to a Routine
         existing_symbol = node.scope.symbol_table.lookup(kernel_schedule.name,
                                                          otherwise=None)
-        if existing_symbol and not isinstance(existing_symbol, RoutineSymbol):
+        if not existing_symbol:
+            return
+        if not isinstance(existing_symbol, RoutineSymbol):
             raise TransformationError(
                 f"Cannot module-inline {kern_or_call} '{kname}' because "
                 f"symbol '{existing_symbol}' with the same name already "
@@ -445,7 +461,7 @@ class KernelModuleInlineTrans(Transformation):
                 # We need to set the visibility of the routine's symbol to
                 # be private.
                 code_to_inline.symbol.visibility = Symbol.Visibility.PRIVATE
-                node.ancestor(Container).addchild(code_to_inline.detach())
+                container.addchild(code_to_inline.detach())
             else:
                 if existing_symbol.is_import:
                     # The RoutineSymbol is in the table but that is
