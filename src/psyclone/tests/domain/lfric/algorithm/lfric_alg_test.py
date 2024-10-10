@@ -34,6 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
 #              L. Turner, Met Office
+#              T. Vockerodt, Met Office
 
 ''' pytest tests for the LFRic-specific algorithm-generation functionality. '''
 
@@ -159,10 +160,15 @@ def test_create_function_spaces(prog, fortran_writer):
     for space in ["w1", "w3"]:
         sym = prog.symbol_table.lookup(space)
         assert sym.interface.container_symbol is fs_mod_sym
-        assert (f"TYPE(function_space_type), POINTER :: "
-                f"vector_space_{space}_ptr" in gen)
-        assert (f"vector_space_{space}_ptr => function_space_collection%"
-                f"get_fs(mesh,element_order,{space})" in gen)
+    # Checking function space ordering
+    assert ("TYPE(function_space_type), POINTER :: "
+            "vector_space_w1_ptr\n  "
+            "TYPE(function_space_type), POINTER :: "
+            "vector_space_w3_ptr" in gen)
+    assert ("vector_space_w1_ptr => function_space_collection%"
+            "get_fs(mesh,element_order,w1)\n  "
+            "vector_space_w3_ptr => function_space_collection%"
+            "get_fs(mesh,element_order,w3)" in gen)
 
 
 def test_initialise_field(prog, fortran_writer):
