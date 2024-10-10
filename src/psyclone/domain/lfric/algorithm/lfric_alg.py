@@ -270,7 +270,7 @@ class LFRicAlg:
         # Initialise the function spaces required by the kernel arguments.
         const = LFRicConstants()
 
-        for space in fspaces:
+        for space in sorted(fspaces):
 
             if space.lower() not in const.VALID_FUNCTION_SPACE_NAMES:
                 raise InternalError(
