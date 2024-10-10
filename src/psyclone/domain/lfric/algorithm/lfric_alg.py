@@ -34,6 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Laboratory.
 # Modified by: R. W. Ford, STFC Daresbury Laboratory.
 #              L. Turner, Met Office
+#              T. Vockerodt, Met Office
 
 '''This module contains the LFRicAlg class which encapsulates tools for
    creating standalone LFRic algorithm-layer code.
@@ -270,7 +271,7 @@ class LFRicAlg:
         # Initialise the function spaces required by the kernel arguments.
         const = LFRicConstants()
 
-        for space in fspaces:
+        for space in sorted(fspaces):
 
             if space.lower() not in const.VALID_FUNCTION_SPACE_NAMES:
                 raise InternalError(
