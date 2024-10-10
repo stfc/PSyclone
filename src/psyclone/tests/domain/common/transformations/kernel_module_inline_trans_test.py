@@ -54,6 +54,7 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import Compile, count_lines, get_invoke
+from psyclone.transformations import ACCRoutineTrans
 
 
 def test_module_inline_constructor_and_str():
@@ -480,6 +481,49 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     assert gen.count("END SUBROUTINE testkern_qr_code") == 1
 
     # And it is valid code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
+    ''' Check that module-inline works as expected when the same, polymorphic,
+    kernel is provided in different invokes and is transformed after being
+    inlined. '''
+    psy, _ = get_invoke("3.5_multi_polymorphic_kernels_multi_invokes.f90",
+                        "lfric", idx=0, dist_mem=False)
+
+    # Module inline kernel in invoke 1
+    inline_trans = KernelModuleInlineTrans()
+    artrans = ACCRoutineTrans()
+    schedule1 = psy.invokes.invoke_list[0].schedule
+    for coded_kern in schedule1.walk(CodedKern):
+        if coded_kern.name == "mixed_code":
+            inline_trans.apply(coded_kern)
+            # Transform that kernel. We have to use 'force' as it contains
+            # a CodeBlock.
+            artrans.apply(coded_kern, options={"force": True})
+    output = str(psy.gen).lower()
+    assert "subroutine mixed_code_32" in output
+    assert "!$acc routine seq" in output
+    assert "subroutine mixed_code_64" in output
+    assert ("""subroutine invoke_1(scalar_r_phys, field_r_phys, \
+operator_r_def, f1, f2, m1, a, m2, istp, qr)
+      use testkern_qr_mod, only: testkern_qr_code
+      use mixed_kernel_mod, only: mixed_code
+      use quadrature""" in output)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Module inline kernel in invoke 2
+    schedule2 = psy.invokes.invoke_list[1].schedule
+    for coded_kern in schedule2.walk(CodedKern):
+        if coded_kern.name == "mixed_code":
+            inline_trans.apply(coded_kern)
+
+    assert ("""SUBROUTINE invoke_1(scalar_r_phys, field_r_phys, \
+operator_r_def, f1, f2, m1, a, m2, istp, qr)
+      USE testkern_qr_mod, ONLY: testkern_qr_code
+      USE quadrature""" in str(psy.gen))
+
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 

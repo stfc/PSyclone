@@ -492,7 +492,7 @@ class KernelModuleInlineTrans(Transformation):
                     # validation that it's a Routine. Now check if they are
                     # exactly the same.
                     for routine in container.walk(Routine, stop_type=Routine):
-                        if routine.name == existing_symbol.name:
+                        if routine.name.lower() == code_to_inline.name.lower():
                             # This TransformationError happens here and not in
                             # the validation because it needs the
                             # symbols_to_bring_in applied to effectively
