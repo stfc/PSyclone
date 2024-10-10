@@ -34,6 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Laboratory.
 # Modified by: R. W. Ford, STFC Daresbury Laboratory.
 #              L. Turner, Met Office
+#              T. Vockerodt, Met Office
 
 '''This module contains the LFRicAlg class which encapsulates tools for
    creating standalone LFRic algorithm-layer code.
