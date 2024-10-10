@@ -100,11 +100,15 @@ def test_gok_get_kernel_schedule():
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.walk(GOKern)[0]
     assert kern._kern_schedule is None
-    sched = kern.get_kernel_schedule()
+    sym, scheds = kern.get_kernel_schedule()
+    assert sym is None
+    assert isinstance(scheds, list)
+    assert len(scheds) == 1
+    sched = scheds[0]
     assert isinstance(sched, GOKernelSchedule)
     # A second call should just return the previously-obtained schedule.
-    sched2 = kern.get_kernel_schedule()
-    assert sched2 is sched
+    sym, scheds2 = kern.get_kernel_schedule()
+    assert scheds2[0] is sched
     # Check that the expected error is raised if the subroutine that
     # implements the kernel cannot be found.
     kern._kern_schedule = None

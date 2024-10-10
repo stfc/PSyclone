@@ -34,15 +34,16 @@
 # Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified by R. W. Ford, STFC Daresbury Lab
 
-''' Tests the KernelImportsToArguments Transformation for the GOcean
-1.0 API.'''
+''' Tests the KernelImportsToArguments Transformation for the GOcean API.'''
 
 import os
 import pytest
+from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InvokeSchedule
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
     CHARACTER_TYPE, Symbol
+from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import KernelImportsToArguments, \
     TransformationError
 
@@ -104,6 +105,26 @@ def test_kernelimportstoargumentstrans_no_wildcard_import():
         trans.apply(kernel)
     assert ("'kernel_with_use_code' has a wildcard import of symbols from "
             "container 'model_mod'" in str(err.value))
+
+
+def test_kernelimportstoargumentstrans_no_polymorphic(monkeypatch):
+    '''
+    Check that the transformation rejects polymorphic kernels.
+
+    '''
+    trans = KernelImportsToArguments()
+    _, invoke = get_invoke("26.8_mixed_precision_args.f90", api="lfric", idx=0)
+    kernel = invoke.schedule.coded_kernels()[0]
+    invsched = kernel.ancestor(InvokeSchedule)
+    # Currently this transformation will only work for the GOcean API so
+    # monkeypatch the class of the parent InvokeSchedule.
+    monkeypatch.setattr(invsched, "__class__", GOInvokeSchedule)
+    with pytest.raises(TransformationError) as err:
+        trans.validate(kernel)
+    assert ("KernelImportsToArguments transformation does not support "
+            "polymorphic kernels but found the following implementations for "
+            "kernel 'mixed_code': ['mixed_code_32', 'mixed_code_64']"
+            in str(err.value))
 
 
 @pytest.mark.xfail(reason="Transformation does not set modified property "
@@ -220,7 +241,8 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch):
     trans.apply(kernel)
 
     fwriter = FortranWriter()
-    kernel_code = fwriter(kernel.get_kernel_schedule())
+    _, kernels = kernel.get_kernel_schedule()
+    kernel_code = fwriter(kernels[0])
 
     assert ("subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
             "magic)" in kernel_code)
@@ -298,7 +320,8 @@ def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
     monkeypatch.setattr(DataSymbol, "resolve_type", create_data_symbol)
 
     for num, kernel in enumerate(invoke.schedule.coded_kernels()):
-        kschedule = kernel.get_kernel_schedule()
+        _, kernels = kernel.get_kernel_schedule()
+        kschedule = kernels[0]
 
         trans.apply(kernel)
 

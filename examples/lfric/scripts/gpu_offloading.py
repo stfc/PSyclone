@@ -43,6 +43,7 @@ setval_* generically.
 '''
 import os
 import sys
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.nodes import Directive, Loop
 from psyclone.psyir.transformations import (
@@ -73,6 +74,7 @@ def trans(psy):
     otrans = Dynamo0p3OMPLoopTrans()
     const = LFRicConstants()
     cpu_parallel = OMPParallelTrans()
+    intrans = KernelModuleInlineTrans()
 
     if OFFLOAD_DIRECTIVES == "omp":
         # Use OpenMP offloading
@@ -119,7 +121,8 @@ def trans(psy):
         else:
             offload = True
 
-        # Keep a record of any kernels we fail to offload
+        # Keep a record of any kernels we fail to offload.
+        failed_inline = set()
         failed_to_offload = set()
 
         # Colour loops over cells unless they are on discontinuous spaces
@@ -136,6 +139,12 @@ def trans(psy):
             if loop.iteration_space == "cell_column":
                 if offload:
                     for kern in loop.kernels():
+                        try:
+                            intrans.apply(kern)
+                        except TransformationError as err:
+                            failed_inline.add(kern.name.lower())
+                            print(f"Failed to module-inline kernel "
+                                  f"'{kern.name}' due to:\n{err.value}")
                         try:
                             gpu_annotation_trans.apply(kern)
                         except TransformationError as err:

@@ -75,7 +75,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 
 
 def trans(psy):
-    '''PSyclone transformation script for the Dynamo0.3 API to optimise
+    '''PSyclone transformation script for the LFRic API to optimise
     the matvec kernel for many-core CPUs. For the moment simply find
     the first matvec kernel in the example, transform the matmul
     intrinsic to equivalant inline code and then print out its PSyIR
@@ -90,7 +90,10 @@ def trans(psy):
         schedule = invoke.schedule
         for kernel in schedule.coded_kernels():
             if kernel.name.lower() == "matrix_vector_kernel_code":
-                kernel_schedule = kernel.get_kernel_schedule()
+                _, kernel_schedules = kernel.get_kernel_schedule()
+                # For simplicity, ASSUME that the kernel is not polymorphic and
+                # thus only has one schedule.
+                kernel_schedule = kernel_schedules[0]
                 # Replace matmul with inline code
                 for icall in kernel_schedule.walk(IntrinsicCall):
                     if icall.intrinsic is IntrinsicCall.Intrinsic.MATMUL:
