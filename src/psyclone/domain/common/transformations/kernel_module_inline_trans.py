@@ -441,6 +441,32 @@ class KernelModuleInlineTrans(Transformation):
         _, codes_to_inline, interface_sym = (
             KernelModuleInlineTrans._get_psyir_to_inline(node))
 
+        container = node.ancestor(Container)
+        local_table = node.scope.symbol_table
+
+        if interface_sym:
+            local_sym = local_table.lookup(interface_sym.name, otherwise=None)
+            if interface_sym is local_sym and not local_sym.is_import:
+                # Interface symbol is already local so nothing to do.
+                if isinstance(node, CodedKern):
+                    node.module_inline = True
+                # TODO #11 - log this.
+                return
+        else:
+            for routine in codes_to_inline:
+                local_sym = local_table.lookup(routine.symbol.name,
+                                               otherwise=None)
+                if (not local_sym or local_sym is not routine.symbol or
+                        local_sym.is_import):
+                    # This routine is not module-inlined.
+                    break
+            else:
+                # All routines are module-inlined so there's nothing to do.
+                # TODO #11 - log this.
+                if isinstance(node, CodedKern):
+                    node.module_inline = True
+                return
+
         updated_routines = self._prepare_code_to_inline(codes_to_inline)
         # Update the Kernel to point to the updated PSyIR.
         if isinstance(node, CodedKern):
@@ -451,9 +477,6 @@ class KernelModuleInlineTrans(Transformation):
                 node._interface_symbol = (
                     updated_routines[0].scope.symbol_table.lookup(
                         interface_sym.name))
-
-        container = node.ancestor(Container)
-        local_table = node.scope.symbol_table
 
         for code_to_inline in updated_routines:
             try:
