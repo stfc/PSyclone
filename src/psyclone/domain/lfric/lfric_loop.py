@@ -487,7 +487,7 @@ class LFRicLoop(PSyLoop):
                 else:
                     # User-defined dof kernel has undf_name in a different
                     # location
-                    result = self._field_space.bare_undf_name
+                    result = self._field_space.undf_name
             return result
         if self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:

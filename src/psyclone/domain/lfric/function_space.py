@@ -238,13 +238,6 @@ class FunctionSpace():
         '''
         return "undf_" + self.mangled_name
 
-    @property
-    def bare_undf_name(self):
-        ''':returns: undf with no FunctionSpace object name.
-        :rtype: str
-        '''
-        return "undf"
-
     def get_basis_name(self, qr_var=None, on_space=None):
         '''
         Returns a name for the basis function on this FunctionSpace. If

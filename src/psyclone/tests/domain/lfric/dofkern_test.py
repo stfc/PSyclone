@@ -43,13 +43,11 @@ import pytest
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
-from psyclone.dynamo0p3 import DynFunctionSpaces
+from psyclone.domain.lfric import LFRicKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import get_invoke
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -188,7 +186,7 @@ def test_upper_bounds(monkeypatch, annexed, dist_mem, tmpdir):
     elif not annexed and not dist_mem or \
             annexed and not dist_mem:
         expected = ("      loop0_start = 1\n"
-                    "      loop0_stop = undf"
+                    "      loop0_stop = undf_w1"
                     )
 
     assert expected in code
@@ -210,7 +208,7 @@ def test_indexed_field_args(tmpdir):
     code = str(psy.gen)
 
     expected = ("CALL testkern_dofs_code(f1_data(df), f2_data(df), "
-                "f3_data(df), f4_data(df), scalar_arg, undf)")
+                "f3_data(df), f4_data(df), scalar_arg, undf_w1)")
 
     assert expected in code
     # Check compilation
@@ -229,30 +227,13 @@ def test_undf_initialisation(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    declaration = "INTEGER(KIND=i_def) undf"
-    initalisation = "undf = f1_proxy%vspace%get_undf()"
+    declaration = "INTEGER(KIND=i_def) undf_w1"
+    initalisation = "undf_w1 = f1_proxy%vspace%get_undf()"
 
     assert declaration in code
     assert initalisation in code
     # Check compilation
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_function_space_bare_undf():
-    '''
-    Test that the correct undf name ("undf") is stored in DynFunctionSpaces
-    list of undf_names when a kernel is found to operate on 'dof'
-
-    '''
-    _, invoke = get_invoke(os.path.join(BASE_PATH,
-                                        "1.14_single_invoke_dofs.f90"),
-                           TEST_API,
-                           idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    kernel = schedule.walk(LFRicKern)[0]
-    test_fs = DynFunctionSpaces(kernel)
-
-    assert 'undf' in test_fs._var_list
 
 
 def test_compiles(tmpdir):

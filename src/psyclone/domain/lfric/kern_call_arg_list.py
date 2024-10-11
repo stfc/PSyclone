@@ -621,10 +621,7 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        if self._kern.iterates_over == "dof":
-            sym = self.append_integer_reference(function_space.bare_undf_name)
-        else:
-            sym = self.append_integer_reference(function_space.undf_name)
+        sym = self.append_integer_reference(function_space.undf_name)
         self.append(sym.name, var_accesses)
 
         map_name = function_space.map_name
