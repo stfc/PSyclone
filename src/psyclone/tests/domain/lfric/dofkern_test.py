@@ -43,13 +43,13 @@ import pytest
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicKernMetadata, LFRicKern
+from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 from psyclone.dynamo0p3 import DynFunctionSpaces
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.tests.utilities import get_invoke
 from psyclone.parse.utils import ParseError
+from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -156,55 +156,7 @@ def test_dof_kernel_invalid_field_vector():
             in str(excinfo.value))
 
 
-def test_is_dofkern():
-    '''
-    Check that the attribute identifying an LFRicKern instance as a user-
-    defined dof kernel is set when 'operates_on' metadata arg is set to
-    'dof' for a valid kernel.
-
-    '''
-    # Substitute default args for valid args
-    code = CODE.replace(
-        """
-                    (/ arg_type(gh_field, gh_real, gh_write, w1),  &
-                        arg_type(gh_field, gh_real, gh_read, w2)   &
-        """,
-        """
-                    (/ arg_type(gh_field, gh_real, gh_write, w1),  &
-                        arg_type(gh_field, gh_real, gh_read, w1)   &
-        """,
-        1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_dofs_type"
-    # Load the metadata into an empty kernel
-    md = LFRicKernMetadata(ast, name=name)
-    kern = LFRicKern()
-    kern.load_meta(ktype=md)
-    # Assert that the identifier is set
-    assert kern.iterates_over == "dof"
-
-
-def test_upper_bound_undf():
-    '''
-    Checks that the correct upper bound is generated for a dof-kernel when
-    distributed memory is set to 'False'. This should be set to the unique
-    number of dofs for the single function space in the subroutine, denoted
-    by the 'undf' variable.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.14_single_invoke_dofs.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    code = str(psy.gen)
-
-    expected = ("      loop0_start = 1\n"
-                "      loop0_stop = undf")
-
-    assert expected in code
-
-
-def test_upper_bounds(monkeypatch, annexed, dist_mem):
+def test_upper_bounds(monkeypatch, annexed, dist_mem, tmpdir):
     '''
     Checks that the correct upper bound is generated for a dof-kernel for all
     permutations of the `DISTRIBUTED_MEMORY` and `COMPUTE_ANNEXED_DOFS`
@@ -240,9 +192,11 @@ def test_upper_bounds(monkeypatch, annexed, dist_mem):
                     )
 
     assert expected in code
+    # Check compilation
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_indexed_field_args():
+def test_indexed_field_args(tmpdir):
     '''
     Checks that the correct array references are generated for all field
     arguments in a dof kernel. The index should be the same as the loop
@@ -259,9 +213,11 @@ def test_indexed_field_args():
                 "f3_data(df), f4_data(df), scalar_arg, undf)")
 
     assert expected in code
+    # Check compilation
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_undf_initialisation():
+def test_undf_initialisation(tmpdir):
     '''
     Test that the 'bare' undf name is used when intialising the undf
     variable for dof kernels.
@@ -278,6 +234,8 @@ def test_undf_initialisation():
 
     assert declaration in code
     assert initalisation in code
+    # Check compilation
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_function_space_bare_undf():
