@@ -458,10 +458,12 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
 
     # Module inline kernel in invoke 1
     inline_trans = KernelModuleInlineTrans()
+    artrans = ACCRoutineTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
     for coded_kern in schedule1.walk(CodedKern):
         if coded_kern.name == "testkern_qr_code":
             inline_trans.apply(coded_kern)
+            artrans.apply(coded_kern)
     gen = str(psy.gen)
 
     # After this, one invoke uses the inlined top-level subroutine

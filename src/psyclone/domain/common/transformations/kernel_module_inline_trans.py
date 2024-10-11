@@ -403,6 +403,9 @@ class KernelModuleInlineTrans(Transformation):
     def apply(self, node, options=None):
         ''' Bring the kernel/subroutine into this Container.
 
+        NOTE: when applying this transformation to a Kernel in a PSyKAl invoke,
+        *all* Kernels of that name in that invoke are marked as inlined.
+
         :param node: the Kernel or Call to module-inline.
         :type node: :py:class:`psyclone.psyGen.CodedKern` |
                     :py:class:`psyclone.psyir.nodes.Call`
@@ -416,6 +419,10 @@ class KernelModuleInlineTrans(Transformation):
             of the caller.
 
         '''
+        if isinstance(node, CodedKern) and node.module_inline:
+            # This PSyKal Kernel is already module inlined.
+            return
+
         if not options:
             options = {}
 
