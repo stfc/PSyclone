@@ -328,7 +328,6 @@ class KernStubArgList(ArgOrdering):
 
         '''
         self.append(function_space.undf_name, var_accesses)
-
         self.append(function_space.map_name, var_accesses)
 
     def basis(self, function_space, var_accesses=None):

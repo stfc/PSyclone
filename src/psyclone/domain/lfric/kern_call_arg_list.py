@@ -342,10 +342,9 @@ class KernCallArgList(ArgOrdering):
 
         :param argvect: the field vector to add.
         :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         suffix = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING[
@@ -382,8 +381,7 @@ class KernCallArgList(ArgOrdering):
         # the data in this field.
         sym = self._symtab.lookup_with_tag(f"{arg.name}:{suffix}")
 
-        if self._kern.iterates_over == "dof" and not isinstance(
-          self._kern, LFRicBuiltIn):
+        if self._kern.iterates_over == "dof":
             # If dof kernel, add access to the field by dof ref
             dof_sym = self._symtab.find_or_create_integer_symbol(
                 "df", tag="dof_loop_idx")
@@ -391,7 +389,7 @@ class KernCallArgList(ArgOrdering):
                                         ScalarType.Intrinsic.INTEGER,
                                         symbol=sym)
             # Then append our symbol
-            name = f"{sym.name}({Reference(dof_sym)})"
+            name = f"{sym.name}({dof_sym.name})"
             self.append(name, var_accesses, var_access_name=sym.name)
         else:
             # Add the field data array as being read.
