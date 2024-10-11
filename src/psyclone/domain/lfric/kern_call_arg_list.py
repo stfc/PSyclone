@@ -48,6 +48,7 @@ from psyclone import psyGen
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 # Avoid circular import:
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference, StructureReference
@@ -380,7 +381,8 @@ class KernCallArgList(ArgOrdering):
         # the data in this field.
         sym = self._symtab.lookup_with_tag(f"{arg.name}:{suffix}")
 
-        if self._kern.iterates_over == "dof":
+        if self._kern.iterates_over == "dof" and not isinstance(
+            self._kern, LFRicBuiltIn):
             # If dof kernel, add access to the field by dof ref
             dof_sym = self._symtab.find_or_create_integer_symbol(
                 "df", tag="dof_loop_idx")
