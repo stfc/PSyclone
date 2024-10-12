@@ -58,7 +58,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, ArrayType, UnsupportedFortranType, DataTypeSymbol,
     UnresolvedType, SymbolTable, ContainerSymbol, UnknownInterface,
-    ArgumentInterface)
+    ArgumentInterface, UnresolvedInterface)
 
 
 class LFRicKern(CodedKern):
@@ -348,7 +348,10 @@ class LFRicKern(CodedKern):
                     qr_arg.varname, tag=tag, symbol_type=DataSymbol,
                     datatype=symtab.find_or_create(
                         quad_map["type"], symbol_type=DataTypeSymbol,
-                        datatype=UnresolvedType()))
+                        datatype=UnresolvedType(),
+                        interface=UnresolvedInterface())
+                )
+                        
                 # We don't specify the argument interface yet as this argument
                 # is placed later.
                         # interface=ArgumentInterface(

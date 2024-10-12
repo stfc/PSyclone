@@ -3882,7 +3882,7 @@ def test_lfricinvoke_runtime(tmpdir, monkeypatch):
     generated_code = str(psy.gen)
     assert "use testkern_mod, only : testkern_code" in generated_code
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    # assert "use fs_continuity_mod" in generated_code
+    assert "use fs_continuity_mod" in generated_code
     assert "use mesh_mod, only : mesh_type" in generated_code
     expected = (
         # FIXME
@@ -3944,7 +3944,7 @@ def test_dynruntimechecks_anyspace(tmpdir, monkeypatch):
     generated_code = str(psy.gen)
     assert "use function_space_mod, only : BASIS, DIFF_BASIS" in generated_code
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    # assert "use fs_continuity_mod\n" in generated_code  # FIXME
+    assert "use fs_continuity_mod\n" in generated_code
     assert "use mesh_mod, only : mesh_type" in generated_code
     expected2 = (
         # "    c_proxy(3) = c(3)%get_proxy()\n"
@@ -3989,7 +3989,7 @@ def test_dynruntimechecks_vector(tmpdir, monkeypatch):
     assert ("use testkern_coord_w0_2_mod, only : testkern_coord_w0_2_code"
             in generated_code)
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    # assert "use fs_continuity_mod\n" in generated_code  # FIXME
+    assert "use fs_continuity_mod\n" in generated_code
     assert "use mesh_mod, only : mesh_type" in generated_code
     expected2 = (
         # FIXME
@@ -4050,7 +4050,7 @@ def test_dynruntimechecks_multikern(tmpdir, monkeypatch):
     generated_code = str(psy.gen)
     assert "use testkern_mod, only : testkern_code" in generated_code
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    # assert "use fs_continuity_mod"  # FIXME
+    assert "use fs_continuity_mod"
     assert "use mesh_mod, only : mesh_type" in generated_code
     expected2 = (
         # FIXME
@@ -4127,7 +4127,7 @@ def test_dynruntimechecks_builtins(tmpdir, monkeypatch):
     assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
-    # assert "use fs_continuity_mod\n"
+    assert "use fs_continuity_mod\n"
     assert "use mesh_mod, only : mesh_type" in generated_code
     assert "type(field_type), intent(in) :: f3" in generated_code
     expected_code2 = (

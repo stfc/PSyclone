@@ -517,11 +517,12 @@ class FortranWriter(LanguageWriter):
 
         '''
         # pylint: disable=too-many-branches
+        # if not isinstance(symbol, DataSymbol):
+        #     raise VisitorError(f"Symbol '{symbol.name}' is not a DataSymbol")
         if isinstance(symbol.datatype, UnresolvedType):
-            return "fixme: " + symbol.name + "\n"
-            # raise VisitorError(f"Symbol '{symbol.name}' has a UnresolvedType "
-            #                    f"and we can not generate a declaration for "
-            #                    f"UnresolvedTypes.")
+            raise VisitorError(f"Symbol '{symbol.name}' has a UnresolvedType "
+                               f"and we can not generate a declaration for "
+                               f"UnresolvedTypes.")
         if isinstance(symbol, ContainerSymbol) or \
                 isinstance(symbol, Symbol) and symbol.is_import:
             raise InternalError(f"Symbol '{symbol.name}' is brought into scope"
@@ -712,11 +713,10 @@ class FortranWriter(LanguageWriter):
         result += f" :: {symbol.name}\n"
 
         if isinstance(symbol.datatype, UnresolvedType):
-            return result
-            # raise VisitorError(
-            #     f"Local Symbol '{symbol.name}' is of UnresolvedType and "
-            #     f"therefore no declaration can be created for it. Should it "
-            #     f"have an ImportInterface?")
+            raise VisitorError(
+                f"Local Symbol '{symbol.name}' is of UnresolvedType and "
+                f"therefore no declaration can be created for it. Should it "
+                f"have an ImportInterface?")
 
         self._depth += 1
 
@@ -966,13 +966,6 @@ class FortranWriter(LanguageWriter):
                 f"imports which could be bringing them into scope: "
                 f"{symbols_txt}")
 
-        # FIXME: For now we remove generic symbols found in LFRic, but this
-        # need to be removed by specialising them or seting them as
-        # UnresolvedInterface and a wilcard import.
-        for sym in all_symbols[:]:
-            if type(sym) is Symbol:
-                all_symbols.remove(sym)
-                
         # As a convention, we will declare the variables in the following
         # order:
 

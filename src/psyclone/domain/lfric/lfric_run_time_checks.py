@@ -49,7 +49,7 @@ from psyclone.domain.lfric import LFRicCollection, LFRicConstants
 from psyclone.f2pygen import CallGen, CommentGen, IfThenGen, UseGen
 from psyclone.psyir.symbols import (
     CHARACTER_TYPE, ContainerSymbol, RoutineSymbol, ImportInterface, DataSymbol,
-    UnresolvedType, INTEGER_TYPE)
+    UnresolvedType, INTEGER_TYPE, UnresolvedInterface)
 from psyclone.psyir.nodes import (
     Call, StructureReference, BinaryOperation, Reference, Literal, IfBlock,
     ArrayOfStructuresReference)
@@ -166,7 +166,11 @@ class LFRicRunTimeChecks(LFRicCollection):
                     else:
                         call = Call.create(StructureReference.create(
                             field_symbol, ["which_function_space"]))
-                    symbol = symtab.find_or_create(name.upper())
+                    mod_symbol = symtab.find_or_create(
+                        "fs_continuity_mod", symbol_type=ContainerSymbol)
+                    symbol = symtab.find_or_create(
+                        name.upper(),
+                        interface=ImportInterface(mod_symbol))
                     cmp = BinaryOperation.create(
                         BinaryOperation.Operator.NE,
                         call, Reference(symbol)

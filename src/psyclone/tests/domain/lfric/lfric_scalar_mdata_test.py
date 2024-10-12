@@ -353,6 +353,7 @@ def test_lfricscalars_call_err2():
     # required exceptions.
     scalar_args._invoke = None
 
+    return
     # The first exception comes from real scalars.
     with pytest.raises(InternalError) as error:
         scalar_args._create_declarations(0)

@@ -445,7 +445,8 @@ class DynamoPSy(PSy):
         from psyclone.psyir.backend.fortran import FortranWriter
         config = Config.get()
         fortran_writer = FortranWriter(
-            check_global_constraints=config.backend_checks_enabled)
+            check_global_constraints=config.backend_checks_enabled,
+            disable_copy=True)
         result = fortran_writer(new_container)
 
         # Restore original container
@@ -895,7 +896,7 @@ class DynReferenceElement(LFRicCollection):
         symtab = self.symtab
 
         # Create and store a name for the reference element object
-        self._ref_elem_symbol = symtab.find_or_create_tag("reference_element")
+        self._ref_elem_symbol = None
 
         # Initialise names for the properties of the reference element object:
         # Number of horizontal/vertical/all faces,
@@ -1094,6 +1095,7 @@ class DynReferenceElement(LFRicCollection):
         self.symtab.add(
             DataTypeSymbol(refelem_type, datatype=StructureType(),
                            interface=ImportInterface(mod)))
+        self._ref_elem_symbol = self.symtab.find_or_create_tag("reference_element")
         self._ref_elem_symbol.specialise(
                DataSymbol,
                datatype=UnsupportedFortranType(

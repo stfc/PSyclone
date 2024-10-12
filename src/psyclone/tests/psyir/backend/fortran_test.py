@@ -343,7 +343,6 @@ def test_gen_datatype_exception_2():
 #             "variable 'dummy'." in caplog.text)
 
 
-@pytest.mark.xfail(reason="FIXME: only disable during PR development")
 def test_gen_typedecl_validation(fortran_writer, monkeypatch):
     ''' Test the various validation checks in gen_typedecl(). '''
     with pytest.raises(VisitorError) as err:
@@ -624,7 +623,6 @@ def test_fw_gen_use(fortran_writer):
             "entry" in str(excinfo.value))
 
 
-@pytest.mark.xfail(reason="FIXME: only disable during PR development")
 def test_fw_gen_vardecl(fortran_writer):
     '''Check the FortranWriter class gen_vardecl method produces the
     expected declarations. Also check that an exception is raised if

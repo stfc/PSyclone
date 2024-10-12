@@ -371,13 +371,14 @@ class Compile():
             success = True
 
             modules = set()
+            # import pdb; pdb.set_trace()
             # Get the names of all the imported modules as these are
             # dependencies that will need to be compiled first
             for invoke in psy_ast.invokes.invoke_list:
                 # Get any module that is imported in the PSyIR tree
-                # for scope in invoke.schedule.root.walk(ScopingNode):
-                #     for symbol in scope.symbol_table.containersymbols:
-                #         modules.add(symbol.name)
+                for scope in invoke.schedule.root.walk(ScopingNode):
+                    for symbol in scope.symbol_table.containersymbols:
+                        modules.add(symbol.name)
 
                 # Not everything is captured by PSyIR yet (some API PSy-layers
                 # are fully or partially f2pygen), in these cases we still
