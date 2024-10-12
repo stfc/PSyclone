@@ -39,6 +39,15 @@ module module_with_var_mod
   integer :: module_var_a, module_var_b
   integer, parameter :: module_const = 123
 
+  type :: user_type
+      ! These names are just to indicate the usage of these
+      ! variables in the kernel, which helps to understand
+      ! the tests better.
+      integer member_read, member_write, member_read_write
+  end type user_type
+
+  type(user_type) :: user_var
+
 contains
 
   integer function module_function()
