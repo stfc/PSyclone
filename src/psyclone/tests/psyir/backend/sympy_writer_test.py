@@ -46,7 +46,7 @@ from sympy.parsing.sympy_parser import parse_expr
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Literal
+from psyclone.psyir.nodes import Assignment, Literal, Node
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
                                     INTEGER_TYPE)
 
@@ -251,7 +251,7 @@ def test_sym_writer_rename_members(fortran_reader, expressions):
 
 
 @pytest.mark.parametrize("expr, sym_map", [("a%x", {"a": Symbol("a"),
-                                                    "a_x": Symbol("a_x")}),
+                                                    "a_x": Symbol("a%x")}),
                                            ("a%x(i)", {"a": Symbol("a"),
                                                        "a_x": Function("a_x"),
                                                        "i": Symbol("i")}),
@@ -285,7 +285,7 @@ def test_sym_writer_symbol_types(fortran_reader, expr, sym_map):
     expr = psyir.children[0].children[0].rhs
     sympy_writer = SymPyWriter()
     _ = sympy_writer(expr)
-    assert sympy_writer.type_map.keys() == sym_map.keys()
+    assert sympy_writer.type_map.items() == sym_map.items()
 
 
 @pytest.mark.parametrize("expr, sym_map", [("i", {'i': Symbol('i')}),
@@ -554,3 +554,58 @@ def test_sym_writer_reserved_names(fortran_reader, expression):
 
     sympy_exp = sympy_writer(psyir_expr)
     assert str(sympy_exp) == expression
+
+
+@pytest.mark.parametrize("expressions", [("a+b", "2*b"),
+                                         ("a-b", "0"),
+                                         ("a-a", "0"),
+                                         ("b-b", "0"),
+                                         ("b", "b"),
+                                         # We can't just use 'a', since then
+                                         # there would be no variable 'b'
+                                         # defined. So add 0*b:
+                                         ("a-0*b", "b"),
+                                         ("a+b+c", "2*b + c"),
+                                         ])
+def test_sym_writer_identical_variables(fortran_reader, expressions):
+    '''Test that we can indicate that certain variables are identical,
+    in which case the sympy expression will replace one variable with
+    the other. For example, if a=b --> a-b = b-b = 0
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                use some_mod
+                integer :: a, b, c
+                x = {expressions[0]}
+                end program test_prog '''
+    psyir = fortran_reader.psyir_from_source(source)
+    # Take the right-hand-side of the assignment:
+    expr = psyir.walk(Assignment)[0].rhs
+
+    sympy_writer = SymPyWriter()
+    identical_variables = {'a': 'b'}
+    assert (str(sympy_writer(expr, identical_variables=identical_variables))
+            == expressions[1])
+
+
+def test_sym_writer_identical_variables_errors():
+    '''Test that we raise appropriate errors if identical_variables is or
+    contains unexpected types.
+    '''
+
+    sympy_writer = SymPyWriter()
+    with pytest.raises(TypeError) as err:
+        sympy_writer(Node(), identical_variables=1)
+    assert ("Expected identical_variables to be a dictionary, but got "
+            "<class 'int'>" in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        sympy_writer(Node(), identical_variables={1: 1})
+    assert ("Dictionary identical_variables contains a non-string key or "
+            "value" in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        sympy_writer(Node(), identical_variables={"var": 1})
+    assert ("Dictionary identical_variables contains a non-string key or "
+            "value" in str(err.value))
