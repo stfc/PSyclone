@@ -1442,7 +1442,10 @@ class OMPParallelDirective(OMPRegionDirective):
             for call in reprod_red_call_list:
                 call.reduction_sum_loop(parent)
 
-        self.gen_post_region_code(parent)
+        # If there are nested OMPRegions, the post region code should be after
+        # the top-level one
+        if not self.ancestor(OMPRegionDirective):
+            self.gen_post_region_code(parent)
 
     def lower_to_language_level(self):
         '''
@@ -2302,7 +2305,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # Add directive to the f2pygen tree
         parent.add(
             DirectiveGen(
-                parent, "omp", "begin", "parallel do", ", ".join(
+                parent, "omp", "begin", self._directive_string, ", ".join(
                     text for text in [default_str, private_str, fprivate_str,
                                       schedule_str, self._reduction_string()]
                     if text)))
@@ -2312,10 +2315,23 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         # make sure the directive occurs straight after the loop body
         position = parent.previous_loop()
-        parent.add(DirectiveGen(parent, *self.end_string().split()),
+
+        # DirectiveGen only accepts 3 terms, e.g. "omp end loop", so for longer
+        # directive e.g. "omp end teams distribute parallel do", we split them
+        # between arguments and content (which is an additional string appended
+        # at the end)
+        terms = self.end_string().split()
+        # If its < 3 the array slices still work as expected
+        arguments = terms[:3]
+        content = " ".join(terms[3:])
+
+        parent.add(DirectiveGen(parent, *arguments, content=content),
                    position=["after", position])
 
-        self.gen_post_region_code(parent)
+        # If there are nested OMPRegions, the post region code should be after
+        # the top-level one
+        if not self.ancestor(OMPRegionDirective):
+            self.gen_post_region_code(parent)
 
     def lower_to_language_level(self):
         '''
@@ -2401,6 +2417,31 @@ class OMPTargetDirective(OMPRegionDirective):
 
         '''
         return "omp end target"
+
+    def gen_code(self, parent):
+        '''Generate the OpenMP Target Directive and any associated code.
+
+        :param parent: the parent Node in the Schedule to which to add our
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        # Check the constraints are correct
+        self.validate_global_constraints()
+
+        # Generate the code for this Directive
+        parent.add(DirectiveGen(parent, "omp", "begin", "target"))
+
+        # Generate the code for all of this node's children
+        for child in self.dir_body:
+            child.gen_code(parent)
+
+        # Generate the end code for this node
+        parent.add(DirectiveGen(parent, "omp", "end", "target", ""))
+
+        # If there are nested OMPRegions, the post region code should be after
+        # the top-level one
+        if not self.ancestor(OMPRegionDirective):
+            self.gen_post_region_code(parent)
 
 
 class OMPLoopDirective(OMPRegionDirective):
