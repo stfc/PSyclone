@@ -53,9 +53,9 @@ from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicCollection, LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.f2pygen import AssignGen, CommentGen, DeclGen
-from psyclone.psyir.nodes import Assignment, Reference, Call, StructureReference
-from psyclone.psyir.symbols import UnsupportedFortranType, DataSymbol, ArgumentInterface, ArrayType
+from psyclone.psyir.nodes import Assignment, Reference, StructureReference
+from psyclone.psyir.symbols import (
+    UnsupportedFortranType, DataSymbol, ArgumentInterface, ArrayType)
 
 
 class LFRicDofmaps(LFRicCollection):
@@ -158,10 +158,8 @@ class LFRicDofmaps(LFRicCollection):
                             "direction": "from"}
 
     def initialise(self, cursor):
-        ''' Generates the calls to the LFRic infrastructure that
-        look-up the necessary dofmaps. Adds these calls as children
-        of the supplied parent node. This must be an appropriate
-        f2pygen object.
+        '''
+        Add code to initialise the entities being managed by this class.
 
         :param int cursor: position where to add the next initialisation
             statements.
@@ -169,14 +167,6 @@ class LFRicDofmaps(LFRicCollection):
         :rtype: int
 
         '''
-
-        # If we've got no dofmaps then we do nothing
-        # if self._unique_fs_maps:
-        #     parent.add(CommentGen(parent, ""))
-        #     parent.add(CommentGen(parent,
-        #                           " Look-up dofmaps for each function space"))
-        #     parent.add(CommentGen(parent, ""))
-
         first = True
         for dmap, field in self._unique_fs_maps.items():
             stmt = Assignment.create(
@@ -184,20 +174,11 @@ class LFRicDofmaps(LFRicCollection):
                     rhs=field.generate_method_call("get_whole_dofmap"),
                     is_pointer=True)
             if first:
-                stmt.preceding_comment = "Look-up dofmaps for each function space"
+                stmt.preceding_comment = (
+                    "Look-up dofmaps for each function space")
                 first = False
             self._invoke.schedule.addchild(stmt, cursor)
             cursor += 1
-            # parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-            #                      rhs=field.proxy_name_indexed +
-            #                      "%" + field.ref_name() +
-            #                      "%get_whole_dofmap()"))
-
-        # if self._unique_cbanded_maps:
-        #     parent.add(CommentGen(parent, ""))
-        #     parent.add(CommentGen(parent,
-        #                           " Look-up required column-banded dofmaps"))
-        #     parent.add(CommentGen(parent, ""))
 
         first = True
         for dmap, cma in self._unique_cbanded_maps.items():
@@ -215,18 +196,8 @@ class LFRicDofmaps(LFRicCollection):
                 first = False
             self._invoke.schedule.addchild(stmt, cursor)
             cursor += 1
-        # parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-        #                      rhs=cma["argument"].proxy_name_indexed +
-        #                      "%column_banded_dofmap_" +
-        #                      cma["direction"]))
 
         first = True
-        # if self._unique_indirection_maps:
-        #     parent.add(CommentGen(parent, ""))
-        #     parent.add(CommentGen(parent,
-        #                    " Look-up required CMA indirection dofmaps"))
-        #     parent.add(CommentGen(parent, ""))
-
         for dmap, cma in self._unique_indirection_maps.items():
             stmt = Assignment.create(
                     lhs=Reference(self.symtab.lookup(dmap)),
@@ -242,9 +213,6 @@ class LFRicDofmaps(LFRicCollection):
                 first = False
             self._invoke.schedule.addchild(stmt, cursor)
             cursor += 1
-        # parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-        #                      rhs=cma["argument"].proxy_name_indexed +
-        #                      "%indirection_dofmap_"+cma["direction"]))
         return cursor
 
     def _invoke_declarations(self, cursor):
@@ -258,51 +226,31 @@ class LFRicDofmaps(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("lfric")
-
-        # Function space dofmaps
-        # decl_map_names = \
-        #     [dmap+"(:,:) => null()" for dmap in sorted(self._unique_fs_maps)]
-
         for dmap in sorted(self._unique_fs_maps):
             if dmap not in self.symtab:
                 dmap_sym = DataSymbol(
                     dmap, UnsupportedFortranType(
-                        f"integer(kind=i_def), pointer :: {dmap}(:,:) => null()"))
+                        f"integer(kind=i_def), pointer :: {dmap}(:,:) "
+                        f"=> null()"))
                 self.symtab.add(dmap_sym, tag=dmap)
 
-        # if decl_map_names:
-        #     parent.add(DeclGen(parent, datatype="integer",
-        #                        kind=api_config.default_kind["integer"],
-        #                        pointer=True, entity_decls=decl_map_names))
-
-        # Column-banded dofmaps
-        # decl_bmap_names = \
-        #     [dmap+"(:,:) => null()" for dmap in self._unique_cbanded_maps]
-        # if decl_bmap_names:
-        #     parent.add(DeclGen(parent, datatype="integer",
-        #                        kind=api_config.default_kind["integer"],
-        #                        pointer=True, entity_decls=decl_bmap_names))
         for dmap in sorted(self._unique_cbanded_maps):
             if dmap not in self.symtab:
                 dmap_sym = DataSymbol(
                     dmap, UnsupportedFortranType(
-                        f"integer(kind=i_def), pointer :: {dmap}(:,:) => null()"))
+                        f"integer(kind=i_def), pointer :: {dmap}(:,:) "
+                        f"=> null()"))
                 self.symtab.add(dmap_sym, tag=dmap)
 
         # CMA operator indirection dofmaps
-        # decl_ind_map_names = \
-        #     [dmap+"(:) => null()" for dmap in self._unique_indirection_maps]
-        # if decl_ind_map_names:
-        #     parent.add(DeclGen(parent, datatype="integer",
-        #                        kind=api_config.default_kind["integer"],
-        #                        pointer=True, entity_decls=decl_ind_map_names))
         for dmap in sorted(self._unique_indirection_maps):
             if dmap not in self.symtab:
                 dmap_sym = DataSymbol(
                     dmap, UnsupportedFortranType(
-                        f"integer(kind=i_def), pointer :: {dmap}(:) => null()"))
+                        f"integer(kind=i_def), pointer :: {dmap}(:) "
+                        "=> null()"))
                 self.symtab.add(dmap_sym, tag=dmap)
+
         return cursor
 
     def _stub_declarations(self, cursor):
@@ -315,8 +263,6 @@ class LFRicDofmaps(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("lfric")
-
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
             # We declare ndf first as some compilers require this
@@ -331,15 +277,10 @@ class LFRicDofmaps(LFRicCollection):
                 dmap, symbol_type=DataSymbol,
                 datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                                    [Reference(dim)]))
-            dmap_symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            dmap_symbol.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
             self.symtab.append_argument(dmap_symbol)
-            # parent.add(DeclGen(parent, datatype="integer",
-            #                    kind=api_config.default_kind["integer"],
-            #                    intent="in", entity_decls=[ndf_name]))
-            # parent.add(DeclGen(parent, datatype="integer",
-            #                    kind=api_config.default_kind["integer"],
-            #                    intent="in", dimension=ndf_name,
-            #                    entity_decls=[dmap]))
+
         # Column-banded dofmaps
         for dmap, cma in self._unique_cbanded_maps.items():
             if cma["direction"] == "to":
@@ -355,25 +296,17 @@ class LFRicDofmaps(LFRicCollection):
                 ndf_name, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
-            if symbol not in self.symtab._argument_list:
-                self.symtab.append_argument(symbol)
+            self.symtab.append_argument(symbol)
 
             nlayers = self.symtab.lookup("nlayers")
             dmap_symbol = self.symtab.find_or_create(
                 dmap, symbol_type=DataSymbol,
                 datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                                    [Reference(symbol), Reference(nlayers)]))
-            dmap_symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
-            if dmap_symbol not in self.symtab._argument_list:
-                self.symtab.append_argument(dmap_symbol)
-            # parent.add(DeclGen(parent, datatype="integer",
-            #                    kind=api_config.default_kind["integer"],
-            #                    intent="in", entity_decls=[ndf_name]))
-            # parent.add(DeclGen(parent, datatype="integer",
-            #                    kind=api_config.default_kind["integer"],
-            #                    intent="in",
-            #                    dimension=",".join([ndf_name, "nlayers"]),
-            #                    entity_decls=[dmap]))
+            dmap_symbol.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+            self.symtab.append_argument(dmap_symbol)
+
         # CMA operator indirection dofmaps
         for dmap, cma in self._unique_indirection_maps.items():
             if cma["direction"] == "to":
@@ -395,15 +328,10 @@ class LFRicDofmaps(LFRicCollection):
                 dmap, symbol_type=DataSymbol,
                 datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                                    [Reference(dim)]))
-            dmap_symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            dmap_symbol.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
             self.symtab.append_argument(dmap_symbol)
-            # parent.add(DeclGen(parent, datatype="integer",
-            #                    kind=api_config.default_kind["integer"],
-            #                    intent="in", entity_decls=[dim_name]))
-            # parent.add(DeclGen(parent, datatype="integer",
-            #                    kind=api_config.default_kind["integer"],
-            #                    intent="in", dimension=dim_name,
-            #                    entity_decls=[dmap]))
+
         return cursor
 
 

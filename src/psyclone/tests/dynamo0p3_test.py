@@ -4167,8 +4167,8 @@ def test_dynruntimechecks_anydiscontinuous(tmpdir, monkeypatch):
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
     assert "use mesh_mod, only : mesh_type" in generated_code
     expected2 = (
-        # "    op4_proxy = op4%get_proxy()\n"
-        # "    op4_local_stencil => op4_proxy%local_stencil\n"
+        "    op4_proxy = op4%get_proxy()\n"
+        "    op4_local_stencil => op4_proxy%local_stencil\n"
         "\n"
         "    ! Perform run-time checks\n"
         "    ! Check field function space and kernel metadata function spac"

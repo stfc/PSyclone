@@ -39,17 +39,16 @@
 ''' This module implements the PSyclone LFRic API by specialising the required
     base class Kern in psyGen.py '''
 
-# Imports
 from collections import OrderedDict, namedtuple
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.psyGen import InvokeSchedule, CodedKern, args_filter
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -57,8 +56,8 @@ from psyclone.psyir.nodes import (
     Loop, Literal, Reference, KernelSchedule, Container, Routine)
 from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, ArrayType, UnsupportedFortranType, DataTypeSymbol,
-    UnresolvedType, SymbolTable, ContainerSymbol, UnknownInterface,
-    ArgumentInterface, UnresolvedInterface)
+    UnresolvedType, ContainerSymbol, UnknownInterface,
+    UnresolvedInterface)
 
 
 class LFRicKern(CodedKern):
@@ -90,7 +89,7 @@ class LFRicKern(CodedKern):
             from psyclone.dynamo0p3 import DynKernelArguments
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
         self._parent = None
-        self._stub_symbol_table = None
+        self._stub_symbol_table = LFRicSymbolTable()
         self._base_name = ""
         self._func_descriptors = None
         self._fs_descriptors = None
@@ -315,7 +314,7 @@ class LFRicKern(CodedKern):
         if self.ancestor(InvokeSchedule):
             symtab = self.ancestor(InvokeSchedule).symbol_table
         else:
-            symtab = SymbolTable()  # FIXME
+            symtab = self._stub_symbol_table
         for idx, shape in enumerate(qr_shapes, -len(qr_shapes)):
             # LFRic api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
@@ -342,8 +341,6 @@ class LFRicKern(CodedKern):
             # name for the whole Invoke.
             if qr_arg.varname:
                 tag = "AlgArgs_" + qr_arg.text
-                # qr_name = self.ancestor(InvokeSchedule).symbol_table.\
-                #     find_or_create_integer_symbol(qr_arg.varname, tag=tag).name
                 qr_sym = symtab.find_or_create(
                     qr_arg.varname, tag=tag, symbol_type=DataSymbol,
                     datatype=symtab.find_or_create(
@@ -351,13 +348,6 @@ class LFRicKern(CodedKern):
                         datatype=UnresolvedType(),
                         interface=UnresolvedInterface())
                 )
-                        
-                # We don't specify the argument interface yet as this argument
-                # is placed later.
-                        # interface=ArgumentInterface(
-                        #     ArgumentInterface.Access.READ))
-                # if qr_sym not in symtab._argument_list:
-                #     symtab.append_argument(qr_sym)
                 qr_name = qr_sym.name
             else:
                 # If we don't have a name then we must be doing kernel-stub
@@ -369,12 +359,6 @@ class LFRicKern(CodedKern):
             # Append the name of the qr argument to the names of the qr-related
             # variables.
             qr_args = [arg + "_" + qr_name for arg in qr_args]
-            # for name in qr_args:
-            #     symtab.find_or_create(
-            #         name, symbol_type=DataSymbol, 
-            #         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-
-            # import pdb; pdb.set_trace()
             self._qr_rules[shape] = self.QRRule(qr_arg.text, qr_name, qr_args)
 
         if "gh_evaluator" in self._eval_shapes:
@@ -451,12 +435,6 @@ class LFRicKern(CodedKern):
                     "cmap", symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
                         "integer(kind=i_def), pointer :: cmap(:,:)"))
-                    # datatype=ArrayType(
-                    #     LFRicTypes("LFRicIntegerScalarDataType")(),
-                    #     shape=[ArrayType.Extent.ATTRIBUTE]*2))
-                # cmap = sched.symbol_table.find_or_create(
-                #     "cmap", 2, ScalarType.Intrinsic.INTEGER,
-                #     tag="cmap").name
 
         return cmap
 

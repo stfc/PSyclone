@@ -39,7 +39,6 @@
 ''' This module implements the LFRicCellIterators collection which handles
     the requirements of kernels that operator on cells.'''
 
-from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
@@ -106,14 +105,6 @@ class LFRicCellIterators(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("lfric")
-
-        # We only need the number of layers in the mesh if we are calling
-        # one or more kernels that operate on cell-columns.
-        # if not self._dofs_only:
-        #     parent.add(DeclGen(parent, datatype="integer",
-        #                        kind=api_config.default_kind["integer"],
-        #                        entity_decls=[self._nlayers_name]))
         return cursor
 
     def _stub_declarations(self, cursor):
@@ -127,16 +118,12 @@ class LFRicCellIterators(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("lfric")
-
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
-            # Already declared
-            for name in self._nlayers_names.keys():
+            for name in self._nlayers_names:
                 sym = self.symtab.lookup(name)
-                if sym not in self.symtab._argument_list:
-                    sym.interface = ArgumentInterface(
-                                        ArgumentInterface.Access.READ)
-                    self.symtab.append_argument(sym)
+                sym.interface = ArgumentInterface(
+                    ArgumentInterface.Access.READ)
+                self.symtab.append_argument(sym)
         return cursor
 
     def initialise(self, cursor):

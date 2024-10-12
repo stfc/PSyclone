@@ -41,7 +41,6 @@ for a kernel subroutine.
 
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.errors import InternalError
 
 
@@ -61,10 +60,6 @@ class KernStubArgList(ArgOrdering):
     '''
     def __init__(self, kern):
         ArgOrdering.__init__(self, kern)
-        # TODO 719 The stub_symtab is not connected to other parts of the
-        # Stub generation. Also the symboltable already has an
-        # argument_list that may be able to replace the argument list below.
-        # self._symtab = LFRicSymbolTable()
 
     def cell_position(self, var_accesses=None):
         '''Adds a cell argument to the argument list and if supplied stores

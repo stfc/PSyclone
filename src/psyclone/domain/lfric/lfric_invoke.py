@@ -39,16 +39,14 @@
 ''' This module implements the LFRic-specific implementation of the Invoke
     base class from psyGen.py. '''
 
-# Imports
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, FieldNotFoundError
-from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen, SubroutineGen,
-                              UseGen)
 from psyclone.psyGen import Invoke
 from psyclone.psyir.nodes import Assignment, Reference, Call
-from psyclone.psyir.symbols import ContainerSymbol, RoutineSymbol, ImportInterface
+from psyclone.psyir.symbols import (
+    ContainerSymbol, RoutineSymbol, ImportInterface)
 
 
 class LFRicInvoke(Invoke):
@@ -79,13 +77,9 @@ class LFRicInvoke(Invoke):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicInvokeSchedule
-        reserved_names_list = []
         const = LFRicConstants()
-        # reserved_names_list.extend(const.STENCIL_MAPPING.values())
-        # reserved_names_list.extend(["omp_get_thread_num",
-        #                             "omp_get_max_threads"])
         Invoke.__init__(self, alg_invocation, idx, LFRicInvokeSchedule,
-                        invokes, reserved_names=reserved_names_list)
+                        invokes)
 
         # The base class works out the algorithm code's unique argument
         # list and stores it in the 'self._alg_unique_args'
@@ -263,7 +257,8 @@ class LFRicInvoke(Invoke):
         return None
 
     def declare(self):
-        # Declare all quantities required by this PSy routine (Invoke)
+        ''' Declare and initialise all symbols associated this this Invoke.
+        '''
         cursor = 0
         for entities in [self.scalar_args, self.fields, self.lma_ops,
                          self.stencil, self.meshes,
@@ -274,6 +269,7 @@ class LFRicInvoke(Invoke):
                          self.mesh_properties, self.loop_bounds,
                          self.run_time_checks]:
             cursor = entities.declarations(cursor)
+
         for entities in [self.proxies, self.run_time_checks,
                          self.cell_iterators, self.meshes,
                          self.stencil, self.dofmaps,
@@ -313,92 +309,6 @@ class LFRicInvoke(Invoke):
 
         # Deallocate any basis arrays
         cursor = self.evaluators.deallocate(cursor)
-
-    def gen_code(self, parent):
-        '''
-        Generates LFRic-specific invocation code (the subroutine
-        called by the associated Invoke call in the algorithm
-        layer). This consists of the PSy invocation subroutine and the
-        declaration of its arguments.
-
-        :param parent: the parent node in the AST (of the code to be \
-                       generated) to which the node describing the PSy \
-                       subroutine will be added.
-        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
-
-        '''
-        assert False # Use fortran_writer(invoke.schedule) instead
-        # Create the subroutine
-        invoke_sub = SubroutineGen(parent, name=self.name,
-                                   args=self.psy_unique_var_names +
-                                   self.stencil.unique_alg_vars +
-                                   self._psy_unique_qr_vars)
-
-        # Declare all quantities required by this PSy routine (Invoke)
-        for entities in [self.scalar_args, self.fields, self.lma_ops,
-                         self.stencil, self.meshes,
-                         self.function_spaces, self.dofmaps, self.cma_ops,
-                         self.boundary_conditions, self.evaluators,
-                         self.proxies, self.cell_iterators,
-                         self.reference_element_properties,
-                         self.mesh_properties, self.loop_bounds,
-                         self.run_time_checks]:
-            entities.declarations(invoke_sub)
-
-        # Initialise all quantities required by this PSy routine (Invoke)
-
-        if self.schedule.reductions(reprod=True):
-            # We have at least one reproducible reduction so we need
-            # to know the number of OpenMP threads
-            omp_function_name = "omp_get_max_threads"
-            tag = "omp_num_threads"
-            nthreads_name = \
-                self.schedule.symbol_table.lookup_with_tag(tag).name
-            invoke_sub.add(UseGen(invoke_sub, name="omp_lib", only=True,
-                                  funcnames=[omp_function_name]))
-            # Note: There is no assigned kind for 'integer' 'nthreads' as this
-            # would imply assigning 'kind' to 'th_idx' and other elements of
-            # the OMPParallelDirective
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   entity_decls=[nthreads_name]))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(
-                invoke_sub, " Determine the number of OpenMP threads"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(AssignGen(invoke_sub, lhs=nthreads_name,
-                                     rhs=omp_function_name+"()"))
-
-        for entities in [self.proxies, self.run_time_checks,
-                         self.cell_iterators, self.meshes,
-                         self.stencil, self.dofmaps,
-                         self.cma_ops, self.boundary_conditions,
-                         self.function_spaces, self.evaluators,
-                         self.reference_element_properties,
-                         self.mesh_properties, self.loop_bounds]:
-            entities.initialise(invoke_sub)
-
-        # Now that everything is initialised and checked, we can call
-        # our kernels
-
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-        if Config.get().distributed_memory:
-            invoke_sub.add(CommentGen(invoke_sub, " Call kernels and "
-                                      "communication routines"))
-        else:
-            invoke_sub.add(CommentGen(invoke_sub, " Call kernels"))
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-
-        # Add content from the schedule
-        # self.schedule.gen_code(invoke_sub)
-        invoke_sub.add(PSyIRGen(invoke_sub, self.schedule))
-
-        # Deallocate any basis arrays
-        self.evaluators.deallocate(invoke_sub)
-
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-
-        # finally, add me to my parent
-        parent.add(invoke_sub)
 
 
 # ---------- Documentation utils -------------------------------------------- #

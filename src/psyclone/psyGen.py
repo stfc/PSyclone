@@ -375,14 +375,9 @@ class Invoke():
     :param invokes: the Invokes instance that contains this Invoke \
                     instance.
     :type invokes: :py:class:`psyclone.psyGen.Invokes`
-    :param reserved_names: optional list of reserved names, i.e. names that \
-                           should not be used e.g. as a PSyclone-created \
-                           variable name.
-    :type reserved_names: list of str
 
     '''
-    def __init__(self, alg_invocation, idx, schedule_class, invokes,
-                 reserved_names=None):
+    def __init__(self, alg_invocation, idx, schedule_class, invokes):
         '''Construct an invoke object.'''
 
         self._invokes = invokes
@@ -407,9 +402,6 @@ class Invoke():
             # use the position of the invoke
             self._name = "invoke_" + str(idx)
 
-        if not reserved_names:
-            reserved_names = []
-
         # Get a reference to the parent container, if any
         container = None
         if self.invokes:
@@ -420,7 +412,7 @@ class Invoke():
         schedule_symbol = RoutineSymbol(self._name)
         self._schedule = schedule_class(schedule_symbol,
                                         alg_invocation.kcalls,
-                                        reserved_names, parent=container)
+                                        parent=container)
 
         # Add the new Schedule to the top-level PSy Container
         if container:
@@ -697,15 +689,10 @@ class InvokeSchedule(Routine):
     _text_name = "InvokeSchedule"
 
     def __init__(self, symbol, KernFactory, BuiltInFactory, alg_calls=None,
-                 reserved_names=None, **kwargs):
+                 **kwargs):
         super().__init__(symbol, **kwargs)
 
         self._invoke = None
-
-        # Populate the Schedule Symbol Table with the reserved names.
-        if reserved_names:
-            for reserved in reserved_names:
-                self.symbol_table.add(Symbol(reserved))
 
         # We need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the

@@ -74,7 +74,7 @@ class LFRicCollection():
             self._kernel = node
             # We only have a single Kernel call in this case
         else:
-             raise InternalError(f"LFRicCollection takes only an LFRicInvoke "
+            raise InternalError(f"LFRicCollection takes only an LFRicInvoke "
                                 f"or an LFRicKern but got: {type(node)}")
 
         # Whether or not the associated Invoke contains only Kernels that
@@ -86,16 +86,24 @@ class LFRicCollection():
 
     @property
     def symtab(self):
+        '''
+        :returns: associated symbol table.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
         if self._invoke:
             return self._invoke.schedule.symbol_table
-        if self._kernel._stub_symbol_table:
-            return self._kernel._stub_symbol_table
-        else:
-            self._kernel._stub_symbol_table = LFRicSymbolTable()
-            return self._kernel._stub_symbol_table
+        # if self._kernel._stub_symbol_table:
+        #     return self._kernel._stub_symbol_table
+        # else:
+        #     self._kernel._stub_symbol_table = LFRicSymbolTable()
+        return self._kernel._stub_symbol_table
 
     @property
     def _calls(self):
+        '''
+        :returns: associated kernels.
+        :rtype: List[:py:class:`psyclone.psyGen.kern`]
+        '''
         if self._invoke:
             return self._invoke.schedule.kernels()
         return [self._kernel]
@@ -123,7 +131,7 @@ class LFRicCollection():
         raise InternalError("LFRicCollection has neither a Kernel "
                             "nor an Invoke - should be impossible.")
 
-    def initialise(self, parent):
+    def initialise(self, cursor):
         '''
         Add code to initialise the entities being managed by this class.
         We do nothing by default - it is up to the sub-class to override

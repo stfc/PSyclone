@@ -48,7 +48,6 @@ from collections import OrderedDict
 from psyclone import psyGen
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants
 from psyclone.errors import InternalError
-from psyclone.f2pygen import DeclGen, TypeDeclGen
 from psyclone.psyir.nodes import Reference
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, ScalarType, ArrayType, UnresolvedType,
@@ -146,7 +145,6 @@ class LFRicFields(LFRicCollection):
             self._kernel.args, arg_types=const.VALID_FIELD_NAMES)
         for fld in fld_args:
             undf_name = fld.function_space.undf_name
-            fld_dtype = fld.intrinsic_type
             fld_kind = fld.precision
 
             # Check for invalid descriptor data type
@@ -188,22 +186,13 @@ class LFRicFields(LFRicCollection):
                         text, symbol_type=DataSymbol, datatype=datatype)
                     arg.interface = ArgumentInterface(intent)
                     self.symtab.append_argument(arg)
-                    # parent.add(
-                    #     DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
-                    #             dimension=undf_name,
-                    #             intent=fld.intent, entity_decls=[text]))
             else:
                 name = fld.name + "_" + fld.function_space.mangled_name
                 arg = self.symtab.find_or_create(
                     name, symbol_type=DataSymbol, datatype=datatype)
                 arg.interface = ArgumentInterface(intent)
                 self.symtab.append_argument(arg)
-                # parent.add(
-                #     DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
-                #             intent=fld.intent,
-                #             dimension=undf_name,
-                #             entity_decls=[fld.name + "_" +
-                #                           fld.function_space.mangled_name]))
+
         return cursor
 
 

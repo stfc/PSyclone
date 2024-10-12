@@ -47,13 +47,13 @@ from psyclone.domain.lfric import LFRicConstants, LFRicKern
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.f2pygen import CallGen, CommentGen
 from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import (
     Loop, Literal, Schedule, Reference, ArrayReference, ACCRegionDirective,
     OMPRegionDirective, Routine, StructureReference, Call, BinaryOperation,
     ArrayOfStructuresReference, Directive)
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, UnresolvedType, UnresolvedInterface
+from psyclone.psyir.symbols import (
+    DataSymbol, INTEGER_TYPE, UnresolvedType, UnresolvedInterface)
 
 
 class LFRicLoop(PSyLoop):
@@ -451,6 +451,7 @@ class LFRicLoop(PSyLoop):
         :rtype: str
 
         '''
+        assert False
         # pylint: disable=too-many-branches, too-many-return-statements
         # precompute halo_index as a string as we use it in more than
         # one of the if clauses
@@ -1001,54 +1002,6 @@ class LFRicLoop(PSyLoop):
         #                                                  tag=root_name)
         # self.children[1] = Reference(ubound)
         return self.children[1]
-
-    def gen_code(self, parent):
-        ''' Call the base class to generate the code and then add any
-        required halo exchanges.
-
-        :param parent: an f2pygen object that will be the parent of \
-            f2pygen objects created in this method.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-
-        '''
-        self.validate_global_constraints()
-
-        super().gen_code(parent)
-        # TODO #1010: gen_code of this loop calls the PSyIR lowering version,
-        # but that method can not currently provide sibiling nodes because the
-        # ancestor is not PSyIR, so for now we leave the remainder of the
-        # gen_code logic here instead of removing the whole method.
-
-        if not (Config.get().distributed_memory and
-                self._loop_type != "colour"):
-            # No need to add halo exchanges so we are done.
-            return
-
-        # Set halo clean/dirty for all fields that are modified
-        if not self.unique_modified_args("gh_field"):
-            return
-
-        if self.ancestor((ACCRegionDirective, OMPRegionDirective)):
-            # We cannot include calls to set halos dirty/clean within OpenACC
-            # or OpenMP regions. This is handled by the appropriate Directive
-            # class instead.
-            # TODO #1755 can this check be made more general (e.g. to include
-            # Extraction regions)?
-            return
-
-        parent.add(CommentGen(parent, ""))
-        if self._loop_type != "null":
-            prev_node_name = "loop"
-        else:
-            prev_node_name = "kernel"
-        parent.add(CommentGen(parent, f" Set halos dirty/clean for fields "
-                              f"modified in the above {prev_node_name}"))
-        parent.add(CommentGen(parent, ""))
-
-        self.gen_mark_halos_clean_dirty(parent)
-
-        parent.add(CommentGen(parent, ""))
 
     def gen_mark_halos_clean_dirty(self):
         '''

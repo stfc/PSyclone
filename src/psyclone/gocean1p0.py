@@ -315,9 +315,6 @@ class GOInvokeSchedule(InvokeSchedule):
                       layer.
     :type alg_calls: Optional[list of
                               :py:class:`psyclone.parse.algorithm.KernelCall`]
-    :param reserved_names: optional list of names that are not allowed in the \
-                           new InvokeSchedule SymbolTable.
-    :type reserved_names: list of str
     :param parent: the parent of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -325,14 +322,12 @@ class GOInvokeSchedule(InvokeSchedule):
     # Textual description of the node.
     _text_name = "GOInvokeSchedule"
 
-    def __init__(self, symbol, alg_calls=None, reserved_names=None,
-                 parent=None, **kwargs):
+    def __init__(self, symbol, alg_calls=None, parent=None, **kwargs):
         if not alg_calls:
             alg_calls = []
         InvokeSchedule.__init__(self, symbol, GOKernCallFactory,
-                                GOBuiltInCallFactory,
-                                alg_calls, reserved_names, parent=parent,
-                                **kwargs)
+                                GOBuiltInCallFactory, alg_calls,
+                                parent=parent, **kwargs)
 
 
 # pylint: disable=too-many-instance-attributes

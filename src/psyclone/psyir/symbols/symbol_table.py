@@ -1307,6 +1307,7 @@ class SymbolTable():
                 f"DataSymbol '{argument.name}' is not marked as a kernel "
                 "argument.")
         if argument in self._argument_list:
+            return
             raise ValueError(
                 f"DataSymbol '{argument.name}' is already a listed argument.")
 

@@ -197,6 +197,7 @@ class ArgOrdering:
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicTypes
         if tag is None:
             tag = name
@@ -233,11 +234,7 @@ class ArgOrdering:
         if not tag:
             tag = array_name
         if not symbol:
-            # symbol = self._symtab.find_or_create_array(
-            #                             array_name,
-            #                             len(indices),
-            #                             intrinsic_type,
-            #                             tag)
+            # pylint: disable=import-outside-toplevel
             from psyclone.domain.lfric import LFRicTypes
             symbol = self._symtab.find_or_create(
                 array_name, tag=tag, symbol_type=DataSymbol,
