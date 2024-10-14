@@ -4041,7 +4041,11 @@ class LFRicHaloExchange(HaloExchange):
         clean_depth = clean_info.literal_depth
         if clean_info.dirty_outer:
             # outer layer stays dirty
-            clean_depth -= 1
+            if isinstance(clean_depth, str):
+                # TODO - workaround for passing variable name for depth
+                clean_depth += " - 1"
+            else:
+                clean_depth -= 1
 
         # If a literal value in any of the required clean halo depths
         # is greater than the cleaned depth then we definitely need
