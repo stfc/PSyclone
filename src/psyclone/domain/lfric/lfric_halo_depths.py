@@ -53,6 +53,9 @@ class LFRicHaloDepths(LFRicCollection):
     kernels that have operates_on == HALO_CELL_COLUMNS or
     OWNED_AND_HALO_CELL_COLUMNS) required by an Invoke or Kernel stub.
 
+    :param node:
+    :type node:
+
     '''
     def __init__(self, node):
         super().__init__(node)
@@ -96,17 +99,19 @@ class LFRicHaloDepths(LFRicCollection):
 
     def _stub_declarations(self, parent):
         '''
-        Add field-related declarations to a Kernel stub.
+        Add halo-depth-related declarations to a Kernel stub.
 
         :param parent: the node in the f2pygen AST representing the Kernel
                        stub to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
-        :raises InternalError: for an unsupported data type of field
-                               argument data.
+        :raises NotImplementedError: kernel-stub generation is not supported
+            for kernels which operate on halo cells.
 
         '''
-        raise NotImplementedError("huhb")
+        raise NotImplementedError(
+            "Kernel-stub generation is not supported for kernels which "
+            "operate on halo cells and XXX")
 
 
 # ---------- Documentation utils -------------------------------------------- #
