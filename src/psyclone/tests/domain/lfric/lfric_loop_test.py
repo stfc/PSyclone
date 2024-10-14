@@ -994,7 +994,7 @@ end module testkern_mod
         loop.load(kern)
     assert ("A LFRicLoop of type 'null' can only contain a kernel that "
             "operates on the 'domain' but kernel 'testkern_code' operates "
-            "on 'cell_column'" in str(err.value))
+            "on 'owned_cell_column'" in str(err.value))
 
 
 def test_loop_independent_iterations(monkeypatch, dist_mem):

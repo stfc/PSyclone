@@ -242,7 +242,7 @@ class LFRicLoop(PSyLoop):
                 if kern.iterates_over == "halo_cell_column":
                     self.set_lower_bound("cell_halo_start")
                 sym = self.scope.symbol_table.find_or_create_tag(
-                    f"{kern.name}:halo_depth", root_name=kern.halo_depth,
+                    f"{kern.halo_depth}", root_name=kern.halo_depth,
                     symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                 self.set_upper_bound("cell_halo", index=sym.name)

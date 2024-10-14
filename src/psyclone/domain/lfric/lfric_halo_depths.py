@@ -60,18 +60,20 @@ class LFRicHaloDepths(LFRicCollection):
         if not Config.get().distributed_memory:
             # No distributed memory so there are no halo regions.
             return
+        depth_names = set()
         for kern in self._calls:
             if not kern.halo_depth:
                 continue
             name = kern.halo_depth
+            if name not in depth_names:
+                # An invoke could call the same kernel multiple times with
+                # different halo depths.
+                depth_names.add(name)
+                symbol = self._symbol_table.find_or_create_tag(
+                    f"{name}", root_name=name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
-            symbol = self._symbol_table.find_or_create_tag(
-                f"{kern.name}:halo_depth",
-                root_name=name,
-                symbol_type=DataSymbol,
-                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-
-            self._halo_depth_vars.add(symbol)
+                self._halo_depth_vars.add(symbol)
 
     def _invoke_declarations(self, parent):
         '''

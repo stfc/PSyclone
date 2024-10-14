@@ -204,8 +204,8 @@ class LFRicInvoke(Invoke):
                 if call.iterates_over not in ["halo_cell_column",
                                               "owned_and_halo_cell_column"]:
                     continue
-                sym = table.lookup_with_tag(f"{call.name}:halo_depth")
-                if sym.name not in self._alg_unique_args:
+                sym = table.lookup(call.halo_depth)
+                if sym.name not in self._alg_unique_halo_depth_args:
                     self._alg_unique_halo_depth_args.append(sym.name)
 
             self._alg_unique_args.extend(self._alg_unique_halo_depth_args)

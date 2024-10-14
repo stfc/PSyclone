@@ -136,17 +136,18 @@ def test_psy_gen_halo_kernel(dist_mem, tmpdir, fortran_writer):
                 "undf_w3, map_w3(:,cell))"
                 in gen_code)
 
-        # Check for appropriate set-dirty/clean calls.
+        # Check for appropriate set-dirty/clean calls. Outermost halo remains
+        # dirty because field being updated is on continuous function space.
         assert ("      call f1_proxy%set_dirty()\n"
-                "      call f1_proxy%set_clean(hdepth)" in gen_code)
+                "      call f1_proxy%set_clean(hdepth - 1)" in gen_code)
     else:
         # No distributed memory so no halo region => no halo depths passed
         # from Alg layer.
         assert (" subroutine invoke_0_testkern_halo_only_type"
                 "(a, f1, f2, m1, m2)" in gen_code)
         assert "integer, intent(in) :: hdepth" not in gen_code
-        # No kernel call.
-        assert "call testkern" not in gen_code
+        # Kernel is not called.
+        assert "call testkern_halo_only_code( " not in gen_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -201,7 +202,7 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
             "loop\n"
             "      !\n"
             "      call f1_proxy%set_dirty()\n"
-            "      call f1_proxy%set_clean(hdepth)\n"
+            "      call f1_proxy%set_clean(hdepth - 1)\n"
             "      !\n")
     expected += (
         "      call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, a, "

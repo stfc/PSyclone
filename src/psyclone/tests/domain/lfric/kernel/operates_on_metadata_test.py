@@ -74,15 +74,17 @@ def test_fortran_string():
     assert fortran_string == expected
 
 
-def test_create_from_fortran_string():
+@pytest.mark.parametrize("cell_col", ["cell_column", "owned_cell_column"])
+def test_create_from_fortran_string(cell_col):
     '''Test that the create_from_fortran_string method works as
     expected.
 
     '''
-    fortran_string = "integer :: operates_on = cell_column"
+    fortran_string = f"integer :: operates_on = {cell_col}"
     operates_on_metadata = OperatesOnMetadata.create_from_fortran_string(
         fortran_string)
-    assert operates_on_metadata.operates_on == "cell_column"
+    # cell_column gets mapped to "owned_cell_column"
+    assert operates_on_metadata.operates_on == "owned_cell_column"
 
 
 def test_create_from_fparser2():
@@ -93,7 +95,7 @@ def test_create_from_fparser2():
     operates_on_metadata = OperatesOnMetadata.create_from_fparser2(
         fparser2_tree)
     assert isinstance(operates_on_metadata, OperatesOnMetadata)
-    assert operates_on_metadata.operates_on == "cell_column"
+    assert operates_on_metadata.operates_on == "owned_cell_column"
 
 
 @pytest.mark.parametrize("value", ["domain", "cell_column", "DOMAIN",
@@ -102,7 +104,10 @@ def test_create_from_fparser2():
 def test_setter_getter(value):
     '''Test that the setters and getters work as expected.'''
     operates_on_metadata = OperatesOnMetadata(value)
-    assert operates_on_metadata.operates_on == value.lower()
+    if value != "cell_column":
+        assert operates_on_metadata.operates_on == value.lower()
+    else:
+        assert operates_on_metadata.operates_on == "owned_cell_column"
 
 
 def test_setter_errors():

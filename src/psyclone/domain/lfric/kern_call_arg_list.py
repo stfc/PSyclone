@@ -190,7 +190,7 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`]
         '''
         if Config.get().distributed_memory:
-            tag_name = f"{self._kern.name}:halo_depth"
+            tag_name = f"{self._kern.halo_depth}"
             sym = self._symtab.lookup_with_tag(tag_name)
             self.append_integer_reference(f"{sym.name}", tag=tag_name)
             self.append(f"{sym.name}", var_accesses=var_accesses,

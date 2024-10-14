@@ -223,7 +223,7 @@ def test_get_kernel_type():
         ColumnwiseOperatorArgMetadata("gh_real", "gh_write", "w0", "w1"),
         OperatorArgMetadata("gh_real", "gh_read", "w0", "w1")]
     lfric_kernel_metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=meta_args)
+        operates_on="owned_cell_column", meta_args=meta_args)
     assert lfric_kernel_metadata._get_kernel_type() == "cma-assembly"
 
     # domain
@@ -235,7 +235,7 @@ def test_get_kernel_type():
     # general-purpose
     meta_args = [FieldArgMetadata("gh_real", "gh_read", "w0")]
     lfric_kernel_metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=meta_args)
+        operates_on="owned_cell_column", meta_args=meta_args)
     assert lfric_kernel_metadata._get_kernel_type() == "general-purpose"
 
 
@@ -257,7 +257,8 @@ def test_validate_generic_kernel():
     operator_arg = OperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")
     integer_field_arg = FieldArgMetadata("GH_INTEGER", "GH_READ", "W0")
     lfric_kernel_metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=[operator_arg, integer_field_arg])
+        operates_on="owned_cell_column",
+        meta_args=[operator_arg, integer_field_arg])
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_generic_kernel()
     assert ("Kernel metadata with a meta_args operator argument must only "
@@ -268,7 +269,7 @@ def test_validate_generic_kernel():
     # OK
     meta_args = [FieldArgMetadata("GH_REAL", "GH_READ", "W0")]
     lfric_kernel_metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=meta_args)
+        operates_on="owned_cell_column", meta_args=meta_args)
     lfric_kernel_metadata._validate_generic_kernel()
 
 
@@ -297,22 +298,22 @@ def test_validate_general_purpose_kernel():
             "however this does in kernel metadata 'unset' for procedure "
             "'unset'." in str(info.value))
 
-    # operates_on == cell_column only supports field, field vector,
+    # operates_on == owned_cell_column only supports field, field vector,
     # LMA operator, or scalar meta_arg arguments.
     meta_args = [InterGridArgMetadata("GH_REAL", "GH_READ", "W0", "GH_FINE")]
     lfric_kernel_metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=meta_args)
+        operates_on="owned_cell_column", meta_args=meta_args)
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_general_purpose_kernel()
-    assert ("General purpose kernels with 'operates_on == cell_column' should "
-            "only have meta_arg arguments of type field, field vector, LMA "
-            "operator or scalar, but found 'inter-grid' in kernel metadata "
-            "'unset' for procedure 'unset'." in str(info.value))
+    assert ("General purpose kernels with 'operates_on == *_cell_column' "
+            "should only have meta_arg arguments of type field, field vector, "
+            "LMA operator or scalar, but found 'inter-grid' in kernel metadata"
+            " 'unset' for procedure 'unset'." in str(info.value))
 
     # OK
     meta_args = [FieldArgMetadata("GH_REAL", "GH_READ", "W0")]
     lfric_kernel_metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=meta_args)
+        operates_on="owned_cell_column", meta_args=meta_args)
     lfric_kernel_metadata._validate_general_purpose_kernel()
 
 
@@ -457,8 +458,8 @@ def test_validate_generic_cma_kernel():
     lfric_kernel_metadata = LFRicKernelMetadata(operates_on="domain")
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_generic_cma_kernel()
-    assert ("A CMA kernel should only operate on a 'cell_column', but found "
-            "'domain' in kernel metadata 'unset' for procedure 'unset'."
+    assert ("A CMA kernel should only operate on an 'owned_cell_column', but "
+            "found 'domain' in kernel metadata 'unset' for procedure 'unset'."
             in str(info.value))
 
     # At least one cma operator.
@@ -525,8 +526,8 @@ def test_validate_cma_assembly_kernel():
     lfric_kernel_metadata = LFRicKernelMetadata(operates_on="domain")
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_cma_assembly_kernel()
-    assert ("A CMA kernel should only operate on a 'cell_column', but found "
-            "'domain' in kernel metadata 'unset' for procedure 'unset'."
+    assert ("A CMA kernel should only operate on an 'owned_cell_column', but "
+            "found 'domain' in kernel metadata 'unset' for procedure 'unset'."
             in str(info.value))
 
     # One CMA operator.
@@ -593,8 +594,8 @@ def test_validate_cma_apply_kernel():
     lfric_kernel_metadata = LFRicKernelMetadata(operates_on="domain")
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_cma_apply_kernel()
-    assert ("A CMA kernel should only operate on a 'cell_column', but found "
-            "'domain' in kernel metadata 'unset' for procedure 'unset'."
+    assert ("A CMA kernel should only operate on an 'owned_cell_column', but "
+            "found 'domain' in kernel metadata 'unset' for procedure 'unset'."
             in str(info.value))
 
     # Only field or CMA operator arguments.
@@ -747,8 +748,8 @@ def test_validate_cma_matrix_kernel():
     lfric_kernel_metadata = LFRicKernelMetadata(operates_on="domain")
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_cma_matrix_matrix_kernel()
-    assert ("A CMA kernel should only operate on a 'cell_column', but found "
-            "'domain' in kernel metadata 'unset' for procedure 'unset'."
+    assert ("A CMA kernel should only operate on an 'owned_cell_column', but "
+            "found 'domain' in kernel metadata 'unset' for procedure 'unset'."
             in str(info.value))
 
     # CMA operators or scalars.
@@ -817,9 +818,9 @@ def test_validate_intergrid_kernel():
         operates_on="domain", meta_args=meta_args)
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_intergrid_kernel()
-    assert ("An intergrid kernel should only operate on a 'cell_column', but "
-            "found 'domain' in kernel metadata 'unset' for procedure 'unset'."
-            in str(info.value))
+    assert ("An intergrid kernel should only operate on an "
+            "'owned_cell_column', but found 'domain' in kernel metadata "
+            "'unset' for procedure 'unset'." in str(info.value))
 
     # All args are inter-grid args.
     meta_args = [
@@ -962,7 +963,7 @@ def test_create_from_psyir(fortran_reader):
     symbol = kernel_psyir.children[0].symbol_table.lookup("testkern_type")
     metadata = LFRicKernelMetadata.create_from_psyir(symbol)
 
-    assert metadata.operates_on == "cell_column"
+    assert metadata.operates_on == "owned_cell_column"
     assert metadata.shapes == ["gh_quadrature_xyoz"]
     assert metadata.evaluator_targets == ["w0", "w3"]
 
@@ -1021,7 +1022,7 @@ def test_create_from_fparser2(procedure_format):
         fortran_metadata, Fortran2003.Derived_Type_Def)
     metadata = LFRicKernelMetadata.create_from_fparser2(fparser2_tree)
     assert isinstance(metadata, LFRicKernelMetadata)
-    assert metadata.operates_on == "cell_column"
+    assert metadata.operates_on == "owned_cell_column"
     assert metadata.shapes == ["gh_quadrature_xyoz"]
     assert metadata.evaluator_targets == ["w0", "w3"]
 
@@ -1233,7 +1234,7 @@ def test_fortran_string():
         "    mesh_data_type(adjacent_face)/)\n"
         "  INTEGER :: GH_SHAPE = gh_quadrature_xyoz\n"
         "  INTEGER :: GH_EVALUATOR_TARGETS(2) = (/w0, w3/)\n"
-        "  INTEGER :: OPERATES_ON = cell_column\n"
+        "  INTEGER :: OPERATES_ON = owned_cell_column\n"
         "  CONTAINS\n"
         "    PROCEDURE, NOPASS :: testkern_code\n"
         "END TYPE testkern_type\n")
@@ -1270,7 +1271,7 @@ def test_fortran_string_no_procedure():
         "    mesh_data_type(adjacent_face)/)\n"
         "  INTEGER :: GH_SHAPE = gh_quadrature_xyoz\n"
         "  INTEGER :: GH_EVALUATOR_TARGETS(2) = (/w0, w3/)\n"
-        "  INTEGER :: OPERATES_ON = cell_column\n"
+        "  INTEGER :: OPERATES_ON = owned_cell_column\n"
         "END TYPE testkern_type\n")
     assert result == expected
 
