@@ -131,8 +131,8 @@ def test_set_upper_bound_functions(monkeypatch):
     assert "upper loop bound is invalid" in str(excinfo.value)
 
 
-def test_lower_bound_fortran_1():
-    ''' Tests we raise an exception in the LFRicLoop:_lower_bound_fortran()
+def test_lower_bound_psyir_1():
+    ''' Tests we raise an exception in the LFRicLoop:lower_bound_psyir()
     method - first GenerationError.
 
     '''
@@ -142,13 +142,13 @@ def test_lower_bound_fortran_1():
     my_loop = psy.invokes.invoke_list[0].schedule.children[0]
     my_loop.set_lower_bound("inner", index=1)
     with pytest.raises(GenerationError) as excinfo:
-        _ = my_loop._lower_bound_fortran()
+        _ = my_loop.lower_bound_psyir()
     assert ("lower bound must be 'start' if we are sequential" in
             str(excinfo.value))
 
 
-def test_lower_bound_fortran_2(monkeypatch):
-    ''' Tests we raise an exception in the LFRicLoop:_lower_bound_fortran()
+def test_lower_bound_psyir_2(monkeypatch):
+    ''' Tests we raise an exception in the LFRicLoop:lower_bound_psyir()
     method - second GenerationError.
 
     '''
@@ -160,7 +160,7 @@ def test_lower_bound_fortran_2(monkeypatch):
     # checks for valid input
     monkeypatch.setattr(my_loop, "_lower_bound_name", value="invalid")
     with pytest.raises(GenerationError) as excinfo:
-        _ = my_loop._lower_bound_fortran()
+        _ = my_loop.lower_bound_psyir()
     assert ("Unsupported lower bound name 'invalid' found" in
             str(excinfo.value))
 
@@ -170,8 +170,8 @@ def test_lower_bound_fortran_2(monkeypatch):
                           ("ncells", 10, "inner_cell(1)"),
                           ("cell_halo", 1, "ncells_cell()"),
                           ("cell_halo", 10, "cell_halo_cell(9)")])
-def test_lower_bound_fortran_3(monkeypatch, name, index, output):
-    ''' Test '_lower_bound_fortran()' with multiple valid iteration spaces.
+def test_lower_bound_psyir_3(monkeypatch, name, index, output):
+    ''' Test 'lower_bound_psyir()' with multiple valid iteration spaces.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -182,7 +182,7 @@ def test_lower_bound_fortran_3(monkeypatch, name, index, output):
     # checks for valid input
     monkeypatch.setattr(my_loop, "_lower_bound_name", value=name)
     monkeypatch.setattr(my_loop, "_lower_bound_index", value=index)
-    assert my_loop._lower_bound_fortran() == "mesh%get_last_" + output + "+1"
+    assert my_loop.lower_bound_psyir() == "mesh%get_last_" + output + "+1"
 
 
 def test_mesh_name():

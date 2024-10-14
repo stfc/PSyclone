@@ -39,11 +39,8 @@
 ''' This module provides the LFRicLoopBounds Class that handles all variables
     required for specifying loop limits within an LFRic PSy-layer routine.'''
 
-from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicCollection
-from psyclone.f2pygen import AssignGen, CommentGen, DeclGen
-from psyclone.psyir.nodes import Assignment, Reference, Literal, Loop
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.nodes import Assignment, Reference, Loop
 
 
 class LFRicLoopBounds(LFRicCollection):
@@ -80,13 +77,7 @@ class LFRicLoopBounds(LFRicCollection):
         if not loops:
             return cursor
 
-        # parent.add(CommentGen(parent, ""))
-        # parent.add(CommentGen(parent, " Set-up all of the loop bounds"))
-        # parent.add(CommentGen(parent, ""))
-
         sym_table = self._invoke.schedule.symbol_table
-        config = Config.get()
-        api_config = config.api_conf("lfric")
 
         first = True
         for idx, loop in enumerate(loops):
@@ -95,12 +86,13 @@ class LFRicLoopBounds(LFRicCollection):
                 # 'null' loops don't need any bounds.
                 continue
 
+            # Set the lower bound
             root_name = f"loop{idx}_start"
             lbound = sym_table.find_or_create_integer_symbol(root_name,
                                                              tag=root_name)
             assignment = Assignment.create(
                     lhs=Reference(lbound),
-                    rhs=loop._lower_bound_fortran())  # FIXME
+                    rhs=loop.lower_bound_psyir())
             loop.children[0] = Reference(lbound)
             self._invoke.schedule.addchild(assignment, cursor)
             cursor += 1
@@ -108,9 +100,6 @@ class LFRicLoopBounds(LFRicCollection):
                 assignment.preceding_comment = (
                     "Set-up all of the loop bounds")
                 first = False
-            # parent.add(AssignGen(parent, lhs=lbound.name,
-            #                      rhs=loop._lower_bound_fortran()))
-            # entities = [lbound.name]
 
             if loop.loop_type != "colour":
                 root_name = f"loop{idx}_stop"
@@ -119,17 +108,14 @@ class LFRicLoopBounds(LFRicCollection):
                 self._invoke.schedule.addchild(
                     Assignment.create(
                         lhs=Reference(ubound),
-                        rhs=loop._upper_bound_psyir()
+                        rhs=loop.upper_bound_psyir()
                     ), cursor)
                 cursor += 1
                 loop.children[1] = Reference(ubound)
-                # entities.append(ubound.name)
-                # parent.add(AssignGen(parent, lhs=ubound.name,
-                #                      rhs=loop._upper_bound_fortran()))
+            else:
+                # If it needs a color loop-up, it has to be in-place
+                loop.children[1] = loop.upper_bound_psyir()
 
-            # parent.add(DeclGen(parent, datatype="integer",
-            #                    kind=api_config.default_kind["integer"],
-            #                    entity_decls=entities))
         return cursor
 
 

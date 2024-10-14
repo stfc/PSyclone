@@ -54,7 +54,6 @@ from psyclone.transformations import (
     ACCRoutineTrans, OMPDeclareTargetTrans, Dynamo0p3KernelConstTrans)
 
 from psyclone.tests.gocean_build import GOceanBuild
-from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
 

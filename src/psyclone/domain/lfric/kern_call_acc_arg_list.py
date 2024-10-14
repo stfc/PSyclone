@@ -148,8 +148,9 @@ class KernCallAccArgList(KernCallArgList):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
+        unique = LFRicStencils.stencil_unique_str(arg, "dofmap")
         name = LFRicStencils.dofmap_size_symbol(
-                 None, arg, self._kern.root.symbol_table).name
+                 self._kern.root.symbol_table, arg).name
         self.append(name, var_accesses)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):

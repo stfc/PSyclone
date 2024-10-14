@@ -183,7 +183,7 @@ class KernStubArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        name = LFRicStencils.dofmap_size_symbol(None, arg, self._symtab).name
+        name = LFRicStencils.dofmap_size_symbol(self._symtab, arg).name
         self.append(name, var_accesses)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
@@ -262,7 +262,7 @@ class KernStubArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        name = LFRicStencils.dofmap_size_symbol(None, arg, self._symtab).name
+        name = LFRicStencils.dofmap_size_symbol(self._symtab, arg).name
         self.append(name, var_accesses)
 
     def stencil_2d(self, arg, var_accesses=None):

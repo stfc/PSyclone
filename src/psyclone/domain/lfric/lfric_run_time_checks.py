@@ -46,10 +46,9 @@ the LFRicCollection class.'''
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants
-from psyclone.f2pygen import CallGen, CommentGen, IfThenGen, UseGen
 from psyclone.psyir.symbols import (
-    CHARACTER_TYPE, ContainerSymbol, RoutineSymbol, ImportInterface, DataSymbol,
-    UnresolvedType, INTEGER_TYPE, UnresolvedInterface)
+    CHARACTER_TYPE, ContainerSymbol, RoutineSymbol, ImportInterface,
+    DataSymbol, UnresolvedType, INTEGER_TYPE)
 from psyclone.psyir.nodes import (
     Call, StructureReference, BinaryOperation, Reference, Literal, IfBlock,
     ArrayOfStructuresReference)
@@ -75,14 +74,6 @@ class LFRicRunTimeChecks(LFRicCollection):
             # Only add if run-time checks are requested
             const = LFRicConstants()
             symtab = self._invoke.schedule.symbol_table
-            # symtab.add
-            # parent.add(
-            #     UseGen(parent, name=const.
-            #            FUNCTION_SPACE_TYPE_MAP["fs_continuity"]["module"]))
-            # parent.add(UseGen(parent, name=const.
-            #                   UTILITIES_MOD_MAP["logging"]["module"],
-            #                   only=True,
-            #                   funcnames=["log_event", "LOG_LEVEL_ERROR"]))
             csym = symtab.find_or_create(
                 const.UTILITIES_MOD_MAP["logging"]["module"],
                 symbol_type=ContainerSymbol
@@ -110,10 +101,6 @@ class LFRicRunTimeChecks(LFRicCollection):
         :rtype: int
 
         '''
-        # parent.add(CommentGen(
-        #     parent, " Check field function space and kernel metadata "
-        #     "function spaces are compatible"))
-
         # When issue #30 is addressed (with issue #79 helping further)
         # we may know some or all field function spaces statically. If
         # so, we should remove these from the fields to check at run
@@ -182,10 +169,6 @@ class LFRicRunTimeChecks(LFRicCollection):
                             BinaryOperation.Operator.AND, if_condition, cmp
                         )
 
-                # if_condition = " .and. ".join(
-                #     [f"{field_name}%which_function_space() /= {name.upper()}"
-                #      for name in function_space_names])
-
                 if_body = Call.create(
                     symtab.lookup("log_event"),
                     [Literal(f"In alg '{self._invoke.invokes.psy.orig_name}' "
@@ -196,16 +179,6 @@ class LFRicRunTimeChecks(LFRicCollection):
                              f"specified in the kernel metadata '{fs_name}'.",
                              CHARACTER_TYPE),
                      Reference(symtab.lookup("LOG_LEVEL_ERROR"))])
-                # if_then = IfThenGen(parent, if_condition)
-                # call_abort = CallGen(
-                #     if_then, "log_event(\"In alg "
-                #     f"'{self._invoke.invokes.psy.orig_name}' invoke "
-                #     f"'{self._invoke.name}', the field '{arg.name}' is passed "
-                #     f"to kernel '{kern_call.name}' but its function space is "
-                #     f"not compatible with the function space specified in the "
-                #     f"kernel metadata '{fs_name}'.\", LOG_LEVEL_ERROR)")
-                # if_then.add(call_abort)
-                # parent.add(if_then)
 
                 ifblock = IfBlock.create(if_condition, [if_body])
                 self._invoke.schedule.addchild(ifblock, cursor)
@@ -256,9 +229,6 @@ class LFRicRunTimeChecks(LFRicCollection):
                         not [entry for entry in modified_fields if
                              entry[0].name == arg.name]):
                     modified_fields.append((arg, call))
-        # if modified_fields:
-        #     parent.add(CommentGen(
-        #         parent, " Check that read-only fields are not modified"))
         first = True
         for field, call in modified_fields:
             if_condition = field.generate_method_call("is_readonly")
@@ -268,17 +238,7 @@ class LFRicRunTimeChecks(LFRicCollection):
                          f"invoke '{self._invoke.name}', field '{field.name}' "
                          f"is on a read-only function space but is modified "
                          f"by kernel '{call.name}'.", CHARACTER_TYPE),
-                     Reference(symtab.lookup("LOG_LEVEL_ERROR"))])
-            # if_then = IfThenGen(
-            #     parent, f"{field.proxy_name_indexed}%vspace%is_readonly()")
-            # call_abort = CallGen(
-            #     if_then, "log_event(\"In alg "
-            #     f"'{self._invoke.invokes.psy.orig_name}' invoke "
-            #     f"'{self._invoke.name}', field '{field.name}' is on a "
-            #     f"read-only function space but is modified by kernel "
-            #     f"'{call.name}'.\", LOG_LEVEL_ERROR)")
-            # if_then.add(call_abort)
-            # parent.add(if_then)
+                 Reference(symtab.lookup("LOG_LEVEL_ERROR"))])
 
             ifblock = IfBlock.create(if_condition, [if_body])
             self._invoke.schedule.addchild(ifblock, cursor)
@@ -306,9 +266,6 @@ class LFRicRunTimeChecks(LFRicCollection):
             # Run-time checks are not requested.
             return cursor
 
-        # parent.add(CommentGen(parent, ""))
-        # parent.add(CommentGen(parent, " Perform run-time checks"))
-        # parent.add(CommentGen(parent, ""))
         init_cursor = cursor
 
         # Check that field function spaces are compatible with the

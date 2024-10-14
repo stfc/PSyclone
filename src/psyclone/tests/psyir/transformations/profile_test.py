@@ -417,7 +417,7 @@ def test_profile_kernels_dynamo0p3(fortran_writer):
                   "end.*"
                   r"CALL (?P=profile2) % PostEnd")
 
-    groups = re.search(correct_re, code, re.I)
+    # groups = re.search(correct_re, code, re.I)
     # assert groups is not None
     # Check that the variables are different
     # assert groups.group(1) != groups.group(2)
@@ -655,7 +655,7 @@ def test_multi_prefix_profile(monkeypatch):
 
     '''
     psy, invoke = get_invoke("3.1_multi_functions_multi_invokes.f90",
-                           "lfric", name="invoke_0", dist_mem=True)
+                             "lfric", name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
     prt = ProfileTrans()
     config = Config.get()
@@ -675,7 +675,8 @@ def test_multi_prefix_profile(monkeypatch):
             "profile_psy_data\n" in result)
     assert ("  type(tool1_PSyDataType), save, target :: tool1_psy_data"
             in result)
-    assert (#"    ! Call kernels and communication routines\n"
+    assert (
+            # "    ! Call kernels and communication routines\n"
             "    CALL tool1_psy_data % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r0\", 0, 0)\n"
             "    if (f1_proxy%is_dirty(depth=1)) then\n" in result)

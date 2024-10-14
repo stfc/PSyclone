@@ -1483,14 +1483,6 @@ class OMPParallelDirective(OMPRegionDirective):
                     f"reduction variable")
             names.append(name)
 
-        # first_type = type(self.dir_body[0])
-        # for child in self.dir_body.children[1:]:
-        #     if first_type != type(child):
-        #         raise NotImplementedError("Cannot correctly generate code"
-        #                                   " for an OpenMP parallel region"
-        #                                   " containing children of "
-        #                                   "different types")
-
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import zero_reduction_variables
         zero_reduction_variables(reduction_kernels)
@@ -1519,10 +1511,6 @@ class OMPParallelDirective(OMPRegionDirective):
 
         # Now finish the reproducible reductions
         if reprod_red_call_list:
-            # parent.add(CommentGen(parent, ""))
-            # parent.add(CommentGen(parent, " sum the partial results "
-            #                       "sequentially"))
-            # parent.add(CommentGen(parent, ""))
             for call in reversed(reprod_red_call_list):
                 call.reduction_sum_loop()
 

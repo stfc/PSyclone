@@ -670,7 +670,7 @@ def test_extract_colouring_omp_dynamo0p3(fortran_writer):
     code = str(psy.gen)
     output = ("""
     CALL extract_psy_data % PreStart("multikernel_invokes_7_psy", """
-              """"invoke_0-ru_code-r0", 27, 3)
+              """"invoke_0-ru_code-r0", 26, 3)
     CALL extract_psy_data % PreDeclareVariable("a_data", a_data)
     CALL extract_psy_data % PreDeclareVariable("b_data", b_data)
     CALL extract_psy_data % PreDeclareVariable("basis_w0_qr", basis_w0_qr)
@@ -683,9 +683,9 @@ def test_extract_colouring_omp_dynamo0p3(fortran_writer):
     CALL extract_psy_data % PreDeclareVariable("diff_basis_w2_qr", """
               """diff_basis_w2_qr)
     CALL extract_psy_data % PreDeclareVariable("e", e)
-    CALL extract_psy_data % PreDeclareVariable("istp", istp)
-    CALL extract_psy_data % PreDeclareVariable("last_edge_cell_all_colours", \
-last_edge_cell_all_colours)"""
+    CALL extract_psy_data % PreDeclareVariable("istp", istp)"""
+#     CALL extract_psy_data % PreDeclareVariable("last_edge_cell_all_colours", \
+# last_edge_cell_all_colours)
     # CALL extract_psy_data % PreDeclareVariable("loop4_start", loop4_start)
     # CALL extract_psy_data % PreDeclareVariable("loop4_stop", loop4_stop)
     # CALL extract_psy_data % PreDeclareVariable("loop5_start", loop5_start)
@@ -721,9 +721,9 @@ last_edge_cell_all_colours)"""
     CALL extract_psy_data % ProvideVariable("diff_basis_w2_qr", """
               """diff_basis_w2_qr)
     CALL extract_psy_data % ProvideVariable("e", e)
-    CALL extract_psy_data % ProvideVariable("istp", istp)
-    CALL extract_psy_data % ProvideVariable("last_edge_cell_all_colours", \
-last_edge_cell_all_colours)"""
+    CALL extract_psy_data % ProvideVariable("istp", istp)"""
+#     CALL extract_psy_data % ProvideVariable("last_edge_cell_all_colours", \
+# last_edge_cell_all_colours)
     # CALL extract_psy_data % ProvideVariable("loop4_start", loop4_start)
     # CALL extract_psy_data % ProvideVariable("loop4_stop", loop4_stop)
     # CALL extract_psy_data % ProvideVariable("loop5_start", loop5_start)

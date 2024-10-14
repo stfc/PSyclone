@@ -102,10 +102,11 @@ class ArgOrdering:
         '''
         if self._forced_symtab:
             return self._forced_symtab
-        elif self._kern and self._kern.ancestor(psyGen.InvokeSchedule):
-            return self._kern.ancestor(psyGen.InvokeSchedule).invoke.schedule.symbol_table
-        else:
-            return LFRicSymbolTable()
+        if self._kern and self._kern.ancestor(psyGen.InvokeSchedule):
+            # _kern may be outdated, so go back up to the invoke first
+            current_invoke = self._kern.ancestor(psyGen.InvokeSchedule).invoke
+            return current_invoke.schedule.symbol_table
+        return LFRicSymbolTable()
 
     def psyir_append(self, node):
         '''Appends a PSyIR node to the PSyIR argument list.

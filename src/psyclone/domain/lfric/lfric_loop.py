@@ -131,6 +131,7 @@ class LFRicLoop(PSyLoop):
 
         '''
         from psyclone.psyGen import zero_reduction_variables
+        # Get the list of calls (to kernels) that need reduction variables
         if not self.is_openmp_parallel():
             calls = self.reductions()
             zero_reduction_variables(calls)
@@ -367,14 +368,10 @@ class LFRicLoop(PSyLoop):
         '''
         return self._upper_bound_halo_depth
 
-    def _lower_bound_fortran(self):
+    def lower_bound_psyir(self):
         '''
-        Create the associated Fortran code for the type of lower bound.
-
-        TODO: Issue #440. lower_bound_fortran should generate PSyIR.
-
-        :returns: the Fortran code for the lower bound.
-        :rtype: str
+        :returns: the PSyIR for this loop lower bound.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         :raises GenerationError: if self._lower_bound_name is not "start" \
                                  for sequential code.
@@ -441,18 +438,46 @@ class LFRicLoop(PSyLoop):
         return self.ancestor(InvokeSchedule).symbol_table.\
             lookup_with_tag(tag_name).name
 
-    def _upper_bound_psyir(self):
-        ''' Create the PSyIR that gives the appropriate upper bound
-        value for this type of loop.
-
-        :returns: the upper bound of this loop.
-        :rtype: #FIXME
+    def upper_bound_psyir(self):
+        '''
+        :returns: the PSyIR for this loop upper bound.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        inv_sched = self.ancestor(Routine)
+        sym_table = inv_sched.symbol_table
+
+        if self._loop_type == "colour":
+            # If this loop is over all cells of a given colour then we must
+            # lookup the loop bound as it depends on the current colour.
+            parent_loop = self.ancestor(Loop)
+            colour_var = parent_loop.variable
+
+            asym = self.kernel.last_cell_all_colours_symbol
+            const = LFRicConstants()
+
+            if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
+                if self._upper_bound_halo_depth:
+                    # TODO: #696 Add kind (precision) once the
+                    # LFRicInvokeSchedule constructor has been extended to
+                    # create the necessary symbols.
+                    halo_depth = Literal(str(self._upper_bound_halo_depth),
+                                         INTEGER_TYPE)
+                else:
+                    # We need to go to the full depth of the halo.
+                    root_name = "mesh"
+                    if self.kernels()[0].is_intergrid:
+                        root_name += f"_{self._field_name}"
+                    depth_sym = sym_table.lookup_with_tag(
+                        f"max_halo_depth_{root_name}")
+                    halo_depth = Reference(depth_sym)
+
+                return ArrayReference.create(asym, [Reference(colour_var),
+                                                    halo_depth])
+            return ArrayReference.create(asym, [Reference(colour_var)])
         # pylint: disable=too-many-branches, too-many-return-statements
         # precompute halo_index as a string as we use it in more than
         # one of the if clauses
-        # import pdb; pdb.set_trace()
         sym_tab = self.ancestor(InvokeSchedule).symbol_table
         halo_index = ""
         if self._upper_bound_halo_depth:
@@ -493,13 +518,13 @@ class LFRicLoop(PSyLoop):
                 depth = halo_index
             else:
                 # If no depth is specified then we go to the full halo depth
-                depth = sym_tab.find_or_create_tag(
-                    f"max_halo_depth_{self._mesh_name}")
+                depth = Reference(sym_tab.find_or_create_tag(
+                    f"max_halo_depth_{self._mesh_name}"))
             root_name = "last_halo_cell_all_colours"
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
             sym = sym_tab.find_or_create_tag(root_name)
-            colour = sym_tab.find_or_create_tag("colour")
+            colour = Reference(sym_tab.find_or_create_tag("colour"))
             return ArrayReference.create(sym, [colour, depth])
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
@@ -524,11 +549,8 @@ class LFRicLoop(PSyLoop):
                         ["get_last_edge_cell"]
                     )
                 )
-                # result = f"{self._mesh_name}%get_last_edge_cell()"
             else:
                 result = self.field.generate_method_call("get_ncell")
-                # result = (f"{self.field.proxy_name_indexed}%"
-                #           f"{self.field.ref_name()}%get_ncell()")
             return result
         if self._upper_bound_name == "cell_halo":
             if Config.get().distributed_memory:
@@ -555,9 +577,6 @@ class LFRicLoop(PSyLoop):
                 if halo_index:
                     result.addchild(Literal(f"{halo_index}", INTEGER_TYPE))
                 return result
-                # return (f"{self.field.proxy_name_indexed}%"
-                #         f"{self.field.ref_name()}%get_last_dof_halo("
-                #         f"{halo_index})")
             raise GenerationError(
                 "'dof_halo' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
@@ -571,7 +590,6 @@ class LFRicLoop(PSyLoop):
                 )
                 result.addchild(Literal(f"{halo_index}", INTEGER_TYPE))
                 return result
-                # return f"{self._mesh_name}%get_last_inner_cell({halo_index})"
             raise GenerationError(
                 "'inner' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
@@ -825,79 +843,6 @@ class LFRicLoop(PSyLoop):
                     # or not
                     self._add_halo_exchange(halo_field)
 
-    # @property
-    # def start_expr(self):
-    #     '''
-    #     :returns: the PSyIR for the lower bound of this loop.
-    #     :rtype: :py:class:`psyclone.psyir.Node`
-
-    #     '''
-    #     inv_sched = self.ancestor(Routine)
-    #     sym_table = inv_sched.symbol_table
-    #     loops = inv_sched.loops()
-    #     posn = None
-    #     for index, loop in enumerate(loops):
-    #         if loop is self:
-    #             posn = index
-    #             break
-    #     root_name = f"loop{posn}_start"
-    #     lbound = sym_table.find_or_create_integer_symbol(root_name,
-    #                                                      tag=root_name)
-    #     self.children[0] = Reference(lbound)
-    #     return self.children[0]
-
-    @property
-    def stop_expr(self):
-        '''
-        :returns: the PSyIR for the upper bound of this loop.
-        :rtype: :py:class:`psyclone.psyir.Node`
-
-        '''
-        inv_sched = self.ancestor(Routine)
-        sym_table = inv_sched.symbol_table
-
-        if self._loop_type == "colour":
-            # If this loop is over all cells of a given colour then we must
-            # lookup the loop bound as it depends on the current colour.
-            parent_loop = self.ancestor(Loop)
-            colour_var = parent_loop.variable
-
-            asym = self.kernel.last_cell_all_colours_symbol
-            const = LFRicConstants()
-
-            if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
-                if self._upper_bound_halo_depth:
-                    # TODO: #696 Add kind (precision) once the
-                    # LFRicInvokeSchedule constructor has been extended to
-                    # create the necessary symbols.
-                    halo_depth = Literal(str(self._upper_bound_halo_depth),
-                                         INTEGER_TYPE)
-                else:
-                    # We need to go to the full depth of the halo.
-                    root_name = "mesh"
-                    if self.kernels()[0].is_intergrid:
-                        root_name += f"_{self._field_name}"
-                    depth_sym = sym_table.lookup_with_tag(
-                        f"max_halo_depth_{root_name}")
-                    halo_depth = Reference(depth_sym)
-
-                return ArrayReference.create(asym, [Reference(colour_var),
-                                                    halo_depth])
-            return ArrayReference.create(asym, [Reference(colour_var)])
-
-        # This isn't a 'colour' loop so we have already set-up a
-        # variable that holds the upper bound.
-        # loops = inv_sched.loops()
-        # posn = None
-        # for index, loop in enumerate(loops):
-        #     if loop is self:
-        #         posn = index
-        #         break
-        # root_name = f"loop{posn}_stop"
-        # ubound = sym_table.find_or_create_integer_symbol(root_name,
-        #                                                  tag=root_name)
-        # self.children[1] = Reference(ubound)
-        return self.children[1]
 
     def gen_mark_halos_clean_dirty(self):
         '''
@@ -970,9 +915,6 @@ class LFRicLoop(PSyLoop):
                                                        INTEGER_TYPE))
                             cursor += 1
                             insert_loc.addchild(set_clean, cursor)
-                            # parent.add(CallGen(
-                            #     parent, name=f"{field.proxy_name}({index})%"
-                            #     f"set_clean({halo_depth})"))
                     else:
                         set_clean = Call.create(
                             StructureReference.create(
@@ -980,9 +922,6 @@ class LFRicLoop(PSyLoop):
                         set_clean.addchild(Literal(str(halo_depth), INTEGER_TYPE))
                         cursor += 1
                         insert_loc.addchild(set_clean, cursor)
-                        # parent.add(CallGen(
-                        #     parent, name=f"{field.proxy_name}%set_clean("
-                        #     f"{halo_depth})"))
             elif hwa.max_depth:
                 # halo accesses(s) is/are to the full halo
                 # depth (-1 if continuous)
@@ -1007,10 +946,6 @@ class LFRicLoop(PSyLoop):
                         set_clean.addchild(halo_depth.copy())
                         cursor += 1
                         insert_loc.addchild(set_clean, cursor)
-                        # call = CallGen(parent,
-                        #                name=f"{field.proxy_name}({index})%"
-                        #                f"set_clean({halo_depth})")
-                        # parent.add(call)
                 else:
                     set_clean = Call.create(
                         StructureReference.create(
@@ -1018,17 +953,11 @@ class LFRicLoop(PSyLoop):
                     set_clean.addchild(halo_depth)
                     cursor += 1
                     insert_loc.addchild(set_clean, cursor)
-                    # call = CallGen(parent, name=f"{field.proxy_name}%"
-                    #                f"set_clean({halo_depth})")
-                    # parent.add(call)
 
         if cursor > init_cursor:
-            comment_already_there = False
             for child in insert_loc.children[init_cursor:]:
                 if child.preceding_comment.startswith("Set halos dirty"):
                     child.preceding_comment = ""
-            #         comment_already_there = True
-            # if not comment_already_there:
             insert_loc[init_cursor + 1].preceding_comment = (
                 "Set halos dirty/clean for fields modified in the above "
                 "loop(s)")

@@ -403,7 +403,7 @@ class KernCallArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        var_sym = LFRicStencils.dofmap_size_symbol(None, arg, symtab=self._symtab)
+        var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name, [cell_ref],
                                     ScalarType.Intrinsic.INTEGER,
@@ -428,7 +428,7 @@ class KernCallArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        var_sym = LFRicStencils.dofmap_size_symbol(None, arg, self._symtab)
+        var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name, [":", cell_ref],
                                     ScalarType.Intrinsic.INTEGER,

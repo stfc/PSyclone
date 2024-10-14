@@ -1535,7 +1535,6 @@ class CodedKern(Kern):
 
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
-        # import pdb; pdb.set_trace()
 
         if not self.module_inline:
             # If it is not module inlined then make sure we generate the kernel

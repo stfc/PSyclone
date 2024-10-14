@@ -42,7 +42,6 @@ import pytest
 
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError, GenerationError
-from psyclone.f2pygen import ModuleGen
 from psyclone.psyir.nodes import (
     CodeBlock, PSyDataNode, Schedule, Return, Routine)
 from psyclone.parse import ModuleManager

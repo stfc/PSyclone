@@ -39,8 +39,6 @@
 import os
 import pytest
 
-import fparser
-
 from psyclone.errors import GenerationError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import ParseError
