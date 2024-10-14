@@ -52,7 +52,7 @@ jobs:
       NVFORTRAN_VERSION: 23.7
       ONEAPI_VERSION: 2024.2.1
       PERL_VERSION: 5.40.0
-      PYTHON_VERSION: 3.12.5
+      PYTHON_VERSION: 3.13.0
 
     steps:
     - uses: actions/checkout@v3
