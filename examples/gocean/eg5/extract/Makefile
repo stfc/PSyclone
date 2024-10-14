@@ -122,13 +122,13 @@ $(NAME): $(INF_LIB) $(EXTRACT_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
 #TODO #1757: $(INF_LIB) is required because of the meta-data in the
 #            kernel - once this is fixed, $(INF_LIB) can be removed.
 $(DRIVER_INIT).$(TYPE):	$(KERNELS) $(DRIVER_INIT).o
-	$(F90) $(KERNELS) $(DRIVER_INIT).o -o $(DRIVER_INIT).$(TYPE) \
+	$(F90) $(F90FLAGS) $(KERNELS) $(DRIVER_INIT).o -o $(DRIVER_INIT).$(TYPE) \
 		$(INF_LIB) $(EXTRACT_DIR)/$(LIB_NAME) $(LDFLAGS)
 
 #TODO #1757: $(INF_LIB) is required because of the meta-data in the
 #            kernel - once this is fixed, $(INF_LIB) can be removed.
 $(DRIVER_UPDATE).$(TYPE): $(KERNELS) $(DRIVER_UPDATE).o
-	$(F90) $(KERNELS) $(DRIVER_UPDATE).o -o $(DRIVER_UPDATE).$(TYPE) \
+	$(F90) $(F90FLAGS) $(KERNELS) $(DRIVER_UPDATE).o -o $(DRIVER_UPDATE).$(TYPE) \
 		$(INF_LIB) $(EXTRACT_DIR)/$(LIB_NAME) $(LDFLAGS)
 
 # The dl_esm_inf library
