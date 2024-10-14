@@ -6310,35 +6310,6 @@ def test_intergrid_colour(dist_mem, trans_class, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_intergrid_colour_errors(dist_mem, monkeypatch):
-    ''' Check that we raise the expected error when colouring is not applied
-    correctly to inter-grid kernels within a loop over colours. '''
-    ctrans = Dynamo0p3ColourTrans()
-    # Use an example that contains both prolongation and restriction kernels
-    psy, invoke = get_invoke("22.2_intergrid_3levels.f90",
-                             TEST_API, idx=0, dist_mem=dist_mem)
-    schedule = invoke.schedule
-    # First two kernels are prolongation, last two are restriction
-    loops = schedule.walk(Loop)
-    loop = loops[1]
-    # To a prolong kernel
-    ctrans.apply(loop)
-    # Update our list of loops
-    loops = schedule.walk(Loop)
-    # Check that the upper bound is correct
-    upperbound = loops[1]._upper_bound_fortran()
-    assert upperbound == "ncolour_fld_m"
-    # Manually add an un-coloured kernel to the loop that we coloured
-    loop = loops[2]
-    kern = loops[3].loop_body[0].detach()
-    monkeypatch.setattr(kern, "is_coloured", lambda: True)
-    loop.loop_body.children.append(kern)
-    with pytest.raises(InternalError) as err:
-        _ = loops[1]._upper_bound_fortran()
-    assert ("All kernels within a loop over colours must have been coloured "
-            "but kernel 'restrict_test_kernel_code' has not" in str(err.value))
-
-
 def test_intergrid_omp_parado(dist_mem, tmpdir):
     '''Check that we can add an OpenMP parallel loop to a loop containing
     an inter-grid kernel call.

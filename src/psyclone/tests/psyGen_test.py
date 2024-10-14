@@ -559,7 +559,7 @@ def test_codedkern_module_inline_gen_code(tmpdir):
             "this module." in str(err.value))
 
     # Create the symbol and try again, it now must succeed
-    schedule.ancestor(Container).symbol_table.new_symbol(
+    psy.container.symbol_table.new_symbol(
             "ru_code", symbol_type=RoutineSymbol)
 
     gen = str(psy.gen)
