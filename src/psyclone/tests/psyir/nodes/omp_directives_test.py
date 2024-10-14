@@ -164,6 +164,7 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch):
             "need synchronisation unless they are in a depend clause, but "
             "found: 'a' which is not in a depend clause." in str(err.value))
 
+
 @pytest.mark.xfail(reason="FIXME: Probably can delete gen_code in this PR")
 def test_ompparallel_gen_code_clauses(monkeypatch):
     ''' Check that the OMP Parallel region clauses are generated

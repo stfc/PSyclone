@@ -99,9 +99,6 @@ def zero_reduction_variables(red_call_list):
     '''zero all reduction variables associated with the calls in the call
     list'''
     if red_call_list:
-        # parent.add(CommentGen(parent, ""))
-        # parent.add(CommentGen(parent, " Zero summation variables"))
-        # parent.add(CommentGen(parent, ""))
         first = True
         for call in red_call_list:
             node = call.zero_reduction_variable()
@@ -109,8 +106,6 @@ def zero_reduction_variables(red_call_list):
                 node.append_preceding_comment(
                     "Zero summation variables")
                 first = False
-
-        # parent.add(CommentGen(parent, ""))
 
 
 def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
@@ -267,13 +262,24 @@ class PSy():
         return "psy_"+self._name
 
     @property
-    @abc.abstractmethod
     def gen(self):
-        '''Abstract base class for code generation function.
-
-        :returns: root node of generated Fortran AST.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
+        Generate Fortran code for this PSy-layer.
+
+        :returns: the generated Fortran source.
+        :rtype: str
+
+        '''
+
+        # Use the PSyIR Fortran backend to generate Fortran code of the
+        # supplied PSyIR tree.
+        from psyclone.psyir.backend.fortran import FortranWriter
+        config = Config.get()
+        fortran_writer = FortranWriter(
+            check_global_constraints=config.backend_checks_enabled)
+        result = fortran_writer(self.container)
+
+        return result
 
 
 class Invokes():
@@ -341,25 +347,6 @@ class Invokes():
         search_list = " or ".join(f"'{name}'" for name in search_names)
         raise RuntimeError(f"Cannot find an invoke named {search_list} "
                            f"in {list(self.names)}")
-
-    def gen_code(self, parent):
-        '''
-        Create the f2pygen AST for each Invoke in the PSy layer.
-
-        :param parent: the parent node in the AST to which to add content.
-        :type parent: `psyclone.f2pygen.ModuleGen`
-
-        :raises GenerationError: if an invoke_list schedule is not an \
-            InvokeSchedule.
-        '''
-        for invoke in self.invoke_list:
-            if not isinstance(invoke.schedule, InvokeSchedule):
-                raise GenerationError(
-                    f"An invoke.schedule element of the invoke_list is a "
-                    f"'{type(invoke.schedule).__name__}', but it should be an "
-                    f"'InvokeSchedule'.")
-            # invoke.gen_code(parent)
-            parent.add(PSyIRGen(parent, invoke.schedule))
 
 
 class Invoke():
@@ -636,18 +623,6 @@ class Invoke():
                 declns["inout"].append(arg)
         return declns
 
-    @abc.abstractmethod
-    def gen_code(self, parent):
-        '''
-        Generates invocation code (the subroutine called by the associated
-        invoke call in the algorithm layer). This consists of the PSy
-        invocation subroutine and the declaration of its arguments.
-
-        :param parent: the node in the generated AST to which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
-
-        '''
-
 
 class InvokeSchedule(Routine):
     '''
@@ -725,34 +700,6 @@ class InvokeSchedule(Routine):
             result += str(entity) + "\n"
         result += "End " + self.coloured_name(False) + "\n"
         return result
-
-    def gen_code(self, parent):
-        '''
-        Generate the Nodes in the f2pygen AST for this schedule.
-
-        :param parent: the parent Node (i.e. the enclosing subroutine) to \
-                       which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        # Imported symbols promoted from Kernel imports are in the SymbolTable.
-        # First aggregate all variables imported from the same module in a map.
-        module_map = {}
-        for imported_var in self.symbol_table.imported_symbols:
-            module_name = imported_var.interface.container_symbol.name
-            if module_name in module_map:
-                module_map[module_name].append(imported_var.name)
-            else:
-                module_map[module_name] = [imported_var.name]
-
-        # Then we can produce the UseGen statements without repeating modules
-        for module_name, var_list in module_map.items():
-            parent.add(UseGen(parent, name=module_name, only=True,
-                              funcnames=var_list))
-
-        for entity in self.children:
-            parent.add(PSyIRGen(parent, entity))
-            # entity.gen_code(parent)
 
 
 class GlobalSum(Statement):
@@ -1350,9 +1297,6 @@ class Kern(Statement):
 
     def local_vars(self):
         raise NotImplementedError("Kern.local_vars should be implemented")
-
-    def gen_code(self, parent):
-        raise NotImplementedError("Kern.gen_code should be implemented")
 
 
 class CodedKern(Kern):

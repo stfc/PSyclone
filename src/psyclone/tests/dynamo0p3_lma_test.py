@@ -898,7 +898,13 @@ module dummy_mod
   public
 
   contains
-  subroutine dummy_code(cell, nlayers, op_1_ncell_3d, op_1, op_2_ncell_3d, op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, op_5_ncell_3d, op_5, op_6_ncell_3d, op_6, op_7_ncell_3d, op_7, op_8_ncell_3d, op_8, op_9_ncell_3d, op_9, op_10_ncell_3d, op_10, op_11_ncell_3d, op_11, op_12_ncell_3d, op_12, op_13_ncell_3d, op_13, ndf_w0, ndf_w1, ndf_w2, ndf_w2h, ndf_w2v, ndf_w2broken, ndf_w2trace, ndf_w2htrace, ndf_w2vtrace, ndf_w3, ndf_wtheta, ndf_aspc1_op_12, ndf_adspc1_op_13)
+  subroutine dummy_code(cell, nlayers, op_1_ncell_3d, op_1, op_2_ncell_3d, \
+op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, op_5_ncell_3d, op_5, \
+op_6_ncell_3d, op_6, op_7_ncell_3d, op_7, op_8_ncell_3d, op_8, op_9_ncell_3d, \
+op_9, op_10_ncell_3d, op_10, op_11_ncell_3d, op_11, op_12_ncell_3d, op_12, \
+op_13_ncell_3d, op_13, ndf_w0, ndf_w1, ndf_w2, ndf_w2h, ndf_w2v, \
+ndf_w2broken, ndf_w2trace, ndf_w2htrace, ndf_w2vtrace, ndf_w3, ndf_wtheta, \
+ndf_aspc1_op_12, ndf_adspc1_op_13)
     use constants_mod
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_w0

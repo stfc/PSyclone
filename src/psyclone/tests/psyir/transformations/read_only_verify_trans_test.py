@@ -99,7 +99,7 @@ def test_read_only_options():
     the use of the newly defined names.
     '''
     psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean", idx=0, dist_mem=False)
+                             "gocean", idx=0, dist_mem=False)
     read_only = ReadOnlyVerifyTrans()
     read_only.apply(invoke.schedule[0].loop_body[0],
                     options={"region_name": ("a", "b")})

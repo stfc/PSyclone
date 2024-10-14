@@ -318,7 +318,7 @@ def test_kernel_call_invalid_iteration_space():
     # set iterates_over to something unsupported
     kernel._iterates_over = "vampires"
     with pytest.raises(GenerationError) as excinfo:
-        _ = kernel.validate_global_constraints()
+        kernel.validate_global_constraints()
     assert ("The LFRic API supports calls to user-supplied kernels that "
             "operate on one of ['cell_column', 'domain', 'dof'], but "
             "kernel 'testkern_dofs_code' operates on 'vampires'."
@@ -864,13 +864,8 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
     # function which we create using lambda.
     monkeypatch.setattr(arg, "ref_name",
                         lambda function_space=None: "vspace")
-    with pytest.raises(VisitorError) as excinfo:
+    with pytest.raises(VisitorError):
         _ = psy.gen
-    const = LFRicConstants()
-    return
-    assert (f"Expected an argument of {const.VALID_FIELD_NAMES} type "
-            f"from which to look-up boundary dofs for kernel "
-            "enforce_bc_code but got 'gh_operator'" in str(excinfo.value))
 
 
 def test_bc_kernel_anyspace1_only():
@@ -2386,7 +2381,8 @@ def test_halo_dirty_1():
     expected = (
         "    enddo\n"
         "\n"
-        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
+        "    ! Set halos dirty/clean for fields modified in the above loop(s)"
+        "\n"
         "    call f1_proxy%set_dirty()\n")
     assert expected in generated_code
 
@@ -2401,7 +2397,8 @@ def test_halo_dirty_2(tmpdir):
     expected = (
         "    enddo\n"
         "\n"
-        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
+        "    ! Set halos dirty/clean for fields modified in the above loop(s)"
+        "\n"
         "    call f1_proxy%set_dirty()\n"
         "    call f1_proxy%set_clean(1)\n"
         "    call f3_proxy%set_dirty()\n"
@@ -2436,7 +2433,8 @@ def test_halo_dirty_4():
     expected = (
         "    enddo\n"
         "\n"
-        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
+        "    ! Set halos dirty/clean for fields modified in the above loop(s)"
+        "\n"
         "    call chi_proxy(1)%set_dirty()\n"
         "    call chi_proxy(2)%set_dirty()\n"
         "    call chi_proxy(3)%set_dirty()\n"
@@ -3886,10 +3884,9 @@ def test_lfricinvoke_runtime(tmpdir, monkeypatch):
     assert "use fs_continuity_mod" in generated_code
     assert "use mesh_mod, only : mesh_type" in generated_code
     expected = (
-        # FIXME
-        # "    m2_proxy = m2%get_proxy()\n"
-        # "    m2_data => m2_proxy%data\n"
-        # "\n"
+        "    m2_proxy = m2%get_proxy()\n"
+        "    m2_data => m2_proxy%data\n"
+        "\n"
         "    ! Perform run-time checks\n"
         "    ! Check field function space and kernel metadata function spac"
         "es are compatible\n"
@@ -4053,10 +4050,9 @@ def test_dynruntimechecks_multikern(tmpdir, monkeypatch):
     assert "use fs_continuity_mod"
     assert "use mesh_mod, only : mesh_type" in generated_code
     expected2 = (
-        # FIXME
-        # "    f3_proxy = f3%get_proxy()\n"
-        # "    f3_data => f3_proxy%data\n"
-        # "\n"
+        "    f3_proxy = f3%get_proxy()\n"
+        "    f3_data => f3_proxy%data\n"
+        "\n"
         "    ! Perform run-time checks\n"
         "    ! Check field function space and kernel metadata function spac"
         "es are compatible\n"
@@ -4163,7 +4159,7 @@ def test_dynruntimechecks_anydiscontinuous(tmpdir, monkeypatch):
     assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
     assert ("use testkern_any_discontinuous_space_op_1_mod, only : testkern_"
-        "any_discontinuous_space_op_1_code") in generated_code
+            "any_discontinuous_space_op_1_code") in generated_code
     assert "use log_mod, only : LOG_LEVEL_ERROR, log_event" in generated_code
     assert "use mesh_mod, only : mesh_type" in generated_code
     expected2 = (
@@ -4294,7 +4290,6 @@ def test_read_only_fields_hex(tmpdir):
     assert expected in generated_code
 
 
-@pytest.mark.xfail(reason="FIXME")
 def test_mixed_precision_args(tmpdir):
     '''
     Test that correct code is generated for the PSy-layer when there
@@ -4309,79 +4304,72 @@ def test_mixed_precision_args(tmpdir):
     generated_code = str(psy.gen)
 
     assert "use constants_mod\n" in generated_code
-    assert (
-        "    use field_mod, only : field_type, field_proxy_type\n"
-        "    use r_solver_field_mod, only : r_solver_field_type, "
-        "r_solver_field_proxy_type\n"
-        "    use r_tran_field_mod, only : r_tran_field_type, "
-        "r_tran_field_proxy_type\n"
-        "    use r_bl_field_mod, only : r_bl_field_type, "
-        "r_bl_field_proxy_type\n"
-        "    use r_phys_field_mod, only : r_phys_field_type, "
-        "r_phys_field_proxy_type\n"
-        "    use operator_mod, only : operator_type, operator_proxy_type\n"
-        "    use r_solver_operator_mod, only : r_solver_operator_type, "
-        "r_solver_operator_proxy_type\n"
-        "    use r_tran_operator_mod, only : r_tran_operator_type, "
-        "r_tran_operator_proxy_type\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    subroutine invoke_0(scalar_r_def, field_r_def, operator_r_def, "
-        "scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, "
-        "field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl, "
-        "scalar_r_phys, field_r_phys)\n"
-        "      use mixed_kernel_mod, only : mixed_code\n"
-        "      use mesh_mod, only : mesh_type\n"
-        "      real(kind=r_def), intent(in) :: scalar_r_def\n"
-        "      real(kind=r_solver), intent(in) :: scalar_r_solver\n"
-        "      real(kind=r_tran), intent(in) :: scalar_r_tran\n"
-        "      real(kind=r_bl), intent(in) :: scalar_r_bl\n"
-        "      real(kind=r_phys), intent(in) :: scalar_r_phys\n"
-        "      type(field_type), intent(in) :: field_r_def\n"
-        "      type(r_solver_field_type), intent(in) :: field_r_solver\n"
-        "      type(r_tran_field_type), intent(in) :: field_r_tran\n"
-        "      type(r_bl_field_type), intent(in) :: field_r_bl\n"
-        "      type(r_phys_field_type), intent(in) :: field_r_phys\n"
-        "      type(operator_type), intent(in) :: operator_r_def\n"
-        "      type(r_solver_operator_type), intent(in) :: operator_r_solver\n"
-        "      type(r_tran_operator_type), intent(in) :: operator_r_tran\n"
-        "      integer(kind=i_def) cell\n"
-        "      integer(kind=i_def) loop4_start, loop4_stop\n"
-        "      integer(kind=i_def) loop3_start, loop3_stop\n"
-        "      integer(kind=i_def) loop2_start, loop2_stop\n"
-        "      integer(kind=i_def) loop1_start, loop1_stop\n"
-        "      integer(kind=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers_field_r_bl, nlayers_field_r_def, "
-        "nlayers_field_r_phys, nlayers_field_r_solver, nlayers_field_r_tran\n"
-        "      real(kind=r_tran), pointer, dimension(:,:,:) :: "
-        "operator_r_tran_local_stencil => null()\n"
-        "      type(r_tran_operator_proxy_type) operator_r_tran_proxy\n"
-        "      real(kind=r_solver), pointer, dimension(:,:,:) :: "
-        "operator_r_solver_local_stencil => null()\n"
-        "      type(r_solver_operator_proxy_type) operator_r_solver_proxy\n"
-        "      real(kind=r_def), pointer, dimension(:,:,:) :: "
-        "operator_r_def_local_stencil => null()\n"
-        "      type(operator_proxy_type) operator_r_def_proxy\n"
-        "      real(kind=r_phys), pointer, dimension(:) :: field_r_phys_data "
-        "=> null()\n"
-        "      type(r_phys_field_proxy_type) field_r_phys_proxy\n"
-        "      real(kind=r_bl), pointer, dimension(:) :: field_r_bl_data => "
-        "null()\n"
-        "      type(r_bl_field_proxy_type) field_r_bl_proxy\n"
-        "      real(kind=r_tran), pointer, dimension(:) :: field_r_tran_data "
-        "=> null()\n"
-        "      type(r_tran_field_proxy_type) field_r_tran_proxy\n"
-        "      real(kind=r_solver), pointer, dimension(:) :: "
-        "field_r_solver_data => null()\n"
-        "      type(r_solver_field_proxy_type) field_r_solver_proxy\n"
-        "      real(kind=r_def), pointer, dimension(:) :: field_r_def_data "
-        "=> null()\n"
-        "      type(field_proxy_type) field_r_def_proxy\n"
-        "      integer(kind=i_def), pointer :: map_w3(:,:) => null()\n"
-        "      integer(kind=i_def) ndf_w3, undf_w3, ndf_w0\n"
-        "      integer(kind=i_def) max_halo_depth_mesh\n"
-        "      type(mesh_type), pointer :: mesh => null()\n")
-    assert expected in generated_code
+    assert """
+  use field_mod, only : field_proxy_type, field_type
+  use operator_mod, only : operator_proxy_type, operator_type
+  use r_solver_field_mod, only : r_solver_field_proxy_type, r_solver_field_type
+  use r_solver_operator_mod, only : r_solver_operator_proxy_type, \
+r_solver_operator_type
+  use r_tran_field_mod, only : r_tran_field_proxy_type, r_tran_field_type
+  use r_tran_operator_mod, only : r_tran_operator_proxy_type, \
+r_tran_operator_type
+  use r_bl_field_mod, only : r_bl_field_proxy_type, r_bl_field_type
+  use r_phys_field_mod, only : r_phys_field_proxy_type, r_phys_field_type
+  implicit none
+  public
+
+  contains
+  subroutine invoke_0(scalar_r_def, field_r_def, operator_r_def, \
+scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, \
+field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl, scalar_r_phys, \
+field_r_phys)
+    use mesh_mod, only : mesh_type
+    use mixed_kernel_mod, only : mixed_code
+    real(kind=r_def), intent(in) :: scalar_r_def
+    type(field_type), intent(in) :: field_r_def
+    type(operator_type), intent(in) :: operator_r_def
+    real(kind=r_solver), intent(in) :: scalar_r_solver
+    type(r_solver_field_type), intent(in) :: field_r_solver
+    type(r_solver_operator_type), intent(in) :: operator_r_solver
+    real(kind=r_tran), intent(in) :: scalar_r_tran
+    type(r_tran_field_type), intent(in) :: field_r_tran
+    type(r_tran_operator_type), intent(in) :: operator_r_tran
+    real(kind=r_bl), intent(in) :: scalar_r_bl
+    type(r_bl_field_type), intent(in) :: field_r_bl
+    real(kind=r_phys), intent(in) :: scalar_r_phys
+    type(r_phys_field_type), intent(in) :: field_r_phys
+    integer(kind=i_def) :: cell
+    type(mesh_type), pointer :: mesh => null()
+    integer(kind=i_def) :: max_halo_depth_mesh
+    real(kind=r_def), pointer, dimension(:) :: field_r_def_data => null()
+    real(kind=r_solver), pointer, dimension(:) :: field_r_solver_data => null()
+    real(kind=r_tran), pointer, dimension(:) :: field_r_tran_data => null()
+    real(kind=r_bl), pointer, dimension(:) :: field_r_bl_data => null()
+    real(kind=r_phys), pointer, dimension(:) :: field_r_phys_data => null()
+    real(kind=r_def), pointer, dimension(:,:,:) :: \
+operator_r_def_local_stencil => null()
+    real(kind=r_solver), pointer, dimension(:,:,:) :: \
+operator_r_solver_local_stencil => null()
+    real(kind=r_tran), pointer, dimension(:,:,:) :: \
+operator_r_tran_local_stencil => null()
+    integer(kind=i_def) :: nlayers_field_r_def
+    integer(kind=i_def) :: nlayers_field_r_solver
+    integer(kind=i_def) :: nlayers_field_r_tran
+    integer(kind=i_def) :: nlayers_field_r_bl
+    integer(kind=i_def) :: nlayers_field_r_phys
+    integer(kind=i_def) :: ndf_w3
+    integer(kind=i_def) :: undf_w3
+    integer(kind=i_def) :: ndf_w0
+    integer(kind=i_def), pointer :: map_w3(:,:) => null()
+    type(field_proxy_type) :: field_r_def_proxy
+    type(r_solver_field_proxy_type) :: field_r_solver_proxy
+    type(r_tran_field_proxy_type) :: field_r_tran_proxy
+    type(r_bl_field_proxy_type) :: field_r_bl_proxy
+    type(r_phys_field_proxy_type) :: field_r_phys_proxy
+    type(operator_proxy_type) :: operator_r_def_proxy
+    type(r_solver_operator_proxy_type) :: operator_r_solver_proxy
+    type(r_tran_operator_proxy_type) :: operator_r_tran_proxy
+""" in generated_code
 
     # Test compilation
     assert LFRicBuild(tmpdir).code_compiles(psy)

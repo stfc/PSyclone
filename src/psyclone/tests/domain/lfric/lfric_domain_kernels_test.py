@@ -293,15 +293,10 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     assert "ncell_2d_no_halos = mesh%get_last_edge_cell()" in gen_code
 
     # Kernel call should include whole dofmap and not be within a loop
-    # if dist_mem:
-    #     expected = "    ! call kernels and communication routines\n"
-    # else:
-    #     expected = "    ! call our kernels\n"
     assert ("    call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, "
             "b, f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
 
     # Also test that the FortranWriter handles domain kernels as expected.
     # ATM we have a `lower_to_language_level method` for LFRicLoop which

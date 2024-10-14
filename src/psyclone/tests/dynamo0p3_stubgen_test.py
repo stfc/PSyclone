@@ -500,7 +500,8 @@ def test_enforce_bc_kernel_stub_gen(fortran_writer):
         "dimension(ndf_aspc1_field_1), intent(in) :: map_aspc1_field_1\n"
         "    integer(kind=i_def), intent(in) :: undf_aspc1_field_1\n"
         "    real(kind=r_def), "
-        "dimension(undf_aspc1_field_1), intent(inout) :: field_1_aspc1_field_1\n"
+        "dimension(undf_aspc1_field_1), intent(inout) :: field_1_aspc1_field_1"
+        "\n"
         "    integer(kind=i_def), "
         "dimension(ndf_aspc1_field_1,2), intent(in) :: boundary_dofs_field_1\n"
         "\n"
@@ -594,7 +595,8 @@ def test_multi_qr_stub_gen(fortran_writer):
     assert ("    real(kind=r_def), dimension(np_xyz_qr_face,"
             "nfaces_qr_face), intent(in) :: weights_xyz_qr_face\n"
             "    real(kind=r_def), dimension(np_xyz_qr_edge,"
-            "nedges_qr_edge), intent(in) :: weights_xyz_qr_edge\n" in generated_code)
+            "nedges_qr_edge), intent(in) :: weights_xyz_qr_edge\n"
+            in generated_code)
 
 
 def test_qr_plus_eval_stub_gen(fortran_writer):

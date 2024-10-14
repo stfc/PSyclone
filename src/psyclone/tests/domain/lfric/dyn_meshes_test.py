@@ -40,7 +40,7 @@ import os
 from psyclone.dynamo0p3 import DynMeshes
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol
+from psyclone.psyir.symbols import DataSymbol, UnsupportedFortranType
 
 
 BASE_PATH = os.path.join(
@@ -83,5 +83,5 @@ def test_add_mesh_symbols():
     for tag in mesh_names:
         sym = sym_table.lookup(tag)
         assert isinstance(sym, DataSymbol)
-        # assert isinstance(sym.datatype, DataTypeSymbol)
-        # assert sym.datatype.name == "mesh_type"
+        assert isinstance(sym.datatype, UnsupportedFortranType)  # is a pointer
+        assert "mesh_type"  in sym.datatype.type_text

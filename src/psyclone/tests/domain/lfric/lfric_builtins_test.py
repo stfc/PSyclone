@@ -2010,16 +2010,12 @@ def test_real_to_int_x_precision(monkeypatch, tmpdir, kind_name):
     arg = first_invoke.schedule.children[0].loop_body[0].args[0]
     # Set 'f2_data' to another 'i_<prec>'
     sym_kern = table.lookup_with_tag(f"{arg.name}:data")
-    monkeypatch.setattr(arg, "_precision", f"{kind_name}")
     monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision,
                         "_name", f"{kind_name}")
 
     # Test limited code generation (no equivalent field type)
     code = str(psy.gen)
-    return
     assert f"use constants_mod\n" in code
-    assert (f"integer(kind={kind_name}), pointer, dimension(:) :: "
-            "f2_data => null()") in code
     assert f"f2_data(df) = INT(f1_data(df), kind={kind_name})" in code
 
     # Test compilation of generated code
@@ -2082,7 +2078,6 @@ def test_real_to_real_x_lowering(monkeypatch, tmpdir, kind_name):
     arg = first_invoke.schedule.children[0].loop_body[0].args[0]
     # Set 'f2_data' to another 'r_<prec>'
     sym_kern = table.lookup_with_tag(f"{arg.name}:data")
-    monkeypatch.setattr(arg, "_precision", f"{kind_name}")
     monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision,
                         "_name", f"{kind_name}")
 
@@ -2091,13 +2086,10 @@ def test_real_to_real_x_lowering(monkeypatch, tmpdir, kind_name):
 
     # Due to the reverse alphabetical ordering performed by PSyclone,
     # different cases will arise depending on the substitution
-    return
     assert f"use constants_mod\n" in code
 
     # Assert correct type is set
-    assert (f"real(kind={kind_name}), pointer, dimension(:) :: "
-            "f2_data => null()") in code
-    assert f"f2_data(df) = real(f1_data(df), kind={kind_name})" in code
+    assert f"f2_data(df) = REAL(f1_data(df), kind={kind_name})" in code
 
     # Test compilation of generated code
     assert LFRicBuild(tmpdir).code_compiles(psy)

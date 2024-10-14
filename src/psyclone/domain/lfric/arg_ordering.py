@@ -208,8 +208,7 @@ class ArgOrdering:
         self.psyir_append(Reference(sym))
         return sym
 
-    def get_array_reference(self, array_name, indices, intrinsic_type,
-                            tag=None, symbol=None):
+    def get_array_reference(self, array_name, indices, tag=None, symbol=None):
         # pylint: disable=too-many-arguments
         '''This function creates an array reference. If there is no symbol
         with the given tag, a new array symbol will be defined using the given
@@ -220,9 +219,6 @@ class ArgOrdering:
         :param indices: the indices to be used in the PSyIR reference. It \
             must either be ":", or a PSyIR node.
         :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
-        :param intrinsic_type: the intrinsic type of the array.
-        :type intrinsic_type: \
-            :py:class:`psyclone.psyir.symbols.datatypes.ScalarType.Intrinsic`
         :param tag: optional tag for the symbol.
         :type tag: Optional[str]
         :param symbol: optional the symbol to use.
@@ -256,8 +252,8 @@ class ArgOrdering:
             ref = ArrayReference.create(symbol, indices)
         return ref
 
-    def append_array_reference(self, array_name, indices, intrinsic_type,
-                               tag=None, symbol=None):
+    def append_array_reference(self, array_name, indices, tag=None,
+                               symbol=None):
         # pylint: disable=too-many-arguments
         '''This function adds an array reference. If there is no symbol with
         the given tag, a new array symbol will be defined using the given
@@ -282,7 +278,7 @@ class ArgOrdering:
 
         '''
 
-        ref = self.get_array_reference(array_name, indices, intrinsic_type,
+        ref = self.get_array_reference(array_name, indices,
                                        tag=tag, symbol=symbol)
         self.psyir_append(ref)
         return ref.symbol
@@ -915,8 +911,7 @@ class ArgOrdering:
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
         sym = self.append_array_reference(
-            function_space.cbanded_map_name, indices=[":", ":"],
-            intrinsic_type=ScalarType.Intrinsic.INTEGER)
+            function_space.cbanded_map_name, indices=[":", ":"])
         self.append(sym.name, var_accesses)
 
     def indirection_dofmap(self, function_space, operator=None,
@@ -937,8 +932,7 @@ class ArgOrdering:
         '''
         # pylint: disable=unused-argument
         map_name = function_space.cma_indirection_map_name
-        self.append_array_reference(map_name, [":"],
-                                    ScalarType.Intrinsic.INTEGER, tag=map_name)
+        self.append_array_reference(map_name, [":"], tag=map_name)
         self.append(map_name, var_accesses)
 
     def ref_element_properties(self, var_accesses=None):

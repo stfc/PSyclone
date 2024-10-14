@@ -178,7 +178,7 @@ def test_unique_fs_comments():
     assert output in code
 
 
-def test_stub_daecl_dofmaps():
+def test_stub_decl_dofmaps():
     '''
     Check that LFRicDofmaps generates the expected declarations in the stub.
 

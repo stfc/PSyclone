@@ -41,7 +41,6 @@ import pytest
 from psyclone.domain.lfric import LFRicConstants, LFRicKern
 from psyclone.dynamo0p3 import DynProxies
 from psyclone.errors import InternalError
-from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import symbols
@@ -90,8 +89,6 @@ def test_invoke_declarations(fortran_writer):
     assert ("real(kind=r_def), pointer, dimension(:) :: f1_3_data => null()"
             in code)
     assert "type(field_proxy_type), dimension(3) :: f1_proxy" in code
-    # assert ("r_def" in
-    #         invoke.invokes.psy.infrastructure_modules["constants_mod"])
 
 
 def test_initialise(fortran_writer):
@@ -109,8 +106,6 @@ def test_initialise(fortran_writer):
     proxies.initialise(0)
     code = fortran_writer(invoke.schedule)
     assert "! Initialise field and/or operator proxies" in code
-    # assert ("r_def" in
-    #         invoke.invokes.psy.infrastructure_modules["constants_mod"])
     assert "my_mapping_proxy = my_mapping%get_proxy()" in code
     assert "my_mapping_local_stencil => my_mapping_proxy%local_stencil" in code
 

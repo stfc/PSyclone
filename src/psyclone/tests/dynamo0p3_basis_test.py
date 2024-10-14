@@ -51,7 +51,6 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import print_diffs
 
 
 # constants
@@ -208,18 +207,25 @@ def test_single_kern_eval(tmpdir):
     assert "    integer(kind=i_def) :: df_nodal" in gen_code
     assert "    integer(kind=i_def) :: df_w0" in gen_code
     assert "    integer(kind=i_def) :: df_w1" in gen_code
-    assert "    real(kind=r_def), allocatable :: basis_w0_on_w0(:,:,:)" in gen_code
-    assert "    real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)" in gen_code
+    assert ("    real(kind=r_def), allocatable :: basis_w0_on_w0(:,:,:)"
+            in gen_code)
+    assert ("    real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
+            in gen_code)
     assert "    integer(kind=i_def) :: dim_w0" in gen_code
     assert "    integer(kind=i_def) :: diff_dim_w1" in gen_code
-    assert "    real(kind=r_def), pointer :: nodes_w0(:,:) => null()" in gen_code
+    assert ("    real(kind=r_def), pointer :: nodes_w0(:,:) => null()"
+            in gen_code)
     assert "    integer(kind=i_def) :: nlayers_f0" in gen_code
-    assert "    real(kind=r_def), pointer, dimension(:) :: cmap_data => null()" in gen_code
-    assert "    real(kind=r_def), pointer, dimension(:) :: f0_data => null()" in gen_code
+    assert ("real(kind=r_def), pointer, dimension(:) :: cmap_data => null()"
+            in gen_code)
+    assert ("    real(kind=r_def), pointer, dimension(:) :: f0_data => null()"
+            in gen_code)
     assert "    type(field_proxy_type) :: f0_proxy" in gen_code
     assert "    type(field_proxy_type) :: cmap_proxy" in gen_code
-    assert "    integer(kind=i_def), pointer :: map_w0(:,:) => null()" in gen_code
-    assert "    integer(kind=i_def), pointer :: map_w1(:,:) => null()" in gen_code
+    assert ("    integer(kind=i_def), pointer :: map_w0(:,:) => null()"
+            in gen_code)
+    assert ("    integer(kind=i_def), pointer :: map_w1(:,:) => null()"
+            in gen_code)
     assert "    integer(kind=i_def) :: ndf_w0" in gen_code
     assert "    integer(kind=i_def) :: undf_w0" in gen_code
     assert "    integer(kind=i_def) :: ndf_w1" in gen_code
@@ -408,35 +414,50 @@ def test_two_qr_same_shape(tmpdir):
     assert "integer(kind=i_def) :: loop0_start" in gen_code
     assert "integer(kind=i_def) :: loop0_stop" in gen_code
     assert "real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)" in gen_code
-    assert "real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)" in gen_code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)"
+            in gen_code)
     assert "real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)" in gen_code
-    assert "real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)" in gen_code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)"
+            in gen_code)
     assert "real(kind=r_def), allocatable :: basis_w1_qr2(:,:,:,:)" in gen_code
-    assert "real(kind=r_def), allocatable :: diff_basis_w2_qr2(:,:,:,:)" in gen_code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w2_qr2(:,:,:,:)"
+            in gen_code)
     assert "real(kind=r_def), allocatable :: basis_w3_qr2(:,:,:,:)" in gen_code
-    assert "real(kind=r_def), allocatable :: diff_basis_w3_qr2(:,:,:,:)" in gen_code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w3_qr2(:,:,:,:)"
+            in gen_code)
     assert "integer(kind=i_def) :: dim_w1" in gen_code
     assert "integer(kind=i_def) :: diff_dim_w2" in gen_code
     assert "integer(kind=i_def) :: dim_w3" in gen_code
     assert "integer(kind=i_def) :: diff_dim_w3" in gen_code
-    assert "real(kind=r_def), pointer :: weights_xy_qr2(:) => null()" in gen_code
-    assert "real(kind=r_def), pointer :: weights_z_qr2(:) => null()" in gen_code
+    assert ("real(kind=r_def), pointer :: weights_xy_qr2(:) => null()"
+            in gen_code)
+    assert ("real(kind=r_def), pointer :: weights_z_qr2(:) => null()"
+            in gen_code)
     assert "integer(kind=i_def) :: np_xy_qr2" in gen_code
     assert "integer(kind=i_def) :: np_z_qr2" in gen_code
-    assert "real(kind=r_def), pointer :: weights_xy_qr(:) => null()" in gen_code
+    assert ("real(kind=r_def), pointer :: weights_xy_qr(:) => null()"
+            in gen_code)
     assert "real(kind=r_def), pointer :: weights_z_qr(:) => null()" in gen_code
     assert "integer(kind=i_def) :: np_xy_qr" in gen_code
     assert "integer(kind=i_def) :: np_z_qr" in gen_code
     assert "integer(kind=i_def) :: nlayers_f1" in gen_code
     assert "integer(kind=i_def) :: nlayers_g1" in gen_code
-    assert "real(kind=r_def), pointer, dimension(:) :: n2_data => null()" in gen_code
-    assert "real(kind=r_def), pointer, dimension(:) :: n1_data => null()" in gen_code
-    assert "real(kind=r_def), pointer, dimension(:) :: g2_data => null()" in gen_code
-    assert "real(kind=r_def), pointer, dimension(:) :: g1_data => null()" in gen_code
-    assert "real(kind=r_def), pointer, dimension(:) :: m2_data => null()" in gen_code
-    assert "real(kind=r_def), pointer, dimension(:) :: m1_data => null()" in gen_code
-    assert "real(kind=r_def), pointer, dimension(:) :: f2_data => null()" in gen_code
-    assert "real(kind=r_def), pointer, dimension(:) :: f1_data => null()" in gen_code
+    assert ("real(kind=r_def), pointer, dimension(:) :: n2_data => null()"
+            in gen_code)
+    assert ("real(kind=r_def), pointer, dimension(:) :: n1_data => null()"
+            in gen_code)
+    assert ("real(kind=r_def), pointer, dimension(:) :: g2_data => null()"
+            in gen_code)
+    assert ("real(kind=r_def), pointer, dimension(:) :: g1_data => null()"
+            in gen_code)
+    assert ("real(kind=r_def), pointer, dimension(:) :: m2_data => null()"
+            in gen_code)
+    assert ("real(kind=r_def), pointer, dimension(:) :: m1_data => null()"
+            in gen_code)
+    assert ("real(kind=r_def), pointer, dimension(:) :: f2_data => null()"
+            in gen_code)
+    assert ("real(kind=r_def), pointer, dimension(:) :: f1_data => null()"
+            in gen_code)
     assert "type(field_proxy_type) :: f1_proxy" in gen_code
     assert "type(field_proxy_type) :: f2_proxy" in gen_code
     assert "type(field_proxy_type) :: m1_proxy" in gen_code
@@ -727,11 +748,14 @@ def test_qr_plus_eval(tmpdir):
     assert "integer(kind=i_def) :: df_w0" in gen_code
     assert "integer(kind=i_def) :: df_w1" in gen_code
     assert "real(kind=r_def), allocatable :: basis_w0_on_w0(:,:,:)" in gen_code
-    assert "real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)" in gen_code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
+            in gen_code)
     assert "real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)" in gen_code
     assert "real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)" in gen_code
-    assert "real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)" in gen_code
-    assert "real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)" in gen_code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)"
+            in gen_code)
+    assert ("real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)"
+            in gen_code)
     assert "integer(kind=i_def) :: dim_w0" in gen_code
     assert "integer(kind=i_def) :: diff_dim_w1" in gen_code
     assert "integer(kind=i_def) :: dim_w1" in gen_code
@@ -739,17 +763,23 @@ def test_qr_plus_eval(tmpdir):
     assert "integer(kind=i_def) :: dim_w3" in gen_code
     assert "integer(kind=i_def) :: diff_dim_w3" in gen_code
     assert "real(kind=r_def), pointer :: nodes_w0(:,:) => null()" in gen_code
-    assert "real(kind=r_def), pointer :: weights_xy_qr(:) => null()" in gen_code
+    assert ("real(kind=r_def), pointer :: weights_xy_qr(:) => null()"
+            in gen_code)
     assert "real(kind=r_def), pointer :: weights_z_qr(:) => null()" in gen_code
     assert "integer(kind=i_def) :: np_xy_qr" in gen_code
     assert "integer(kind=i_def) :: np_z_qr" in gen_code
     assert "integer(kind=i_def) :: nlayers_f0" in gen_code
     assert "integer(kind=i_def) :: nlayers_f1" in gen_code
-    assert "real(kind=r_def), pointer, dimension(:) :: m2_data => null()" in gen_code
-    assert "real(kind=r_def), pointer, dimension(:) :: m1_data => null()" in gen_code
-    assert "real(kind=r_def), pointer, dimension(:) :: f2_data => null()" in gen_code
-    assert "real(kind=r_def), pointer, dimension(:) :: f1_data => null()" in gen_code
-    assert "real(kind=r_def), pointer, dimension(:) :: f0_data => null()" in gen_code
+    assert ("real(kind=r_def), pointer, dimension(:) :: m2_data => null()"
+            in gen_code)
+    assert ("real(kind=r_def), pointer, dimension(:) :: m1_data => null()"
+            in gen_code)
+    assert ("real(kind=r_def), pointer, dimension(:) :: f2_data => null()"
+            in gen_code)
+    assert ("real(kind=r_def), pointer, dimension(:) :: f1_data => null()"
+            in gen_code)
+    assert ("real(kind=r_def), pointer, dimension(:) :: f0_data => null()"
+            in gen_code)
 
     assert "type(field_proxy_type) :: f0_proxy" in gen_code
     assert "type(field_proxy_type) :: f1_proxy" in gen_code
@@ -982,8 +1012,8 @@ def test_two_eval_diff_space(tmpdir):
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "    enddo\n"
         "    do cell = loop9_start, loop9_stop, 1\n"
-        "      call testkern_eval_op_code(cell, nlayers_op1, op1_proxy%ncell_3d,"
-        " op1_local_stencil, f2_data, ndf_w0, ndf_w2, "
+        "      call testkern_eval_op_code(cell, nlayers_op1, "
+        "op1_proxy%ncell_3d, op1_local_stencil, f2_data, ndf_w0, ndf_w2, "
         "basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), "
         "diff_basis_w3_on_w0)\n"
         "    enddo\n")
@@ -1017,7 +1047,8 @@ def test_two_eval_same_var_same_space(tmpdir):
         "    do df_nodal = 1, ndf_adspc1_f0, 1\n"
         "      do df_w1 = 1, ndf_w1, 1\n"
         "        diff_basis_w1_on_adspc1_f0(:,df_w1,df_nodal) = f2_proxy"
-        "%vspace%call_function(DIFF_BASIS, df_w1, nodes_adspc1_f0(:,df_nodal))\n"
+        "%vspace%call_function(DIFF_BASIS, df_w1, nodes_adspc1_f0(:,"
+        "df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
     assert gen_code.count(
@@ -1239,8 +1270,10 @@ def test_eval_2fs(tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
-    assert "real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)" in gen_code
-    assert "real(kind=r_def), allocatable :: diff_basis_w1_on_w1(:,:,:)" in gen_code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
+            in gen_code)
+    assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w1(:,:,:)"
+            in gen_code)
     assert "integer(kind=i_def) :: diff_dim_w1" in gen_code
     assert ("    diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
             "    ALLOCATE(diff_basis_w1_on_w0(diff_dim_w1,ndf_w1,"
@@ -1264,8 +1297,10 @@ def test_2eval_2fs(tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
-    assert "real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)" in gen_code
-    assert "real(kind=r_def), allocatable :: diff_basis_w1_on_w1(:,:,:)" in gen_code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
+            in gen_code)
+    assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w1(:,:,:)"
+            in gen_code)
     # Check for duplication
     for idx in range(2):
         assert gen_code.count(f"real(kind=r_def), pointer :: nodes_w{idx}(:,:)"
@@ -1291,14 +1326,19 @@ def test_2eval_1qr_2fs(tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
-    assert "real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)" in gen_code
-    assert "real(kind=r_def), allocatable :: diff_basis_w1_on_w1(:,:,:)" in gen_code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
+            in gen_code)
+    assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w1(:,:,:)"
+            in gen_code)
     assert "real(kind=r_def), allocatable :: basis_w2_on_w0(:,:,:)" in gen_code
-    assert "real(kind=r_def), allocatable :: diff_basis_w3_on_w0(:,:,:)" in gen_code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w3_on_w0(:,:,:)"
+            in gen_code)
     assert "real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)" in gen_code
-    assert "real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)" in gen_code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)"
+            in gen_code)
     assert "real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)" in gen_code
-    assert "real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)" in gen_code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)"
+            in gen_code)
 
     # 1st kernel requires diff basis on W1, evaluated at W0 and W1
     # 2nd kernel requires diff basis on W3, evaluated at W0

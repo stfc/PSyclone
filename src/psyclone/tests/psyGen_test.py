@@ -63,7 +63,7 @@ from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.psyGen import (TransInfo, Transformation, PSyFactory,
                              InlinedKern, object_index, HaloExchange, Invoke,
                              DataAccess, Kern, Arguments, CodedKern, Argument,
-                             GlobalSum, InvokeSchedule, BuiltIn)
+                             GlobalSum, InvokeSchedule)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
                                   colored, Schedule)
@@ -76,8 +76,7 @@ from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (Dynamo0p3RedundantComputationTrans,
                                       Dynamo0p3KernelConstTrans,
-                                      Dynamo0p3OMPLoopTrans,
-                                      Dynamo0p3ColourTrans, OMPParallelTrans)
+                                      Dynamo0p3ColourTrans)
 from psyclone.psyir.backend.visitor import VisitorError
 
 
@@ -753,10 +752,6 @@ def test_call_abstract_methods():
         my_call.local_vars()
     assert "Kern.local_vars should be implemented" in str(excinfo.value)
 
-    with pytest.raises(NotImplementedError) as excinfo:
-        my_call.gen_code(None)
-    assert "Kern.gen_code should be implemented" in str(excinfo.value)
-
 
 def test_arguments_abstract():
     ''' Check that we raise NotImplementedError if any of the virtual methods
@@ -1032,7 +1027,6 @@ def test_call_multi_reduction_error(monkeypatch, dist_mem):
                        distributed_memory=dist_mem).create(invoke_info)
     assert ("PSyclone currently only supports a single reduction in a kernel "
             "or builtin" in str(err.value))
-
 
 
 def test_invoke_name():

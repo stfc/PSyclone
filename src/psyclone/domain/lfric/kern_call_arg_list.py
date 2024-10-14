@@ -196,8 +196,7 @@ class KernCallArgList(ArgOrdering):
 
         # Add the cell map to our argument list
         cell_ref_name, cell_ref = self.cell_ref_name(var_accesses)
-        sym = self.append_array_reference(base_name, [":", ":", cell_ref],
-                                          ScalarType.Intrinsic.INTEGER)
+        sym = self.append_array_reference(base_name, [":", ":", cell_ref])
         self.append(f"{sym.name}(:,:,{cell_ref_name})",
                     var_accesses=var_accesses, var_access_name=sym.name)
 
@@ -406,7 +405,6 @@ class KernCallArgList(ArgOrdering):
         var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name, [cell_ref],
-                                    ScalarType.Intrinsic.INTEGER,
                                     symbol=var_sym)
         self.append(f"{var_sym.name}({cell_name})", var_accesses,
                     var_access_name=var_sym.name)
@@ -431,7 +429,6 @@ class KernCallArgList(ArgOrdering):
         var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name, [":", cell_ref],
-                                    ScalarType.Intrinsic.INTEGER,
                                     symbol=var_sym)
         name = f"{var_sym.name}(:,{cell_name})"
         self.append(name, var_accesses, var_access_name=var_sym.name)
@@ -503,7 +500,6 @@ class KernCallArgList(ArgOrdering):
         var_sym = LFRicStencils.dofmap_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name, [":", ":", cell_ref],
-                                    ScalarType.Intrinsic.INTEGER,
                                     symbol=var_sym)
         self.append(f"{var_sym.name}(:,:,{cell_name})", var_accesses,
                     var_access_name=var_sym.name)
@@ -536,7 +532,6 @@ class KernCallArgList(ArgOrdering):
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name,
                                     [":", ":", ":", cell_ref],
-                                    ScalarType.Intrinsic.INTEGER,
                                     symbol=var_sym)
         name = f"{var_sym.name}(:,:,:,{cell_name})"
         self.append(name, var_accesses, var_access_name=var_sym.name)
@@ -618,14 +613,12 @@ class KernCallArgList(ArgOrdering):
         if self._kern.iterates_over == 'domain':
             # This kernel takes responsibility for iterating over cells so
             # pass the whole dofmap.
-            sym = self.append_array_reference(map_name, [":", ":"],
-                                              ScalarType.Intrinsic.INTEGER)
+            sym = self.append_array_reference(map_name, [":", ":"])
             self.append(sym.name, var_accesses, var_access_name=sym.name)
         else:
             # Pass the dofmap for the cell column
             cell_name, cell_ref = self.cell_ref_name(var_accesses)
-            sym = self.append_array_reference(map_name, [":", cell_ref],
-                                              ScalarType.Intrinsic.INTEGER)
+            sym = self.append_array_reference(map_name, [":", cell_ref])
             self.append(f"{sym.name}(:,{cell_name})",
                         var_accesses, var_access_name=sym.name)
 
@@ -651,8 +644,7 @@ class KernCallArgList(ArgOrdering):
             sym = self.append_integer_reference(function_space.undf_name)
             self.append(sym.name, var_accesses)
             map_name = function_space.map_name
-            sym = self.append_array_reference(map_name, [":", ":"],
-                                              ScalarType.Intrinsic.INTEGER)
+            sym = self.append_array_reference(map_name, [":", ":"])
             self.append(sym.name, var_accesses)
         else:
             # For the coarse mesh we only need undf and the dofmap for
@@ -675,8 +667,7 @@ class KernCallArgList(ArgOrdering):
         '''
         for rule in self._kern.qr_rules.values():
             basis_name = function_space.get_basis_name(qr_var=rule.psy_name)
-            sym = self.append_array_reference(basis_name, [":", ":", ":", ":"],
-                                              ScalarType.Intrinsic.REAL)
+            sym = self.append_array_reference(basis_name, [":", ":", ":", ":"])
             self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -688,8 +679,7 @@ class KernCallArgList(ArgOrdering):
                 # function space
                 fspace = self._kern.eval_targets[fs_name][0]
                 basis_name = function_space.get_basis_name(on_space=fspace)
-                sym = self.append_array_reference(basis_name, [":", ":", ":"],
-                                                  ScalarType.Intrinsic.REAL)
+                sym = self.append_array_reference(basis_name, [":", ":", ":"])
                 self.append(sym.name, var_accesses)
 
     def diff_basis(self, function_space, var_accesses=None):
@@ -710,8 +700,7 @@ class KernCallArgList(ArgOrdering):
             diff_basis_name = function_space.get_diff_basis_name(
                 qr_var=rule.psy_name)
             sym = self.append_array_reference(diff_basis_name,
-                                              [":", ":", ":", ":"],
-                                              ScalarType.Intrinsic.REAL)
+                                              [":", ":", ":", ":"])
             self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -725,8 +714,7 @@ class KernCallArgList(ArgOrdering):
                 diff_basis_name = function_space.get_diff_basis_name(
                     on_space=fspace)
                 sym = self.append_array_reference(diff_basis_name,
-                                                  [":", ":", ":"],
-                                                  ScalarType.Intrinsic.REAL)
+                                                  [":", ":", ":"])
                 self.append(sym.name, var_accesses)
 
     def field_bcs_kernel(self, function_space, var_accesses=None):
@@ -760,8 +748,7 @@ class KernCallArgList(ArgOrdering):
                 f"{self._kern.name} but got '{farg.argument_type}'")
 
         base_name = "boundary_dofs_" + farg.name
-        sym = self.append_array_reference(base_name, [":", ":"],
-                                          ScalarType.Intrinsic.INTEGER)
+        sym = self.append_array_reference(base_name, [":", ":"])
         self.append(sym.name, var_accesses)
 
     def operator_bcs_kernel(self, function_space, var_accesses=None):
@@ -781,8 +768,7 @@ class KernCallArgList(ArgOrdering):
         # Checks for this are performed in ArgOrdering.generate()
         op_arg = self._kern.arguments.args[0]
         base_name = "boundary_dofs_" + op_arg.name
-        sym = self.append_array_reference(base_name, [":", ":"],
-                                          ScalarType.Intrinsic.INTEGER)
+        sym = self.append_array_reference(base_name, [":", ":"])
         self.append(sym.name, var_accesses)
 
     def mesh_properties(self, var_accesses=None):
@@ -854,13 +840,11 @@ class KernCallArgList(ArgOrdering):
                 elif generic_name in ["weights_xy", "weights_z"]:
                     # 1d arrays:
                     # TODO # 1910: These should be pointers
-                    self.append_array_reference(arg, [":"],
-                                                ScalarType.Intrinsic.REAL)
+                    self.append_array_reference(arg, [":"])
                 elif generic_name in ["weights_xyz"]:
                     # 2d arrays:
                     # TODO #1910: These should be pointers
-                    self.append_array_reference(arg, [":", ":"],
-                                                ScalarType.Intrinsic.REAL)
+                    self.append_array_reference(arg, [":", ":"])
                 else:
                     raise InternalError(f"Found invalid kernel argument "
                                         f"'{arg}'.")

@@ -227,7 +227,8 @@ def test_field_xyoz(tmpdir):
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         "    enddo\n"
         "\n"
-        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
+        "    ! Set halos dirty/clean for fields modified in the above loop(s)"
+        "\n"
         "    call f1_proxy%set_dirty()\n"
         "\n"
         "    ! Deallocate basis arrays\n"
@@ -310,7 +311,7 @@ def test_face_qr(tmpdir, dist_mem):
     type(field_type), intent(in) :: m2
     type(quadrature_face_type), intent(in) :: qr
     integer(kind=i_def) :: cell""" in generated_code
-    
+
     if dist_mem:
         assert """\
 

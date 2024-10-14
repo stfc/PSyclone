@@ -1067,7 +1067,7 @@ class DynReferenceElement(LFRicCollection):
         if not (self._properties or self._nfaces_h_required):
             return cursor
 
-        # Declare the necessary scalars (duplicates are ignored by parent.add)
+        # Declare the necessary scalars (duplicates are ignored)
         scalars = list(self._arg_properties.values())
         nfaces_h = self.symtab.find_or_create(
             "nfaces_re_h", tag="nfaces_re_h",
@@ -2313,7 +2313,6 @@ class DynMeshes():
             return cursor
 
         symtab = self._invoke.schedule.symbol_table
-        # parent.add(CommentGen(parent, ""))
 
         if len(self._mesh_tag_names) == 1:
             # We only require one mesh object which means that this invoke
