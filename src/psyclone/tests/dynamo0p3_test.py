@@ -4423,7 +4423,8 @@ def test_dynpsy_gen_container_routines(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
     # Manually add a new top-level routine
-    psy.invokes.invoke_list[0].schedule.root.addchild(Routine("new_routine"))
+    psy.invokes.invoke_list[0].schedule.root.addchild(
+            Routine.create("new_routine"))
 
     # Search the routine in the code_gen output
     generated_code = str(psy.gen)

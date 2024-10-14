@@ -468,7 +468,7 @@ def test_profile_kernels_without_loop_dynamo0p3():
                            dist_mem=False)
 
     # Create a new Routine and copy over the Kernels from the invoke schedule.
-    new_sched = Routine("test_routine")
+    new_sched = Routine.create("test_routine")
     for kern in invoke.schedule.walk(LFRicKern):
         new_sched.addchild(kern.copy())
     # Check that the profiling node is added as expected.
