@@ -42,8 +42,6 @@
    actual code.
 '''
 
-from __future__ import absolute_import
-
 from psyclone import psyGen
 from psyclone.psyir.nodes import NanTestNode
 from psyclone.psyir import nodes

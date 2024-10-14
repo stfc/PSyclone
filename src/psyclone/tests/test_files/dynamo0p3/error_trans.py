@@ -4,7 +4,6 @@
     whether a trans() function exists or not.
 '''
 
-from __future__ import absolute_import
 from psyclone.psyGen import Loop
 from psyclone.transformations import ColourTrans
 

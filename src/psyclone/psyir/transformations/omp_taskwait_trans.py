@@ -37,7 +37,6 @@
 ''' This module provides the OMPTaskwaitTrans transformation that can be
 applied to an OMPParallelDirective to satisfy any task-based dependencies
 created by OpenMP Taskloops.'''
-from __future__ import absolute_import, print_function
 
 from psyclone.core import VariablesAccessInfo
 from psyclone.errors import LazyString, InternalError

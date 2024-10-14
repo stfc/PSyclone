@@ -34,7 +34,6 @@
 #
 '''Module to test the psyad adjoint base class transformation.'''
 
-from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE

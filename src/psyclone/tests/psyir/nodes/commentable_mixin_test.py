@@ -36,7 +36,6 @@
 
 ''' Performs py.test tests on CommentableMixin PSyIR nodes. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Return, Routine, Container
 

@@ -39,8 +39,6 @@
 '''This module tests the loop fusion transformation.
 '''
 
-from __future__ import absolute_import, print_function
-
 import pytest
 
 from psyclone.psyir.nodes import Literal, Loop, Schedule, Return

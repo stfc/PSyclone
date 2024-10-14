@@ -92,10 +92,7 @@ class LFRicCollection():
         '''
         if self._invoke:
             return self._invoke.schedule.symbol_table
-        # if self._kernel._stub_symbol_table:
-        #     return self._kernel._stub_symbol_table
-        # else:
-        #     self._kernel._stub_symbol_table = LFRicSymbolTable()
+        # Otherwise it is a kernel
         return self._kernel._stub_symbol_table
 
     @property
@@ -106,6 +103,7 @@ class LFRicCollection():
         '''
         if self._invoke:
             return self._invoke.schedule.kernels()
+        # Otherwise it is a kernel
         return [self._kernel]
 
     def declarations(self, cursor):

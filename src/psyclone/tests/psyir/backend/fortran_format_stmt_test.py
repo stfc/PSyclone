@@ -36,7 +36,6 @@
 '''Module containing pytest tests for the handling of CodeBlocks containing
 Fortran Format statements in the backend.'''
 
-from __future__ import absolute_import
 from psyclone.psyir.nodes import Routine
 
 

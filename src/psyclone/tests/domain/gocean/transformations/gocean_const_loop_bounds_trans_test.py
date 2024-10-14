@@ -38,7 +38,6 @@
 ''' Module containing tests of GOConstLoopBoundsTrans when using the
     GOcean 1.0 API '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOLoop

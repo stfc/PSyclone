@@ -37,8 +37,6 @@
 
 ''' Performs py.test tests on the FileContainer PSyIR node. '''
 
-from __future__ import absolute_import
-
 from psyclone.psyir.nodes import Routine, FileContainer, Container
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter

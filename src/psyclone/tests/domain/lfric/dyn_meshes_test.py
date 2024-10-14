@@ -35,7 +35,6 @@
 
 ''' This module uses pytest to test the DynMeshes class. '''
 
-from __future__ import absolute_import, print_function
 import os
 
 from psyclone.dynamo0p3 import DynMeshes

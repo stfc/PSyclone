@@ -636,12 +636,6 @@ class Invoke():
                 declns["inout"].append(arg)
         return declns
 
-    def gen(self):
-        from psyclone.f2pygen import ModuleGen
-        module = ModuleGen("container")
-        self.gen_code(module)
-        return module.root
-
     @abc.abstractmethod
     def gen_code(self, parent):
         '''
