@@ -147,17 +147,19 @@ class GOOpenCLTrans(Transformation):
 
         # Validate options map
         valid_options = ['end_barrier', 'enable_profiling', 'out_of_order']
-        for key, value in options.items():
-            if key in valid_options:
-                # All current options should contain boolean values
-                if not isinstance(value, bool):
+        if options:
+            for key, value in options.items():
+                if key in valid_options:
+                    # All current options should contain boolean values
+                    if not isinstance(value, bool):
+                        raise TransformationError(
+                            f"InvokeSchedule OpenCL option '{key}' should be "
+                            f"a boolean.")
+                else:
                     raise TransformationError(
-                        f"InvokeSchedule OpenCL option '{key}' should be a "
-                        f"boolean.")
-            else:
-                raise TransformationError(
-                    f"InvokeSchedule does not support the OpenCL option "
-                    f"'{key}'. The supported options are: {valid_options}.")
+                        f"InvokeSchedule does not support the OpenCL option "
+                        f"'{key}'. The supported options are: "
+                        f"{valid_options}.")
 
         # Validate that the options are valid with previously generated OpenCL
         if self._transformed_invokes > 0:
@@ -192,7 +194,9 @@ class GOOpenCLTrans(Transformation):
         # any form of global data (that is not a routine argument).
         for kern in node.kernels():
             KernelModuleInlineTrans().validate(kern)
-            ksched = kern.get_kernel_schedule()
+            _, kschedules = kern.get_kernel_schedule()
+            # GOcean Kernels must have a single implementation.
+            ksched = kschedules[0]
             global_variables = ksched.symbol_table.imported_symbols
             if global_variables:
                 raise TransformationError(
@@ -749,7 +753,9 @@ class GOOpenCLTrans(Transformation):
 
         # Create a copy of the kernel and remove precision symbols since they
         # are not supported in the OpenCL backend.
-        kernel_copy = kernel.get_kernel_schedule().copy()
+        _, schedules = kernel.get_kernel_schedule()
+        # validate() has checked that the kernel is not polymorphic.
+        kernel_copy = schedules[0].copy()
         symtab = kernel_copy.symbol_table
 
         # TODO #898: Removing symbols is not properly supported by PSyIR

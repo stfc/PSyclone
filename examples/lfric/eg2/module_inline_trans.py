@@ -46,12 +46,9 @@ def trans(psy):
     PSyclone transformation routine. This is an example which module-inlines
     the kernel used in the second 'invoke' in the supplied PSy object.
 
-    :param psy: the PSy object that PSyclone has constructed for the \
+    :param psy: the PSy object that PSyclone has constructed for the
                 'invoke'(s) found in the Algorithm file.
     :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
     '''
     invokes = psy.invokes
@@ -61,15 +58,7 @@ def trans(psy):
     print(schedule.view())
     # Find the kernel we want to inline.
     kern = schedule.walk(Kern)[0]
-    # Setting module inline directly.
-    kern.module_inline = True
-    print(schedule.view())
-    # Unsetting module inline via a transformation.
     inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(kern, {"inline": False})
-    print(schedule.view())
-    # Setting module inline via a transformation.
+    # Apply the inlining transformation.
     inline_trans.apply(kern)
     print(schedule.view())
-
-    return psy
