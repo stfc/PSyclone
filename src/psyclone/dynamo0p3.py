@@ -1566,11 +1566,6 @@ class DynProxies(LFRicCollection):
                 # The data for an operator lives in a rank-3 array.
                 rank = 1 if arg not in op_args else 3
                 self._add_symbol(new_name, tag, intrinsic_type, arg, rank)
-                if suffix == "local_stencil":
-                    suffix = "proxy"
-                    new_name = self.symtab.next_available_name(
-                        f"{arg.name}_{suffix}")
-                    self._add_symbol(new_name, new_name, intrinsic_type, arg, rank)
 
     def _add_symbol(self, name, tag, intrinsic_type, arg, rank):
         '''
@@ -2559,9 +2554,12 @@ class DynMeshes():
             colour_map = sym_tab.find_or_create(
                 base_name,
                 symbol_type=DataSymbol,
-                datatype=ArrayType(
-                        LFRicTypes("LFRicIntegerScalarDataType")(),
-                        [ArrayType.Extent.DEFERRED]*2),
+                datatype=UnsupportedFortranType(
+                    f"integer(kind=i_def), pointer, dimension(:,:) :: {base_name}"
+                    f" => null()"),
+                # datatype=ArrayType(
+                #         LFRicTypes("LFRicIntegerScalarDataType")(),
+                #         [ArrayType.Extent.DEFERRED]*2),
                 tag=base_name)
             # No. of colours
             base_name = "ncolour_" + carg_name

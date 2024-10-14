@@ -133,7 +133,11 @@ class LFRicKern(CodedKern):
         '''
         # Use the KernelCallArgList class, which can also provide variable
         # access information:
+        # KernCallArgList creates symbols (sometimes with wrong type), we don't
+        # want those to be kept in the SymbolTable, so we copy the symbol table
+        tmp_symtab = self.ancestor(InvokeSchedule).symbol_table.deep_copy()
         create_arg_list = KernCallArgList(self)
+        create_arg_list._forced_symtab = tmp_symtab
         create_arg_list.generate(var_accesses)
 
         super().reference_accesses(var_accesses)

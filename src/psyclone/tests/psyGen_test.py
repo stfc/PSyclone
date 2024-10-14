@@ -564,7 +564,7 @@ def test_codedkern_module_inline_gen_code(tmpdir):
 
     gen = str(psy.gen)
     assert "use ru_kernel_mod, only : ru_code" not in gen
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    # assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):

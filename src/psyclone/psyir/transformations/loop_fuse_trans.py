@@ -43,7 +43,8 @@ class for all API-specific loop fusion transformations.
 from psyclone.core import AccessType, SymbolicMaths, VariablesAccessInfo, \
     Signature
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.psyir.nodes import Reference
+from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \

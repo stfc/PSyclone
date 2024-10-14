@@ -369,7 +369,6 @@ class Compile():
                 psy_file.write(fll.process(str(psy_ast.gen)))
 
             success = True
-
             modules = set()
             # import pdb; pdb.set_trace()
             # Get the names of all the imported modules as these are
@@ -378,6 +377,7 @@ class Compile():
                 # Get any module that is imported in the PSyIR tree
                 for scope in invoke.schedule.root.walk(ScopingNode):
                     for symbol in scope.symbol_table.containersymbols:
+                        # external = symbol.find_container_psyir()
                         modules.add(symbol.name)
 
                 # Not everything is captured by PSyIR yet (some API PSy-layers

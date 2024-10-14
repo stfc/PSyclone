@@ -527,7 +527,6 @@ assemble_weak_derivative_w3_w2_kernel_code
     real(kind=r_def), pointer, dimension(:) :: coord_3_data => null()
     real(kind=r_def), pointer, dimension(:,:,:) :: mapping_local_stencil => \
 null()
-    real(kind=r_def), pointer, dimension(:,:,:) :: mapping_proxy => null()
     integer(kind=i_def) :: nlayers_mapping
     integer(kind=i_def) :: ndf_w3
     integer(kind=i_def) :: ndf_w2
@@ -536,7 +535,7 @@ null()
     integer(kind=i_def), pointer :: map_w0(:,:) => null()
     type(quadrature_xyoz_proxy_type) :: qr_proxy
     type(field_proxy_type), dimension(3) :: coord_proxy
-    type(operator_proxy_type) :: mapping_proxy_1
+    type(operator_proxy_type) :: mapping_proxy
     integer(kind=i_def) :: np_xy_qr
     integer(kind=i_def) :: np_z_qr
     real(kind=r_def), pointer :: weights_xy_qr(:) => null()

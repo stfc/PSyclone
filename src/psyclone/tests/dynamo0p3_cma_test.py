@@ -824,7 +824,7 @@ def test_cma_asm(tmpdir, dist_mem):
             in code)
     assert ("use columnwise_operator_mod, only : columnwise_operator_proxy_"
             "type, columnwise_operator_type\n" in code)
-    assert "type(operator_proxy_type) :: lma_op1_proxy" in code
+    assert "type(operator_proxy_type) :: lma_op1_proxy\n" in code
     assert ("real(kind=r_def), pointer, dimension(:,:,:) :: "
             "lma_op1_local_stencil => null()" in code)
     assert ("type(columnwise_operator_type), intent(inout) :: cma_op1"
@@ -867,17 +867,17 @@ def test_cma_asm_field(tmpdir, dist_mem):
             in code)
     assert ("use columnwise_operator_mod, only : columnwise_operator_proxy_"
             "type, columnwise_operator_type\n" in code)
-    assert "type(operator_proxy_type) :: lma_op1_proxy" in code
-    assert "type(columnwise_operator_type), intent(inout) :: cma_op1" in code
-    assert "type(columnwise_operator_proxy_type) :: cma_op1_proxy" in code
+    assert "type(operator_proxy_type) :: lma_op1_proxy\n" in code
+    assert "type(columnwise_operator_type), intent(inout) :: cma_op1\n" in code
+    assert "type(columnwise_operator_proxy_type) :: cma_op1_proxy\n" in code
     assert ("integer(kind=i_def), pointer :: "
-            "cbanded_map_aspc1_afield(:,:) => null()" in code)
+            "cbanded_map_aspc1_afield(:,:) => null()\n" in code)
     assert ("integer(kind=i_def), pointer :: "
-            "cbanded_map_aspc2_lma_op1(:,:) => null()" in code)
+            "cbanded_map_aspc2_lma_op1(:,:) => null()\n" in code)
     assert "integer(kind=i_def) :: ncell_2d" in code
-    assert "mesh => afield_proxy%vspace%get_mesh()" in code
+    assert "mesh => afield_proxy%vspace%get_mesh()\n" in code
     assert "ncell_2d = mesh%get_ncells_2d()" in code
-    assert "cma_op1_proxy = cma_op1%get_proxy()" in code
+    assert "cma_op1_proxy = cma_op1%get_proxy()\n" in code
     expected = (
         "call columnwise_op_asm_field_kernel_code(cell, nlayers_cma_op1, "
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "

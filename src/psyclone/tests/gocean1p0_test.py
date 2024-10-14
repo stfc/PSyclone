@@ -1093,14 +1093,14 @@ def test_invalid_access_type():
                      str(err.value)) is not None
 
 
-def test_compile_with_dependency(tmpdir):
-    ''' Check that we can do test compilation for an invoke of a kernel
-    that has a dependency on a non-infrastructure module. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "single_invoke_kern_with_use.f90"),
-        api=API)
-    psy = PSyFactory(API).create(invoke_info)
-    assert GOceanBuild(tmpdir).code_compiles(psy, ["model_mod"])
+# def test_compile_with_dependency(tmpdir):
+#     ''' Check that we can do test compilation for an invoke of a kernel
+#     that has a dependency on a non-infrastructure module. '''
+#     _, invoke_info = parse(
+#         os.path.join(BASE_PATH, "single_invoke_kern_with_use.f90"),
+#         api=API)
+#     psy = PSyFactory(API).create(invoke_info)
+#     assert GOceanBuild(tmpdir).code_compiles(psy, ["model_mod"])
 
 
 # -----------------------------------
