@@ -93,6 +93,47 @@ end module testkern_field_mod
     return kern
 
 
+@pytest.fixture(name="lfrickern_halo", scope="module")
+def lfrichalokern_fixture():
+    '''
+    :returns: a LFRicKern object created from example metadata which specifies
+              that the kernel operates on cell halos.
+    :rtype: :py:class:`psyclone.domain.lfric.LFRicKern`
+    '''
+    mdata_code = '''
+module testkern_field_mod
+  type, extends(kernel_type) :: testkern_field_type
+     type(arg_type), meta_args(8) =                               &
+          (/ arg_type(gh_scalar, gh_real,    gh_read),            &
+             arg_type(gh_field,  gh_real,    gh_readinc, w0),     &
+             arg_type(gh_field,  gh_real,    gh_inc,     w1),     &
+             arg_type(gh_field*3,gh_integer, gh_read,    w2),     &
+             arg_type(gh_field,  gh_integer, gh_write,   wtheta), &
+             arg_type(gh_field,  gh_integer, gh_read,    w3),     &
+             arg_type(gh_scalar, gh_integer, gh_read),            &
+             arg_type(gh_scalar, gh_logical, gh_read)             &
+           /)
+     integer :: operates_on = halo_cell_column
+   contains
+     procedure, nopass :: code => testkern_field_code
+  end type testkern_field_type
+contains
+  subroutine testkern_field_code()
+  end subroutine testkern_field_code
+end module testkern_field_mod
+'''
+    # This fixture doesn't need a parser fixture as currently the metadata
+    # parsing is handled by fparser1.
+    # Once we switch over to using fparser2 (#1631) then this fixture may
+    # need to ensure that fparser2 is initialised correctly.
+    kernel_metadata = get_kernel_parse_tree(mdata_code)
+    ktype = KernelTypeFactory(api="lfric").create(
+        kernel_metadata, name="testkern_field_type")
+    kern = LFRicKern()
+    kern.load_meta(ktype)
+    return kern
+
+
 @pytest.fixture(name="lfrickern_op", scope="module")
 def lfrickern_op_fixture():
     '''

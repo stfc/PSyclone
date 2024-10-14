@@ -4935,8 +4935,9 @@ def check_args(call, parent_call):
     if expected_arg_count != len(call.args):
         msg = ""
         if parent_call:
-            invoke_name = parent_call.ancestor(LFRicInvokeSchedule).name
-            msg = f"from invoke '{invoke_name}' "
+            invoke = parent_call.ancestor(LFRicInvokeSchedule)
+            if invoke:
+                msg = f"from invoke '{invoke.name}' "
         raise GenerationError(
             f"error: expected '{expected_arg_count}' arguments for the call "
             f"to kernel '{call.ktype.name}' {msg}in the algorithm layer but "

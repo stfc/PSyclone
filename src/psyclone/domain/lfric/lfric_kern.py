@@ -222,6 +222,13 @@ class LFRicKern(CodedKern):
                     # Add a quadrature argument for each required quadrature
                     # rule.
                     args.append(Arg("variable", "qr_"+shape))
+
+        # If this kernel operates on halo cells then it takes an additional
+        # argument specifying the halo depth.
+        if ktype.iterates_over in ["halo_cell_column",
+                                   "owned_and_halo_cell_column"]:
+            args.append(Arg("variable", "halo_depth"))
+
         self._setup(ktype, "dummy_name", args, None, check=False)
 
     def _setup_basis(self, kmetadata):

@@ -333,10 +333,9 @@ class KernCallInvokeArgList(ArgOrdering):
         symbols to the SymbolTable. Optionally also adds variable access
         information to the var_accesses object.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         lfric_const = LFRicConstants()
@@ -358,11 +357,26 @@ class KernCallInvokeArgList(ArgOrdering):
 
     def halo_depth(self, var_accesses=None):
         '''
+        Add a halo-depth argument to the Kernel argument list if this kernel
+        operates on halo cells.
+        Optionally, also adds variable access information to the var_accesses
+        object.
+
+        :param var_accesses: optional VariablesAccessInfo instance to store
+            information about variable accesses.
+        :type var_accesses: Optional[
+            :py:class:`psyclone.core.VariablesAccessInfo`
+
         '''
         if self._kern.iterates_over not in ["halo_cell_column",
                                             "owned_and_halo_cell_column"]:
+            # This kernel does not operate on halo cells.
             return
-        assert 0, "TODO: Implement KernCallInvokeArgList.halo_depth"
+        sym = self._symtab.new_symbol(
+            self._kern.halo_depth,
+            symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+        self.append(sym.name, var_accesses)
 
 
 # ============================================================================
