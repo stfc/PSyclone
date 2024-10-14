@@ -949,24 +949,6 @@ class LFRicLoop(PSyLoop):
                     cursor += 1
                     insert_loc.addchild(call, cursor)
 
-            # if cursor > init_cursor:
-            #     if (len(insert_loc.children) > init_cursor + 2 and
-            #           insert_loc[init_cursor + 2].preceding_comment.\
-            #                 startswith("Set halos dirty")):
-            #         # If a "Set halo dirty" block was already started, put
-            #         # this one inside
-            #         insert_loc[init_cursor + 1].detach()
-            #         insert_loc.addchild(call, )
-            #             insert_loc[init_cursor + 2], insert_loc[init_cursor + 1]
-            #     else:
-            #         # Otherwise create a new block
-            #         insert_loc[init_cursor + 1].preceding_comment = (
-            #             "Set halos dirty/clean for fields modified in the above "
-            #             "loop(s)")
-            #         # if cursor < len(insert_loc.children) - 1:
-            #         #     insert_loc[cursor + 1].preceding_comment = (
-            #         #         "End of set dirty/clean section for above loop(s)")
-
             # Now set appropriate parts of the halo clean where
             # redundant computation has been performed.
             if hwa.literal_depth:
@@ -1039,6 +1021,18 @@ class LFRicLoop(PSyLoop):
                     # call = CallGen(parent, name=f"{field.proxy_name}%"
                     #                f"set_clean({halo_depth})")
                     # parent.add(call)
+
+        if cursor > init_cursor:
+            comment_already_there = False
+            for child in insert_loc.children[init_cursor:]:
+                if child.preceding_comment.startswith("Set halos dirty"):
+                    child.preceding_comment = ""
+            #         comment_already_there = True
+            # if not comment_already_there:
+            insert_loc[init_cursor + 1].preceding_comment = (
+                "Set halos dirty/clean for fields modified in the above "
+                "loop(s)")
+
 
     def independent_iterations(self,
                                test_all_variables=False,

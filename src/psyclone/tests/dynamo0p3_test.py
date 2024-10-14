@@ -2385,8 +2385,8 @@ def test_halo_dirty_1():
     generated_code = str(psy.gen)
     expected = (
         "    enddo\n"
-        # "\n"
-        # "    ! Set halos dirty/clean for fields modified in the above loop\n"
+        "\n"
+        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
         "    call f1_proxy%set_dirty()\n")
     assert expected in generated_code
 
@@ -2400,8 +2400,8 @@ def test_halo_dirty_2(tmpdir):
     generated_code = str(psy.gen)
     expected = (
         "    enddo\n"
-        # "\n"
-        # "    ! Set halos dirty/clean for fields modified in the above loop\n"
+        "\n"
+        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
         "    call f1_proxy%set_dirty()\n"
         "    call f1_proxy%set_clean(1)\n"
         "    call f3_proxy%set_dirty()\n"
@@ -2435,8 +2435,8 @@ def test_halo_dirty_4():
     generated_code = str(psy.gen)
     expected = (
         "    enddo\n"
-        # "\n"
-        # "    ! Set halos dirty/clean for fields modified in the above loop\n"
+        "\n"
+        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
         "    call chi_proxy(1)%set_dirty()\n"
         "    call chi_proxy(2)%set_dirty()\n"
         "    call chi_proxy(3)%set_dirty()\n"
@@ -3123,9 +3123,9 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "f1_data, f2_data, f3_data, ndf_any_w2, "
             "undf_any_w2, map_any_w2(:,cell))\n"
             "    enddo\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f1_proxy%set_dirty()")
         assert output in generated_code
     else:

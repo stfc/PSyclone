@@ -610,8 +610,8 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
         # of the fine(r) mesh will now be clean. Therefore, no halo
         # swap before the next prolongation required for fld_m
         expected = (
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call fld_m_proxy%set_dirty()\n"
             "    call fld_m_proxy%set_clean(1)\n"
             "    if (fld_f_proxy%is_dirty(depth=1)) then\n"

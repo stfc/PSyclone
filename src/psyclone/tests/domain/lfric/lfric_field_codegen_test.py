@@ -287,9 +287,9 @@ def test_field_deref(tmpdir, dist_mem):
     assert output in generated_code
     if dist_mem:
         output = (
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
             )
         assert output in generated_code
@@ -563,8 +563,9 @@ module single_invoke_fs_psy
         "map_w2vtrace(:,cell), ndf_wchi, undf_wchi, map_wchi(:,cell), "
         "ndf_any_w2, undf_any_w2, map_any_w2(:,cell))\n"
         "    enddo\n"
-        # "\n"
-        # "    ! Set halos dirty/clean for fields modified in the above loop\n"
+        "\n"
+        "    ! Set halos dirty/clean for fields modified in the above loop(s)"
+        "\n"
         "    call f1_proxy%set_dirty()\n"
         "    call f3_proxy%set_dirty()\n"
         "    call f3_proxy%set_clean(1)\n"
@@ -823,8 +824,8 @@ def test_int_field_fs(tmpdir):
         "undf_aspc1_f8, map_aspc1_f8(:,cell), ndf_adspc1_m7, "
         "undf_adspc1_m7, map_adspc1_m7(:,cell))\n"
         "    enddo\n"
-        # "\n"
-        # "    ! Set halos dirty/clean for fields modified in the above loop\n"
+        "\n"
+        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
         "    call f2_proxy%set_dirty()\n"
         "    call f3_proxy%set_dirty()\n"
         "    call f3_proxy%set_clean(1)\n"

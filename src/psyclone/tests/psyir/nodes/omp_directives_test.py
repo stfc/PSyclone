@@ -4689,15 +4689,13 @@ def test_omptarget_gen_code():
     # generated after it
     code = str(psy.gen)
     assert """
-      !$omp target
-      DO cell = loop0_start, loop0_stop, 1
-        CALL testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, \
+    !$omp target
+    do cell = loop0_start, loop0_stop, 1
+      call testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, \
 m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), \
 ndf_w3, undf_w3, map_w3(:,cell))
-      END DO
-      !$omp end target
-      !
-      ! Set halos dirty/clean for fields modified in the above loop(s)
-      !
-      CALL f1_proxy%set_dirty()
-    """ in code
+    enddo
+    !$omp end target
+
+    ! Set halos dirty/clean for fields modified in the above loop(s)
+    call f1_proxy%set_dirty()""" in code

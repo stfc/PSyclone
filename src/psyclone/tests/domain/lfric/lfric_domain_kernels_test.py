@@ -336,9 +336,9 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
         "    enddo\n")
     if dist_mem:
         expected += (
-            # "\n"
-            # "    ! set halos dirty/clean for fields modified in the above "
-            # "loop\n"
+            "\n"
+            "    ! set halos dirty/clean for fields modified in the above "
+            "loop(s)\n"
             "    call f2_proxy%set_dirty()\n")
     expected += (
         "    call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, b, "
@@ -372,9 +372,9 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     if dist_mem:
         assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in gen_code
         expected += (
-                     # "\n"
-                     # "    ! set halos dirty/clean for fields modified in "
-                     # "the above kernel\n"
+                     "\n"
+                     "    ! set halos dirty/clean for fields modified in "
+                     "the above loop(s)\n"
                      "    call f1_proxy%set_dirty()\n"
                      "    if (f2_proxy%is_dirty(depth=1)) then\n"
                      "      call f2_proxy%halo_exchange(depth=1)\n"
@@ -395,9 +395,9 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
         "    enddo\n")
     if dist_mem:
         expected += (
-            # "\n"
-            # "      ! set halos dirty/clean for fields modified in the above "
-            # "loop\n"
+            "\n"
+            "    ! set halos dirty/clean for fields modified in the above "
+            "loop(s)\n"
             "    call f1_proxy%set_dirty()\n")
     expected += (
         "    call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, c, "
@@ -405,8 +405,8 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     assert expected in gen_code
     if dist_mem:
         assert (
-                # "    ! set halos dirty/clean for fields modified in the "
-                # "above kernel\n"
+                "    ! set halos dirty/clean for fields modified in the "
+                "above loop(s)\n"
                 "    call f5_proxy%set_dirty()\n"
                 "\n"
                 "  end subroutine invoke_0" in gen_code)

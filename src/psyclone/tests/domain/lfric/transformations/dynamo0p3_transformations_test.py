@@ -240,9 +240,9 @@ def test_colour_trans(tmpdir, dist_mem):
         # the correct location
         dirty_str = (
             "    enddo\n"
-            # "\n"
-            # "    ! set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
+            "\n"
+            "    ! set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n")
         assert dirty_str in gen
         assert gen.count("set_dirty()") == 1
@@ -1325,8 +1325,8 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
 
     if dist_mem:
         set_dirty_str = (
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call a_proxy%set_dirty()\n"
             "    call f_proxy%set_dirty()\n")
         assert set_dirty_str in code
@@ -1458,9 +1458,9 @@ def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      f2_data(df) = f1_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f2_proxy%set_dirty()")
         assert code in result
     else:  # not distmem. annexed can be True or False
@@ -1513,9 +1513,9 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      f1_data(df) = fred\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
             "    !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
@@ -1525,9 +1525,9 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      f2_data(df) = 3.0_r_def\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f2_proxy%set_dirty()\n"
             "    !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
@@ -1537,9 +1537,9 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      f3_data(df) = ginger\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f3_proxy%set_dirty()")
         assert code in result
     else:  # not distmem. annexed can be True or False
@@ -1620,9 +1620,9 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      f3_data(df) = ginger\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
             "    call f2_proxy%set_dirty()\n"
             "    call f3_proxy%set_dirty()")
@@ -1690,9 +1690,9 @@ def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f2_proxy%set_dirty()\n") in result
     else:  # distmem is False. annexed can be True or False
         assert "loop0_stop = undf_aspc1_f2" in result
@@ -1772,9 +1772,9 @@ def test_builtin_multiple_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f3_proxy%set_dirty()\n"
             "    call f2_proxy%set_dirty()\n"
             "    call f1_proxy%set_dirty()\n"
@@ -1863,9 +1863,9 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
             "    call f2_proxy%set_dirty()\n"
             "    call f3_proxy%set_dirty()\n")
@@ -2104,9 +2104,9 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()")
@@ -2192,9 +2192,9 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
             "\n"
             "    ! sum the partial results sequentially\n"
@@ -2615,9 +2615,9 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      f1_data(df) = bsum * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n")
         assert code in result
     else:  # not distmem. annexed can be True or False
@@ -2698,9 +2698,9 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
             # "\n"
             "    global_sum%value = asum\n"
@@ -2786,9 +2786,9 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      f1_data(df) = bsum * f1_data(df)\n"
                 "    enddo\n"
                 "    !$omp end parallel do\n"
-                # "\n"
-                # "    ! Set halos dirty/clean for fields modified in the "
-                # "above loop(s)\n"
+                "\n"
+                "    ! Set halos dirty/clean for fields modified in the "
+                "above loop(s)\n"
                 "    call f1_proxy%set_dirty()\n"
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
@@ -2870,9 +2870,9 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "    enddo\n"
                 "    !$omp end do\n"
                 "    !$omp end parallel\n"
-                # "\n"
-                # "    ! Set halos dirty/clean for fields modified in the "
-                # "above loop(s)\n"
+                "\n"
+                "    ! Set halos dirty/clean for fields modified in the "
+                "above loop(s)\n"
                 "    call f1_proxy%set_dirty()\n"
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
@@ -2937,9 +2937,9 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "      f1_data(df) = bvalue * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
             "\n"
             "    ! Zero summation variables\n"
@@ -3024,9 +3024,9 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      asum = asum + f1_data(df)\n"
                 "    enddo\n"
                 "    !$omp end parallel do\n"
-                # "\n"
-                # "    ! Set halos dirty/clean for fields modified in the "
-                # "above loop(s)\n"
+                "\n"
+                "    ! Set halos dirty/clean for fields modified in the "
+                "above loop(s)\n"
                 "    call f1_proxy%set_dirty()\n"
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
@@ -3101,9 +3101,9 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "    enddo\n"
                 "    !$omp end do\n"
                 "    !$omp end parallel\n"
-                # "\n"
-                # "    ! Set halos dirty/clean for fields modified in the "
-                # "above loop(s)\n"
+                "\n"
+                "    ! Set halos dirty/clean for fields modified in the "
+                "above loop(s)\n"
                 "    call f1_proxy%set_dirty()\n"
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
@@ -3343,6 +3343,9 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
             "\n"
             "    ! sum the partial results sequentially\n"
@@ -3350,9 +3353,6 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      asum = asum + l_asum(1,th_idx)\n"
             "    enddo\n"
             "    DEALLOCATE(l_asum)\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the "
-            # "above loop(s)\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n")
         assert code in result
@@ -3457,9 +3457,9 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "    enddo\n"
                 "    !$omp end do\n"
                 "    !$omp end parallel\n"
-                # "\n"
-                # "    ! Set halos dirty/clean for fields modified in the "
-                # "above loop(s)\n"
+                "\n"
+                "    ! Set halos dirty/clean for fields modified in the "
+                "above loop(s)\n"
                 "    call f1_proxy%set_dirty()\n"
                 "\n"
                 "    ! sum the partial results sequentially\n"
@@ -3553,9 +3553,9 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "    enddo\n"
                 "    !$omp end do\n"
                 "    !$omp end parallel\n"
-                # "\n"
-                # "    ! Set halos dirty/clean for fields modified in the "
-                # "above loop(s)\n"
+                "\n"
+                "    ! Set halos dirty/clean for fields modified in the "
+                "above loop(s)\n"
                 "    call f1_proxy%set_dirty()\n"
                 "\n"
                 "    ! sum the partial results sequentially\n"
@@ -6547,9 +6547,9 @@ def test_acckernelstrans_dm():
     assert (
         "    enddo\n"
         "    !$acc end kernels\n"
-        # "\n"
-        # "    ! Set halos dirty/clean for fields modified in the above "
-        # "loop(s)\n"
+        "\n"
+        "    ! Set halos dirty/clean for fields modified in the above "
+        "loop(s)\n"
         "    call f1_proxy%set_dirty()\n" in code)
 
 # Class ACCKernelsTrans end
@@ -6616,9 +6616,9 @@ def test_accparalleltrans_dm(tmpdir):
             "undf_w3, map_w3(:,cell))\n"
             "    enddo\n"
             "    !$acc end parallel\n"
-            # "\n"
-            # "    ! Set halos dirty/clean for fields modified in the above "
-            # "loop(s)\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the above "
+            "loop(s)\n"
             "    call f1_proxy%set_dirty()\n" in code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -6985,7 +6985,7 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
         "      call m2_proxy%halo_exchange_finish(depth=2)\n"
         "    end if\n") in result
     assert (
-        # "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
+        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
         "    call m2_proxy%set_dirty()\n"
         "    call m2_proxy%set_clean(2)\n") in result
 
@@ -7004,7 +7004,7 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
         "      call m2_proxy%halo_exchange_finish(depth=2)\n"
         "    end if\n") in result
     assert (
-        # "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
+        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
         "    call m2_proxy%set_dirty()\n"
         "    call m2_proxy%set_clean(2)\n") in result
 
@@ -7024,8 +7024,7 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
         "      call m2_proxy%halo_exchange_finish(depth=3)\n"
         "    end if\n") in result
     assert (
-        # "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
-        # "    !\n"
+        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
         "    call m2_proxy%set_dirty()\n"
         "    call m2_proxy%set_clean(3)\n") in result
 

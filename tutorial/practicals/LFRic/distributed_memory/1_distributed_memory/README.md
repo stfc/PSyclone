@@ -186,20 +186,16 @@ loops.
 
 ```fortran
       ! Call kernels and communication routines
-      !
-      DO df=1,grad_p_proxy%vspace%get_last_dof_owned()
+      do df=1,grad_p_proxy%vspace%get_last_dof_owned()
         grad_p_proxy%data(df) = 0.0_r_def
-      END DO
-      !
+      enddo
+
       ! Set halos dirty/clean for fields modified in the above loop
-      !
-      CALL grad_p_proxy%set_dirty()
-      !
-      CALL grad_p_proxy%halo_exchange(depth=1)
-      !
-      IF (p_proxy%is_dirty(depth=1)) THEN
-        CALL p_proxy%halo_exchange(depth=1)
-      END IF
+      call grad_p_proxy%set_dirty()
+      call grad_p_proxy%halo_exchange(depth=1)
+      if (p_proxy%is_dirty(depth=1)) then
+        call p_proxy%halo_exchange(depth=1)
+      end if
       ...
 ```
 
