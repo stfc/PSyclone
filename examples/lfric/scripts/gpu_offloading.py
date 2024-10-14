@@ -125,7 +125,7 @@ def trans(psy):
         # Colour loops over cells unless they are on discontinuous spaces
         # (alternatively we could annotate the kernels with atomics)
         for loop in schedule.loops():
-            if loop.iteration_space == "cell_column":
+            if loop.iteration_space.endswith("cell_column"):
                 if (loop.field_space.orig_name not in
                         const.VALID_DISCONTINUOUS_NAMES):
                     ctrans.apply(loop)
@@ -133,7 +133,7 @@ def trans(psy):
         # Mark Kernels inside the loops over cells as GPU-enabled
         # (alternatively we could inline them)
         for loop in schedule.loops():
-            if loop.iteration_space == "cell_column":
+            if loop.iteration_space.endswith("cell_column"):
                 if offload:
                     for kern in loop.kernels():
                         try:
