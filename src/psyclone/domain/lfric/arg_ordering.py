@@ -375,9 +375,7 @@ class ArgOrdering:
 
         # If this kernel iterates into the halos then include a halo-depth
         # argument.
-        if self._kern.iterates_over in ["halo_cell_column",
-                                        "owned_and_halo_cell_column"]:
-            self.halo_depth(var_accesses=var_accesses)
+        self.halo_depth(var_accesses=var_accesses)
 
         # Pass the number of columns in the mesh if this kernel operates on
         # the 'domain' or has a CMA operator argument. For the former we

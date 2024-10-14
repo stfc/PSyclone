@@ -187,10 +187,6 @@ class LFRicArgDescriptor(Descriptor):
             raise InternalError(
                 f"Expected operates_on in the kernel metadata to be one of "
                 f"{const.VALID_ITERATION_SPACES} but got '{operates_on}'.")
-        # For backwards compatibility we still support "cell_column" as a
-        # pseudonym for "owned_cell_column".
-        if operates_on == "cell_column":
-            operates_on = "owned_cell_column"
 
         # FIELD, OPERATOR and SCALAR argument type descriptors and checks
         if self._argument_type in const.VALID_FIELD_NAMES:
