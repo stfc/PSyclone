@@ -950,12 +950,14 @@ class LFRicLoop(PSyLoop):
                 else:
                     parent.add(CallGen(parent, name=field.proxy_name +
                                        "%set_dirty()"))
-            # Now set appropriate parts of the halo clean where
-            # redundant computation has been performed.
-            if hwa.literal_depth:
-                # halo access(es) is/are to a fixed depth
-                halo_depth = hwa.literal_depth
+            # Now set appropriate parts of the halo clean where redundant
+            # computation has been performed or a kernel is written to operate
+            # on halo cells.
+            if hwa.literal_depth or hwa.var_depth:
+                halo_depth = (hwa.literal_depth if hwa.literal_depth
+                              else hwa.var_depth)
                 if hwa.dirty_outer:
+                    # TODO could replace with PSyIR?
                     if isinstance(halo_depth, int):
                         halo_depth -= 1
                     else:
