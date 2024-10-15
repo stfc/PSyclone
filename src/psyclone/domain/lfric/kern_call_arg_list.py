@@ -188,6 +188,7 @@ class KernCallArgList(ArgOrdering):
             the information about variable accesses.
         :type var_accesses: Optional[
             :py:class:`psyclone.core.VariablesAccessInfo`]
+
         '''
         if Config.get().distributed_memory:
             tag_name = f"{self._kern.halo_depth}"
