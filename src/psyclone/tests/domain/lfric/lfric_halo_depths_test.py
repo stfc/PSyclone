@@ -51,7 +51,7 @@ def test_lfric_halo_depth_ctor():
 
     '''
     # An invoke with no kernels that operate on halo cells.
-    _, invoke = get_invoke("1.2_multi_invoke.f90", API, idx=0)    
+    _, invoke = get_invoke("1.2_multi_invoke.f90", API, idx=0)
     hdepths = LFRicHaloDepths(invoke)
     assert not hdepths._halo_depth_vars
     # An invoke with three kernels, two of which operate on halo cells
@@ -62,4 +62,3 @@ def test_lfric_halo_depth_ctor():
     for sym in hdepths2._halo_depth_vars:
         assert isinstance(sym, DataSymbol)
         assert sym.name in ["hdepth", "other_depth"]
-               
