@@ -4441,21 +4441,26 @@ class HaloDepth():
         # pylint: disable=too-many-arguments
         '''Set halo depth information directly
 
-        :param bool max_depth: True if the field accesses all of the \
-        halo and False otherwise
-        :param str var_depth: A variable name specifying the halo \
-        access depth, if one exists, and None if not
-        :param int literal_depth: The known fixed (literal) halo \
-        access depth
-        :param bool annexed_only: True if only the halo's annexed dofs \
-        are accessed and False otherwise
-        :param bool max_depth_m1: True if the field accesses all of \
-        the halo but does not require the outermost halo to be correct \
-        and False otherwise
+        :param bool max_depth: True if the field accesses all of the
+            halo and False otherwise
+        :param str var_depth: A variable name specifying the halo
+            access depth, if one exists, and None if not
+        :param int literal_depth: The known fixed (literal) halo
+            access depth
+        :param bool annexed_only: True if only the halo's annexed dofs
+            are accessed and False otherwise
+        :param bool max_depth_m1: True if the field accesses all of
+            the halo but does not require the outermost halo to be correct
+            and False otherwise
+
+        :raises TypeError: if literal_depth is supplied but is not an int.
 
         '''
         self._max_depth = max_depth
         self._var_depth = var_depth
+        if literal_depth is not None and not isinstance(literal_depth, int):
+            raise TypeError(f"set_by_value: 'literal_depth' must be an int but"
+                            f" got '{type(literal_depth).__name__}'")
         self._literal_depth = literal_depth
         self._annexed_only = annexed_only
         self._max_depth_m1 = max_depth_m1
@@ -4615,7 +4620,8 @@ class HaloWriteAccess(HaloDepth):
         if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
             # loop does redundant computation
             if loop.upper_bound_halo_depth:
-                # loop redundant computation is to a fixed literal depth
+                # loop redundant computation is to a certain depth. This may
+                # be either a literal or a variable name.
                 depth = loop.upper_bound_halo_depth
             else:
                 # loop redundant computation is to the maximum depth
@@ -4624,17 +4630,25 @@ class HaloWriteAccess(HaloDepth):
         # field on the fine mesh then the halo depth is effectively
         # doubled
         if call.is_intergrid and field.mesh == "gh_fine":
+            # TODO ensure intergrid and 'halo cell' kernels are forbidden.
             depth *= 2
         # The third argument for set_by_value specifies the name of a
-        # variable used to specify the depth. Variables are currently
-        # not used when a halo is written to, so we pass None which
-        # indicates there is no variable.  the fifth argument for
-        # set_by_value indicates whether we only access
-        # annexed_dofs. At the moment this is not possible when
-        # modifying a field so we always return False. The sixth
+        # variable used to specify the depth while the fourth is a
+        # literal depth.
+        # TODO we could/should just pass a single PSyIR argument.
+        if isinstance(depth, int):
+            literal_depth = depth
+            var_depth = None
+        else:
+            literal_depth = None
+            var_depth = depth
+        # The fifth argument for set_by_value indicates whether
+        # we only access annexed_dofs. At the moment this is not possible when
+        # modifying a field so we always supply False. The sixth
         # argument indicates if the depth of access is the
-        # maximum-1. This is not possible here so we return False.
-        HaloDepth.set_by_value(self, max_depth, None, depth, False, False)
+        # maximum-1. This is not possible here so we supply False.
+        HaloDepth.set_by_value(self, max_depth, var_depth, literal_depth,
+                               False, False)
 
 
 class HaloReadAccess(HaloDepth):

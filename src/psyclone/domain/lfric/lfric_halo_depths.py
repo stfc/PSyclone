@@ -53,8 +53,8 @@ class LFRicHaloDepths(LFRicCollection):
     kernels that have operates_on == HALO_CELL_COLUMNS or
     OWNED_AND_HALO_CELL_COLUMNS) required by an Invoke or Kernel stub.
 
-    :param node:
-    :type node:
+    :param node: the LFRic Invoke for which to manage halo-depth arguments.
+    :type node: py:class:`psyclone.domain.lfric.lfric_invoke.LFRicInvoke`
 
     '''
     def __init__(self, node):
