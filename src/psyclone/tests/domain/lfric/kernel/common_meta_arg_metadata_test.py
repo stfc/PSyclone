@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modifier L. Turner, Met Office
 
 '''Module containing tests for the CommonMetaArgMetadata class.
 
@@ -58,10 +59,10 @@ def test_init_error():
     # We split the check to accomodate for this.
     assert ("Can't instantiate abstract class CommonMetaArgMetadata with"
             in str(info.value))
-    assert ("abstract methods" in str(info.value))
-    assert ("_get_metadata" in str(info.value))
-    assert ("check_access" in str(info.value))
-    assert ("check_datatype" in str(info.value))
+    assert "abstract methods" in str(info.value)
+    assert "_get_metadata" in str(info.value)
+    assert "check_access" in str(info.value)
+    assert "check_datatype" in str(info.value)
 # pylint: enable=abstract-class-instantiated
 
 
@@ -254,6 +255,17 @@ def test_get_vector_length():
     fparser_tree = CheckArg.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     vector_length = CheckArg.get_vector_length(fparser_tree)
+    assert vector_length == "3"
+
+
+def test_get_array_ndims():
+    '''Test that the get_array_ndims method in the
+    CommonMetaArgMetadata class works as expected.
+
+    '''
+    fparser_tree = CheckArg.create_fparser2(
+        "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 3)", Fortran2003.Part_Ref)
+    vector_length = CheckArg.get_array_ndims(fparser_tree)
     assert vector_length == "3"
 
 
