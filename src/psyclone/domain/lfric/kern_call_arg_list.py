@@ -52,6 +52,7 @@ from psyclone.domain.lfric.lfric_constants import LFRicConstants
 # Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Literal, Reference, StructureReference)
 from psyclone.psyir.symbols import (
@@ -191,11 +192,16 @@ class KernCallArgList(ArgOrdering):
 
         '''
         if Config.get().distributed_memory:
-            tag_name = f"{self._kern.halo_depth}"
-            sym = self._symtab.lookup_with_tag(tag_name)
-            self.append_integer_reference(f"{sym.name}", tag=tag_name)
-            self.append(f"{sym.name}", var_accesses=var_accesses,
-                        var_access_name=sym.name)
+            #tag_name = f"{self._kern.halo_depth}"
+            #sym = self._symtab.lookup_with_tag(tag_name)
+            self.psyir_append(self._kern.halo_depth.copy())
+            txt = FortranWriter()(self._kern.halo_depth)
+            if isinstance(self._kern.halo_depth, Reference):
+                name = self._kern.halo_depth.symbol.name
+            else:
+                name = None
+            self.append(txt, var_accesses=var_accesses,
+                        var_access_name=name)
         else:
             self.psyir_append(Literal("0", INTEGER_TYPE))
             self.append("0")

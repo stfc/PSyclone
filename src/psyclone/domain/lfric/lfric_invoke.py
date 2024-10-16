@@ -47,6 +47,7 @@ from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen, SubroutineGen,
                               UseGen)
 from psyclone.psyGen import Invoke
+from psyclone.psyir.nodes import Literal
 
 
 class LFRicInvoke(Invoke):
@@ -203,9 +204,10 @@ class LFRicInvoke(Invoke):
                 if call.iterates_over not in ["halo_cell_column",
                                               "owned_and_halo_cell_column"]:
                     continue
-                sym = table.lookup(call.halo_depth)
-                if sym.name not in self._alg_unique_halo_depth_args:
-                    self._alg_unique_halo_depth_args.append(sym.name)
+                if not isinstance(call.halo_depth, Literal):
+                    sym = call.halo_depth.symbol
+                    if sym.name not in self._alg_unique_halo_depth_args:
+                        self._alg_unique_halo_depth_args.append(sym.name)
 
             self._alg_unique_args.extend(self._alg_unique_halo_depth_args)
 

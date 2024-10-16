@@ -52,6 +52,7 @@ from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.psyGen import InvokeSchedule, CodedKern, args_filter
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (Loop, Literal, Reference,
                                   KernelSchedule)
@@ -271,6 +272,7 @@ class LFRicKern(CodedKern):
         super().__init__(DynKernelArguments,
                          KernelCall(module_name, ktype, args),
                          parent, check)
+
         # Remove "_code" from the name if it exists to determine the
         # base name which (if LFRic naming conventions are
         # followed) is used as the root for the module and subroutine
@@ -311,9 +313,13 @@ class LFRicKern(CodedKern):
                 f"Evaluator shape(s) {list(invalid_shapes)} is/are not "
                 f"recognised. Must be one of {const.VALID_EVALUATOR_SHAPES}.")
 
+        freader = FortranReader()
+        invoke_schedule = self.ancestor(InvokeSchedule)
+        table = invoke_schedule.symbol_table if invoke_schedule else None
         if ktype.iterates_over in ["halo_cell_column",
                                    "owned_and_halo_cell_column"]:
-            self._halo_depth = args[-1].text.lower()
+            self._halo_depth = freader.psyir_from_expression(
+                args[-1].text.lower(), symbol_table=table)
 
         # If there are any quadrature rule(s), what are the names of the
         # corresponding algorithm arguments? Can't use set() here because
@@ -334,8 +340,8 @@ class LFRicKern(CodedKern):
             # name for the whole Invoke.
             if qr_arg.varname:
                 tag = "AlgArgs_" + qr_arg.text
-                qr_name = self.ancestor(InvokeSchedule).symbol_table.\
-                    find_or_create_integer_symbol(qr_arg.varname, tag=tag).name
+                qr_name = table.find_or_create_integer_symbol(qr_arg.varname,
+                                                              tag=tag).name
             else:
                 # If we don't have a name then we must be doing kernel-stub
                 # generation so create a suitable name.

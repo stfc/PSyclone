@@ -44,6 +44,7 @@ from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.f2pygen import DeclGen
+from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import DataSymbol
 
 
@@ -67,16 +68,13 @@ class LFRicHaloDepths(LFRicCollection):
         for kern in self._calls:
             if not kern.halo_depth:
                 continue
-            name = kern.halo_depth
-            if name not in depth_names:
-                # An invoke could call the same kernel multiple times with
-                # different halo depths.
-                depth_names.add(name)
-                symbol = self._symbol_table.find_or_create_tag(
-                    f"{name}", root_name=name, symbol_type=DataSymbol,
-                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-
-                self._halo_depth_vars.add(symbol)
+            if not isinstance(kern.halo_depth, Literal):
+                name = kern.halo_depth.symbol.name
+                if name not in depth_names:
+                    # An invoke could call the same kernel multiple times with
+                    # different halo depths.
+                    depth_names.add(name)
+                    self._halo_depth_vars.add(kern.halo_depth.symbol)
 
     def _invoke_declarations(self, parent):
         '''

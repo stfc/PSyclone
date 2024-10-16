@@ -67,10 +67,12 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
                              KernelArgument, HaloExchange, GlobalSum,
                              DataAccess)
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Reference, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
-    StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall)
+    StructureReference, Literal, Node, IfBlock, Call, BinaryOperation,
+    IntrinsicCall)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     UnresolvedType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
@@ -3676,8 +3678,7 @@ def _create_depth_list(halo_info_list, sym_table):
             continue
         var_depth = halo_info.var_depth
         literal_depth = halo_info.literal_depth
-        if (literal_depth and isinstance(literal_depth, int) and
-                not halo_info.needs_clean_outer):
+        if literal_depth and not halo_info.needs_clean_outer:
             # Decrease depth by 1 if we don't care about the outermost
             # access.
             literal_depth -= 1
@@ -4136,7 +4137,7 @@ class LFRicHaloExchange(HaloExchange):
             idx = Literal(str(self.vector_index), INTEGER_TYPE)
             if_condition = Call.create(
                 ArrayOfStructuresReference.create(symbol, [idx], ['is_dirty']),
-                [('depth', depth_expr)])
+                [('depth', depth_expr.copy())])
             if_body = Call.create(
                 ArrayOfStructuresReference.create(
                     symbol, [idx.copy()], [method]),
@@ -4144,7 +4145,7 @@ class LFRicHaloExchange(HaloExchange):
         else:
             if_condition = Call.create(
                 StructureReference.create(symbol, ['is_dirty']),
-                [('depth', depth_expr)])
+                [('depth', depth_expr.copy())])
             if_body = Call.create(
                 StructureReference.create(symbol, [method]),
                 [('depth', depth_expr.copy())])
@@ -4479,7 +4480,10 @@ class HaloDepth():
             depth_str += f"{max_depth.name}-1"
         else:
             if self.var_depth:
-                depth_str += self.var_depth
+                if isinstance(self.var_depth, Node):
+                    depth_str += FortranWriter()(self.var_depth)
+                else:
+                    depth_str += self.var_depth
                 if self.literal_depth:
                     # Ignores depth == 0
                     depth_str += f"+{self.literal_depth}"
@@ -4505,7 +4509,9 @@ class HaloDepth():
                         Reference(max_depth),
                         Literal('1', INTEGER_TYPE))
         if self.var_depth:
-            depth_ref = Reference(self._symbol_table.lookup(self.var_depth))
+            if isinstance(self.var_depth, str):
+                import pdb; pdb.set_trace()
+            depth_ref = self.var_depth.copy()
             if self.literal_depth != 0:  # Ignores depth == 0
                 return BinaryOperation.create(
                             BinaryOperation.Operator.ADD,

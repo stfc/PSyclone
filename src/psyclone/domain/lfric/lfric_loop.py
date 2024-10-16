@@ -49,9 +49,11 @@ from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import CallGen, CommentGen
 from psyclone.psyGen import InvokeSchedule, HaloExchange
-from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import (BinaryOperation, Loop, Literal, Node,
                                   ArrayReference, ACCRegionDirective,
-                                  OMPRegionDirective, Routine)
+                                  OMPRegionDirective, Reference, Routine,
+                                  Schedule)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
@@ -241,11 +243,11 @@ class LFRicLoop(PSyLoop):
             if Config.get().distributed_memory:
                 if kern.iterates_over == "halo_cell_column":
                     self.set_lower_bound("cell_halo_start")
-                sym = self.scope.symbol_table.find_or_create_tag(
-                    f"{kern.halo_depth}", root_name=kern.halo_depth,
-                    symbol_type=DataSymbol,
-                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                self.set_upper_bound("cell_halo", index=sym.name)
+                #sym = self.scope.symbol_table.find_or_create_tag(
+                #    f"{kern.halo_depth}", root_name=kern.halo_depth,
+                #    symbol_type=DataSymbol,
+                #    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                self.set_upper_bound("cell_halo", index=kern.halo_depth)#sym.name)
                 return
 
         if Config.get().distributed_memory:
@@ -450,7 +452,10 @@ class LFRicLoop(PSyLoop):
         # one of the if clauses
         halo_index = ""
         if self._upper_bound_halo_depth:
-            halo_index = str(self._upper_bound_halo_depth)
+            if isinstance(self._upper_bound_halo_depth, Node):
+                halo_index = FortranWriter()(self._upper_bound_halo_depth)
+            else:
+                halo_index = str(self._upper_bound_halo_depth)
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
@@ -961,19 +966,26 @@ class LFRicLoop(PSyLoop):
                     if isinstance(halo_depth, int):
                         halo_depth -= 1
                     else:
-                        halo_depth += " - 1"
+                        #halo_depth += " - 1"
+                        halo_depth = BinaryOperation.create(
+                            BinaryOperation.Operator.SUB,
+                            halo_depth.copy(), Literal("1", INTEGER_TYPE))
                 if halo_depth:
+                    if isinstance(halo_depth, Node):
+                        depth_str = FortranWriter()(halo_depth)
+                    else:
+                        depth_str = str(halo_depth)
                     if field.vector_size > 1:
                         # The range function below returns values from 1 to the
                         # vector size, as required in our Fortran code.
                         for index in range(1, field.vector_size+1):
                             parent.add(CallGen(
                                 parent, name=f"{field.proxy_name}({index})%"
-                                f"set_clean({halo_depth})"))
+                                f"set_clean({depth_str})"))
                     else:
                         parent.add(CallGen(
                             parent, name=f"{field.proxy_name}%set_clean("
-                            f"{halo_depth})"))
+                            f"{depth_str})"))
             elif hwa.max_depth:
                 # halo accesses(s) is/are to the full halo
                 # depth (-1 if continuous)

@@ -73,7 +73,7 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
     real(kind=r_def), intent(in) :: ascalar
-    real(kind=r_def), intent(inout), dimension(undf_w1) :: fld1
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: fld1
     real(kind=r_def), intent(in), dimension(undf_w2)  :: fld2
     real(kind=r_def), intent(in), dimension(undf_w2)  :: fld3
     real(kind=r_def), intent(in), dimension(undf_w3)  :: fld4

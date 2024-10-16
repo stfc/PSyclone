@@ -159,6 +159,7 @@ class ChildrenList(list):
 
         '''
         if item.parent and not item.has_constructor_parent:
+            import pdb; pdb.set_trace()
             raise GenerationError(
                 f"Item '{item.coloured_name(False)}' can't be added as child "
                 f"of '{self._node_reference.coloured_name(False)}' because "
