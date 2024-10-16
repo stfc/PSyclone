@@ -46,7 +46,7 @@ jobs:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     env:
-      HDF5_VERSION: 1.14.4.3
+      HDF5_VERSION: 1.14.5
       NETCDF_C_VERSION: 4.9.2
       NETCDF_FORTRAN_VERSION: 4.6.1
       NVFORTRAN_VERSION: 23.7
