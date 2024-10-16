@@ -368,10 +368,6 @@ class KernCallInvokeArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        if self._kern.iterates_over not in ["halo_cell_column",
-                                            "owned_and_halo_cell_column"]:
-            # This kernel does not operate on halo cells.
-            return
         sym = self._symtab.new_symbol(
             self._kern.halo_depth,
             symbol_type=DataSymbol,

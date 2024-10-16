@@ -111,7 +111,7 @@ class LFRicHaloDepths(LFRicCollection):
         '''
         raise NotImplementedError(
             "Kernel-stub generation is not supported for kernels which "
-            "operate on halo cells and XXX")
+            "operate on halo cells.")
 
 
 # ---------- Documentation utils -------------------------------------------- #
