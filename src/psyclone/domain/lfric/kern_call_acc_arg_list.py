@@ -111,7 +111,8 @@ class KernCallAccArgList(KernCallArgList):
         sym = self._symtab.lookup_with_tag(f"{arg.name}:{suffix}")
 
         # Add the field data array as being read.
-        self.append(sym.name, var_accesses)
+        self.append(sym.name, var_accesses, var_access_name=sym.name,
+                    mode=arg.access, metadata_posn=arg.metadata_index)
 
     def stencil(self, arg, var_accesses=None):
         '''Add general stencil information associated with the argument 'arg'
