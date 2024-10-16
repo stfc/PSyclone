@@ -339,6 +339,8 @@ class LFRicLoop(PSyLoop):
                     f"The specified index '{index}' for this upper loop bound "
                     f"is invalid")
         self._upper_bound_name = name
+        if index and isinstance(index, (str, int)):
+            import pdb; pdb.set_trace()
         self._upper_bound_halo_depth = index
 
     @property

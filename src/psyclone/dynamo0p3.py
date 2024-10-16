@@ -4458,6 +4458,8 @@ class HaloDepth():
 
         '''
         self._max_depth = max_depth
+        if isinstance(var_depth, str):
+            import pdb; pdb.set_trace()
         self._var_depth = var_depth
         if literal_depth is not None and not isinstance(literal_depth, int):
             raise TypeError(f"set_by_value: 'literal_depth' must be an int but"
@@ -4724,6 +4726,7 @@ class HaloReadAccess(HaloDepth):
         call = halo_check_arg(field, AccessType.all_read_accesses())
 
         loop = call.ancestor(LFRicLoop)
+        table = loop.ancestor(InvokeSchedule).symbol_table
 
         # For GH_INC we accumulate contributions into the field being
         # modified. In order to get correct results for owned and
@@ -4749,7 +4752,8 @@ class HaloReadAccess(HaloDepth):
                     # loop redundant computation is to a fixed literal depth
                     self._literal_depth = loop.upper_bound_halo_depth
                 else:
-                    self._var_depth = loop.upper_bound_halo_depth
+                    sym = table.lookup(loop.upper_bound_halo_depth)
+                    self._var_depth = Reference(sym)
             else:
                 # loop redundant computation is to the maximum depth
                 self._max_depth = True
