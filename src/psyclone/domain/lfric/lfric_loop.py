@@ -44,7 +44,6 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicConstants, LFRicKern
-from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import CallGen, CommentGen
@@ -482,7 +481,7 @@ class LFRicLoop(PSyLoop):
                         f"{self.field.proxy_name_indexed}%"
                         f"{self.field.ref_name()}%get_last_dof_annexed()")
             else:
-                    result = self._kern.undf_name
+                result = self._kern.undf_name
             return result
         if self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:
