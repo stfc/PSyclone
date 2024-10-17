@@ -51,7 +51,7 @@ from typing import Any
 
 from psyclone import psyGen
 from psyclone.configuration import Config
-from psyclone.core import AccessType, Signature
+from psyclone.core import AccessType, Signature, SymbolicMaths
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (
     FunctionSpace, KernCallAccArgList, KernCallArgList, LFRicCollection,
@@ -3603,7 +3603,7 @@ class DynGlobalSum(GlobalSum):
         parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
 
 
-def _create_depth_list(halo_info_list, sym_table):
+def _create_depth_list(halo_info_list, sym_table, parent):
     '''Halo exchanges may have more than one dependency. This method
     simplifies multiple dependencies to remove duplicates and any
     obvious redundancy. For example, if one dependency is for depth=1
@@ -3632,7 +3632,7 @@ def _create_depth_list(halo_info_list, sym_table):
     annexed_only = True
     for halo_info in halo_info_list:
         if not (halo_info.annexed_only or
-                (halo_info.literal_depth == 1
+                (halo_info.var_depth == Literal("1", INTEGER_TYPE)
                  and not halo_info.needs_clean_outer)):
             # There are two cases when we only care about accesses to
             # annexed dofs. 1) when annexed_only is set and 2) when
@@ -3641,9 +3641,10 @@ def _create_depth_list(halo_info_list, sym_table):
             annexed_only = False
             break
     if annexed_only:
-        depth_info = HaloDepth(sym_table)
-        depth_info.set_by_value(max_depth=False, var_depth="",
-                                literal_depth=1, annexed_only=True,
+        depth_info = HaloDepth(sym_table, parent)
+        depth_info.set_by_value(max_depth=False,
+                                var_depth=Literal("1", INTEGER_TYPE),
+                                annexed_only=True,
                                 max_depth_m1=False)
         return [depth_info]
     # Next look to see if one of the field dependencies specifies
@@ -3655,9 +3656,9 @@ def _create_depth_list(halo_info_list, sym_table):
             if halo_info.needs_clean_outer:
                 # Found a max_depth access so we only need one
                 # HaloDepth entry.
-                depth_info = HaloDepth(sym_table)
-                depth_info.set_by_value(max_depth=True, var_depth="",
-                                        literal_depth=0, annexed_only=False,
+                depth_info = HaloDepth(sym_table, parent)
+                depth_info.set_by_value(max_depth=True, var_depth=None,
+                                        annexed_only=False,
                                         max_depth_m1=False)
                 return [depth_info]
             # Remember that we found a max_depth-1 access.
@@ -3665,9 +3666,9 @@ def _create_depth_list(halo_info_list, sym_table):
 
     if max_depth_m1:
         # We have at least one max_depth-1 access.
-        depth_info = HaloDepth(sym_table)
-        depth_info.set_by_value(max_depth=False, var_depth="",
-                                literal_depth=0, annexed_only=False,
+        depth_info = HaloDepth(sym_table, parent)
+        depth_info.set_by_value(max_depth=False, var_depth=None,
+                                annexed_only=False,
                                 max_depth_m1=True)
         depth_info_list.append(depth_info)
 
@@ -3677,32 +3678,24 @@ def _create_depth_list(halo_info_list, sym_table):
         if halo_info.max_depth and not halo_info.needs_clean_outer:
             continue
         var_depth = halo_info.var_depth
-        literal_depth = halo_info.literal_depth
-        if literal_depth and not halo_info.needs_clean_outer:
+        if var_depth and not halo_info.needs_clean_outer:
             # Decrease depth by 1 if we don't care about the outermost
             # access.
-            literal_depth -= 1
-        match = False
+            var_depth = BinaryOperation.create(
+                BinaryOperation.Operator.SUB,
+                var_depth.copy(), Literal("1", INTEGER_TYPE))
+
         # check whether we match with existing depth information
         for depth_info in depth_info_list:
-            if depth_info.var_depth == var_depth and not match:
-                # This dependence uses the same variable to
-                # specify its depth as an existing one, or both do
-                # not have a variable so we only have a
-                # literal. Therefore we only need to update the
-                # literal value with the maximum of the two
-                # (e.g. var_name,1 and var_name,2 => var_name,2).
-                depth_info.literal_depth = max(
-                    depth_info.literal_depth, literal_depth)
-                match = True
+            if depth_info.var_depth == var_depth:
+                # This dependence has the same depth as an existing one
                 break
-        if not match:
+        else:
             # No matches were found with existing entries so create a
             # new one (unless no 'var_depth' and 'literal_depth' is 0).
-            if var_depth or literal_depth > 0:
-                depth_info = HaloDepth(sym_table)
+            if var_depth:
+                depth_info = HaloDepth(sym_table, parent)
                 depth_info.set_by_value(max_depth=False, var_depth=var_depth,
-                                        literal_depth=literal_depth,
                                         annexed_only=False, max_depth_m1=False)
                 depth_info_list.append(depth_info)
     return depth_info_list
@@ -3787,14 +3780,27 @@ class LFRicHaloExchange(HaloExchange):
         '''
         :returns: the PSyIR expression to compute the halo depth.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
         '''
         depth_info_list = self._compute_halo_read_depth_info()
         if len(depth_info_list) == 1:
-            return depth_info_list[0].psyir_expression()
-
-        return IntrinsicCall.create(
+            psyir = depth_info_list[0].psyir_expression()
+        else:
+            psyir = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.MAX,
                 [depth.psyir_expression() for depth in depth_info_list])
+
+        sym_maths = SymbolicMaths.get()
+        from psyclone.psyir.nodes import Assignment
+        fake_assign = Assignment.create(
+            Reference(DataSymbol("tmp", INTEGER_TYPE)),
+            psyir)
+        self.parent.addchild(fake_assign)
+
+        sym_maths.expand(fake_assign.rhs)
+        depth_expr = fake_assign.rhs.detach()
+        fake_assign.detach()
+        return depth_expr
 
     def _compute_halo_read_depth_info(self, ignore_hex_dep=False):
         '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and
@@ -3821,7 +3827,7 @@ class LFRicHaloExchange(HaloExchange):
         halo_info_list = self._compute_halo_read_info(ignore_hex_dep)
         # use the halo information to generate depth information
         depth_info_list = _create_depth_list(halo_info_list,
-                                             self._symbol_table)
+                                             self._symbol_table, self)
         return depth_info_list
 
     def _compute_halo_read_info(self, ignore_hex_dep=False):
@@ -3894,13 +3900,14 @@ class LFRicHaloExchange(HaloExchange):
 
     def _compute_halo_write_info(self):
         '''Determines how much of the halo has been cleaned from any previous
-        redundant computation
+        redundant computation.
 
-        :return: a HaloWriteAccess object containing the required \
-        information, or None if no dependence information is found.
-        :rtype: :py:class:`psyclone.dynamo0p3.HaloWriteAccess` or None
-        :raises GenerationError: if more than one write dependence is \
-        found for this halo exchange as this should not be possible
+        :return: a HaloWriteAccess object containing the required
+            information, or None if no dependence information is found.
+        :rtype: :py:class:`psyclone.dynamo0p3.HaloWriteAccess` | None
+
+        :raises GenerationError: if more than one write dependence is
+            found for this halo exchange as this should not be possible.
 
         '''
         write_dependencies = self.field.backward_write_dependencies()
@@ -3912,7 +3919,8 @@ class LFRicHaloExchange(HaloExchange):
                 f"Internal logic error. There should be at most one write "
                 f"dependence for a halo exchange. Found "
                 f"'{len(write_dependencies)}'")
-        return HaloWriteAccess(write_dependencies[0], self._symbol_table)
+        return HaloWriteAccess(write_dependencies[0], self._symbol_table,
+                               parent=self)
 
     def required(self, ignore_hex_dep=False):
         '''Determines whether this halo exchange is definitely required
@@ -4009,44 +4017,57 @@ class LFRicHaloExchange(HaloExchange):
             return required, known
 
         # at this point we know that clean_info.max_depth is False
+        clean_depth = clean_info.clean_depth
+        #if not clean_depth:
+        #    # if clean_depth is 0 then the writer does not
+        #    # redundantly compute so we definitely need the halo
+        #    # exchange
+        #    required = True
+        #    known = True
+        #    return required, known
 
-        if not clean_info.literal_depth:
-            # if literal_depth is 0 then the writer does not
-            # redundantly compute so we definitely need the halo
-            # exchange
-            required = True
-            known = True
-            return required, known
+        clean_depth_lit = None
+        if isinstance(clean_depth, Literal):
+            clean_depth_lit = int(clean_depth.value)
 
-        if clean_info.literal_depth == 1 and clean_info.dirty_outer:
-            # the writer redundantly computes in the level 1 halo but
-            # leaves it dirty (although annexed dofs are now clean).
-            if len(required_clean_info) == 1 and \
-               required_clean_info[0].annexed_only:
-                # we definitely don't need the halo exchange as we
-                # only read annexed dofs and these have been made
-                # clean by the redundant computation
-                required = False
-                known = True  # redundant information as it is always known
+        if not clean_depth:
+            if clean_info.dirty_outer:
+                # the writer redundantly computes in the level 1 halo but
+                # leaves it dirty (although annexed dofs are now clean).
+                if len(required_clean_info) == 1 and \
+                   required_clean_info[0].annexed_only:
+                    # we definitely don't need the halo exchange as we
+                    # only read annexed dofs and these have been made
+                    # clean by the redundant computation
+                    required = False
+                    known = True  # redundant information as it is always known
+                else:
+                    # we definitely need the halo exchange as the reader(s)
+                    # require the halo to be clean
+                    required = True
+                    known = True
+                return required, known
             else:
-                # we definitely need the halo exchange as the reader(s)
-                # require the halo to be clean
+                # if clean_depth is 0 then the writer does not
+                # redundantly compute so we definitely need the halo
+                # exchange
                 required = True
                 known = True
-            return required, known
+                return required, known
 
         # At this point we know that the writer cleans the halo to a
         # known (literal) depth through redundant computation. We now
         # compute this value for use by the logic in the rest of the
         # routine.
-        clean_depth = clean_info.literal_depth
-        if clean_info.dirty_outer:
-            # outer layer stays dirty
-            if isinstance(clean_depth, str):
-                # TODO - workaround for passing variable name for depth
-                clean_depth += " - 1"
-            else:
-                clean_depth -= 1
+        #clean_depth = clean_info.literal_depth
+        #if clean_info.dirty_outer:
+        #    # outer layer stays dirty
+        #    if isinstance(clean_depth, str):
+        #        import pdb; pdb.set_trace()
+        #        # TODO - workaround for passing variable name for depth
+        #        clean_depth += " - 1"
+        #    else:
+        #        clean_depth -= 1
 
         # If a literal value in any of the required clean halo depths
         # is greater than the cleaned depth then we definitely need
@@ -4056,10 +4077,12 @@ class LFRicHaloExchange(HaloExchange):
         # dealt with separately
         if len(required_clean_info) > 1:
             for required_clean in required_clean_info:
-                if required_clean.literal_depth > clean_depth:
-                    required = True
-                    known = True
-                    return required, known
+                if (isinstance(required_clean.var_depth, Literal) and
+                        clean_depth_lit):
+                    if int(required_clean.var_depth.value) > clean_depth_lit:
+                        required = True
+                        known = True
+                        return required, known
 
         # The only other case where we know that a halo exchange is
         # required (or not) is where we read the halo to a known
@@ -4068,22 +4091,29 @@ class LFRicHaloExchange(HaloExchange):
         # required_clean_info entry
         if len(required_clean_info) == 1:
             # the halo might be read to a fixed literal depth
-            if required_clean_info[0].var_depth or \
-               required_clean_info[0].max_depth:
+            if (required_clean_info[0].var_depth and
+                    not isinstance(required_clean_info[0].var_depth, Literal)):
                 # no it isn't so we might need the halo exchange
                 required = True
                 known = False
             else:
                 # the halo is read to a fixed literal depth.
-                required_clean_depth = required_clean_info[0].literal_depth
-                if clean_depth < required_clean_depth:
-                    # we definitely need this halo exchange
-                    required = True
-                    known = True
+                required_clean_depth = int(
+                    required_clean_info[0].var_depth.value)
+                if clean_depth_lit:
+                    if clean_depth_lit < required_clean_depth:
+                        # we definitely need this halo exchange
+                        required = True
+                        known = True
+                    else:
+                        # we definitely don't need this halo exchange
+                        required = False
+                        known = True  # redundant info as it is always known
                 else:
-                    # we definitely don't need this halo exchange
-                    required = False
-                    known = True  # redundant information as it is always known
+                    # The clean depth isn't a literal so we might need the halo
+                    # exchange
+                    required = True
+                    known = False
             return required, known
 
         # We now know that at least one required_clean entry has a
@@ -4342,15 +4372,9 @@ class HaloDepth():
     :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     '''
-    def __init__(self, sym_table):
-        # literal_depth is used to store any known (literal) component
-        # of the depth of halo that is accessed. It may not be the
-        # full depth as there may also be an additional var_depth
-        # specified.
-        self._literal_depth = 0
-        # var_depth is used to store any variable component of the
-        # depth of halo that is accessed. It may not be the full depth
-        # as there may also be an additional literal_depth specified.
+    def __init__(self, sym_table, parent):
+        # var_depth is used to store the
+        # depth of halo that is accessed.
         self._var_depth = None
         # max_depth specifies whether the full depth of halo (whatever
         # that might be) is accessed. If this is set then
@@ -4371,7 +4395,11 @@ class HaloDepth():
         # variables holding the maximum halo depth.
         # FIXME #2503: This can become invalid if the HaloExchange
         # containing this HaloDepth changes its ancestors.
-        self._symbol_table = sym_table
+        self._parent = parent
+        if parent:
+            self._symbol_table = parent.scope.symbol_table
+        else:
+            self._symbol_table = sym_table
 
     @property
     def annexed_only(self):
@@ -4417,27 +4445,7 @@ class HaloDepth():
         '''
         return self._var_depth
 
-    @property
-    def literal_depth(self):
-        '''Returns the known fixed (literal) depth of halo access. Note, this
-        depth should be added to the var_depth to find the total depth.
-
-        :returns: the known fixed (literal) halo access depth.
-        :rtype: int
-
-        '''
-        return self._literal_depth
-
-    @literal_depth.setter
-    def literal_depth(self, value):
-        ''' Set the known fixed (literal) depth of halo access.
-
-        :param int value: Set the known fixed (literal) halo access depth.
-
-        '''
-        self._literal_depth = value
-
-    def set_by_value(self, max_depth, var_depth, literal_depth, annexed_only,
+    def set_by_value(self, max_depth, var_depth, annexed_only,
                      max_depth_m1):
         # pylint: disable=too-many-arguments
         '''Set halo depth information directly
@@ -4446,8 +4454,6 @@ class HaloDepth():
             halo and False otherwise
         :param str var_depth: A variable name specifying the halo
             access depth, if one exists, and None if not
-        :param int literal_depth: The known fixed (literal) halo
-            access depth
         :param bool annexed_only: True if only the halo's annexed dofs
             are accessed and False otherwise
         :param bool max_depth_m1: True if the field accesses all of
@@ -4458,13 +4464,7 @@ class HaloDepth():
 
         '''
         self._max_depth = max_depth
-        if isinstance(var_depth, str):
-            import pdb; pdb.set_trace()
         self._var_depth = var_depth
-        if literal_depth is not None and not isinstance(literal_depth, int):
-            raise TypeError(f"set_by_value: 'literal_depth' must be an int but"
-                            f" got '{type(literal_depth).__name__}'")
-        self._literal_depth = literal_depth
         self._annexed_only = annexed_only
         self._max_depth_m1 = max_depth_m1
 
@@ -4482,16 +4482,7 @@ class HaloDepth():
             depth_str += f"{max_depth.name}-1"
         else:
             if self.var_depth:
-                if isinstance(self.var_depth, Node):
-                    depth_str += FortranWriter()(self.var_depth)
-                else:
-                    depth_str += self.var_depth
-                if self.literal_depth:
-                    # Ignores depth == 0
-                    depth_str += f"+{self.literal_depth}"
-            elif self.literal_depth is not None:
-                # Returns depth if depth has any value, including 0
-                depth_str = str(self.literal_depth)
+                depth_str += FortranWriter()(self.var_depth)
         return depth_str
 
     def psyir_expression(self):
@@ -4511,17 +4502,9 @@ class HaloDepth():
                         Reference(max_depth),
                         Literal('1', INTEGER_TYPE))
         if self.var_depth:
-            if isinstance(self.var_depth, str):
-                import pdb; pdb.set_trace()
             depth_ref = self.var_depth.copy()
-            if self.literal_depth != 0:  # Ignores depth == 0
-                return BinaryOperation.create(
-                            BinaryOperation.Operator.ADD,
-                            depth_ref,
-                            Literal(f"{self.literal_depth}", INTEGER_TYPE))
             return depth_ref
-        # Returns depth if depth has any value, including 0
-        return Literal(str(self.literal_depth), INTEGER_TYPE)
+        return None
 
 
 def halo_check_arg(field, access_types):
@@ -4580,8 +4563,8 @@ class HaloWriteAccess(HaloDepth):
     :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     '''
-    def __init__(self, field, sym_table):
-        HaloDepth.__init__(self, sym_table)
+    def __init__(self, field, sym_table, parent):
+        HaloDepth.__init__(self, sym_table, parent)
         self._compute_from_field(field)
 
     @property
@@ -4598,13 +4581,52 @@ class HaloWriteAccess(HaloDepth):
         '''
         return self._dirty_outer
 
+    @property
+    def clean_depth(self):
+        '''
+        Returns the depth to which this halo is clean following the write.
+
+        :returns:
+        :rtype:
+
+        '''
+        if self.var_depth:
+            halo_depth = self.var_depth
+        elif self.max_depth:
+            # halo accesses(s) is/are to the full halo
+            # depth (-1 if continuous)
+            halo_depth = Reference(self._symbol_table.lookup_with_tag(
+                "max_halo_depth_mesh"))
+        else:
+            return None
+
+        if self.dirty_outer:
+            halo_depth = BinaryOperation.create(
+                BinaryOperation.Operator.SUB,
+                halo_depth.copy(), Literal("1", INTEGER_TYPE))
+
+        sym_maths = SymbolicMaths.get()
+        from psyclone.psyir.nodes import Assignment, Schedule
+        fake_assign = Assignment.create(
+            Reference(DataSymbol("tmp", INTEGER_TYPE)),
+            halo_depth)
+        sched = self._parent.ancestor(Schedule)
+        sched.addchild(fake_assign)
+
+        sym_maths.expand(fake_assign.rhs)
+        depth_expr = fake_assign.rhs.detach()
+        fake_assign.detach()
+        if depth_expr == Literal("0", INTEGER_TYPE):
+            return None
+        return depth_expr
+
     def _compute_from_field(self, field):
         '''Internal method to compute what parts of a field's halo are written
-        to in a certain kernel and loop. The information computed is
-        the depth of access and validity of the data after
-        writing. The depth of access can be the maximum halo depth or
-        a literal depth and the outer halo layer that is written to
-        may be dirty or clean.
+        to in a certain kernel and loop. The information computed is the depth
+        of access and validity of the data after writing. The depth of access
+        can be the maximum halo depth or a specified (literal or variable)
+        depth and the outer halo layer that is written to may be dirty or
+        clean.
 
         :param field: the field that we are concerned with.
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
@@ -4623,13 +4645,12 @@ class HaloWriteAccess(HaloDepth):
             not field.discontinuous and
             loop.iteration_space.endswith("cell_column") and
             loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS)
-        depth = 0
+        depth = None
         max_depth = False
         if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
             # loop does redundant computation
             if loop.upper_bound_halo_depth:
-                # loop redundant computation is to a certain depth. This may
-                # be either a literal or a variable name.
+                # loop redundant computation is to a certain depth.
                 depth = loop.upper_bound_halo_depth
             else:
                 # loop redundant computation is to the maximum depth
@@ -4639,23 +4660,21 @@ class HaloWriteAccess(HaloDepth):
         # doubled
         if call.is_intergrid and field.mesh == "gh_fine":
             # TODO ensure intergrid and 'halo cell' kernels are forbidden.
-            depth *= 2
+            if depth:
+                depth = BinaryOperation.create(
+                    BinaryOperation.Operator.MUL,
+                    Literal("2", INTEGER_TYPE), depth.copy())
+            else:
+                depth = Literal("0", INTEGER_TYPE)
         # The third argument for set_by_value specifies the name of a
-        # variable used to specify the depth while the fourth is a
-        # literal depth.
-        # TODO we could/should just pass a single PSyIR argument.
-        if isinstance(depth, int):
-            literal_depth = depth
-            var_depth = None
-        else:
-            literal_depth = None
-            var_depth = depth
+        # variable used to specify the depth.
+        var_depth = depth
         # The fifth argument for set_by_value indicates whether
         # we only access annexed_dofs. At the moment this is not possible when
         # modifying a field so we always supply False. The sixth
         # argument indicates if the depth of access is the
         # maximum-1. This is not possible here so we supply False.
-        HaloDepth.set_by_value(self, max_depth, var_depth, literal_depth,
+        HaloDepth.set_by_value(self, max_depth, var_depth,
                                False, False)
 
 
@@ -4671,8 +4690,8 @@ class HaloReadAccess(HaloDepth):
     :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     '''
-    def __init__(self, field, sym_table):
-        HaloDepth.__init__(self, sym_table)
+    def __init__(self, field, sym_table, parent=None):
+        HaloDepth.__init__(self, sym_table, parent)
         self._stencil_type = None
         self._needs_clean_outer = None
         self._compute_from_field(field)
@@ -4710,10 +4729,9 @@ class HaloReadAccess(HaloDepth):
         '''Internal method to compute which parts of a field's halo are read
         in a certain kernel and loop. The information computed is the
         depth of access and the access pattern. The depth of access
-        can be the maximum halo depth, a variable specifying the depth
-        and/or a literal depth. The access pattern will only be
-        specified if the kernel code performs a stencil access on the
-        field.
+        can be the maximum halo depth or a PSyIR expression specifying the
+        depth. The access pattern will only be specified if the kernel code
+        performs a stencil access on the field.
 
         :param field: the field that we are concerned with
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
@@ -4748,12 +4766,7 @@ class HaloReadAccess(HaloDepth):
         if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
             # this loop performs redundant computation
             if loop.upper_bound_halo_depth:
-                if isinstance(loop.upper_bound_halo_depth, int):
-                    # loop redundant computation is to a fixed literal depth
-                    self._literal_depth = loop.upper_bound_halo_depth
-                else:
-                    sym = table.lookup(loop.upper_bound_halo_depth)
-                    self._var_depth = Reference(sym)
+                self._var_depth = loop.upper_bound_halo_depth
             else:
                 # loop redundant computation is to the maximum depth
                 self._max_depth = True
@@ -4780,7 +4793,7 @@ class HaloReadAccess(HaloDepth):
                     # level 1 halo here as there is currently no
                     # mechanism to perform a halo exchange solely on
                     # annexed dofs.
-                    self._literal_depth = 1
+                    self._var_depth = Literal("1", INTEGER_TYPE)
                     self._annexed_only = True
         elif loop.upper_bound_name == "ndofs":
             # we only access owned dofs so there is no access to the
@@ -4791,7 +4804,7 @@ class HaloReadAccess(HaloDepth):
                 f"Internal error in HaloReadAccess._compute_from_field. Found "
                 f"unexpected loop upper bound name '{loop.upper_bound_name}'")
 
-        if self._max_depth or self._var_depth or self._literal_depth:
+        if self._max_depth or self._var_depth:
             # Whilst stencil type has no real meaning when there is no
             # stencil it is convenient to set it to "region" when
             # there is redundant computation as the halo exchange
@@ -4808,13 +4821,15 @@ class HaloReadAccess(HaloDepth):
                     "redundant computation to max depth with a stencil is "
                     "invalid")
             self._stencil_type = field.descriptor.stencil['type']
-            if self._literal_depth:
+            if self._var_depth:
                 # halo exchange does not support mixed accesses to the halo
                 self._stencil_type = "region"
             stencil_depth = field.descriptor.stencil['extent']
             if stencil_depth:
                 # stencil_depth is provided in the kernel metadata
-                self._literal_depth += stencil_depth
+                self._var_depth = BinaryOperation.create(
+                    BinaryOperation.Operator.ADD,
+                    Literal(stencil_depth, INTEGER_TYPE), self._var_depth)
             else:
                 # Stencil_depth is provided by the algorithm layer.
                 # It is currently not possible to specify kind for an
@@ -4823,17 +4838,20 @@ class HaloReadAccess(HaloDepth):
                 if field.stencil.extent_arg.is_literal():
                     # a literal is specified
                     value_str = field.stencil.extent_arg.text
-                    self._literal_depth += int(value_str)
+                    self._var_depth = BinaryOperation.create(
+                        BinaryOperation.Operator.ADD,
+                        Literal(value_str, INTEGER_TYPE), self._var_depth)
                 else:
                     # a variable is specified
-                    self._var_depth = field.stencil.extent_arg.varname
+                    self._var_depth = Reference(
+                        table.lookup(field.stencil.extent_arg.varname))
         # If this is an intergrid kernel and the field in question is on
         # the fine mesh then we must double the halo depth
         if call.is_intergrid and field.mesh == "gh_fine":
-            if self._literal_depth:
-                self._literal_depth *= 2
             if self._var_depth:
-                self._var_depth = "2*" + self._var_depth
+                self._var_depth = BinaryOperation.create(
+                    BinaryOperation.Operator.MUL,
+                    Literal("2", INTEGER_TYPE), self._var_depth.copy())
 
 
 class FSDescriptor():

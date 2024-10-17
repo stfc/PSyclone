@@ -50,6 +50,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import CallGen, CommentGen
 from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (BinaryOperation, Loop, Literal, Node,
                                   ArrayReference, ACCRegionDirective,
                                   OMPRegionDirective, Reference, Routine,
@@ -340,8 +341,13 @@ class LFRicLoop(PSyLoop):
                     f"is invalid")
         self._upper_bound_name = name
         if index and isinstance(index, (str, int)):
-            import pdb; pdb.set_trace()
-        self._upper_bound_halo_depth = index
+            table = self.ancestor(InvokeSchedule).symbol_table
+            index_str = index if isinstance(index, str) else f"{index}"
+            psyir = FortranReader().psyir_from_expression(index_str,
+                                                          symbol_table=table)
+            self._upper_bound_halo_depth = psyir
+        else:
+            self._upper_bound_halo_depth = index
 
     @property
     def upper_bound_name(self):
@@ -945,7 +951,7 @@ class LFRicLoop(PSyLoop):
             from psyclone.dynamo0p3 import HaloWriteAccess
             # The HaloWriteAccess class provides information about how the
             # supplied field is accessed within its parent loop
-            hwa = HaloWriteAccess(field, sym_table)
+            hwa = HaloWriteAccess(field, sym_table, self)
             if not hwa.max_depth or hwa.dirty_outer:
                 # output set dirty as some of the halo will not be set to clean
                 if field.vector_size > 1:
@@ -960,56 +966,20 @@ class LFRicLoop(PSyLoop):
             # Now set appropriate parts of the halo clean where redundant
             # computation has been performed or a kernel is written to operate
             # on halo cells.
-            if hwa.literal_depth or hwa.var_depth:
-                halo_depth = (hwa.literal_depth if hwa.literal_depth
-                              else hwa.var_depth)
-                if hwa.dirty_outer:
-                    # TODO could replace with PSyIR?
-                    if isinstance(halo_depth, int):
-                        halo_depth -= 1
-                    else:
-                        #halo_depth += " - 1"
-                        halo_depth = BinaryOperation.create(
-                            BinaryOperation.Operator.SUB,
-                            halo_depth.copy(), Literal("1", INTEGER_TYPE))
-                if halo_depth:
-                    if isinstance(halo_depth, Node):
-                        depth_str = FortranWriter()(halo_depth)
-                    else:
-                        depth_str = str(halo_depth)
-                    if field.vector_size > 1:
-                        # The range function below returns values from 1 to the
-                        # vector size, as required in our Fortran code.
-                        for index in range(1, field.vector_size+1):
-                            parent.add(CallGen(
-                                parent, name=f"{field.proxy_name}({index})%"
-                                f"set_clean({depth_str})"))
-                    else:
-                        parent.add(CallGen(
-                            parent, name=f"{field.proxy_name}%set_clean("
-                            f"{depth_str})"))
-            elif hwa.max_depth:
-                # halo accesses(s) is/are to the full halo
-                # depth (-1 if continuous)
-                halo_depth = sym_table.lookup_with_tag(
-                    "max_halo_depth_mesh").name
-
-                if hwa.dirty_outer:
-                    # a continuous field iterating over cells leaves the
-                    # outermost halo dirty
-                    halo_depth += "-1"
+            clean_depth = hwa.clean_depth
+            if clean_depth:
+                depth_str = FortranWriter()(clean_depth)
                 if field.vector_size > 1:
-                    # the range function below returns values from 1 to the
-                    # vector size which is what we require in our Fortran code
+                    # The range function below returns values from 1 to the
+                    # vector size, as required in our Fortran code.
                     for index in range(1, field.vector_size+1):
-                        call = CallGen(parent,
-                                       name=f"{field.proxy_name}({index})%"
-                                       f"set_clean({halo_depth})")
-                        parent.add(call)
+                        parent.add(CallGen(
+                            parent, name=f"{field.proxy_name}({index})%"
+                            f"set_clean({depth_str})"))
                 else:
-                    call = CallGen(parent, name=f"{field.proxy_name}%"
-                                   f"set_clean({halo_depth})")
-                    parent.add(call)
+                    parent.add(CallGen(
+                        parent, name=f"{field.proxy_name}%set_clean("
+                        f"{depth_str})"))
 
     def independent_iterations(self,
                                test_all_variables=False,

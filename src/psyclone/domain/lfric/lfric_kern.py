@@ -56,7 +56,8 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (Loop, Literal, Reference,
                                   KernelSchedule)
-from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType
+from psyclone.psyir.symbols import (DataSymbol, ScalarType, ArrayType,
+                                    INTEGER_TYPE)
 
 
 class LFRicKern(CodedKern):
@@ -955,12 +956,13 @@ class LFRicKern(CodedKern):
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.
             if (parent_loop.upper_bound_name == "cell_halo" and
-                    parent_loop.upper_bound_halo_depth > 1):
+                    parent_loop.upper_bound_halo_depth != Literal(
+                        "1", INTEGER_TYPE)):
                 raise GenerationError(
                     f"Kernel '{self._name}' reads from an operator and "
                     f"therefore cannot be used for cells beyond the level 1 "
                     f"halo. However the containing loop goes out to level "
-                    f"{parent_loop.upper_bound_halo_depth}")
+                    f"{parent_loop.upper_bound_halo_depth.debug_string()}")
 
         if not self.is_coloured():
             # This kernel call has not been coloured
