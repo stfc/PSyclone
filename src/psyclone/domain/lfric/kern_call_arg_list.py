@@ -218,9 +218,9 @@ class KernCallArgList(ArgOrdering):
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store
+        :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
-        :type var_accesses:
+        :type var_accesses: \
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
@@ -341,10 +341,9 @@ class KernCallArgList(ArgOrdering):
 
         :param argvect: the field vector to add.
         :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         suffix = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING[
@@ -380,11 +379,22 @@ class KernCallArgList(ArgOrdering):
         # Look-up the name of the variable that stores the reference to
         # the data in this field.
         sym = self._symtab.lookup_with_tag(f"{arg.name}:{suffix}")
-        # Add the field data array as being read.
-        self.append(sym.name, var_accesses, var_access_name=sym.name,
-                    mode=arg.access, metadata_posn=arg.metadata_index)
 
-        self.psyir_append(Reference(sym))
+        if self._kern.iterates_over == "dof":
+            # If dof kernel, add access to the field by dof ref
+            dof_sym = self._symtab.find_or_create_integer_symbol(
+                "df", tag="dof_loop_idx")
+            self.append_array_reference(sym.name, [Reference(dof_sym)],
+                                        ScalarType.Intrinsic.INTEGER,
+                                        symbol=sym)
+            # Then append our symbol
+            name = f"{sym.name}({dof_sym.name})"
+            self.append(name, var_accesses, var_access_name=sym.name)
+        else:
+            # Add the field data array as being read.
+            self.append(sym.name, var_accesses, var_access_name=sym.name,
+                        mode=arg.access, metadata_posn=arg.metadata_index)
+            self.psyir_append(Reference(sym))
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -621,6 +631,9 @@ class KernCallArgList(ArgOrdering):
             sym = self.append_array_reference(map_name, [":", ":"],
                                               ScalarType.Intrinsic.INTEGER)
             self.append(sym.name, var_accesses, var_access_name=sym.name)
+        elif self._kern.iterates_over == "dof":
+            # Dofmaps are not required for DoF kernels
+            pass
         else:
             # Pass the dofmap for the cell column
             cell_name, cell_ref = self.cell_ref_name(var_accesses)
