@@ -573,7 +573,6 @@ class SymbolTable():
         if key in self._symbols:
             raise KeyError(f"Symbol table already contains a symbol with "
                            f"name '{new_symbol.name}'.")
-
         if tag:
             if tag in self.get_tags():
                 raise KeyError(
@@ -1020,6 +1019,8 @@ class SymbolTable():
         try:
             return self.get_tags(scope_limit)[tag]
         except KeyError as err:
+            if tag.startswith("Reference"):
+                import pdb; pdb.set_trace()
             raise KeyError(f"Could not find the tag '{tag}' in the Symbol "
                            f"Table.") from err
 
