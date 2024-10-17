@@ -482,12 +482,7 @@ class LFRicLoop(PSyLoop):
                         f"{self.field.proxy_name_indexed}%"
                         f"{self.field.ref_name()}%get_last_dof_annexed()")
             else:
-                if isinstance(self._kern, LFRicBuiltIn):
                     result = self._kern.undf_name
-                else:
-                    # User-defined dof kernel has undf_name in a different
-                    # location
-                    result = self._field_space.undf_name
             return result
         if self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:

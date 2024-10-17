@@ -558,6 +558,19 @@ class LFRicKern(CodedKern):
         return self._base_name
 
     @property
+    def undf_name(self):
+        '''
+        Dynamically looks up the name of the 'undf' variable for the
+        space that this kernel updates.
+
+        :returns: the name of the undf variable.
+        :rtype: str
+
+        '''
+        field = self._arguments.iteration_space_arg()
+        return field.function_space.undf_name
+
+    @property
     def argument_kinds(self):
         '''
         :returns: kinds (precisions) for all arguments in a kernel.
