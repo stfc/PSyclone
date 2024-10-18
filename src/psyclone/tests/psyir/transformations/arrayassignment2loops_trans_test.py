@@ -499,18 +499,24 @@ def test_character_validation(fortran_reader):
         " by default (use the'allow_string' option to expand them), but found"
         in str(info.value))
 
-    # TODO #2612: We can not identify cases with 'character(LEN=x)' syntax as
-    # this is currently an UnsupportedFortranType
+
+def test_unsupported_type_character(fortran_reader):
     code = '''subroutine test()
         character(LEN=100) :: a
-        character(LEN=100) :: b
+        character(LEN=:) :: b
         a(1:94) = b(1:94)
     end subroutine test'''
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Assignment)[0]
 
     trans = ArrayAssignment2LoopsTrans()
-    trans.validate(assign)
+    with pytest.raises(TransformationError) as info:
+        trans.validate(assign)
+    assert (
+        "ArrayAssignment2LoopsTrans does not expand ranges on character arrays"
+        " by default (use the'allow_string' option to expand them), but found"
+        in str(info.value))
+
 
 
 def test_validate_nested_or_invalid_expressions(fortran_reader):
@@ -835,3 +841,23 @@ def test_validate_structure(fortran_reader):
     # StructureMembers we can use it as part of this transformation and this
     # example will be supported.
     trans.validate(assignments[1])
+
+
+def test_shape_intrinsic(fortran_reader):
+    '''
+    Check the validation of the transformation when it has a call to an inquiry
+    intrinsic which does not return a scalar.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    SUBROUTINE fld_map_core( pdta_read)
+      REAL(wp), DIMENSION(:,:,:), INTENT(in   ) ::   pdta_read
+      INTEGER,  DIMENSION(3) ::   idim_read
+      idim_read(:) = SHAPE( pdta_read )
+    end subroutine
+    ''')
+    assignments = psyir.walk(Assignment)
+    trans = ArrayAssignment2LoopsTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignments[0])
+    assert ("ArrayAssignment2LoopsTrans does not accept calls which "
+            "are not guaranteed to be elemental" in str(err.value))

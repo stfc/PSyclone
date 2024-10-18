@@ -37,9 +37,10 @@
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
+import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT)
+    enhance_tree_information, NOT_PERFORMANT, OTHER_ISSUES, DONT_PARALLELISE)
 from psyclone.psyir.nodes import (
     Loop, Routine, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
@@ -49,11 +50,14 @@ from psyclone.transformations import (
 PROFILING_ENABLED = False
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT + [
+
+# List of all files that psyclone will skip processing
+# FILES_TO_SKIP = [x for x in ALL_FILES if x != os.environ["ONLY_FILE"]]
+# List of all files that psyclone will skip processing
+FILES_TO_SKIP = OTHER_ISSUES + [
     "asminc.f90",
     "trosk.f90",    # TODO #1254
     "vremap.f90",   # Bulk assignment of a structure component
-    "ldfslp.f90",   # Dependency analysis mistake? see Cray compiler comment
     "lib_mpp.f90",  # Compiler Error: Illegal substring expression
     "prtctl.f90",   # Compiler Error: Illegal substring expression
     "sbcblk.f90",   # Compiler Error: Vector expression used where scalar
@@ -78,15 +82,12 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-
     omp_target_trans = OMPTargetTrans()
     omp_loop_trans = OMPLoopTrans(omp_schedule="static")
     omp_loop_trans.omp_directive = "loop"
 
-    # TODO #2317: Has structure accesses that can not be offloaded and has
-    # a problematic range to loop expansion of (1:1)
+    # Many of the obs_ files have problems to be offloaded to the GPU
     if psyir.name.startswith("obs_"):
-        print("Skipping file", psyir.name)
         return
 
     for subroutine in psyir.walk(Routine):
@@ -94,7 +95,7 @@ def trans(psyir):
         if PROFILING_ENABLED:
             add_profiling(subroutine.children)
 
-        print(f"Transforming subroutine: {subroutine.name}")
+        print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
 
         enhance_tree_information(subroutine)
 
@@ -141,10 +142,11 @@ def trans(psyir):
                         parent.addchild(atomic)
             continue
 
-        insert_explicit_loop_parallelism(
-                subroutine,
-                region_directive_trans=omp_target_trans,
-                loop_directive_trans=omp_loop_trans,
-                # Collapse is necessary to give GPUs enough parallel items
-                collapse=True,
-        )
+        if psyir.name not in DONT_PARALLELISE:
+            insert_explicit_loop_parallelism(
+                    subroutine,
+                    region_directive_trans=omp_target_trans,
+                    loop_directive_trans=omp_loop_trans,
+                    # Collapse is necessary to give GPUs enough parallel items
+                    collapse=True,
+            )
