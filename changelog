@@ -247,6 +247,8 @@
 	Python used in the CI.
 
 	85) PR #2748. Revert Python used on RTD to 3.12 as 3.13 unsupported.
+	
+	86) PR #2707 for #257. Fixes bugs in the loop-fusion transformation.
 
 release 2.5.0 14th of February 2024
 
