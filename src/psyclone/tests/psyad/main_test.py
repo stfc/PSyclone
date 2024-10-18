@@ -121,8 +121,9 @@ def test_main_h_option(capsys):
     assert str(info.value) == "0"
     output, error = capsys.readouterr()
     assert error == ""
-    # The name of the executable is replaced with either pytest or -c
-    # when using pytest, therefore we split this test into sections.
+    # Python usage messages have seen slight tweaks over the years, e.g.,
+    # Python >= 3.13 tweaks the usage message to avoid repeating the args
+    # to an option between aliases, therefore we split this test into sections.
     assert "usage: " in output
     expected2 = (
         "[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
@@ -133,9 +134,12 @@ def test_main_h_option(capsys):
         "positional arguments:\n"
         "  filename              tangent-linear kernel source\n\n")
     assert expected2 in output
+    assert ("  -h, --help            show this help message and exit\n"
+            in output)
+    assert ("  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
+            in output or
+            "  -a, --active ACTIVE [ACTIVE ...]\n" in output)
     expected3 = (
-        "  -h, --help            show this help message and exit\n"
-        "  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
         "                        names of active variables\n"
         "  -v, --verbose         increase the verbosity of the output\n"
         "  -t, --gen-test        generate a standalone unit test for the "
@@ -156,9 +160,6 @@ def test_main_h_option(capsys):
         "  -otest TEST_FILENAME  filename for the unit test (implies -t)\n"
         "  -oad OAD              filename for the transformed code\n")
     assert expected3 in output
-    assert ("-otest TEST_FILENAME  filename for the unit test (implies -t)"
-            in output)
-    assert "-oad OAD              filename for the transformed code" in output
 
 
 # no args
