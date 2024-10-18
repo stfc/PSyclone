@@ -100,14 +100,14 @@ compile-serial:
 # Run NEMO
 run-%:
 	 ln -sf ${MODEL_DIR}/*.nc ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
-	 cp ${NAMELISTS_DIR}namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	 cp ${NAMELISTS_DIR}/namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
 	 cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; ./nemo
 	 cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; cat timing.output; cat run.stat
 
 # Run NEMO with NVPROF
 nvprof-%:
 	 ln -sf ${MODEL_DIR}/*.nc ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
-	 cp ${NAMELISTS_DIR}namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	 cp ${NAMELISTS_DIR}/namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
 	 cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; nsys profile ./nemo
 
 # Clean (only psycloned- folders)

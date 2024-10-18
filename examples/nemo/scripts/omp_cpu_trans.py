@@ -39,19 +39,14 @@ directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT)
+    enhance_tree_information, OTHER_ISSUES, DONT_PARALLELISE)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
 PROFILING_ENABLED = False
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT + [
-    "lbclnk.f90",  # TODO #2685: effective shape bug
-    "asminc.f90",
-    "trosk.f90",
-    "vremap.f90",
-]
+FILES_TO_SKIP = OTHER_ISSUES
 
 
 def trans(psyir):
@@ -66,12 +61,6 @@ def trans(psyir):
     omp_loop_trans = OMPLoopTrans(omp_schedule="static")
     omp_loop_trans.omp_directive = "paralleldo"
 
-    # TODO #2317: Has structure accesses that can not be offloaded and has
-    # a problematic range to loop expansion of (1:1)
-    if psyir.name.startswith("obs_"):
-        print("Skipping file", psyir.name)
-        return
-
     for subroutine in psyir.walk(Routine):
         print(f"Adding OpenMP threading to subroutine: {subroutine.name}")
 
@@ -80,29 +69,19 @@ def trans(psyir):
 
         enhance_tree_information(subroutine)
 
-        if subroutine.name in ("eos_rprof", "load_nml", "prt_ctl_write_sum",
-                               "sbc_blk", "lbc_lnk_pt2pt_sp",
-                               "lbc_lnk_neicoll_sp", "lbc_lnk_iprobe_sp",
-                               "lbc_lnk_waitany_sp"):
-            # TODO #1959: 'eos_rprof' make the ECMWF compilation fail
-            # because it moves a statement function outside of the
-            # specification part.
-            # The rest are due to Subroutine wrongly parsed as Arrays?
-            print("Skipping normalisation for ", subroutine.name)
-
-        else:
-            normalise_loops(
-                    subroutine,
-                    hoist_local_arrays=False,
-                    convert_array_notation=True,
-                    convert_range_loops=True,
-                    hoist_expressions=False
-            )
-
-        insert_explicit_loop_parallelism(
+        normalise_loops(
                 subroutine,
-                region_directive_trans=omp_parallel_trans,
-                loop_directive_trans=omp_loop_trans,
-                # Collapse may be useful in some architecture/compiler
-                collapse=False,
+                hoist_local_arrays=False,
+                convert_array_notation=True,
+                convert_range_loops=True,
+                hoist_expressions=False
         )
+
+        if psyir.name not in DONT_PARALLELISE:
+            insert_explicit_loop_parallelism(
+                    subroutine,
+                    region_directive_trans=omp_parallel_trans,
+                    loop_directive_trans=omp_loop_trans,
+                    collapse=False,
+                    privatise_arrays=psyir.name != "ldftra.f90",
+            )

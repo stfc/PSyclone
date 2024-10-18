@@ -46,7 +46,8 @@ from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   FileContainer, IfBlock, UnaryOperation,
                                   CodeBlock, ACCRoutineDirective, Literal,
                                   IntrinsicCall, BinaryOperation, Reference)
-from psyclone.psyir.symbols import ArrayType, Symbol, INTEGER_TYPE
+from psyclone.psyir.symbols import (
+    ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol)
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -267,8 +268,14 @@ then
         '''
         local_arrays = {}
         for sym in node.symbol_table.automatic_datasymbols:
+            # Check that the array is not the functions return symbol, or
+            # a constant or has other references in its type declaration.
             if (sym is node.return_symbol or not sym.is_array or
                     sym.is_constant):
+                continue
+            if isinstance(sym.datatype.intrinsic, DataTypeSymbol):
+                continue
+            if isinstance(sym.datatype.precision, DataSymbol):
                 continue
             # Check whether all of the bounds of the array are defined - an
             # allocatable array will have array dimensions of
@@ -288,6 +295,13 @@ then
             # listed in 'names_in_cblock'.
             for name in names_in_cblock:
                 del local_arrays[name]
+
+        for intrinsic in node.walk(IntrinsicCall):
+            # The SHAPE argument of RESHAPE cannot be an allocatable
+            if intrinsic.intrinsic == IntrinsicCall.Intrinsic.RESHAPE:
+                for ref in intrinsic.walk(Reference):
+                    if ref.symbol.name in local_arrays:
+                        del local_arrays[ref.symbol.name]
 
         return list(local_arrays.values())
 

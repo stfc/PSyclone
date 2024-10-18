@@ -1164,6 +1164,7 @@ class Fparser2Reader():
         shape = []
         # Traverse shape specs in Depth-first-search order
         for dim in walk(dimensions, (Fortran2003.Assumed_Shape_Spec,
+                                     Fortran2003.Deferred_Shape_Spec,
                                      Fortran2003.Explicit_Shape_Spec,
                                      Fortran2003.Assumed_Size_Spec)):
 
@@ -1193,6 +1194,11 @@ class Fparser2Reader():
                     shape.append((lower, upper))
                 else:
                     shape.append(None)
+
+            elif isinstance(dim, Fortran2003.Deferred_Shape_Spec):
+                # Deferred_Shape_Spec has no children (R520). For our purposes
+                # it is equivalent to Assumed_Shape_Spec(None, None).
+                shape.append(None)
 
             elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
                 upper = self._process_array_bound(dim.items[1],
@@ -1680,7 +1686,8 @@ class Fparser2Reader():
         has_save_attr = False
         if attr_specs:
             for attr in attr_specs.items:
-                if isinstance(attr, Fortran2003.Attr_Spec):
+                if isinstance(attr, (Fortran2003.Attr_Spec,
+                                     Fortran2003.Component_Attr_Spec)):
                     normalized_string = str(attr).lower().replace(' ', '')
                     if normalized_string == "save":
                         if interface is not None:
@@ -2084,6 +2091,12 @@ class Fparser2Reader():
         except NotImplementedError:
             datatype = None
             init_expr = None
+            if walk(node.children[0], Fortran2003.Length_Selector):
+                # If it has a length_selector it is a string, we do not
+                # support it yet but we can set the partial datatype as
+                # an ArrayType of CHARACTER
+                datatype = ArrayType(CHARACTER_TYPE,
+                                     [ArrayType.Extent.DEFERRED])
 
         # Restore the fparser2 parse tree
         node.items = tuple(orig_node_children)
