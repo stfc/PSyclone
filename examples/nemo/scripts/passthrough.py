@@ -38,7 +38,7 @@
 needed to provide a FILES_TO_SKIP list. '''
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = []
+FILES_TO_SKIP = ["ldfslp.f90"]
 
 
 def trans(_):

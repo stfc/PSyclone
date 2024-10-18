@@ -83,12 +83,5 @@ def trans(psyir):
                     region_directive_trans=omp_parallel_trans,
                     loop_directive_trans=omp_loop_trans,
                     collapse=False,
-                    # privatise_arrays=(psyir.name in [
-                    #     "zdftke.f90", "domwri.f90", "dtatsd.f90", "dynhpg.f90",
-                    #     "dynldf_lev.f90", "eosbn2.f90", "icedyn_adv_pra.f90",
-                    #     "icedyn_adv_umx.f90", "icethd_da.f90", "icetab.f90",
-                    #     "icethd_sal.f90", "icethd_zdf_bl99.f90",
-                    #     "ldftra.f90", "p4zpoc.f90", "traadv_ubs.f90",
-                    #     "trabbl.f90"
-                    # ])
+                    privatise_arrays=psyir.name != "ldftra.f90",
             )
