@@ -2727,7 +2727,7 @@ def test_halo_exchange_view():
         sched + "[invoke='invoke_0_testkern_stencil_type', dm=True]\n"
         "    0: " + exch + "[field='f1', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    1: " + exch + "[field='f2', type='region', depth=f2_extent+1, "
+        "    1: " + exch + "[field='f2', type='region', depth=f2_extent + 1, "
         "check_dirty=True]\n"
         "    2: " + exch + "[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
@@ -3443,7 +3443,6 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
     halo_access = HaloReadAccess(arg, schedule.symbol_table)
     assert not halo_access.max_depth
     assert halo_access.var_depth is None
-    assert halo_access.literal_depth == 0
     assert halo_access.stencil_type is None
 
     assert LFRicBuild(tmpdir).code_compiles(psy)

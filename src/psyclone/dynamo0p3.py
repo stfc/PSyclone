@@ -4789,9 +4789,10 @@ class HaloReadAccess(HaloDepth):
                 if self._var_depth:
                     self._var_depth = BinaryOperation.create(
                         BinaryOperation.Operator.ADD,
-                        Literal(stencil_depth, INTEGER_TYPE), self._var_depth)
+                        Literal(str(stencil_depth), INTEGER_TYPE),
+                        self._var_depth)
                 else:
-                    self._var_depth = Literal(stencil_depth, INTEGER_TYPE)
+                    self._var_depth = Literal(str(stencil_depth), INTEGER_TYPE)
             else:
                 # Stencil_depth is provided by the algorithm layer.
                 # It is currently not possible to specify kind for an
@@ -4800,13 +4801,17 @@ class HaloReadAccess(HaloDepth):
                 if field.stencil.extent_arg.is_literal():
                     # a literal is specified
                     value_str = field.stencil.extent_arg.text
-                    self._var_depth = BinaryOperation.create(
-                        BinaryOperation.Operator.ADD,
-                        Literal(value_str, INTEGER_TYPE), self._var_depth)
+                    stencil_depth = Literal(value_str, INTEGER_TYPE)
                 else:
                     # a variable is specified
-                    self._var_depth = Reference(
+                    stencil_depth = Reference(
                         table.lookup(field.stencil.extent_arg.varname))
+                if self._var_depth:
+                    self._var_depth = BinaryOperation.create(
+                        BinaryOperation.Operator.ADD,
+                        stencil_depth, self._var_depth.copy())
+                else:
+                    self._var_depth = stencil_depth
         # If this is an intergrid kernel and the field in question is on
         # the fine mesh then we must double the halo depth
         if call.is_intergrid and field.mesh == "gh_fine":
