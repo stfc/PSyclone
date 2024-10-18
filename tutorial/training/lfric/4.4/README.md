@@ -25,10 +25,8 @@ Running PSyclone with the OpenMP transformation script:
 
 
 ## Hands-on
-First of all, the kernel needs to be completed. All the meta-data, subroutine declaration
-and even loops are already there, but you still need to add the computation. Once this is
-done, you can run `make compile` to compile and link your example and execute it. The
-output should be:
+Use the 
+
 
     Mesh has           5 layers.
     20240917233109.668+1000:INFO : Min/max minmax of field_3 =   0.80000000E+01  0.80000000E+01

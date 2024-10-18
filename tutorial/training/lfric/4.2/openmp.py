@@ -47,13 +47,11 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 
 def trans(psy):
     '''
-    Take the supplied psy object, and fuse the first two loops
+    Take the supplied psy object, add openmp directives
 
     :param psy: the PSy layer to transform.
     :type psy: :py:class:`psyclone.psyGen.PSy`
 
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
     omp_parallel = OMPParallelTrans()
