@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,18 +30,49 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
 
-# Setting for the PSyData NAN check library
-PSYDATA_PATH?=$(PSYCLONE_RELPATH)/lib/nan_test/lfric
-PSYDATA_LIB_NAME?=_nan_test
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option. It adds kernel NAN-verification to
+the invokes. This then creates code that, at runtime, verifies that
+all input and output parameters of a region are a valid number, i.e.
+not infinity or NAN.
+'''
 
-include Makefile.inc
+from psyclone.psyir.transformations import ValueRangeCheckTrans
 
-time_evolution_alg_mod_psy.f90: time_evolution_alg_mod.x90 solutions/nan_all_transform.py
-	psyclone $(PSYCLONE_CMD)                                                  \
-	-d . -d ../gungho_lib                                                     \
-	-s ./solutions/nan_all_transform.py -opsy time_evolution_alg_mod_psy.f90  \
-	-oalg time_evolution_alg_mod.f90 time_evolution_alg_mod.x90
 
+def trans(psy):
+    '''
+    Take the supplied psy object, and add verification to both
+    invokes that read only parameters are not modified.
+
+    :param psy: the PSy layer to transform.
+    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
+
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
+
+    '''
+    value_range_check = ValueRangeCheckTrans()
+
+    invoke = psy.invokes.get("invoke_0")
+    schedule = invoke.schedule
+
+    # You could just apply the transform for all elements of
+    # psy.invokes.invoke_list. But in this case we also
+    # want to give the regions a friendlier name:
+    value_range_check.apply(schedule.children,
+                            {"region_name": ("main", "init")})
+
+    invoke = psy.invokes.get("invoke_1_update_field")
+    schedule = invoke.schedule
+
+    # Enclose everything in a value_range_check region
+    value_range_check.apply(schedule.children,
+                            {"region_name": ("main", "update")})
+
+    # print(schedule.view())
+    return psy
