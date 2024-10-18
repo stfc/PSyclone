@@ -69,12 +69,6 @@ def _get_array_bound(vector1, vector2):
     function makes use of these constraint, e.g. it always returns 1
     for the stride.
 
-    Issue #717 requires similar functionality to this
-    function. However, to use this function safely in other situations
-    we would need to move the tests in validate into this function
-    first and then potentially add this function to the ArrayMixin
-    class, or a separate utils module.
-
     :param array: the reference that we are interested in.
     :type array: :py:class:`psyir.nodes.Reference`
     :param int index: the (array) reference index that we are \

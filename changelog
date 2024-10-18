@@ -234,6 +234,20 @@
 	80) PR #2596 for #2592 and #2582. Routine nodes manage their own
 	symbols from their parent scope.
 
+	81) PR #2725 to close #717. Removes some TODOs and associated utility code
+	from the fparser2 frontend that is now unused.
+
+	82) PR #2733 for #2730. Adds OpenMP offloading support for LFRic plus
+	associated integration test.
+
+	83) PR #2743 for #2742. Ensure generated code for function spaces in
+	LFRic is always in a consistent order.
+
+	84) PR #2746. Update minor versions of CUDA, HDF5, nvfortran and
+	Python used in the CI.
+
+	85) PR #2748. Revert Python used on RTD to 3.12 as 3.13 unsupported.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data

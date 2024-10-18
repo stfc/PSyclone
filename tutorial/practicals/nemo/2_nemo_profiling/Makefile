@@ -108,7 +108,7 @@ transform:
                      -o output_3.f90 -l output tra_adv_mod.F90
 
 compile: transform $(KERNELS) output.o solutions/runner.o
-	$(F90) $(KERNELS) output.o solutions/runner.o -o $(NAME) \
+	$(F90) $(F90FLAGS) $(KERNELS) output.o solutions/runner.o -o $(NAME) \
 	       $(PROFILE_WRAPPER_LINK) $(PROFILE_LINK)
 
 # Only used for the compile CI target to compile the solution file

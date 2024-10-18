@@ -39,7 +39,7 @@ directives into Nemo code. '''
 
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT, NOT_WORKING)
+    enhance_tree_information, NOT_PERFORMANT)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import (
     ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans)
@@ -47,7 +47,7 @@ from psyclone.transformations import (
 PROFILING_ENABLED = True
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING
+FILES_TO_SKIP = NOT_PERFORMANT
 
 
 def trans(psyir):
@@ -81,15 +81,6 @@ def trans(psyir):
             print("Skipping", subroutine.name)
             continue
 
-        # This are functions with scalar bodies, we don't want to parallelise
-        # them, but we could:
-        # - Inline them
-        # - Annotate them with 'omp declare target' and allow to call from gpus
-        if subroutine.name in ("q_sat", "sbc_dcy", "gamma_moist",
-                               "cd_neutral_10m", "psi_h", "psi_m"):
-            print("Skipping", subroutine.name)
-            continue
-
         # OpenACC fails in the following routines with the Compiler error:
         # Could not find allocated-variable index for symbol - xxx
         # This all happen on characters arrays, e.g. cd_nat
@@ -108,12 +99,12 @@ def trans(psyir):
                 hoist_expressions=True
         )
 
-        # In the lib_fortran file we annotate each routine of the SIGN_*
-        # interface with the OpenACC Routine Directive
-        if psyir.name == "lib_fortran.f90":
-            if subroutine.name.lower().startswith("sign_"):
-                ACCRoutineTrans().apply(subroutine)
-                continue
+        # These are functions that are called from inside parallel regions,
+        # annotate them with 'acc routine'
+        if subroutine.name.lower().startswith("sign_"):
+            ACCRoutineTrans().apply(subroutine)
+            print(f"Marked {subroutine.name} as GPU-enabled")
+            continue
 
         insert_explicit_loop_parallelism(
             subroutine,
