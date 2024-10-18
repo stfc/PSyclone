@@ -90,7 +90,7 @@ jobs:
         # Clean up and compile
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
-            add_key "key_nosignedzero" -j 4 -v 1 &> compiler_output.txt || cat compiler_output.txt && false
+            add_key "key_nosignedzero" -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
@@ -98,7 +98,7 @@ jobs:
         mpirun -np 4 ./nemo
         tail run.stat
         # This was produced with gfortran, so we can do an exact diff
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.small.100steps run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.100steps run.stat
 
     - name: NEMO 5.0 nvidia passthrough
       run: |
@@ -120,14 +120,14 @@ jobs:
         # Without key_mpi_off it fails to compile (even without psyclone)
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
-          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1 &> compiler_output.txt || cat compiler_output.txt && false
+          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         ./nemo
-        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.small.100steps run.stat
         tail run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.100steps run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
 
@@ -150,7 +150,7 @@ jobs:
         # Clean up and compile
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
-          add_key "key_nosignedzero" -j 4 -v 1 &> compiler_output.txt || cat compiler_output.txt && false
+          add_key "key_nosignedzero" -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
@@ -178,16 +178,16 @@ jobs:
         # Clean up and compile
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py \
-          add_key "key_nosignedzero" -j 4 -v 1 &> compiler_output.txt || cat compiler_output.txt && false
+          add_key "key_nosignedzero" -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         tail run.stat
-        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.small.100steps run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.100steps run.stat
         export TIME_microsec=$(grep "Mean:" timing.output | head -n 1 | awk '{print $2}')
-        export TIME_sec=$(bc <<< "${TIME_US} / 10000")
+        export TIME_sec=$(bc <<< "${TIME_microsec} / 10000")
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
@@ -218,16 +218,16 @@ jobs:
         # Without key_mpi_off it fails to compile (even without psyclone)
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
-          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1 &> compiler_output.txt || cat compiler_output.txt && false
+          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         ./nemo
         tail run.stat
-        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.small.100steps run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.100steps run.stat
         export TIME_microsec=$(grep "Mean:" timing.output | head -n 1 | awk '{print $2}')
-        export TIME_sec=$(bc <<< "${TIME_US} / 10000")
+        export TIME_sec=$(bc <<< "${TIME_microsec} / 10000")
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \

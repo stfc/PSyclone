@@ -39,7 +39,7 @@ directives into Nemo code. '''
 
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT, NOT_WORKING)
+    enhance_tree_information, OTHER_ISSUES, DONT_PARALLELISE)
 from psyclone.psyir.nodes import (
     Loop, Routine, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
@@ -49,12 +49,10 @@ from psyclone.transformations import (
 PROFILING_ENABLED = False
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING + [
-    "lbclnk.f90",   # TODO #2685: effective shape bug
+FILES_TO_SKIP = OTHER_ISSUES + [
     "asminc.f90",
     "trosk.f90",    # TODO #1254
     "vremap.f90",   # Bulk assignment of a structure component
-    "ldfslp.f90",   # Dependency analysis mistake? see Cray compiler comment
     "lib_mpp.f90",  # Compiler Error: Illegal substring expression
     "prtctl.f90",   # Compiler Error: Illegal substring expression
     "sbcblk.f90",   # Compiler Error: Vector expression used where scalar
@@ -67,8 +65,6 @@ FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING + [
     "diu_bulk.f90",  # Linking undefined reference
     "bdyini.f90",    # Linking undefined reference
     "trcrad.f90",
-    "mppini.f90",  # TODO #2723: can_loop_be_parallelised fails with TypeError
-                   # in SymbolicMath comparison (NENOv5 -r ORCA2_ICE_PISCES)
 ]
 
 
@@ -81,15 +77,12 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-
     omp_target_trans = OMPTargetTrans()
     omp_loop_trans = OMPLoopTrans(omp_schedule="static")
     omp_loop_trans.omp_directive = "loop"
 
-    # TODO #2317: Has structure accesses that can not be offloaded and has
-    # a problematic range to loop expansion of (1:1)
+    # Many of the obs_ files have problems to be offloaded to the GPU
     if psyir.name.startswith("obs_"):
-        print("Skipping file", psyir.name)
         return
 
     for subroutine in psyir.walk(Routine):
@@ -97,16 +90,7 @@ def trans(psyir):
         if PROFILING_ENABLED:
             add_profiling(subroutine.children)
 
-        # This are functions with scalar bodies, we don't want to parallelise
-        # them, but we could:
-        # - Inine them
-        # - Annotate them with 'omp declare target' and allow to call from gpus
-        if subroutine.name in ("q_sat", "sbc_dcy", "gamma_moist",
-                               "cd_neutral_10m", "psi_h", "psi_m"):
-            print("Skipping", subroutine.name)
-            continue
-
-        print(f"Transforming subroutine: {subroutine.name}")
+        print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
 
         enhance_tree_information(subroutine)
 
@@ -119,17 +103,18 @@ def trans(psyir):
                 hoist_expressions=True
         )
 
-        # For performance in lib_fortran, mark serial routines as GPU-enabled
-        if psyir.name == "lib_fortran.f90" or psyir.name == "sbc_phy.f90":
-            if not subroutine.walk(Loop):
-                try:
-                    # We need the 'force' option.
-                    # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
-                    # array notation. (TODO #717)
-                    OMPDeclareTargetTrans().apply(subroutine,
-                                                  options={"force": True})
-                except TransformationError as err:
-                    print(err)
+        # Thes are functions that are called from inside parallel regions,
+        # annotate them with 'omp declare target'
+        if (subroutine.name.lower().startswith("sign_")
+                or psyir.name == "sbc_phy.f90"):
+            try:
+                OMPDeclareTargetTrans().apply(subroutine)
+                print(f"Marked {subroutine.name} as GPU-enabled")
+            except TransformationError:
+                pass
+            # We continue parallelising inside the routine, but this could
+            # change if the parallelisation directives added below are not
+            # nestable, in that case we could add a 'continue' here
 
         # For now this is a special case for stpctl.f90 because it forces
         # loops to parallelise without many safety checks
@@ -156,10 +141,11 @@ def trans(psyir):
                         parent.addchild(atomic)
             continue
 
-        insert_explicit_loop_parallelism(
-                subroutine,
-                region_directive_trans=omp_target_trans,
-                loop_directive_trans=omp_loop_trans,
-                # Collapse is necessary to give GPUs enough parallel items
-                collapse=True,
-        )
+        if psyir.name not in DONT_PARALLELISE:
+            insert_explicit_loop_parallelism(
+                    subroutine,
+                    region_directive_trans=omp_target_trans,
+                    loop_directive_trans=omp_loop_trans,
+                    # Collapse is necessary to give GPUs enough parallel items
+                    collapse=True,
+            )

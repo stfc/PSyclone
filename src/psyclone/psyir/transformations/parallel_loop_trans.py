@@ -151,17 +151,13 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         routine = node.ancestor(Routine)
         if routine is not None and routine.parent is not None:
-            try:
-                # TODO #2596: Replace with routine.symbol
-                rsym = routine.parent.symbol_table.lookup(routine.name)
-                if rsym.is_pure or rsym.is_elemental:
-                    raise TransformationError(
-                        f"Loops inside a pure (or elemental) routine cannot be"
-                        f" parallelised, but attempted to parallelise loop "
-                        f"inside '{routine.name}'"
-                    )
-            except KeyError:
-                pass
+            rsym = routine.symbol
+            if rsym.is_pure or rsym.is_elemental:
+                raise TransformationError(
+                    f"Loops inside a pure (or elemental) routine cannot be"
+                    f" parallelised, but attempted to parallelise loop "
+                    f"inside '{routine.name}'"
+                )
 
         # If it's sequential or we 'force' the transformation, the validations
         # below this point are skipped
