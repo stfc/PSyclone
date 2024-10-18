@@ -44,8 +44,10 @@ from collections import OrderedDict, namedtuple
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.lfric import (KernCallArgList, KernStubArgList,
-                                   KernelInterface, LFRicConstants)
+from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
+from psyclone.domain.lfric.kernel_interface import KernelInterface
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
 from psyclone.parse.algorithm import Arg, KernelCall
@@ -580,7 +582,9 @@ class LFRicKern(CodedKern):
         const = LFRicConstants()
         supported_operates_on = const.USER_KERNEL_ITERATION_SPACES[:]
         # TODO #925 Add support for 'domain' kernels
+        # TODO #1351 Add suport for 'dof' kernels
         supported_operates_on.remove("domain")
+        supported_operates_on.remove("dof")
 
         # Check operates-on (iteration space) before generating code
         if self.iterates_over not in supported_operates_on:
@@ -599,13 +603,14 @@ class LFRicKern(CodedKern):
         # Add all the declarations
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric import (LFRicScalarArgs, LFRicFields,
-                                           LFRicDofmaps, LFRicStencils)
-        from psyclone.dynamo0p3 import (DynCellIterators, DynFunctionSpaces,
+        from psyclone.domain.lfric import (
+            LFRicCellIterators, LFRicScalarArgs, LFRicFields,
+            LFRicDofmaps, LFRicStencils)
+        from psyclone.dynamo0p3 import (DynFunctionSpaces,
                                         DynCMAOperators, DynBoundaryConditions,
                                         DynLMAOperators, LFRicMeshProperties,
                                         DynBasisFunctions, DynReferenceElement)
-        for entities in [DynCellIterators, LFRicDofmaps, DynFunctionSpaces,
+        for entities in [LFRicCellIterators, LFRicDofmaps, DynFunctionSpaces,
                          DynCMAOperators, LFRicScalarArgs, LFRicFields,
                          DynLMAOperators, LFRicStencils, DynBasisFunctions,
                          DynBoundaryConditions, DynReferenceElement,
@@ -698,7 +703,7 @@ class LFRicKern(CodedKern):
         # symbols. For the moment we just return the unmodified PSyIR schedule
         # but this should use RaisePSyIR2LFRicKernTrans once KernelInterface
         # is fully functional (#928).
-        ksched = KernelSchedule(sched.name,
+        ksched = KernelSchedule(sched.symbol,
                                 symbol_table=sched.symbol_table.detach())
         for child in sched.pop_all_children():
             ksched.addchild(child)

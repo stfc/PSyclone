@@ -378,6 +378,8 @@ class MarkRoutineForGPUMixin:
         :raises TransformationError: if the target is a built-in kernel.
         :raises TransformationError: if it is a kernel but without an
                                      associated PSyIR.
+        :raises TransformationError: if it is a Kernel that has multiple
+                                     implementations (mixed precision).
         :raises TransformationError: if any of the symbols in the kernel are
                                      accessed via a module use statement (and
                                      are not compile-time constants).
@@ -410,6 +412,17 @@ class MarkRoutineForGPUMixin:
                 raise TransformationError(
                     f"Failed to create PSyIR for kernel '{node.name}'. "
                     f"Cannot transform such a kernel.") from error
+
+            # Check that it's not a mixed-precision kernel (which will have
+            # more than one Routine implementing it). We can't transform
+            # these at the moment because we can't correctly manipulate their
+            # metadata - TODO #1946.
+            routines = kernel_schedule.root.walk(Routine)
+            if len(routines) > 1:
+                raise TransformationError(
+                    f"Cannot apply {self.name} to kernel '{node.name}' as "
+                    f"it has multiple implementations - TODO #1946")
+
             k_or_r = "Kernel"
         else:
             # Supplied node is a PSyIR Routine which *is* a Schedule.
@@ -524,19 +537,35 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
 
     '''
     def apply(self, node, options=None):
-        ''' Insert an OMPDeclareTargetDirective inside the provided routine.
+        ''' Insert an OMPDeclareTargetDirective inside the provided routine or
+        associated PSyKAl kernel.
 
-        :param node: the PSyIR routine to insert the directive into.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine`
+        :param node: the kernel or routine which is the target of this
+            transformation.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine` |
+                    :py:class:`psyclone.psyGen.Kern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["force"]: whether to allow routines with
+            CodeBlocks to run on the GPU.
 
         '''
         self.validate(node, options)
-        for child in node.children:
+
+        if isinstance(node, Kern):
+            # Flag that the kernel has been modified
+            node.modified = True
+
+            # Get the schedule representing the kernel subroutine
+            routine = node.get_kernel_schedule()
+        else:
+            routine = node
+
+        for child in routine.children:
             if isinstance(child, OMPDeclareTargetDirective):
                 return  # The routine is already marked with OMPDeclareTarget
-        node.children.insert(0, OMPDeclareTargetDirective())
+
+        routine.children.insert(0, OMPDeclareTargetDirective())
 
     def validate(self, node, options=None):
         ''' Check that an OMPDeclareTargetDirective can be inserted.
@@ -1127,7 +1156,16 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Cannot have a loop over colours "
                                       "within an OpenMP parallel region.")
 
+        # Get the ancestor InvokeSchedule as applying the transformation
+        # creates a new Loop node.
+        sched = node.ancestor(LFRicInvokeSchedule)
+
         super().apply(node, options=options)
+
+        # Finally, update the information on the colourmaps required for
+        # the mesh(es) in this invoke.
+        if sched and sched.invoke:
+            sched.invoke.meshes.colourmap_init()
 
     def _create_colours_loop(self, node):
         '''

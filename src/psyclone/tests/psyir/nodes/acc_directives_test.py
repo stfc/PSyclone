@@ -93,7 +93,7 @@ def test_accregiondir_validate_global(fortran_reader):
 
 def test_accregiondir_signatures():
     '''Test the signatures property of ACCRegionDirective.'''
-    routine = Routine("test_prog")
+    routine = Routine.create("test_prog")
     accnode = MyACCRegion()
     routine.addchild(accnode)
     bob = DataSymbol("bob", INTEGER_TYPE)
@@ -186,7 +186,7 @@ def test_accenterdatadirective_gencode_3(trans):
     code = str(psy.gen)
     assert (
         "      !$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
-        "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
         "undf_w1,undf_w2,undf_w3)\n" in code)
 
 
@@ -218,7 +218,7 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
     assert (
         "      !$acc enter data copyin(f1_data,f2_data,f3_data,m1_data,"
         "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
-        "nlayers,undf_w1,undf_w2,undf_w3)\n" in code)
+        "nlayers_f1,undf_w1,undf_w2,undf_w3)\n" in code)
 
 
 # Class ACCLoopDirective start

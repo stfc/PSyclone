@@ -36,8 +36,8 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone Dynamo 0.3 API by 1)
-    specialising the required base classes in parser.py (KernelType) and
+''' This module implements the PSyclone LFRic API by 1) specialising the
+    required base classes in parser.py (KernelType) and
     adding a new class (DynFuncDescriptor03) to capture function descriptor
     metadata and 2) specialising the required base classes in psyGen.py
     (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
@@ -53,10 +53,11 @@ from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
-from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
-                                   KernCallArgList, LFRicCollection,
-                                   LFRicConstants, LFRicSymbolTable, LFRicKern,
-                                   LFRicInvokes, LFRicTypes, LFRicLoop)
+from psyclone.domain.lfric import (
+    FunctionSpace, KernCallAccArgList, KernCallArgList, LFRicCollection,
+    LFRicConstants, LFRicSymbolTable, LFRicKern,
+    LFRicInvokes, LFRicTypes, LFRicLoop)
+from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen,
@@ -1620,90 +1621,6 @@ class DynProxies(LFRicCollection):
                         f"handled in DynProxies.initialise()")
 
 
-class DynCellIterators(LFRicCollection):
-    '''
-    Handles all entities required by kernels that operate on cell-columns.
-
-    :param kern_or_invoke: the Kernel or Invoke for which to manage cell \
-                           iterators.
-    :type kern_or_invoke: :py:class:`psyclone.domain.lfric.LFRicKern` or \
-                          :py:class:`psyclone.dynamo0p3.LFRicInvoke`
-
-    : raises GenerationError: if an Invoke has no field or operator arguments.
-
-    '''
-    def __init__(self, kern_or_invoke):
-        super().__init__(kern_or_invoke)
-
-        self._nlayers_name = self._symbol_table.find_or_create_tag(
-            "nlayers", symbol_type=LFRicTypes("MeshHeightDataSymbol")).name
-
-        # Store a reference to the first field/operator object that
-        # we can use to look-up nlayers in the PSy layer.
-        if not self._invoke:
-            # We're not generating a PSy layer so we're done here.
-            return
-        first_var = None
-        for var in self._invoke.psy_unique_vars:
-            if not var.is_scalar:
-                first_var = var
-                break
-        if not first_var:
-            raise GenerationError(
-                "Cannot create an Invoke with no field/operator arguments.")
-        self._first_var = first_var
-
-    def _invoke_declarations(self, parent):
-        '''
-        Declare entities required for iterating over cells in the Invoke.
-
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("lfric")
-
-        # We only need the number of layers in the mesh if we are calling
-        # one or more kernels that operate on cell-columns.
-        if not self._dofs_only:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=[self._nlayers_name]))
-
-    def _stub_declarations(self, parent):
-        '''
-        Declare entities required for a kernel stub that operates on
-        cell-columns.
-
-        :param parent: the f2pygen node representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("lfric")
-
-        if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[self._nlayers_name]))
-
-    def initialise(self, parent):
-        '''
-        Look-up the number of vertical layers in the mesh in the PSy layer.
-
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        if not self._dofs_only:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Initialise number of layers"))
-            parent.add(CommentGen(parent, ""))
-            parent.add(AssignGen(
-                parent, lhs=self._nlayers_name,
-                rhs=self._first_var.proxy_name_indexed + "%" +
-                self._first_var.ref_name() + "%get_nlayers()"))
-
-
 class DynLMAOperators(LFRicCollection):
     '''
     Handles all entities associated with Local-Matrix-Assembly Operators.
@@ -2108,7 +2025,7 @@ class DynMeshes():
         # required if distributed memory is enabled. We also require a
         # mesh object if any of the kernels require properties of
         # either the reference element or the mesh. (Colourmaps also
-        # require a mesh object but that is handled in _colourmap_init().)
+        # require a mesh object but that is handled in colourmap_init().)
         if not _name_set and Config.get().distributed_memory:
             # We didn't already have a requirement for a mesh so add one now.
             _name_set.add("mesh")
@@ -2160,12 +2077,11 @@ class DynMeshes():
                 self._symbol_table.find_or_create_integer_symbol(
                     var_name, tag=var_name)
 
-    def _colourmap_init(self):
+    def colourmap_init(self):
         '''
-        Sets-up information on any required colourmaps. This cannot be done
-        in the constructor since colouring is applied by Transformations
-        and happens after the Schedule has already been constructed. Therefore,
-        this method is called at code-generation time.
+        Sets-up information on any required colourmaps. Since colouring is
+        applied by Transformations, this method is called as the final step
+        of Dynamo0p3ColourTrans.apply().
 
         '''
         # pylint: disable=too-many-locals
@@ -2252,10 +2168,6 @@ class DynMeshes():
         # pylint: disable=too-many-locals, too-many-statements
         api_config = Config.get().api_conf("lfric")
         const = LFRicConstants()
-
-        # Since we're now generating code, any transformations must
-        # have been applied so we can set-up colourmap information
-        self._colourmap_init()
 
         # We'll need various typedefs from the mesh module
         mtype = const.MESH_TYPE_MAP["mesh"]["type"]
@@ -4970,17 +4882,20 @@ class FSDescriptors():
         return self._descriptors
 
 
-def check_args(call):
+def check_args(call, parent_call):
     '''
     Checks that the kernel arguments provided via the invoke call are
     consistent with the information expected, as specified by the
-    kernel metadata
+    kernel metadata.
 
     :param call: the object produced by the parser that describes the
                  kernel call to be checked.
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param parent_call: the kernel-call object.
+    :type parent_call: :py:class:`psyclone.domain.lfric.LFRicKern`
+
     :raises: GenerationError if the kernel arguments in the Algorithm layer
-             do not match up with the kernel metadata
+             do not match up with the kernel metadata.
     '''
     # stencil arguments
     stencil_arg_count = 0
@@ -4999,15 +4914,20 @@ def check_args(call):
     qr_arg_count = len(set(call.ktype.eval_shapes).intersection(
         set(const.VALID_QUADRATURE_SHAPES)))
 
-    expected_arg_count = len(call.ktype.arg_descriptors) + \
-        stencil_arg_count + qr_arg_count
+    expected_arg_count = (len(call.ktype.arg_descriptors) +
+                          stencil_arg_count + qr_arg_count)
 
     if expected_arg_count != len(call.args):
+        msg = ""
+        if parent_call:
+            invoke_name = parent_call.ancestor(LFRicInvokeSchedule).name
+            msg = f"from invoke '{invoke_name}' "
         raise GenerationError(
-            f"error: expected '{expected_arg_count}' arguments in the "
-            f"algorithm layer but found '{len(call.args)}'. Expected "
+            f"error: expected '{expected_arg_count}' arguments for the call "
+            f"to kernel '{call.ktype.name}' {msg}in the algorithm layer but "
+            f"found '{len(call.args)}'. Expected "
             f"'{len(call.ktype.arg_descriptors)}' standard arguments, "
-            f"'{stencil_arg_count}' tencil arguments and '{qr_arg_count}' "
+            f"'{stencil_arg_count}' stencil arguments and '{qr_arg_count}' "
             f"qr_arguments'")
 
 
@@ -5042,7 +4962,7 @@ class DynKernelArguments(Arguments):
     :type call: :py:class:`psyclone.parse.KernelCall`
     :param parent_call: the kernel-call object.
     :type parent_call: :py:class:`psyclone.domain.lfric.LFRicKern`
-    :param bool check: whether to check for consistency between the \
+    :param bool check: whether to check for consistency between the
         kernel metadata and the algorithm layer. Defaults to True.
 
     :raises GenerationError: if the kernel metadata specifies stencil extent.
@@ -5057,7 +4977,7 @@ class DynKernelArguments(Arguments):
 
         # check that the arguments provided by the algorithm layer are
         # consistent with those expected by the kernel(s)
-        check_args(call)
+        check_args(call, parent_call)
 
         # create our arguments and add in stencil information where
         # appropriate.
@@ -6216,7 +6136,6 @@ __all__ = [
     'DynamoPSy',
     'DynFunctionSpaces',
     'DynProxies',
-    'DynCellIterators',
     'DynLMAOperators',
     'DynCMAOperators',
     'DynMeshes',
