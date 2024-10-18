@@ -638,12 +638,11 @@ class LFRicLoop(PSyLoop):
 
         :param halo_field: the argument requiring a halo exchange
         :type halo_field: :py:class:`psyclone.dynamo0p3.DynArgument`
-        :param index: optional argument providing the vector index if
-        there is one and None if not. Defaults to None.
-        :type index: int or None
+        :param index: optional argument providing the vector index.
+        :type index: Optional[int]
 
-        :raises InternalError: if there are two forward write \
-            dependencies and they are both associated with halo \
+        :raises InternalError: if there are two forward write
+            dependencies and they are both associated with halo
             exchanges.
 
         '''

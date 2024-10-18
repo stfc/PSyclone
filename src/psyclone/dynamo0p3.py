@@ -3700,23 +3700,20 @@ def _create_depth_list(halo_info_list, sym_table, parent):
 
 
 class LFRicHaloExchange(HaloExchange):
-
-    '''Dynamo specific halo exchange class which can be added to and
+    '''LFRic-specific halo exchange class which can be added to and
     manipulated in a schedule.
 
     :param field: the field that this halo exchange will act on
     :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param check_dirty: optional argument default True indicating \
-    whether this halo exchange should be subject to a run-time check \
-    for clean/dirty halos.
-    :type check_dirty: bool
-    :param vector_index: optional vector index (default None) to \
-    identify which index of a vector field this halo exchange is \
-    responsible for
+    :param bool check_dirty: optional argument default True indicating
+        whether this halo exchange should be subject to a run-time check
+        for clean/dirty halos.
+    :param vector_index: optional vector index (default None) to identify
+        identify which index of a vector field this halo exchange is
+        responsible for.
     :type vector_index: int
-    :param parent: optional PSyIRe parent node (default None) of this \
-    object
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param parent: PSyIR parent node of this object.
+    :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
     '''
     def __init__(self, field, check_dirty=True,
