@@ -38,7 +38,7 @@
 ''' This module provides access to sympy-based symbolic maths
 functions.'''
 
-
+from enum import Enum
 from sympy import (Complexes, ConditionSet, core, EmptySet, expand, FiniteSet,
                    ImageSet, simplify, solvers, Union)
 
@@ -64,6 +64,13 @@ class SymbolicMaths:
     # Class variable to store the SymbolicMaths instance if sympy is
     # available, or None otherwise.
     _instance = None
+
+    class Fuzzy(Enum):
+        '''
+        '''
+        FALSE = 0
+        TRUE = 1
+        MAYBE = 2
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -176,7 +183,7 @@ class SymbolicMaths:
         :param exp2: the second expression to be compared.
         :type exp2: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
-        :returns: the sympy expression resulting from subtracting exp2 \
+        :returns: the sympy expression resulting from subtracting exp2
             from exp1.
         :rtype: Union[:py:class:`sympy.core.basic.Basic`,
                       List[:py:class:`sympy.core.basic.Basic`]]
@@ -188,7 +195,8 @@ class SymbolicMaths:
 
         # Use the SymPyWriter to convert the two expressions to
         # SymPy expressions:
-        sympy_expressions = SymPyWriter(exp1, exp2)
+        sympy_writer = SymPyWriter()
+        sympy_expressions = sympy_writer([exp1, exp2])
         # If an expression is a range node, then the corresponding SymPy
         # expression will be a tuple:
         if isinstance(sympy_expressions[0], tuple) and \
@@ -201,6 +209,25 @@ class SymbolicMaths:
         # Simplify triggers a set of SymPy algorithms to simplify
         # the expression.
         return simplify(sympy_expressions[0] - sympy_expressions[1])
+
+    def greater_than(exp1, exp2):
+        '''
+        Determines whether exp1 is, or might be numerically greater than exp2.
+
+        :param exp1:
+        :type exp1:
+
+        TODO
+        '''
+        diff_val = SymbolicMaths._subtract(exp1, exp2)
+        #import pdb; pdb.set_trace()
+        if isinstance(diff_val, core.numbers.Integer):
+            if diff_val.is_zero or diff_val.is_negative:
+                return SymbolicMaths.Fuzzy.FALSE
+            return SymbolicMaths.Fuzzy.TRUE
+        else:
+            # We have some sort of symbolic result
+            return SymbolicMaths.Fuzzy.MAYBE
 
     # -------------------------------------------------------------------------
     @staticmethod

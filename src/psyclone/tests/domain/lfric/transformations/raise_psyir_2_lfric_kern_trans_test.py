@@ -325,7 +325,7 @@ def test_apply_ok(fortran_reader):
         "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
         "  type(ARG_TYPE) :: META_ARGS(1) = (/ &\n"
         "    arg_type(gh_field, gh_real, gh_inc, w1)/)\n"
-        "  INTEGER :: OPERATES_ON = cell_column\n"
+        "  INTEGER :: OPERATES_ON = owned_cell_column\n"
         "  CONTAINS\n"
         "    PROCEDURE, NOPASS :: testkern_code\n"
         "END TYPE testkern_type\n")
@@ -357,6 +357,6 @@ def test_apply_multi_ok(fortran_reader):
         "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
         "  type(ARG_TYPE) :: META_ARGS(1) = (/ &\n"
         "    arg_type(gh_field, gh_real, gh_inc, w1)/)\n"
-        "  INTEGER :: OPERATES_ON = cell_column\n"
+        "  INTEGER :: OPERATES_ON = owned_cell_column\n"
         "END TYPE testkern_type\n")
     assert container.metadata.fortran_string() == expected

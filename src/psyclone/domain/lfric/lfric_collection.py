@@ -53,12 +53,12 @@ class LFRicCollection():
     Base class for managing the declaration and initialisation of a
     group of related entities within an Invoke or Kernel stub
 
-    :param node: the Kernel or Invoke for which to manage variable \
+    :param node: the Kernel or Invoke for which to manage variable
                  declarations and initialisation.
-    :type node: :py:class:`psyclone.domain.lfric.LFRicInvoke` or \
+    :type node: :py:class:`psyclone.domain.lfric.LFRicInvoke` or
                 :py:class:`psyclone.domain.lfric.LFRicKern`
 
-    :raises InternalError: if the supplied node is not an LFRicInvoke or an \
+    :raises InternalError: if the supplied node is not an LFRicInvoke or an
                            LFRicKern.
 
     '''

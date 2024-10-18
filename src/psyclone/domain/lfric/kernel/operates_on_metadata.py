@@ -71,7 +71,7 @@ class OperatesOnMetadata(CommonDeclarationMetadata):
         '''Create an instance of OperatesOnMetadata from an fparser2
         tree.
 
-        :param fparser2_tree: fparser2 tree capturing the operates_on \
+        :param fparser2_tree: fparser2 tree capturing the operates_on
             metadata.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.\
             Data_Component_Def_Stmt`
@@ -102,13 +102,17 @@ class OperatesOnMetadata(CommonDeclarationMetadata):
     @operates_on.setter
     def operates_on(self, value):
         '''
-        :param str value: sets the operates_on metadata to the \
+        :param str value: sets the operates_on metadata to the
             supplied value.
         '''
         const = LFRicConstants()
         OperatesOnMetadata.validate_scalar_value(
             value, const.VALID_ITERATION_SPACES, "OPERATES_ON")
-        self._operates_on = value.lower()
+        if value.lower() == "cell_column":
+            # cell_column is the deprecated form of 'owned_cell_column'
+            self._operates_on = "owned_cell_column"
+        else:
+            self._operates_on = value.lower()
 
 
 __all__ = ["OperatesOnMetadata"]

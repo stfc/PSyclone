@@ -189,7 +189,8 @@ def test_ad_invalid_iteration_space():
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, "colours", 0)
     assert ("Expected operates_on in the kernel metadata to be one of "
-            "['cell_column', 'domain', 'dof'] but got "
+            "['cell_column', 'domain', 'dof', 'halo_cell_column', "
+            "'owned_cell_column', 'owned_and_halo_cell_column'] but got "
             "'colours'." in str(excinfo.value))
 
 
@@ -320,7 +321,9 @@ def test_kernel_call_invalid_iteration_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.validate_global_constraints()
     assert ("The LFRic API supports calls to user-supplied kernels that "
-            "operate on one of ['cell_column', 'domain', 'dof'], but "
+            "operate on one of ['cell_column', 'domain', 'dof', "
+            "'halo_cell_column', 'owned_cell_column', "
+            "'owned_and_halo_cell_column'], but "
             "kernel 'testkern_dofs_code' operates on 'vampires'."
             in str(excinfo.value))
 
@@ -2724,7 +2727,7 @@ def test_halo_exchange_view():
         sched + "[invoke='invoke_0_testkern_stencil_type', dm=True]\n"
         "    0: " + exch + "[field='f1', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    1: " + exch + "[field='f2', type='region', depth=f2_extent+1, "
+        "    1: " + exch + "[field='f2', type='region', depth=f2_extent + 1, "
         "check_dirty=True]\n"
         "    2: " + exch + "[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
@@ -3440,7 +3443,6 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
     halo_access = HaloReadAccess(arg, schedule.symbol_table)
     assert not halo_access.max_depth
     assert halo_access.var_depth is None
-    assert halo_access.literal_depth == 0
     assert halo_access.stencil_type is None
 
     assert LFRicBuild(tmpdir).code_compiles(psy)

@@ -108,7 +108,7 @@ def trans(psy):
             # Colour loops over cells unless they are on discontinuous
             # spaces or over dofs
             for loop in schedule.loops():
-                if loop.iteration_space == "cell_column" \
+                if loop.iteration_space.endswith("cell_column") \
                     and loop.field_space.orig_name \
                         not in const.VALID_DISCONTINUOUS_NAMES:
                     ctrans.apply(loop)
