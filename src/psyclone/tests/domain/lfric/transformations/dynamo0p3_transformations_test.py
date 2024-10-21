@@ -268,8 +268,21 @@ def test_colour_trans_tiled(tmpdir, dist_mem):
     # Store the results of applying this code transformation as
     # a string (Fortran is not case sensitive)
     gen = str(psy.gen).lower()
-    print(gen)
-    # assert False
+    if not dist_mem:
+        assert """
+      do colour = loop0_start, loop0_stop, 1
+        do tile = loop1_start, mesh%get_last_halo_tile_per_colour4(colour), 1
+          do cell = loop2_start, mesh%get_last_halo_cell_per_colour_and_tile\
+(colour,tile), 1
+        """ in gen
+    else:
+        assert """
+      do colour = loop0_start, loop0_stop, 1
+        do tile = loop1_start, mesh%get_last_halo_tile_per_colour4\
+(colour,max_halo_depth_mesh), 1
+          do cell = loop2_start, mesh%get_last_halo_cell_per_colour_and_tile\
+(colour,tile,max_halo_depth_mesh), 1
+        """ in gen
 
 
 def test_colour_trans_operator(tmpdir, dist_mem):
