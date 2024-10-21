@@ -75,6 +75,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     :param Optional[str] api: the PSyclone API in use, if any.
     :param Optional[bool] create_test: whether or not to create test code for
         the adjoint kernel.
+    :param Optional[str] test_filename: name of the adjoint test filename.
     :param Optional[int] coord_arg_index: the (1-based) index of the kernel
         argument holding the mesh coordinates (if any). Only applies to the
         LFRic API.
@@ -129,7 +130,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
         ad_psyir = generate_lfric_adjoint(tl_psyir, active_variables)
         if create_test:
             test_name = "adjoint_test"
-            # Test filenames for LFRic API must be of form foo_alg_mod.X90
+            # Test filenames for LFRic API must be of form foo_alg_mod.[Xx]90
             if test_filename:
               test_name = test_filename.split("_mod.")[0]
             test_psyir = generate_lfric_adjoint_harness(tl_psyir,
