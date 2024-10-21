@@ -63,7 +63,7 @@ TEST_ARRAY_DIM_SIZE = 20
 
 
 def generate_adjoint_str(tl_fortran_str, active_variables,
-                         api=None, create_test=False,
+                         api=None, create_test=False, test_filename=None,
                          coord_arg_index=None, panel_id_arg_index=None):
     '''Takes a tangent-linear kernel encoded as a string as input
     and returns its adjoint encoded as a string along with (if requested)
@@ -128,9 +128,14 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
         Config.get().api = api
         ad_psyir = generate_lfric_adjoint(tl_psyir, active_variables)
         if create_test:
+            test_name = "adjoint_test"
+            # Test filenames for LFRic API must be of form foo_alg_mod.X90
+            if test_filename:
+              test_name = test_filename.split("_mod.")[0]
             test_psyir = generate_lfric_adjoint_harness(tl_psyir,
                                                         coord_arg_index,
-                                                        panel_id_arg_index)
+                                                        panel_id_arg_index,
+                                                        test_name)
     else:
         raise NotImplementedError(
             f"PSyAD only supports generic routines/programs or LFRic "

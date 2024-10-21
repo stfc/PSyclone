@@ -522,7 +522,8 @@ def _lfric_log_write(sym_table, kernel, var1, var2):
 
 
 def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
-                                   panel_id_arg_idx=None):
+                                   panel_id_arg_idx=None,
+                                   test_name="adjoint_test"):
     '''
     Constructs and returns the PSyIR for a Container and Routine that
     implements a test harness for the adjoint of the supplied tangent-linear
@@ -535,6 +536,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         field in the list of arguments in the kernel metadata (if present).
     :param Optional[int] panel_id_arg_idx: 1-indexed position of the panel-id \
         field in the list of arguments in the kernel metadata (if present).
+    :param Optional[str] test_name: Name of the adjoint test LFRic alg 
+        derived from the adjoint test filename (if present)
 
     :returns: PSyIR of an Algorithm that tests the adjoint of the supplied \
               LFRic TL kernel.
@@ -555,7 +558,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
             f"does not have a Container node:\n{tl_psyir.view(colour=False)}")
 
     lfalg = LFRicAlg()
-    container = lfalg.create_alg_routine("adjoint_test")
+    container = lfalg.create_alg_routine(test_name)
     routine = container.walk(Routine)[0]
     table = routine.symbol_table
 
