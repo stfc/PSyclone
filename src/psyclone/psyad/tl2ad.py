@@ -132,7 +132,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
             test_name = "adjoint_test"
             # Test filenames for LFRic API must be of form foo_alg_mod.[Xx]90
             if test_filename:
-              test_name = test_filename.split("_mod.")[0]
+                test_name = test_filename.split("_mod.")[0]
             test_psyir = generate_lfric_adjoint_harness(tl_psyir,
                                                         coord_arg_index,
                                                         panel_id_arg_index,
