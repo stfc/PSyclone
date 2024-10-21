@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,19 +43,19 @@ GENERATED_FILES += dag.png dag.svg dag
 transform: serial dm openmp hybrid reprod
 
 serial:
-	${PSYCLONE} -nodm alg.x90
+	${PSYCLONE} -api lfric -nodm alg.x90
 
 dm:
-	${PSYCLONE} alg.x90
+	${PSYCLONE} -api lfric alg.x90
 
 openmp:
-	${PSYCLONE} -nodm -s ./omp_script.py alg.x90
+	${PSYCLONE} -api lfric -nodm -s ./omp_script.py alg.x90
 
 hybrid:
-	${PSYCLONE} -s ./omp_script.py alg.x90
+	${PSYCLONE} -api lfric -s ./omp_script.py alg.x90
 
 reprod:
-	${PSYCLONE} -s ./omp_reprod_script.py alg.x90
+	${PSYCLONE} -api lfric -s ./omp_reprod_script.py alg.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg6"

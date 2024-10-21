@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2023, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,11 +47,11 @@ from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.generator import GenerationError
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Routine, FileContainer
+from psyclone.psyir.nodes import Routine, FileContainer, IntrinsicCall, Call
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import (ACCRoutineTrans,
-                                      Dynamo0p3KernelConstTrans)
+from psyclone.transformations import (
+    ACCRoutineTrans, OMPDeclareTargetTrans, Dynamo0p3KernelConstTrans)
 
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -79,7 +79,7 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
     # Ensure kernel-output directory is uninitialised
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_naming", "multiple")
-    psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean", idx=0)
     sched = invoke.schedule
     kern = sched.coded_kernels()[0]
     rtrans = ACCRoutineTrans()
@@ -115,7 +115,7 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
 def test_new_kernel_dir(kernel_outputdir):
     ''' Check that we write out the transformed kernel to a specified
     directory. '''
-    psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean", idx=0)
     sched = invoke.schedule
     kern = sched.coded_kernels()[0]
     rtrans = ACCRoutineTrans()
@@ -133,7 +133,7 @@ def test_new_kern_no_clobber(kernel_outputdir, monkeypatch):
     # Ensure kernel-output directory is uninitialised
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_naming", "multiple")
-    psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    psy, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kern = kernels[0]
@@ -167,7 +167,7 @@ def test_kernel_module_name(kernel_outputdir, mod_name, sub_name, monkeypatch):
     # Argument kernel_outputdir is needed to capture the files created by
     # the rename_and_write() call
     # pylint: disable=unused-argument
-    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
     sched = invoke.schedule
     kernels = sched.coded_kernels()
     kern = kernels[0]
@@ -196,7 +196,7 @@ def test_kern_case_insensitive(mod_name, sub_name, kernel_outputdir,
     insensitive.
 
     '''
-    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kern = kernels[0]
@@ -216,7 +216,7 @@ def test_new_kern_single_error(kernel_outputdir, monkeypatch):
     # Ensure kernel-output directory is uninitialised
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_naming", "single")
-    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
     sched = invoke.schedule
     kernels = sched.coded_kernels()
     kern = kernels[0]
@@ -248,7 +248,7 @@ def test_new_same_kern_single(kernel_outputdir, monkeypatch):
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_naming", "single")
     rtrans = ACCRoutineTrans()
-    _, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
+    _, invoke = get_invoke("4_multikernel_invokes.f90", api="lfric",
                            idx=0)
     sched = invoke.schedule
     # Apply the same transformation to both kernels. This should produce
@@ -267,10 +267,13 @@ def test_new_same_kern_single(kernel_outputdir, monkeypatch):
     assert out_files == [new_kernels[1].module_name+".f90"]
 
 
-def test_accroutine_validate_wrong_node_type():
+# The following tests test the MarkRoutineForGPUMixin validation, for this
+# it uses the ACCRoutineTrans as instance of this Mixin.
+
+def test_gpumixin_validate_wrong_node_type():
     '''
-    Test that the validate() method of ACCRoutineTrans rejects a node of the
-    wrong type.
+    Test that the MarkRoutineForGPUMixin.validate_it_can_run_on_gpu() method
+    rejects a node of the wrong type.
 
     '''
     rtrans = ACCRoutineTrans()
@@ -280,13 +283,37 @@ def test_accroutine_validate_wrong_node_type():
             "Routine but got 'FileContainer'" in str(err.value))
 
 
-def test_accroutine_validate_no_schedule(monkeypatch):
+def test_gpumixin_kernel_interface(kernel_outputdir, monkeypatch,
+                                   fortran_reader, fortran_writer):
     '''
-    Test that the validate() method of ACCRoutineTrans catches any errors
-    generated when attempting to get the PSyIR of a kernel.
+    Test that the MarkRoutineForGPUMixin.validate() rejects a kernel that has
+    multiple implementations (i.e. for different precisions).
+
+    TODO this limitation is the subject of #1946.
 
     '''
-    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    # Ensure kernel-output directory is uninitialised
+    config = Config.get()
+    monkeypatch.setattr(config, "_kernel_naming", "multiple")
+    psy, invoke = get_invoke("26.8_mixed_precision_args.f90",
+                             api="lfric", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    rtrans = ACCRoutineTrans()
+    # Use force because the kernel contains a WRITE statement.
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(kernels[0], options={"force": True})
+    assert ("Cannot apply ACCRoutineTrans to kernel 'mixed_code' as it has "
+            "multiple implementations - TODO #1946" in str(err.value))
+
+
+def test_gpumixin_validate_no_schedule(monkeypatch):
+    '''
+    Test that the MarkRoutineForGPUMixin.validate_it_can_run_on_gpu() method
+    catches any errors generated when attempting to get the PSyIR of a kernel.
+
+    '''
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kern = kernels[0]
@@ -304,11 +331,11 @@ def test_accroutine_validate_no_schedule(monkeypatch):
             "transform such a kernel." in str(err.value))
 
 
-def test_accroutinetrans_validate_no_import(fortran_reader):
+def test_gpumixin_validate_no_import(fortran_reader):
     '''
-    Test the validate() method of ACCRoutineTrans rejects a kernel that
-    accesses imported data unless that data is known to be a compile-
-    time constant.
+    Test the MarkRoutineForGPUMixin.validate_it_can_run_on_gpu() method
+    rejects a kernel that accesses imported data unless that data is known to
+    be a compile-time constant.
 
     '''
     code = '''\
@@ -337,10 +364,10 @@ end module my_mod'''
     rtrans.validate(routine)
 
 
-def test_accroutinetrans_validate_no_cblock(fortran_reader):
+def test_gpumixin_validate_no_cblock(fortran_reader):
     '''
-    Test the validate() method of ACCRoutineTrans rejects a kernel that
-    contains a CodeBlock.
+    Test the MarkRoutineForGPUMixin.validate_it_can_run_on_gpu() method rejects
+    a kernel that contains a CodeBlock.
 
     '''
     code = '''\
@@ -357,8 +384,9 @@ end module my_mod'''
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.validate(routine)
-    assert ("Transformation Error: Cannot safely add 'ACC routine' to routine "
-            "'my_sub' because its PSyIR contains one or more CodeBlocks:\n"
+    assert ("Transformation Error: Cannot safely apply ACCRoutineTrans to "
+            "routine 'my_sub' because its PSyIR contains one or more "
+            "CodeBlocks:\n"
             "  WRITE(*, *)" in str(err.value))
     assert ("You may use 'options={'force': True}' to override this check."
             in str(err.value))
@@ -367,17 +395,17 @@ end module my_mod'''
         rtrans.validate(routine, options={'force': True})
     assert ("Transformation Error: routine 'my_sub' accesses the symbol "
             "'some_data' within a CodeBlock and this symbol is imported. "
-            "'ACC routine' cannot be added to such a routine."
+            "ACCRoutineTrans cannot be applied to such a routine."
             in str(err.value))
 
 
-def test_accroutinetrans_validate_no_call():
+def test_gpumixin_validate_no_call():
     '''
-    Test the validate() method of ACCRoutineTrans rejects a kernel that calls
-    another routine.
+    Test the MarkRoutineForGPUMixin.validate_it_can_run_on_gpu() method rejects
+    a kernel that calls another routine.
 
     '''
-    psy, invoke = get_invoke("1.15_invoke_kern_with_call.f90", api="dynamo0.3",
+    psy, invoke = get_invoke("1.15_invoke_kern_with_call.f90", api="lfric",
                              idx=0)
     sched = invoke.schedule
     kernel = sched.coded_kernels()[0]
@@ -386,14 +414,45 @@ def test_accroutinetrans_validate_no_call():
         rtrans.validate(kernel)
     assert ("Kernel 'testkern_with_call_code' calls another routine "
             "'call xyz2llr(coord(1), coord(2), coord(3), lon, lat, radius)' "
-            "and therefore cannot have 'ACC routine' added to it"
+            "which is not available on the accelerator device and therefore "
+            "cannot have ACCRoutineTrans applied to it"
             in str(err.value))
+
+    # The same error happens for unsupported GPU intrinsics
+    call = kernel.get_kernel_schedule().walk(Call)[0]
+    call.replace_with(
+        IntrinsicCall.create(IntrinsicCall.Intrinsic.GET_COMMAND))
+    with pytest.raises(TransformationError) as err:
+        rtrans.validate(kernel)
+    assert ("Kernel 'testkern_with_call_code' calls another routine "
+            "'GET_COMMAND()' which is not available on the accelerator device "
+            "and therefore cannot have ACCRoutineTrans applied to it "
+            "(TODO #342)."
+            in str(err.value))
+
+
+@pytest.mark.parametrize(
+    "rtrans, expected_directive",
+    [(ACCRoutineTrans(), "!$acc routine"),
+     (OMPDeclareTargetTrans(), "!$omp declare target")])
+def test_kernel_gpu_annotation_trans(rtrans, expected_directive,
+                                     fortran_writer):
+    ''' Check that the GPU annotation transformations insert the
+    proper directive inside PSyKAl kernel code '''
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
+    sched = invoke.schedule
+    kern = sched.coded_kernels()[0]
+    rtrans.apply(kern)
+
+    # Check that the directive has been added to the kernel code
+    code = fortran_writer(kern.get_kernel_schedule())
+    assert expected_directive in code
 
 
 def test_1kern_trans(kernel_outputdir):
     ''' Check that we generate the correct code when an invoke contains
     the same kernel more than once but only one of them is transformed. '''
-    psy, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
+    psy, invoke = get_invoke("4_multikernel_invokes.f90", api="lfric",
                              idx=0)
     sched = invoke.schedule
     kernels = sched.coded_kernels()
@@ -419,7 +478,7 @@ def test_1kern_trans(kernel_outputdir):
 def test_2kern_trans(kernel_outputdir):
     ''' Check that we generate correct code when we transform two kernels
     within a single invoke. '''
-    psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
+    psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="lfric",
                              idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
@@ -445,10 +504,10 @@ def test_2kern_trans(kernel_outputdir):
     assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_builtin_no_trans():
+def test_gpumixin_builtin_no_trans():
     ''' Check that we reject attempts to transform built-in kernels. '''
     _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90",
-                           api="dynamo0.3", idx=0)
+                           api="lfric", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(LFRicBuiltIn)
     rtrans = ACCRoutineTrans()

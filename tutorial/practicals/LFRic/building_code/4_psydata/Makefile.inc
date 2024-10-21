@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ PSY_SRC = $(addsuffix _psy.f90,$(basename $(PSY)))
 PSY_OBJ = $(PSY_SRC:.f90=.o)
 
 # PSyclone command-line options
-PSYCLONE_CMD = -nodm -l all --config $(PSYCLONE_RELPATH)/config/psyclone.cfg
+PSYCLONE_CMD = --psykal-dsl lfric -nodm -l all --config $(PSYCLONE_RELPATH)/config/psyclone.cfg
 
 # Executable
 EXEC = time_evolution

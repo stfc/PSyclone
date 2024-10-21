@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import (
     Routine, FileContainer, UnaryOperation, BinaryOperation, Literal,
     Assignment, CodeBlock, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    SymbolTable, DataSymbol, ScalarType, DeferredType)
+    SymbolTable, DataSymbol, ScalarType, UnresolvedType)
 
 
 # The 'contiguous' keyword is just valid with Fortran 2008
@@ -108,7 +108,7 @@ def test_fortran_psyir_from_source_fixed_form():
 def test_fortran_psyir_from_expression(fortran_reader):
     ''' Test that the psyir_from_expression method generates the
     expected PSyIR. '''
-    sched = Routine("malachi")
+    sched = Routine.create("malachi")
     table = sched.symbol_table
     psyir = fortran_reader.psyir_from_expression("3.0", table)
     assert isinstance(psyir, Literal)
@@ -125,9 +125,9 @@ def test_fortran_psyir_from_expression(fortran_reader):
     psyir = fortran_reader.psyir_from_expression("ABS(-3.0)", table)
     assert isinstance(psyir, IntrinsicCall)
     assert psyir.intrinsic == IntrinsicCall.Intrinsic.ABS
-    assert isinstance(psyir.children[0], UnaryOperation)
-    assert psyir.children[0].operator == UnaryOperation.Operator.MINUS
-    assert isinstance(psyir.children[0].children[0], Literal)
+    assert isinstance(psyir.arguments[0], UnaryOperation)
+    assert psyir.arguments[0].operator == UnaryOperation.Operator.MINUS
+    assert isinstance(psyir.arguments[0].children[0], Literal)
 
     psyir = fortran_reader.psyir_from_expression("3.0_r_def", table)
     assert isinstance(psyir, Literal)
@@ -149,29 +149,24 @@ def test_fortran_psyir_from_expression_invalid(fortran_reader):
     error when given something that is not an expression. '''
     # No supplied table
     with pytest.raises(TypeError) as err:
-        fortran_reader.psyir_from_expression("3.0 + sin(a)", None)
-    assert ("Must be supplied with a valid SymbolTable but got 'NoneType'" in
+        fortran_reader.psyir_from_expression("3.0 + sin(a)", 3)
+    assert ("Must be supplied with a valid SymbolTable but got 'int'" in
             str(err.value))
     with pytest.raises(TypeError) as err:
         fortran_reader.psyir_from_expression("3.0 + sin(a)", "wrong")
     assert ("Must be supplied with a valid SymbolTable but got 'str'" in
             str(err.value))
-    with pytest.raises(TypeError) as err:
-        fortran_reader.psyir_from_expression("3.0 + sin(a)", None)
-    assert ("Must be supplied with a valid SymbolTable but got 'NoneType'" in
-            str(err.value))
-    table = SymbolTable()
     # OK
-    fortran_reader.psyir_from_expression("return", table)
+    fortran_reader.psyir_from_expression("return")
     with pytest.raises(ValueError) as err:
-        fortran_reader.psyir_from_expression("a = b", table)
+        fortran_reader.psyir_from_expression("a = b")
     assert "not represent a Fortran expression: 'a = b'" in str(err.value)
     with pytest.raises(ValueError) as err:
-        fortran_reader.psyir_from_expression("if(3 == 2)then", table)
+        fortran_reader.psyir_from_expression("if(3 == 2)then")
     assert ("not represent a Fortran expression: 'if(3 == 2)then'" in
             str(err.value))
     with pytest.raises(ValueError) as err:
-        fortran_reader.psyir_from_expression("this is not Fortran", table)
+        fortran_reader.psyir_from_expression("this is not Fortran")
     assert ("not represent a Fortran expression: 'this is not Fortran'" in
             str(err.value))
 
@@ -179,8 +174,8 @@ def test_fortran_psyir_from_expression_invalid(fortran_reader):
 def test_psyir_from_statement(fortran_reader):
     ''' Check the correct operation of the psyir_from_statement() method. '''
     table = SymbolTable()
-    table.new_symbol("a", symbol_type=DataSymbol, datatype=DeferredType())
-    table.new_symbol("b", symbol_type=DataSymbol, datatype=DeferredType())
+    table.new_symbol("a", symbol_type=DataSymbol, datatype=UnresolvedType())
+    table.new_symbol("b", symbol_type=DataSymbol, datatype=UnresolvedType())
     psyir = fortran_reader.psyir_from_statement("a=b", table)
     assert isinstance(psyir, Assignment)
     psyir = fortran_reader.psyir_from_statement("write(*,*) a", table.detach())
@@ -192,16 +187,15 @@ def test_psyir_from_statement_invalid(fortran_reader):
     ''' Test that the psyir_from_statement method raises the expected error
     when given something that is not a statement. '''
     with pytest.raises(TypeError) as err:
-        fortran_reader.psyir_from_statement("blah", None)
-    assert ("Must be supplied with a valid SymbolTable but got 'NoneType'"
+        fortran_reader.psyir_from_statement("blah", 3)
+    assert ("Must be supplied with a valid SymbolTable but got 'int'"
             in str(err.value))
-    table = SymbolTable()
     with pytest.raises(ValueError) as err:
-        fortran_reader.psyir_from_statement("blah", table)
+        fortran_reader.psyir_from_statement("blah")
     assert ("Supplied source does not represent a Fortran statement: 'blah'"
             in str(err.value))
     # OK
-    fortran_reader.psyir_from_statement("a=b", table)
+    fortran_reader.psyir_from_statement("a=b")
 
 
 def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
@@ -223,7 +217,7 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
         wfile.write("")
     file_container = fortran_reader.psyir_from_file(filename)
     assert isinstance(file_container, FileContainer)
-    assert file_container.name == "None"
+    assert file_container.name == "empty.f90"
 
     # Check with a file that doesn't exist
     filename = str(tmpdir_factory.mktemp('frontend_test').join("Idontexist"))

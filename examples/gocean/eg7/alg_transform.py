@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 '''Python script intended to be passed to the 'psyclone' command
 via its -s option. This script demonstrates the use of the
 optional trans_alg() function which gives access to PSyclone's
-internal representation of the algorithm layer.
+intermediate representation of the algorithm layer.
 
 '''
 from psyclone.domain.common.algorithm.psyir import AlgorithmInvokeCall

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,12 +47,12 @@ from psyclone.domain.lfric.kernel import (
     ColumnwiseOperatorArgMetadata, FieldVectorArgMetadata)
 from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
 from psyclone.domain.lfric.utils import (
-    find_container, metadata_name_from_module_name)
+    find_container)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyad.domain.common import create_adjoint_name
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import RoutineSymbol, ContainerSymbol
+from psyclone.psyir.symbols import ContainerSymbol, UnsupportedFortranType
 from psyclone.psyir.symbols.symbol import ArgumentInterface, ImportInterface
 
 
@@ -61,25 +61,32 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     '''Takes an LFRic tangent-linear kernel represented in language-level PSyIR
     and returns its adjoint represented in language-level PSyIR.
 
-    :param tl_psyir: language-level PSyIR containing the LFRic \
+    :param tl_psyir: language-level PSyIR containing the LFRic
         tangent-linear kernel.
     :type tl_psyir: :py:class:`psyclone.psyir.Node`
-    :param list of str active_variables: list of active variable names.
+    :param list[str] active_variables: names of the active variables.
 
-    :returns: language-level PSyIR containing the adjoint of the \
+    :returns: language-level PSyIR containing the adjoint of the
         supplied tangent-linear kernel.
     :rtype: :py:class:`psyclone.psyir.Node`
 
-    :raises InternalError: if the PSyIR does not have a Container.
+    :raises InternalError: if the PSyIR does not contain any kernel metadata.
     :raises InternalError: if the PSyIR does not contain any Routines.
 
     '''
     logger = logging.getLogger(__name__)
 
-    # Infer the tangent-linear metadata name from the container
-    # name. This will be used later to find and modify the metadata.
+    # Find the name of the symbol containing the metadata for the tangent-
+    # linear kernel.
     tl_container = find_container(tl_psyir)
-    tl_metadata_name = metadata_name_from_module_name(tl_container.name)
+    for sym in tl_container.symbol_table.datatypesymbols:
+        if (isinstance(sym.datatype, UnsupportedFortranType) and
+                "extends(kernel_type)" in sym.datatype.declaration.lower()):
+            tl_metadata_name = sym.name
+            break
+    else:
+        raise InternalError("The supplied PSyIR does not contain any kernel "
+                            "metadata")
 
     # Translate from TL to AD
     logger.debug("Translating from TL to AD.")
@@ -116,17 +123,13 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     # help fix this problem as it would only be arguments that would
     # need to have the same names.
 
-    for routine in routines:
+    ctr_table = ad_container.symbol_table
 
-        # We need to re-name the kernel routine.
-        kernel_sym = ad_container.symbol_table.lookup(routine.name)
-        adj_kernel_name = create_adjoint_name(routine.name)
-        # A symbol's name is immutable so create a new RoutineSymbol
-        adj_kernel_sym = ad_container.symbol_table.new_symbol(
-            adj_kernel_name, symbol_type=RoutineSymbol,
-            visibility=kernel_sym.visibility)
-        ad_container.symbol_table.remove(kernel_sym)
-        routine.name = adj_kernel_sym.name
+    # Re-name the routines that we've adjointed.
+    for routine in routines:
+        adj_kernel_name = create_adjoint_name(routine.name, table=ctr_table)
+        # Renaming the routines updates the symbol names
+        routine.name = adj_kernel_name
 
         logger.debug("AD LFRic kernel will be named '%s'", routine.name)
 
@@ -163,7 +166,6 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
         if access:
             # Add in any new access symbols.
             _check_or_add_access_symbol(ad_container, access)
-
     return ad_psyir
 
 

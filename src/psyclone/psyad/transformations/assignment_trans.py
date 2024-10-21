@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,7 @@ class AssignmentTrans(AdjointTransformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         # Split the RHS of the assignment into [-]<term> +- <term> +- ...
         rhs_terms = self._split_nodes(
@@ -205,20 +205,12 @@ class AssignmentTrans(AdjointTransformation):
                 f"'{assign.lhs.symbol.name}' without array notation"
                 f" on the RHS: '{assign.debug_string()}'")
 
-        sym_maths = SymbolicMaths.get()
-
         for pos, idx in enumerate(active_variable.indices):
             lhs_idx = assign.lhs.indices[pos]
-            # TODO #1537. This is a workaround until the SymbolicMaths
-            # class supports the comparison of array ranges.
             # pylint: disable=unidiomatic-typecheck
             if not (type(idx) is type(lhs_idx) and
-                    sym_maths.equal(idx.start,
-                                    lhs_idx.start) and
-                    sym_maths.equal(idx.stop,
-                                    lhs_idx.stop) and
-                    sym_maths.equal(idx.step,
-                                    lhs_idx.step)):
+                    lhs_idx.parent.same_range(lhs_idx.position,
+                                              idx.parent, pos)):
                 raise NotImplementedError(
                     f"Different sections of the same active array "
                     f"'{assign.lhs.symbol.name}' are "

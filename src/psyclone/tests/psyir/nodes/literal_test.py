@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,11 +39,11 @@
 
 ''' Performs py.test tests on the Literal PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Literal
-from psyclone.psyir.symbols import ScalarType, ArrayType, \
-    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE, CHARACTER_TYPE
+from psyclone.psyir.symbols import (
+    ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol, INTEGER_SINGLE_TYPE,
+    REAL_DOUBLE_TYPE, ScalarType, SymbolTable)
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.node import colored
 
@@ -260,3 +260,17 @@ def test_literal_equality():
     assert literal == literal2
     assert literal != literal3
     assert literal != literal4
+
+
+def test_literal_replace_symbols_using():
+    '''Test the replace_symbols_using() method of Literal.'''
+    idef = DataSymbol("idef", INTEGER_SINGLE_TYPE)
+    stype = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
+    lit = Literal("1", stype)
+    table = SymbolTable()
+    lit.replace_symbols_using(table)
+    assert lit.datatype.precision is idef
+    idef2 = idef.copy()
+    table.add(idef2)
+    lit.replace_symbols_using(table)
+    assert lit.datatype.precision is idef2

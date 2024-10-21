@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,10 +40,11 @@
 
 import pytest
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
-    Container, KernelSchedule
+from psyclone.psyir.nodes import (
+    BinaryOperation, Container, KernelSchedule,
+    Literal, Reference, Routine)
 from psyclone.psyir.symbols import (
-    ArrayType, DataType, DeferredType, ScalarType, UnknownFortranType,
+    ArrayType, DataType, UnresolvedType, ScalarType, UnsupportedFortranType,
     DataSymbol, StructureType, NoType, INTEGER_TYPE, REAL_TYPE, Symbol,
     DataTypeSymbol, SymbolTable)
 
@@ -65,24 +66,33 @@ def test_datatype():
     assert ("__str__" in msg)
 
 
-# DeferredType class
+# UnresolvedType class
 
-def test_deferredtype():
-    '''Test that the DeferredType class can be created successfully.'''
-    assert isinstance(DeferredType(), DeferredType)
-
-
-def test_deferredtype_str():
-    '''Test that the DeferredType class str method works as expected.'''
-    data_type = DeferredType()
-    assert str(data_type) == "DeferredType"
+def test_unresolvedtype():
+    '''Test that the UnresolvedType class can be created successfully.'''
+    assert isinstance(UnresolvedType(), UnresolvedType)
 
 
-def test_deferredtype_eq():
-    '''Test the equality operator of DeferredType.'''
-    data_type1 = DeferredType()
-    assert data_type1 == DeferredType()
+def test_unresolvedtype_str():
+    '''Test that the UnresolvedType class str method works as expected.'''
+    data_type = UnresolvedType()
+    assert str(data_type) == "UnresolvedType"
+
+
+def test_unresolvedtype_eq():
+    '''Test the equality operator of UnresolvedType.'''
+    data_type1 = UnresolvedType()
+    assert data_type1 == UnresolvedType()
     assert data_type1 != NoType()
+
+
+def test_unresolvedtype_copy():
+    '''Test the copy() method of UnresolvedType (which is just inherited
+    from DataType).'''
+    dtype1 = UnresolvedType()
+    dtype2 = dtype1.copy()
+    assert isinstance(dtype2, UnresolvedType)
+    assert dtype2 is not dtype1
 
 
 # NoType class
@@ -99,7 +109,7 @@ def test_notype_eq():
     '''Test the equality operator of NoType.'''
     notype1 = NoType()
     assert notype1 == NoType()
-    assert notype1 != DeferredType()
+    assert notype1 != UnresolvedType()
     assert notype1 != ScalarType(ScalarType.Intrinsic.INTEGER,
                                  ScalarType.Precision.SINGLE)
 
@@ -236,7 +246,7 @@ def test_scalartype_invalid_precision_int_value():
 def test_scalartype_invalid_precision_datasymbol():
     '''Test that the ScalarType class raises an exception when an invalid
     precision symbol is provided (it must be a scalar integer or
-    deferred).
+    Unresolved).
 
     '''
     # Create an r_def precision symbol with a constant value of 8
@@ -245,7 +255,7 @@ def test_scalartype_invalid_precision_datasymbol():
     with pytest.raises(ValueError) as excinfo:
         _ = ScalarType(ScalarType.Intrinsic.REAL, precision_symbol)
     assert ("A DataSymbol representing the precision of another DataSymbol "
-            "must be of either 'deferred' or scalar, integer type but got: "
+            "must be of either 'unresolved' or scalar, integer type but got: "
             "r_def: DataSymbol<Scalar<REAL, 4>, Automatic>"
             in str(excinfo.value))
 
@@ -266,7 +276,41 @@ def test_scalartype_immutable():
         data_type.precision = 8
 
 
+def test_scalartype_replace_symbols():
+    '''Test that the replace_symbols_using method updates any symbol referred
+    to by a ScalarType.
+
+    '''
+    stype = ScalarType(ScalarType.Intrinsic.BOOLEAN,
+                       ScalarType.Precision.UNDEFINED)
+    table = SymbolTable()
+    stype.replace_symbols_using(table)
+    # No Symbol so there should be no change to the object.
+    assert stype == ScalarType(ScalarType.Intrinsic.BOOLEAN,
+                               ScalarType.Precision.UNDEFINED)
+    rdef = DataSymbol("rdef", INTEGER_TYPE)
+    stype2 = ScalarType(ScalarType.Intrinsic.INTEGER,
+                        rdef)
+    # Symbol with name 'rdef' is not in the supplied table so no change.
+    stype2.replace_symbols_using(table)
+    assert stype2.precision is rdef
+    # Add a symbol with that name to the table and repeat.
+    rdef2 = DataSymbol("rdef", INTEGER_TYPE)
+    table.add(rdef2)
+    stype2.replace_symbols_using(table)
+    # Precision symbol should have been updated.
+    assert stype2.precision is rdef2
+
+
 # ArrayType class
+
+def test_arraytype_extent():
+    '''Test the ArrayType.Extent class. This is just an enum with a
+    copy() method. '''
+    xtent = ArrayType.Extent.ATTRIBUTE
+    ytent = xtent.copy()
+    assert isinstance(ytent, ArrayType.Extent)
+
 
 def test_arraytype():
     '''Test that the ArrayType class __init__ works as expected. Test the
@@ -319,8 +363,9 @@ def test_arraytype():
     assert array_type.shape[1] == ArrayType.Extent.DEFERRED
     # Provided as an attribute extent
     array_type = ArrayType(
-        scalar_type, [ArrayType.Extent.ATTRIBUTE, ArrayType.Extent.ATTRIBUTE])
-    assert array_type.shape[1] == ArrayType.Extent.ATTRIBUTE
+        scalar_type, [ArrayType.Extent.ATTRIBUTE,
+                      (2, ArrayType.Extent.ATTRIBUTE)])
+    assert array_type.shape[1].upper == ArrayType.Extent.ATTRIBUTE
 
 
 def test_arraytype_invalid_datatype():
@@ -349,7 +394,7 @@ def test_arraytype_datatypesymbol_only():
 def test_arraytype_datatypesymbol():
     ''' Test that we can correctly create an ArrayType when the type of the
     elements is specified as a DataTypeSymbol. '''
-    tsym = DataTypeSymbol("my_type", DeferredType())
+    tsym = DataTypeSymbol("my_type", UnresolvedType())
     atype = ArrayType(tsym, [5])
     assert isinstance(atype, ArrayType)
     assert atype.datatype == tsym
@@ -358,14 +403,15 @@ def test_arraytype_datatypesymbol():
     assert atype.precision is None
 
 
-def test_arraytype_unknowntype():
+def test_arraytype_unsupportedtype():
     '''Test that we can construct an ArrayType when the type of the elements
-    is an UnknownType.'''
-    utype = UnknownFortranType("integer, pointer :: var")
+    is an UnsupportedType.'''
+    utype = UnsupportedFortranType("integer, pointer :: var")
     atype = ArrayType(utype, [8])
     assert isinstance(atype, ArrayType)
     assert atype.datatype is utype
     assert atype.precision is None
+    assert utype.declaration == "integer, pointer :: var"
 
 
 def test_arraytype_invalid_shape():
@@ -393,7 +439,7 @@ def test_arraytype_invalid_shape_dimension_1():
         _ = ArrayType(scalar_type, [Reference(symbol)])
     assert (
         "If a DataSymbol is referenced in a dimension declaration then it "
-        "should be an integer or of UnknownType or DeferredType, but "
+        "should be an integer or of UnsupportedType or UnresolvedType, but "
         "'fred' is a 'Scalar<REAL, 4>'." in str(excinfo.value))
 
 
@@ -468,7 +514,7 @@ def test_arraytype_invalid_shape_bounds():
         _ = ArrayType(scalar_type, [(1, Reference(symbol))])
     assert (
         "If a DataSymbol is referenced in a dimension declaration then it "
-        "should be an integer or of UnknownType or DeferredType, but "
+        "should be an integer or of UnsupportedType or UnresolvedType, but "
         "'fred' is a 'Scalar<REAL, 4>'." in str(excinfo.value))
     array_type = ArrayType(INTEGER_TYPE, [10])
     symbol = DataSymbol("jim", array_type)
@@ -572,55 +618,137 @@ def test_arraytype_eq():
     assert data_type1 != ArrayType(iscalar_type, [10, 10])
 
 
-# UnknownFortranType tests
+def test_arraytype_copy():
+    '''Test the copy() method of ArrayType.'''
+    sym1 = DataSymbol("alimit", INTEGER_TYPE)
+    atype = ArrayType(INTEGER_TYPE, [Reference(sym1),
+                                     (Reference(sym1), Reference(sym1))])
+    acopy = atype.copy()
+    assert acopy == atype
+    assert acopy is not atype
+    # The Reference defining the upper bound should have been copied.
+    assert acopy.shape[0].upper is not atype.shape[0].upper
+    assert acopy.shape[1].lower is not atype.shape[1].lower
+    # But the new Reference should still refer to the same Symbol.
+    assert acopy.shape[0].upper.symbol is atype.shape[0].upper.symbol
+    assert acopy.shape[1].lower.symbol is atype.shape[1].lower.symbol
+    # When shape doesn't have set bounds.
+    btype = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    bcopy = btype.copy()
+    assert bcopy == btype
+    assert bcopy is not btype
 
-def test_unknown_fortran_type():
+
+def test_arraytype_replace_symbols_using():
+    '''Test that the replace_symbols_using method updates any symbol referred
+    to by an ArrayType.
+
+    '''
+    table = SymbolTable()
+    sym1 = DataSymbol("alimit", INTEGER_TYPE)
+    atype = ArrayType(INTEGER_TYPE, [Reference(sym1),
+                                     (Reference(sym1), Reference(sym1))])
+    atype.replace_symbols_using(table)
+    assert atype.shape[0].upper.symbol is sym1
+    assert atype.shape[1].lower.symbol is sym1
+    assert atype.shape[1].upper.symbol is sym1
+
+    sym1_new = DataSymbol("alimit", INTEGER_TYPE)
+    table.add(sym1_new)
+    atype.replace_symbols_using(table)
+    assert atype.shape[0].upper.symbol is sym1_new
+    assert atype.shape[1].lower.symbol is sym1_new
+    assert atype.shape[1].upper.symbol is sym1_new
+
+    # Test when the intrinsic type of the array is given by a DataTypeSymbol.
+    typesym = DataTypeSymbol("grid", UnresolvedType())
+    btype = ArrayType(typesym, [Reference(sym1)])
+    btype.replace_symbols_using(table)
+    assert btype.shape[0].upper.symbol is sym1_new
+    newtypesim = DataTypeSymbol("grid", UnresolvedType())
+    table.add(newtypesim)
+    btype.replace_symbols_using(table)
+    assert btype.intrinsic is newtypesim
+
+    # Test when the precision of the intrinsic type of the array is given
+    # by a symbol.
+    rdef = DataSymbol("rdef", INTEGER_TYPE)
+    ctype = ArrayType(ScalarType(ScalarType.Intrinsic.REAL, rdef),
+                      [Reference(sym1)])
+    ctype.replace_symbols_using(table)
+    assert ctype.precision is rdef
+    assert ctype.shape[0].upper.symbol is sym1_new
+    newrdef = DataSymbol("rdef", INTEGER_TYPE)
+    table.add(newrdef)
+    ctype.replace_symbols_using(table)
+    assert ctype.precision is newrdef
+
+    # Check that having an array dimension of unknown size is OK.
+    dtype = ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+    dtype.replace_symbols_using(table)
+    assert dtype == ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+
+    idef = DataSymbol("idef", INTEGER_TYPE)
+    etype = ArrayType(ScalarType(ScalarType.Intrinsic.REAL, rdef),
+                      [Literal("10", ScalarType(ScalarType.Intrinsic.INTEGER,
+                                                idef))])
+    etype.replace_symbols_using(table)
+    assert etype.shape[0].upper.datatype.precision is idef
+    newidef = DataSymbol("idef", INTEGER_TYPE)
+    table.add(newidef)
+    etype.replace_symbols_using(table)
+    assert etype.shape[0].upper.datatype.precision is newidef
+
+
+# UnsupportedFortranType tests
+
+def test_unsupported_fortran_type():
     ''' Check the constructor and 'declaration' property of the
-    UnknownFortranType class. '''
+    UnsupportedFortranType class. '''
     with pytest.raises(TypeError) as err:
-        UnknownFortranType(1)
+        UnsupportedFortranType(1)
     assert ("constructor expects the original variable declaration as a "
             "string but got an argument of type 'int'" in str(err.value))
     decl = "type(some_type) :: var"
-    utype = UnknownFortranType(decl)
+    utype = UnsupportedFortranType(decl)
     assert utype._type_text == ""
     assert utype._partial_datatype is None
-    assert str(utype) == f"UnknownFortranType('{decl}')"
+    assert str(utype) == f"UnsupportedFortranType('{decl}')"
     assert utype._declaration == decl
 
 
-def test_unknown_fortran_type_optional_arg():
+def test_unsupported_fortran_type_optional_arg():
     '''Check the optional 'partial_datatype' argument of the
-    UnknownFortranType class works as expected. Also check the getter
+    UnsupportedFortranType class works as expected. Also check the getter
     method and the string methods work as expected when
     partial_datatype information is supplied.
 
     '''
     decl = "type(some_type) :: var"
     with pytest.raises(TypeError) as err:
-        _ = UnknownFortranType(decl, partial_datatype="invalid")
-    assert ("partial_datatype argument in UnknownFortranType initialisation "
-            "should be a DataType, DataTypeSymbol, or NoneType, but found "
-            "'str'." in str(err.value))
-    utype = UnknownFortranType(decl, partial_datatype=None)
+        _ = UnsupportedFortranType(decl, partial_datatype="invalid")
+    assert ("partial_datatype argument in UnsupportedFortranType "
+            "initialisation should be a DataType, DataTypeSymbol, or "
+            "NoneType, but found 'str'." in str(err.value))
+    utype = UnsupportedFortranType(decl, partial_datatype=None)
     assert utype._partial_datatype is None
     assert utype.partial_datatype is None
 
-    utype = UnknownFortranType(
-        decl, partial_datatype=DataTypeSymbol("some_type", DeferredType()))
+    utype = UnsupportedFortranType(
+        decl, partial_datatype=DataTypeSymbol("some_type", UnresolvedType()))
     assert isinstance(utype._partial_datatype, DataTypeSymbol)
     assert isinstance(utype.partial_datatype, DataTypeSymbol)
     assert utype.partial_datatype.name == "some_type"
-    assert str(utype) == f"UnknownFortranType('{decl}')"
+    assert str(utype) == f"UnsupportedFortranType('{decl}')"
 
 
-def test_unknown_fortran_type_text():
+def test_unsupported_fortran_type_text():
     '''
     Check that the 'type_text' property returns the expected string and
     that the result is cached.
     '''
     decl = "type(some_type) :: var"
-    utype = UnknownFortranType(decl)
+    utype = UnsupportedFortranType(decl)
     text = utype.type_text
     assert text == "TYPE(some_type)"
     # Calling it a second time should just return the previously cached
@@ -628,61 +756,132 @@ def test_unknown_fortran_type_text():
     assert utype.type_text is text
     # Test for a SAVE for a common block.
     decl2 = "save :: /a_common_fault/"
-    utype2 = UnknownFortranType(decl2)
+    utype2 = UnsupportedFortranType(decl2)
     assert utype2.type_text == "SAVE"
     # Test for a Common block.
     decl3 = "common /name1/ a, b, c"
-    utype3 = UnknownFortranType(decl3)
+    utype3 = UnsupportedFortranType(decl3)
     assert utype3.type_text == "COMMON"
 
 
-def test_unknown_fortran_type_text_error():
+def test_unsupported_fortran_type_text_error():
     '''
     Check that the expected error is raised if the 'type_text' is requested
     for something that is not a straightforward declaration.
     '''
     decl = "10 format('4I4')"
-    utype = UnknownFortranType(decl)
+    utype = UnsupportedFortranType(decl)
     with pytest.raises(NotImplementedError) as err:
         utype.type_text
-    assert ("Cannot extract the declaration part from UnknownFortranType "
+    assert ("Cannot extract the declaration part from UnsupportedFortranType "
             "'10 format('4I4')'. Only Declaration_Construct, "
             "Type_Declaration_Stmt, Save_Stmt and Common_Stmt are supported "
             "but got 'Implicit_Part' from the parser." in str(err.value))
     # Valid Fortran but not a declaration.
-    utype = UnknownFortranType("call fn(a)")
+    utype = UnsupportedFortranType("call fn(a)")
     with pytest.raises(NotImplementedError) as err:
         utype.type_text
-    assert ("Cannot extract the declaration part from UnknownFortranType "
+    assert ("Cannot extract the declaration part from UnsupportedFortranType "
             "'call fn(a)' because parsing (attempting to match a "
             "Fortran2003.Specification_Part) failed." in str(err.value))
     # Invalid Fortran.
-    utype = UnknownFortranType("not valid fortran")
+    utype = UnsupportedFortranType("not valid fortran")
     with pytest.raises(NotImplementedError) as err:
         utype.type_text
-    assert ("Cannot extract the declaration part from UnknownFortranType "
+    assert ("Cannot extract the declaration part from UnsupportedFortranType "
             "'not valid fortran' because parsing (attempting to match a "
             "Fortran2003.Specification_Part) failed." in str(err.value))
 
 
-def test_unknown_fortran_type_eq():
-    '''Test the equality operator for UnknownFortranType.'''
+def test_unsupported_fortran_type_eq():
+    '''Test the equality operator for UnsupportedFortranType.'''
     decl = "type(some_type) :: var"
-    utype = UnknownFortranType(decl)
-    assert utype == UnknownFortranType(decl)
+    utype = UnsupportedFortranType(decl)
+    assert utype == UnsupportedFortranType(decl)
     assert utype != NoType()
     # Type is the same even if the variable name is different.
-    assert utype == UnknownFortranType("type(some_type) :: var1")
-    assert utype != UnknownFortranType("type(other_type) :: var")
+    assert utype == UnsupportedFortranType("type(some_type) :: var1")
+    assert utype != UnsupportedFortranType("type(other_type) :: var")
     # A common block is the same type as another common block.
-    assert (UnknownFortranType("common /how_common/ a, b, cc") ==
-            UnknownFortranType("common /common_land/ a, b, cc"))
+    assert (UnsupportedFortranType("common /how_common/ a, b, cc") ==
+            UnsupportedFortranType("common /common_land/ a, b, cc"))
     # A SAVE statement is the same type as another SAVE statement.
-    assert (UnknownFortranType("save :: /how_common/") ==
-            UnknownFortranType("save :: blue_blood"))
+    assert (UnsupportedFortranType("save :: /how_common/") ==
+            UnsupportedFortranType("save :: blue_blood"))
     # Just sanity check that the type of a SAVE != that of a common.
-    assert (UnknownFortranType("common /how_common/ a, b, cc") !=
-            UnknownFortranType("save :: blue_blood"))
+    assert (UnsupportedFortranType("common /how_common/ a, b, cc") !=
+            UnsupportedFortranType("save :: blue_blood"))
+
+
+def test_unsupported_fortran_type_copy(fortran_reader):
+    '''Test the copy() method of UnsupportedFortranType.'''
+    code = '''
+    subroutine test
+      use some_mod, only: some_type, start, stop
+      integer, parameter :: nelem = 4
+      type(some_type), pointer :: var(nelem), var2(start:stop)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    vsym = routine.symbol_table.lookup("var")
+    vtype = vsym.datatype
+    assert isinstance(vtype, UnsupportedFortranType)
+    cpytype = vtype.copy()
+    assert isinstance(cpytype, UnsupportedFortranType)
+    assert isinstance(cpytype.partial_datatype, ArrayType)
+    # Reference to 'nelem' should be a copy.
+    assert (cpytype.partial_datatype.shape[0] is not
+            vtype.partial_datatype.shape[0])
+    assert (cpytype.partial_datatype.shape[0].lower is not
+            vtype.partial_datatype.shape[0].lower)
+    assert (cpytype.partial_datatype.shape[0].upper is not
+            vtype.partial_datatype.shape[0].upper)
+    # But the symbol referred to should be the same.
+    assert (cpytype.partial_datatype.shape[0].upper.symbol is
+            vtype.partial_datatype.shape[0].upper.symbol)
+    # The intrinsic type of the partial type should also be the same Symbol
+    # in both cases.
+    stype = routine.symbol_table.lookup("some_type")
+    assert vtype.partial_datatype.intrinsic is stype
+    assert cpytype.partial_datatype.intrinsic is stype
+    # Repeat check when array lower bound is also a Reference.
+    var2 = routine.symbol_table.lookup("var2")
+    v2type = var2.datatype
+    v2copy = v2type.copy()
+    assert (v2type.partial_datatype.shape[0].lower is not
+            v2copy.partial_datatype.shape[0].lower)
+    assert (v2type.partial_datatype.shape[0].lower.symbol is
+            v2copy.partial_datatype.shape[0].lower.symbol)
+
+
+def test_unsupported_fortran_type_replace_symbols():
+    '''Test that replace_symbols_using() correctly updates Symbols in
+    the _partial_datatype.
+
+    '''
+    decl = "type(some_type), dimension(nelem) :: var"
+    stype = DataTypeSymbol("some_type", UnresolvedType())
+    nelem = DataSymbol("nelem", INTEGER_TYPE)
+    ptype = ArrayType(stype, [Reference(nelem)])
+    utype = UnsupportedFortranType(decl, partial_datatype=ptype)
+    table = SymbolTable()
+    utype.replace_symbols_using(table)
+    assert utype.partial_datatype.shape[0].upper.symbol is nelem
+    newnelem = nelem.copy()
+    table.add(newnelem)
+    utype.replace_symbols_using(table)
+    assert utype.partial_datatype.shape[0].upper.symbol is newnelem
+    wp = DataSymbol("wp", INTEGER_TYPE)
+    ptype2 = ScalarType(ScalarType.Intrinsic.REAL, wp)
+    decl2 = "real(kind=wp), pointer :: var"
+    stype2 = UnsupportedFortranType(decl2, partial_datatype=ptype2)
+    stype2.replace_symbols_using(table)
+    assert stype2.partial_datatype.precision is wp
+    newp = wp.copy()
+    table.add(newp)
+    stype2.replace_symbols_using(table)
+    assert stype2.partial_datatype.precision is newp
 
 
 # StructureType tests
@@ -730,7 +929,7 @@ def test_structure_type():
 def test_create_structuretype():
     ''' Test the create() method of StructureType. '''
     # One member will have its type defined by a DataTypeSymbol
-    tsymbol = DataTypeSymbol("my_type", DeferredType())
+    tsymbol = DataTypeSymbol("my_type", UnresolvedType())
     stype = StructureType.create([
         ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
         ("george", REAL_TYPE, Symbol.Visibility.PRIVATE,
@@ -794,3 +993,24 @@ def test_structuretype_eq():
         ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
          Literal("1.0", REAL_TYPE)),
         ("roger", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
+
+
+def test_structuretype_replace_symbols():
+    '''Test that replace_symbols_using() correctly updates any Symbols referred
+    to within a StructureType.
+
+    '''
+    tsymbol = DataTypeSymbol("my_type", UnresolvedType())
+    stype = StructureType.create([
+        ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("george", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE)),
+        ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
+    table = SymbolTable()
+    assert stype.components["barry"].datatype is tsymbol
+    stype.replace_symbols_using(table)
+    assert stype.components["barry"].datatype is tsymbol
+    newtsymbol = DataTypeSymbol("my_type", UnresolvedType())
+    table.add(newtsymbol)
+    stype.replace_symbols_using(table)
+    assert stype.components["barry"].datatype is newtsymbol

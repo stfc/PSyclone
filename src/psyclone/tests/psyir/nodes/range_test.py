@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -99,11 +99,11 @@ def test_range_setter_errors(prop):
     # We use exec() so that we can use the pytest parameterisation of the
     # various properties we want to test
     # pylint:disable=exec-used,unused-variable
-    erange = Range()
+    erange = Range()  # noqa: F841
     with pytest.raises(TypeError) as err:
         exec("erange." + prop + " = 1")
     assert "must be a sub-class of Node but got" in str(err.value)
-    val = Literal("1.0", REAL_SINGLE_TYPE)
+    val = Literal("1.0", REAL_SINGLE_TYPE)  # noqa: F841
     with pytest.raises(TypeError) as err:
         exec("erange." + prop + " = val")
     assert ("value of a Range is a Literal then it must be of type "
@@ -140,7 +140,7 @@ def test_range_references_props():
     ''' Test that the properties of a Range return what we expect
     when the start, stop and step are references or expressions. '''
     from psyclone.psyir.nodes import BinaryOperation, KernelSchedule
-    sched = KernelSchedule("test_sched")
+    sched = KernelSchedule.create("test_sched")
     sym_table = sched.symbol_table
     start_symbol = DataSymbol("istart", INTEGER_SINGLE_TYPE)
     stop_symbol = DataSymbol("istop", INTEGER_SINGLE_TYPE)

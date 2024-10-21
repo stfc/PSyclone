@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2021-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2021-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ Introduction
 PSyAD is PSyclone's Adjoint code generator. PSyAD takes a
 tangent linear kernel and translates it into its adjoint. A kernel may
 either be a generic subroutine/program or a
-:ref:`user_guide:dynamo0.3-kernel` that conforms to the LFRic (dynamo0.3) API .
+:ref:`user_guide:lfric-kernel` that conforms to the LFRic API .
 
 .. _psyad_examples:
 

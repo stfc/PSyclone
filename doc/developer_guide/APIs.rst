@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 .. Modified by I. Kavcic, L. Turner and O. Brunt, Met Office
 
 Generic Code
@@ -50,16 +50,14 @@ TBD
 .. ============================
 .. 
 .. This section explains how to create a new API in PSyclone. PSyclone
-.. currently supports the following APIs: nemo, lfric (dynamo0.3)
-.. and gocean.
+.. currently supports the following APIs: lfric and gocean.
 .. 
 .. config.py
 .. ---------
 .. 
 .. The names of the supported APIs and the default API are specified in
 .. ``configuration.py``. When adding a new API you must add the name you would like
-.. to use to the ``_supported_api_list`` (and change the ``_default_api`` if
-.. required).
+.. to use to the ``_supported_api_list``.
 .. 
 .. parse.py
 .. --------
@@ -189,10 +187,10 @@ TBD
 Existing APIs
 #############
 
-.. _dynamo0.3-developers:
+.. _lfric-developers:
 
-LFRic (Dynamo0.3)
-=================
+LFRic
+=====
 
 Mesh
 ----
@@ -225,8 +223,8 @@ indexed in the following way.
 .. image:: cells_global.png
 	   :width: 120
 
-When the distributed memory option is switched on in the Dynamo0.3 API
-(see the :ref:`distributed_memory` Section) the cells in the model are
+When the distributed memory option is switched on in the LFRic API
+(see the :ref:`psykal_usage` Section) the cells in the model are
 partitioned amongst processors and halo cells are added at the
 boundaries to a depth determined by the LFRic infrastructure. In this
 case the LFRic infrastructure maintains the global cell index and
@@ -276,8 +274,8 @@ index 2 and the cell above that contains dof index 3 etc.
 	   :width: 120
 
 As discussed in the previous section, when the distributed memory
-option is switched on in the Dynamo0.3 API (see the
-:ref:`distributed_memory` Section) the cells in the model are
+option is switched on in the LFRic API (see the
+:ref:`psykal_usage` Section) the cells in the model are
 partitioned amongst processors and halo cells are added at the
 boundaries to a depth determined by the LFRic infrastructure. This
 results in the dofs being replicated in the halo cells, leading to a
@@ -310,7 +308,7 @@ that contains dof index 3 etc.
 	   :width: 140
 
 As already explained, when the distributed memory option is switched
-on in the Dynamo0.3 API (see the :ref:`distributed_memory` Section)
+on in the LFRic API (see the :ref:`psykal_usage` Section)
 the cells in the model are partitioned amongst processors and halo
 cells are added at the boundaries.
 
@@ -322,7 +320,7 @@ replicated if fields on continuous dofs are going to be able to be
 computed locally on each partition. This concept is different to halos
 as there are no halo cells here, the fact that the cells are
 partitioned has meant that continuous dofs on the edge of the
-partition are replicated. The convention used in Dynamo0.3 is that the
+partition are replicated. The convention used in LFRic is that the
 cell with the lowest global id determines which partition owns a
 dof and which has the copy. Dofs which are copies are called
 ``annexed``. Annexed dofs are coloured blue in the example:
@@ -373,7 +371,7 @@ index of the last halo dof, to support PSyclone code generation.
 Multi-grid
 ----------
 
-The Dynamo 0.3 API supports kernels that map fields between meshes of
+The LFRic API supports kernels that map fields between meshes of
 different horizontal resolutions; these are termed "inter-grid"
 kernels. As indicated in :numref:`fig-multigrid` below, the change in
 resolution between each level is always a factor of two in both the
@@ -404,7 +402,7 @@ that of those on the coarse mesh.
 Loop iterators
 --------------
 
-In the current implementation of the Dynamo0.3 API it is possible to
+In the current implementation of the LFRic API it is possible to
 iterate (loop) either over cells or dofs. At the moment all coded
 kernels are written to iterate over cells and all Built-in kernels are
 written to iterate over dofs, but that does not have to be the case.
@@ -444,7 +442,7 @@ same, correct value written to them, independent of whether or not
 the current cell "owns" them, there is no need to perform redundant
 computation in this case.
 
-An alternative solution could have been adopted in Dynamo0.3 whereby
+An alternative solution could have been adopted in LFRic whereby
 no redundant computation is performed and partial-sum results are
 shared between processors in a communication pattern similar to halo
 exchanges. However, a decision was made to always perform redundant
@@ -490,7 +488,7 @@ Cell iterators: Discontinuous
 When a kernel is written to iterate over cells and modify a
 discontinuous field, PSyclone only needs to compute dofs on owned
 cells. Users can apply a redundant computation transformation (see the
-:ref:`dynamo0.3-api-transformations` section) to redundantly compute
+:ref:`lfric-api-transformations` section) to redundantly compute
 into the halo but this is not done by default.
 
 .. _annexed_dofs:
@@ -522,7 +520,7 @@ annexed dof. This iteration space will necessarily also include all
 owned dofs due to the ordering of dof indices discussed earlier.
 
 The configuration variable is called ``COMPUTE_ANNEXED_DOFS`` and is
-found in the ``dynamo0.3`` section of the ``psyclone.cfg``
+found in the ``lfric`` section of the ``psyclone.cfg``
 configuration file (see :ref:`configuration`). If it is ``true`` then
 annexed dofs are always computed in loops that iterate over dofs and
 if it is ``false`` then annexed dofs are not computed. The default in
@@ -629,7 +627,7 @@ includes a kernel that reads from an operator then the operator must
 have valid values in the halos to that depth. In the current
 implementation of PSyclone all loops which write to, or update an
 operator are computed redundantly in the halo up to depth-1 (see the
-``load()`` method in the ``DynLoop`` class). This implementation therefore
+``load()`` method in the ``LFRicLoop`` class). This implementation therefore
 requires a check that any loop which includes a kernel that reads from
 an operator is limited to iterating in the halo up to
 depth-1. PSyclone will raise an exception if an optimisation attempts
@@ -695,7 +693,7 @@ initial schedule. There are four cases:
 
 Halo exchanges are created separately (for fields with halo reads) for
 each loop by calling the ``create_halo_exchanges()`` method within the
-``DynLoop`` class.
+``LFRicLoop`` class.
 
 In the situation where a field's halo is read in more than one kernel
 in different loops, we do not want to add too many halo exchanges -
@@ -709,7 +707,7 @@ no additional halo exchange will be added.
 The algorithm for adding the necessary halo exchanges is as follows:
 For each loop in the schedule, the ``create_halo_exchanges()`` method
 iterates over each field that reads from its halo (determined by the
-``unique_fields_with_halo_reads()`` method in the ``DynLoop`` class).
+``unique_fields_with_halo_reads()`` method in the ``LFRicLoop`` class).
 
 For each field we then look for its previous dependencies (the
 previous writer(s) to that field) using PSyclone's dependence
@@ -816,7 +814,7 @@ adding, updating or removing halo exchanges the test for whether halo
 exchanges have a dependence between each other must be temporarily
 disabled. This is achieved by the ``ignore_hex_dep`` argument being
 set to ``True`` in the ``_add_halo_exchange_code`` function within the
-``DynLoop`` class and the actual check that is skipped is implemented
+``LFRicLoop`` class and the actual check that is skipped is implemented
 in the ``_compute_halo_read_info`` function within the
 ``LFRicHaloExchange`` class.
 
@@ -880,9 +878,9 @@ spaces through the use of the ``gh_evaluator_targets`` metadata entry.
 Every evaluator used by that kernel will then be provided on all of the
 target spaces.
 
-When constructing a ``DynKernMetadata`` object from the parsed kernel
+When constructing a ``LFRicKernMetadata`` object from the parsed kernel
 metadata, the list of target function-space names (as they appear in
-the meta-data) is stored in ``DynKernMetadata._eval_targets``. This
+the meta-data) is stored in ``LFRicKernMetadata._eval_targets``. This
 information is then used in the ``LFRicKern._setup()`` method which
 populates ``LFRicKern._eval_targets``. This is an ``OrderedDict`` which has
 the (mangled) names of the target function spaces as keys and 2-tuples
@@ -916,7 +914,7 @@ Precision
 
 The different types (kinds) of precision for scalar, fields and
 operators are specified in the ``lfric_constants.py`` file. Adding a
-new precision (kind) name to PSyclone for the LFRic (Dynamo0.3) API
+new precision (kind) name to PSyclone for the LFRic API
 should simply be a case of adding the appropriate entry to this
 file. Doing this will provide a working version, but, of course, it
 ignores any additional tests, an example and updating the
@@ -955,7 +953,7 @@ redundantly to halo depth 2, for example. The solution employed in
 then remove it if it is not required. The halo exchange itself
 determines whether it is required or not via the ``required()`` method. The
 removal code is found at the end of the ``_add_halo_exchange_code()``
-method in the ``DynLoop()`` class.
+method in the ``LFRicLoop()`` class.
 
 The second thing that the ``update_halo_exchanges()`` method does is check
 that any halo exchanges after this loop are still required. It finds
@@ -1072,15 +1070,6 @@ layer routine. A lot of this work is currently performed in the
 ``DynKernelArgument.infer_datatype()`` method but ultimately (see
 https://github.com/stfc/PSyclone/issues/1258) much of this will be
 removed.
-
-To date, all the LFRic BuiltIns have had ``lower_to_language_level()``
-methods implemented except for the following:
-
-* ``LFRicXInnerproductYKern``,
-* ``LFRicXInnerproductXKern``,
-* ``LFRicSumXKern``,
-* ``LFRicIntXKern``,
-* ``LFRicRealXKern``.
 
 The sum and inner product BuiltIns require extending PSyIR to handle
 reductions in the ``GlobalSum`` class in ``psyGen.py``. Conversions from
@@ -1270,34 +1259,16 @@ These scripts may be found in ``examples/nemo/scripts`` and their
 use is described in the ``README.md`` file in that directory.
 
 
-PSyIR Construction
-------------------
-
-Since NEMO is an existing code, the way it is handled in PSyclone is
-slightly different from those APIs that mandate a PSyKAl separation of
-concerns (LFRic and GOcean1.0).  As with the other APIs, fparser2 is
-used to parse the supplied Fortran source file and construct a parse
-tree (in ``psyclone.generator.generate``). This parse tree is then
-passed to the ``NemoPSy`` constructor which uses the ``fparser2`` PSyIR
-frontend to construct the equivalent PSyIR. (This PSyIR is
-'language-level' in that it does not contain any domain-specific
-constructs.) Finally, the PSyIR is passed to the ``NemoInvokes``
-constructor which applies various 'raising' transformations which
-raise the level of abstraction by introducing domain-specific
-information.
-
 Implicit Loops
 --------------
 
-When constructing the PSyIR of NEMO source code, PSyclone currently
-only considers explicit loops as candidates for being
-raised/transformed into ``NemoLoop`` instances. However, many of the
-loops in NEMO are written using Fortran array notation. Such use of
-array notation is encouraged in the NEMO Coding Conventions
+Many of the loops in NEMO are written using Fortran array notation. Such
+use of array notation is encouraged in the NEMO Coding Conventions
 :cite:`nemo_code_conv` and identifying these loops can be important
-when introducing, e.g. OpenMP. Currently these implicit loops are not
-automatically 'raised' into ``NemoLoop`` instances but can be done
-separately using the ``NemoAllArrayRange2LoopTrans`` transformation.
+when introducing, e.g. OpenMP. These implicit loops are not
+automatically represented as PSyIR Loop instances but can be converted
+to explicit loops using the ``ArrayAssignment2LoopsTrans``
+transformation.
 
 
 However, not all uses of Fortran array notation in NEMO imply a
@@ -1316,9 +1287,17 @@ Alternatively, a statement that assigns to an array must imply a loop::
   twodarray2(:,:) = bfunc(twodarray1(:,:))
 
 but it can only be converted into an explicit loop by PSyclone if the
-function ``bfunc`` returns a scalar. Since PSyclone does not currently
-attempt to fully resolve all symbols when parsing NEMO code, this
-information is not available and therefore such statements are not
-identified as loops (issue
-https://github.com/stfc/PSyclone/issues/286). This may then mean that
-opportunities for optimisation are missed.
+function ``bfunc`` returns a scalar.
+
+Since PSyclone does not currently attempt to fully resolve all symbols
+when parsing NEMO code, this information is not available and therefore
+such statements are not identified as loops.
+
+In order to improve the PSyclone capabilities to convert implicit loops,
+the details of externally declared symbols can be resolved by using the
+`resolve_imports` method of the symbol table:
+
+.. code-block:: python
+
+   import_symbol = symbol_table.lookup(module_name)
+   symbol_table.resolve_imports(container_symbols=[import_symbol])

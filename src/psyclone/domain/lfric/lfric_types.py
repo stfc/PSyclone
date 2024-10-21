@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,13 +31,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: O. Brunt, Met Office
+# Authors: J. Henrichs, Bureau of Meteorology
+#          A. R. Porter, STFC Daresbury Lab
+#          O. Brunt, Met Office
 
 '''This module contains a singleton class that manages LFRic types. '''
 
 
 from collections import namedtuple
+from dataclasses import dataclass
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
@@ -126,6 +128,7 @@ class LFRicTypes:
         LFRicTypes._create_lfric_dimension()
         LFRicTypes._create_specific_scalars()
         LFRicTypes._create_fields()
+
         # Generate LFRic vector-field-data symbols as subclasses of
         # field-data symbols
         const = LFRicConstants()
@@ -137,16 +140,16 @@ class LFRicTypes:
     # ------------------------------------------------------------------------
     @staticmethod
     def _create_precision_from_const_module():
-        '''This function implements all precisions defined in the
-        `dynamo0.3` (LFRic) domain. It adds "constants_mod" as
-        ContainerSymbol. The names are added to the global mapping.
+        '''This function implements all precisions defined in the LFRic domain.
+        It adds "constants_mod" as a ContainerSymbol. The names are added to
+        the global mapping.
 
         '''
         # The first Module namedtuple argument specifies the name of the
         # module and the second argument declares the name(s) of any symbols
         # declared by the module.
         lfric_const = LFRicConstants()
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         lfric_kinds = list(api_config.precision_map.keys())
 
@@ -157,11 +160,14 @@ class LFRicTypes:
         # Generate LFRic module symbols from definitions
         for module_info in modules:
             module_name = module_info.name.lower()
-            # Create the module (using a PSyIR ContainerSymbol)
+            # Create the module (using a PSyIR ContainerSymbol).
+            # TODO #2659 - this ContainerSymbol should be added to
+            # a SymbolTable!
             LFRicTypes._name_to_class[module_name] = \
                 ContainerSymbol(module_info.name)
             # Create the variables specified by the module (using
-            # PSyIR DataSymbols)
+            # PSyIR DataSymbols). TODO #2659 - these DataSymbols should
+            # be added to a SymbolTable!
             for module_var in module_info.vars:
                 var_name = module_var.upper()
                 interface = ImportInterface(LFRicTypes(module_name))
@@ -271,30 +277,30 @@ class LFRicTypes:
         # The actual class:
         class LFRicDimension(Literal):
             '''An LFRic-specific scalar integer that captures a literal array
-            dimension which can either have the value 1 or 3. This is used for
-            one of the dimensions in basis and differential basis
-            functions.
+            dimension which can have a value between 1 and 3, inclusive. This
+            is used for one of the dimensions in basis and differential basis
+            functions and also for the vertical-boundary dofs mask.
 
             :param str value: the value of the scalar integer.
 
-            :raises ValueError: if the supplied value is not '1 or '3'.
+            :raises ValueError: if the supplied value is not '1', '2' or '3'.
 
             '''
             # pylint: disable=undefined-variable
             def __init__(self, value):
                 super().__init__(value,
                                  LFRicTypes("LFRicIntegerScalarDataType")())
-                if value not in ['1', '3']:
-                    raise ValueError(f"An LFRic dimension object must be '1' "
-                                     f"or '3', but found '{value}'.")
+                if value not in ['1', '2', '3']:
+                    raise ValueError(f"An LFRic dimension object must be '1', "
+                                     f"'2' or '3', but found '{value}'.")
         # --------------------------------------------------------------------
 
         # Create the required entries in the dictionary
-        LFRicTypes._name_to_class["LFRicDimension"] = LFRicDimension
-        LFRicTypes._name_to_class["LFRIC_SCALAR_DIMENSION"] = \
-            LFRicDimension("1")
-        LFRicTypes._name_to_class["LFRIC_VECTOR_DIMENSION"] = \
-            LFRicDimension("3")
+        LFRicTypes._name_to_class.update({
+            "LFRicDimension": LFRicDimension,
+            "LFRIC_SCALAR_DIMENSION": LFRicDimension("1"),
+            "LFRIC_VERTICAL_BOUNDARIES_DIMENSION": LFRicDimension("2"),
+            "LFRIC_VECTOR_DIMENSION": LFRicDimension("3")})
 
     # ------------------------------------------------------------------------
     @staticmethod
@@ -404,14 +410,24 @@ class LFRicTypes:
         # list because they are used to create vector field datatypes and
         # symbols.
 
-        # The Array namedtuple has 4 properties: the first determines the
-        # names of the resultant datatype and datasymbol classes, the second
-        # references the generic scalar type classes declared above, the third
-        # property is a textual description of each of the dimensions.
-        # The fourth specifies any additional class properties that should be
-        # declared in the generated datasymbol class.
-        Array = namedtuple('Array',
-                           ["name", "scalar_type", "dims", "properties"])
+        @dataclass(frozen=True)
+        class Array:
+            '''
+            Holds the properties of an LFRic array type, used when generating
+            DataSymbol and DataSymbolType classes.
+
+            :param name: the base name to use for the datatype and datasymbol.
+            :param scalar_type: the name of the LFRic scalar type that this is
+                                an array of.
+            :param dims: textual description of each of the dimensions.
+            :param properties: names of additional class properties that should
+                               be declared in the generated datasymbol class.
+            '''
+            name: str
+            scalar_type: str
+            dims: list        # list[str] notation supported in Python 3.9+
+            properties: list  # ditto
+
         field_datatypes = [
             Array("RealField", "LFRicRealScalarDataType",
                   ["number of unique dofs"], ["fs"]),
@@ -471,7 +487,9 @@ class LFRicTypes:
             Array("QrWeightsInFaces", "LFRicRealScalarDataType",
                   ["number of qr points in faces"], []),
             Array("QrWeightsInEdges", "LFRicRealScalarDataType",
-                  ["number of qr points in edges"], [])
+                  ["number of qr points in edges"], []),
+            Array("VerticalBoundaryDofMask", "LFRicIntegerScalarDataType",
+                  ["number of dofs", LFRicTypes("LFRicDimension")], [])
             ]
 
         for array_type in array_datatypes + field_datatypes:

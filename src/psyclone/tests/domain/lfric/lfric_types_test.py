@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ correctly'''
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants, LFRicTypes
+from psyclone.domain.lfric import LFRicTypes
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     ImportInterface, ScalarType, AutomaticInterface, ArgumentInterface, \
@@ -86,7 +86,7 @@ def test_constants_mod():
     created correctly.
 
     '''
-    api_config = Config.get().api_conf("dynamo0.3")
+    api_config = Config.get().api_conf("lfric")
     module = LFRicTypes("constants_mod")
     assert isinstance(module, ContainerSymbol)
     symbol_list = list(api_config.precision_map.keys())
@@ -146,8 +146,8 @@ def test_scalar_literals():
     assert isinstance(LFRicTypes("LFRicDimension")("3"),
                       lfric_dim_class)
     with pytest.raises(ValueError) as info:
-        LFRicTypes("LFRicDimension")("2")
-    assert ("An LFRic dimension object must be '1' or '3', but found '2'."
+        LFRicTypes("LFRicDimension")("4")
+    assert ("An LFRic dimension object must be '1', '2' or '3', but found '4'."
             in str(info.value))
     # LFRIC_SCALAR_DIMENSION instance
     assert isinstance(LFRicTypes("LFRIC_SCALAR_DIMENSION"), lfric_dim_class)

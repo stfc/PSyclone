@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,22 +38,22 @@
 ''' This module tests the LFric KernCallArg class.'''
 
 import os
-
+import re
 import pytest
 
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
-                                   LFRicSymbolTable, LFRicTypes,
-                                   LFRicKern)
+from psyclone.domain.lfric import (KernCallArgList, LFRicSymbolTable,
+                                   LFRicTypes, LFRicKern)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
-from psyclone.psyir.symbols import ArrayType, ScalarType, UnknownFortranType
+from psyclone.psyir.symbols import (
+    ArrayType, ScalarType, UnsupportedFortranType)
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
@@ -66,14 +66,13 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     :param create_arg_list: a KernCallArgList instance.
     :type create_arg_list: :py:class:`psyclone.domain.lfric.KernCallArgList`
     :param fortran_writer: a FortranWriter instance.
-    :type fortran_writer: \
+    :type fortran_writer:
         :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
-    :param valid_classes: a tuple of classes that are expected in the PSyIR \
+    :param valid_classes: a tuple of classes that are expected in the PSyIR
         argument list. Defaults to `(Reference)`.
     :type valid_classes: Tuple[:py:class:`psyclone.psyir.nodes.node`]
 
     '''
-
     if not valid_classes:
         valid_classes = Reference
 
@@ -81,7 +80,11 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     result = []
     for node in create_arg_list.psyir_arglist:
         assert isinstance(node, valid_classes)
-        result.append(fortran_writer(node))
+        out = fortran_writer(node)
+        # We're comparing old (textual) and new (PSyIR) approaches here and
+        # only the new, PSyIR approach supports the addition of array-slice
+        # notation (e.g. 'array(:)'). Therefore, we remove it before comparing.
+        result.append(re.sub(r"[(]\s*:(,\s*:)*\s*[)]$", "", out))
 
     assert result == create_arg_list._arglist
 
@@ -107,14 +110,14 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
     assert Signature("cell_map_field2") in vai
 
     assert create_arg_list._arglist == [
-        'nlayers', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
+        'nlayers_field2', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
         'ncpc_field1_field2_y', 'ncell_field1', 'field1_data',
         'field2_data', 'ndf_w1', 'undf_w1', 'map_w1', 'undf_w2',
         'map_w2(:,cell)']
 
     check_psyir_results(create_arg_list, fortran_writer)
     arg = create_arg_list.psyir_arglist[5]
-    assert isinstance(arg.datatype, UnknownFortranType)
+    assert isinstance(arg.datatype, UnsupportedFortranType)
     assert isinstance(arg.datatype.partial_datatype, ArrayType)
     assert len(arg.datatype.partial_datatype.shape) == 1
 
@@ -131,7 +134,7 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
 
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers', 'f1_data', 'f2_1_data', 'f2_2_data',
+        'nlayers_f1', 'f1_data', 'f2_1_data', 'f2_2_data',
         'f2_3_data', 'f3_data', 'istp', 'ndf_w2', 'undf_w2',
         'map_w2(:,cell)', 'basis_w2_qr_xyoz', 'basis_w2_qr_face', 'ndf_wchi',
         'undf_wchi', 'map_wchi(:,cell)', 'diff_basis_wchi_qr_xyoz',
@@ -149,7 +152,7 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
     array_1d = ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                          [ArrayType.Extent.DEFERRED])
     assert isinstance(create_arg_list.psyir_arglist[2].datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)
     assert (create_arg_list.psyir_arglist[2].datatype.partial_datatype ==
             array_1d)
     array_4d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
@@ -171,7 +174,7 @@ def test_kerncallarglist_face_edge(dist_mem, fortran_writer):
 
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers', 'f1_data', 'f2_data', 'm1_data',
+        'nlayers_f1', 'f1_data', 'f2_data', 'm1_data',
         'm2_data', 'ndf_w1', 'undf_w1', 'map_w1(:,cell)',
         'basis_w1_qr_face', 'basis_w1_qr_edge', 'ndf_w2', 'undf_w2',
         'map_w2(:,cell)', 'diff_basis_w2_qr_face', 'diff_basis_w2_qr_edge',
@@ -205,7 +208,7 @@ def test_kerncallarglist_colouring(dist_mem, fortran_writer):
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers', 'rdt', 'h_data', 'f_data', 'c_data',
+        'nlayers_h', 'rdt', 'h_data', 'f_data', 'c_data',
         'd_data', 'ndf_w1', 'undf_w1', 'map_w1(:,cmap(colour,cell))',
         'ndf_w2', 'undf_w2', 'map_w2(:,cmap(colour,cell))', 'ndf_w3',
         'undf_w3', 'map_w3(:,cmap(colour,cell))']
@@ -230,7 +233,7 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
     assert str(var_info) == ("a: READ, adjacent_face: READ, cell: READ, "
                              "cmap: READ, colour: READ, f1_data: READ+WRITE, "
                              "map_w1: READ, ndf_w1: READ, nfaces_re_h: "
-                             "READ, nlayers: READ, undf_w1: READ")
+                             "READ, nlayers_f1: READ, undf_w1: READ")
     # Tests that multiple reads are reported as expected:
     assert str(var_info[Signature("cell")]) == "cell:READ(0),READ(0)"
     assert str(var_info[Signature("colour")]) == "colour:READ(0),READ(0)"
@@ -238,7 +241,7 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
     assert str(var_info[Signature("adjacent_face")]) == "adjacent_face:READ(0)"
 
     assert create_arg_list._arglist == [
-        'nlayers', 'a', 'f1_data', 'ndf_w1', 'undf_w1',
+        'nlayers_f1', 'a', 'f1_data', 'ndf_w1', 'undf_w1',
         'map_w1(:,cmap(colour,cell))', 'nfaces_re_h',
         'adjacent_face(:,cmap(colour,cell))']
 
@@ -259,7 +262,7 @@ def test_kerncallarglist_evaluator(fortran_writer):
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers', 'f0_data', 'cmap_data', 'ndf_w0', 'undf_w0',
+        'nlayers_f0', 'f0_data', 'cmap_data', 'ndf_w0', 'undf_w0',
         'map_w0(:,cmap_1(colour,cell))', 'basis_w0_on_w0', 'ndf_w1', 'undf_w1',
         'map_w1(:,cmap_1(colour,cell))', 'diff_basis_w1_on_w0']
 
@@ -281,7 +284,7 @@ def test_kerncallarglist_stencil(fortran_writer):
     create_arg_list.generate()
 
     assert create_arg_list._arglist == [
-        'nlayers', 'f1_data', 'f2_data',
+        'nlayers_f1', 'f1_data', 'f2_data',
         'f2_stencil_size(cmap(colour,cell))',
         'f2_stencil_dofmap(:,:,cmap(colour,cell))', 'f3_data',
         'f3_stencil_size(cmap(colour,cell))', 'f3_direction',
@@ -313,7 +316,7 @@ def test_kerncallarglist_cross2d_stencil(fortran_writer):
     create_arg_list.generate()
 
     assert create_arg_list._arglist == [
-        'nlayers', 'f1_data', 'f2_data',
+        'nlayers_f1', 'f1_data', 'f2_data',
         'f2_stencil_size(:,cell)', 'f2_max_branch_length',
         'f2_stencil_dofmap(:,:,:,cell)', 'f3_data', 'f4_data',
         'ndf_w1', 'undf_w1', 'map_w1(:,cell)', 'ndf_w2', 'undf_w2',
@@ -333,7 +336,7 @@ def test_kerncallarglist_bcs(fortran_writer, monkeypatch):
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers', 'a_data', 'ndf_aspc1_a', 'undf_aspc1_a',
+        'nlayers_a', 'a_data', 'ndf_aspc1_a', 'undf_aspc1_a',
         'map_aspc1_a(:,cell)', 'boundary_dofs_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
@@ -367,14 +370,14 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
     access_info = VariablesAccessInfo()
     create_arg_list.generate(access_info)
     assert create_arg_list._arglist == [
-        'cell', 'nlayers', 'op_a_proxy%ncell_3d', 'op_a_local_stencil',
+        'cell', 'nlayers_op_a', 'op_a_proxy%ncell_3d', 'op_a_local_stencil',
         'ndf_aspc1_op_a', 'ndf_aspc2_op_a', 'boundary_dofs_op_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
     assert (create_arg_list.psyir_arglist[2].datatype ==
             LFRicTypes("LFRicIntegerScalarDataType")())
     arg = create_arg_list.psyir_arglist[3]
-    assert isinstance(arg.datatype, UnknownFortranType)
+    assert isinstance(arg.datatype, UnsupportedFortranType)
     assert arg.datatype.partial_datatype.precision.name == "r_def"
     assert len(arg.datatype.partial_datatype.shape) == 3
 
@@ -406,14 +409,14 @@ def test_kerncallarglist_mixed_precision():
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_def"
     # Field.
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)
     assert isinstance(
         create_arg_list.psyir_arglist[3].datatype.partial_datatype, ArrayType)
     # operator: ncell_3d:
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
     # operator: local_stencil
     arg5 = create_arg_list.psyir_arglist[5]
-    assert isinstance(arg5.datatype, UnknownFortranType)
+    assert isinstance(arg5.datatype, UnsupportedFortranType)
     assert isinstance(arg5.datatype.partial_datatype, ArrayType)
     assert len(arg5.datatype.partial_datatype.shape) == 3
 
@@ -422,25 +425,25 @@ def test_kerncallarglist_mixed_precision():
     assert (create_arg_list.psyir_arglist[2].datatype.precision.name ==
             "r_solver")
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)
     assert isinstance(
         create_arg_list.psyir_arglist[3].datatype.partial_datatype, ArrayType)
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
     arg5 = create_arg_list.psyir_arglist[5]
-    assert isinstance(arg5.datatype, UnknownFortranType)
+    assert isinstance(arg5.datatype, UnsupportedFortranType)
     assert isinstance(arg5.datatype.partial_datatype, ArrayType)
 
     create_arg_list = KernCallArgList(schedule.kernels()[2])
     create_arg_list.generate()
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_tran"
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)
     assert isinstance(
         create_arg_list.psyir_arglist[3].datatype.partial_datatype,
         ArrayType)
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
     arg5 = create_arg_list.psyir_arglist[5]
-    assert isinstance(arg5.datatype, UnknownFortranType)
+    assert isinstance(arg5.datatype, UnsupportedFortranType)
     assert isinstance(arg5.datatype.partial_datatype, ArrayType)
 
     create_arg_list = KernCallArgList(schedule.kernels()[3])
@@ -450,19 +453,19 @@ def test_kerncallarglist_mixed_precision():
         create_arg_list.psyir_arglist[3].datatype.partial_datatype,
         ArrayType)
     arg5 = create_arg_list.psyir_arglist[5]
-    assert isinstance(arg5.datatype, UnknownFortranType)
+    assert isinstance(arg5.datatype, UnsupportedFortranType)
     assert isinstance(arg5.datatype.partial_datatype, ArrayType)
 
     create_arg_list = KernCallArgList(schedule.kernels()[4])
     create_arg_list.generate()
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_phys"
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)
     assert isinstance(
         create_arg_list.psyir_arglist[3].datatype.partial_datatype,
         ArrayType)
     arg5 = create_arg_list.psyir_arglist[5]
-    assert isinstance(arg5.datatype, UnknownFortranType)
+    assert isinstance(arg5.datatype, UnsupportedFortranType)
     assert isinstance(arg5.datatype.partial_datatype, ArrayType)
 
 
@@ -482,7 +485,7 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
     assert "1.0" not in str(vai)
 
     assert create_arg_list._arglist == [
-        'nlayers', 'f1_data', 'f2_data', 'm1_data',
+        'nlayers_f1', 'f1_data', 'f2_data', 'm1_data',
         '1.0_r_def', 'm2_data', '2_i_def', 'ndf_w1', 'undf_w1',
         'map_w1(:,cell)', 'basis_w1_qr', 'ndf_w2', 'undf_w2', 'map_w2(:,cell)',
         'diff_basis_w2_qr', 'ndf_w3', 'undf_w3', 'map_w3(:,cell)',
@@ -543,8 +546,9 @@ def test_indirect_dofmap(fortran_writer):
     create_arg_list.generate()
     assert (create_arg_list._arglist == [
         'cell', 'ncell_2d', 'field_a_data', 'field_b_data',
-        'cma_op1_matrix', 'cma_op1_nrow', 'cma_op1_ncol', 'cma_op1_bandwidth',
-        'cma_op1_alpha', 'cma_op1_beta', 'cma_op1_gamma_m', 'cma_op1_gamma_p',
+        'cma_op1_cma_matrix', 'cma_op1_nrow', 'cma_op1_ncol',
+        'cma_op1_bandwidth', 'cma_op1_alpha', 'cma_op1_beta',
+        'cma_op1_gamma_m', 'cma_op1_gamma_p',
         'ndf_adspc1_field_a', 'undf_adspc1_field_a',
         'map_adspc1_field_a(:,cell)', 'cma_indirection_map_adspc1_field_a',
         'ndf_aspc1_field_b', 'undf_aspc1_field_b', 'map_aspc1_field_b(:,cell)',
@@ -566,19 +570,21 @@ def test_indirect_dofmap(fortran_writer):
     dummy_sym_tab = LFRicSymbolTable()
     # Test all 1D real arrays:
     for i in [2, 3]:
-        # The datatype of a field reference is of UnknownFortranType because
-        # the PSyIR doesn't support pointers. However, its 'partial_datatype'
-        # is the type of the member accessed, i.e. it's the 1D real array.
-        assert isinstance(psyir_args[i].datatype, UnknownFortranType)
+        # The datatype of a field reference is of UnsupportedFortranType
+        # because the PSyIR doesn't support pointers. However, its
+        # 'partial_datatype' is the type of the member accessed, i.e. it's
+        # the 1D real array.
+        assert isinstance(psyir_args[i].datatype, UnsupportedFortranType)
         assert isinstance(psyir_args[i].datatype.partial_datatype,
                           ArrayType)
         assert (psyir_args[i].datatype.partial_datatype.intrinsic ==
                 ScalarType.Intrinsic.REAL)
 
     # Test all 3D real arrays:
-    real_3d = dummy_sym_tab.find_or_create_array("doesnt_matter2dreal", 3,
-                                                 ScalarType.Intrinsic.REAL)
-    assert psyir_args[4].datatype == real_3d.datatype
+    assert isinstance(psyir_args[4].datatype, UnsupportedFortranType)
+    assert (psyir_args[4].datatype.partial_datatype.intrinsic ==
+            ScalarType.Intrinsic.REAL)
+    assert len(psyir_args[4].datatype.partial_datatype.shape) == 3
 
     # Test all 1D integer arrays:
     int_1d = dummy_sym_tab.find_or_create_array("doesnt_matter1dint", 1,
@@ -605,12 +611,12 @@ def test_ref_element_handling(fortran_writer):
     create_arg_list.generate(vai)
 
     assert (create_arg_list._arglist == [
-        'nlayers', 'f1_data', 'ndf_w1', 'undf_w1', 'map_w1(:,cell)',
+        'nlayers_f1', 'f1_data', 'ndf_w1', 'undf_w1', 'map_w1(:,cell)',
         'nfaces_re_h', 'nfaces_re_v', 'normals_to_horiz_faces',
         'normals_to_vert_faces'])
 
     assert ("cell: READ, f1_data: READ+WRITE, map_w1: READ, ndf_w1: READ, "
-            "nfaces_re_h: READ, nfaces_re_v: READ, nlayers: READ, "
+            "nfaces_re_h: READ, nfaces_re_v: READ, nlayers_f1: READ, "
             "normals_to_horiz_faces: READ, normals_to_vert_faces: READ, "
             "undf_w1: READ" == str(vai))
 
@@ -629,7 +635,7 @@ def test_ref_element_handling(fortran_writer):
     # The datatype of a field  reference is the type of the member
     # accessed, i.e. it's the 1D real array.
     arg = psyir_args[1]
-    assert isinstance(arg.datatype, UnknownFortranType)
+    assert isinstance(arg.datatype, UnsupportedFortranType)
     assert isinstance(arg.datatype.partial_datatype,
                       ArrayType)
     assert len(arg.datatype.partial_datatype.shape) == 1

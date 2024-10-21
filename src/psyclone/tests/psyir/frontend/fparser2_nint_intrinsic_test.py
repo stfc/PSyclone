@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,7 @@ def test_nint(parser):
     assert isinstance(sched[0], Assignment)
     assert isinstance(sched[0].rhs, IntrinsicCall)
     assert sched[0].rhs.intrinsic == IntrinsicCall.Intrinsic.NINT
-    assert isinstance(sched[0].rhs.children[0], BinaryOperation)
+    assert isinstance(sched[0].rhs.arguments[0], BinaryOperation)
     assert isinstance(sched[1], Assignment)
     assert isinstance(sched[1].rhs, BinaryOperation)
     assert isinstance(sched[1].rhs.children[1], IntrinsicCall)

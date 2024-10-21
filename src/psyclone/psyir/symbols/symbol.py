@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -199,10 +199,10 @@ class Symbol():
         Looks-up and returns the Symbol referred to by this Symbol's
         Import Interface.
 
-        :raises SymbolError: if the module pointed to by the symbol interface \
-                             does not contain the symbol (or the symbol is \
+        :raises SymbolError: if the module pointed to by the symbol interface
+                             does not contain the symbol (or the symbol is
                              not public).
-        :raises NotImplementedError: if this symbol does not have an \
+        :raises NotImplementedError: if this symbol does not have an
                                      ImportInterface.
         '''
         if not self.is_import:
@@ -211,22 +211,29 @@ class Symbol():
                 f"the lazy evaluation of '{self.interface}' interfaces is "
                 f"not supported.")
 
-        module = self.interface.container_symbol
+        csym = self.interface.container_symbol
+
         try:
-            return module.container.symbol_table.lookup(
+            container = csym.find_container_psyir()
+            if not container:
+                raise SymbolError(
+                    f"Error trying to resolve the properties of symbol "
+                    f"'{self.name}'. The interface points to module "
+                    f"'{csym.name}' but could not obtain its PSyIR.")
+            return container.symbol_table.lookup(
                 self.name, visibility=self.Visibility.PUBLIC)
         except KeyError as kerr:
             raise SymbolError(
                 f"Error trying to resolve the properties of symbol "
                 f"'{self.name}'. The interface points to module "
-                f"'{module.name}' but could not find the definition of "
+                f"'{csym.name}' but could not find the definition of "
                 f"'{self.name}' in that module.") from kerr
         except SymbolError as err:
             raise SymbolError(
               f"Error trying to resolve the properties of symbol "
-              f"'{self.name}' in module '{module.name}': {err.value}") from err
+              f"'{self.name}' in module '{csym.name}': {err.value}") from err
 
-    def resolve_deferred(self):
+    def resolve_type(self):
         '''
         Update the properties of this Symbol by using the definition imported
         from the external Container. If this symbol does not have an
@@ -240,15 +247,22 @@ class Symbol():
         '''
         if self.is_import:
             extern_symbol = self.get_external_symbol()
-            init_value = None
-            if extern_symbol.initial_value:
-                init_value = extern_symbol.initial_value.copy()
-            # Specialise the existing Symbol in-place so that all References
-            # to it remain valid.
-            self.specialise(type(extern_symbol),
-                            datatype=extern_symbol.datatype,
-                            is_constant=extern_symbol.is_constant,
-                            initial_value=init_value)
+            from psyclone.psyir.symbols import RoutineSymbol
+            if isinstance(extern_symbol, RoutineSymbol):
+                # Specialise the existing Symbol in-place so that all
+                # References to it remain valid.
+                self.specialise(type(extern_symbol),
+                                datatype=extern_symbol.datatype)
+            else:
+                init_value = None
+                if extern_symbol.initial_value:
+                    init_value = extern_symbol.initial_value.copy()
+                # Specialise the existing Symbol in-place so that all
+                # References to it remain valid.
+                self.specialise(type(extern_symbol),
+                                datatype=extern_symbol.datatype,
+                                is_constant=extern_symbol.is_constant,
+                                initial_value=init_value)
         return self
 
     @property
@@ -424,21 +438,13 @@ class Symbol():
 
     @property
     def is_array(self):
-        '''This is the basic implementation for the method that checks
-        if a symbol is declared to be an array. In this base class it
-        will just raise an exception, indicating that no information
-        is available. The function will be overwritten, e.g. in
-        DataSymbol.
-
-        :returns: True if this symbol is an array and False otherwise.
+        '''
+        :returns: True if this symbol is an array and False if it is not or
+            there is not enough symbol information to determine it.
         :rtype: bool
 
-        :raises ValueError: if this function is called for the base class \
-            since there is no information available.
-
         '''
-        raise ValueError(f"No array information is available for the "
-                         f"symbol '{self.name}'.")
+        return False
 
     def is_array_access(self, index_variable=None, access_info=None):
         '''This method detects if a variable is used as an array or not.
@@ -463,16 +469,16 @@ class Symbol():
         set to `i`. If `loop_variable` is specified, `access_information`
         must be specified.
 
-        :param str index_variable: optional loop variable that is used to \
+        :param str index_variable: optional loop variable that is used to
             to determine if an access is an array access using this variable.
         :param access_info: variable access information, optional.
-        :type access_info: \
+        :type access_info:
             :py:class:`psyclone.core.SingleVariableAccessInfo`
 
-        :returns: if the variable is an array.
+        :returns: whether or not the variable is an array.
         :rtype bool:
 
-        :raises InternalError: if a loop_variable is specified, but no \
+        :raises InternalError: if a loop_variable is specified, but no
             access information is given.
 
         '''
@@ -512,14 +518,27 @@ class Symbol():
         # does not indicate an array. In the latter case we still need to
         # test the symbol table, since the variable might be used in array
         # expressions only. Note that we cannot check for index variable usage
-        # in this case. If there is no type information available (i.e. `self`
-        # is just a Symbol, not a DataSymbol), the `is_array` function will
-        # raise an exception.
+        # in this case.
         # TODO #1213: check for wildcard imports
+        return self.is_array
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        if not isinstance(self.interface, ImportInterface):
+            return
+        name = self.interface.container_symbol.name
+        orig_name = self.interface.orig_name
         try:
-            return self.is_array
-        except ValueError:
-            # Generic symbols produce a ValueError, since this does not have
-            # a datatype and an Array access was not found, we don't consider
-            # it an array.
-            return False
+            new_container = table.lookup(name)
+            self.interface = ImportInterface(new_container,
+                                             orig_name=orig_name)
+        except KeyError:
+            pass

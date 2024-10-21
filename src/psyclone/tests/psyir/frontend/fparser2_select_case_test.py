@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@
 ''' Module containing pytest tests for the handling of some select case
 construction for the Fparser->PSyIR frontend.'''
 
+import sys
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -93,6 +94,39 @@ def test_handling_case_construct():
     assert ifnode.else_body[0].children[1].ast_end is \
         fparser2case_construct.content[4]
     assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
+
+
+def test_very_large_select_construct_increases_recursion_limit(fortran_reader):
+    '''Test that a select case with a very large number of CASES preventively
+    increases the python recursion limit.'''
+
+    default_recursion_limit = sys.getrecursionlimit()
+
+    repetitions = 200
+    code = '''
+    subroutine test_subroutine(a)
+        use other, only: my_sub
+        integer, intent(in) :: a
+
+        SELECT CASE(a)
+    '''
+    for i in range(repetitions):
+        code += f'''
+        CASE ({i})
+            call my_sub()
+        '''
+    code += '''
+        END SELECT
+    end subroutine'''
+
+    try:
+        _ = fortran_reader.psyir_from_source(code)
+
+        # Check that the recursion limit has been increased
+        assert sys.getrecursionlimit() > default_recursion_limit
+    finally:
+        # Restore default value
+        sys.setrecursionlimit(default_recursion_limit)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -374,7 +408,7 @@ def test_logical_literal_case(fortran_reader, fortran_writer):
     assert "a == .true." not in pass_through
     assert "a .EQV. .true." in pass_through
 
-    # Test with an unknown comparison to a literal.
+    # Test with an unresolved comparison to a literal.
     code = '''subroutine test_subroutine()
     use mymod, only: a
 
@@ -460,10 +494,9 @@ def has_cmp_interface(code):
 
     # Check that the generic interface in in the code
     assert '''interface psyclone_internal_cmp
-  procedure psyclone_cmp_int
-  procedure psyclone_cmp_logical
-  procedure psyclone_cmp_char
-end interface psyclone_internal_cmp''' in code
+    procedure :: psyclone_cmp_int, psyclone_cmp_logical, psyclone_cmp_char
+  end interface psyclone_internal_cmp
+''' in code
 
     # Check that the integer implementation is in the code
     assert '''function psyclone_cmp_int(op1, op2)
@@ -499,7 +532,7 @@ end interface psyclone_internal_cmp''' in code
 def test_find_or_create_psyclone_internal_cmp(fortran_writer):
     '''Test that the find_or_create_psyclone_internal_cmp returns the expected
     symbol and creates the interface if it does not exist. '''
-    subroutine = Routine("mysub", children=[Return()])
+    subroutine = Routine.create("mysub", children=[Return()])
     node_in_subroutine = subroutine.children[0]
 
     # If it is not inside a Container it producess a NotImplementedError
@@ -547,10 +580,9 @@ def test_find_or_create_psyclone_internal_cmp(fortran_writer):
 
     # Check that the interface new names are internally consistent
     assert '''interface psyclone_internal_cmp_1
-  procedure psyclone_cmp_int_1
-  procedure psyclone_cmp_logical_1
-  procedure psyclone_cmp_char_1
-end interface psyclone_internal_cmp_1''' in fortran_writer(container)
+    procedure :: psyclone_cmp_int_1, psyclone_cmp_logical_1, \
+psyclone_cmp_char_1
+  end interface psyclone_internal_cmp_1''' in fortran_writer(container)
 
     # And that from now on the tag refers to the new symbol
     assert container.symbol_table.lookup_with_tag(
@@ -559,10 +591,8 @@ end interface psyclone_internal_cmp_1''' in fortran_writer(container)
 
 def test_expression_case(fortran_reader, fortran_writer):
     '''Test that a select case statement comparing two expressions
-    is using the generic comparison interface.
-
-    # TODO #1799: The interface may not be needed for this case if
-    # we can successuly obtain the expression.datatype
+    does not use the generic comparison interface if the types can be
+    determined.
 
     '''
     code = '''
@@ -584,16 +614,14 @@ def test_expression_case(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
 
-    # Check that the interface implementation has been inserted
-    has_cmp_interface(output)
-
-    # Check that the cannonicalised comparisons use the interface method
-    assert "if (psyclone_internal_cmp(a * a, b - c)) then" in output
-    assert "if (psyclone_internal_cmp(a * a, c - b)) then" in output
+    # Check that the cannonicalised comparisons do not use the interface method
+    assert "if (a * a == b - c) then" in output
+    assert "if (a * a == c - b) then" in output
+    assert "interface psyclone_internal_cmp" not in output
 
 
-def test_unknown_types_case(fortran_reader, fortran_writer):
-    '''Test that a select case statement comparing two unknown types
+def test_unresolved_types_case(fortran_reader, fortran_writer):
+    '''Test that a select case statement comparing two unresolved types
     is using the generic comparison interface'''
     code = '''
     module test
@@ -622,8 +650,8 @@ def test_unknown_types_case(fortran_reader, fortran_writer):
     assert "if (psyclone_internal_cmp(a, c)) then" in output
 
 
-def test_unknown_types_case_without_module(fortran_reader):
-    '''Test that a select case statement comparing two unknown types in a
+def test_unresolved_types_case_without_module(fortran_reader):
+    '''Test that a select case statement comparing two unresolved types in a
     situation wihtout an ancestor module, it will generate a CodeBlock'''
     code = '''
     subroutine test_subroutine()
@@ -669,7 +697,7 @@ def test_derived_types_case(fortran_reader, fortran_writer):
     assert "if (a%field == 1) then" in output
     assert "if (a%field == 2) then" in output
 
-    # And then the datatype information is unknown
+    # And then the datatype information is unresolved
     code = '''
     module test
         contains
@@ -688,7 +716,6 @@ def test_derived_types_case(fortran_reader, fortran_writer):
 
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
-
     # Check that the interface implementation has been inserted
     has_cmp_interface(output)
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,7 @@ class LFRicRunTimeChecks(LFRicCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        if Config.get().api_conf("dynamo0.3").run_time_checks:
+        if Config.get().api_conf("lfric").run_time_checks:
             # Only add if run-time checks are requested
             const = LFRicConstants()
             parent.add(
@@ -207,7 +207,7 @@ class LFRicRunTimeChecks(LFRicCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        if not Config.get().api_conf("dynamo0.3").run_time_checks:
+        if not Config.get().api_conf("lfric").run_time_checks:
             # Run-time checks are not requested.
             return
 

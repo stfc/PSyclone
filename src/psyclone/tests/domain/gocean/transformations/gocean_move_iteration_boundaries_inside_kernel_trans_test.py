@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council
+# Copyright (c) 2021-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.backend.fortran import FortranWriter
 
-API = "gocean1.0"
+API = "gocean"
 
 
 def test_description():

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2023, Science and Technology Facilities Council.
+! Copyright (c) 2017-2024, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,8 @@
 ! Author R. W. Ford, STFC Daresbury Lab
 ! Modified I. Kavcic and L. Turner, Met Office
 
-
-module testkern_mod
+! Test code where name of derived type is wrong.
+module testkern_no_datatype_mod
 
   use constants_mod
   use argument_mod
@@ -59,4 +59,4 @@ contains
   subroutine testkern_code()
   end subroutine testkern_code
 
-end module testkern_mod
+end module testkern_no_datatype_mod

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 # This workflow will use a self-hosted runner to perform the more expensive
 # integrations tests that are not run on GHA systems.
 
-name: NEMO Integration Tests
+name: NEMOv4 Integration Tests
 
 on:
   push
@@ -46,9 +46,13 @@ jobs:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     env:
+      HDF5_VERSION: 1.14.5
+      NETCDF_C_VERSION: 4.9.2
+      NETCDF_FORTRAN_VERSION: 4.6.1
       NVFORTRAN_VERSION: 23.7
-      PERL_VERSION: 5.38.0
-      PYTHON_VERSION: 3.12.0
+      ONEAPI_VERSION: 2024.2.1
+      PERL_VERSION: 5.40.0
+      PYTHON_VERSION: 3.13.0
 
     steps:
     - uses: actions/checkout@v3
@@ -69,7 +73,9 @@ jobs:
         python -m venv .runner_venv
         . .runner_venv/bin/activate
         python -m pip install --upgrade pip
-        pip install external/fparser
+        # Uncomment the below to use the submodule version of fparser rather
+        # than the latest release from pypi.
+        # pip install external/fparser
         pip install .[test]
         # Compile nvidia profiling tools
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
@@ -83,9 +89,10 @@ jobs:
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMO
         cd $PSYCLONE_NEMO_DIR
-        make -j 4 passthrough
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
+        make -j 4 passthrough
         make -j 4 compile-passthrough
 
     # PSyclone, compile and run MetOffice NEMO with OpenMP for GPUs
@@ -95,27 +102,29 @@ jobs:
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMO
         cd $PSYCLONE_NEMO_DIR
-        make -j 4 openmp_gpu
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
+        make -j 4 openmp_gpu
         make -j 4 compile-openmp_gpu
         export NV_ACC_POOL_THRESHOLD=75
         make run-openmp_gpu |& tee output.txt
-        # Check the output is as expected for the first 6 digits
-        tail -n 1 output.txt | grep -q " it :      10"
-        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483"
-        tail -n 1 output.txt | grep -q "|U|_max:  0.458515"
-        tail -n 1 output.txt | grep -q "S_min:  0.482686"
-        tail -n 1 output.txt | grep -q "S_max:  0.407622"
-        export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1)
+        # Check the output is as expected for the first 6 digits (if not exit with error message)
+        tail -n 1 output.txt | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
+        tail -n 1 output.txt | grep -q "|U|_max:  0.458515" || (echo "Error: '|U|_max:  0.458515' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_min:  0.482686" || (echo "Error: 'S_min:  0.482686' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_max:  0.407622" || (echo "Error: 'S_max:  0.407622' not found!" & false)
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openmp_gpu
-
-    - name: Upload NEMO OpenMP GPU results
-      uses: exuanbo/actions-deploy-gist@v1
-      with:
-        token: ${{ secrets.GIST_TOKEN }}
-        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
-        file_path: ../../../../store_results/performance_history_openmp_gpu
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "NEMO OpenMP for GPU", nemo_version: "NEMO MO 4.0.2", system: "GlaDos",
+          compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
     # PSyclone, compile and run MetOffice NEMO with OpenACC kernels for GPUs
     - name: NEMO MetOffice OpenACC kernels for GPU
@@ -124,28 +133,29 @@ jobs:
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMO
         cd $PSYCLONE_NEMO_DIR
-        make -j 4 openacc_kernels
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
+        make -j 4 openacc_kernels
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j 4 compile-openacc_kernels
         export NV_ACC_POOL_THRESHOLD=75
         make run-openacc_kernels |& tee output.txt
-        # Check the output is as expected for the first 6 digits
-        tail -n 1 output.txt | grep -q " it :      10"
-        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483"
-        tail -n 1 output.txt | grep -q "|U|_max:  0.458515"
-        tail -n 1 output.txt | grep -q "S_min:  0.482686"
-        tail -n 1 output.txt | grep -q "S_max:  0.407622"
-        export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1)
+        # Check the output is as expected for the first 6 digits (if not exit with error message)
+        tail -n 1 output.txt | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
+        tail -n 1 output.txt | grep -q "|U|_max:  0.458515" || (echo "Error: '|U|_max:  0.458515' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_min:  0.482686" || (echo "Error: 'S_min:  0.482686' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_max:  0.407622" || (echo "Error: 'S_max:  0.407622' not found!" & false)
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openacc_kernels_gpu
-        # Upload the results into a Github Gist
-
-    - name: Upload NEMO OpenACC kernels GPU results
-      uses: exuanbo/actions-deploy-gist@v1
-      with:
-        token: ${{ secrets.GIST_TOKEN }}
-        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
-        file_path: ../../../../store_results/performance_history_openacc_kernels_gpu
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "NEMO OpenACC kernels for GPU", nemo_version: "MEMO MO 4.0.2", system: "GlaDos",
+          compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
     # PSyclone, compile and run MetOffice NEMO with OpenACC loops for GPUs
     - name: NEMO MetOffice OpenACC loops for GPU
@@ -154,37 +164,38 @@ jobs:
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMO
         cd $PSYCLONE_NEMO_DIR
-        make -j 4 openacc_loops
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
+        make -j 4 openacc_loops
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j 4 compile-openacc_loops
         export NV_ACC_POOL_THRESHOLD=75
         make run-openacc_loops |& tee output.txt
-        # Check the output is as expected for the first 6 digits
-        tail -n 1 output.txt | grep -q " it :      10"
-        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483"
-        tail -n 1 output.txt | grep -q "|U|_max:  0.458515"
-        tail -n 1 output.txt | grep -q "S_min:  0.482686"
-        tail -n 1 output.txt | grep -q "S_max:  0.407622"
-        export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1)
+        # Check the output is as expected for the first 6 digits (if not exit with error message)
+        tail -n 1 output.txt | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
+        tail -n 1 output.txt | grep -q "|U|_max:  0.458515" || (echo "Error: '|U|_max:  0.458515' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_min:  0.482686" || (echo "Error: 'S_min:  0.482686' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_max:  0.407622" || (echo "Error: 'S_max:  0.407622' not found!" & false)
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openacc_loops_gpu
-        # Upload the results into a Github Gist
-
-    - name: Upload NEMO OpenACC loops GPU results
-      uses: exuanbo/actions-deploy-gist@v1
-      with:
-        token: ${{ secrets.GIST_TOKEN }}
-        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
-        file_path: ../../../../store_results/performance_history_openacc_loops_gpu
-        
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "NEMO OpenACC loops for GPU", nemo_version: "MEMO MO 4.0.2", system: "GlaDos",
+          compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
+      
     # PSyclone, compile and run ECMWF NEMO with OpenMP for CPUs. This uses
     # the Intel compiler and does not disable MPI. Therefore we have to ensure
     # that we provide the path to the header files for Intel MPI.
     - name: NEMO ECMWF OpenMP for CPU
       run: |
         . .runner_venv/bin/activate
-        module rm nvidia-hpcsdk
-        module load intel/oneapi compiler mpi
+        module load oneapi/${ONEAPI_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMOGCM_V40
@@ -196,24 +207,23 @@ jobs:
         export MPI_INC_DIR=${I_MPI_ROOT}/include
         cd $PSYCLONE_NEMO_DIR
         make -j 4 openmp_cpu
-        export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-c-4.9.0/lib/:$LD_LIBRARY_PATH
-        export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-fortran-4.5.4/lib:$LD_LIBRARY_PATH
-        export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/hdf5-1.12.2/lib/:$LD_LIBRARY_PATH
         make -j 4 compile-openmp_cpu
         export OMP_NUM_THREADS=4
         make run-openmp_cpu |& tee output.txt
         # Check the output is as expected for the first 6 digits
-        tail -n 1 output.txt | grep -q " it :      10"
-        tail -n 1 output.txt | grep -q "|ssh|_max:  0.199714"
-        tail -n 1 output.txt | grep -q "|U|_max:  0.148409"
-        tail -n 1 output.txt | grep -q "S_min:  0.108530"
-        tail -n 1 output.txt | grep -q "S_max:  0.404045"
-        export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1)
+        tail -n 1 output.txt | grep -q " it :      10" || (echo "Error: 'it :      10' not found!" & false)
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.199714" || (echo "Error: '|ssh|_max:  0.199714' not found!" & false)
+        tail -n 1 output.txt | grep -q "|U|_max:  0.148409" || (echo "Error: '|U|_max:  0.148409' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_min:  0.108530" || (echo "Error: 'S_min:  0.108530' not found!" & false)
+        tail -n 1 output.txt | grep -q "S_max:  0.404045" || (echo "Error: 'S_max:  0.404045' not found!" & false)
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo  $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openmp_cpu
-
-    - name: Upload NEMO OpenMP CPU results
-      uses: exuanbo/actions-deploy-gist@v1
-      with:
-        token: ${{ secrets.GIST_TOKEN }}
-        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
-        file_path: ../../../../store_results/performance_history_openmp_cpu
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "NEMO OpenMP for CPU", nemo_version: "NEMO ECMWF 4.0 V40 with mpp", system: "GlaDos",
+          compiler:"intel-'"$ONEAPI_VERSION"'" , date: new Date(),
+          num_omp_threads: '"$OMP_NUM_THREADS"', elapsed_time: '"$VAR_TIME"'})'

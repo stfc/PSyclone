@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,6 @@ from psyclone.psyad.domain.lfric.lfric_adjoint import (
     _update_access_metadata, _check_or_add_access_symbol)
 from psyclone.psyir.symbols import (
     DataSymbol, ArgumentInterface, INTEGER_TYPE, REAL_TYPE)
-from psyclone.psyir.transformations import TransformationError
 
 
 def test_generate_lfric_adjoint_no_container_error(fortran_reader):
@@ -75,10 +74,10 @@ end program test
             "source is not within a module)." in str(err.value))
 
 
-def test_generate_lfric_adjoint_no_routines_error(fortran_reader):
+def test_generate_lfric_adjoint_no_metadata_error(fortran_reader):
     '''
     Check that generate_lfric_adjoint raises the expected error when
-    provided with PSyIR that does not contain any Routines.
+    provided with PSyIR that does not contain any kernel metadata.
 
     '''
     psyir = fortran_reader.psyir_from_source("""\
@@ -89,26 +88,54 @@ end module test_mod
 """)
     with pytest.raises(InternalError) as err:
         generate_lfric_adjoint(psyir, ["var1", "var2"])
-    assert "The supplied PSyIR does not contain any routines" in str(err.value)
+    assert ("The supplied PSyIR does not contain any kernel metadata"
+            in str(err.value))
 
 
-# We can't yet parse metadata that does not contain a procedure (see
-# issue #2236) so instead we simply add multiple routines even though
-# only one is specified in the metadata.
-MULTI_ROUTINE_CODE = (
-    "module test_mod\n"
-    "  implicit none\n"
-    "  use kernel_mod\n"
-    "  use argument_mod\n"
+METADATA = (
     "  type, extends(kernel_type) :: test_type\n"
     "     type(arg_type), dimension(2) :: meta_args = (/  &\n"
     "          arg_type(gh_field,  gh_real, gh_inc, w0),  &\n"
     "          arg_type(gh_field,  gh_real, gh_read, w0)  &\n"
     "          /)\n"
     "     integer :: operates_on = cell_column\n"
-    "  contains\n"
-    "    procedure, nopass :: test_code_r4\n"
-    "  end type test_type\n"
+    "  end type test_type\n")
+
+
+def test_generate_lfric_adjoint_no_routines_error(fortran_reader):
+    '''
+    Check that generate_lfric_adjoint raises the expected error when
+    provided with PSyIR that does not contain any Routines.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(f"""\
+module test_mod
+  implicit none
+  integer :: var1
+  {METADATA}
+end module test_mod
+""")
+    with pytest.raises(InternalError) as err:
+        generate_lfric_adjoint(psyir, ["var1", "var2"])
+    assert ("The supplied PSyIR does not contain any routines"
+            in str(err.value))
+
+
+MULTI_ROUTINE_CODE = (
+    f"module test_mod\n"
+    f"  implicit none\n"
+    f"  use kernel_mod\n"
+    f"  use argument_mod\n"
+    f"{METADATA}"
+    f"  public test_code\n"
+    f"  interface test_code\n"
+    f"    module procedure :: test_code_r4, test_code_r8\n"
+    f"  end interface test_code\n"
+    # Include a second interface that also references the two subroutines.
+    "  interface another_interface\n"
+    "    module procedure :: test_code_r8, test_code_r4\n"
+    "  end interface another_interface\n"
+    "  private :: another_interface\n"
     "contains\n"
     "  subroutine test_code_r4()\n"
     "    real*4 :: var1\n"
@@ -124,14 +151,24 @@ MULTI_ROUTINE_CODE = (
 def test_generate_lfric_adjoint_multi_routine(fortran_reader, fortran_writer):
     '''Test that if there are multiple routines in the PSyIR (i.e. for
     multi-precision kernels), all of their (tl) names are modified to
-    their expected adjoint names.
+    their expected adjoint names, including in the two interface definitions.
 
     '''
     psyir = fortran_reader.psyir_from_source(MULTI_ROUTINE_CODE)
     adj_psyir = generate_lfric_adjoint(psyir, ["var1"])
-    result = fortran_writer(adj_psyir)
+    result = fortran_writer(adj_psyir).lower()
     assert "subroutine adj_test_code_r4()" in result
     assert "subroutine adj_test_code_r8()" in result
+    # Check that the names of the routines in the two interfaces have
+    # been updated.
+    assert "module procedure :: adj_test_code_r4, adj_test_code_r8" in result
+    assert "module procedure :: adj_test_code_r8, adj_test_code_r4" in result
+    # Check that the name of the interface associated with the kernel
+    # implementation has been updated.
+    assert "end type adj_test_type" in result
+    if "interface adj_test_code" not in result:
+        pytest.xfail("#1946 updating metadata for mixed-precision kernels not "
+                     "yet supported.")
 
 
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
@@ -172,19 +209,15 @@ SINGLE_ROUTINE_CODE = (
     "end module test_mod")
 
 
-def test_generate_lfric_adjoint_no_metadata(fortran_reader):
+def test_generate_lfric_adjoint_no_name_convention(fortran_reader):
     '''Check that the expected error is raised when the metadata has an
-    unexpected name (i.e. does not conform to the LFRic coding
-    standards).
+    unexpected name.
 
     '''
     psyir = fortran_reader.psyir_from_source(
         SINGLE_ROUTINE_CODE.replace("test_type", "wrong_name"))
-    with pytest.raises(TransformationError) as err:
-        generate_lfric_adjoint(psyir, ["var1", "var2"])
-    assert ("The metadata name 'test_type' provided to the transformation "
-            "does not correspond to a symbol in the supplied PSyIR."
-            in str(err.value))
+    adj_psyir = generate_lfric_adjoint(psyir, ["var1", "var2"])
+    assert adj_psyir
 
 
 def test_generate_lfric_adjoint_type_and_procedure_names(

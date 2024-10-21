@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,12 +48,15 @@ is not tested here.
 
 import pytest
 
+from psyclone.core import Signature, SingleVariableAccessInfo
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Literal, KernelSchedule
-from psyclone.psyir.symbols import ArgumentInterface, ContainerSymbol, \
-    DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface, \
-    INTEGER_SINGLE_TYPE, AutomaticInterface, CommonBlockInterface, \
-    RoutineSymbol, Symbol, SymbolError, UnknownInterface, \
-    SymbolTable, UnresolvedInterface
+from psyclone.psyir.symbols import (
+    ArgumentInterface, ContainerSymbol,
+    DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface,
+    INTEGER_SINGLE_TYPE, AutomaticInterface, CommonBlockInterface,
+    NoType, RoutineSymbol, Symbol, SymbolError, UnknownInterface,
+    SymbolTable, UnresolvedInterface)
 
 
 def test_symbol_initialisation():
@@ -201,7 +204,7 @@ def test_find_symbol_table():
     assert ("expected to be passed an instance of psyir.nodes.Node but got "
             "'str'" in str(err.value))
     # Search for a SymbolTable with only one level of hierarchy
-    sched = KernelSchedule("dummy")
+    sched = KernelSchedule.create("dummy")
     table = sched.symbol_table
     table.add(sym)
     assert sym.find_symbol_table(sched) is table
@@ -314,44 +317,64 @@ def test_get_external_symbol(monkeypatch):
     # Create a Symbol that is imported from the "some_mod" Container
     bsym = Symbol("b", interface=ImportInterface(other_container))
     ctable.add(bsym)
-    _ = Container.create("test", ctable, [KernelSchedule("dummy")])
+    _ = Container.create("test", ctable, [KernelSchedule.create("dummy")])
     # Monkeypatch the container's FortranModuleInterface so that it always
     # appears to be unable to find the "some_mod" module
 
     def fake_import(name):
         raise SymbolError("Oh dear")
-    monkeypatch.setattr(other_container._interface, "import_container",
+    monkeypatch.setattr(other_container._interface, "get_container",
                         fake_import)
     with pytest.raises(SymbolError) as err:
         bsym.get_external_symbol()
     assert ("trying to resolve the properties of symbol 'b' in module "
             "'some_mod': PSyclone SymbolTable error: Oh dear" in
             str(err.value))
-    # Now create a Container for the 'some_mod' module and attach this to
+    # Monkeypatch to pretend that we fail to get a Container object.
+    monkeypatch.setattr(other_container, "find_container_psyir", lambda: None)
+    with pytest.raises(SymbolError) as err:
+        bsym.get_external_symbol()
+    assert ("trying to resolve the properties of symbol 'b' in module "
+            "'some_mod': PSyclone SymbolTable error: Error trying to resolve "
+            "the properties of symbol 'b'. The interface points to module "
+            "'some_mod' but could not obtain its PSyIR." in str(err.value))
+
+
+def test_get_external_symbol_missing(monkeypatch):
+    '''
+    Test that get_external_symbol() raises the expected error when the
+    requested symbol cannot be found in the Container from which it is
+    imported.
+
+    '''
+    # Create a Container for the 'some_mod' module and attach this to
     # the ContainerSymbol
     ctable2 = SymbolTable()
     some_mod = Container.create("some_mod", ctable2,
-                                [KernelSchedule("dummy2")])
+                                [KernelSchedule.create("dummy2")])
+    other_container = ContainerSymbol("some_mod")
     other_container._reference = some_mod
+    # Create a Symbol that is imported from the "some_mod" Container
+    bsym = Symbol("b", interface=ImportInterface(other_container))
     # Currently the Container does not contain an entry for 'b'
     with pytest.raises(SymbolError) as err:
         bsym.get_external_symbol()
     assert ("trying to resolve the properties of symbol 'b'. The interface "
-            "points to module 'some_mod' but could not find the definition" in
-            str(err.value))
+            "points to module 'some_mod' but could not find the definition of "
+            "'b' in that module." in str(err.value))
     # Add an entry for 'b' to the Container's symbol table
     ctable2.add(DataSymbol("b", INTEGER_SINGLE_TYPE))
-    new_sym = bsym.resolve_deferred()
+    new_sym = bsym.resolve_type()
     assert isinstance(new_sym, DataSymbol)
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
 
 
-def test_symbol_resolve_deferred(monkeypatch):
-    ''' Test the resolve_deferred method. '''
-    # resolve_deferred() for a local symbol has nothing to do so should
+def test_symbol_resolve_type(monkeypatch):
+    ''' Test the resolve_type method. '''
+    # resolve_type() for a local symbol has nothing to do so should
     # just return itself.
     asym = Symbol("a")
-    assert asym.resolve_deferred() is asym
+    assert asym.resolve_type() is asym
     # Now test for a symbol that is imported from another Container
     other_container = ContainerSymbol("some_mod")
     bsym = Symbol("b", visibility=Symbol.Visibility.PRIVATE,
@@ -360,7 +383,7 @@ def test_symbol_resolve_deferred(monkeypatch):
     # a new DataSymbol
     monkeypatch.setattr(bsym, "get_external_symbol",
                         lambda: DataSymbol("b", INTEGER_SINGLE_TYPE))
-    new_sym = bsym.resolve_deferred()
+    new_sym = bsym.resolve_type()
     # The symbol should be the same instance as before but with properties and
     # type obtained from the other table.
     assert new_sym is bsym
@@ -378,28 +401,64 @@ def test_symbol_resolve_deferred(monkeypatch):
         lambda: DataSymbol("c", INTEGER_SINGLE_TYPE,
                            is_constant=True,
                            initial_value=Literal("1", INTEGER_SINGLE_TYPE)))
-    new_sym = csym.resolve_deferred()
+    new_sym = csym.resolve_type()
     assert new_sym is csym
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
     assert new_sym.is_import
     assert new_sym.is_constant
     assert new_sym.initial_value == Literal("1", INTEGER_SINGLE_TYPE)
+    # Repeat but test when the import turns out to be a RoutineSymbol.
+    dsym = Symbol("d", visibility=Symbol.Visibility.PRIVATE,
+                  interface=ImportInterface(other_container))
+    monkeypatch.setattr(
+        dsym, "get_external_symbol",
+        lambda: RoutineSymbol("d", NoType()))
+    new_sym = dsym.resolve_type()
+    assert new_sym is dsym
+    assert isinstance(dsym, RoutineSymbol)
 
 
 def test_symbol_array_handling():
     '''Verifies the handling of arrays together with access information.
 
     '''
-    # Make sure that a normal `Symbol` raises an exception if it is tested
-    # if it is an array. A `Symbol` is only used if there is no type
-    # information is available, e.g. because it is imported from another
-    # module:
+    # Make sure that a generic `Symbol` (no datatype) does not claim to
+    # be an array
     asym = Symbol("a")
-    with pytest.raises(ValueError) as error:
-        _ = asym.is_array
-    assert "No array information is available for the symbol 'a'." \
-        in str(error.value)
+    assert asym.is_array is False
 
     # A generic symbol (no datatype) without an explicit array access
     # expression is not considered to have array access.
     assert not asym.is_array_access()
+
+    # Specifying an index variable without any access information is an error.
+    with pytest.raises(InternalError) as err:
+        asym.is_array_access("i")
+    assert ("index variable 'i' specified, but no access information given"
+            in str(err.value))
+    # Supply some access information.
+    svinfo = SingleVariableAccessInfo(Signature("a"))
+    assert not asym.is_array_access("i", svinfo)
+
+
+def test_symbol_replace_symbols_using():
+    '''Test the replace_symbols_using() method in Symbol.'''
+    interf = DefaultModuleInterface()
+    asym = Symbol("a", interface=interf)
+    table = SymbolTable()
+    # No symbols in table and nothing to update.
+    asym.replace_symbols_using(table)
+    assert asym.interface is interf
+    cont = ContainerSymbol("genesis")
+    binterf = ImportInterface(cont, orig_name="e")
+    bsym = Symbol("b", interface=binterf)
+    # No symbols in table.
+    bsym.replace_symbols_using(table)
+    assert bsym.interface is binterf
+    assert bsym.interface.container_symbol is cont
+    # Add a new ContainerSymbol to the table.
+    cont2 = cont.copy()
+    table.add(cont2)
+    bsym.replace_symbols_using(table)
+    assert bsym.interface is not binterf
+    assert bsym.interface.container_symbol is cont2

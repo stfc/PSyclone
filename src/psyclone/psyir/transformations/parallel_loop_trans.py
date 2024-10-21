@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,11 +39,13 @@
 ''' This module provides the ParallelLoopTrans transformation.'''
 
 import abc
+from collections.abc import Iterable
 
 from psyclone import psyGen
+from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Reference, Call, Routine
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -70,8 +72,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         :param children: list of nodes that will be children of this Directive.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param int collapse: the number of tightly-nested loops to which \
-                             this directive applies or None.
+        :param int collapse: the number of tightly-nested loops to which
+            this directive applies or None.
 
         :returns: the new Directive node.
         :rtype: sub-class of :py:class:`psyclone.psyir.nodes.Directive`.
@@ -83,24 +85,34 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         :param node: the node we are checking.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.\
-                        This transform supports "collapse", which is the\
-                        number of nested loops to collapse.
+        :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param int options["collapse"]: number of nested loops to collapse
-                                        or None.
+        :param bool|int options["collapse"]: if it's a bool and is False
+            (default), it won't collapse. If it's a bool and is True, it will
+            collapse as much as possible. If it's an integer, it will attempt
+            to collapse until the specified number of loops (if they exist and
+            are safe to collapse). The options 'ignore_dependencies_for'
+            and 'force' also affect the collapse applicability.
         :param bool options["force"]: whether to force parallelisation of the
-                target loop (i.e. ignore any dependence analysis).
+            target loop (i.e. ignore any dependence analysis).
+        :param list[str] options["ignore_dependencies_for"]: whether to ignore
+            some symbol names from the dependence analysis checks.
         :param bool options["sequential"]: whether this is a sequential loop.
+        :param bool options["verbose"]: whether to report the reasons the
+            validate and collapse steps have failed.
 
-        :raises TransformationError: if the \
-                :py:class:`psyclone.psyir.nodes.Loop` loop iterates over \
-                colours.
-        :raises TransformationError: if 'collapse' is supplied with an \
-                invalid number of loops.
-        :raises TransformationError: if there is a data dependency that \
-                prevents the parallelisation of the loop unless \
-                `options["force"]` is True.
+        :raises TypeError: if 'collapse' is not an int or a bool.
+        :raises TypeError: if 'ignore_dependencies_for' is not a list of str.
+        :raises TransformationError: if the given loop iterates over a
+            colours (LFRic domain) iteration space.
+        :raises TransformationError: if the given loops calls a procedure that
+            is not guaranteed to be pure (and therefore could have dependencies
+            beyond the specified by the arguments intent)
+        :raises TransformationError: if the given loop is inside a pure routine
+            as these do not allow parallel constructs.
+        :raises TransformationError: if there is a data dependency that
+            prevents the parallelisation of the loop and the provided
+            options don't disregard them.
 
         '''
         # Check that the supplied node is a Loop and does not contain any
@@ -109,8 +121,10 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         if not options:
             options = {}
-        collapse = options.get("collapse", None)
-        ignore_dep_analysis = options.get("force", False)
+        verbose = options.get("verbose", False)
+        collapse = options.get("collapse", False)
+        force = options.get("force", False)
+        ignore_dependencies_for = options.get("ignore_dependencies_for", [])
         sequential = options.get("sequential", False)
 
         # Check we are not a sequential loop
@@ -123,45 +137,79 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it
         if collapse:
-            if not isinstance(collapse, int):
-                raise TransformationError(
-                    f"The 'collapse' argument must be an integer but got an "
-                    f"object of type {type(collapse)}")
-            if collapse < 2:
-                raise TransformationError(
-                    f"It only makes sense to collapse 2 or more loops "
-                    f"but got a value of {collapse}")
-            # Count the number of loops in the loop nest
-            loop_count = 0
-            cnode = node
-            while isinstance(cnode, Loop):
-                loop_count += 1
-                # Loops must be tightly nested (no intervening statements)
-                cnode = cnode.loop_body[0]
-            if collapse > loop_count:
-                raise TransformationError(
-                    f"Cannot apply COLLAPSE({collapse}) clause to a loop nest "
-                    f"containing only {loop_count} loops")
+            if not isinstance(collapse, (int, bool)):
+                raise TypeError(
+                    f"The 'collapse' argument must be an integer or a bool but"
+                    f" got an object of type {type(collapse)}")
 
-        # Check that there are no loop-carried dependencies
-        if sequential or ignore_dep_analysis:
+        routine = node.ancestor(Routine)
+        if routine is not None and routine.parent is not None:
+            rsym = routine.symbol
+            if rsym.is_pure or rsym.is_elemental:
+                raise TransformationError(
+                    f"Loops inside a pure (or elemental) routine cannot be"
+                    f" parallelised, but attempted to parallelise loop "
+                    f"inside '{routine.name}'"
+                )
+
+        # If it's sequential or we 'force' the transformation, the validations
+        # below this point are skipped
+        if sequential or force:
             return
+
+        # Check that all calls inside the loop are pure, and therefore all its
+        # dependencies given by the intent of its arguments
+        not_pure = [call.routine.name for call in node.walk(Call)
+                    if not call.is_pure]
+        if not_pure:
+            message = (
+                f"Loop cannot be parallelised because it cannot "
+                f"guarantee that the following calls are pure: "
+                f"{set(not_pure)}")
+            if verbose:
+                node.append_preceding_comment(message)
+            raise TransformationError(message)
+
+        if ignore_dependencies_for:
+            if (not isinstance(ignore_dependencies_for, Iterable) or
+                    isinstance(ignore_dependencies_for, str) or not all(
+                    isinstance(v, str) for v in ignore_dependencies_for)):
+                raise TypeError(
+                    f"The 'ignore_dependencies_for' option must be an Iterable"
+                    f" object containing str representing the "
+                    f"symbols to ignore, but got '{ignore_dependencies_for}'.")
 
         dep_tools = DependencyTools()
 
-        if not node.independent_iterations(dep_tools=dep_tools,
-                                           test_all_variables=True):
+        signatures = [Signature(name) for name in ignore_dependencies_for]
+
+        if not node.independent_iterations(
+                       dep_tools=dep_tools,
+                       test_all_variables=True,
+                       signatures_to_ignore=signatures):
             # The DependencyTools also returns False for things that are
             # not an issue, so we ignore specific messages.
             for message in dep_tools.get_all_messages():
                 if message.code == DTCode.WARN_SCALAR_WRITTEN_ONCE:
                     continue
-                all_msg_str = [str(message) for message in
-                               dep_tools.get_all_messages()]
-                messages = "\n".join(all_msg_str)
-                raise TransformationError(
-                    f"Dependency analysis failed with the following "
-                    f"messages:\n{messages}")
+                all_msg_str = "\n".join([str(m) for m in
+                                         dep_tools.get_all_messages()])
+                messages = (f"Loop cannot be parallelised because the "
+                            f"dependency analysis reported:\n{all_msg_str}\n"
+                            f"Consider using the \"ignore_dependencies_for\""
+                            f" transformation option if this is a false "
+                            f"dependency.")
+                if verbose:
+                    # This message can get quite long, we will skip it if an
+                    # ancestor loop already has the exact same message
+                    cursor = node.ancestor(Loop)
+                    while cursor:
+                        if messages in cursor.preceding_comment:
+                            break
+                        cursor = cursor.ancestor(Loop)
+                    if not cursor:
+                        node.append_preceding_comment(f"PSyclone: {messages}")
+                raise TransformationError(messages)
 
     def apply(self, node, options=None):
         '''
@@ -181,30 +229,107 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         At code-generation time (when gen_code()` is called), this node must be
         within (i.e. a child of) a PARALLEL region.
 
-        :param node: the supplied node to which we will apply the \
-                     Loop transformation.
+        :param node: the supplied node to which we will apply the
+                loop parallelisation transformation.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations. \
+        :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param int options["collapse"]: the number of loops to collapse into \
-                single iteration space or None.
+        :param bool|int options["collapse"]: if it's a bool and is False
+            (default), it won't collapse. If it's a bool and is True, it will
+            collapse as much as possible. If it's an integer, it will attempt
+            to collapse until the specified number of loops (if they exist and
+            are safe to collapse them). The options 'ignore_dependencies_for'
+            and 'force' also affect the collapse applicabilty analysis.
+        :param bool options["force"]: whether to force parallelisation of the
+            target loop (i.e. ignore any dependence analysis).
+        :param list[str] options["ignore_dependencies_for"]: whether to ignore
+            some symbol names from the dependence analysis checks.
+        :param bool options["sequential"]: whether this is a sequential loop.
+        :param bool options["verbose"]: whether to report the reasons the
+            validate and collapse steps have failed.
 
         '''
         if not options:
             options = {}
         self.validate(node, options=options)
 
-        collapse = options.get("collapse", None)
+        verbose = options.get("verbose", False)
+        collapse = options.get("collapse", False)
+        ignore_dep_analysis = options.get("force", False)
+        list_of_names = options.get("ignore_dependencies_for", [])
+        list_of_signatures = [Signature(name) for name in list_of_names]
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
         node_parent = node.parent
         node_position = node.position
 
+        # If 'collapse' is specified, check that it is an int and that the
+        # loop nest has at least that number of loops in it
+        if collapse:
+            # Count the number of perfectly nested loops that can be collapsed
+            num_collapsable_loops = 0
+            next_loop = node
+            previous_iteration_variables = []
+            while isinstance(next_loop, Loop):
+                previous_iteration_variables.append(next_loop.variable)
+                num_collapsable_loops += 1
+                if not isinstance(collapse, bool):
+                    if num_collapsable_loops >= collapse:
+                        break
+
+                # If it has more than one child, the next loop will not be
+                # perfectly nested, so stop searching. If there is no child,
+                # we have an empty loop and we also stop here.
+                if len(next_loop.loop_body.children) != 1:
+                    if (next_loop.loop_body.children and
+                            isinstance(next_loop.loop_body[0], Loop)):
+                        next_loop.loop_body[0].append_preceding_comment(
+                            "Loop cannot be collapsed because it has siblings")
+                    break
+
+                next_loop = next_loop.loop_body[0]
+                if not isinstance(next_loop, Loop):
+                    break
+
+                # If it is a loop dependent on a previous iteration variable
+                # (e.g. a triangular iteration space), it can not be collapsed
+                dependent_on_previous_variable = False
+                for bound in (next_loop.start_expr, next_loop.stop_expr,
+                              next_loop.step_expr):
+                    for ref in bound.walk(Reference):
+                        if ref.symbol in previous_iteration_variables:
+                            dependent_on_previous_variable = ref.symbol
+                            break
+                if dependent_on_previous_variable:
+                    if verbose:
+                        next_loop.append_preceding_comment(
+                            f"Loop cannot be collapsed because one of the "
+                            f"bounds depends on the previous iteration variab"
+                            f"le '{dependent_on_previous_variable.name}'")
+                    break
+
+                # Check that the next loop has no loop-carried dependencies
+                dtools = DependencyTools()
+                if not ignore_dep_analysis:
+                    if not next_loop.independent_iterations(
+                               dep_tools=dtools,
+                               signatures_to_ignore=list_of_signatures):
+                        if verbose:
+                            msgs = dtools.get_all_messages()
+                            next_loop.preceding_comment = (
+                                "\n".join([str(m) for m in msgs]) +
+                                " Consider using the \"ignore_dependencies_"
+                                "for\" transformation option if this is a "
+                                "false dependency.")
+                        break
+        else:
+            num_collapsable_loops = None
+
         # Add our orphan loop directive setting its parent to the node's
         # parent and its children to the node. This calls down to the sub-class
         # to get the type of directive we require.
-        directive = self._directive([node.detach()], collapse)
+        directive = self._directive([node.detach()], num_collapsable_loops)
 
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)

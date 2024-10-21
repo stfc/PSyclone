@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -182,6 +182,7 @@ class ChildrenList(list):
 
         '''
         # pylint: disable=protected-access
+        node.update_parent_symbol_table(self._node_reference)
         node._parent = self._node_reference
         node._has_constructor_parent = False
 
@@ -197,6 +198,7 @@ class ChildrenList(list):
         # This is done from here with protected access because it's the parent
         # which is in charge of maintaining its children connections.
         # pylint: disable=protected-access
+        node.update_parent_symbol_table(None)
         node._parent = None
         node._has_constructor_parent = False
 
@@ -1528,11 +1530,13 @@ class Node():
                 f"Node class should be None but found "
                 f"'{type(node.parent).__name__}'.")
 
+        # The n'th argument is placed at the n'th+1 children position
+        # because the 1st child is the routine reference
         if keep_name_in_context and hasattr(self.parent, "argument_names") \
-                and self.parent.argument_names[self.position] is not None:
+                and self.parent.argument_names[self.position - 1] is not None:
             # If it is a named context it will have a specific method for
             # replacing the node while keeping the name
-            name = self.parent.argument_names[self.position]
+            name = self.parent.argument_names[self.position - 1]
             self.parent.replace_named_arg(name, node)
         else:
             self.parent.children[self.position] = node
@@ -1629,6 +1633,38 @@ class Node():
         from psyclone.psyir.backend.debug_writer import DebugWriter
         return DebugWriter()(self)
 
+    def origin_string(self):
+        ''' Generates a string with the available information about where
+        this node has been created. It currently only works with Fortran
+        Statements or subchildren of them.
+
+        :returns: a string specifing the origin of this node.
+        :rtype: str
+        '''
+        name = self.coloured_name(False)
+        line_span = "<unknown>"
+        original_src = "<unknown>"
+        filename = "<unknown>"
+        # Try to populate the line/src/filename using the ancestor Statement
+        from psyclone.psyir.nodes.statement import Statement
+        node = self.ancestor(Statement, include_self=True)
+        # TODO #2062: The part below is tighly coupled to fparser tree
+        # structure and ideally should be moved the appropriate frontend,
+        # but we don't necessarely want to do all this string manipulation
+        # ahead of time as it is rarely needed. One option is for the frontend
+        # to provide a callable that this method will invoke to generate the
+        # string. Other frontends or PSyIR not comming from code could provide
+        # a completely different implementation in the Callable oject.
+        if node and node._ast:
+            if hasattr(node._ast, 'item') and node._ast.item:
+                if hasattr(node._ast.item, 'reader'):
+                    if hasattr(node._ast.item.reader, 'file'):
+                        filename = node._ast.item.reader.file.name
+                line_span = node._ast.item.span
+                original_src = node._ast.item.line
+        return (f"{name} from line {line_span} of file "
+                f"'{filename}':\n> {original_src}")
+
     def update_signal(self):
         '''
         Called whenever there is a change in the PSyIR tree below this node.
@@ -1697,6 +1733,33 @@ class Node():
 
         result_list.reverse()
         return result_list
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        This base implementation simply propagates the call to any child Nodes.
+
+        :param table: the symbol table in which to look up replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        for child in self.children:
+            child.replace_symbols_using(table)
+
+    def update_parent_symbol_table(self, new_parent):
+        '''
+        Specify how this node must update its parent's symbol table (if it has
+        one) when its parent is updated.
+
+        This base implementation does nothing.
+
+        :param new_parent: The new parent of this node.
+        :type new_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
+
+        '''
 
 
 # For automatic documentation generation

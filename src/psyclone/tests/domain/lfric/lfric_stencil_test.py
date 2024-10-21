@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic and A. Coughtrie, Met Office,
+#         I. Kavcic, A. Coughtrie and L. Turner, Met Office,
 #         C. M. Maynard, Met Office/University of Reading,
 #         J. Henrichs, Bureau of Meteorology.
-# Modified by: L. Turner, Met Office
 
 ''' Module containing tests of LFRic stencils through the LFRic API '''
 
@@ -45,9 +44,9 @@ import pytest
 import fparser
 from fparser import api as fpapi
 
-from psyclone.domain.lfric import LFRicKern, LFRicConstants
-from psyclone.dynamo0p3 import (DynKernelArguments,
-                                DynKernMetadata, DynStencils)
+from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
+                                   LFRicKernMetadata, LFRicStencils)
+from psyclone.dynamo0p3 import DynKernelArguments
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -60,7 +59,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../..", "test_files", "dynamo0p3")
 
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 STENCIL_CODE = '''
 module stencil_mod
@@ -83,7 +82,7 @@ end module stencil_mod
 def test_stencil_metadata():
     ''' Check that we can parse Kernels with stencil metadata. '''
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
 
     stencil_descriptor_0 = metadata.arg_descriptors[0]
     assert stencil_descriptor_0.stencil is None
@@ -114,7 +113,7 @@ def test_stencil_field_metadata_too_many_arguments():
         "(gh_field, gh_real, gh_read, w2, stencil(cross), w1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert ("each 'meta_arg' entry must have at most 5 arguments" in
             str(excinfo.value))
 
@@ -125,7 +124,7 @@ def test_unsupported_second_argument():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "Kernels with fixed stencil extents are not currently supported" \
         in str(excinfo.value)
 
@@ -137,7 +136,7 @@ def test_valid_stencil_types():
         result = STENCIL_CODE.replace("stencil(cross)",
                                       "stencil(" + stencil_type + ")", 1)
         ast = fpapi.parse(result, ignore_comments=False)
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
 
 
 def test_stencil_read_only():
@@ -148,7 +147,7 @@ def test_stencil_read_only():
                                 "gh_inc, w2, stencil(cross)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name="stencil_type")
+        _ = LFRicKernMetadata(ast, name="stencil_type")
     assert ("In the LFRic API a field with a stencil access must be "
             "read-only ('gh_read'), but found 'gh_inc'" in
             str(excinfo.value))
@@ -166,7 +165,7 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
 
     # Test 'real'-valued field of 'field_type' with stencil access
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]
@@ -181,7 +180,7 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
     code = STENCIL_CODE.replace("gh_field, gh_real",
                                 "gh_field, gh_integer")
     ast = fpapi.parse(code, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]
@@ -227,7 +226,7 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
     # Use the same stencil dofmap
     output1 = (
         "        CALL testkern_same_any_dscnt_space_stencil_code("
-        "nlayers, f0_data, f1_data, f1_stencil_size(cell), "
+        "nlayers_f0, f0_data, f1_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), f2_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
         "map_wtheta(:,cell), ndf_adspc1_f1, undf_adspc1_f1, "
@@ -236,7 +235,7 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
     # Use a different stencil dofmap
     output2 = (
         "        CALL testkern_different_any_dscnt_space_stencil_code("
-        "nlayers, f3_data, f4_data, f4_stencil_size(cell), "
+        "nlayers_f3, f3_data, f4_data, f4_stencil_size(cell), "
         "f4_stencil_dofmap(:,:,cell), f5_data, f5_stencil_size(cell), "
         "f5_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
         "map_wtheta(:,cell), ndf_adspc1_f4, "
@@ -252,14 +251,14 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
         assert "halo_exchange(depth=extent)" not in result
         assert "loop0_stop = f0_proxy%vspace%get_ncell()" in result
         assert "loop1_stop = f3_proxy%vspace%get_ncell()" in result
-    assert "DO cell=loop0_start,loop0_stop" in result
-    assert "DO cell=loop1_start,loop1_stop" in result
+    assert "DO cell = loop0_start, loop0_stop" in result
+    assert "DO cell = loop1_start, loop1_stop" in result
 
 
 def test_stencil_args_unique_1(dist_mem, tmpdir):
     ''' This test checks that stencil extent and direction arguments do not
     clash with internal names generated in the PSy-layer. f2_stencil_size
-    and nlayers are chosen as the names that would clash.
+    and nlayers_f1 are chosen as the names that would clash.
 
     '''
     _, invoke_info = parse(
@@ -272,28 +271,28 @@ def test_stencil_args_unique_1(dist_mem, tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    # we use f2_stencil_size for extent and nlayers for direction
+    # we use f2_stencil_size for extent and nlayers_f1 for direction
     # as arguments
     output1 = ("    SUBROUTINE invoke_0_testkern_stencil_xory1d_type(f1, "
-               "f2, f3, f4, f2_stencil_size, nlayers)")
+               "f2, f3, f4, f2_stencil_size, nlayers_f1)")
     assert output1 in result
     output2 = ("      INTEGER(KIND=i_def), intent(in) :: f2_stencil_size\n"
-               "      INTEGER(KIND=i_def), intent(in) :: nlayers")
+               "      INTEGER(KIND=i_def), intent(in) :: nlayers_f1")
     assert output2 in result
     output3 = ("      INTEGER(KIND=i_def), pointer :: f2_stencil_size_1(:)"
                " => null()")
     assert output3 in result
-    # therefore the local variable is now declared as nlayers_1"
-    output4 = "      INTEGER(KIND=i_def) nlayers_1"
+    # therefore the local variable is now declared as nlayers_f1_1"
+    output4 = "      INTEGER(KIND=i_def) nlayers_f1_1"
     assert output4 in result
-    output5 = "      nlayers_1 = f1_proxy%vspace%get_nlayers()"
+    output5 = "      nlayers_f1_1 = f1_proxy%vspace%get_nlayers()"
     assert output5 in result
     output6 = (
-        "      IF (nlayers .eq. x_direction) THEN\n"
+        "      IF (nlayers_f1 .eq. x_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DX,f2_stencil_size)\n"
         "      END IF\n"
-        "      IF (nlayers .eq. y_direction) THEN\n"
+        "      IF (nlayers_f1 .eq. y_direction) THEN\n"
         "        f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
         "STENCIL_1DY,f2_stencil_size)\n"
         "      END IF\n"
@@ -301,8 +300,8 @@ def test_stencil_args_unique_1(dist_mem, tmpdir):
         "      f2_stencil_size_1 => f2_stencil_map%get_stencil_sizes()")
     assert output6 in result
     output7 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers_1, "
-        "f1_data, f2_data, f2_stencil_size_1(cell), nlayers, "
+        "        CALL testkern_stencil_xory1d_code(nlayers_f1_1, "
+        "f1_data, f2_data, f2_stencil_size_1(cell), nlayers_f1, "
         "f2_stencil_dofmap(:,:,cell), f3_data, f4_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
@@ -352,14 +351,14 @@ def test_stencil_args_unique_2(dist_mem, tmpdir):
         "      END IF")
     assert output3 in result
     output4 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers, "
+        "        CALL testkern_stencil_xory1d_code(nlayers_f1, "
         "f1_data, f2_data, f2_stencil_size(cell), f2_info_1, "
         "f2_stencil_dofmap(:,:,cell), f3_data, f4_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
     assert output4 in result
     output5 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers, "
+        "        CALL testkern_stencil_xory1d_code(nlayers_f1, "
         "f1_data, f2_data, f2_stencil_size_1(cell), f2_info_3, "
         "f2_stencil_dofmap_1(:,:,cell), f3_data, f4_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
@@ -367,11 +366,11 @@ def test_stencil_args_unique_2(dist_mem, tmpdir):
     assert output5 in result
     if dist_mem:
         assert (
-            "IF (f2_proxy%is_dirty(depth=max(f2_info+1,"
-            "f2_info_2+1))) THEN" in result)
+            "IF (f2_proxy%is_dirty(depth=MAX(f2_info + 1, "
+            "f2_info_2 + 1))) THEN" in result)
         assert (
-            "CALL f2_proxy%halo_exchange(depth=max(f2_info+1,"
-            "f2_info_2+1))" in result)
+            "CALL f2_proxy%halo_exchange(depth=MAX(f2_info + 1, "
+            "f2_info_2 + 1))" in result)
         assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
         assert "CALL f3_proxy%halo_exchange(depth=1)" in result
         assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
@@ -405,11 +404,11 @@ def test_stencil_args_unique_3(dist_mem, tmpdir):
         "my_info_f2_info)" in result)
     if dist_mem:
         assert (
-            "IF (f2_proxy%is_dirty(depth=max(my_info_f2_info+1,"
-            "my_info_f2_info_2+1))) THEN" in result)
+            "IF (f2_proxy%is_dirty(depth=MAX(my_info_f2_info + 1, "
+            "my_info_f2_info_2 + 1))) THEN" in result)
         assert (
-            "CALL f2_proxy%halo_exchange(depth=max(my_info_f2_info+1,"
-            "my_info_f2_info_2+1))" in result)
+            "CALL f2_proxy%halo_exchange(depth=MAX(my_info_f2_info + 1, "
+            "my_info_f2_info_2 + 1))" in result)
         assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
         assert "CALL f3_proxy%halo_exchange(depth=1)" in result
         assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
@@ -515,14 +514,14 @@ def test_invalid_stencil_form_1():
     result = STENCIL_CODE.replace("stencil(cross)", "1", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
            in str(excinfo.value)
     assert "Unrecognised metadata entry" in str(excinfo.value)
     result = STENCIL_CODE.replace("stencil(cross)", "stencil", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
            in str(excinfo.value)
     assert "Expecting format stencil(<type>[,<extent>]) but found stencil" \
@@ -535,7 +534,7 @@ def test_invalid_stencil_form_2():
     result = STENCIL_CODE.replace("stencil(cross)", "stenci(cross)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
            in str(excinfo.value)
 
@@ -546,7 +545,7 @@ def test_invalid_stencil_form_3():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
            in str(excinfo.value)
 
@@ -558,7 +557,7 @@ def test_invalid_stencil_form_4():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil()", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "but found stencil()" in str(excinfo.value)
 
 
@@ -569,7 +568,7 @@ def test_invalid_stencil_form_5():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(,)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "Kernel metadata has an invalid format" \
            in str(excinfo.value)
 
@@ -581,7 +580,7 @@ def test_invalid_stencil_form_6():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(cross,1,1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
            in str(excinfo.value)
     assert "there must be at most two arguments inside the brackets" \
@@ -594,7 +593,7 @@ def test_invalid_stencil_first_arg_1():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "not one of the valid types" in str(excinfo.value)
     assert "is a literal" in str(excinfo.value)
 
@@ -605,7 +604,7 @@ def test_invalid_stencil_first_arg_2():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(cros)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "not one of the valid types" in str(excinfo.value)
 
 
@@ -615,7 +614,7 @@ def test_invalid_stencil_first_arg_3():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d(xx))", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "the specified <type>" in str(excinfo.value)
     assert "includes brackets" in str(excinfo.value)
 
@@ -626,7 +625,7 @@ def test_invalid_stencil_second_arg_1():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,x1d)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "the specified <extent>" in str(excinfo.value)
     assert "is not an integer" in str(excinfo.value)
 
@@ -637,7 +636,7 @@ def test_invalid_stencil_second_arg_2():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,0)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "the specified <extent>" in str(excinfo.value)
     assert "is less than 1" in str(excinfo.value)
 
@@ -683,7 +682,7 @@ def test_single_stencil_extent(dist_mem, tmpdir):
         "      !\n")
     assert output5 in result
     output6 = (
-        "        CALL testkern_stencil_code(nlayers, f1_data,"
+        "        CALL testkern_stencil_code(nlayers_f1, f1_data,"
         " f2_data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell),"
         " f3_data, f4_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
@@ -743,7 +742,7 @@ def test_single_stencil_xory1d(dist_mem, tmpdir):
         "      !\n")
     assert output5 in result
     output6 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers, "
+        "        CALL testkern_stencil_xory1d_code(nlayers_f1, "
         "f1_data, f2_data, f2_stencil_size(cell), f2_direction, "
         "f2_stencil_dofmap(:,:,cell), f3_data, f4_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
@@ -794,7 +793,7 @@ def test_single_stencil_literal(dist_mem, tmpdir):
             "      END IF\n")
         assert output5 in result
     output6 = (
-        "        CALL testkern_stencil_code(nlayers, f1_data, "
+        "        CALL testkern_stencil_code(nlayers_f1, f1_data, "
         "f2_data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell), "
         "f3_data, f4_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
@@ -839,12 +838,12 @@ def test_stencil_region(dist_mem, tmpdir):
     assert output4 in result
     if dist_mem:
         output5 = (
-            "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
-            "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
+            "      IF (f2_proxy%is_dirty(depth=f2_extent + 1)) THEN\n"
+            "        CALL f2_proxy%halo_exchange(depth=f2_extent + 1)\n"
             "      END IF\n")
         assert output5 in result
     output6 = (
-        "        CALL testkern_stencil_region_code(nlayers, f1_data, "
+        "        CALL testkern_stencil_region_code(nlayers_f1, f1_data, "
         "f2_data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell), "
         "f3_data, f4_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
@@ -897,7 +896,7 @@ def test_single_stencil_cross2d(dist_mem, tmpdir):
         "      !\n")
     assert output5 in result
     output6 = (
-        "        CALL testkern_stencil_cross2d_code(nlayers, f1_data,"
+        "        CALL testkern_stencil_cross2d_code(nlayers_f1, f1_data,"
         " f2_data, f2_stencil_size(:,cell), f2_max_branch_length,"
         " f2_stencil_dofmap(:,:,:,cell), f3_data, f4_data,"
         " ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell),"
@@ -956,7 +955,7 @@ def test_single_stencil_xory1d_literal(dist_mem, tmpdir):
             "      END IF\n")
         assert output5 in result
     output6 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers, "
+        "        CALL testkern_stencil_xory1d_code(nlayers_f1, "
         "f1_data, f2_data, f2_stencil_size(cell), x_direction, "
         "f2_stencil_dofmap(:,:,cell), f3_data, f4_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
@@ -1017,7 +1016,7 @@ def test_single_stencil_xory1d_literal_mixed(dist_mem, tmpdir):
             "      END IF\n")
         assert output5 in result
     output6 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers, "
+        "        CALL testkern_stencil_xory1d_code(nlayers_f1, "
         "f1_data, f2_data, f2_stencil_size(cell), x_direction, "
         "f2_stencil_dofmap(:,:,cell), f3_data, f4_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
@@ -1093,16 +1092,15 @@ def test_multiple_stencils(dist_mem, tmpdir):
     assert output5 in result
     if dist_mem:
         output6 = (
-            "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
-            "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
+            "      IF (f2_proxy%is_dirty(depth=f2_extent + 1)) THEN\n"
+            "        CALL f2_proxy%halo_exchange(depth=f2_extent + 1)\n"
             "      END IF\n"
-            "      !\n"
-            "      IF (f3_proxy%is_dirty(depth=f3_extent+1)) THEN\n"
-            "        CALL f3_proxy%halo_exchange(depth=f3_extent+1)\n"
+            "      IF (f3_proxy%is_dirty(depth=f3_extent + 1)) THEN\n"
+            "        CALL f3_proxy%halo_exchange(depth=f3_extent + 1)\n"
             "      END IF\n")
         assert output6 in result
     output7 = (
-        "        CALL testkern_stencil_multi_code(nlayers, f1_data, "
+        "        CALL testkern_stencil_multi_code(nlayers_f1, f1_data, "
         "f2_data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell), "
         "f3_data, f3_stencil_size(cell), f3_direction, "
         "f3_stencil_dofmap(:,:,cell), f4_data, f4_stencil_size(cell), "
@@ -1187,17 +1185,15 @@ def test_multiple_stencils_int_field(dist_mem, tmpdir):
     assert output5 in result
     if dist_mem:
         output6 = (
-            "      !\n"
             "      IF (f3_proxy%is_dirty(depth=f3_extent)) THEN\n"
             "        CALL f3_proxy%halo_exchange(depth=f3_extent)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (f4_proxy%is_dirty(depth=2)) THEN\n"
             "        CALL f4_proxy%halo_exchange(depth=2)\n"
             "      END IF\n")
         assert output6 in result
     output7 = (
-        "        CALL testkern_stencil_multi_int_field_code(nlayers, "
+        "        CALL testkern_stencil_multi_int_field_code(nlayers_f1, "
         "f1_data, f2_data, f2_stencil_size(cell), "
         "f2_stencil_dofmap(:,:,cell), f3_data, f3_stencil_size(cell), "
         "f3_direction, f3_stencil_dofmap(:,:,cell), f4_data, "
@@ -1269,7 +1265,7 @@ def test_multiple_stencil_same_name(dist_mem, tmpdir):
         "      !\n")
     assert output4 in result
     output5 = (
-        "        CALL testkern_stencil_multi_code(nlayers, f1_data, "
+        "        CALL testkern_stencil_multi_code(nlayers_f1, f1_data, "
         "f2_data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell), "
         "f3_data, f3_stencil_size(cell), f3_direction, "
         "f3_stencil_dofmap(:,:,cell), f4_data, f4_stencil_size(cell), "
@@ -1352,7 +1348,7 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
         "      !\n")
     assert output4 in result
     output5 = (
-        "     CALL testkern_stencil_multi_2_code(nlayers, f1_data, "
+        "     CALL testkern_stencil_multi_2_code(nlayers_f1, f1_data, "
         "f2_data, f2_stencil_size(cell), direction, "
         "f2_stencil_dofmap(:,:,cell), "
         "f3_data, f3_stencil_size(cell), direction, "
@@ -1422,21 +1418,21 @@ def test_multi_kerns_stencils_diff_fields(dist_mem, tmpdir):
         "      !\n")
     assert output5 in result
     output6 = (
-        "        CALL testkern_stencil_code(nlayers, f1_data, "
+        "        CALL testkern_stencil_code(nlayers_f1, f1_data, "
         "f2a_data, f2a_stencil_size(cell), "
         "f2a_stencil_dofmap(:,:,cell), f3_data, f4_data, ndf_w1, "
         "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
         "undf_w3, map_w3(:,cell))")
     assert output6 in result
     output7 = (
-        "        CALL testkern_stencil_code(nlayers, f1_data, "
+        "        CALL testkern_stencil_code(nlayers_f1, f1_data, "
         "f2b_data, f2b_stencil_size(cell), "
         "f2b_stencil_dofmap(:,:,cell), f3_data, f4_data, ndf_w1, "
         "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
         "undf_w3, map_w3(:,cell))")
     assert output7 in result
     output8 = (
-        "        CALL testkern_stencil_code(nlayers, f1_data, "
+        "        CALL testkern_stencil_code(nlayers_f1, f1_data, "
         "f2c_data, f2b_stencil_size(cell), "
         "f2b_stencil_dofmap(:,:,cell), f3_data, f4_data, ndf_w1, "
         "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
@@ -1513,7 +1509,7 @@ def test_extent_name_clash(dist_mem, tmpdir):
         "      !\n")
     assert output7 in result
     output8 = (
-        "        CALL testkern_stencil_code(nlayers, "
+        "        CALL testkern_stencil_code(nlayers_f2_stencil_map, "
         "f2_stencil_map_data, f2_data, f2_stencil_size(cell), "
         "f2_stencil_dofmap_1(:,:,cell), f2_stencil_dofmap_data, "
         "stencil_cross_1_data, ndf_w1, undf_w1, map_w1(:,cell), "
@@ -1521,7 +1517,7 @@ def test_extent_name_clash(dist_mem, tmpdir):
         "map_w3(:,cell))")
     assert output8 in result
     output9 = (
-        "        CALL testkern_stencil_code(nlayers, "
+        "        CALL testkern_stencil_code(nlayers_f3_stencil_map, "
         "f3_stencil_map_data, f3_data, f3_stencil_size_1(cell), "
         "f3_stencil_dofmap_1(:,:,cell), f3_stencil_dofmap_data, "
         "stencil_cross_1_data, ndf_w1, undf_w1, map_w1(:,cell), "
@@ -1579,7 +1575,7 @@ def test_two_stencils_same_field(tmpdir, dist_mem):
         "f2_w2_stencil_map_1%get_stencil_sizes()\n")
     assert output5 in result
     output6 = (
-        "        CALL testkern_stencil_code(nlayers, f1_w1_data, "
+        "        CALL testkern_stencil_code(nlayers_f1_w1, f1_w1_data, "
         "f2_w2_data, f2_w2_stencil_size(cell), "
         "f2_w2_stencil_dofmap(:,:,cell), "
         "f3_w2_data, f4_w3_data, ndf_w1, undf_w1, "
@@ -1587,7 +1583,7 @@ def test_two_stencils_same_field(tmpdir, dist_mem):
         "undf_w3, map_w3(:,cell))")
     assert output6 in result
     output7 = (
-        "        CALL testkern_stencil_depth_code(nlayers, "
+        "        CALL testkern_stencil_depth_code(nlayers_f1_w3, "
         "f1_w3_data, f1_w1_data, f1_w1_stencil_size(cell), "
         "f1_w1_stencil_dofmap(:,:,cell), f2_w2_data, "
         "f2_w2_stencil_size_1(cell), "
@@ -1646,14 +1642,14 @@ def test_stencils_same_field_literal_extent(dist_mem, tmpdir):
         "      !")
     assert output2 in result
     output3 = (
-        "        CALL testkern_stencil_code(nlayers, f1_data, "
+        "        CALL testkern_stencil_code(nlayers_f1, f1_data, "
         "f2_data, f2_stencil_size(cell), f2_stencil_dofmap(:,:,cell), "
         "f3_data, f4_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))")
     assert result.count(output3) == 2
     output4 = (
-        "        CALL testkern_stencil_code(nlayers, f1_data, "
+        "        CALL testkern_stencil_code(nlayers_f1, f1_data, "
         "f2_data, f2_stencil_size_1(cell), "
         "f2_stencil_dofmap_1(:,:,cell), f3_data, f4_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
@@ -1725,14 +1721,14 @@ def test_stencils_same_field_literal_direct(dist_mem, tmpdir):
         "      !")
     assert output2 in result
     output3 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers, "
+        "        CALL testkern_stencil_xory1d_code(nlayers_f1, "
         "f1_data, f2_data, f2_stencil_size(cell), x_direction, "
         "f2_stencil_dofmap(:,:,cell), f3_data, f4_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
     assert result.count(output3) == 2
     output4 = (
-        "        CALL testkern_stencil_xory1d_code(nlayers, "
+        "        CALL testkern_stencil_xory1d_code(nlayers_f1, "
         "f1_data, f2_data, f2_stencil_size_1(cell), y_direction, "
         "f2_stencil_dofmap_1(:,:,cell), f3_data, f4_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
@@ -1766,7 +1762,7 @@ def test_stencil_extent_specified():
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 1
-    stencils = DynStencils(psy.invokes.invoke_list[0])
+    stencils = LFRicStencils(psy.invokes.invoke_list[0])
     with pytest.raises(GenerationError) as err:
         stencils.stencil_unique_str(stencil_arg, "")
     assert ("Found a stencil with an extent specified in the metadata. "
@@ -1826,7 +1822,7 @@ def test_one_kern_multi_field_same_stencil(tmpdir, dist_mem):
         "      !\n")
     assert output4 in result
     output5 = (
-        "        CALL testkern_multi_field_same_stencil_code(nlayers, "
+        "        CALL testkern_multi_field_same_stencil_code(nlayers_f0, "
         "f0_data, f1_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), f2_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), f3_data, f3_stencil_size(cell), "
@@ -1874,14 +1870,14 @@ def test_single_kernel_any_space_stencil(dist_mem, tmpdir):
     assert output1 in result
     # Use the same stencil dofmap
     output2 = (
-        "        CALL testkern_same_anyspace_stencil_code(nlayers, "
+        "        CALL testkern_same_anyspace_stencil_code(nlayers_f0, "
         "f0_data, f1_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), f2_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1(:,cell))")
     assert output2 in result
     output3 = (
-        "        CALL testkern_different_anyspace_stencil_code(nlayers, "
+        "        CALL testkern_different_anyspace_stencil_code(nlayers_f3, "
         "f3_data, f4_data, f4_stencil_size(cell), "
         "f4_stencil_dofmap(:,:,cell), f5_data, f5_stencil_size(cell), "
         "f5_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
@@ -1960,14 +1956,14 @@ def test_dynkernargs_unexpect_stencil_extent():
     assert "extent metadata not yet supported" in str(err.value)
 
 
-def test_dynstencils_extent_vars_err(monkeypatch):
-    ''' Check that the _unique_extent_vars method of DynStencils raises
+def test_lfricstencils_extent_vars_err(monkeypatch):
+    ''' Check that the _unique_extent_vars method of LFRicStencils raises
     the expected internal error. '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    stencils = DynStencils(invoke)
+    stencils = LFRicStencils(invoke)
     # Monkeypatch it to break internal state
     monkeypatch.setattr(stencils, "_invoke", None)
     with pytest.raises(InternalError) as err:
@@ -1976,15 +1972,15 @@ def test_dynstencils_extent_vars_err(monkeypatch):
             in str(err.value))
 
 
-def test_dynstencils_err():
-    ''' Check that DynStencils.initialise and DynStencils._declare_maps_invoke
-    raises the expected InternalError if an unsupported stencil type is
-    encountered. '''
+def test_lfricstencils_err():
+    ''' Check that LFRicStencils.initialise and
+    LFRicStencils._declare_maps_invoke raises the expected
+    InternalError if an unsupported stencil type is encountered. '''
     _, info = parse(os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    stencils = DynStencils(invoke)
+    stencils = LFRicStencils(invoke)
     # Break internal state
     stencils._kern_args[0].descriptor.stencil['type'] = "not-a-type"
     with pytest.raises(GenerationError) as err:

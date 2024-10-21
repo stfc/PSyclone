@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -121,11 +121,11 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
         '''
 
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynInvokeSchedule
+        from psyclone.domain.lfric import LFRicInvokeSchedule
         from psyclone.gocean1p0 import GOInvokeSchedule
-        from psyclone.psyir.tools import DependencyTools
+        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 
-        if self.ancestor((DynInvokeSchedule, GOInvokeSchedule)):
+        if self.ancestor((LFRicInvokeSchedule, GOInvokeSchedule)):
             # Look-up the kernels that are children of this node
             sig_set = set()
             for call in self.kernels():
@@ -133,7 +133,7 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
                     sig_set.add(Signature(arg_str))
             return (sig_set, )
 
-        rwi = DependencyTools().get_in_out_parameters(self.children)
+        rwi = CallTreeUtils().get_in_out_parameters(self.children)
         return (set(rwi.signatures_read),
                 set(rwi.signatures_written))
 
@@ -144,12 +144,54 @@ class ACCStandaloneDirective(ACCDirective, StandaloneDirective,
 
 
 class ACCRoutineDirective(ACCStandaloneDirective):
-    ''' Class representing a "!$ACC routine" OpenACC directive in PSyIR. '''
+    '''
+    Class representing an "ACC routine" OpenACC directive in PSyIR.
+
+    :param str parallelism: the level of parallelism in the routine, one of
+        "gang", "worker", "vector", "seq".
+
+    '''
+    SUPPORTED_PARALLELISM = ["seq", "vector", "worker", "gang"]
+
+    def __init__(self, parallelism="seq", **kwargs):
+        self.parallelism = parallelism
+
+        super().__init__(self, **kwargs)
+
+    @property
+    def parallelism(self):
+        '''
+        :returns: the clause describing the level of parallelism within this
+                  routine (or a called one).
+        :rtype: str
+
+        '''
+        return self._parallelism
+
+    @parallelism.setter
+    def parallelism(self, value):
+        '''
+        :param str value: the new value for the level-of-parallelism within
+                          this routine (or a called one).
+
+        :raises TypeError: if `value` is not a str.
+        :raises ValueError: if `value` is not a recognised level of
+                            parallelism.
+        '''
+        if not isinstance(value, str):
+            raise TypeError(
+                f"Expected a str to specify the level of parallelism but got "
+                f"'{type(value).__name__}'")
+        if value.lower() not in self.SUPPORTED_PARALLELISM:
+            raise ValueError(
+                f"Expected one of {self.SUPPORTED_PARALLELISM} for the level "
+                f"of parallelism but got '{value}'")
+        self._parallelism = value.lower()
 
     def gen_code(self, parent):
-        '''Generate the fortran ACC Routine Directive and any associated code.
+        '''Generate the Fortran ACC Routine Directive and any associated code.
 
-        :param parent: the parent Node in the Schedule to which to add our \
+        :param parent: the parent Node in the Schedule to which to add our
                        content.
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
         '''
@@ -157,7 +199,8 @@ class ACCRoutineDirective(ACCStandaloneDirective):
         self.validate_global_constraints()
 
         # Generate the code for this Directive
-        parent.add(DirectiveGen(parent, "acc", "begin", "routine", ""))
+        parent.add(DirectiveGen(parent, "acc", "begin", "routine",
+                                f"{self.parallelism}"))
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -168,7 +211,7 @@ class ACCRoutineDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
-        return "acc routine"
+        return f"acc routine {self.parallelism}"
 
 
 class ACCEnterDataDirective(ACCStandaloneDirective):
@@ -247,13 +290,15 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         :returns: the opening statement of this directive.
         :rtype: str
 
-        :raises GenerationError: if there are no variables to copy to \
+        :raises GenerationError: if there are no variables to copy to
                                  the device.
         '''
         if not self._sig_set:
             # There should be at least one variable to copyin.
             # TODO #1872: this directive needs reimplementing using the Clause
-            # class and proper lowering.
+            # class and proper lowering. When this is fixed it may be possible
+            # to change RegionTrans.validate() so that it always uses
+            # Node.debug_string() rather than only for CodeBlocks.
             raise GenerationError(
                 "ACCEnterData directive did not find any data to copyin. "
                 "Perhaps there are no ACCParallel or ACCKernels directives "
@@ -518,18 +563,21 @@ class ACCLoopDirective(ACCRegionDirective):
         Perform validation of those global constraints that can only be done
         at code-generation time.
 
-        :raises GenerationError: if this ACCLoopDirective is not enclosed \
-                            within some OpenACC parallel or kernels region.
+        :raises GenerationError: if this ACCLoopDirective is not enclosed
+            within some OpenACC parallel or kernels region and is not in a
+            Routine that has been marked up with an 'ACC Routine' directive.
         '''
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user can
-        # apply transformations to the code). As an orphaned loop directive,
-        # we must have an ACCParallelDirective or an ACCKernelsDirective as
-        # an ancestor somewhere back up the tree.
-        if not self.ancestor((ACCParallelDirective, ACCKernelsDirective)):
+        parent_routine = self.ancestor(Routine)
+        if not (self.ancestor((ACCParallelDirective, ACCKernelsDirective),
+                              limit=parent_routine) or
+                (parent_routine and parent_routine.walk(ACCRoutineDirective))):
+            location = (f"in routine '{parent_routine.name}' " if
+                        parent_routine else "")
             raise GenerationError(
-                "ACCLoopDirective must have an ACCParallelDirective or "
-                "ACCKernelsDirective as an ancestor in the Schedule")
+                f"ACCLoopDirective {location}must either have an "
+                f"ACCParallelDirective or ACCKernelsDirective as an ancestor "
+                f"in the Schedule or the routine must contain an "
+                f"ACCRoutineDirective.")
 
         super().validate_global_constraints()
 

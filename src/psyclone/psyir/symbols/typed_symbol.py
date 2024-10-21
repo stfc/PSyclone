@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -124,15 +124,16 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         original will not be affected so the copy will not be referred
         to by any other object.
 
-        :returns: A symbol object with the same properties as this \
+        :returns: A symbol object with the same properties as this
                   symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.TypedSymbol`
 
         '''
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
-        return type(self)(self.name, self.datatype, visibility=self.visibility,
-                          interface=self.interface)
+        return type(self)(self.name, self.datatype.copy(),
+                          visibility=self.visibility,
+                          interface=self.interface.copy())
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
@@ -150,8 +151,8 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         super(TypedSymbol, self).copy_properties(symbol_in)
         self._datatype = symbol_in.datatype
 
-    def resolve_deferred(self):
-        ''' If the symbol has a deferred datatype, find where it is defined
+    def resolve_type(self):
+        ''' If the symbol has an Unresolved datatype, find where it is defined
         (i.e. an external container) and obtain the properties of the symbol.
 
         :returns: this TypedSymbol with its properties updated. This is for \
@@ -163,8 +164,8 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         # This import has to be local to this method to avoid circular
         # dependencies.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import DeferredType
-        if isinstance(self.datatype, DeferredType):
+        from psyclone.psyir.symbols.datatypes import UnresolvedType
+        if isinstance(self.datatype, UnresolvedType):
             # Copy all the symbol properties but the interface and
             # visibility (the latter is determined by the current
             # scoping unit)
@@ -191,7 +192,8 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
     @property
     def is_array(self):
         '''
-        :returns: True if this symbol is an array and False otherwise.
+        :returns: True if this symbol is an array and False if it is not or
+            there is not enough symbol information to determine it.
         :rtype: bool
 
         '''
@@ -199,10 +201,10 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         # dependencies.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols.datatypes import (
-            ArrayType, UnknownFortranType)
+            ArrayType, UnsupportedFortranType)
         if isinstance(self.datatype, ArrayType):
             return True
-        return (isinstance(self.datatype, UnknownFortranType) and
+        return (isinstance(self.datatype, UnsupportedFortranType) and
                 isinstance(self.datatype.partial_datatype, ArrayType))
 
     @property
@@ -221,10 +223,31 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         '''
         if self.is_array:
             # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.symbols.datatypes import UnknownFortranType
-            if isinstance(self.datatype, UnknownFortranType):
-                # An UnknownFortranType that has is_array True must have a
+            from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
+            if isinstance(self.datatype, UnsupportedFortranType):
+                # An UnsupportedFortranType that has is_array True must have a
                 # partial_datatype.
                 return self._datatype.partial_datatype.shape
             return self._datatype.shape
         return []
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        super().replace_symbols_using(table)
+
+        from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
+        if isinstance(self.datatype, DataTypeSymbol):
+            try:
+                self._datatype = table.lookup(self.datatype.name)
+            except KeyError:
+                pass
+        else:
+            self._datatype.replace_symbols_using(table)

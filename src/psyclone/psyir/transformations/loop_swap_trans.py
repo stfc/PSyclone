@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,7 @@ class LoopSwapTrans(LoopTrans):
      >>> from psyclone.parse.algorithm import parse
      >>> from psyclone.psyGen import PSyFactory
      >>> ast, invokeInfo = parse("shallow_alg.f90")
-     >>> psy = PSyFactory("gocean1.0").create(invokeInfo)
+     >>> psy = PSyFactory("gocean").create(invokeInfo)
      >>> schedule = psy.invokes.get('invoke_0').schedule
      >>> # Uncomment the following line to see a text view of the schedule
      >>> # print(schedule.view())

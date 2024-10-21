@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,9 @@ from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (ArrayReference, Assignment, colored,
                                   KernelSchedule, Literal, Reference)
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
-                                    DeferredType, ImportInterface,
+                                    UnresolvedType, ImportInterface,
                                     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
-                                    REAL_TYPE, ScalarType, Symbol,
+                                    REAL_TYPE, ScalarType, Symbol, SymbolTable,
                                     UnresolvedInterface)
 
 
@@ -89,7 +89,7 @@ def test_reference_equality():
 
 def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
-    kschedule = KernelSchedule("kname")
+    kschedule = KernelSchedule.create("kname")
     symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
@@ -101,7 +101,7 @@ def test_reference_node_str():
 def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
-    kschedule = KernelSchedule("kname")
+    kschedule = KernelSchedule.create("kname")
     symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
@@ -157,9 +157,9 @@ def test_reference_datatype():
     assert isinstance(reference.datatype, ScalarType)
     assert reference.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
-    # Use a normal symbol, which should result in a DeferredType
+    # Use a normal symbol, which should result in a UnresolvedType
     reference = Reference(Symbol("test"))
-    assert isinstance(reference.datatype, DeferredType)
+    assert isinstance(reference.datatype, UnresolvedType)
 
 
 def test_reference_accesses():
@@ -214,3 +214,325 @@ def test_reference_can_be_copied():
     # Modifying the new reference does not affect the original
     ref1._symbol = scalar_symbol
     assert ref.symbol is array_symbol
+
+
+def test_reference_next_access(fortran_reader):
+    '''Test the next_access function for a Reference'''
+    code = '''subroutine my_sub()
+    integer :: a
+    integer :: b
+    a = 1
+    b = 1
+    a = b
+    end subroutine my_sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    b = routine.children[1].lhs
+    a_2 = routine.children[2].lhs
+    b_2 = routine.children[2].rhs
+    assert a.next_access() is a_2
+    assert b.next_access() is b_2
+    assert a_2.next_access() is None
+
+    code = '''subroutine my_sub()
+    integer :: a
+    integer :: b
+    a = 1
+    do a = 0, 10
+        b = a
+    end do
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    loop = routine.children[1]
+    b_a = loop.loop_body.children[0].lhs
+    a_2 = loop.loop_body.children[0].rhs
+    assert a.next_access() is loop
+    assert b_a.next_access() is None
+
+    # Check the function for basic structures
+    code = '''subroutine my_sub()
+    type :: x
+       integer :: a
+       real :: b
+    end type
+    type(x) :: i
+    i%a = 2
+    i%b = 0.1
+    i%a = 3
+    i%b = 0.2
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    b = routine.children[1].lhs
+    a_2 = routine.children[2].lhs
+    b_2 = routine.children[3].lhs
+    assert a.next_access() is a_2
+    assert b.next_access() is b_2
+    assert a_2.next_access() is None
+    assert b_2.next_access() is None
+
+    # Check the function for array access
+    code = '''subroutine my_sub()
+    integer, dimension(100) :: a
+    a(0) = 2
+    a(1) = 2
+    end subroutine my_sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    a_2 = routine.children[1].lhs
+    assert a.next_access() is a_2
+    assert a_2.next_access() is None
+
+    # Check if statements don't affect
+    code = '''subroutine my_sub()
+   integer :: a
+   logical :: b = .false.
+   a = 1
+   if(b) then
+     a = 0
+   end if
+   a = 2
+   end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    a_2 = routine.children[1].if_body.children[0].lhs
+    a_3 = routine.children[2].lhs
+    assert a.next_access() is a_2
+    assert a_2.next_access() is a_3
+    assert a_3.next_access() is None
+
+    # Check else block behaviour
+    code = '''subroutine my_sub()
+   integer :: a
+   logical :: b = .false.
+   a = 1
+   if(b) then
+     a = 0
+   else
+     a = 1
+   end if
+   a = 2
+   end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    a_2 = routine.children[1].if_body.children[0].lhs
+    a_3 = routine.children[1].else_body.children[0].lhs
+    a_4 = routine.children[2].lhs
+    assert a.next_access() is a_2
+    assert a_2.next_access() is a_3
+    assert a_3.next_access() is a_4
+    assert a_4.next_access() is None
+
+
+def test_reference_next_access_with_codeblock(fortran_reader):
+    ''' Test when te next_access is a Codeblock. '''
+    code = '''subroutine my_sub()
+    character, dimension(100) :: a
+    a = "test"
+    write(a, "A") "mytest"
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    codeblock = routine.children[1]
+    if a.next_access() is not codeblock:
+        pytest.xfail("#2271 Codeblocks don't currently support "
+                     "reference_accesses")
+
+
+def test_reference_previous_access(fortran_reader):
+    '''Test the previous_access function for a Reference'''
+    code = '''subroutine my_sub()
+    integer :: a
+    integer :: b
+    a = 1
+    b = 1
+    a = b
+    end subroutine my_sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    b = routine.children[1].lhs
+    a_2 = routine.children[2].lhs
+    b_2 = routine.children[2].rhs
+    assert a.previous_access() is None
+    assert b.previous_access() is None
+    assert a_2.previous_access() is a
+    assert b_2.previous_access() is b
+
+    code = '''subroutine my_sub()
+    integer :: a
+    integer :: b
+    a = 1
+    do a = 0, 10
+        b = a
+    end do
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    loop = routine.children[1]
+    b_a = loop.loop_body.children[0].lhs
+    a_2 = loop.loop_body.children[0].rhs
+    assert a.previous_access() is None
+    assert b_a.previous_access() is None
+    assert a_2.previous_access() is loop
+
+    # Check the function for basic structures
+    code = '''subroutine my_sub()
+    type :: x
+       integer :: a
+       real :: b
+    end type
+    type(x) :: i
+    i%a = 2
+    i%b = 0.1
+    i%a = 3
+    i%b = 0.2
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    b = routine.children[1].lhs
+    a_2 = routine.children[2].lhs
+    b_2 = routine.children[3].lhs
+    assert a.previous_access() is None
+    assert b.previous_access() is None
+    assert a_2.previous_access() is a
+    assert b_2.previous_access() is b
+
+    # Check the function for array access
+    code = '''subroutine my_sub()
+    integer, dimension(100) :: a
+    a(0) = 2
+    a(1) = 2
+    end subroutine my_sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    a_2 = routine.children[1].lhs
+    assert a.previous_access() is None
+    assert a_2.previous_access() is a
+
+    # Check if statements
+    code = '''subroutine my_sub()
+   integer :: a
+   logical :: b = .false.
+   a = 1
+   if(b) then
+     a = 0
+   end if
+   a = 2
+   end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    a_2 = routine.children[1].if_body.children[0].lhs
+    a_3 = routine.children[2].lhs
+    assert a.previous_access() is None
+    assert a_2.previous_access() is a
+    assert a_3.previous_access() is a_2
+
+    # Check else block behaviour
+    code = '''subroutine my_sub()
+   integer :: a
+   logical :: b = .false.
+   a = 1
+   if(b) then
+     a = 0
+   else
+     a = 1
+   end if
+   a = 2
+   end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    a_2 = routine.children[1].if_body.children[0].lhs
+    a_3 = routine.children[1].else_body.children[0].lhs
+    a_4 = routine.children[2].lhs
+    assert a.previous_access() is None
+    assert a_2.previous_access() is a
+    assert a_3.previous_access() is a_2
+    assert a_4.previous_access() is a_3
+
+
+def test_reference_accesses_initialisation_statement(fortran_reader):
+    ''' Test the behaviour of next and previous access
+    with initialisation statements, and also for initial_value since
+    this is outside of a Routine tree. '''
+    # Previous access doesn't find initial values from the symbol table
+    code = '''module my_mod
+   use external_mod, only: a
+   contains
+   subroutine my_sub()
+      integer :: b = a + a +1
+      b = a + 3
+   end subroutine my_sub
+end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0].children[0]
+    a = routine.children[0].lhs
+    assert a.previous_access() is None
+
+    sym_tab = routine.symbol_table
+    symbols = sym_tab.get_symbols()
+    b_sym = symbols['b']
+    refs = b_sym.initial_value.walk(Reference)
+    assert refs[0].next_access() == refs[1]
+    assert refs[1].previous_access() == refs[0]
+    assert refs[0].previous_access() is None
+    assert refs[1].next_access() is None
+
+
+def test_reference_previous_access_with_codeblock(fortran_reader):
+    ''' Test when te previous_access is a Codeblock. '''
+    code = '''subroutine my_sub()
+    character, dimension(100) :: a
+    write(a, "A") "mytest"
+    a = "test"
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[1].lhs
+    codeblock = routine.children[1]
+    if a.previous_access() is not codeblock:
+        pytest.xfail("#2271 Codeblocks don't currently support "
+                     "reference_accesses")
+
+
+def test_reference_replace_symbols_using():
+    '''Test the replace_symbols_using() method correctly updates the Symbol
+    to which the Reference refers.
+
+    '''
+    wp = DataSymbol("wp", INTEGER_SINGLE_TYPE)
+    stype = ScalarType(ScalarType.Intrinsic.REAL, wp)
+    asym = DataSymbol("asym", stype)
+    ref = Reference(asym)
+    table = SymbolTable()
+    ref.replace_symbols_using(table)
+    # Empty table so no change.
+    assert ref.symbol is asym
+    assert ref.symbol.datatype.precision is wp
+    asym2 = asym.copy()
+    table.add(asym2)
+    ref.replace_symbols_using(table)
+    assert ref.symbol is asym2
+    assert ref.symbol.datatype.precision is wp
+    # Check that the update does not recurse into the Symbol properties (as
+    # that is handled by the SymbolTable).
+    wp2 = wp.copy()
+    table.add(wp2)
+    ref.replace_symbols_using(table)
+    assert ref.symbol is asym2
+    assert ref.symbol.datatype.precision is wp

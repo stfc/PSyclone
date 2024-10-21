@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,13 +40,10 @@
 
 import os
 
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory
-from psyclone.transformations import ACCEnterDataTrans, ACCKernelsTrans
+from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.transformations import ACCEnterDataTrans
 
 
-# Constants
-API = "nemo"
 # Location of the Fortran files associated with these tests
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../../test_files")
@@ -67,26 +64,24 @@ EXPLICIT_DO = ("program explicit_do\n"
                "end program explicit_do\n")
 
 
-def test_apply_to_explicit_loop(parser, fortran_writer):
+def test_apply_to_explicit_loop(fortran_reader, fortran_writer):
     '''
     Check code generation for enclosing a single explicit loop containing a
     kernel inside a data region.
 
     '''
-    reader = FortranStringReader(EXPLICIT_DO)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.get('explicit_do').schedule
+    psyir = fortran_reader.psyir_from_source(EXPLICIT_DO)
+    schedule = psyir.children[0]
     acc_kernels = ACCKernelsTrans()
     acc_kernels.apply(schedule.children)
     acc_trans = ACCEnterDataTrans()
     acc_trans.apply(schedule)
     code = fortran_writer(schedule)
     # Check the enter data directive captures all variables read and written in
-    # the loop except for the NEMO loop iterator variables.
+    # the loop.
     assert ("  real, dimension(jpi,jpj,jpk) :: umask\n"
             "\n"
-            "  !$acc enter data copyin(jpi,jpj,jpk,r,umask)\n"
+            "  !$acc enter data copyin(ji,jj,jk,jpi,jpj,jpk,r,umask)\n"
             "  !$acc kernels\n"
             "  do jk = 1, jpk") in code
 

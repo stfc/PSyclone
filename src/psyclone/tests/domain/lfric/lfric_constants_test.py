@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ def test_config_loaded_before_constants_created(monkeypatch):
     # If the psyclone command is executed, the flag should be set. The
     # parameters specified here will immediately abort, but still the
     # flag must be set at the end, since the command has to set this flag:
-    with pytest.raises(SystemExit) as err:
+    with pytest.raises(FileNotFoundError) as err:
         generator.main(["some_file.f90"])
     assert Config.has_config_been_initialised() is True
 

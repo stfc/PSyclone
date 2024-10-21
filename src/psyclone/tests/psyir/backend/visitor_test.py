@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 
 '''Performs pytest tests on the psyclone.psyir.backend.visitor module'''
 
-from __future__ import print_function, absolute_import
 import pytest
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import Node, Reference, ArrayReference, Return, \
@@ -124,6 +123,17 @@ def test_psyirvisitor_init_error5():
             str(excinfo.value))
 
 
+def test_psyirvisitor_init_error6():
+    '''Check that the expected error is raised if the disable_copy
+    argument to the PSyIRVisitor constructor is not a bool.
+
+    '''
+    with pytest.raises(TypeError) as excinfo:
+        _ = PSyIRVisitor(disable_copy=-1)
+    assert ("disable_copy should be a boolean but found 'int'" in
+            str(excinfo.value))
+
+
 def test_psyirvisitor_nindent():
     '''Check that the PSyIRVisitor _nindent method returns the product of
     the supplied depth and indent values.
@@ -170,7 +180,7 @@ def test_psyirvisitor_visit_no_string():
 
     visitor = MyVisitor()
     my_node = Container("blah")
-    my_child_node = Routine("hmm")
+    my_child_node = Routine.create("hmm")
     my_node.children = [my_child_node]
     result = visitor._visit(my_node)
     assert result is my_node
@@ -229,6 +239,12 @@ def test_psyirvisitor_lower_dsl_concepts():
     assert isinstance(my_dsl_node, MyDSLNode)
     assert isinstance(schedule.children[0], MyDSLNode)
     assert len(my_dsl_node.scope.symbol_table.symbols) == 0
+
+    # Create a custom visitor with the tree copy operation disabled
+    visitor_without_copy = MyVisitor(disable_copy=True)
+    assert visitor_without_copy(schedule) == "schedule(return)"
+    # In this case the original tree has been modified
+    assert not isinstance(schedule.children[0], MyDSLNode)
 
     # Visit DSL node without a parent, which is an invalid state to
     # lower this node

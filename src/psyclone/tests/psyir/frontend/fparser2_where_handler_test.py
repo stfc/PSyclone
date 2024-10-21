@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,12 +45,11 @@ from fparser.two import Fortran2003
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
-    Schedule, CodeBlock, Loop, ArrayReference, Assignment, Literal, Reference,
-    UnaryOperation, BinaryOperation, IfBlock, Call, Routine, Container, Range,
-    ArrayMember, StructureReference, IntrinsicCall)
+    ArrayMember, ArrayReference, Assignment, BinaryOperation,
+    Call, CodeBlock, Container, IfBlock, IntrinsicCall, Literal, Loop, Range,
+    Reference, Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
-    DataSymbol, ArrayType, ScalarType, REAL_TYPE, INTEGER_TYPE,
-    UnresolvedInterface)
+    DataSymbol, ScalarType, INTEGER_TYPE)
 
 
 def process_where(code, fparser_cls, symbols=None):
@@ -123,6 +122,33 @@ def test_where_broken_tree():
 
 
 @pytest.mark.usefixtures("parser")
+def test_where_unknown_selector_type():
+    ''' Check that we create the expected CodeBlock if we can't resolve the
+    resulting shape of an array expression.
+
+    '''
+    fake_parent, fparser2spec = process_where(
+        "WHERE (ptsu(myfunc(), :, :) /= 0._wp)\n"
+        "  z1_st(myfunc(), :, :) = 1._wp / ptsu(myfunc(), :, :)\n"
+        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "z1_st"])
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [fparser2spec])
+    assert isinstance(fake_parent.children[0], CodeBlock)
+    assert ("We can not get the resulting shape of the expression: "
+            "ptsu(myfunc(),:,:)" in fake_parent.children[0].preceding_comment)
+
+    fake_parent, fparser2spec = process_where(
+        "WHERE (ptsu(:, :, :) /= 0._wp)\n"
+        "  z1_st(myfunc(), :, :) = 1._wp / ptsu(myfunc(), :, :)\n"
+        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "z1_st"])
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [fparser2spec])
+    assert isinstance(fake_parent.children[0], CodeBlock)
+    assert ("We can not get the resulting shape of the expression: "
+            "z1_st(myfunc(),:,:)" in fake_parent.children[0].preceding_comment)
+
+
+@pytest.mark.usefixtures("parser")
 def test_elsewhere_broken_tree():
     ''' Check that we raise the expected exceptions if the fparser2 parse
     tree containing an ELSEWHERE does not have the correct structure.
@@ -171,56 +197,6 @@ def test_labelled_where():
 
 
 @pytest.mark.usefixtures("parser")
-def test_missing_array_notation_lhs():
-    ''' Check that we get a code block if the WHERE does not use explicit
-    array syntax on the LHS of an assignment within the body.
-
-    '''
-    fake_parent, _ = process_where("WHERE (ptsu(:,:,:) /= 0._wp)\n"
-                                   "  z1_st = 1._wp / ptsu(:, :, :)\n"
-                                   "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["ptsu", "z1_st"])
-    assert isinstance(fake_parent.children[0], CodeBlock)
-
-
-@pytest.mark.usefixtures("parser")
-def test_missing_array_notation_in_assign():
-    ''' Check that we get a code block if the WHERE contains an assignment
-    where no array notation appears. TODO #717 - extend this test so that
-    `z1_st` is of array type with rank 3. '''
-    fake_parent, _ = process_where("WHERE (ptsu(:,:,:) /= 0._wp)\n"
-                                   "  z1_st = 1._wp\n"
-                                   "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["ptsu", "z1_st"])
-    assert isinstance(fake_parent.children[0], CodeBlock)
-
-
-@pytest.mark.usefixtures("parser")
-def test_where_array_notation_rank():
-    ''' Test that the _array_notation_rank() utility raises the expected
-    errors when passed an unsupported Array object.
-    '''
-    array_type = ArrayType(REAL_TYPE, [10])
-    symbol = DataSymbol("my_array", array_type)
-    my_array = ArrayReference(symbol)
-    processor = Fparser2Reader()
-    with pytest.raises(InternalError) as err:
-        processor._array_notation_rank(my_array)
-    assert ("ArrayReference malformed or incomplete: must have one or more "
-            "children representing array-index expressions but array "
-            "'my_array' has none." in str(err.value))
-    array_type = ArrayType(REAL_TYPE, [10])
-    my_array = ArrayReference.create(
-        DataSymbol("my_array", array_type),
-        [Range.create(Literal("1", INTEGER_TYPE),
-                      Literal("10", INTEGER_TYPE))])
-    with pytest.raises(NotImplementedError) as err:
-        processor._array_notation_rank(my_array)
-    assert ("Only array notation of the form my_array(:, :, ...) is "
-            "supported." in str(err.value))
-
-
-@pytest.mark.usefixtures("parser")
 def test_different_ranks_error():
     ''' Check that a WHERE construct containing array references of different
     ranks results in the creation of a CodeBlock.
@@ -231,35 +207,6 @@ def test_different_ranks_error():
                                    "END WHERE\n", Fortran2003.Where_Construct,
                                    ["dry", "z1_st", "depth", "ptsu"])
     assert isinstance(fake_parent.children[0], CodeBlock)
-
-
-@pytest.mark.usefixtures("parser")
-def test_array_notation_rank():
-    ''' Check that the _array_notation_rank() utility handles various examples
-    of array notation.
-
-    '''
-    fake_parent = Schedule()
-    fake_parent.symbol_table.new_symbol("z1_st")
-    fake_parent.symbol_table.new_symbol("ptsu")
-    fake_parent.symbol_table.new_symbol("n")
-    processor = Fparser2Reader()
-    reader = FortranStringReader("  z1_st(:, 2, :) = ptsu(:, :, 3)")
-    fparser2spec = Fortran2003.Assignment_Stmt(reader)
-    processor.process_nodes(fake_parent, [fparser2spec])
-    assert processor._array_notation_rank(fake_parent[0].lhs) == 2
-    reader = FortranStringReader("  z1_st(:, :, 2, :) = ptsu(:, :, :, 3)")
-    fparser2spec = Fortran2003.Assignment_Stmt(reader)
-    processor.process_nodes(fake_parent, [fparser2spec])
-    assert processor._array_notation_rank(fake_parent[1].lhs) == 3
-    # We don't support bounds on slices
-    reader = FortranStringReader("  z1_st(:, 1:n, 2, :) = ptsu(:, :, :, 3)")
-    fparser2spec = Fortran2003.Assignment_Stmt(reader)
-    processor.process_nodes(fake_parent, [fparser2spec])
-    with pytest.raises(NotImplementedError) as err:
-        processor._array_notation_rank(fake_parent[2].lhs)
-    assert ("Only array notation of the form my_array(:, :, ...) is "
-            "supported." in str(err.value))
 
 
 def test_where_symbol_clash(fortran_reader):
@@ -291,8 +238,8 @@ def test_where_symbol_clash(fortran_reader):
 
 
 def test_where_within_loop(fortran_reader):
-    ''' Test for correct operation when we have a WHERE within an existing
-    loop and the referenced arrays are brought in from a module. '''
+    ''' Test for correct operation (Codeblock) when we have a WHERE within an
+    existing loop and the referenced arrays are brought in from a module. '''
     code = ("module my_mod\n"
             " use some_mod\n"
             "contains\n"
@@ -311,23 +258,8 @@ def test_where_within_loop(fortran_reader):
     mymod = psyir.children[0]
     assert isinstance(mymod, Container)
     sub = mymod.children[0]
-    assert "var" in sub.symbol_table
-    assert "var2" in sub.symbol_table
-    assert isinstance(sub.symbol_table.lookup("var").interface,
-                      UnresolvedInterface)
-    assert isinstance(sub.symbol_table.lookup("var2").interface,
-                      UnresolvedInterface)
     assert isinstance(sub, Routine)
-    assert isinstance(sub[0], Loop)
-    assert sub[0].variable.name == "jl"
-    where_loop = sub[0].loop_body[0]
-    assert isinstance(where_loop, Loop)
-    assert where_loop.variable.name == "widx1"
-    assert len(where_loop.loop_body.children) == 1
-    assert isinstance(where_loop.loop_body[0], IfBlock)
-    assign = where_loop.loop_body[0].if_body[0]
-    assert isinstance(assign, Assignment)
-    assert [idx.name for idx in assign.lhs.indices] == ["widx1", "jl"]
+    assert isinstance(sub[0].loop_body.children[0], CodeBlock)
 
 
 @pytest.mark.usefixtures("parser")
@@ -347,19 +279,16 @@ def test_basic_where():
         assert "was_where" in loop.annotations
         assert isinstance(loop.ast, Fortran2003.Where_Construct)
 
-    assert isinstance(loops[0].children[0], Literal)
-    assert isinstance(loops[0].children[1], IntrinsicCall)
-    assert loops[0].children[1].intrinsic == IntrinsicCall.Intrinsic.SIZE
-    assert str(loops[0].children[1].children[0]) == "Reference[name:'dry']"
+    assert isinstance(loops[0].start_expr, Literal)
+    assert loops[0].stop_expr.debug_string() == "SIZE(dry, dim=3)"
 
     ifblock = loops[2].loop_body[0]
     assert isinstance(ifblock, IfBlock)
     assert "was_where" in ifblock.annotations
-    assert ("ArrayReference[name:'dry']\n"
-            "Reference[name:'widx1']\n"
-            "Reference[name:'widx2']\n"
-            "Reference[name:'widx3']\n"
-            in str(ifblock.condition))
+    assert (ifblock.condition.debug_string() ==
+            "dry(LBOUND(dry, dim=1) + widx1 - 1,"
+            "LBOUND(dry, dim=2) + widx2 - 1,"
+            "LBOUND(dry, dim=3) + widx3 - 1)")
 
 
 @pytest.mark.usefixtures("parser")
@@ -384,25 +313,273 @@ def test_where_array_subsections():
     # Check that the array reference is indexed correctly
     assign = ifblock.if_body[0]
     assert isinstance(assign, Assignment)
-    assert isinstance(assign.lhs.children[0], Reference)
-    assert assign.lhs.children[0].name == "widx1"
-    assert assign.lhs.children[2].name == "widx2"
+    assert isinstance(assign.lhs.children[0], BinaryOperation)
+    assert (assign.lhs.children[0].debug_string() ==
+            "LBOUND(z1_st, dim=1) + widx1 - 1")
+    assert (assign.lhs.children[2].debug_string() ==
+            "LBOUND(z1_st, dim=3) + widx2 - 1")
+
+
+def test_where_mask_starting_value(fortran_reader, fortran_writer):
+    '''
+    Check handling of a case where the mask array is indexed from values other
+    than unity.
+
+    '''
+    code = '''\
+    program my_sub
+      use some_mod
+      type :: thing
+        real, dimension(100000, 100000, 1) :: z3
+      end type
+      integer, parameter :: jpl = 123435
+      integer, parameter :: jpr_ievp = 123
+      type(thing), dimension(10000) :: frcv
+      real, dimension(-5:5,-5:5) :: picefr
+      real, DIMENSION(11,11,jpl) :: zevap_ice
+      real, dimension(-2:8,jpl,-3:7) :: snow
+      real, dimension(-22:0,jpl,-32:0) :: slush
+      integer, dimension(jpl) :: map
+
+      WHERE( picefr(:,:) > 1.e-10 )
+        zevap_ice(:,:,1) = snow(:,3,:) * frcv(jpr_ievp)%z3(:,:,1) / picefr(:,:)
+      ELSEWHERE
+        zevap_ice(:,:,1) = snow(:,map(jpl),:) + slush(-22:-11,jpl,-32:-21)
+      END WHERE
+    end program my_sub
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    expected = '''\
+  do widx2 = 1, 5 - (-5) + 1, 1
+    do widx1 = 1, 5 - (-5) + 1, 1
+      if (picefr(-5 + widx1 - 1,-5 + widx2 - 1) > 1.e-10) then
+        zevap_ice(widx1,widx2,1) = snow(-2 + widx1 - 1,3,-3 + widx2 - 1) * \
+frcv(jpr_ievp)%z3(widx1,widx2,1) / \
+picefr(-5 + widx1 - 1,-5 + widx2 - 1)
+      else
+        zevap_ice(widx1,widx2,1) = snow(-2 + widx1 - 1,map(jpl),\
+-3 + widx2 - 1) + slush(-22 + widx1 - 1,jpl,-32 + widx2 - 1)
+'''
+    assert expected in output
+
+
+def test_where_mask_is_slice(fortran_reader, fortran_writer):
+    '''
+    Check that the correct loop bounds and index expressions are created
+    when the mask expression uses a slice with specified bounds.
+    '''
+    code = '''\
+    program my_sub
+      type :: thing
+        real, dimension(100000, 100000, 1) :: z3
+      end type
+      type(thing), dimension(10000) :: frcv
+      real, dimension(-5:5,-5:5) :: picefr
+      real, DIMENSION(11,11,jpl) :: zevap_ice
+      integer :: jstart, jstop, jpl, jpr_ievp
+
+      WHERE( picefr(2:4,jstart:jstop) > 1.e-10 )
+        zevap_ice(:,:,1) = frcv(jpr_ievp)%z3(:,:,1) / picefr(:,:)
+      ELSEWHERE ( picefr(1:3,jstart:jstop) > 4.e-10)
+        zevap_ice(:,:,1) = 0.0
+      END WHERE
+    end program my_sub
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    out = fortran_writer(psyir)
+    # Check that created loops have the correct number of iterations
+    assert "do widx2 = 1, jstop - jstart + 1, 1" in out
+    assert "do widx1 = 1, 4 - 2 + 1, 1" in out
+    assert "if (picefr(2 + widx1 - 1,jstart + widx2 - 1) > 1.e-10)" in out
+    assert ("zevap_ice(widx1,widx2,1) = 0.0" in out)
+    # If the lower bound of the slice is unity then we can use the loop
+    # index directly.
+    assert "if (picefr(widx1,jstart + widx2 - 1) > 4.e-10)" in out
+
+
+def test_where_mask_is_slice_lower_limit(fortran_reader, fortran_writer):
+    '''
+    Check that the correct loop bounds and index expressions are created
+    when the mask expression uses a slice and the array itself is a formal
+    argument with a specified lower bound and no explicit upper bound.
+    '''
+    code = '''\
+    subroutine my_sub(picefr)
+      real, dimension(3:,2:) :: picefr
+      type :: thing
+        real, dimension(100000, 100000, 1) :: z3
+      end type
+      type(thing), dimension(10000) :: frcv
+      real, DIMENSION(11,11,jpl) :: zevap_ice
+      integer :: jstart, jstop, jpl, jpr_ievp
+      WHERE( picefr(:4,jstart:) > 1.e-10 )
+        zevap_ice(:,:,1) = frcv(jpr_ievp)%z3(:,:,1) / picefr(:,:)
+      ELSEWHERE ( picefr(4:5,jstart:) > 4.e-10)
+        zevap_ice(:,:,1) = 0.0
+      END WHERE
+    end subroutine my_sub
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    out = fortran_writer(psyir)
+    # Check that created loops have the correct number of iterations
+    assert "do widx2 = 1, UBOUND(picefr, dim=2) - jstart + 1, 1" in out
+    assert "do widx1 = 1, 4 - LBOUND(picefr, dim=1) + 1, 1" in out
+    # Check that the indexing into the mask expression uses the lower bounds
+    # specified in the original slice.
+    assert ("if (picefr(LBOUND(picefr, dim=1) + widx1 - 1,"
+            "jstart + widx2 - 1) > 1.e-10)" in out)
+    assert ("zevap_ice(widx1,widx2,1) = 0.0" in out)
+    assert "if (picefr(4 + widx1 - 1,jstart + widx2 - 1) > 4.e-10)" in out
+
+
+def test_where_body_containing_sum_with_dim(fortran_reader, fortran_writer):
+    '''
+    Since a SUM(x, dim=y) performs a reduction but produces an array, we need
+    to replace it with a temporary in order to translate the WHERE into
+    canonical form. We can't do that without being able to declare a suitable
+    temporary and that requires TODO #1799.
+    '''
+    code = '''\
+    module my_mod
+    contains
+    subroutine my_sub(picefr)
+      use some_mod
+      REAL(wp), INTENT(in), DIMENSION(:,:) ::   picefr
+      REAL(wp), DIMENSION(jpi,jpj,jpl) :: zevap_ice
+      REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: a_i_last_couple
+      WHERE( picefr(:,:) > 1.e-10 )
+        zevap_ice(:,:,1) = frcv(jpr_ievp)%z3(:,:,1) * &
+                           SUM( a_i_last_couple, dim=3 ) / picefr(:,:)
+      ELSEWHERE
+        zevap_ice(:,:,1) = 0.0
+      END WHERE
+    end subroutine my_sub
+    end module my_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine[0], CodeBlock)
+    output = fortran_writer(psyir)
+    assert "WHERE (picefr" in output
+    assert "SUM(a_i_last_couple, dim = 3) / picefr(:, :)" in output
+
+
+def test_where_containing_sum_no_dim(fortran_reader, fortran_writer):
+    '''
+    Since a SUM without a dim argument always produces a scalar we can
+    translate a WHERE containing it into canonical form.
+    '''
+    code = '''\
+    module my_mod
+    contains
+    subroutine my_sub(picefr)
+      use some_mod
+      REAL(wp), INTENT(in), DIMENSION(:,:) ::   picefr
+      REAL(wp), DIMENSION(jpi,jpj,jpl) :: zevap_ice
+      REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: a_i_last_couple
+      type :: thing
+        real, dimension(100000, 100000, 1) :: z3
+      end type
+      integer :: jpr_ievp
+      type(thing), dimension(10000) :: frcv
+      WHERE( picefr(:,:) > SUM(picefr) )
+        zevap_ice(:,:,1) = frcv(jpr_ievp)%z3(:,:,1) * &
+                           SUM( a_i_last_couple ) / picefr(:,:)
+      ELSEWHERE
+        zevap_ice(:,:,1) = 0.0
+      END WHERE
+    end subroutine my_sub
+    end module my_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine[0], Loop)
+    output = fortran_writer(psyir)
+    assert ("SUM(a_i_last_couple) / picefr(LBOUND(picefr, dim=1) + widx1 - 1,"
+            "LBOUND(picefr, dim=2) + widx2 - 1)" in output)
+
+
+def test_where_mask_containing_sum_with_dim(fortran_reader):
+    '''Since a SUM(x, dim=y) appearing in a mask expression performs
+    a reduction but produces an array, we need to replace it with a
+    temporary in order to translate the WHERE into canonical form
+    (since the mask expression determines the number of nested loops
+    required). We can't do that without being able to declare a
+    suitable temporary and that requires TODO #1799.
+
+    '''
+    code = '''\
+    subroutine my_sub(v2)
+      REAL(wp), INTENT(in), DIMENSION(:,:) :: v2
+      REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:) :: v3
+      where(sum(v2(:,:), dim=2) > 0.0)
+        v3(:) = 1.0
+      end where
+    end subroutine my_sub
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine[0], CodeBlock)
 
 
 @pytest.mark.usefixtures("parser")
-@pytest.mark.parametrize("rhs", ["depth", "maxval(depth(:))"])
-@pytest.mark.xfail(reason="#717 need to distinguish scalar and array "
-                   "assignments")
-def test_where_with_scalar_assignment(rhs):
+def test_where_with_scalar_assignment(fortran_reader, fortran_writer):
     ''' Test that a WHERE containing a scalar assignment is handled correctly.
-    Currently it is not as we do not distinguish between a scalar and an array
-    reference that is missing its colons. This will be fixed in #717.
+    '''
+    code = '''
+    subroutine sub()
+        integer, dimension(100,100,100) :: dry, z1_st, ptsu
+        integer :: var1, depth
+
+        where(dry(1, :, :))
+            var1 = depth
+            z1_st(:,2,:) = var1 / ptsu(:, :, 3)
+        end where
+    end subroutine sub
+    '''
+    fake_parent = fortran_reader.psyir_from_source(code)
+    # We should have a doubly-nested loop with an IfBlock inside
+    loops = fake_parent.walk(Loop)
+    assert len(loops) == 2
+    for loop in loops:
+        assert "was_where" in loop.annotations
+    assert isinstance(loops[1].loop_body[0], IfBlock)
+    out = fortran_writer(fake_parent)
+    correct = '''subroutine sub()
+  integer, dimension(100,100,100) :: dry
+  integer, dimension(100,100,100) :: z1_st
+  integer, dimension(100,100,100) :: ptsu
+  integer :: var1
+  integer :: depth
+  integer :: widx2
+  integer :: widx1
+
+  do widx2 = 1, SIZE(dry, dim=3), 1
+    do widx1 = 1, SIZE(dry, dim=2), 1
+      if (dry(1,widx1,widx2)) then
+        var1 = depth
+        z1_st(widx1,2,widx2) = var1 / ptsu(widx1,widx2,3)
+      end if
+    enddo
+  enddo
+
+end subroutine sub
+'''
+    assert out == correct
+
+
+@pytest.mark.usefixtures("parser")
+@pytest.mark.xfail(reason="#1960 Can't handle array-reduction intrinsics")
+def test_where_with_array_reduction_intrinsic():
+    ''' Test that a WHERE containing an array-reduction intrinsic is handled
+    correctly. Currently it is not supported. This will be fixed in #1960.
     '''
     fake_parent, _ = process_where(
-        f"WHERE (dry(1, :, :))\n"
-        f"  var1 = {rhs}\n"
-        f"  z1_st(:, 2, :) = var1 / ptsu(:, :, 3)\n"
-        f"END WHERE\n", Fortran2003.Where_Construct,
+        "WHERE (dry(1, :, :))\n"
+        "  var1 = maxval(depth(:))\n"
+        "  z1_st(:, 2, :) = var1 / ptsu(:, :, 3)\n"
+        "END WHERE\n", Fortran2003.Where_Construct,
         ["dry", "z1_st", "depth", "ptsu", "var1"])
     # We should have a doubly-nested loop with an IfBlock inside
     loops = fake_parent.walk(Loop)
@@ -453,9 +630,10 @@ def test_elsewhere():
     assert isinstance(ifblock.ast, Fortran2003.Where_Construct)
     assert isinstance(ifblock.condition, BinaryOperation)
     assert ifblock.condition.operator == BinaryOperation.Operator.GT
-    assert ("ArrayReference[name:'ptsu']\n"
-            "Reference[name:'widx1']\n" in str(ifblock.condition.children[0]))
-    assert "Literal[value:'10." in str(ifblock.condition.children[1])
+    assert (ifblock.condition.debug_string() ==
+            "ptsu(LBOUND(ptsu, dim=1) + widx1 - 1,"
+            "LBOUND(ptsu, dim=2) + widx2 - 1,"
+            "LBOUND(ptsu, dim=3) + widx3 - 1) > 10._wp")
     # Check that this IF block has an else body which contains another IF
     assert ifblock.else_body is not None
     ifblock2 = ifblock.else_body[0]
@@ -463,8 +641,10 @@ def test_elsewhere():
     assert isinstance(ifblock2, IfBlock)
     assert isinstance(ifblock2.condition, BinaryOperation)
     assert ifblock2.condition.operator == BinaryOperation.Operator.LT
-    assert ("ArrayReference[name:'ptsu']\n"
-            "Reference[name:'widx1']\n" in str(ifblock2.condition.children[0]))
+    assert (ifblock2.condition.debug_string() ==
+            "ptsu(LBOUND(ptsu, dim=1) + widx1 - 1,"
+            "LBOUND(ptsu, dim=2) + widx2 - 1,"
+            "LBOUND(ptsu, dim=3) + widx3 - 1) < 0.0_wp")
     # Check that this IF block too has an else body
     assert isinstance(ifblock2.else_body[0], Assignment)
     # Check that we have three assignments of the correct form and with the
@@ -473,12 +653,10 @@ def test_elsewhere():
     assert len(assigns) == 3
     for assign in assigns:
         assert isinstance(assign.lhs, ArrayReference)
-        refs = assign.lhs.walk(Reference)
-        assert len(refs) == 4
-        assert refs[1:4] == assign.lhs.indices
-        assert assign.lhs.name == "z1_st"
-        assert ([idx.name for idx in assign.lhs.indices] ==
-                ["widx1", "widx2", "widx3"])
+        assert (assign.lhs.debug_string() ==
+                "z1_st(LBOUND(z1_st, dim=1) + widx1 - 1,"
+                "LBOUND(z1_st, dim=2) + widx2 - 1,"
+                "LBOUND(z1_st, dim=3) + widx3 - 1)")
         assert isinstance(assign.parent.parent, IfBlock)
 
     assert isinstance(assigns[0].rhs, BinaryOperation)
@@ -526,6 +704,26 @@ def test_where_stmt():
     assert isinstance(fake_parent[0], Loop)
 
 
+def test_where_stmt_no_reduction(fortran_reader, fortran_writer):
+    '''
+    Test that a WHERE statement containing an intrinsic reduction is put
+    into a CodeBlock.
+    '''
+    code = '''\
+    program my_prog
+    integer, dimension(10,10,5) :: a3d
+    integer, dimension(10,10) :: a_i, at_i, rn_amax_2d
+    WHERE( at_i(:,:) > rn_amax_2d(:,:) ) a_i(:,:,jl) = a_i(:,:,jl) * \
+rn_amax_2d(:,:) / sum(a3d, dim=3)
+    end program my_prog'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine[0], CodeBlock)
+    output = fortran_writer(psyir)
+    assert ("WHERE (at_i(:, :) > rn_amax_2d(:, :)) a_i(:, :, jl) = "
+            "a_i(:, :, jl) * rn_amax_2d(:, :) / SUM(a3d, dim = 3)" in output)
+
+
 def test_where_ordering(parser):
     ''' Check that the generated schedule has the correct ordering when
     a WHERE construct is processed.
@@ -565,14 +763,69 @@ def test_where_ordering(parser):
     [("where (my_type%var(:) > epsi20)\n"
       "my_type%array(:,jl) = 3.0\n", "my_type%var"),
      ("where (my_type%var(:) > epsi20)\n"
-      "my_type(jl)%array(:,jl) = 3.0\n", "my_type%var"),
+      "my_type2(jl)%array2(:,jl) = 3.0\n", "my_type%var"),
      ("where (my_type%block(jl)%var(:) > epsi20)\n"
       "my_type%block%array(:,jl) = 3.0\n", "my_type%block(jl)%var"),
      ("where (my_type%block(jl)%var(:) > epsi20)\n"
-      "my_type%block(jl)%array(:,jl) = 3.0\n", "my_type%block(jl)%var")])
-def test_where_derived_type(fortran_reader, fortran_writer, code, size_arg):
+      "my_type%block(jl)%array(:,jl) = 3.0\n", "my_type%block(jl)%var"),
+     ("where (my_type2(:)%var > epsi20)\n"
+      "my_type2(:)%var = 3.0\n", "my_type2")])
+def test_where_derived_type(fortran_reader, code, size_arg):
     ''' Test that we handle the case where array members of a derived type
     are accessed within a WHERE. '''
+    code = (f"module my_mod\n"
+            f" use some_mod\n"
+            f"contains\n"
+            f"subroutine my_sub()\n"
+            f"  type :: subtype\n"
+            f"    real, dimension(:) :: var\n"
+            f"    real, dimension(:,:) :: array\n"
+            f" end type\n"
+            f"  type :: sometype\n"
+            f"    real, dimension(:) :: var\n"
+            f"    real, dimension(:) :: array\n"
+            f"    real, dimension(:,:) :: array2\n"
+            f"    type(subtype), dimension(:) :: block\n"
+            f"  end type\n"
+            f"  type(sometype) :: my_type\n"
+            f"  type(sometype), dimension(:) :: my_type2\n"
+            f"  integer :: jl\n"
+            f"  real :: epsi20\n"
+            f"  do jl = 1, 10\n"
+            f"{code}"
+            f"    end where\n"
+            f"  end do\n"
+            f"end subroutine my_sub\n"
+            f"end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    assert len(loops) == 2
+    assert isinstance(loops[1].stop_expr, IntrinsicCall)
+    assert loops[1].stop_expr.debug_string() == f"SIZE({size_arg}, dim=1)"
+    assert isinstance(loops[1].loop_body[0], IfBlock)
+    # All Range nodes should have been replaced
+    assert not loops[0].walk(Range)
+    # All ArrayMember accesses should now use the `widx1` loop variable
+    array_members = loops[0].walk(ArrayMember)
+    for member in array_members:
+        assert "+ widx1 - 1" in member.indices[0].debug_string()
+
+
+@pytest.mark.parametrize(
+    "code",
+    [("where (my_type%var > epsi20)\n"
+      "my_type%array(:,jl) = 3.0\n"),
+     ("where (my_type%var > epsi20)\n"
+      "my_type(jl)%array(:,jl) = 3.0\n"),
+     ("where (my_type%block(jl)%var > epsi20)\n"
+      "my_type(jl%array(:,jl) = 3.0\n"),
+     ("where (my_type%block(jl)%var > epsi20)\n"
+      "my_type%block(jl)%var = 3.0\n")])
+@pytest.mark.xfail(reason="#1960 Can't handle WHERE constructs without "
+                          "explicit array notation inside derived types.")
+def test_where_noarray_syntax_derived_types(fortran_reader, code):
+    '''Xfailing test for when a derived type access in a where condition
+    doesn't use range syntax.'''
     code = (f"module my_mod\n"
             f" use some_mod\n"
             f"contains\n"
@@ -585,16 +838,169 @@ def test_where_derived_type(fortran_reader, fortran_writer, code, size_arg):
             f"end subroutine my_sub\n"
             f"end module my_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
+    cbs = psyir.walk(CodeBlock)
+    assert len(cbs) == 0
+
+
+@pytest.mark.parametrize(
+    "code",
+    [("where (var(:) > 1.0)\n"
+        "var(:) = 3.0\n"),
+     ("where (var(:) > var2(1:20))\n"
+      "var(:) = 3.0\n"),
+     ("where (var > 1.0)\n"
+      "var = 3.0\n"),
+     ("where (var > var2)\n"
+      "var = 3.0\n"),
+     ("where (var(:) > var2)\n"
+      "var(:) = 3.0\n"),
+     ("where (var > var2(1:20))\n"
+      "var = 3.0\n")])
+def test_where_scalar_var(fortran_reader, code):
+    '''Test where we have a scalar variable in a WHERE clause with no
+    array index clause.'''
+    code = (
+        f"program where_test\n"
+        f"implicit none\n"
+        f"integer, parameter :: nc=20\n"
+        f"integer :: ii\n"
+        f"real :: var(nc)\n"
+        f"real:: var2(nc)\n"
+        f"var = 1.5\n"
+        f"var2 = 1.6\n"
+        f"{code}"
+        f"end where\n"
+        f"end program where_test")
+    psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
-    assert len(loops) == 2
-    assert isinstance(loops[1].stop_expr, IntrinsicCall)
-    assert loops[1].stop_expr.intrinsic == IntrinsicCall.Intrinsic.SIZE
-    assert isinstance(loops[1].stop_expr.children[0], StructureReference)
-    assert fortran_writer(loops[1].stop_expr.children[0]) == size_arg
-    assert isinstance(loops[1].loop_body[0], IfBlock)
+    assert len(loops) == 1
+    assert isinstance(loops[0].stop_expr, Reference)
+    assert loops[0].stop_expr.debug_string() == "nc"
+    assert isinstance(loops[0].loop_body[0], IfBlock)
     # All Range nodes should have been replaced
     assert not loops[0].walk(Range)
-    # All ArrayMember accesses should now use the `widx1` loop variable
-    array_members = loops[0].walk(ArrayMember)
-    for member in array_members:
-        assert member.indices[0].symbol.name == "widx1"
+    array_refs = loops[0].walk(ArrayReference)
+    for member in array_refs:
+        assert "widx1" in member.indices[0].debug_string()
+
+    # All References to var or var2 should be ArrayReferences
+    refs = loops[0].walk(Reference)
+    for ref in refs:
+        if "var" in ref.symbol.name:
+            assert isinstance(ref, ArrayReference)
+
+
+def test_import_in_where_clause(fortran_reader):
+    '''
+    Test that imported symbols inside a where clause produce a code block
+    as we don't know what is scalar vs an array.
+    '''
+    code = '''
+    program where_test
+    implicit none
+    use some_module, only: a, b, c, d
+
+    where(a(:) + b > 1)
+       b = c + d
+    end where
+    end program
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0].children[0], CodeBlock)
+
+    code2 = '''
+    program where_test
+    implicit none
+    use some_module, only: c, d
+    integer, dimension(100) :: a, b
+
+    where(a(:) + b > 1)
+       b = c + d
+    end where
+    end program
+    '''
+    psyir = fortran_reader.psyir_from_source(code2)
+    assert isinstance(psyir.children[0].children[0], CodeBlock)
+
+
+def test_non_array_reduction_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test that a non-array reduction intrinsic (such as SIN) produces
+    the correct PSyIR.
+    '''
+    code = '''
+    program where_test
+    implicit none
+    integer, dimension(100) :: a, b, c
+
+    where(a < b)
+       c = sin(a)
+    end where
+    end program
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0].children[0], Loop)
+    out = fortran_writer(psyir)
+    correct = '''program where_test
+  integer, dimension(100) :: a
+  integer, dimension(100) :: b
+  integer, dimension(100) :: c
+  integer :: widx1
+
+  do widx1 = 1, 100, 1
+    if (a(widx1) < b(widx1)) then
+      c(widx1) = SIN(a(widx1))
+    end if
+  enddo
+
+end program where_test'''
+    assert correct in out
+
+
+def test_non_elemental_intrinsic(fortran_reader):
+    '''
+    Test that a non-elemental reduction intrinsic (such as DOT_PRODUCT)
+    produces the correct PSyIR.
+    '''
+    code = '''
+    program where_test
+    implicit none
+    integer, dimension(100) :: a, b, c
+
+    where(a < b)
+       c = DOT_PRODUCT(a, b)
+    end where
+    end program
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    # This should be a Loop I suppose, this is valid Fortran
+    # as long as a and b aren't expanded
+    assert isinstance(psyir.children[0].children[0], Loop)
+    intrinsic = psyir.walk(IntrinsicCall)[0]
+    assert intrinsic.intrinsic.name == "DOT_PRODUCT"
+    assert intrinsic.children[1].name == "a"
+    assert not isinstance(intrinsic.children[1], ArrayReference)
+    assert intrinsic.children[2].name == "b"
+    assert not isinstance(intrinsic.children[2], ArrayReference)
+
+
+def test_non_array_ref_intrinsic_transformation_error(fortran_reader):
+    '''
+    Test for coverage for the try/except in the intrinsic_ancestor section
+    of _array_syntax_to_indexed sub function.'''
+
+    code = '''
+    program where_test
+    implicit none
+    integer, dimension(100) :: a, b, c
+    real :: d
+
+    where(a < b)
+       c = sin(d)
+    end where
+    end program
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    references = psyir.walk(Reference)
+    # The d should not have been transformed into an array.
+    assert not isinstance(references[7], ArrayReference)

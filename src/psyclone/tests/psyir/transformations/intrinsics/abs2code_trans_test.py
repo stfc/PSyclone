@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -94,7 +94,6 @@ def test_correct(func, output, tmpdir):
     argument to ABS is a simple argument and when it is an expression.
 
     '''
-    Config.get().api = "nemo"
     intr_call = example_psyir(func)
     root = intr_call.root
     writer = FortranWriter()
@@ -121,7 +120,7 @@ def test_correct(func, output, tmpdir):
         f"    res_abs = tmp_abs * -1.0\n"
         f"  end if\n"
         f"  psyir_tmp = res_abs\n\n"
-        f"end subroutine abs_example\n") in result
+        f"end subroutine abs_example\n") == result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
     Config._instance = None
@@ -132,7 +131,6 @@ def test_correct_expr(tmpdir):
     is part of an expression.
 
     '''
-    Config.get().api = "nemo"
     intr_call = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
@@ -180,7 +178,6 @@ def test_correct_2abs(tmpdir):
     is more than one ABS() in an expression.
 
     '''
-    Config.get().api = "nemo"
     intr_call = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -240,7 +240,7 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         # The validate() method has already checked that the routine exists.
         # pylint: disable=undefined-loop-variable
         gotable = GOSymbolTable.create_from_table(routine.symbol_table)
-        gokernsched = GOKernelSchedule(metadata.procedure_name,
+        gokernsched = GOKernelSchedule(routine.symbol,
                                        symbol_table=gotable.detach())
         for child in routine.pop_all_children():
             gokernsched.addchild(child)

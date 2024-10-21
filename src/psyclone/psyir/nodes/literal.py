@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,6 @@
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Literal node implementation.'''
-
-from __future__ import absolute_import
 
 import re
 
@@ -169,5 +167,22 @@ class Literal(DataNode):
         :returns: description of this PSyIR node.
         :rtype: str
         '''
-        return f"{self.coloured_name(colour)}"\
-               f"[value:'{self._value}', {self.datatype}]"
+        return (f"{self.coloured_name(colour)}"
+                f"[value:'{self._value}', {self.datatype}]")
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        :param table: the symbol table in which to look up replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        self.datatype.replace_symbols_using(table)
+        super().replace_symbols_using(table)
+
+
+# For AutoAPI documentation generation
+__all__ = ['Literal']

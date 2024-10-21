@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,11 +39,12 @@
 
 ''' This module contains the implementation of the Reference node.'''
 
-from psyclone.core import AccessType, Signature
+
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import Symbol
-from psyclone.psyir.symbols.datatypes import DeferredType
+from psyclone.psyir.symbols.datatypes import UnresolvedType
 
 
 class Reference(DataNode):
@@ -86,20 +87,12 @@ class Reference(DataNode):
     @property
     def is_array(self):
         '''
-        :returns: whether this reference is an array. Note that if an array
-            expression is used, it will be a Reference in the PSyIR, but if the
-            symbol has been resolved, the symbol will be queried to determine
-            whether it is an array or not.
+        :returns: whether this reference is an array, False if it can not be
+            determined.
         :rtype: bool
 
         '''
-        try:
-            # The standard symbol raises a ValueError if is_array
-            # is called - which indicates that we don't know if this
-            # symbol is an array or not.
-            return self.symbol.is_array
-        except ValueError:
-            return False
+        return self.symbol.is_array
 
     @property
     def symbol(self):
@@ -196,8 +189,84 @@ class Reference(DataNode):
         # Use type() directly as we need to ignore inheritance.
         if type(self.symbol) is Symbol:
             # We don't even have a DataSymbol
-            return DeferredType()
+            return UnresolvedType()
         return self.symbol.datatype
+
+    def previous_access(self):
+        '''
+        :returns: the previous reference to the same symbol.
+        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.routine import Routine
+        # The scope is as far as the Routine that contains this
+        # Reference.
+        routine = self.ancestor(Routine)
+        # Handle the case when this is a subtree without an ancestor
+        # Routine
+        if routine is None:
+            routine = self.root
+        var_access = VariablesAccessInfo(nodes=routine)
+        signature, _ = self.get_signature_and_indices()
+        all_accesses = var_access[signature].all_accesses
+        index = -1
+        # Find my position in the VariablesAccesInfo
+        for i, access in enumerate(all_accesses):
+            if access.node is self:
+                index = i
+                break
+
+        if index > 0:
+            return all_accesses[index-1].node
+        return None
+
+    def next_access(self):
+        '''
+        :returns: the next reference to the same symbol.
+        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.routine import Routine
+        # The scope is as far as the Routine that contains this
+        # Reference.
+        routine = self.ancestor(Routine)
+        # Handle the case when this is a subtree without an ancestor
+        # Routine
+        if routine is None:
+            routine = self.root
+        var_access = VariablesAccessInfo(nodes=routine)
+        signature, _ = self.get_signature_and_indices()
+        all_accesses = var_access[signature].all_accesses
+        index = len(all_accesses)
+        # Find my position in the VariablesAccesInfo
+        for i, access in enumerate(all_accesses):
+            if access.node is self:
+                index = i
+                break
+
+        if len(all_accesses) > index+1:
+            return all_accesses[index+1].node
+        return None
+
+    def replace_symbols_using(self, table):
+        '''
+        Update any Symbols referenced by this Node with those in the
+        supplied table with matching names. If there is no match for a given
+        Symbol then it is left unchanged.
+
+        :param table: the symbol table in which to look up replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        try:
+            self.symbol = table.lookup(self.symbol.name)
+        except KeyError:
+            pass
+
+        # Walk on down the tree.
+        super().replace_symbols_using(table)
 
 
 # For AutoAPI documentation generation

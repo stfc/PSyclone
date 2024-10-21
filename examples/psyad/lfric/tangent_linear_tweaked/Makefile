@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@ include ${PSYROOT}/examples/common.mk
 
 CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
-API = -api dynamo0.3
+API = -api lfric
 F90FLAGS += -ffree-line-length-none
 
 OUT_DIR ?= ../adjoint_partial
@@ -57,8 +57,8 @@ ${ADJ_KERNEL_FILE}: ${TL_KERNEL_FILE}
 
 transform:
 	# All of these files need modifying after being processed by
-	# PSyAD (as they already have manual tweaks) so they all go
-	# into the the adjoint_partial directory.
+	# PSyAD (as they already have manual tweaks) so place them
+	# into the 'adjoint_partial' directory.
 	$(MAKE) single -e TL_KERNEL_NAME=tl_kinetic_energy_gradient_kernel ACTIVE_VAR_LIST="r_u ru_e ke_at_quad res_dot_product mul2 u_at_quad u_e u"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_moist_dyn_gas_kernel ACTIVE_VAR_LIST="moist_dyn_gas mr_v mr_v_at_dof"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_project_eos_pressure_kernel ACTIVE_VAR_LIST="exner rho exner_e r_exner exner_at_quad rho_at_quad rho_e tmp2 theta theta_vd_e theta_vd_at_quad moist_dyn_gas"
@@ -80,6 +80,13 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
 	# issue: dg_inc_matrix_vector_kernel: multi-precision kernels not supported
 	$(MAKE) single -e TL_KERNEL_NAME=dg_inc_matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
+	# Active stencil. Re-written so that stencil computation is performed by a
+	# subroutine which is passed cell indices.
+	$(MAKE) single -e TL_KERNEL_NAME=poly1d_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction tracer"
+	$(MAKE) single -e TL_KERNEL_NAME=poly2d_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction tracer"
+	$(MAKE) single -e TL_KERNEL_NAME=tl_pressure_gradient_bd_kernel ACTIVE_VAR_LIST="r_u_bd exner bdary_term exner_av theta_v_at_fquad theta_v_e exner_e exner_next_e theta moist_dyn_tot moist_dyn_gas"
+	# Uses array constructors to initialise two arrays.
+	$(MAKE) single -e TL_KERNEL_NAME=poly_adv_update_kernel ACTIVE_VAR_LIST="tracer reconstruction dtdy dtdx advective"
 
 compile:
 	@echo No compilation supported.

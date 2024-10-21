@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ ALGORITHM_SRC = $(ALGORITHMS:.x90=.f90)
 PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
 
 # PSyclone command-line options
-PSYCLONE_CMD = -nodm -l all
+PSYCLONE_CMD = --psykal-dsl lfric -nodm -l all
 
 # Executable
 EXEC = ./builtins

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -93,9 +93,13 @@ of the active variables
   machinetol = spacing(max(abs(inner1), abs(inner2)))
   relative_diff = abs(inner1 - inner2) / machinetol
   if (relative_diff < overall_tolerance) then
+    ! psyclone codeblock (unsupported code) reason:
+    !  - unsupported statement: write_stmt
     write(*, *) 'test of adjoint of ''kern'' passed: ', inner1, inner2, \
 relative_diff
   else
+    ! psyclone codeblock (unsupported code) reason:
+    !  - unsupported statement: write_stmt
     write(*, *) 'test of adjoint of ''kern'' failed: ', inner1, inner2, \
 relative_diff
   end if
@@ -117,8 +121,9 @@ def test_main_h_option(capsys):
     assert str(info.value) == "0"
     output, error = capsys.readouterr()
     assert error == ""
-    # The name of the executable is replaced with either pytest or -c
-    # when using pytest, therefore we split this test into sections.
+    # Python usage messages have seen slight tweaks over the years, e.g.,
+    # Python >= 3.13 tweaks the usage message to avoid repeating the args
+    # to an option between aliases, therefore we split this test into sections.
     assert "usage: " in output
     expected2 = (
         "[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
@@ -129,9 +134,12 @@ def test_main_h_option(capsys):
         "positional arguments:\n"
         "  filename              tangent-linear kernel source\n\n")
     assert expected2 in output
+    assert ("  -h, --help            show this help message and exit\n"
+            in output)
+    assert ("  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
+            in output or
+            "  -a, --active ACTIVE [ACTIVE ...]\n" in output)
     expected3 = (
-        "  -h, --help            show this help message and exit\n"
-        "  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
         "                        names of active variables\n"
         "  -v, --verbose         increase the verbosity of the output\n"
         "  -t, --gen-test        generate a standalone unit test for the "
@@ -152,9 +160,6 @@ def test_main_h_option(capsys):
         "  -otest TEST_FILENAME  filename for the unit test (implies -t)\n"
         "  -oad OAD              filename for the transformed code\n")
     assert expected3 in output
-    assert ("-otest TEST_FILENAME  filename for the unit test (implies -t)"
-            in output)
-    assert "-oad OAD              filename for the transformed code" in output
 
 
 # no args
@@ -433,7 +438,7 @@ def test_main_otest_option(tmpdir, capsys, extra_args):
 def test_main_geom_args_api(tmpdir, geom_arg, capsys, caplog):
     '''
     Test that the main() function rejects attempts to specify any geometry
-    arguments if the API != dynamo0.3 (LFRic).
+    arguments if the API != lfric.
 
     '''
     filename_in = str(tmpdir.join("tl.f90"))
@@ -451,8 +456,8 @@ def test_main_geom_args_api(tmpdir, geom_arg, capsys, caplog):
     if not caplog.text:
         pytest.xfail("issue #1235: caplog returns an empty string in "
                      "github actions.")
-    assert (f"The '{geom_arg}' argument is only applicable to the LFRic "
-            f"('dynamo0.3') API" in caplog.text)
+    assert (f"The '{geom_arg}' argument is only applicable to the 'lfric' "
+            f"API" in caplog.text)
 
 
 # -v output

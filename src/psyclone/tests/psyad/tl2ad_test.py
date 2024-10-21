@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE,
     ArrayType, RoutineSymbol, ImportInterface, ScalarType, ContainerSymbol,
-    ArgumentInterface, UnknownFortranType, DeferredType)
+    ArgumentInterface, UnsupportedFortranType, UnresolvedType)
 from psyclone.tests.utilities import Compile
 
 
@@ -139,7 +139,7 @@ def test_generate_adjoint_str_lfric_api():
         tl_code = kfile.read()
     result, _ = generate_adjoint_str(tl_code,
                                      ["xi", "u", "res_dot_product", "curl_u"],
-                                     api="dynamo0.3")
+                                     api="lfric")
     assert "subroutine adj_testkern_code" in result.lower()
 
 
@@ -165,9 +165,9 @@ def test_generate_adjoint_str_wrong_api():
         "a = b\n"
         "end program test\n")
     with pytest.raises(NotImplementedError) as err:
-        generate_adjoint_str(tl_code, ["a", "b"], api="gocean1.0")
+        generate_adjoint_str(tl_code, ["a", "b"], api="gocean")
     assert ("PSyAD only supports generic routines/programs or LFRic "
-            "(dynamo0.3) kernels but got API 'gocean1.0'" in str(err.value))
+            "kernels but got API 'gocean'" in str(err.value))
 
 
 def test_generate_adjoint_str_trans(tmpdir):
@@ -218,10 +218,10 @@ def test_generate_adjoint_str_generate_harness_invalid_api():
     '''Test that passing an unsupported API to generate_adjoint_str()
     raises the expected error.'''
     with pytest.raises(NotImplementedError) as err:
-        _ = generate_adjoint_str(TL_CODE, ["field"], api="gocean1.0",
+        _ = generate_adjoint_str(TL_CODE, ["field"], api="gocean",
                                  create_test=True)
     assert ("PSyAD only supports generic routines/programs or LFRic "
-            "(dynamo0.3) kernels but got API 'gocean1.0'" in str(err.value))
+            "kernels but got API 'gocean'" in str(err.value))
 
 
 def test_generate_adjoint_str_generate_harness_lfric():
@@ -253,7 +253,7 @@ def test_generate_adjoint_str_generate_harness_lfric():
     )
     result, harness = generate_adjoint_str(tl_code, ["field"],
                                            create_test=True,
-                                           api="dynamo0.3")
+                                           api="lfric")
     assert ("subroutine adj_testkern_code(nlayers, field, ndf_w3, "
             "undf_w3, map_w3)\n" in result)
     assert "module adjoint_test_mod\n" in harness
@@ -765,7 +765,8 @@ def test_add_precision_symbol():
     assert ("One or more variables have a precision specified by symbol "
             "'wrong' which is not local or explicitly imported" in
             str(err.value))
-    # A precision symbol must be a scalar integer or of deferred/unknown type
+    # A precision symbol must be a scalar integer or of unresolved/unsupported
+    # type
     isym = DataSymbol("iwrong", REAL_TYPE)
     with pytest.raises(TypeError) as err:
         _add_precision_symbol(isym, table)
@@ -776,11 +777,11 @@ def test_add_precision_symbol():
         _add_precision_symbol(arr_sym, table)
     assert ("integer type but 'iarray' has type 'Array<Scalar<INTEGER, "
             "UNDEFINED>, shape=[10]>'." in str(err.value))
-    def_sym = DataSymbol("my_def",
-                         UnknownFortranType("integer, parameter :: my_def"))
+    def_sym = DataSymbol(
+        "my_def", UnsupportedFortranType("integer, parameter :: my_def"))
     _add_precision_symbol(def_sym, table)
     assert table.lookup("my_def")
-    odef_sym = DataSymbol("o_def", DeferredType(),
+    odef_sym = DataSymbol("o_def", UnresolvedType(),
                           interface=ImportInterface(csym))
     _add_precision_symbol(odef_sym, table)
     assert table.lookup("o_def")

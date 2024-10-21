@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -238,19 +238,27 @@ def test_do_inside_while(fortran_reader, fortran_writer, tmpdir):
 
   i = 0
   do while (.true.)
+    ! PSyclone CodeBlock (unsupported code) reason:
+    !  - Unsupported statement: Write_Stmt
     WRITE(iu_stdout, '(A)') 'Enter units followed by lower and upper \
 limits and increment:'
     do while (.true.)
+      ! PSyclone CodeBlock (unsupported code) reason:
+      !  - Unsupported statement: Exit_Stmt
       EXIT
     end do
     range_bands = 3
     if (range_bands + i > 3 .AND. range_bands + i < 15) then
+      ! PSyclone CodeBlock (unsupported code) reason:
+      !  - Unsupported statement: Cycle_Stmt
       CYCLE
     end if
     do j = 1, range_bands, 1
       i = i + 1
     enddo
     if (i > 15) then
+      ! PSyclone CodeBlock (unsupported code) reason:
+      !  - Unsupported statement: Exit_Stmt
       EXIT
     end if
   end do

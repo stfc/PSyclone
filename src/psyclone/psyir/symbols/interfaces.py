@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: S. Siso STFC Daresbury Lab
+# Modified by: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the SymbolInterface class and its subclasses. '''
@@ -132,8 +133,8 @@ class ImportInterface(SymbolInterface):
     @property
     def orig_name(self):
         '''
-        :returns: the symbol's original name if it is renamed on \
-            import, or None otherwise.
+        :returns: the symbol's original name if it is renamed on
+                  import, or None otherwise.
         :rtype: Optional[str]
 
         '''
@@ -150,11 +151,12 @@ class ImportInterface(SymbolInterface):
     @container_symbol.setter
     def container_symbol(self, value):
         '''
-        :param value: the ContainerSymbol that imports the symbol with \
+        :param value: the ContainerSymbol that imports the symbol with
             this interface.
         :type value: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
 
-        :raise TypeError: if the provided value is not a ContainerSymbol.
+        :raises TypeError: if the provided value is not a ContainerSymbol.
+
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
@@ -174,6 +176,16 @@ class ImportInterface(SymbolInterface):
             orig_name_str = f", orig_name='{self.orig_name}'"
         return (f"Import(container='{self.container_symbol.name}"
                 f"'{orig_name_str})")
+
+    def __eq__(self, other):
+        if type(other) is not type(self):
+            return False
+        if (self.container_symbol.name.lower() !=
+                other.container_symbol.name.lower()):
+            return False
+        orig_name = self.orig_name.lower() if self.orig_name else ""
+        other_oname = other.orig_name.lower() if other.orig_name else ""
+        return orig_name == other_oname
 
     def copy(self):
         '''
@@ -251,3 +263,20 @@ class ArgumentInterface(SymbolInterface):
         :rtype: :py:class:`psyclone.psyir.symbol.SymbolInterface`
         '''
         return self.__class__(access=self.access)
+
+    def __eq__(self, other):
+        if type(other) is not type(self):
+            return False
+        return self.access == other.access
+
+
+class PreprocessorInterface(SymbolInterface):
+    '''The symbol exists in the file through compiler macros or preprocessor
+    directives.
+
+    Note that this is different from UnresolvedInterface because the backend
+    will not check if is importing statements that could bring them into
+    scope.
+    '''
+    def __str__(self):
+        return "Preprocessor"

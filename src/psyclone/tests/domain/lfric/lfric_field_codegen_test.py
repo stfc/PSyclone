@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 def test_field(tmpdir):
@@ -80,7 +80,7 @@ def test_field(tmpdir):
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_f1\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
@@ -104,7 +104,7 @@ def test_field(tmpdir):
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -134,9 +134,8 @@ def test_field(tmpdir):
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
-        "        CALL testkern_code(nlayers, a, f1_data, f2_data, "
+        "      DO cell = loop0_start, loop0_stop, 1\n"
+        "        CALL testkern_code(nlayers_f1, a, f1_data, f2_data, "
         "m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
         "      END DO\n"
@@ -174,7 +173,7 @@ def test_field_deref(tmpdir, dist_mem):
         "      TYPE(field_type), intent(in) :: f1, est_f2, m1, est_m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_f1\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: est_m2_data => "
         "null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
@@ -206,7 +205,7 @@ def test_field_deref(tmpdir, dist_mem):
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n")
+        "      nlayers_f1 = f1_proxy%vspace%get_nlayers()\n")
     assert output in generated_code
     if dist_mem:
         output = (
@@ -250,33 +249,28 @@ def test_field_deref(tmpdir, dist_mem):
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f1_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (est_f2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL est_f2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL m1_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (est_m2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL est_m2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
-            "      DO cell=loop0_start,loop0_stop\n")
+            "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()\n" in generated_code
         output = (
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO cell=loop0_start,loop0_stop\n")
+            "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
     output = (
-        "        !\n"
-        "        CALL testkern_code(nlayers, a, f1_data, est_f2_data, m1_data,"
-        " est_m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
+        "        CALL testkern_code(nlayers_f1, a, f1_data, est_f2_data, "
+        "m1_data, est_m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, "
+        "undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
         "      END DO\n")
     assert output in generated_code
     if dist_mem:
@@ -316,7 +310,7 @@ def test_field_fs(tmpdir):
         "m4, f5, f6, m5, m6, m7\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_f1\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m7_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m6_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m5_data => null()\n"
@@ -380,7 +374,7 @@ def test_field_fs(tmpdir):
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
@@ -478,54 +472,41 @@ def test_field_fs(tmpdir):
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f1_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f4_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f4_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m3_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m3_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m4_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m4_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f5_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f5_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f6_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f6_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m5_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m5_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m6_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m6_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m7_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m7_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
-        "        CALL testkern_fs_code(nlayers, f1_data, f2_data, "
+        "      DO cell = loop0_start, loop0_stop, 1\n"
+        "        CALL testkern_fs_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, m2_data, f3_data, f4_data, "
         "m3_data, m4_data, f5_data, f6_data, "
         "m5_data, m6_data, m7_data, ndf_w1, undf_w1, "
@@ -631,7 +612,7 @@ def test_int_field_fs(tmpdir):
         "f4, m3, m4, f5, f6, m5, m6, f7, f8, m7\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_f2\n"
         "      INTEGER(KIND=i_def), pointer, dimension(:) :: m7_data => "
         "null()\n"
         "      INTEGER(KIND=i_def), pointer, dimension(:) :: f8_data => "
@@ -718,7 +699,7 @@ def test_int_field_fs(tmpdir):
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      nlayers_f2 = f2_proxy%vspace%get_nlayers()\n"
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
@@ -828,62 +809,47 @@ def test_int_field_fs(tmpdir):
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f1_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f4_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f4_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m3_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m3_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m4_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m4_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f5_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f5_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f6_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f6_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m5_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m5_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m6_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m6_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f7_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f7_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f8_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f8_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m7_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m7_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
-        "        CALL testkern_fs_int_field_code(nlayers, f1_data, "
+        "      DO cell = loop0_start, loop0_stop, 1\n"
+        "        CALL testkern_fs_int_field_code(nlayers_f2, f1_data, "
         "f2_data, m1_data, m2_data, f3_data, "
         "f4_data, m3_data, m4_data, f5_data, "
         "f6_data, m5_data, m6_data, f7_data, "
@@ -975,7 +941,7 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
             "diff_basis_adspc1_f3_qr_face)\n" in gen_code)
     # Check that the kernel call itself is correct
     assert (
-        "testkern_2qr_int_field_code(nlayers, f1_data, "
+        "testkern_2qr_int_field_code(nlayers_f1, f1_data, "
         "f2_1_data, f2_2_data, f2_3_data, f3_data, "
         "istp, ndf_w2, undf_w2, map_w2(:,cell), basis_w2_qr_xyoz, "
         "basis_w2_qr_face, ndf_wchi, undf_wchi, map_wchi(:,cell), "
@@ -1027,7 +993,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_f1, nlayers_i2\n"
         "      INTEGER(KIND=i_def), pointer, dimension(:) :: n7_data => "
         "null()\n"
         "      INTEGER(KIND=i_def), pointer, dimension(:) :: i8_data => "
@@ -1084,7 +1050,8 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     output = (
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = i1_proxy%vspace%get_nlayers()\n"
+        "      nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
+        "      nlayers_i2 = i2_proxy%vspace%get_nlayers()\n"
         "      !\n")
     if dist_mem:
         output += (
@@ -1114,7 +1081,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     assert output in generated_code
     # Kernel calls are the same regardless of distributed memory
     kern1_call = (
-        "        CALL testkern_fs_int_field_code(nlayers, i1_data, "
+        "        CALL testkern_fs_int_field_code(nlayers_i2, i1_data, "
         "i2_data, n1_data, n2_data, i3_data, "
         "i4_data, n3_data, n4_data, i5_data, "
         "i6_data, n5_data, n6_data, i7_data, "
@@ -1132,7 +1099,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "undf_adspc1_n7, map_adspc1_n7(:,cell))\n")
     assert kern1_call in generated_code
     kern2_call = (
-        "        CALL testkern_fs_code(nlayers, f1_data, f2_data, "
+        "        CALL testkern_fs_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, m2_data, f3_data, f4_data, "
         "m3_data, m4_data, f5_data, f6_data, "
         "m5_data, m6_data, m7_data, ndf_w1, undf_w1, "

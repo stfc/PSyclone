@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ from psyclone.psyir import symbols
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))), "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 def test_creation():
@@ -120,7 +120,7 @@ def test_initialise():
 def test_initialise_errors(monkeypatch):
     '''
     Check that the initialise method raises the expected errors when it
-    encounters arguments of unknown type.
+    encounters arguments of UnsupportedType.
 
     '''
     _, info = parse(os.path.join(BASE_PATH,

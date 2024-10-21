@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2024, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,9 @@
 ! Author: A. R. Porter, STFC Daresbury Laboratory
 program runner
   use tra_adv_mod, only: tra_adv
-  use profile_psy_data_mod, only: profile_psydatashutdown
+  use profile_psy_data_mod, only: profile_psydatainit, profile_psydatashutdown
+
+  call profile_psydatainit()
 
   call tra_adv()
 

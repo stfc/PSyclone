@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,7 @@ of the fparser2 frontend. '''
 
 import os
 import pytest
-from fparser.common.readfortran import FortranFileReader
-from psyclone.psyGen import PSyFactory, Kern
+from psyclone.psyGen import Kern
 from psyclone.psyir.frontend.fparser2 import _find_or_create_unresolved_symbol
 from psyclone.psyir.nodes import (
     Reference, Container, Assignment, Literal, KernelSchedule,
@@ -59,7 +58,7 @@ def test_find_or_create_unresolved_symbol():
     not. Also test for an incorrect scope argument.'''
 
     _, invoke = get_invoke("single_invoke_kern_with_global.f90",
-                           api="gocean1.0", idx=0)
+                           api="gocean", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kernel_schedule = kernels[0].get_kernel_schedule()
@@ -189,20 +188,17 @@ def test_find_or_create_unresolved_scope_limit():
     assert kernel.symbol_table.lookup("x_1") == xsymbol
 
 
-def test_nemo_find_container_symbol(parser):
+def test_find_container_symbol(fortran_reader):
     '''Check that find_or_create_symbol() works for the NEMO API when the
     searched-for symbol is declared in the parent module.
 
     '''
-    reader = FortranFileReader(
-        os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__)))),
-            "test_files", "gocean1p0", "kernel_with_global_mod.f90"))
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    # Get a node from the schedule
-    bops = psy._invokes.invoke_list[0].schedule.walk(BinaryOperation)
+    filename = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__)))), "test_files", "gocean1p0",
+                "kernel_with_global_mod.f90")
+    psyir = fortran_reader.psyir_from_file(filename)
+    # Get a node from the PSyIR
+    bops = psyir.walk(BinaryOperation)
     # Use it as the starting point for the search
     symbol = _find_or_create_unresolved_symbol(bops[0], "alpha")
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL

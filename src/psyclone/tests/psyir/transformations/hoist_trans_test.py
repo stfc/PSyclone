@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,13 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Authors: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
 
-'''This module tests the hoist transformation.
-'''
+''' This module tests the hoist transformation. '''
 
-from __future__ import absolute_import, print_function
 import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -66,9 +64,10 @@ def test_apply():
     code = (
         "program test\n"
         "  integer :: i\n"
-        "  real :: a\n"
+        "  real :: a, b\n"
         "  do i=1,1\n"
         "    a = 1.0\n"
+        "    b = i\n"
         "  end do\n"
         "end program\n")
     reader = FortranReader()
@@ -78,7 +77,7 @@ def test_apply():
     hoist_trans = HoistTrans()
     hoist_trans.apply(assignment)
     # The assignment is no longer within the loop
-    assert loop.loop_body.children == []
+    assert assignment not in loop.loop_body.children
     # The assignment is now before the loop
     previous = loop.parent.children[loop.position-1]
     assert previous is assignment
@@ -393,7 +392,95 @@ def test_validate_dependencies_if_statement(fortran_reader):
             "the loop, outside the supplied statement." in str(err.value))
 
 
-# str
+def test_validate_checks_for_side_effects(fortran_reader):
+    ''' Test that the validate refuses cases that may contain side effects
+    such as CodeBlocks or Call not guaranteed to be pure.
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        subroutine test()
+          use other
+          do i=1,10
+              write(zchar1, '(I2.2)') i
+              zanm = 'e_s' // '_l' // zcahr1
+          enddo
+        end subroutine test''')
+    loop = psyir.children[0][0]
+    assignment = loop.loop_body[1]
+    hoist_trans = HoistTrans()
+    with pytest.raises(TransformationError) as err:
+        hoist_trans.apply(assignment)
+    assert ("The supplied assignment should not have side effects, but "
+            "we can't prove this for 'zanm =" in str(err.value))
+
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        function myfunc(a)
+            use side_effects, only: myglobal
+            integer :: a
+            integer :: myfunc
+            myglobal = a
+            myfunc = a
+        end function
+        subroutine test()
+          use other
+          do i=1,10
+              zanm = myfunc(3)
+          enddo
+        end subroutine test''')
+    loop = psyir.children[1][0]
+    assignment = loop.loop_body[0]
+    hoist_trans = HoistTrans()
+    with pytest.raises(TransformationError) as err:
+        hoist_trans.apply(assignment)
+    assert ("The supplied assignment should not have side effects, but "
+            "we can't prove this for 'zanm =" in str(err.value))
+
+    # The same but with a pure Call (an IntrinsicCall in this case) succeeds
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        subroutine test()
+          use other
+          integer :: a = 1
+          do i=1,10
+              zanm = max(a, 3)
+          enddo
+        end subroutine test''')
+    loop = psyir.children[0][0]
+    assignment = loop.loop_body[0]
+    hoist_trans = HoistTrans()
+    hoist_trans.apply(assignment)
+    # Now the assignment is outside and the loop removed because it had no
+    # more children
+    assert psyir.children[0][0] is assignment
+    assert loop not in psyir.children[0]
+
+
+def test_apply_remove_emtpy_loops(fortran_reader, fortran_writer):
+    ''' Test that if a loop is left empty after hoisting the assignments
+    it gets removed.
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        subroutine test()
+          use other
+          do i=1,10
+              zanm = 1
+          enddo
+        end subroutine test''')
+    loop = psyir.children[0][0]
+    assignment = loop.loop_body[0]
+    hoist_trans = HoistTrans()
+    hoist_trans.apply(assignment)
+    expected = '''\
+subroutine test()
+  use other
+
+  zanm = 1
+
+end subroutine test'''
+    assert expected in fortran_writer(psyir)
+
 
 def test_str():
     '''Test the hoist transformation's str method return the

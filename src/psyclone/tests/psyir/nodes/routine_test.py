@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,13 +33,18 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the pytest tests for the Routine class. '''
 
 import pytest
-from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
-    ScopingNode
+
+from psyclone.errors import GenerationError
+from psyclone.psyir.nodes import (Assignment, CodeBlock, Container,
+                                  Literal, Reference, Routine,
+                                  ScopingNode)
 from psyclone.psyir.symbols import (REAL_TYPE, DataSymbol,
                                     SymbolTable, RoutineSymbol)
 from psyclone.tests.utilities import check_links
@@ -47,19 +52,23 @@ from psyclone.tests.utilities import check_links
 
 def test_routine_constructor():
     ''' Check the constructor and associated type checking. '''
+    symbol = RoutineSymbol("hello")
     with pytest.raises(TypeError) as err:
         Routine(1)
-    assert "must be a str but got" in str(err.value)
+    assert ("Routine argument 'symbol' must be present and must be a "
+            "RoutineSymbol but got 'int'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        Routine("hello", is_program=1)
+        Routine(symbol, is_program=1)
     assert "'is_program' must be a bool" in str(err.value)
-    node = Routine("hello")
-    assert node._name == "hello"
+    node = Routine(symbol)
+    assert node.name == "hello"
+    assert isinstance(node._symbol, RoutineSymbol)
+    assert node._symbol.name == "hello"
 
 
 def test_routine_properties():
     ''' Check the various properties of the Routine class. '''
-    node1 = Routine("hello")
+    node1 = Routine.create("hello")
     assert node1.dag_name == "routine_hello_0"
     assert node1.return_symbol is None
     assert node1.is_program is False
@@ -68,61 +77,38 @@ def test_routine_properties():
     node1.addchild(Assignment())
     assert "Routine[name:'hello']:\nAssignment" in str(node1)
 
-    node2 = Routine("bonjour")
+    node2 = Routine.create("bonjour")
     assert node2.is_program is False
 
-    node3 = Routine("gutentag", is_program=True)
+    node3 = Routine.create("gutentag", is_program=True)
     assert node3.is_program
+
+    with pytest.raises(TypeError) as excinfo:
+        node3.symbol = "123"
+    assert ("Routine symbol must be a RoutineSymbol but got 'str'"
+            in str(excinfo.value))
 
 
 def test_routine_name_setter():
     ''' Check the name setter property of the Routine class updates its
     name and its associated Routine symbol. '''
 
-    node = Routine("hello")  # The constructor has an implicit name setter
+    node = Routine.create("hello")
+    # The constructor has an implicit name setter
     # Check the associated RoutineSymbol has been created
-    assert "hello" in node.symbol_table
-    assert isinstance(node.symbol_table.lookup("hello"), RoutineSymbol)
+    assert "hello" == node._symbol.name
+    assert isinstance(node._symbol, RoutineSymbol)
     # Check with an incorrect value type
     with pytest.raises(TypeError) as err:
         node.name = 3
     assert "must be a str but got" in str(err.value)
 
     # Perform a successful name change
+    assert node.name == "hello"
     node.name = "goodbye"
     assert node.name == "goodbye"
     # Check that the previous symbol has been deleted and the new one created
-    assert "welcome" not in node.symbol_table
-    assert "goodbye" in node.symbol_table
-    # Check that the 'own_routine_symbol' tag has been updated
-    assert node.symbol_table.lookup_with_tag('own_routine_symbol').name == \
-        "goodbye"
-
-
-def test_routine_name_setter_preexisting_tag():
-    ''' Check that if the routine is initialized with a SymbolTable that
-    already contains a 'own_routine_symbol' tag, the names must match.'''
-
-    node = Routine("hello")
-    symtab = node.symbol_table
-
-    # Creating a routine that will try to set the routine name to 'bye' while
-    # having a differently named 'own_routine_symbol' tag in the symbol table
-    with pytest.raises(KeyError) as err:
-        node2 = Routine("bye", symbol_table=symtab.deep_copy())
-    assert ("Can't assign 'bye' as the routine name because its symbol table "
-            "contains a symbol (hello: RoutineSymbol<NoType, pure=unknown, "
-            "elemental=unknown>) already tagged as 'own_routine_symbol'."
-            in str(err.value))
-
-    # But it is fine if the name is the same
-    node2 = Routine("hello", symbol_table=symtab.deep_copy())
-    # The new routine has a new instance of the symbol table
-    assert node2.symbol_table is not node.symbol_table
-    # And successive name changes are also fine
-    node2.name = "bye"
-    assert (node2.symbol_table.lookup_with_tag("own_routine_symbol").name ==
-            "bye")
+    assert node.name != "hello" not in node.symbol_table
 
 
 def test_routine_return_symbol_setter():
@@ -130,7 +116,7 @@ def test_routine_return_symbol_setter():
     values.
 
     '''
-    node = Routine("hello")
+    node = Routine.create("hello")
     assert node.return_symbol is None
     with pytest.raises(TypeError) as err:
         node.return_symbol = "wrong"
@@ -140,7 +126,7 @@ def test_routine_return_symbol_setter():
     with pytest.raises(KeyError) as err:
         node.return_symbol = sym
     assert ("For a symbol to be a return-symbol, it must be present in the "
-            "symbol table of the Routine but 'result' is not." in
+            "symbol table of the Routine but \'result\' is not." in
             str(err.value))
     node.symbol_table.add(sym)
     node.return_symbol = sym
@@ -270,3 +256,118 @@ def test_routine_copy():
     assert routine2.symbol_table.node is routine2
     assert routine2.return_symbol in routine2.symbol_table.symbols
     assert routine2.return_symbol not in routine.symbol_table.symbols
+
+
+def test_routine_replace_with(fortran_reader):
+    '''Test that the replace_with method correctly replaces the Routine
+    with another Routine. '''
+
+    code = '''subroutine a()
+    end subroutine a'''
+    psyir = fortran_reader.psyir_from_source(code)
+    rout = psyir.walk(Routine)[0]
+
+    with pytest.raises(TypeError) as excinfo:
+        rout.replace_with(123)
+    assert ("The argument node in method replace_with in the Routine "
+            "class should be a Routine but found 'int'." in str(excinfo.value))
+
+    rout2 = Routine.create("a")
+    with pytest.raises(GenerationError) as excinfo:
+        rout2.replace_with(rout)
+    assert ("This node should have a parent if its replace_with method is "
+            "called." in str(excinfo.value))
+
+    code2 = '''subroutine a()
+    end subroutine a'''
+    psyir2 = fortran_reader.psyir_from_source(code2)
+    rout2 = psyir2.walk(Routine)[0]
+
+    with pytest.raises(GenerationError) as excinfo:
+        rout.replace_with(rout2)
+    assert ("The parent of argument node in method replace_with in the "
+            "Routine class should be None but found 'FileContainer'."
+            in str(excinfo.value))
+
+    rout2 = Routine.create("a")
+    with pytest.raises(GenerationError) as excinfo:
+        rout.replace_with(rout2)
+    assert ("The symbol of argument node in method replace_with in the "
+            "Routine class should be the same as the Routine being "
+            "replaced." in str(excinfo.value))
+
+    rout2 = Routine(symbol=rout._symbol)
+
+    rout.replace_with(rout2)
+    assert rout.parent is None
+    assert rout2.parent is psyir
+
+
+def test_routine_update_parent_symbol_table_illegal_parent(fortran_reader):
+    ''' Test the cases where we're attempting to add a routine into
+     a scope we aren't allowed. '''
+    code = '''module my_mod
+    contains
+        subroutine routine()
+        end subroutine routine
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    module = psyir.walk(Container)[1]
+    alt_routine = Routine.create("routine")
+    with pytest.raises(GenerationError) as excinfo:
+        module.addchild(alt_routine)
+    assert ("Can't add routine 'routine' into a scope that already contains "
+            "a symbol with the same name." in str(excinfo.value))
+
+    alt_routine = Routine(module.symbol_table.lookup("routine"))
+    with pytest.raises(GenerationError) as excinfo:
+        module.addchild(alt_routine)
+    assert ("Can't add routine 'routine' into a scope that already contains "
+            "a Routine with that name." in str(excinfo.value))
+
+    # Need a CodeBlock routine
+    code = '''module my_mod
+    contains
+        recursive subroutine routine()
+        end subroutine routine
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    module = psyir.walk(Container)[1]
+    assert isinstance(module.children[0], CodeBlock)
+    alt_routine = Routine(module.symbol_table.lookup("routine"))
+    with pytest.raises(GenerationError) as excinfo:
+        module.addchild(alt_routine)
+    assert ("Can't add routine 'routine' into a scope that already contains "
+            "a CodeBlock representing a routine with that name."
+            in str(excinfo.value))
+
+
+def test_routine_update_parent_symbol_table():
+    ''' Test the update_parent_symbol_table function of the Routine class.
+    Some of the tests here are accessed through addchild of a container. '''
+    routine = Routine.create("test")
+
+    symbol_table = SymbolTable()
+    container = Container.create("my_container", symbol_table, [])
+
+    assert routine.symbol_table.lookup("test") is not None
+    container.addchild(routine)
+    # Routine's symbol table should no longer contain the RoutineSymbol
+    with pytest.raises(KeyError):
+        routine.symbol_table.lookup("test", scope_limit=routine)
+    assert container.symbol_table.lookup("test") is routine.symbol
+
+    # Test the update_parent_symbol_table mimicing using replace_with.
+    routine2 = Routine(routine.symbol)
+    routine.detach()
+    container.symbol_table.add(routine.symbol)
+    routine2.update_parent_symbol_table(container)
+    # This all should work correctly, add routine2 as a child of container
+    # so we can test the last section
+    container.addchild(routine2)
+    # Test the removal of a parent section of update_parent_symbol_table
+    with pytest.raises(KeyError):
+        routine2.symbol_table.lookup("test", scope_limit=routine2)
+    routine2.update_parent_symbol_table(None)
+    assert (routine2.symbol_table.lookup("test", scope_limit=routine2) is
+            routine.symbol)

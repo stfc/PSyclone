@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -127,13 +127,28 @@ class Member(Node):
         return False
 
     def get_signature_and_indices(self):
-        ''':returns: the Signature of this member access, and a list \
-        of list of the indices used for each component, which is empty \
-        in this case since it is not an array access.
-        :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
-            lists of indices)
+        '''
+        :returns: the Signature of this member access, and a list of list of
+            the indices used for each component, which is empty in this case
+            since it is not an array access.
+        :rtype: tuple[:py:class:`psyclone.core.Signature`, List[List[int]]]
         '''
         return (Signature(self.name), [[]])
+
+    def get_base_and_depth(self):
+        '''
+        :returns: the base Reference that contains this member and the depth
+            where this member is found.
+        :rtype: tuple[\
+            Optional[:py:class:`psyclone.psyir.node.StructureReference`], \
+            int]
+        '''
+        depth = 1
+        current = self
+        while current.parent and isinstance(current.parent, Member):
+            depth += 1
+            current = current.parent
+        return current.parent, depth
 
 
 # For Sphinx AutoAPI documentation generation

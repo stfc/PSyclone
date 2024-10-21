@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -219,19 +219,19 @@ def test_get_array_bound():
         assert isinstance(lower_bound, IntrinsicCall)
         assert lower_bound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
         assert isinstance(lower_bound.children[0], Reference)
-        assert lower_bound.children[0].symbol is array_symbol
-        assert isinstance(lower_bound.children[1], Literal)
-        assert (lower_bound.children[1].datatype.intrinsic ==
+        assert lower_bound.arguments[0].symbol is array_symbol
+        assert isinstance(lower_bound.arguments[1], Literal)
+        assert (lower_bound.arguments[1].datatype.intrinsic ==
                 ScalarType.Intrinsic.INTEGER)
-        assert lower_bound.children[1].value == str(index+1)
+        assert lower_bound.arguments[1].value == str(index+1)
         assert isinstance(upper_bound, IntrinsicCall)
         assert upper_bound.intrinsic == IntrinsicCall.Intrinsic.UBOUND
-        assert isinstance(upper_bound.children[0], Reference)
-        assert upper_bound.children[0].symbol is array_symbol
-        assert isinstance(upper_bound.children[1], Literal)
-        assert (upper_bound.children[1].datatype.intrinsic ==
+        assert isinstance(upper_bound.arguments[0], Reference)
+        assert upper_bound.arguments[0].symbol is array_symbol
+        assert isinstance(upper_bound.arguments[1], Literal)
+        assert (upper_bound.arguments[1].datatype.intrinsic ==
                 ScalarType.Intrinsic.INTEGER)
-        assert upper_bound.children[1].value == str(index+1)
+        assert upper_bound.arguments[1].value == str(index+1)
         assert isinstance(step, Literal)
         assert step.value == "1"
         assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
@@ -485,7 +485,7 @@ def test_validate10():
     '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
-    matrix = matmul.children[0]
+    matrix = matmul.arguments[0]
     matrix.children[0] = Literal("1", INTEGER_TYPE)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
@@ -502,7 +502,7 @@ def test_validate11():
     '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
-    matrix = matmul.children[0]
+    matrix = matmul.arguments[0]
     my_range = matrix.children[0].copy()
     matrix.children[2] = my_range
     with pytest.raises(TransformationError) as excinfo:
@@ -521,7 +521,7 @@ def test_validate12():
     '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
-    vector = matmul.children[1]
+    vector = matmul.arguments[1]
     vector.children[0] = Literal("1", INTEGER_TYPE)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
@@ -535,7 +535,7 @@ def test_validate_2nd_dim_2nd_arg():
     is not a full range. '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
-    matrix2 = matmul.children[1]
+    matrix2 = matmul.arguments[1]
     matrix2.children[1] = Range.create(Literal("1", INTEGER_TYPE),
                                        Literal("2", INTEGER_TYPE))
     with pytest.raises(TransformationError) as excinfo:
@@ -554,7 +554,7 @@ def test_validate13():
     '''
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
-    vector = matmul.children[1]
+    vector = matmul.arguments[1]
     my_range = vector.children[0].copy()
     vector.children[2] = my_range
     with pytest.raises(TransformationError) as excinfo:
@@ -630,8 +630,8 @@ def test_validate_matmat_with_same_mem(fortran_reader):
         trans.validate(assign.rhs)
     assert ("Transformation Error: Must have full type information for result "
             "and operands of MATMUL IntrinsicCall but found 'result: "
-            "DataSymbol<UnknownFortranType('REAL, DIMENSION(2, 2), POINTER :: "
-            "result')" in str(excinfo.value))
+            "DataSymbol<UnsupportedFortranType('REAL, DIMENSION(2, 2), "
+            "POINTER :: result')" in str(excinfo.value))
 
 
 def test_apply_matvect(tmpdir):
@@ -677,8 +677,8 @@ def test_apply_matvect_additional_indices(tmpdir, fortran_writer):
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     root = matmul.root
-    matmul.children[0].children[2] = Literal("1", INTEGER_TYPE)
-    matmul.children[1].children[1] = Literal("2", INTEGER_TYPE)
+    matmul.arguments[0].children[2] = Literal("1", INTEGER_TYPE)
+    matmul.arguments[1].children[1] = Literal("2", INTEGER_TYPE)
     trans.apply(matmul)
     result = fortran_writer(root)
     assert (
@@ -711,21 +711,21 @@ def test_apply_matvect_no_indices(tmpdir, fortran_writer):
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     root = matmul.root
-    matrix = matmul.children[0]
+    matrix = matmul.arguments[0]
     lhs_vector = matrix.parent.parent.lhs
     matrix_symbol = matrix.symbol
-    matmul.children[0] = Reference(matrix_symbol)
+    matmul.arguments[0].replace_with(Reference(matrix_symbol))
     one = Literal("1", INTEGER_TYPE)
     ten = Literal("10", INTEGER_TYPE)
     twenty = Literal("20", INTEGER_TYPE)
     matrix_symbol.datatype._shape = [
         ArrayType.ArrayBounds(one.copy(), ten.copy()),
         ArrayType.ArrayBounds(one.copy(), twenty.copy())]
-    rhs_vector = matmul.children[1]
+    rhs_vector = matmul.arguments[1]
     rhs_vector_symbol = rhs_vector.symbol
     rhs_vector_symbol.datatype._shape = [ArrayType.ArrayBounds(one.copy(),
                                                                twenty.copy())]
-    matmul.children[1] = Reference(rhs_vector_symbol)
+    matmul.arguments[1].replace_with(Reference(rhs_vector_symbol))
     lhs_vector_symbol = lhs_vector.symbol
     lhs_vector_symbol._shape = [ArrayType.ArrayBounds(one.copy(), ten.copy())]
     lhs_vector.replace_with(Reference(lhs_vector_symbol))

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ from psyclone.psyir.symbols import (
     ImportInterface, ArgumentInterface, StaticInterface, UnresolvedInterface,
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE,
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE,
-    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, UnknownFortranType)
+    BOOLEAN_TYPE, CHARACTER_TYPE, UnresolvedType, UnsupportedFortranType)
 from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation, Return,
                                   CodeBlock)
 
@@ -122,7 +122,7 @@ def test_datasymbol_initialisation():
         DataSymbol('a', REAL_SINGLE_TYPE,
                    visibility=Symbol.Visibility.PRIVATE), DataSymbol)
     assert isinstance(DataSymbol('field', DataTypeSymbol("field_type",
-                                                         DeferredType())),
+                                                         UnresolvedType())),
                       DataSymbol)
 
 
@@ -177,10 +177,10 @@ def test_datasymbol_specialise_and_process_arguments():
                     is_constant=True, interface=ImportInterface(csym))
     assert sym6.is_constant
     assert sym6.is_import
-    # It is also permitted if the symbol is of UnknownType.
+    # It is also permitted if the symbol is of UnsupportedType.
     sym7 = Symbol("symbol7")
     sym7.specialise(DataSymbol,
-                    datatype=UnknownFortranType("integer :: symbol7 = 5"),
+                    datatype=UnsupportedFortranType("integer :: symbol7 = 5"),
                     is_constant=True)
     assert sym7.is_constant
     assert sym7.is_static
@@ -271,12 +271,12 @@ def test_datasymbol_initial_value_setter_invalid():
     error if an invalid value and/or datatype are given.'''
 
     # Test with invalid constant values
-    sym = DataSymbol('a', DeferredType())
+    sym = DataSymbol('a', UnresolvedType())
     with pytest.raises(ValueError) as error:
         sym.initial_value = 1.0
-    assert ("Error setting initial value for symbol 'a'. A DataSymbol with "
-            "an initial value must be a scalar or an array or of UnknownType "
-            "but found 'DeferredType'." in str(error.value))
+    assert ("Error setting initial value for symbol 'a'. A DataSymbol with an"
+            " initial value must be a scalar or an array or of UnsupportedType"
+            " but found 'UnresolvedType'." in str(error.value))
 
     # Test with invalid initial expressions
     ct_expr = Return()
@@ -384,7 +384,8 @@ def test_datasymbol_copy():
     of the original symbol.
 
     '''
-    array_type = ArrayType(REAL_SINGLE_TYPE, [1, 2])
+    nelem = DataSymbol("nelem", INTEGER_SINGLE_TYPE)
+    array_type = ArrayType(REAL_SINGLE_TYPE, [1, Reference(nelem)])
     symbol = DataSymbol("myname", array_type, initial_value=None,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
@@ -393,6 +394,8 @@ def test_datasymbol_copy():
     # Check the new symbol has the same properties as the original
     assert symbol.name == new_symbol.name
     assert symbol.datatype == new_symbol.datatype
+    assert symbol.shape[1].upper is not new_symbol.shape[1].upper
+    assert symbol.shape[1].upper.symbol is new_symbol.shape[1].upper.symbol
     assert symbol.shape == new_symbol.shape
     assert symbol.initial_value == new_symbol.initial_value
     assert symbol.is_constant == new_symbol.is_constant
@@ -422,13 +425,13 @@ def test_datasymbol_copy():
             ScalarType.Precision.UNDEFINED)
     assert isinstance(symbol.shape[1], ArrayType.ArrayBounds)
     assert isinstance(symbol.shape[1].lower, Literal)
-    assert isinstance(symbol.shape[1].upper, Literal)
     assert symbol.shape[1].lower.value == "1"
-    assert symbol.shape[1].upper.value == "2"
+    assert isinstance(symbol.shape[1].upper, Reference)
+    assert symbol.shape[1].upper.symbol is nelem
     assert (symbol.shape[1].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
     assert (symbol.shape[1].upper.datatype.precision ==
-            ScalarType.Precision.UNDEFINED)
+            ScalarType.Precision.SINGLE)
     assert symbol.initial_value is None
 
     # Now check initial_value
@@ -440,17 +443,25 @@ def test_datasymbol_copy():
             ScalarType.Intrinsic.INTEGER)
     assert (symbol.shape[0].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
-    assert isinstance(symbol.shape[1].upper, Literal)
-    assert symbol.shape[1].upper.value == "2"
+    assert isinstance(symbol.shape[1].upper, Reference)
+    assert symbol.shape[1].upper.symbol is nelem
     assert (symbol.shape[1].upper.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
     assert (symbol.shape[1].upper.datatype.precision ==
-            ScalarType.Precision.UNDEFINED)
+            ScalarType.Precision.SINGLE)
     assert symbol.initial_value is None
 
+    new_symbol.initial_value = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, Reference(nelem), Reference(nelem))
     new_new_symbol = new_symbol.copy()
-    assert new_symbol.initial_value == new_new_symbol.initial_value
+    assert isinstance(new_new_symbol.initial_value, BinaryOperation)
     assert new_symbol.initial_value is not new_new_symbol.initial_value
+    for child_idx in [0, 1]:
+        # References must be new.
+        assert (new_new_symbol.initial_value.children[child_idx] is not
+                new_symbol.initial_value.children[child_idx])
+        # Symbols referred to are unchanged.
+        assert new_new_symbol.initial_value.children[child_idx].symbol is nelem
 
 
 def test_datasymbol_copy_properties():
@@ -483,22 +494,22 @@ def test_datasymbol_copy_properties():
             symbol.datatype.precision)
 
 
-def test_datasymbol_resolve_deferred(monkeypatch):
-    ''' Test the datasymbol resolve_deferred method '''
+def test_datasymbol_resolve_type(monkeypatch):
+    ''' Test the datasymbol resolve_type method '''
     symbola = DataSymbol('a', INTEGER_SINGLE_TYPE)
-    new_sym = symbola.resolve_deferred()
-    # For a DataSymbol (unlike a Symbol), resolve_deferred should always
+    new_sym = symbola.resolve_type()
+    # For a DataSymbol (unlike a Symbol), resolve_type should always
     # return the object on which it was called.
     assert new_sym is symbola
     module = ContainerSymbol("dummy_module")
     symbolb = DataSymbol('b', visibility=Symbol.Visibility.PRIVATE,
-                         datatype=DeferredType(),
+                         datatype=UnresolvedType(),
                          interface=ImportInterface(module))
     # Monkeypatch the get_external_symbol() method so that it just returns
     # a new DataSymbol
     monkeypatch.setattr(symbolb, "get_external_symbol",
                         lambda: DataSymbol("b", INTEGER_SINGLE_TYPE))
-    new_sym = symbolb.resolve_deferred()
+    new_sym = symbolb.resolve_type()
     assert new_sym is symbolb
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
     assert new_sym.visibility == Symbol.Visibility.PRIVATE

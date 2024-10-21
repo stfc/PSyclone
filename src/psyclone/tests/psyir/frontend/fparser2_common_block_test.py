@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import CommonBlockInterface, \
-    UnknownFortranType
+    UnsupportedFortranType
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -51,7 +51,7 @@ def test_named_common_block():
     they reference have a CommonBlockInterface. '''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 
@@ -64,7 +64,7 @@ def test_named_common_block():
 
     # There is a name1 commonblock symbol
     commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnknownFortranType)
+    assert isinstance(commonblock.datatype, UnsupportedFortranType)
     assert commonblock.datatype.declaration == "COMMON /name1/ a, b, c"
 
     # The variables have been updated to a common block interface
@@ -93,7 +93,7 @@ def test_unnamed_commonblock():
     ''' Test that unnamed common blocks are handled correctly.'''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 
@@ -104,9 +104,9 @@ def test_unnamed_commonblock():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # There is an UnknownFortranType symbol containing the commonblock
+    # There is an UnsupportedFortranType symbol containing the commonblock
     commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnknownFortranType)
+    assert isinstance(commonblock.datatype, UnsupportedFortranType)
     assert commonblock.datatype.declaration == "COMMON // a, b, c"
 
     # The variables have been updated to a common block interface
@@ -121,7 +121,7 @@ def test_multiple_commonblocks_in_statement():
     are handled correctly.'''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 
@@ -133,12 +133,12 @@ def test_multiple_commonblocks_in_statement():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # There is a UnknownFortranType symbol containing each the commonblock
+    # There is a UnsupportedFortranType symbol containing each the commonblock
     commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnknownFortranType)
+    assert isinstance(commonblock.datatype, UnsupportedFortranType)
     assert commonblock.datatype.declaration == "COMMON /name1/ a, b /name2/ c"
     commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK_1")
-    assert isinstance(commonblock.datatype, UnknownFortranType)
+    assert isinstance(commonblock.datatype, UnsupportedFortranType)
     assert commonblock.datatype.declaration == "COMMON /name2/ d"
 
     # The variables have been updated to a common block interface
@@ -154,7 +154,7 @@ def test_named_commonblock_with_posterior_declaration():
     commonblock statement are handled correctly.'''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 
@@ -165,9 +165,9 @@ def test_named_commonblock_with_posterior_declaration():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # There is an UnknownFortranType symbol containing the commonblock
+    # There is an UnsupportedFortranType symbol containing the commonblock
     commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnknownFortranType)
+    assert isinstance(commonblock.datatype, UnsupportedFortranType)
     assert commonblock.datatype.declaration == "COMMON /name1/ a, b"
 
     # The variables have been updated to a common block interface
@@ -181,7 +181,7 @@ def test_undeclared_symbol():
     produce NotImplementedError.'''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     processor = Fparser2Reader()
 
     # This is also valid Fortran, but currently not supported
@@ -202,7 +202,7 @@ def test_commonblock_with_explicit_array_shape_symbol():
     produce NotImplementedError.'''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     processor = Fparser2Reader()
 
     # This is also valid Fortran, but currently not supported
@@ -224,7 +224,7 @@ def test_commonblock_with_explicit_init_symbol():
     initialisation produce NotImplementedError.'''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     processor = Fparser2Reader()
 
     # This is also invalid Fortran, but fparser2 doesn't notice.

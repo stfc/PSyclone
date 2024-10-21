@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2024, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -51,8 +51,8 @@ program operator_example
   integer(i_def)                      :: mesh_id = 1
   integer(i_def)                      :: element_order = 0
 
-  mapping = operator_type(function_space_collection%get_fs(mesh_id,element_order,W3), &
-                          function_space_collection%get_fs(mesh_id,element_order,W2))
+  ! Do not remove long lines, this is used to check psyclone line-breaking functionality
+  mapping = operator_type(function_space_collection%get_fs(mesh_id,element_order,W3), function_space_collection%get_fs(mesh_id,element_order,W2))
 
   call invoke(assemble_weak_derivative_w3_w2_kernel_type(mapping, coord, qr))
 

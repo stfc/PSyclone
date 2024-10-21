@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -84,7 +84,7 @@ def test_psyloop_init():
 
 def test_psyloop_invalid_type():
     ''' Tests assigning an invalid type to a PSyLoop object. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+    _, invoke = get_invoke("single_invoke.f90", "gocean", idx=0,
                            dist_mem=False)
     sched = invoke.schedule
     loop = sched.children[0].loop_body[0]

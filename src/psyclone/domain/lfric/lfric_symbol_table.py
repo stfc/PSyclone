@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -81,7 +81,7 @@ class LFRicSymbolTable(SymbolTable):
             mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
             LFRicSymbolTable._constants_mod = ContainerSymbol(mod_name)
 
-            api_config = Config.get().api_conf("dynamo0.3")
+            api_config = Config.get().api_conf("lfric")
             for precision in api_config.precision_map:
                 LFRicSymbolTable._precision_map[precision] = \
                     DataSymbol(precision, INTEGER_TYPE,
@@ -224,7 +224,7 @@ class LFRicSymbolTable(SymbolTable):
             table but is not imported from the correct container.
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
         if name not in api_config.precision_map.keys():
             raise ValueError(f"'{name}' is not a recognised LFRic precision.")
         sym = LFRicSymbolTable._precision_map[name]

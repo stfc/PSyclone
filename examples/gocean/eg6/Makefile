@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,5 +41,5 @@ ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 .PHONY: transform
 
 transform:
-	${PSYCLONE} -nodm -s ./backends_transform.py -api gocean1.0 alg.f90 \
+	${PSYCLONE} -nodm -s ./backends_transform.py -api gocean alg.f90 \
 		-oalg /dev/null -opsy /dev/null

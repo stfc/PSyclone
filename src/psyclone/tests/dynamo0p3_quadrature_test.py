@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,9 +45,8 @@ import pytest
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants, LFRicKern
-from psyclone.dynamo0p3 import DynKernMetadata, DynBasisFunctions, \
-    qr_basis_alloc_args
+from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernMetadata
+from psyclone.dynamo0p3 import DynBasisFunctions, qr_basis_alloc_args
 from psyclone.errors import InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import KernelCall, parse
@@ -57,15 +56,13 @@ from psyclone.tests.lfric_build import LFRicBuild
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
-API = "dynamo0.3"
+API = "lfric"
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
 
 
 def test_field_xyoz(tmpdir):
@@ -107,7 +104,7 @@ def test_field_xyoz(tmpdir):
         "      REAL(KIND=r_def), pointer :: weights_xy_qr(:) => null(), "
         "weights_z_qr(:) => null()\n"
         "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_f1\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
@@ -134,7 +131,7 @@ def test_field_xyoz(tmpdir):
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
@@ -206,22 +203,17 @@ def test_field_xyoz(tmpdir):
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f1_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
-        "        CALL testkern_qr_code(nlayers, f1_data, f2_data, "
+        "      DO cell = loop0_start, loop0_stop, 1\n"
+        "        CALL testkern_qr_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
@@ -274,7 +266,7 @@ def test_edge_qr(tmpdir, dist_mem):
         "      call qr%compute_function(diff_basis, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n" in gen_code)
 
-    assert ("call testkern_qr_edges_code(nlayers, f1_data, "
+    assert ("call testkern_qr_edges_code(nlayers_f1, f1_data, "
             "f2_data, m1_data, a, m2_data, istp, "
             "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, "
             "map_w2(:,cell), diff_basis_w2_qr, ndf_w3, undf_w3, "
@@ -316,7 +308,7 @@ def test_face_qr(tmpdir, dist_mem):
         "      INTEGER(KIND=i_def) dim_w1, diff_dim_w2, dim_w3, diff_dim_w3\n"
         "      REAL(KIND=r_def), pointer :: weights_xyz_qr(:,:) => null()\n"
         "      INTEGER(KIND=i_def) np_xyz_qr, nfaces_qr\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_f1\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
@@ -343,7 +335,7 @@ def test_face_qr(tmpdir, dist_mem):
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
         "      !\n")
     if dist_mem:
         init_output += ("      ! Create a mesh object\n"
@@ -418,19 +410,15 @@ def test_face_qr(tmpdir, dist_mem):
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f1_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL m1_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL m2_proxy%halo_exchange(depth=1)\n"
-            "      END IF\n"
-            "      !\n")
+            "      END IF\n")
     else:
         init_output2 += (
             "      loop0_stop = f1_proxy%vspace%get_ncell()\n"
@@ -439,9 +427,8 @@ def test_face_qr(tmpdir, dist_mem):
     assert init_output2 in generated_code
 
     compute_output = (
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
-        "        CALL testkern_qr_faces_code(nlayers, f1_data, f2_data, "
+        "      DO cell = loop0_start, loop0_stop, 1\n"
+        "        CALL testkern_qr_faces_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
@@ -514,7 +501,7 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
             "diff_dim_w3, ndf_w3, diff_basis_w3_qr_edge)\n" in gen_code)
     # Check that the kernel call itself is correct
     assert (
-        "CALL testkern_2qr_code(nlayers, f1_data, f2_data, "
+        "CALL testkern_2qr_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr_face, basis_w1_qr_edge, "
         "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr_face, "
@@ -531,9 +518,9 @@ def test_field_qr_deref(tmpdir):
     component of a derived type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.1_single_invoke_qr_deref.f90"),
-                           api="dynamo0.3")
+                           api="lfric")
     for dist_mem in [True, False]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory("lfric",
                          distributed_memory=dist_mem).create(invoke_info)
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -722,12 +709,12 @@ def test_lfrickern_setup(monkeypatch):
                         lambda me, mname, ktype, args: None)
     # Break the shape of the quadrature for this kernel
     monkeypatch.setattr(kern, "_eval_shapes", value=["gh_wrong_shape"])
-    # Rather than try and mock-up a DynKernMetadata object, it's easier
+    # Rather than try and mock-up a LFRicKernMetadata object, it's easier
     # to make one properly by parsing the kernel code.
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr_mod.F90"),
                       ignore_comments=False)
     name = "testkern_qr_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     # Finally, call the _setup() method
     with pytest.raises(InternalError) as excinfo:
         kern._setup(dkm, "my module", None, None)
@@ -787,7 +774,7 @@ def test_qr_basis_stub():
 
     '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
@@ -898,10 +885,10 @@ def test_qr_basis_stub():
 
 def test_stub_basis_wrong_shape(monkeypatch):
     ''' Check that stub generation for a kernel requiring basis functions
-    for quadrature raises the correct errors if the kernel meta-data is
+    for quadrature raises the correct errors if the kernel metadata is
     broken '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",
@@ -925,13 +912,13 @@ def test_stub_basis_wrong_shape(monkeypatch):
 
 def test_stub_dbasis_wrong_shape(monkeypatch):
     ''' Check that stub generation for a kernel requiring differential basis
-    functions for quadrature raises the correct errors if the kernel meta-data
+    functions for quadrature raises the correct errors if the kernel metadata
     is broken '''
-    # Change meta-data to specify differential basis functions
+    # Change metadata to specify differential basis functions
     diff_basis = BASIS.replace("gh_basis", "gh_diff_basis")
 
     ast = fpapi.parse(diff_basis, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",

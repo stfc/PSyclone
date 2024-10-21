@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2021-2023, Science and Technology Facilities Council.
+   Copyright (c) 2021-2024, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -42,11 +42,6 @@
     from psyclone.psyir.nodes import Loop
     from psyclone.psyir.tools import DependencyTools
     from psyclone.transformations import OMPLoopTrans
-
-    # Make sure we use nemo here, otherwise depending on order the
-    # wrong API might be set.
-    from psyclone.configuration import Config
-    Config.get().api = "nemo"
 
     code = '''subroutine sub()
     integer :: i, j, k, a(11, 11)
@@ -666,4 +661,4 @@ can be parallelised:
 .. testoutput::
     :hide:
 
-    Error: The write access to 'a(i,i)' and to 'a(i + 1,i + 1)' are dependent and cannot be parallelised.
+    Error: The write access to 'a(i,i)' and the read access to 'a(i + 1,i + 1)' are dependent and cannot be parallelised. Variable: 'a'.

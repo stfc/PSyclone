@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,8 +60,7 @@ def test_no_file():
 
 
 def test_line_length_too_long():
-    '''Check that a file containing a long comment
-    raises a ParseError.
+    '''Check that a file containing a long comment raises a ParseError.
 
     '''
     with tempfile.NamedTemporaryFile(mode='w') as tmp_file:
@@ -71,8 +70,9 @@ def test_line_length_too_long():
         tmp_file.flush()
         with pytest.raises(ParseError) as excinfo:
             check_line_length(tmp_file.name)
-    expected = 'file does not conform to the specified 132 line length limit'
-    assert expected in str(excinfo.value)
+        expected = (f"File '{tmp_file.name}' does not conform to the "
+                    "specified 132 line-length limit")
+        assert expected in str(excinfo.value)
 
 
 def test_line_length_unicode():

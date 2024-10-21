@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ An example of PSyclone transformation script to extract a list of Nodes from
 
 This script can be applied via the '-s' option when running PSyclone:
 
-$ psyclone -nodm -s ./extract_nodes.py \
+$ psyclone -api lfric -nodm -s ./extract_nodes.py \
     ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 
 Please note that distributed memory is not supported for code extraction

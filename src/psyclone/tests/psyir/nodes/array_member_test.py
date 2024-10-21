@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ def test_am_is_lower_upper_bound():
         [one.copy(), nodes.Literal("2", symbols.INTEGER_TYPE)])
     assert amem1.is_lower_bound(0) is False
     assert amem1.is_upper_bound(0) is False
-    grid_type = symbols.DataTypeSymbol("grid_type", symbols.DeferredType())
+    grid_type = symbols.DataTypeSymbol("grid_type", symbols.UnresolvedType())
     sym = symbols.DataSymbol("grid_var", grid_type)
     ref = nodes.StructureReference.create(sym, ["data"])
     # Start and stop for the range are binary operators but not the right ones
@@ -154,7 +154,7 @@ def test_am_same_array():
         nodes.Reference(symbols.DataSymbol("fake",
                                            symbols.INTEGER_TYPE)))
     assert result is False
-    grid_type = symbols.DataTypeSymbol("grid_type", symbols.DeferredType())
+    grid_type = symbols.DataTypeSymbol("grid_type", symbols.UnresolvedType())
     sym1 = symbols.DataSymbol("grid_var", grid_type)
     sym2 = symbols.DataSymbol("grid_var2", grid_type)
     ref1 = nodes.StructureReference.create(sym1, ["data"])
@@ -167,7 +167,7 @@ def test_am_same_array():
     ref1 = nodes.StructureReference.create(sym1, [("data", [one.copy()]),
                                                   ("xobs", [one.copy()])])
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()])])
-    assert ref1.member.is_same_array(ref2) is True
+    assert ref1.member.is_same_array(ref2.member) is True
     assert ref2.member.is_same_array(ref1) is False
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()]),
                                                   ("yobs", [one.copy()])])
@@ -207,7 +207,7 @@ def test_am_same_array():
     # Reference to an element of the same array
     ref1 = nodes.StructureReference.create(sym1, ["data"])
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()])])
-    assert ref2.member.is_same_array(ref1) is True
+    assert ref2.member.is_same_array(ref1.member) is True
     # Reference to an ArrayOfStructures
     array_sym = symbols.DataSymbol("grids",
                                    symbols.ArrayType(grid_type, [two.copy()]))
@@ -222,4 +222,4 @@ def test_am_same_array():
                                                   ("c", [one.copy()])])
     amem = ref2.member.member
     assert amem.name == "b"
-    assert amem.is_same_array(ref1)
+    assert amem.is_same_array(ref1.member.member)

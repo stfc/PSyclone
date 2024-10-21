@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,26 +44,8 @@ from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
 
 
-@pytest.fixture(scope='function', autouse=True)
-def clear_module_manager_instance():
-    ''' The tests in this module all assume that there is no pre-existing
-    ModuleManager object, so this fixture ensures that the module manager
-    instance is deleted before and after each test function. The latter
-    makes sure that any other test executed next will automatically reload
-    the default ModuleManager file.
-    '''
-
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
-
-    # Now execute all tests
-    yield
-
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
-
-
 # ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_manager_instance():
     '''Tests the singleton functionality.'''
     mod_man1 = ModuleManager.get()
@@ -78,19 +60,7 @@ def test_mod_manager_instance():
 
 
 # ----------------------------------------------------------------------------
-def test_mod_manager_get_modules_in_file():
-    '''Tests that file names are mapped as expected to the module they
-    contain. '''
-    mod_man = ModuleManager.get()
-    assert mod_man.get_modules_in_file("a_mod.f90") == ["a_mod"]
-    assert mod_man.get_modules_in_file("b_mod.F90") == ["b_mod"]
-    assert mod_man.get_modules_in_file("c_mod.x90") == ["c_mod"]
-    assert mod_man.get_modules_in_file("d_mod.X90") == ["d_mod"]
-    assert mod_man.get_modules_in_file("d.f90") == []
-
-
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_directory_reading():
     '''Tests that directories are read as expected. We use the standard
@@ -132,7 +102,7 @@ def test_mod_manager_directory_reading():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_precedence_preprocessed():
     '''Make sure that a .f90 file is preferred over a .F90 file. Note that
@@ -153,7 +123,7 @@ def test_mod_manager_precedence_preprocessed():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_add_files_from_dir():
     '''Tests that directories are read as expected. We use the standard
@@ -164,24 +134,34 @@ def test_mod_manager_add_files_from_dir():
     tmp/d2/d_mod.X90
     tmp/d2/d4/e_mod.F90
     tmp/d2/d4/f_mod.ignore
-    '''
 
+    '''
     mod_man = ModuleManager.get()
 
     # Now check adding files:
-    assert mod_man._mod_2_filename == {}
+    assert mod_man._modules == {}
 
     mod_man._add_all_files_from_dir("d1")
-    assert set(mod_man._mod_2_filename.keys()) == {"a_mod"}
+    assert set(mod_man._visited_files.keys()) == {"d1/a_mod.f90"}
     mod_man._add_all_files_from_dir("d1/d3")
-    assert set(mod_man._mod_2_filename.keys()) == {"a_mod", "b_mod", "c_mod"}
+    assert set(mod_man._visited_files.keys()) == {"d1/a_mod.f90",
+                                                  "d1/d3/b_mod.F90",
+                                                  "d1/d3/c_mod.x90"}
     mod_man._add_all_files_from_dir("d2/d4")
-    assert set(mod_man._mod_2_filename.keys()) == {"a_mod", "b_mod",
-                                                   "c_mod", "e_mod"}
+    assert set(mod_man._visited_files.keys()) == {"d1/a_mod.f90",
+                                                  "d1/d3/b_mod.F90",
+                                                  "d1/d3/c_mod.x90",
+                                                  "d2/d4/e_mod.F90"}
+    # Repeating shouldn't add anything.
+    mod_man._add_all_files_from_dir("d2/d4")
+    assert set(mod_man._visited_files.keys()) == {"d1/a_mod.f90",
+                                                  "d1/d3/b_mod.F90",
+                                                  "d1/d3/c_mod.x90",
+                                                  "d2/d4/e_mod.F90"}
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_get_module_info():
     '''Tests that module information is returned as expected. We use the
@@ -201,35 +181,40 @@ def test_mod_manager_get_module_info():
                                                      "d2/d4"]
 
     # Nothing should be cached yet.
-    assert len(mod_man._mod_2_filename) == 0
+    assert len(mod_man._visited_files) == 0
 
     # First find a_mod, which will parse the first directory
     mod_info = mod_man.get_module_info("a_mod")
     assert mod_info.filename == "d1/a_mod.f90"
     assert list(mod_man._remaining_search_paths) == ["d1/d3", "d2", "d2/d4"]
-    assert set(mod_man._mod_2_filename.keys()) == set(["a_mod"])
+    assert set(mod_man._visited_files.keys()) == set(["d1/a_mod.f90"])
 
     # This should be cached now, so no more change:
     mod_info_cached = mod_man.get_module_info("a_mod")
     assert mod_info == mod_info_cached
     assert list(mod_man._remaining_search_paths) == ["d1/d3", "d2", "d2/d4"]
-    assert set(mod_man._mod_2_filename.keys()) == set(["a_mod"])
+    assert set(mod_man._visited_files.keys()) == set(["d1/a_mod.f90"])
 
-    # Then parse the second file, it should cache two modules (b and c):
+    # Then look for a second module
     mod_info = mod_man.get_module_info("b_mod")
     assert mod_info.filename == "d1/d3/b_mod.F90"
     assert list(mod_man._remaining_search_paths) == ["d2", "d2/d4"]
-    assert set(mod_man._mod_2_filename.keys()) == set(["a_mod", "b_mod",
-                                                      "c_mod"])
+    assert set(mod_man._modules.keys()) == set(["a_mod", "b_mod"])
 
-    # Then parse the e_mod, which should remove two paths from
+    # Then locate the e_mod, which should remove two paths from
     # the search path:
     mod_info = mod_man.get_module_info("e_mod")
     assert mod_info.filename == "d2/d4/e_mod.F90"
     assert list(mod_man._remaining_search_paths) == []
-    assert set(mod_man._mod_2_filename.keys()) == set(["a_mod", "b_mod",
-                                                       "c_mod", "d_mod",
-                                                       "e_mod"])
+    assert set(mod_man._visited_files.keys()) == set(["d1/a_mod.f90",
+                                                      "d1/d3/b_mod.F90",
+                                                      "d1/d3/c_mod.x90",
+                                                      "d2/d_mod.X90",
+                                                      "d2/d4/e_mod.F90",
+                                                      "d2/g_mod.F90",
+                                                      "d2/error_mod.F90"])
+    assert set(mod_man._modules.keys()) == set(["a_mod", "b_mod",
+                                                "e_mod"])
 
     with pytest.raises(FileNotFoundError) as err:
         mod_man.get_module_info("does_not_exist")
@@ -240,7 +225,7 @@ def test_mod_manager_get_module_info():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_get_all_dependencies_recursively(capsys):
     '''Tests that dependencies are correctly collected recursively. We use
@@ -271,30 +256,53 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
     out, _ = capsys.readouterr()
     assert "Could not find module 'netcdf'" in out
 
+    all_c = mod_man.get_all_dependencies_recursively({"c_mod"})
+    assert "a_mod" in all_c
+    assert "b_mod" in all_c
+    assert "c_mod" in all_c
+
+    # Instruct the module manager to ignore a_mod, which means
+    # it should only have b_mod and c_mod in its dependencies:
+    mod_man.add_ignore_module("a_mod")
+    all_c = mod_man.get_all_dependencies_recursively({"c_mod"})
+    assert "a_mod" not in all_c
+    assert "b_mod" in all_c
+    assert "c_mod" in all_c
+
 
 # ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_man_sort_modules(capsys):
     '''Tests that sorting of modules works as expected.'''
 
+    mod_man = ModuleManager.get()
     # Empty input:
-    assert ModuleManager.sort_modules({}) == []
+    assert mod_man.sort_modules({}) == []
 
     # A depends on B:
     deps = {"a": {"b"}, "b": set()}
-    assert ModuleManager.sort_modules(deps) == ["b", "a"]
+    assert mod_man.sort_modules(deps) == ["b", "a"]
 
     deps = {"a": {"b", "c"}, "b": set(), "c": {"b"}}
-    assert ModuleManager.sort_modules(deps) == ["b", "c", "a"]
+    assert mod_man.sort_modules(deps) == ["b", "c", "a"]
 
     deps = {"a": {"b", "c"}, "b": set(), "c": {"netcdf", "b"}}
-    deps_sorted = ModuleManager.sort_modules(deps)
+    deps_sorted = mod_man.sort_modules(deps)
     assert deps_sorted == ["b", "c", "a"]
     out, _ = capsys.readouterr()
-    assert ("Module 'c' contains a dependency to 'netcdf', for which we "
-            "have no dependencies." in out)
+    assert "Cannot find module `netcdf` which is used by module 'c'." in out
+
+    # Ignore the netcdf dependencies:
+    deps = {"a": {"b", "c"}, "b": set(), "c": {"netcdf", "b"}}
+    mod_man.add_ignore_module("netcdf")
+    deps_sorted = mod_man.sort_modules(deps)
+    assert deps_sorted == ["b", "c", "a"]
+    out, _ = capsys.readouterr()
+    # There should be no output now:
+    assert out == ""
 
     deps = {"a": {"b", "c"}, "b": {"c"}, "c": {"b"}}
-    deps_sorted = ModuleManager.sort_modules(deps)
+    deps_sorted = mod_man.sort_modules(deps)
     out, _ = capsys.readouterr()
     # The dependencies for a can be given in two orders (b,c or c,b),
     # since it is an unsorted set. Only test for the rest of the output
@@ -308,3 +316,31 @@ def test_mod_man_sort_modules(capsys):
     # order (unsorted set)
     assert set(deps_sorted[:2]) == {"b", "c"}
     assert deps_sorted[2:] == ["a"]
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_mod_manager_add_ignore_modules():
+    '''Tests that ignoring modules work. We use the standard
+    directory and file setup (see mod_man_test_setup_directories).
+    tmp/d1/a_mod.f90
+    tmp/d1/d3/b_mod.F90
+    tmp/d1/d3/c_mod.x90
+    tmp/d2/d_mod.X90
+    tmp/d2/d4/e_mod.F90
+    tmp/d2/d4/f_mod.ignore
+
+    '''
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d1")
+
+    # First finds a_mod, which will parse the first directory
+    mod_man.add_ignore_module("a_mod")
+    mod_info = mod_man.get_module_info("a_mod")
+    assert mod_info is None
+    assert "a_mod" in mod_man.ignores()
+
+    # Just in case verify that other modules are not affected
+    mod_info = mod_man.get_module_info("b_mod")
+    assert mod_info.filename == "d1/d3/b_mod.F90"

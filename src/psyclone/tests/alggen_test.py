@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 #
 # All rights reserved.
 #
@@ -51,12 +51,10 @@ from psyclone.generator import generate, GenerationError
 from psyclone.errors import InternalError
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -66,7 +64,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_single_function_invoke():
     ''' single kernel specified in an invoke call'''
     alg, _ = generate(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                      api="dynamo0.3")
+                      api="lfric")
     gen = str(alg).lower()
     # TODO issue #1618 Split test into two as while there are
     # different implementations we may or may not output a space
@@ -83,7 +81,7 @@ def test_single_function_named_invoke():
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
                      "test_files", "dynamo0p3",
                      "1.0.1_single_named_invoke.f90"),
-        api="dynamo0.3")
+        api="lfric")
     gen = str(alg).lower()
     # TODO issue #1618 Split test into two as while there are
     # different implementations we may or may not output a space
@@ -100,7 +98,7 @@ def test_invoke_named_invoke():
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
                      "test_files", "dynamo0p3",
                      "1.0.5_invoke_named_invoke.f90"),
-        api="dynamo0.3")
+        api="lfric")
     gen = str(alg).lower()
     # TODO issue #1618 Split test into two as while there are
     # different implementations we may or may not output a space
@@ -117,7 +115,7 @@ def test_multi_kernel_named_invoke():
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
                      "test_files", "dynamo0p3",
                      "4.9_named_multikernel_invokes.f90"),
-        api="dynamo0.3")
+        api="lfric")
     gen = str(alg).lower()
     # TODO issue #1618 Split test into two as while there are
     # different implementations we may or may not output a space
@@ -137,7 +135,7 @@ def test_multi_position_named_invoke():
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
                      "test_files", "dynamo0p3",
                      "4.10_multi_position_named_invokes.f90"),
-        api="dynamo0.3")
+        api="lfric")
     gen = str(alg).lower()
 
     # TODO issue #1618 Split test into two as while there are
@@ -160,7 +158,7 @@ def test_single_function_invoke_qr():
     quadrature rule'''
     alg, _ = generate(os.path.join(BASE_PATH,
                                    "1.1.0_single_invoke_xyoz_qr.f90"),
-                      api="dynamo0.3")
+                      api="lfric")
     gen = str(alg).lower()
     assert "use testkern_qr_mod" not in gen
     # TODO issue #1618 Split test into two as while there are
@@ -175,7 +173,7 @@ def test_single_function_invoke_qr():
 def test_multi_function_invoke():
     ''' two functions specified in an invoke call'''
     alg, _ = generate(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
-                      api="dynamo0.3")
+                      api="lfric")
     gen = str(alg).lower()
     # TODO issue #1618 Split test into two as while there are
     # different implementations we may or may not output a space
@@ -188,7 +186,7 @@ def test_multi_function_invoke():
 def test_single_function_multi_invokes():
     ''' three invokes, each containing a single function '''
     alg, _ = generate(os.path.join(BASE_PATH, "3_multi_invokes.f90"),
-                      api="dynamo0.3")
+                      api="lfric")
     gen = str(alg).lower()
     # Use statements for kernels should have been removed.
     assert "use testkern_mod" not in gen
@@ -213,7 +211,7 @@ def test_named_multi_invokes():
     alg, _ = generate(
         os.path.join(BASE_PATH,
                      "3.2_multi_functions_multi_named_invokes.f90"),
-        api="dynamo0.3")
+        api="lfric")
     gen = str(alg).lower()
     # Use statements for kernels should have been removed.
     assert "use testkern_mod" not in gen
@@ -233,7 +231,7 @@ def test_multi_function_multi_invokes():
     ''' two invokes, each containing multiple functions '''
     alg, _ = generate(
         os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
-        api="dynamo0.3")
+        api="lfric")
     gen = str(alg).lower()
     # TODO issue #1618 Split test into two as while there are
     # different implementations we may or may not output a space
@@ -249,7 +247,7 @@ def test_multi_function_invoke_qr():
     '''three functions specified in an invoke call, two of which which
     requires a quadrature rule'''
     alg, _ = generate(os.path.join(
-        BASE_PATH, "1.3_multi_invoke_qr.f90"), api="dynamo0.3")
+        BASE_PATH, "1.3_multi_invoke_qr.f90"), api="lfric")
     gen = str(alg).lower()
     # Use statements for kernels should have been removed.
     assert "use testkern_qr_mod" not in gen
@@ -266,7 +264,7 @@ def test_multi_function_invoke_qr():
 def test_invoke_argnames():
     ''' invoke call arguments which are arrays '''
     alg, _ = generate(os.path.join(
-        BASE_PATH, "5_alg_field_array.f90"), api="dynamo0.3")
+        BASE_PATH, "5_alg_field_array.f90"), api="lfric")
     gen = str(alg).lower()
     # TODO issue #1618 Split test into two as while there are
     # different implementations we may or may not output a space
@@ -287,7 +285,7 @@ def test_multiple_qr_per_invoke():
     ''' Test that we handle an Invoke containing multiple kernel calls,
     each requiring quadrature. '''
     alg, _ = generate(os.path.join(
-        BASE_PATH, "6_multiple_QR_per_invoke.f90"), api="dynamo0.3")
+        BASE_PATH, "6_multiple_QR_per_invoke.f90"), api="lfric")
     gen = str(alg).lower()
     # TODO issue #1618 Split test into two as while there are
     # different implementations we may or may not output a space
@@ -302,7 +300,7 @@ def test_qr_argnames():
     ''' Check that we produce correct Algorithm code when the invoke passes
     qr arguments that are array elements. '''
     alg, _ = generate(os.path.join(BASE_PATH, "7_QR_field_array.f90"),
-                      api="dynamo0.3")
+                      api="lfric")
     gen = str(alg).lower()
     # TODO issue #1618 Split test into two as while there are
     # different implementations we may or may not output a space
@@ -325,7 +323,7 @@ def test_deref_derived_type_args():
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
                      "test_files", "dynamo0p3",
                      "1.6.2_single_invoke_1_int_from_derived_type.f90"),
-        api="dynamo0.3")
+        api="lfric")
     gen = str(alg).lower()
     # TODO issue #1618 different implementations we may or may not
     # output a space before and after a "%"
@@ -345,7 +343,7 @@ def test_multi_deref_derived_type_args():
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
                      "test_files", "dynamo0p3",
                      "1.6.3_single_invoke_multiple_derived_types.f90"),
-        api="dynamo0.3")
+        api="lfric")
     gen = str(alg).lower()
     # TODO issue #1618 different implementations we may or may not
     # output a space before and after a "%"
@@ -361,7 +359,7 @@ def test_multi_deref_derived_type_args():
 def test_single_stencil():
     ''' test extent value is passed correctly from the algorithm layer '''
     path = os.path.join(BASE_PATH, "19.1_single_stencil.f90")
-    alg, _ = generate(path, api="dynamo0.3")
+    alg, _ = generate(path, api="lfric")
     output = str(alg).lower()
     assert ("call invoke_0_testkern_stencil_type(f1, f2, f3, f4, "
             "f2_extent)" in output)
@@ -372,10 +370,11 @@ def test_single_stencil_broken():
     '''
     path = os.path.join(BASE_PATH, "19.2_single_stencil_broken.f90")
     with pytest.raises(GenerationError) as excinfo:
-        _, _ = generate(path, api="dynamo0.3")
-    # TODO issue #1618 different error messages for the different versions.
-    assert ("expected '5' arguments in the algorithm layer but found '4'"
-            in str(excinfo.value) or "The invoke kernel functor "
+        _, _ = generate(path, api="lfric")
+    assert ("expected '5' arguments for the call to kernel "
+            "'testkern_stencil_type' from invoke "
+            "'invoke_0_testkern_stencil_type' in the algorithm layer but "
+            "found '4'" in str(excinfo.value) or "The invoke kernel functor "
             "'testkern_stencil_type' has 4 arguments, but the kernel "
             "metadata expects there to be 5 arguments." in str(excinfo.value))
 
@@ -384,7 +383,7 @@ def test_single_stencil_xory1d():
     '''test extent and dimension values are passed correctly from the
     algorithm layer when xory1d is specified'''
     path = os.path.join(BASE_PATH, "19.3_single_stencil_xory1d.f90")
-    alg, _ = generate(path, api="dynamo0.3")
+    alg, _ = generate(path, api="lfric")
     output = str(alg).lower()
     assert ("call invoke_0_testkern_stencil_xory1d_type(f1, f2, "
             "f3, f4, f2_extent, f2_direction)") in output
@@ -393,7 +392,7 @@ def test_single_stencil_xory1d():
 def test_single_stencil_literal():
     ''' test extent value is passed correctly from the algorithm layer '''
     path = os.path.join(BASE_PATH, "19.4_single_stencil_literal.f90")
-    alg, _ = generate(path, api="dynamo0.3")
+    alg, _ = generate(path, api="lfric")
     output = str(alg).lower()
     assert ("call invoke_0_testkern_stencil_type(f1, f2, f3, f4)"
             in output)
@@ -404,7 +403,7 @@ def test_single_stencil_xory1d_literal():
     x_direction or y_direction'''
     path = os.path.join(
         BASE_PATH, "19.5_single_stencil_xory1d_literal.f90")
-    alg, _ = generate(path, api="dynamo0.3")
+    alg, _ = generate(path, api="lfric")
     output = str(alg).lower()
     assert ("call invoke_0_testkern_stencil_xory1d_type(f1, f2, "
             "f3, f4)") in output
@@ -413,7 +412,7 @@ def test_single_stencil_xory1d_literal():
 def test_multiple_stencils():
     '''more than one stencil in a kernel'''
     path = os.path.join(BASE_PATH, "19.7_multiple_stencils.f90")
-    alg, _ = generate(path, api="dynamo0.3")
+    alg, _ = generate(path, api="lfric")
     output = str(alg).lower()
     assert ("call invoke_0_testkern_stencil_multi_type(f1, f2, "
             "f3, f4, f2_extent, f3_extent, f3_direction)") in output
@@ -423,7 +422,7 @@ def test_multiple_stencil_same_name_direction():
     ''' more than one stencil in a kernel with the same name for direction
     '''
     path = os.path.join(BASE_PATH, "19.9_multiple_stencils_same_name.f90")
-    alg, _ = generate(path, api="dynamo0.3")
+    alg, _ = generate(path, api="lfric")
     output = str(alg).lower()
     assert ("call invoke_0_testkern_stencil_multi_2_type(f1, f2, "
             "f3, f4, extent, direction)") in output
@@ -432,7 +431,7 @@ def test_multiple_stencil_same_name_direction():
 def test_multiple_kernels_stencils():
     '''more than one kernel with stencils'''
     path = os.path.join(BASE_PATH, "19.10_multiple_kernels_stencils.f90")
-    alg, _ = generate(path, api="dynamo0.3")
+    alg, _ = generate(path, api="lfric")
     output = str(alg).lower()
     # TODO issue #1618 Split test into two as while there are
     # different implementations we may or may not output a space
@@ -448,7 +447,7 @@ def test_multiple_stencil_same_name_case():
     case'''
     path = os.path.join(
         BASE_PATH, "19.11_multiple_stencils_mixed_case.f90")
-    alg, _ = generate(path, api="dynamo0.3")
+    alg, _ = generate(path, api="lfric")
     output = str(alg).lower()
     assert ("call invoke_0_testkern_stencil_multi_2_type(f1, f2, "
             "f3, f4, extent, direction)") in output
@@ -459,7 +458,7 @@ def test_single_stencil_xory1d_scalar():
     argument'''
     path = os.path.join(BASE_PATH, "19.6_single_stencil_xory1d_value.f90")
     with pytest.raises(GenerationError) as excinfo:
-        _, _ = generate(path, api="dynamo0.3")
+        _, _ = generate(path, api="lfric")
     assert ("literal is not a valid value for a stencil direction"
             in str(excinfo.value))
 
@@ -467,7 +466,7 @@ def test_single_stencil_xory1d_scalar():
 def test_multiple_stencil_same_name():
     '''more than one stencil in a kernel with the same name for extent'''
     path = os.path.join(BASE_PATH, "19.8_multiple_stencils_same_name.f90")
-    alg, _ = generate(path, api="dynamo0.3")
+    alg, _ = generate(path, api="lfric")
     output = str(alg).lower()
     assert ("call invoke_0_testkern_stencil_multi_type(f1, f2, "
             "f3, f4, extent, f3_direction)") in output

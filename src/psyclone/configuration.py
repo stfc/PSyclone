@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2023, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,9 @@ _FILE_NAME = "psyclone.cfg"
 #          applied and only one version of the transformed kernel is created.
 VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
+LFRIC_API_NAMES = ["lfric", "dynamo0.3"]
+GOCEAN_API_NAMES = ["gocean", "gocean1.0"]
+
 
 # pylint: disable=too-many-lines
 class ConfigurationError(PSycloneError):
@@ -99,14 +102,12 @@ class Config:
     _HAS_CONFIG_BEEN_INITIALISED = False
 
     # List of supported API by PSyclone
-    _supported_api_list = ["dynamo0.3", "gocean1.0", "nemo"]
+    _supported_api_list = LFRIC_API_NAMES + GOCEAN_API_NAMES
+    # List for printing purposes (remove duplicates and use prefered names)
+    _curated_api_list = [LFRIC_API_NAMES[0], GOCEAN_API_NAMES[0]]
 
     # List of supported stub API by PSyclone
-    _supported_stub_api_list = ["dynamo0.3"]
-
-    # The default API, i.e. the one to be used if neither a command line
-    # option is specified nor is the API in the config file used.
-    _default_api = "dynamo0.3"
+    _supported_stub_api_list = LFRIC_API_NAMES
 
     # The default scheme to use when (re)naming transformed kernels.
     # By default we support multiple, different versions of any given
@@ -172,8 +173,9 @@ class Config:
         and stub APIs, it does not load a config file. The Config instance
         is a singleton, and as such will test that no instance already exists
         and raise an exception otherwise.
-        :raises GenerationError: If a singleton instance of Config already \
-                exists.
+
+        :raises ConfigurationError: If a singleton instance of Config already
+                                    exists.
         '''
 
         if Config._instance is not None:
@@ -191,12 +193,8 @@ class Config:
         # The name (including path) of the config file read.
         self._config_file = None
 
-        # The API selected by the user - either on the command line,
-        # or in the config file (or the default if neither).
-        self._api = None
-
-        # The default stub API to use.
-        self._default_stub_api = None
+        # The API selected by the user
+        self._api = ""
 
         # True if distributed memory code should be created.
         self._distributed_mem = None
@@ -223,6 +221,11 @@ class Config:
         # Number of OpenCL devices per node
         self._ocl_devices_per_node = 1
 
+        # By default, a PSyIR backend performs validation checks as it
+        # traverses the tree. Setting this option to False disables those
+        # checks which can be useful in the case of unimplemented features.
+        self._backend_checks_enabled = True
+
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
         '''Loads a configuration file.
@@ -243,9 +246,12 @@ class Config:
             # Search for the config file in various default locations
             self._config_file = Config.find_file()
         # Add a getlist method to the ConfigParser instance using the
-        # converters argument
+        # converters argument. The lambda functions also handles the
+        # case of an empty specification ('xx = ''), returning an
+        # empty list instead of a list containing the empty string:
         self._config = ConfigParser(
-            converters={'list': lambda x: [i.strip() for i in x.split(',')]})
+            converters={'list': lambda x: [] if not x else
+                                          [i.strip() for i in x.split(',')]})
         try:
             self._config.read(self._config_file)
         # Check for missing section headers and general parsing errors
@@ -278,40 +284,6 @@ class Config:
                 f"Error while parsing DISTRIBUTED_MEMORY: {err}",
                 config=self) from err
 
-        # API for PSyclone
-        if "DEFAULTAPI" in self._config["DEFAULT"]:
-            self._api = self._config['DEFAULT']['DEFAULTAPI']
-        else:
-            self._api = Config._default_api
-            # Test if we have exactly one section (besides DEFAULT).
-            # If so, make this section the API (otherwise stick with
-            # the default API)
-            if len(self._config) == 2:
-                for section in self._config:
-                    self._api = section.lower()
-                    if self._api != "default":
-                        break
-
-        # Sanity check
-        if self._api not in Config._supported_api_list:
-            raise ConfigurationError(
-                f"The API ({self._api}) is not in the list of supported "
-                f"APIs ({Config._supported_api_list}).", config=self)
-
-        # Default API for stub-generator
-        if 'defaultstubapi' not in self._config['DEFAULT']:
-            # Use the default API if no default is specified for stub API
-            self._default_stub_api = Config._default_api
-        else:
-            self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
-
-        # Sanity check for defaultstubapi:
-        if self._default_stub_api not in Config._supported_stub_api_list:
-            raise ConfigurationError(
-                f"The default stub API ({self._default_stub_api}) is not in "
-                f"the list of supported stub APIs ("
-                f"{Config._supported_stub_api_list}).", config=self)
-
         try:
             self._reproducible_reductions = self._config['DEFAULT'].getboolean(
                 'REPRODUCIBLE_REDUCTIONS')
@@ -338,9 +310,7 @@ class Config:
         # Read the valid PSyData class prefixes. If the keyword does
         # not exist then return an empty list.
         self._valid_psy_data_prefixes = \
-            self._config["DEFAULT"].getlist("VALID_PSY_DATA_PREFIXES")
-        if self._valid_psy_data_prefixes is None:
-            self._valid_psy_data_prefixes = []
+            self._config["DEFAULT"].getlist("VALID_PSY_DATA_PREFIXES", [])
         try:
             self._ocl_devices_per_node = self._config['DEFAULT'].getint(
                 'OCL_DEVICES_PER_NODE')
@@ -358,26 +328,46 @@ class Config:
                     f"prefix must be valid for use as the start of a Fortran "
                     f"variable name.", config=self)
 
+        # Whether validation is performed in the PSyIR backends.
+        if 'BACKEND_CHECKS_ENABLED' in self._config['DEFAULT']:
+            try:
+                self._backend_checks_enabled = (
+                    self._config['DEFAULT'].getboolean(
+                        'BACKEND_CHECKS_ENABLED'))
+            except ValueError as err:
+                raise ConfigurationError(
+                    f"Error while parsing BACKEND_CHECKS_ENABLED: {err}",
+                    config=self) from err
+
         # Now we deal with the API-specific sections of the config file. We
         # create a dictionary to hold the API-specific Config objects.
         self._api_conf = {}
         for api in Config._supported_api_list:
             if api in self._config:
-                if api == "dynamo0.3":
-                    self._api_conf[api] = LFRicConfig(self, self._config[api])
-                elif api == "gocean1.0":
-                    self._api_conf[api] = GOceanConfig(self, self._config[api])
-                elif api == "nemo":
-                    self._api_conf[api] = NemoConfig(self, self._config[api])
+                if api in LFRIC_API_NAMES:
+                    key = LFRIC_API_NAMES[0]  # Use the first name internally
+                    self._api_conf[key] = LFRicConfig(self, self._config[api])
+                elif api in GOCEAN_API_NAMES:
+                    key = GOCEAN_API_NAMES[0]  # Use the first name internally
+                    self._api_conf[key] = GOceanConfig(self, self._config[api])
                 else:
                     raise NotImplementedError(
-                        f"Configuration file contains a {api} section but no "
-                        f"Config sub-class has been implemented for this API")
+                        f"Configuration file '{self._config_file}' contains a "
+                        f"'{api}' section but no Config sub-class has "
+                        f"been implemented for this API")
 
         # The scheme to use when re-naming transformed kernels.
         # By default we ensure that each transformed kernel is given a
         # unique name (within the specified kernel-output directory).
         self._kernel_naming = Config._default_kernel_naming
+
+        ignore_modules = self._config['DEFAULT'].getlist("IGNORE_MODULES", [])
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.parse import ModuleManager
+        mod_manager = ModuleManager.get()
+        for module_name in ignore_modules:
+            mod_manager.add_ignore_module(module_name)
 
         # Set the flag that the config file has been loaded now.
         Config._HAS_CONFIG_BEEN_INITIALISED = True
@@ -398,9 +388,8 @@ class Config:
         :raises ConfigurationError: if the config file did not contain a \
                                     section for the requested API.
         '''
-
         if not api:
-            return self._api_conf[self._api]
+            api = self._api
 
         if api not in self.supported_apis:
             raise ConfigurationError(
@@ -496,16 +485,6 @@ class Config:
         self._distributed_mem = dist_mem
 
     @property
-    def default_api(self):
-        '''
-        Getter for the default API used by PSyclone.
-
-        :returns: default PSyclone API
-        :rtype: str
-        '''
-        return self._default_api
-
-    @property
     def api(self):
         '''Getter for the API selected by the user.
 
@@ -522,7 +501,7 @@ class Config:
 
         :raises ValueError if api is not a supported API.
         '''
-        if api not in self._supported_api_list:
+        if api not in self._supported_api_list + [""]:
             raise ValueError(f"'{api}' is not a valid API, it must be one "
                              f"of {Config._supported_api_list}'.")
         self._api = api
@@ -538,14 +517,37 @@ class Config:
         return Config._supported_api_list
 
     @property
-    def default_stub_api(self):
+    def curated_api_list(self):
         '''
-        Getter for the default API used by the stub generator.
+        :returns: the curated list of PSyKAl DSLs supported.
+        :rtype: list[str]
+        '''
+        return Config._curated_api_list
 
-        :returns: default API for the stub generator
-        :rtype: str
+    @property
+    def backend_checks_enabled(self):
         '''
-        return self._default_stub_api
+        :returns: whether the validity checks in the PSyIR backend should be
+                  disabled.
+        :rtype: bool
+        '''
+        return self._backend_checks_enabled
+
+    @backend_checks_enabled.setter
+    def backend_checks_enabled(self, value):
+        '''
+        Setter for whether or not the PSyIR backend is to perform validation
+        checks.
+
+        :param bool value: whether or not to perform validation.
+
+        :raises TypeError: if `value` is not a boolean.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(f"Config.backend_checks_enabled must be a boolean "
+                            f"but got '{type(value).__name__}'")
+        self._backend_checks_enabled = value
 
     @property
     def supported_stub_apis(self):
@@ -694,15 +696,14 @@ class Config:
 
     def get_constants(self):
         ''':returns: the constants instance of the current API.
-        :rtype: either :py:class:`psyclone.domain.lfric.LFRicConstants`, \
-            :py:class:`psyclone.domain.gocean.GOceanConstants`, or \
-            :py:class:`psyclone.domain.nemo.NemoConstants`
+        :rtype: :py:class:`psyclone.domain.lfric.LFRicConstants` |
+            :py:class:`psyclone.domain.gocean.GOceanConstants`
         '''
         return self.api_conf().get_constants()
 
 
 # =============================================================================
-class APISpecificConfig:
+class BaseConfig:
     '''A base class for functions that each API-specific class must provide.
     At the moment this is just the function 'access_mapping' that maps between
     API-specific access-descriptor strings and the PSyclone internal
@@ -722,26 +723,27 @@ class APISpecificConfig:
         # Get the mapping if one exists and convert it into a
         # dictionary. The input is in the format: key1:value1,
         # key2=value2, ...
-        mapping_list = section.getlist("ACCESS_MAPPING")
-        if mapping_list is not None:
-            self._access_mapping = \
-                APISpecificConfig.create_dict_from_list(mapping_list)
-        # Now convert the string type ("read" etc) to AccessType
-        # TODO (issue #710): Add checks for duplicate or missing access
-        # key-value pairs
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core.access_type import AccessType
+        if "ACCESS_MAPPING" in section:
+            mapping_list = section.getlist("ACCESS_MAPPING")
+            if mapping_list is not None:
+                self._access_mapping = \
+                    BaseConfig.create_dict_from_list(mapping_list)
+            # Now convert the string type ("read" etc) to AccessType
+            # TODO (issue #710): Add checks for duplicate or missing access
+            # key-value pairs
+            # Avoid circular import
+            # pylint: disable=import-outside-toplevel
+            from psyclone.core.access_type import AccessType
 
-        for api_access_name, access_type in self._access_mapping.items():
-            try:
-                self._access_mapping[api_access_name] = \
-                    AccessType.from_string(access_type)
-            except ValueError as err:
-                # Raised by from_string()
-                raise ConfigurationError(
-                    f"Unknown access type '{access_type}' found for key "
-                    f"'{api_access_name}'") from err
+            for api_access_name, access_type in self._access_mapping.items():
+                try:
+                    self._access_mapping[api_access_name] = \
+                        AccessType.from_string(access_type)
+                except ValueError as err:
+                    # Raised by from_string()
+                    raise ConfigurationError(
+                        f"Unknown access type '{access_type}' found for key "
+                        f"'{api_access_name}'") from err
 
         # Now create the reverse lookup (for better error messages):
         self._reverse_access_mapping = {v: k for k, v in
@@ -785,7 +787,7 @@ class APISpecificConfig:
         '''
         precisions_list = section.getlist("precision_map")
         return_dict = {}
-        return_dict = APISpecificConfig.create_dict_from_list(precisions_list)
+        return_dict = BaseConfig.create_dict_from_list(precisions_list)
 
         for key, value in return_dict.items():
             # isdecimal returns True if all the characters are decimals (0-9).
@@ -831,21 +833,20 @@ class APISpecificConfig:
     @abc.abstractmethod
     def get_constants(self):
         ''':returns: an object containing all constants for the API.
-        :rtype: either :py:class:`psyclone.domain.lfric.LFRicConstants`, \
-            :py:class:`psyclone.domain.gocean.GOceanConstants`, or \
-            :py:class:`psyclone.domain.nemo.NemoConstants`
+        :rtype: :py:class:`psyclone.domain.lfric.LFRicConstants` |
+            :py:class:`psyclone.domain.gocean.GOceanConstants`
         '''
 
 
 # =============================================================================
-class LFRicConfig(APISpecificConfig):
+class LFRicConfig(BaseConfig):
     '''
     LFRic-specific (Dynamo 0.3) Config sub-class. Holds configuration options
     specific to the LFRic (Dynamo 0.3) API.
 
     :param config: the 'parent' Config object.
     :type config: :py:class:`psyclone.configuration.Config`
-    :param section: the entry for the '[dynamo0.3]' section of \
+    :param section: the entry for the '[lfric]' section of \
                     the configuration file, as produced by ConfigParser.
     :type section: :py:class:`configparser.SectionProxy`
 
@@ -1083,13 +1084,13 @@ class LFRicConfig(APISpecificConfig):
 
 
 # =============================================================================
-class GOceanConfig(APISpecificConfig):
+class GOceanConfig(BaseConfig):
     '''Gocean1.0-specific Config sub-class. Holds configuration options
     specific to the GOcean 1.0 API.
 
     :param config: The 'parent' Config object.
     :type config: :py:class:`psyclone.configuration.Config`
-    :param section: The entry for the gocean1.0 section of \
+    :param section: The entry for the gocean section of \
                     the configuration file, as produced by ConfigParser.
     :type section:  :py:class:`configparser.SectionProxy`
 
@@ -1125,7 +1126,7 @@ class GOceanConfig(APISpecificConfig):
                 for it_space in new_iteration_spaces:
                     GOLoop.add_bounds(it_space)
             elif key == "access_mapping":
-                # Handled in the base class APISpecificConfig
+                # Handled in the base class BaseConfig
                 pass
             elif key == "debug_mode":
                 # Boolean that specifies if debug mode is enabled
@@ -1245,137 +1246,11 @@ class GOceanConfig(APISpecificConfig):
         return GOceanConstants()
 
 
-# =============================================================================
-class NemoConfig(APISpecificConfig):
-    '''Nemo-specific Config sub-class. Holds configuration options
-    specific to the Nemo API.
-
-    :param config: The 'parent' Config object.
-    :type config: :py:class:`psyclone.configuration.Config`
-    :param section: The entry for the NEMO section of \
-                    the configuration file, as produced by ConfigParser.
-    :type section:  :py:class:`configparser.SectionProxy`
-
-    '''
-    # pylint: disable=too-few-public-methods
-    def __init__(self, config, section):
-        super().__init__(section)
-
-        # Maps a variable name to lon, lat etc. to determine the loop type
-        # (e.g. lon, lat, ...)
-        self._loop_type_mapping = {}
-
-        # Maps a loop type (lon, ...) to a dictionary containing the
-        # corresponding variable name and start/stop values.
-        self._loop_type_data = {}
-
-        # The order in which loops should be created in NemoExplicitLoopTrans
-        self._index_order = []
-
-        # This is used to detect if a variable name is duplicated in
-        # mapping-* keys:
-        var_defined = []
-        for key in section.keys():
-            # Do not handle any keys from the DEFAULT section
-            # since they are handled by Config(), not this class.
-            if key in config.get_default_keys():
-                continue
-
-            # Handle the definition of variables
-            if key[:8] == "mapping-":
-                loop_type = key[8:]
-                data = self.create_dict_from_list(section.getlist(key))
-                # Make sure the required keys exist:
-                for subkey in ["var", "start", "stop"]:
-                    if subkey not in data:
-                        raise ConfigurationError(
-                            f"mapping-'{loop_type}' does not contain key "
-                            f"'{subkey}' in file '{config.filename}'.")
-
-                var = data['var']
-                if var in var_defined:
-                    raise ConfigurationError(
-                        f"mapping-{loop_type} defines variable '{var}' again "
-                        f"in the 'nemo' section of the file "
-                        f"'{config.filename}'.")
-                var_defined.append(var)
-
-                # Update the mapping of variable to loop type
-                self._loop_type_mapping[var] = loop_type
-                # And the mapping of loop type to the remaining data
-                self._loop_type_data[loop_type] = data
-
-            elif key == "index-order":
-                self._index_order = section.getlist(key)
-
-            else:
-                raise ConfigurationError(
-                    f"Invalid key '{key}' found in the 'nemo' section of the "
-                    f"configuration file '{config.filename}'.")
-        # Consistency test: any value in index-order must have a
-        # corresponding key in valid_loop_types:
-        for loop_type in self._index_order:
-            if loop_type not in self._loop_type_data:
-                valid = str(list(self._loop_type_data.keys()))
-                raise ConfigurationError(
-                    f"Invalid loop type '{loop_type}' found in index-order in "
-                    f"'{config.filename}'.\nMust be one of {valid}.")
-
-    def get_loop_type_mapping(self):
-        '''
-        :returns: the mapping of variable names to loop type.
-        :rtype: Dictionary of strings.
-        '''
-        return self._loop_type_mapping
-
-    def get_loop_type_data(self):
-        '''
-        :returns: the mapping of a loop type (lon, ...) to a dictionary \
-            containing the corresponding variable name and start/stop values.\
-            Example: = {"lon": {"var": "ji", "start": "1", "stop": "jpi"}, \
--                       "lat": {"var": "jj", "start": "1", "stop": "jpj"} }
-
-        :rtype: dictionary with str keys, with each value being a \
-            dictionary mapping 'var', 'start', and 'stop' to str.
-        '''
-        return self._loop_type_data
-
-    def get_valid_loop_types(self):
-        '''
-        The list is sorted to have reproducible results for testing.
-        :returns: a sorted list of valid loop types.
-        :rtype: list of str.
-
-        '''
-        valid_types_list = list(self._loop_type_data)
-        valid_types_list.sort()
-        return valid_types_list
-
-    def get_index_order(self):
-        '''
-        :returns: the order in which loops should be created in \
-            NemoExplicitLoopTrans.
-        :rtype: list of str.
-        '''
-        return self._index_order
-
-    # ---------------------------------------------------------------------
-    def get_constants(self):
-        ''':returns: an object containing all constants for Nemo.
-        :rtype: :py:class:`psyclone.domain.nemo.NemoConstants`
-        '''
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.nemo import NemoConstants
-        return NemoConstants()
-
-
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
 # documentation for. (See https://psyclone-ref.readthedocs.io)
-__all__ = ["APISpecificConfig",
+__all__ = ["BaseConfig",
            "Config",
            "ConfigurationError",
            "LFRicConfig",
-           "GOceanConfig",
-           "NemoConfig"]
+           "GOceanConfig"]

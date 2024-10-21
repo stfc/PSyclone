@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council
+# Copyright (c) 2018-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,9 +49,9 @@ from psyclone.parse.algorithm import ParseError
 def test_failures():
     '''Tests various failures of the generate() call.
     '''
-    # Test empty API (and file not found)
+    # Test file not found
     with pytest.raises(IOError) as err:
-        generate("/does_not_exist", api="")
+        generate("/does_not_exist", api="lfric")
     assert "File '/does_not_exist' not found" in str(err.value)
 
     # Check invalid API
@@ -63,7 +63,7 @@ def test_failures():
     # Trapping Fortran errors:
     with pytest.raises(ParseError) as err:
         # Use this python file to trigger invalid Fortran
-        generate(__file__, api="dynamo0.3")
+        generate(__file__, api="lfric")
     assert ("Kernel stub generator: Code appears to be invalid "
             "Fortran" in str(err.value))
 
@@ -73,5 +73,5 @@ def test_gen_success():
     base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3")
     ptree = generate(os.path.join(base_path, "testkern_mod.F90"),
-                     api="dynamo0.3")
+                     api="lfric")
     assert isinstance(ptree, fparser.one.block_statements.Module)

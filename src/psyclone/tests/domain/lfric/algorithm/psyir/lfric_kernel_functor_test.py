@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council
+# Copyright (c) 2021-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -112,7 +112,7 @@ def test_lfric_functor_factory(name):
     can be lowered and that an appropriate symbol is added
     to/removed from the supplied table. '''
     factory = LFRicBuiltinFunctorFactory.get()
-    sched = Routine("my_prog", is_program=True)
+    sched = Routine.create("my_prog", is_program=True)
     table = sched.symbol_table
     funky = factory.create(name, table, [])
     funky2 = factory.create(name, table, [])
@@ -135,7 +135,7 @@ def test_lfricbuiltinfunctor_sym_specialise():
     existing generic symbol that has the name of the builtin.
     '''
     factory = LFRicBuiltinFunctorFactory.get()
-    sched = Routine("my_prog", is_program=True)
+    sched = Routine.create("my_prog", is_program=True)
     table = sched.symbol_table
     table.new_symbol("setval_x", symbol_type=Symbol,
                      interface=UnresolvedInterface())

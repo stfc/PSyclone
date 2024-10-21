@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,7 @@ class LFRicConstants():
                                 "config file is loaded")
 
         LFRicConstants.HAS_BEEN_INITIALISED = True
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         # ---------- Evaluators: quadrature -----------------------------------
         LFRicConstants.VALID_QUADRATURE_SHAPES = \
@@ -228,10 +228,12 @@ class LFRicConstants():
 
         # Valid LFRic iteration spaces for user-supplied kernels and
         # built-in kernels
-        LFRicConstants.USER_KERNEL_ITERATION_SPACES = ["cell_column", "domain"]
+        LFRicConstants.USER_KERNEL_ITERATION_SPACES = ["cell_column", "domain",
+                                                       "dof"]
         LFRicConstants.VALID_ITERATION_SPACES = \
-            LFRicConstants.USER_KERNEL_ITERATION_SPACES + \
-            LFRicConstants.BUILTIN_ITERATION_SPACES
+            list(OrderedDict.fromkeys(
+                LFRicConstants.USER_KERNEL_ITERATION_SPACES +
+                LFRicConstants.BUILTIN_ITERATION_SPACES))
 
         # ---------- Function spaces (FS) -------------------------------------
         # Discontinuous FS
@@ -522,6 +524,8 @@ class LFRicConstants():
         '''
         for module_info in self.DATA_TYPE_MAP.values():
             if module_info["type"] == data_type:
+                # TODO #2659 - this method should probably just return a name
+                #              rather than create a symbol itself.
                 # pylint: disable=import-outside-toplevel
                 from psyclone.domain.lfric.lfric_types import LFRicTypes
                 return LFRicTypes(module_info["kind"].upper())

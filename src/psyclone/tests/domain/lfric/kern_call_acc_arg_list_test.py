@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
 
 # constants
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 BASE_PATH = get_base_path(TEST_API)
 
 
@@ -139,7 +139,7 @@ def test_lfric_acc():
     # with OpenACC directives.
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
-    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
+    _, invoke = get_invoke("1_single_invoke.f90", "lfric",
                            name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule
     acc_par_trans.apply(sched.children)
@@ -172,7 +172,7 @@ def test_lfric_acc_operator():
     # with OpenACC directives.
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
-    _, invoke = get_invoke("20.0_cma_assembly.f90", "dynamo0.3",
+    _, invoke = get_invoke("20.0_cma_assembly.f90", "lfric",
                            idx=0, dist_mem=False)
     sched = invoke.schedule
     acc_par_trans.apply(sched.children)
@@ -186,7 +186,7 @@ def test_lfric_acc_operator():
     var_info = str(var_accesses)
     assert "lma_op1_proxy%ncell_3d: READ" in var_info
     assert "lma_op1_local_stencil: READ" in var_info
-    assert "cma_op1_matrix: WRITE" in var_info
+    assert "cma_op1_cma_matrix: WRITE" in var_info
 
 
 def test_lfric_stencil():
@@ -197,7 +197,7 @@ def test_lfric_stencil():
     # Use the OpenACC transforms to create the required kernels
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
-    _, invoke = get_invoke("14.4_halo_vector.f90", "dynamo0.3",
+    _, invoke = get_invoke("14.4_halo_vector.f90", "lfric",
                            idx=0, dist_mem=False)
     sched = invoke.schedule
     acc_par_trans.apply(sched.children)

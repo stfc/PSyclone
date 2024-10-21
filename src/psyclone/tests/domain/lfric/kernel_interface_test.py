@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -86,9 +86,9 @@ def test_generate(var_accesses):
     # which reduces the number of arguments to check.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"),
-        api="dynamo0.3")
+        api="lfric")
 
-    psy = PSyFactory("dynamo0.3",
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel0 = schedule[0].loop_body[0]
@@ -221,8 +221,8 @@ def test_field_vector(monkeypatch):
     '''
     kernel_interface = KernelInterface(None)
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule[0].loop_body[0]
@@ -270,8 +270,8 @@ def test_field(monkeypatch):
     '''
     kernel_interface = KernelInterface(None)
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule[0].loop_body[0]
@@ -349,8 +349,8 @@ def test_operator():
     '''
     kernel_interface = KernelInterface(None)
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule[0].loop_body[0]
@@ -424,8 +424,8 @@ def test_scalar(monkeypatch):
     kernel_interface = KernelInterface(None)
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1.6.1_single_invoke_1_int_scalar.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule[0].loop_body[0]
@@ -540,8 +540,8 @@ def test_basis_xyoz():
     '''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1.1.0_single_invoke_xyoz_qr.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule[0].loop_body[0]
@@ -601,8 +601,8 @@ def test_basis_face():
     '''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1.1.6_face_qr.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule[0].loop_body[0]
@@ -660,8 +660,8 @@ def test_basis_edge():
     '''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1.1.5_edge_qr.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule[0].loop_body[0]
@@ -721,8 +721,8 @@ def test_diff_basis():
     '''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1.1.0_single_invoke_xyoz_qr.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule[0].loop_body[0]
@@ -775,14 +775,78 @@ def test_diff_basis():
     assert diff_basis_symbol.shape[3].upper.symbol is nqpv_symbol
 
 
-@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
-def test_field_bcs_kernel():
+def test_field_bcs_kernel(monkeypatch):
     '''Test that the KernelInterface class field_bcs_kernel method adds the
     expected symbols to the symbol table and the _arglist list.
 
     '''
-    kernel_interface = KernelInterface(None)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "12.2_enforce_bc_kernel.f90"),
+                           api="lfric")
+    psy = PSyFactory("lfric",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+    kernel_interface = KernelInterface(kernel)
     kernel_interface.field_bcs_kernel(None)
+    fld_name = kernel.arguments.args[0].name
+    fspace = kernel.arguments.unique_fss[0]
+    fs_name = fspace.orig_name
+    # ndf declared
+    ndf_symbol = kernel_interface._symtab.lookup(f"ndf_{fs_name}")
+    assert isinstance(ndf_symbol, LFRicTypes("NumberOfDofsDataSymbol"))
+    assert isinstance(ndf_symbol.interface, ArgumentInterface)
+    assert (ndf_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    # vertical-boundary dofs mask declared
+    mask_sym = kernel_interface._symtab.lookup(f"boundary_dofs_{fld_name}")
+    assert isinstance(mask_sym,
+                      LFRicTypes("VerticalBoundaryDofMaskDataSymbol"))
+    assert isinstance(mask_sym.interface, ArgumentInterface)
+    assert mask_sym.interface.access == kernel_interface._read_access.access
+    assert len(mask_sym.shape) == 2
+    assert isinstance(mask_sym.shape[0].upper, Reference)
+    assert mask_sym.shape[0].upper.symbol is ndf_symbol
+    assert isinstance(mask_sym.shape[1].upper, Literal)
+    assert mask_sym.shape[1].upper.value == "2"
+
+
+def test_field_bcs_kernel_errors(monkeypatch):
+    '''
+    Test that the field_bcs_kernel method raises the expected errors if the
+    kernel does not have exactly one argument that is itself a field on the
+    'ANY_SPACE_1' function space.
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="lfric")
+    psy = PSyFactory("lfric",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+    kernel_interface = KernelInterface(kernel)
+    with pytest.raises(InternalError) as err:
+        kernel_interface.field_bcs_kernel(None)
+    assert ("Kernel 'testkern_code' applies boundary conditions to a field "
+            "and therefore should have a single, field argument (one of "
+            "['gh_field']) but got ['gh_scalar', 'gh_field'" in str(err.value))
+    # Repeat for a kernel that *does* have an argument on ANY_SPACE_1.
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "12.2_enforce_bc_kernel.f90"), api="lfric")
+    psy = PSyFactory("lfric",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+    # Monkeypatch the argument so that it appears to be on the wrong space.
+    monkeypatch.setattr(
+        kernel.arguments._args[0]._function_spaces[0],
+        "_orig_name", "ANY_SPACE_2")
+    kernel_interface = KernelInterface(kernel)
+    with pytest.raises(InternalError) as err:
+        kernel_interface.field_bcs_kernel(None)
+    assert ("Kernel 'enforce_bc_code' applies boundary conditions to a field "
+            "but the supplied argument, 'a', is on 'ANY_SPACE_2' rather than "
+            "the expected 'ANY_SPACE_1'" in str(err.value))
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
@@ -830,8 +894,8 @@ def test_quad_rule_xyoz():
     '''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1.1.0_single_invoke_xyoz_qr.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule[0].loop_body[0]
@@ -885,8 +949,8 @@ def test_quad_rule_face():
     '''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1.1.6_face_qr.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule[0].loop_body[0]
@@ -928,8 +992,8 @@ def test_quad_rule_edge():
     '''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1.1.5_edge_qr.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule[0].loop_body[0]
@@ -972,8 +1036,8 @@ def test_quad_rule_error(monkeypatch):
     '''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "6.1_eval_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule[0].loop_body[0]
@@ -994,8 +1058,8 @@ def test_create_basis_errors(monkeypatch):
     '''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "6.1_eval_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule[0].loop_body[0]

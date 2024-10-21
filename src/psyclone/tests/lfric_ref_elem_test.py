@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 # Modified: R. W. Ford, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
 
@@ -47,7 +47,8 @@ import fparser
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKernMetadata, RefElementMetaData
+from psyclone.domain.lfric import LFRicKernMetadata
+from psyclone.dynamo0p3 import RefElementMetaData
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import Kern
@@ -56,7 +57,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
 # Constants
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 REF_ELEM_MDATA = '''
 module testkern_refelem_mod
@@ -82,12 +83,10 @@ end module testkern_refelem_mod
 # Tests for parsing the metadata
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    Config.get().api = "lfric"
 
 
 def test_mdata_parse():
@@ -96,7 +95,7 @@ def test_mdata_parse():
     code = REF_ELEM_MDATA
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     assert dkm.reference_element.properties == \
         [RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES,
          RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES,
@@ -111,7 +110,7 @@ def test_mdata_invalid_property():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("property: 'not_a_property'. Supported values are: "
             "['NORMALS_TO_FACES', 'NORMALS_TO_HORIZONTAL_FACES'"
             in str(err.value))
@@ -125,7 +124,7 @@ def test_mdata_wrong_arg_count():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("'meta_reference_element' metadata, the number of items in" in
             str(err.value))
 
@@ -138,7 +137,7 @@ def test_mdata_wrong_name():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("No variable named 'meta_reference_element' found"
             in str(err.value))
 
@@ -152,7 +151,7 @@ def test_mdata_wrong_type_var():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("'meta_reference_element' metadata must consist of an array of "
             "structure constructors, all of type 'reference_element_data_type'"
             " but found: ['ref_element_data_type'," in str(err.value))
@@ -168,7 +167,7 @@ def test_mdata_duplicate_var():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("Duplicate reference-element property found: "
             "'Property.NORMALS_TO_VERTICAL_FACES'." in str(err.value))
 
@@ -187,7 +186,7 @@ def test_refelem_arglist_err():
     # Break the list of ref-element properties required by the Kernel
     kernel.reference_element.properties.append("Not a property")
     with pytest.raises(InternalError) as err:
-        kernel.arguments.raw_arg_list()
+        kernel.arguments.psyir_expressions()
     assert ("Unsupported reference-element property ('Not a property') found "
             "when generating arguments for kernel 'testkern_ref_elem_code'. "
             "Supported properties are: ['Property" in str(err.value))
@@ -220,7 +219,7 @@ def test_refelem_gen(tmpdir):
     assert ("call reference_element%get_normals_to_vertical_faces("
             "normals_to_vert_faces)" in gen)
     # The kernel call
-    assert ("call testkern_ref_elem_code(nlayers, a, f1_data, "
+    assert ("call testkern_ref_elem_code(nlayers_f1, a, f1_data, "
             "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
@@ -248,12 +247,12 @@ def test_duplicate_refelem_gen(tmpdir):
                      "normals_to_horiz_faces)") == 1
     assert gen.count("call reference_element%get_normals_to_vertical_faces("
                      "normals_to_vert_faces)") == 1
-    assert ("call testkern_ref_elem_code(nlayers, a, f1_data, "
+    assert ("call testkern_ref_elem_code(nlayers_f1, a, f1_data, "
             "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
-    assert ("call testkern_ref_elem_code(nlayers, a, f3_data, "
+    assert ("call testkern_ref_elem_code(nlayers_f3, a, f3_data, "
             "f4_data, m3_data, m4_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
@@ -281,12 +280,12 @@ def test_union_refelem_gen(tmpdir):
         "normals_to_vert_faces)\n"
         "      call reference_element%get_outward_normals_to_vertical_faces("
         "out_normals_to_vert_faces)\n" in gen)
-    assert ("call testkern_ref_elem_code(nlayers, a, f1_data, "
+    assert ("call testkern_ref_elem_code(nlayers_f1, a, f1_data, "
             "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
             " map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
-    assert ("call testkern_ref_elem_out_code(nlayers, a, f3_data, "
+    assert ("call testkern_ref_elem_out_code(nlayers_f3, a, f3_data, "
             "f4_data, m3_data, m4_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
             " map_w3(:,cell), nfaces_re_v, nfaces_re_h, "
@@ -310,7 +309,7 @@ def test_all_faces_refelem_gen(tmpdir):
         "      call reference_element%get_normals_to_faces(normals_to_faces)\n"
         "      call reference_element%get_outward_normals_to_faces("
         "out_normals_to_faces)\n" in gen)
-    assert ("call testkern_ref_elem_all_faces_code(nlayers, a, f1_data, "
+    assert ("call testkern_ref_elem_all_faces_code(nlayers_f1, a, f1_data, "
             "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
             " map_w3(:,cell), nfaces_re, out_normals_to_faces, "

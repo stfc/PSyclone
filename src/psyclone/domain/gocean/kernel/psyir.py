@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
+from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType
 
 
 class GOceanContainer(Container):
@@ -194,7 +194,7 @@ class GOceanKernelMetadata():
 
         '''
         return DataTypeSymbol(
-            str(self.name), UnknownFortranType(self.fortran_string()))
+            str(self.name), UnsupportedFortranType(self.fortran_string()))
 
     @staticmethod
     def create_from_psyir(symbol):
@@ -222,13 +222,13 @@ class GOceanKernelMetadata():
 
         datatype = symbol.datatype
 
-        if not isinstance(datatype, UnknownFortranType):
+        if not isinstance(datatype, UnsupportedFortranType):
             raise InternalError(
                 f"Expected kernel metadata to be stored in the PSyIR as "
-                f"an UnknownFortranType, but found "
+                f"an UnsupportedFortranType, but found "
                 f"{type(datatype).__name__}.")
 
-        # In an UnknownFortranType, the declaration is stored as a
+        # In an UnsupportedFortranType, the declaration is stored as a
         # string, so use create_from_fortran_string()
         return GOceanKernelMetadata.create_from_fortran_string(
             datatype.declaration)
@@ -631,7 +631,7 @@ class GOceanKernelMetadata():
 
             '''
             config = Config.get()
-            api_config = config.api_conf("gocean1.0")
+            api_config = config.api_conf("gocean")
             grid_property_names = list(api_config.grid_properties.keys())
             if value.lower() not in grid_property_names:
                 raise ValueError(

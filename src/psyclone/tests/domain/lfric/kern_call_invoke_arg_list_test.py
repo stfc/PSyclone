@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council
+# Copyright (c) 2022-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@
 import pytest
 
 from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicSymbolTable)
-from psyclone.psyir.symbols import DataTypeSymbol, DeferredType, DataSymbol
+from psyclone.psyir.symbols import DataTypeSymbol, UnresolvedType, DataSymbol
 
 
 def test_kcial_construct(lfrickern):
@@ -61,7 +61,7 @@ def test_kcial_generate(lfrickern):
     # that here.
     table = LFRicSymbolTable()
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
-                     datatype=DeferredType())
+                     datatype=UnresolvedType())
     kcial = KernCallInvokeArgList(lfrickern, table)
     kcial.generate()
     assert len(kcial.fields) == 5
@@ -84,9 +84,9 @@ def test_kcial_generate_operator(lfrickern_op):
     # that here.
     table = LFRicSymbolTable()
     table.new_symbol("operator_type", symbol_type=DataTypeSymbol,
-                     datatype=DeferredType())
+                     datatype=UnresolvedType())
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
-                     datatype=DeferredType())
+                     datatype=UnresolvedType())
     kcial = KernCallInvokeArgList(lfrickern_op, table)
     kcial.generate()
     opers = kcial.operators

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,19 +31,19 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Author: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the StructureMember node.'''
 
-from __future__ import absolute_import
 from psyclone.core import Signature
 from psyclone.psyir.nodes.member import Member
-from psyclone.errors import InternalError
+from psyclone.psyir.nodes.structure_accessor_mixin import (
+    StructureAccessorMixin)
 
 
-class StructureMember(Member):
+class StructureMember(Member, StructureAccessorMixin):
     '''
     Node representing a membership expression of the parent's Reference that
     resolves into another structure.
@@ -102,22 +102,6 @@ class StructureMember(Member):
             return isinstance(child, Member)
         # Only one child is permitted
         return False
-
-    @property
-    def member(self):
-        '''
-        :returns: the member of the structure that is being accessed.
-        :rtype: (sub-class of) :py:class:`psyclone.psyir.nodes.Member`
-
-        :raises InternalError: if the first child of this node is not an \
-                               instance of Member.
-        '''
-        if not isinstance(self.children[0], Member):
-            raise InternalError(
-                f"{type(self).__name__} malformed or incomplete. The first "
-                f"child must be an instance of Member, but found "
-                f"'{type(self.children[0]).__name__}'")
-        return self.children[0]
 
     def get_signature_and_indices(self):
         ''':returns: the Signature of this structure member, and \

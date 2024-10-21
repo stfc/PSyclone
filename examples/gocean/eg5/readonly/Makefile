@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -72,7 +72,7 @@ run: compile
 alg.f90 psy.f90: transform
 
 transform: test.x90 read_only_transform.py
-	${PSYCLONE} -nodm -api "gocean1.0" -s ./read_only_transform.py \
+	${PSYCLONE} -nodm -api "gocean" -s ./read_only_transform.py \
 				-opsy psy.f90 -oalg alg.f90 test.x90
 
 $(NAME): $(INF_LIB) $(READ_ONLY_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o

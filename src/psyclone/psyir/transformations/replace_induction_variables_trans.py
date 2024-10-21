@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -207,7 +207,7 @@ class ReplaceInductionVariablesTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
 
         '''
-        self.validate(node)
+        self.validate(node, options)
         loop_var = node.variable.name
 
         # Find assignments that are directly part of the loop (this

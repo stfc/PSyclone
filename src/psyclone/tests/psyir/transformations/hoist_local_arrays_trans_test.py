@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -474,7 +474,7 @@ def test_validate_node():
 def test_validate_program():
     ''' Test that the validate method accepts a Routine that is a Program
     (since there's nothing to do). '''
-    routine = Routine("my_prog", is_program=True)
+    routine = Routine.create("my_prog", is_program=True)
     hoist_trans = HoistLocalArraysTrans()
     hoist_trans.validate(routine)
 
@@ -483,7 +483,7 @@ def test_validate_ancestor_container():
     ''' Test the expected exception is raised if the supplied assignment is
     not within a container. '''
     hoist_trans = HoistLocalArraysTrans()
-    routine = Routine("my_prog")
+    routine = Routine.create("my_prog")
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(routine)
     assert ("The supplied routine 'my_prog' should be within a Container but "

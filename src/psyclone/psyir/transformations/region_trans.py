@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,8 @@
 
 import abc
 
-from psyclone.psyGen import Kern, Transformation
+from psyclone.errors import LazyString
+from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.nodes import Schedule, Node
@@ -166,15 +167,22 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
         # Check that the proposed region contains only supported node types
         if options.get("node-type-check", True):
             for child in node_list:
-                # Stop at any instance of Kern to avoid going into the
-                # actual kernels, e.g. in Nemo inlined kernels
-                flat_list = [item for item in child.walk(object, Kern)
-                             if not isinstance(item, Schedule)]
-                for item in flat_list:
-                    if isinstance(item, self.excluded_node_types):
-                        raise TransformationError(
-                            f"Nodes of type '{type(item).__name__}' cannot be "
-                            f"enclosed by a {self.name} transformation")
+                for bad in child.walk(self.excluded_node_types):
+                    # Ideally we'd just use `bad.debug_string()` always
+                    # but this sometimes causes errors if nodes do their
+                    # own validation (rather than relying on the backend),
+                    # e.g. ACCEnterDataDirective.begin_string().
+                    # pylint: disable-next=import-outside-toplevel
+                    from psyclone.psyir.nodes import CodeBlock
+                    if isinstance(bad, CodeBlock):
+                        msg = LazyString(
+                            lambda: f"Nodes of type '{type(bad).__name__}' "
+                            f"cannot be enclosed by a {self.name} "
+                            f"transformation but found:\n{bad.debug_string()}")
+                    else:
+                        msg = (f"Nodes of type '{type(bad).__name__}' cannot "
+                               f"be enclosed by a {self.name} transformation.")
+                    raise TransformationError(msg)
 
         # If we've been passed a list that contains one or more Schedules
         # then something is wrong. e.g. two Schedules that are both children
@@ -182,7 +190,7 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
         # around both the if-body and the else-body and that doesn't make
         # sense.
         if (len(node_list) > 1 and
-                any([isinstance(node, Schedule) for node in node_list])):
+                any(isinstance(node, Schedule) for node in node_list)):
             raise TransformationError(
                 "Cannot apply a transformation to multiple nodes when one "
                 "or more is a Schedule. Either target a single Schedule "

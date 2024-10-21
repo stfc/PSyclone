@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ transformed and the values they would take.
 
 This script can be applied via the '-s' option when running PSyclone:
 
-$ psyclone -s ./kernel_constants.py \
+$ psyclone -api lfric -s ./kernel_constants.py \
 ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
 -oalg alg.f90 -opsy psy.f90
 

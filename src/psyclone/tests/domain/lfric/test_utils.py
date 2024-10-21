@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,8 +37,7 @@
 
 import pytest
 
-from psyclone.domain.lfric.utils import (
-    find_container, metadata_name_from_module_name)
+from psyclone.domain.lfric.utils import find_container
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import Routine, FileContainer, Container
 from psyclone.psyir.symbols import SymbolTable
@@ -140,43 +139,3 @@ def test_find_container_working():
     assert result is module
     result = find_container(module)
     assert result is module
-
-
-# metadata_name_from_module_name
-
-def test_metadata_name_wrong_type():
-    '''Test that the expected exception is raised if the supplied module
-    name is the wrong type.
-
-    '''
-    with pytest.raises(TypeError) as info:
-        _ = metadata_name_from_module_name(None)
-    assert ("Expected the module_name argument to the "
-            "metadata_name_from_module_name utility to be a string, but "
-            "found 'NoneType'." in str(info.value))
-
-
-@pytest.mark.parametrize("name", ["", "_mod", "module"])
-def test_metadata_name_no_mod(name):
-    '''Test that the expected exception is raised if the supplied module
-    name does not end in _mod or does not have at least one character
-    that precedes _mod.
-
-    '''
-    with pytest.raises(GenerationError) as info:
-        _ = metadata_name_from_module_name(name)
-    assert (f"LFRic module names should end with \"_mod\", with at least "
-            f"one preceding character, but found a module called '{name}'."
-            in str(info.value))
-
-
-@pytest.mark.parametrize("name,expected", [
-    ("example_mod", "example_type"), ("x_mod", "x_type"),
-    ("something_mod_mod", "something_mod_type")])
-def test_metadata_name_ok(name, expected):
-    '''Test that the funtion returns the expected output if valid input is
-    provided (*_mod in the input is output as *_type).
-
-    '''
-    result = metadata_name_from_module_name(name)
-    assert result == expected

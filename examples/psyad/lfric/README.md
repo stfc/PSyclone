@@ -1,7 +1,7 @@
 <!--
 BSD 3-Clause License
 
-Copyright (c) 2023, Science and Technology Facilities Council.
+Copyright (c) 2023-2024, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -49,8 +49,8 @@ able to process them. These kernels are copied from the
 `tangent_linear` directory, manually modified and placed in the
 `tangent_linear_tweaked` directory.
 
-The reason for having two directories containing the adjoint kernels
-is that some require manual modification after 'psyad' has processed
+Similarly, there are two directories containing the adjoint kernels
+because some require manual modification after 'psyad' has processed
 them. These kernels are copied from the `adjoint_partial` directory,
 manually modified and placed in the `adjoint` directory. At the
 present time all generated adjoint kernels need some manual
