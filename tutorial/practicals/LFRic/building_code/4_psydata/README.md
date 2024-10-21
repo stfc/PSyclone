@@ -260,9 +260,9 @@ field is detected.
 The ``ValueRangeCheck`` library allows the user to specify that certain variables should be
 within a specified range. This will be tested if the variables are an input parameter
 to a kernel before the kernel is called, and after the kernel if the variable is an
-output parameter of the kernel. Additionally,this library also verifies that all input- and
+output parameter of the kernel. Additionally, this library also verifies that all input- and
 output-parameters of a kernel are neither NAN nor an infinite number. In case of an
-out of range error or an invalid value, an error message like the following will be printed:
+out-of-range error or an invalid value, an error message like the following will be printed:
 
     PSyData: Variable 'perturbation_data' has the value 0.53116938666871878E-80 at index/indices 74932 in   module 'time_evolution', region 'invoke_initialise_perturbation', which is not between '1.0000000000000000' and '2.0000000000000000'.
 

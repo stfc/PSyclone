@@ -204,7 +204,7 @@ contains
         if (.not. is_enabled) return
 
         ! Provide each member of the vector as a normal field. This way
-        ! the alue range checking will be done for each member individually.
+        ! the value range checking will be done for each member individually.
         do i = 1, size(value, 1)
             write(index_string, '("(",i0,")")') i
             call this%ProvideVariable(name//trim(index_string), value(i))
