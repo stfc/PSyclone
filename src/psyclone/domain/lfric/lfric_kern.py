@@ -444,13 +444,7 @@ class LFRicKern(CodedKern):
                                 f"coloured loop.")
         sched = self.ancestor(InvokeSchedule)
         if self.is_intergrid:
-            invoke = sched.invoke
-            if id(self) not in invoke.meshes.intergrid_kernels:
-                raise InternalError(
-                    f"Tilecolourmap information for kernel '{self.name}'"
-                    f" has not yet been initialised")
-            tmap = invoke.meshes.intergrid_kernels[id(self)].\
-                tilecolourmap_symbol.name
+            tmap = self._intergrid_ref.tilecolourmap_symbol.name
         else:
             try:
                 tmap = sched.symbol_table.lookup_with_tag("tmap").name
@@ -533,13 +527,7 @@ class LFRicKern(CodedKern):
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
         if self.is_intergrid:
-            invoke = self.ancestor(InvokeSchedule).invoke
-            if id(self) not in invoke.meshes.intergrid_kernels:
-                raise InternalError(
-                    f"Colourmap information for kernel '{self.name}' has "
-                    f"not yet been initialised")
-            kernel = invoke.meshes.intergrid_kernels[id(self)]
-            ncols_sym = kernel.ntilecolours_var_symbol
+            ncols_sym = self._intergrid_ref.ntilecolours_var_symbol
             if not ncols_sym:
                 return None
             return ncols_sym.name

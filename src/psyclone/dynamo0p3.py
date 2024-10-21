@@ -2592,7 +2592,7 @@ class DynMeshes():
                                      pointer=True,
                                      rhs=coarse_mesh + "%get_tilecolour_map()"))
                 # Last halo/edge cell per colour.
-                sym = dig.last_cell_var_symbol
+                sym = dig.last_cell_tile_var_symbol
                 if len(sym.datatype.shape) == 2:
                     # Array is 2D so is a halo access.
                     name = "%get_last_halo_tile_per_colours2()"
@@ -5002,6 +5002,7 @@ class HaloReadAccess(HaloDepth):
             self._stencil_type = "region"
         if field.descriptor.stencil:
             # field has a stencil access
+            # import pdb; pdb.set_trace()
             if self._max_depth:
                 raise GenerationError(
                     "redundant computation to max depth with a stencil is "
