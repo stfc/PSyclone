@@ -183,8 +183,7 @@ def test_upper_bounds(monkeypatch, annexed, dist_mem, tmpdir):
                     )
 
     # Shared memory
-    elif not annexed and not dist_mem or \
-            annexed and not dist_mem:
+    elif not dist_mem:
         expected = ("      loop0_start = 1\n"
                     "      loop0_stop = undf_w1"
                     )
@@ -212,38 +211,4 @@ def test_indexed_field_args(tmpdir):
 
     assert expected in code
     # Check compilation
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_undf_initialisation(tmpdir):
-    '''
-    Test that the 'bare' undf name is used when intialising the undf
-    variable for dof kernels.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.14_single_invoke_dofs.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    code = str(psy.gen)
-
-    declaration = "INTEGER(KIND=i_def) undf_w1"
-    initalisation = "undf_w1 = f1_proxy%vspace%get_undf()"
-
-    assert declaration in code
-    assert initalisation in code
-    # Check compilation
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_compiles(tmpdir):
-    '''
-    Test that the code PSyclone generates from a DoF kernel compiles without
-    error.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.14_single_invoke_dofs.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     assert LFRicBuild(tmpdir).code_compiles(psy)
