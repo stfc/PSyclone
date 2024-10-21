@@ -466,7 +466,7 @@ class LFRicLoop(PSyLoop):
             return kernels[0].ntilecolours_var
         if self._upper_bound_name == "last_halo_tile_per_colour":
             if Config.get().distributed_memory:
-                return (f"{self._mesh_name}%get_last_halo_tile_per_colour3("
+                return (f"{self._mesh_name}%get_last_halo_tile_per_colour("
                         f"{halo_index})")
         if self._upper_bound_name == "last_halo_cell_per_colour_and_tile":
             if Config.get().distributed_memory:
@@ -848,7 +848,7 @@ class LFRicLoop(PSyLoop):
                 mesh_sym = sym_table.lookup(self._mesh_name)
                 sref = StructureReference.create(
                     mesh_sym,
-                    [("get_last_halo_tile_per_colour4",
+                    [("get_last_halo_tile_per_colour",
                      [Reference(colour_var)])])
                 aref = sref.children[0]
             else:

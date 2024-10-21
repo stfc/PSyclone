@@ -1271,16 +1271,16 @@ class Dynamo0p3ColourTrans(ColourTrans):
         colour_loop.field_name = node.field_name
         colour_loop.iteration_space = node.iteration_space
         colour_loop.set_lower_bound("start")
-        colour_loop.set_upper_bound("last_halo_tile_per_colour")
         colour_loop.kernel = node.kernel
-        # if node.upper_bound_name in LFRicConstants().HALO_ACCESS_LOOP_BOUNDS:
-        #     # If the original loop went into the halo then this coloured loop
-        #     # must also go into the halo.
-        #     index = node.upper_bound_halo_depth
-        #     colour_loop.set_upper_bound("colour_halo", index)
-        # else:
-        #     # No halo access.
-        #     colour_loop.set_upper_bound("ncolour")
+        if node.upper_bound_name in LFRicConstants().HALO_ACCESS_LOOP_BOUNDS:
+            # If the original loop went into the halo then this coloured loop
+            # must also go into the halo.
+            index = node.upper_bound_halo_depth
+            colour_loop.set_upper_bound("last_halo_tile_per_colour", index)
+        else:
+            # No halo access.
+            colour_loop.set_upper_bound("ncolour")
+            # colour_loop.set_upper_bound("error")
 
         # Add this loop as a child of our loop over colours
         colours_loop.loop_body.addchild(colour_loop)
@@ -1293,16 +1293,16 @@ class Dynamo0p3ColourTrans(ColourTrans):
         tile_loop.field_name = node.field_name
         tile_loop.iteration_space = node.iteration_space
         tile_loop.set_lower_bound("start")
-        tile_loop.set_upper_bound("last_halo_cell_per_colour_and_tile")
         tile_loop.kernel = node.kernel
-        # if node.upper_bound_name in LFRicConstants().HALO_ACCESS_LOOP_BOUNDS:
-        #     # If the original loop went into the halo then this coloured loop
-        #     # must also go into the halo.
-        #     index = node.upper_bound_halo_depth
-        #     tile_loop.set_upper_bound("colour_halo", index)
-        # else:
-        #     # No halo access.
-        #     tile_loop.set_upper_bound("ncolour")
+        if node.upper_bound_name in LFRicConstants().HALO_ACCESS_LOOP_BOUNDS:
+            # If the original loop went into the halo then this coloured loop
+            # must also go into the halo.
+            index = node.upper_bound_halo_depth
+            tile_loop.set_upper_bound("last_halo_cell_per_colour_and_tile",
+                                      index)
+        else:
+            # No halo access.
+            tile_loop.set_upper_bound("ncells")
 
         # Add this loop as a child of our loop over colours
         colour_loop.loop_body.addchild(tile_loop)

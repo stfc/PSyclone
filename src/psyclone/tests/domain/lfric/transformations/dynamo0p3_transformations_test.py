@@ -271,7 +271,7 @@ def test_colour_trans_tiled(tmpdir, dist_mem):
     if not dist_mem:
         assert """
       do colour = loop0_start, loop0_stop, 1
-        do tile = loop1_start, mesh%get_last_halo_tile_per_colour4(colour), 1
+        do tile = loop1_start, mesh%get_last_halo_tile_per_colour(colour), 1
           do cell = loop2_start, mesh%get_last_halo_cell_per_colour_and_tile\
 (colour,tile), 1
         """ in gen

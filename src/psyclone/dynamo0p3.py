@@ -830,24 +830,24 @@ class LFRicMeshProperties(LFRicCollection):
                 "last_edge_cell_all_colours").name
             rhs = f"{mesh}%get_last_edge_cell_all_colours()"
             parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
-        if need_tilecolour_halo_limits:
-            lhs = self._symbol_table.find_or_create_tag(
-                "last_halo_tile_per_colour").name
-            rhs = f"{mesh}%get_last_halo_tile_per_colour1()"
-            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
-            lhs = self._symbol_table.find_or_create_tag(
-                "last_halo_cell_per_colour_and_tiel").name
-            rhs = f"{mesh}%get_last_halo_cell_per_colour_and_tile()"
-            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
-        if need_tilecolour_limits:
-            lhs = self._symbol_table.find_or_create_tag(
-                "last_edge_tile_per_colour").name
-            rhs = f"{mesh}%get_last_edge_tile_per_colour()"
-            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
-            lhs = self._symbol_table.find_or_create_tag(
-                "last_edge_cell_per_colour_and_tile").name
-            rhs = f"{mesh}%get_last_edge_cell_per_colour_and_tile()"
-            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+        # if need_tilecolour_halo_limits:
+        #     lhs = self._symbol_table.find_or_create_tag(
+        #         "last_halo_tile_per_colour").name
+        #     rhs = f"{mesh}%get_last_halo_tile_per_colour()"
+        #     parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+        #     lhs = self._symbol_table.find_or_create_tag(
+        #         "last_halo_cell_per_colour_and_tiel").name
+        #     rhs = f"{mesh}%get_last_halo_cell_per_colour_and_tile()"
+        #     parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+        # if need_tilecolour_limits:
+        #     lhs = self._symbol_table.find_or_create_tag(
+        #         "last_edge_tile_per_colour").name
+        #     rhs = f"{mesh}%get_last_edge_tile_per_colour()"
+        #     parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+        #     lhs = self._symbol_table.find_or_create_tag(
+        #         "last_edge_cell_per_colour_and_tile").name
+        #     rhs = f"{mesh}%get_last_edge_cell_per_colour_and_tile()"
+        #     parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
 
 class DynReferenceElement(LFRicCollection):
     '''
@@ -2389,20 +2389,20 @@ class DynMeshes():
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=[ntilecolours]))
-            if self._needs_colourtilemap_halo:
-                last_cell = self._symbol_table.find_or_create_tag(
-                    "last_halo_cell_all_colours")
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   allocatable=True,
-                                   entity_decls=[last_cell.name+"(:,:)"]))
-            if self._needs_colourtilemap:
-                last_cell = self._symbol_table.find_or_create_tag(
-                    "last_edge_cell_all_colours")
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   allocatable=True,
-                                   entity_decls=[last_cell.name+"(:)"]))
+            # if self._needs_colourtilemap_halo:
+            #     last_cell = self._symbol_table.find_or_create_tag(
+            #         "last_halo_cell_all_colours")
+            #     parent.add(DeclGen(parent, datatype="integer",
+            #                        kind=api_config.default_kind["integer"],
+            #                        allocatable=True,
+            #                        entity_decls=[last_cell.name+"(:,:)"]))
+            # if self._needs_colourtilemap:
+            #     last_cell = self._symbol_table.find_or_create_tag(
+            #         "last_edge_cell_all_colours")
+            #     parent.add(DeclGen(parent, datatype="integer",
+            #                        kind=api_config.default_kind["integer"],
+            #                        allocatable=True,
+            #                        entity_decls=[last_cell.name+"(:)"]))
 
     def initialise(self, parent):
         '''
@@ -2590,17 +2590,17 @@ class DynMeshes():
                 # Colour map itself
                 parent.add(AssignGen(parent, lhs=dig.tilecolourmap_symbol.name,
                                      pointer=True,
-                                     rhs=coarse_mesh + "%get_tilecolour_map()"))
+                                     rhs=coarse_mesh + "%get_coloured_tiling_map()"))
                 # Last halo/edge cell per colour.
-                sym = dig.last_cell_tile_var_symbol
-                if len(sym.datatype.shape) == 2:
-                    # Array is 2D so is a halo access.
-                    name = "%get_last_halo_tile_per_colours2()"
-                else:
-                    # Array is just 1D so go to the last edge cell.
-                    name = "%get_last_edge_tile_per_colours()"
-                parent.add(AssignGen(parent, lhs=sym.name,
-                                     rhs=coarse_mesh + name))
+                # sym = dig.last_cell_tile_var_symbol
+                # if len(sym.datatype.shape) == 2:
+                #     # Array is 2D so is a halo access.
+                #     name = "%get_last_halo_tile_per_colour()"
+                # else:
+                #     # Array is just 1D so go to the last edge cell.
+                #     name = "%get_last_edge_tile_per_colour()"
+                # parent.add(AssignGen(parent, lhs=sym.name,
+                #                      rhs=coarse_mesh + name))
 
     @property
     def intergrid_kernels(self):
@@ -4942,10 +4942,15 @@ class HaloReadAccess(HaloDepth):
         # anyway. (If the values of the field being modified are
         # required, at some later point, in that level of the halo
         # then we do a halo swap.)
+        # import pdb; pdb.set_trace()
         self._needs_clean_outer = (
             not (field.access == AccessType.INC
-                 and loop.upper_bound_name in ["cell_halo",
-                                               "colour_halo"]))
+                 and loop.upper_bound_name in [
+                        "cell_halo",
+                        "colour_halo",
+                        "last_halo_tile_per_colour",
+                        "last_halo_cell_per_colour_and_tile",
+                 ]))
         # now we have the parent loop we can work out what part of the
         # halo this field accesses
         if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
