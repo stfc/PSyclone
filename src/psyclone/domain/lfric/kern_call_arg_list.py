@@ -633,13 +633,13 @@ class KernCallArgList(ArgOrdering):
                 # This kernel takes responsibility for iterating over cells so
                 # pass the whole dofmap.
                 sym = self.append_array_reference(map_name, [":", ":"],
-                                                ScalarType.Intrinsic.INTEGER)
+                                                  ScalarType.Intrinsic.INTEGER)
                 self.append(sym.name, var_accesses, var_access_name=sym.name)
             else:
                 # Pass the dofmap for the cell column
                 cell_name, cell_ref = self.cell_ref_name(var_accesses)
                 sym = self.append_array_reference(map_name, [":", cell_ref],
-                                                ScalarType.Intrinsic.INTEGER)
+                                                  ScalarType.Intrinsic.INTEGER)
                 self.append(f"{sym.name}(:,{cell_name})",
                             var_accesses, var_access_name=sym.name)
 

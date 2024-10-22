@@ -215,6 +215,7 @@ def test_indexed_field_args(tmpdir):
     # Check compilation
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+
 def test_redundant_comp_trans(tmpdir, monkeypatch):
     '''
     Check that the correct halo exchanges are added if redundant
