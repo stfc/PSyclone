@@ -33,6 +33,6 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-EXAMPLES=extract nan profile readonly
+EXAMPLES=extract value_range_check profile readonly
 
 include ../../top_level.mk
