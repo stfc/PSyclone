@@ -812,7 +812,8 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # colouring.
         const = LFRicConstants()
         if node.field_space.orig_name not in const.VALID_DISCONTINUOUS_NAMES:
-            if node.loop_type not in ('colour', 'colourtiles') and node.has_inc_arg():
+            if (node.loop_type not in ('colour', 'colourtiles')
+                    and node.has_inc_arg()):
                 raise TransformationError(
                     f"Error in {self.name} transformation. The kernel has an "
                     f"argument with INC access but the loop is of type "
@@ -1242,7 +1243,6 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
         return colours_loop
 
-
     def _create_tiled_colours_loops(self, node):
         '''
         Creates a nested loop (colours, and cells of a given colour) which
@@ -1279,8 +1279,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
             colour_loop.set_upper_bound("last_halo_tile_per_colour", index)
         else:
             # No halo access.
-            colour_loop.set_upper_bound("ncolour")
-            # colour_loop.set_upper_bound("error")
+            colour_loop.set_upper_bound("last_edge_tile_per_colour")
 
         # Add this loop as a child of our loop over colours
         colours_loop.loop_body.addchild(colour_loop)
@@ -1302,7 +1301,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
                                       index)
         else:
             # No halo access.
-            tile_loop.set_upper_bound("ncells")
+            tile_loop.set_upper_bound("last_edge_cell_per_coloured_tile")
 
         # Add this loop as a child of our loop over colours
         colour_loop.loop_body.addchild(tile_loop)

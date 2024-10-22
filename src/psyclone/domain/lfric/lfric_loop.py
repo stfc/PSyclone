@@ -468,10 +468,22 @@ class LFRicLoop(PSyLoop):
             if Config.get().distributed_memory:
                 return (f"{self._mesh_name}%get_last_halo_tile_per_colour("
                         f"{halo_index})")
+            raise GenerationError(
+                "'last_halo_tile_per_colour' is not a valid loop upper bound "
+                "for non-distributed-memory code")
         if self._upper_bound_name == "last_halo_cell_per_colour_and_tile":
             if Config.get().distributed_memory:
                 return (f"{self._mesh_name}%get_last_halo_cell_per_colour_and"
                         f"_tile({halo_index})")
+            raise GenerationError(
+                "'last_halo_cell_per_colour_and_tile' is not a valid loop "
+                "upper bound for non-distributed-memory code")
+        if self._upper_bound_name == "last_edge_tile_per_colour":
+            raise GenerationError(
+                "FIXME: 'last_egde_tile_per_colour'")
+        if self._upper_bound_name == "last_edge_tile_per_colour":
+            raise GenerationError(
+                "FIXME: 'last_edge_cell_per_coloured_tile")
 
         if self._upper_bound_name == "ncolour":
             # Loop over cells of a particular colour when DM is disabled.

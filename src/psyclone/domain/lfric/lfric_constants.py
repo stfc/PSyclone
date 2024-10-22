@@ -193,6 +193,8 @@ class LFRicConstants():
                                   # coloured loop
               "ntilecolours",     # the number of colours in a
                                   # coloured tiled loop
+              "last_edge_tile_per_colour",
+              "last_edge_cell_per_coloured_tile",
               "ncells",           # the number of owned cells
               "ndofs",            # the number of owned dofs
               "nannexed"]         # the number of owned dofs
