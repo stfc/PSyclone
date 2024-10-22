@@ -38,7 +38,8 @@
 
 ''' This module provides the OMPTargetTrans PSyIR transformation '''
 
-from psyclone.psyir.nodes import CodeBlock, OMPTargetDirective, Call
+from psyclone.psyir.nodes import (
+    CodeBlock, OMPTargetDirective, Call, Routine, Reference)
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations import TransformationError
 
@@ -111,6 +112,16 @@ class OMPTargetTrans(RegionTrans):
                         f"'{call.routine.name}' is not available on the "
                         f"accelerator device, and therefore it cannot "
                         f"be called from within an OMP Target region.")
+        routine = node.ancestor(Routine)
+        if routine and routine.return_symbol:
+            # if it is a function, the target must not include its return sym
+            for node in node_list:
+                for ref in node.walk(Reference):
+                    if ref.symbol is routine.return_symbol:
+                        raise TransformationError(
+                            f"OpenMP Target cannot enclose a region that has"
+                            f"a function return value symbol, but found one in"
+                            f" '{routine.return_symbol.name}'.")
 
     def apply(self, node, options=None):
         ''' Insert an OMPTargetDirective before the provided node or list

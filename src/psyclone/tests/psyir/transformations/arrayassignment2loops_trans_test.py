@@ -518,7 +518,6 @@ def test_unsupported_type_character(fortran_reader):
         in str(info.value))
 
 
-
 def test_validate_nested_or_invalid_expressions(fortran_reader):
     ''' Check that we refuse to apply the transformation when there is more
     than one array with ranges in a single term, due to psyir representing

@@ -1669,6 +1669,15 @@ class SymbolTable():
                                     sym.wildcard_import]:
                                 symbol_table.remove(test_symbol)
                                 if test_symbol.name not in self:
+                                    # The visibility given by the inner symbol
+                                    # table does not necessarely match the one
+                                    # from the scope it should have been (it
+                                    # doesn't have a non-default visibility,
+                                    # otherwise the symbol would already be in
+                                    # the ancestor symbol table).
+                                    test_symbol.visibility = \
+                                        self.default_visibility
+
                                     self.add(test_symbol)
                                 else:
                                     for ref in symbol_table.node.walk(

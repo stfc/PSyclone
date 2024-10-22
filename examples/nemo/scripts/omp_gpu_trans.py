@@ -37,10 +37,9 @@
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
-import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT, OTHER_ISSUES, DONT_PARALLELISE)
+    enhance_tree_information, OTHER_ISSUES, DONT_PARALLELISE)
 from psyclone.psyir.nodes import (
     Loop, Routine, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
@@ -83,8 +82,8 @@ def trans(psyir):
 
     '''
     omp_target_trans = OMPTargetTrans()
-    omp_loop_trans = OMPLoopTrans(omp_schedule="static")
-    omp_loop_trans.omp_directive = "loop"
+    omp_loop_trans = OMPLoopTrans(omp_schedule="none")
+    omp_loop_trans.omp_directive = "teamsdistributeparalleldo"
 
     # Many of the obs_ files have problems to be offloaded to the GPU
     if psyir.name.startswith("obs_"):
@@ -142,6 +141,14 @@ def trans(psyir):
                         parent.addchild(atomic)
             continue
 
+        # ICE routines do not perform well on GPU, so we skip them
+        if psyir.name.startswith("ice"):
+            return
+
+        # This files does not compile with nvfortran 24.5
+        if psyir.name == "trazdf.f90":
+            return
+
         if psyir.name not in DONT_PARALLELISE:
             insert_explicit_loop_parallelism(
                     subroutine,
@@ -149,4 +156,5 @@ def trans(psyir):
                     loop_directive_trans=omp_loop_trans,
                     # Collapse is necessary to give GPUs enough parallel items
                     collapse=True,
+                    privatise_arrays=psyir.name != "ldftra.f90",
             )
