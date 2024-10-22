@@ -239,14 +239,126 @@ def test_redundant_comp_trans(tmpdir, monkeypatch):
     # Now transform the first loop to perform redundant computation out to
     # the level-1 halo
     rtrans = Dynamo0p3RedundantComputationTrans()
-    rtrans.apply(first_invoke.schedule[0], options={"depth": 1})
+    rtrans.apply(first_invoke.schedule[0], options={"depth": 3})
 
-    # There should now be a halo exchange for f1 before the first
-    # (builtin) kernel call
+    # There should now be a halo exchange for f2
     assert isinstance(first_invoke.schedule[0], LFRicHaloExchange)
     assert first_invoke.schedule[0].field.name == "f2"
+    # Check the correct depth is set
+    assert "halo_exchange(depth=3)" in str(psy.gen)
+    assert "halo_exchange(depth=1)" not in str(psy.gen)
 
-    # There should only be one halo exchange for field f1
+    # There should be one halo exchange for each field that is not f1
+    # (f2, f3, f4)
     assert len([node for node in first_invoke.schedule.walk(LFRicHaloExchange)
                 if node.field.name == "f2"]) == 1
+    assert len([node for node in first_invoke.schedule.walk(LFRicHaloExchange)
+                if node.field.name == "f3"]) == 1
+    assert len([node for node in first_invoke.schedule.walk(LFRicHaloExchange)
+                if node.field.name == "f4"]) == 1
+    # Check compiles
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
+    '''
+    Check that the expected code is generated from a multi-kernel invoke with
+    kernels operating on different domains.
+
+    '''
+    # Set up annexed dofs
+    config = Config.get()
+    lfric_config = config.api_conf("lfric")
+    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
+
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "4.17_multikernel_invokes_cell_dof_builtin.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    code = str(psy.gen)
+
+    # Work through the generated code and compare what is expected to what is
+    # generated
+
+    # Use statements
+    output = (
+        "      USE testkern_mod, ONLY: testkern_code\n"
+        "      USE testkern_dofs_mod, ONLY: testkern_dofs_code\n"
+        )
+    if dist_mem:
+        # Check mesh_mod is added to use statements
+        output += ("      USE mesh_mod, ONLY: mesh_type\n")
+    assert output in code
+
+    # Consistent declarations
+    output = (
+        "      REAL(KIND=r_def), intent(in) :: scalar_arg, a\n"
+        "      TYPE(field_type), intent(in) :: f1, f2, f3, f4, m1, m2\n"
+        "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) df\n"
+        "      INTEGER(KIND=i_def) loop2_start, loop2_stop\n"
+        "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+        "      INTEGER(KIND=i_def) nlayers_f1\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f4_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f3_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
+        )
+    assert output in code
+
+    # Check that dof kernel is called correctly
+    output = (
+        "      DO df = loop0_start, loop0_stop, 1\n"
+        "        CALL testkern_dofs_code(f1_data(df), f2_data(df), "
+        "f3_data(df), f4_data(df), scalar_arg)\n"
+        "      END DO\n"
+    )
+    assert output in code
+
+    if dist_mem:
+        if annexed:
+            # Check halos are set dirty/clean for modified fields in dof kernel
+            output = (
+                "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=1)\n"
+                "      END IF\n"
+                "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL m1_proxy%halo_exchange(depth=1)\n"
+                "      END IF\n"
+                "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL m2_proxy%halo_exchange(depth=1)\n"
+                "      END IF\n"
+            )
+            assert output in code
+        else:
+            # Check f1 field has halo exchange performed when annexed = true
+            output = (
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n"
+                "      CALL f1_proxy%halo_exchange(depth=1)"
+            )
+            assert output in code
+
+    # Check cell-column kern is called correctly
+    output = (
+        "      DO cell = loop1_start, loop1_stop, 1\n"
+        "        CALL testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, "
+        "m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
+        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
+        "      END DO\n"
+    )
+    assert output in code
+
+    # Check built-in is called correctly
+    output = (
+        "      DO df = loop2_start, loop2_stop, 1\n"
+        "        ! Built-in: inc_aX_plus_Y (real-valued fields)\n"
+        "        f1_data(df) = 0.5_r_def * f1_data(df) + f2_data(df)\n"
+        "      END DO\n"
+    )
+    assert output in code
+
     assert LFRicBuild(tmpdir).code_compiles(psy)

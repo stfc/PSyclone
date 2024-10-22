@@ -36,7 +36,7 @@
 program single_invoke_dofs
 
   ! Description: single user-defined kernel specified in an invoke call that
-  ! iterates over DoFs (currently not supported)
+  ! iterates over DoFs
   use constants_mod,      only: r_def
   use field_mod,          only: field_type
   use testkern_dofs_mod,  only: testkern_dofs_type

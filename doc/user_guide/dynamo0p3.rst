@@ -2494,10 +2494,6 @@ with PSyclone's naming conventions, are:
          passed in separately. Again, the intent is determined from the
          metadata (see :ref:`meta_args <lfric-api-meta-args>`).
 
-   3) Include the unique number of degrees of freedom for the function space.
-      This is an ``integer`` of kind ``i_def`` with intent ``in``. The name of
-      this argument is ``"undf_"<field_function_space>``.
-
 .. _lfric-kernel-arg-intents:
 
 Argument Intents
