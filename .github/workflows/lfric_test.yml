@@ -73,7 +73,6 @@ jobs:
         # than the latest release from pypi.
         # pip install external/fparser
         pip install .[test]
-        pip install jinja2
 
     # PSyclone, compile and run MetOffice gungho_model on GPU
     - name: LFRic GungHo with OpenMP offload
