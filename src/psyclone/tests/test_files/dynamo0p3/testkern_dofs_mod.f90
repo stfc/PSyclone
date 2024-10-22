@@ -56,7 +56,13 @@ module testkern_dofs_mod
 
 contains
 
-  subroutine testkern_dofs_code(a, b, c, d)
+  subroutine testkern_dofs_code(a, b, c, d, scalar_arg)
+    implicit none
+
+    real(kind=r_def),    intent(inout) :: a
+    real(kind=r_def),    intent(in)    :: b, c, d
+    real(kind=r_def),    intent(in)    :: scalar_arg
+
   end subroutine testkern_dofs_code
 
 end module testkern_dofs_mod

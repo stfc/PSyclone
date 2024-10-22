@@ -621,26 +621,27 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        sym = self.append_integer_reference(function_space.undf_name)
-        self.append(sym.name, var_accesses)
-
-        map_name = function_space.map_name
-        if self._kern.iterates_over == 'domain':
-            # This kernel takes responsibility for iterating over cells so
-            # pass the whole dofmap.
-            sym = self.append_array_reference(map_name, [":", ":"],
-                                              ScalarType.Intrinsic.INTEGER)
-            self.append(sym.name, var_accesses, var_access_name=sym.name)
-        elif self._kern.iterates_over == "dof":
-            # Dofmaps are not required for DoF kernels
+        if self._kern.iterates_over == "dof":
+            # Dofmaps and `undf` are not required for DoF kernels
             pass
         else:
-            # Pass the dofmap for the cell column
-            cell_name, cell_ref = self.cell_ref_name(var_accesses)
-            sym = self.append_array_reference(map_name, [":", cell_ref],
-                                              ScalarType.Intrinsic.INTEGER)
-            self.append(f"{sym.name}(:,{cell_name})",
-                        var_accesses, var_access_name=sym.name)
+            sym = self.append_integer_reference(function_space.undf_name)
+            self.append(sym.name, var_accesses)
+
+            map_name = function_space.map_name
+            if self._kern.iterates_over == 'domain':
+                # This kernel takes responsibility for iterating over cells so
+                # pass the whole dofmap.
+                sym = self.append_array_reference(map_name, [":", ":"],
+                                                ScalarType.Intrinsic.INTEGER)
+                self.append(sym.name, var_accesses, var_access_name=sym.name)
+            else:
+                # Pass the dofmap for the cell column
+                cell_name, cell_ref = self.cell_ref_name(var_accesses)
+                sym = self.append_array_reference(map_name, [":", cell_ref],
+                                                ScalarType.Intrinsic.INTEGER)
+                self.append(f"{sym.name}(:,{cell_name})",
+                            var_accesses, var_access_name=sym.name)
 
     def fs_intergrid(self, function_space, var_accesses=None):
         '''Add function-space related arguments for an intergrid kernel.

@@ -43,11 +43,13 @@ import pytest
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicKernMetadata
+from psyclone.domain.lfric import LFRicKernMetadata, LFRicLoop
+from psyclone.dynamo0p3 import LFRicHaloExchange
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.transformations import Dynamo0p3RedundantComputationTrans
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -207,8 +209,43 @@ def test_indexed_field_args(tmpdir):
     code = str(psy.gen)
 
     expected = ("CALL testkern_dofs_code(f1_data(df), f2_data(df), "
-                "f3_data(df), f4_data(df), scalar_arg, undf_w1)")
+                "f3_data(df), f4_data(df), scalar_arg)")
 
     assert expected in code
     # Check compilation
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+def test_redundant_comp_trans(tmpdir, monkeypatch):
+    '''
+    Check that the correct halo exchanges are added if redundant
+    computation is enabled for a dof kernel called before a
+    user-supplied kernel.
+
+    '''
+    api_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", True)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.14_single_invoke_dofs.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+
+    first_invoke = psy.invokes.invoke_list[0]
+
+    # Since (redundant) computation over annexed dofs is enabled, there
+    # should be no halo exchange before the first kernel call
+    assert isinstance(first_invoke.schedule[0], LFRicLoop)
+
+    # Now transform the first loop to perform redundant computation out to
+    # the level-1 halo
+    rtrans = Dynamo0p3RedundantComputationTrans()
+    rtrans.apply(first_invoke.schedule[0], options={"depth": 1})
+
+    # There should now be a halo exchange for f1 before the first
+    # (builtin) kernel call
+    assert isinstance(first_invoke.schedule[0], LFRicHaloExchange)
+    assert first_invoke.schedule[0].field.name == "f2"
+
+    # There should only be one halo exchange for field f1
+    assert len([node for node in first_invoke.schedule.walk(LFRicHaloExchange)
+                if node.field.name == "f2"]) == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
