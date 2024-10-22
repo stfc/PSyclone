@@ -923,7 +923,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
         # If the loop is not already coloured then check whether or not
         # it should be
-        if (node.loop_type not in ('colour', 'tile', 'colourtile')
+        if (node.loop_type not in ('colour', 'tile', 'colourtiles')
                 and node.has_inc_arg()):
             raise TransformationError(
                 f"Error in {self.name} transformation. The kernel has an "
