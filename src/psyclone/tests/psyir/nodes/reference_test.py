@@ -35,6 +35,7 @@
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified J. G. Wallwork, University of Cambridge
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Reference PSyIR node. '''
@@ -45,8 +46,8 @@ from psyclone.core import VariablesAccessInfo
 from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (ArrayReference, Assignment, colored,
                                   KernelSchedule, Literal, Reference)
-from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
-                                    UnresolvedType, ImportInterface,
+from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE, ContainerSymbol,
+                                    DataSymbol, UnresolvedType, ImportInterface,
                                     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
                                     REAL_TYPE, ScalarType, Symbol, SymbolTable,
                                     UnresolvedInterface)
@@ -77,6 +78,10 @@ def test_reference_equality():
     ref1 = Reference(symbol1)
     ref2 = Reference(symbol1)
     ref3 = Reference(symbol2)
+
+    assert not ref1.is_character
+    assert not ref2.is_character
+    assert not ref3.is_character
 
     assert ref2 == ref1
     assert ref1 != ref3
@@ -135,6 +140,7 @@ def test_reference_is_array():
     '''
     reference = Reference(DataSymbol("test", REAL_TYPE))
     assert reference.is_array is False
+    assert not reference.is_character
 
     # Test that a standard symbol (which would raise an exception if
     # `is_array` of the symbol is called), does not raise an exception
@@ -147,6 +153,13 @@ def test_reference_is_array():
                               interface=UnresolvedInterface())
     ref = Reference(array_symbol)
     assert ref.is_array is True
+
+
+def test_reference_is_character():
+    '''Test that a character reference is marked correctly.
+    '''
+    reference = Reference(DataSymbol("test", CHARACTER_TYPE))
+    assert reference.is_character
 
 
 def test_reference_datatype():
