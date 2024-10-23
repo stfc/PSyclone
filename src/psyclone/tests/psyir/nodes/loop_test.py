@@ -588,7 +588,168 @@ def test_loop_type(fortran_reader):
     assert inner_loop.loop_type == "lon"
     assert not inner_loop.is_outermost
 
+    assert outer_loop.is_perfectly_nested
+    assert inner_loop.is_perfectly_nested
+
     # The rules can also be unset, which will mean that no loop has a loop_type
     Loop.set_loop_type_inference_rules(None)
     assert outer_loop.loop_type is None
     assert inner_loop.loop_type is None
+
+
+def test_imperfectly_nested_loop_before(fortran_reader):
+    '''
+    Check that imperfectly nested loops are detected when the imperfections
+    come before loops.
+    '''
+    code = '''
+    subroutine imperfect_nest_before()
+      integer, parameter :: jpi=16, jpj=16, jpk=16
+      integer :: ji, jj, jk
+      real :: a(jpi, jpj, jpk), fconst
+      do jk = 1, jpk
+        a(1,1,jk) = -fconst
+        do jj = 1, jpj
+          do ji = 1, jpi
+            a(ji,jj,jk) = fconst
+          end do
+        end do
+      end do
+    end subroutine imperfect_nest_before
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    jk_loop = psyir.walk(Loop)[0]
+    jj_loop = psyir.walk(Loop)[1]
+    ji_loop = psyir.walk(Loop)[2]
+    assert not jk_loop.is_perfectly_nested
+    assert jj_loop.is_perfectly_nested
+    assert ji_loop.is_perfectly_nested
+
+    code = '''
+    subroutine imperfect_nest_before()
+      integer, parameter :: jpi=16, jpj=16, jpk=16
+      integer :: ji, jj, jk
+      real :: a(jpi, jpj, jpk), fconst
+      do jk = 1, jpk
+        do jj = 1, jpj
+          a(1,jj,jk) = -fconst
+          do ji = 1, jpi
+            a(ji,jj,jk) = fconst
+          end do
+        end do
+      end do
+    end subroutine imperfect_nest_before
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    jk_loop = psyir.walk(Loop)[0]
+    jj_loop = psyir.walk(Loop)[1]
+    ji_loop = psyir.walk(Loop)[2]
+    assert not jk_loop.is_perfectly_nested
+    assert not jj_loop.is_perfectly_nested
+    assert ji_loop.is_perfectly_nested
+
+
+def test_imperfectly_nested_loop_after(fortran_reader):
+    '''
+    Check that imperfectly nested loops are detected when the imperfections
+    come after loops.
+    '''
+    code = '''
+    subroutine imperfect_nest_after()
+      integer, parameter :: jpi=16, jpj=16, jpk=16
+      integer :: ji, jj, jk
+      real :: a(jpi, jpj, jpk), fconst
+      do jk = 1, jpk
+        do jj = 1, jpj
+          do ji = 1, jpi
+            a(ji,jj,jk) = fconst
+          end do
+        end do
+        a(1,1,jk) = -fconst
+      end do
+    end subroutine imperfect_nest_after
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    jk_loop = psyir.walk(Loop)[0]
+    jj_loop = psyir.walk(Loop)[1]
+    ji_loop = psyir.walk(Loop)[2]
+    assert not jk_loop.is_perfectly_nested
+    assert jj_loop.is_perfectly_nested
+    assert ji_loop.is_perfectly_nested
+
+    code = '''
+    subroutine imperfect_nest_after()
+      integer, parameter :: jpi=16, jpj=16, jpk=16
+      integer :: ji, jj, jk
+      real :: a(jpi, jpj, jpk), fconst
+      do jk = 1, jpk
+        do jj = 1, jpj
+          do ji = 1, jpi
+            a(ji,jj,jk) = fconst
+          end do
+          a(1,jj,jk) = -fconst
+        end do
+      end do
+    end subroutine imperfect_nest_after
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    jk_loop = psyir.walk(Loop)[0]
+    jj_loop = psyir.walk(Loop)[1]
+    ji_loop = psyir.walk(Loop)[2]
+    assert not jk_loop.is_perfectly_nested
+    assert not jj_loop.is_perfectly_nested
+    assert ji_loop.is_perfectly_nested
+
+
+def test_imperfectly_nested_loop_if(fortran_reader):
+    '''
+    Check that imperfectly nested loops are detected when the imperfections are
+    due to if conditions.
+    '''
+    code = '''
+    subroutine imperfect_nest_if()
+      integer, parameter :: jpi=16, jpj=16, jpk=16
+      integer :: ji, jj, jk
+      real :: a(jpi, jpj, jpk), fconst
+      do jk = 1, jpk
+        if (jk > 1) then
+          do jj = 1, jpj
+            do ji = 1, jpi
+              a(ji,jj,jk) = fconst
+            end do
+          end do
+        end if
+      end do
+    end subroutine imperfect_nest_if
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    jk_loop = psyir.walk(Loop)[0]
+    jj_loop = psyir.walk(Loop)[1]
+    ji_loop = psyir.walk(Loop)[2]
+    assert not jk_loop.is_perfectly_nested
+    assert jj_loop.is_perfectly_nested
+    assert ji_loop.is_perfectly_nested
+
+    code = '''
+    subroutine imperfect_nest_if()
+      integer, parameter :: jpi=16, jpj=16, jpk=16
+      integer :: ji, jj, jk
+      real :: a(jpi, jpj, jpk), fconst
+      do jk = 1, jpk
+        do jj = 1, jpj
+          if (jj > 1) then
+            do ji = 1, jpi
+              a(ji,jj,jk) = fconst
+            end do
+          end if
+        end do
+      end do
+    end subroutine imperfect_nest_if
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    jk_loop = psyir.walk(Loop)[0]
+    jj_loop = psyir.walk(Loop)[1]
+    ji_loop = psyir.walk(Loop)[2]
+    assert not jk_loop.is_perfectly_nested
+    assert not jj_loop.is_perfectly_nested
+    assert ji_loop.is_perfectly_nested

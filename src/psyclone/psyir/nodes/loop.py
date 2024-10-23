@@ -40,10 +40,14 @@
 
 ''' This module contains the Loop node implementation.'''
 
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
@@ -587,3 +591,70 @@ class Loop(Statement):
         :rtype: bool
         '''
         return self.ancestor(Loop) is None
+
+    @property
+    def is_perfectly_nested(self):
+        '''
+        Determine whether the Loop nest of descendents of a Loop (inclusive) is
+        'perfect', i.e., each level excecpt the deepest contains only the next
+        Loop.
+
+        Note that we ignore Nodes of certain types.
+
+        :returns: True if the Loop nest is perfect, otherwise False
+        :rtype: bool
+        '''
+        exclude = (
+            Literal,
+            Reference,
+            Loop,
+            IntrinsicCall,
+        )
+        subnest = self.walk(Loop)
+
+        def intersect(list1, list2):
+            '''
+            Compute the intersection of two lists.
+
+            We cannot use the inbuilt set interesection in Python because
+            Nodes are not hashable.
+
+            :param list1: the first list to intersect
+            :type list1: list
+            :param list2: the second list to intersect
+            :type list2: list
+            :returns: the intersection of the two lists
+            :rtype: list
+            '''
+            return [item for item in list1 if item in list2]
+
+        # Check whether the subnest is perfect by checking each level in turn
+        loops, non_loops = [self], []
+        while len(loops) > 0:
+            children = [
+                grandchild
+                for child in loops[0].children
+                for grandchild in child.children
+            ]
+            non_loops = [node for node in children if not isinstance(node, exclude)]
+            loops = intersect(
+                [node for node in children if isinstance(node, Loop)],
+                subnest
+            )
+
+            # Case of one loop and no non-loops: this nest level is okay
+            if len(loops) == 1 and not non_loops:
+                continue
+
+            # Case of no loops and no non-loops with descendents outside the
+            # subnest: this nest level is also okay
+            if not loops:
+                for node in non_loops:
+                    if intersect(node.walk(Loop), subnest):
+                        break
+                else:
+                    continue
+
+            # Otherwise, the nest level is not okay
+            return False
+        return True
