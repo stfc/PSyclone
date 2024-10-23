@@ -35,6 +35,7 @@
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # Modified by L. Turner, Met Office
+# Modified J. G. Wallwork, University of Cambridge
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Loop PSyIR node. '''
@@ -599,6 +600,10 @@ def test_loop_type(fortran_reader):
     # ...but not simple because the innermost assignment is not literal
     assert not outer_loop.is_simple
     assert not inner_loop.is_simple
+
+    assert outer_loop.nest_variable_names == ("jj", "ji")
+    assert inner_loop.nest_variable_names == ("ji",)
+
 
 def test_imperfectly_nested_loop_before(fortran_reader):
     '''

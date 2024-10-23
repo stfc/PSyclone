@@ -679,3 +679,12 @@ class Loop(Statement):
             isinstance(child, Assignment) and child.walk(Literal)
             for child in children
         )
+
+    @property
+    def nest_variable_names(self):
+        '''
+        :returns: Names of all variables within the Loop nest of descendents
+            of this Loop, inclusive.
+        :rtype: tuple
+        '''
+        return tuple(loop.variable.name for loop in self.walk(Loop))
