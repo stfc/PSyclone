@@ -47,10 +47,10 @@ from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (ArrayReference, Assignment, colored,
                                   KernelSchedule, Literal, Reference)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE, ContainerSymbol,
-                                    DataSymbol, UnresolvedType, ImportInterface,
-                                    INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
-                                    REAL_TYPE, ScalarType, Symbol, SymbolTable,
-                                    UnresolvedInterface)
+                                    DataSymbol, UnresolvedType,
+                                    ImportInterface, INTEGER_SINGLE_TYPE,
+                                    REAL_SINGLE_TYPE, REAL_TYPE, ScalarType,
+                                    Symbol, SymbolTable, UnresolvedInterface)
 
 
 def test_reference_bad_init():
