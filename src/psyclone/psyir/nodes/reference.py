@@ -102,7 +102,9 @@ class Reference(DataNode):
         :rtype: bool
 
         '''
-        return self.symbol.datatype._intrinsic == ScalarType.Intrinsic.CHARACTER
+        return (
+            self.symbol.datatype._intrinsic == ScalarType.Intrinsic.CHARACTER
+        )
 
     @property
     def symbol(self):
