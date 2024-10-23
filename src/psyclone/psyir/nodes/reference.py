@@ -35,6 +35,7 @@
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+# Modified J. G. Wallwork, University of Cambridge
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the Reference node.'''
@@ -44,7 +45,7 @@ from psyclone.core import AccessType, Signature, VariablesAccessInfo
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import Symbol
-from psyclone.psyir.symbols.datatypes import UnresolvedType
+from psyclone.psyir.symbols.datatypes import ScalarType, UnresolvedType
 
 
 class Reference(DataNode):
@@ -93,6 +94,15 @@ class Reference(DataNode):
 
         '''
         return self.symbol.is_array
+
+    @property
+    def is_character(self):
+        '''
+        :returns: True if this reference is a character, otherwise False.
+        :rtype: bool
+
+        '''
+        return self.symbol.datatype._intrinsic == ScalarType.Intrinsic.CHARACTER
 
     @property
     def symbol(self):
