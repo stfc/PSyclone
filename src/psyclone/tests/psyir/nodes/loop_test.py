@@ -583,8 +583,10 @@ def test_loop_type(fortran_reader):
     })
     outer_loop = psyir.walk(Loop)[0]
     assert outer_loop.loop_type == "lat"
+    assert outer_loop.is_outermost
     inner_loop = psyir.walk(Loop)[1]
     assert inner_loop.loop_type == "lon"
+    assert not inner_loop.is_outermost
 
     # The rules can also be unset, which will mean that no loop has a loop_type
     Loop.set_loop_type_inference_rules(None)

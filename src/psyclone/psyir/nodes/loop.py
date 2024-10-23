@@ -35,6 +35,7 @@
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified J. G. Wallwork, University of Cambridge
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Loop node implementation.'''
@@ -578,3 +579,11 @@ class Loop(Statement):
             if not kernel.module_inline:
                 parent.add(UseGen(parent, name=kernel._module_name, only=True,
                                   funcnames=[kernel._name]))
+
+    @property
+    def is_outermost(self):
+        '''
+        :returns: True if the loop has no ancestors, otherwise False
+        :rtype: bool
+        '''
+        return self.ancestor(Loop) is None
