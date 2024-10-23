@@ -588,14 +588,17 @@ def test_loop_type(fortran_reader):
     assert inner_loop.loop_type == "lon"
     assert not inner_loop.is_outermost
 
-    assert outer_loop.is_perfectly_nested
-    assert inner_loop.is_perfectly_nested
-
     # The rules can also be unset, which will mean that no loop has a loop_type
     Loop.set_loop_type_inference_rules(None)
     assert outer_loop.loop_type is None
     assert inner_loop.loop_type is None
 
+    # The loops are perfectly nested...
+    assert outer_loop.is_perfectly_nested
+    assert inner_loop.is_perfectly_nested
+    # ...but not simple because the innermost assignment is not literal
+    assert not outer_loop.is_simple
+    assert not inner_loop.is_simple
 
 def test_imperfectly_nested_loop_before(fortran_reader):
     '''
@@ -606,12 +609,12 @@ def test_imperfectly_nested_loop_before(fortran_reader):
     subroutine imperfect_nest_before()
       integer, parameter :: jpi=16, jpj=16, jpk=16
       integer :: ji, jj, jk
-      real :: a(jpi, jpj, jpk), fconst
+      real :: a(jpi, jpj, jpk)
       do jk = 1, jpk
-        a(1,1,jk) = -fconst
+        a(1,1,jk) = 1.0
         do jj = 1, jpj
           do ji = 1, jpi
-            a(ji,jj,jk) = fconst
+            a(ji,jj,jk) = 0.0
           end do
         end do
       end do
@@ -622,19 +625,19 @@ def test_imperfectly_nested_loop_before(fortran_reader):
     jj_loop = psyir.walk(Loop)[1]
     ji_loop = psyir.walk(Loop)[2]
     assert not jk_loop.is_perfectly_nested
-    assert jj_loop.is_perfectly_nested
-    assert ji_loop.is_perfectly_nested
+    assert jj_loop.is_simple
+    assert ji_loop.is_simple
 
     code = '''
     subroutine imperfect_nest_before()
       integer, parameter :: jpi=16, jpj=16, jpk=16
       integer :: ji, jj, jk
-      real :: a(jpi, jpj, jpk), fconst
+      real :: a(jpi, jpj, jpk)
       do jk = 1, jpk
         do jj = 1, jpj
-          a(1,jj,jk) = -fconst
+          a(1,jj,jk) = 1.0
           do ji = 1, jpi
-            a(ji,jj,jk) = fconst
+            a(ji,jj,jk) = 0.0
           end do
         end do
       end do
@@ -646,7 +649,7 @@ def test_imperfectly_nested_loop_before(fortran_reader):
     ji_loop = psyir.walk(Loop)[2]
     assert not jk_loop.is_perfectly_nested
     assert not jj_loop.is_perfectly_nested
-    assert ji_loop.is_perfectly_nested
+    assert ji_loop.is_simple
 
 
 def test_imperfectly_nested_loop_after(fortran_reader):
@@ -658,14 +661,14 @@ def test_imperfectly_nested_loop_after(fortran_reader):
     subroutine imperfect_nest_after()
       integer, parameter :: jpi=16, jpj=16, jpk=16
       integer :: ji, jj, jk
-      real :: a(jpi, jpj, jpk), fconst
+      real :: a(jpi, jpj, jpk)
       do jk = 1, jpk
         do jj = 1, jpj
           do ji = 1, jpi
-            a(ji,jj,jk) = fconst
+            a(ji,jj,jk) = 0.0
           end do
         end do
-        a(1,1,jk) = -fconst
+        a(1,1,jk) = 1.0
       end do
     end subroutine imperfect_nest_after
     '''
@@ -674,20 +677,20 @@ def test_imperfectly_nested_loop_after(fortran_reader):
     jj_loop = psyir.walk(Loop)[1]
     ji_loop = psyir.walk(Loop)[2]
     assert not jk_loop.is_perfectly_nested
-    assert jj_loop.is_perfectly_nested
-    assert ji_loop.is_perfectly_nested
+    assert jj_loop.is_simple
+    assert ji_loop.is_simple
 
     code = '''
     subroutine imperfect_nest_after()
       integer, parameter :: jpi=16, jpj=16, jpk=16
       integer :: ji, jj, jk
-      real :: a(jpi, jpj, jpk), fconst
+      real :: a(jpi, jpj, jpk)
       do jk = 1, jpk
         do jj = 1, jpj
           do ji = 1, jpi
-            a(ji,jj,jk) = fconst
+            a(ji,jj,jk) = 0.0
           end do
-          a(1,jj,jk) = -fconst
+          a(1,jj,jk) = 1.0
         end do
       end do
     end subroutine imperfect_nest_after
@@ -698,7 +701,7 @@ def test_imperfectly_nested_loop_after(fortran_reader):
     ji_loop = psyir.walk(Loop)[2]
     assert not jk_loop.is_perfectly_nested
     assert not jj_loop.is_perfectly_nested
-    assert ji_loop.is_perfectly_nested
+    assert ji_loop.is_simple
 
 
 def test_imperfectly_nested_loop_if(fortran_reader):
@@ -710,12 +713,12 @@ def test_imperfectly_nested_loop_if(fortran_reader):
     subroutine imperfect_nest_if()
       integer, parameter :: jpi=16, jpj=16, jpk=16
       integer :: ji, jj, jk
-      real :: a(jpi, jpj, jpk), fconst
+      real :: a(jpi, jpj, jpk)
       do jk = 1, jpk
         if (jk > 1) then
           do jj = 1, jpj
             do ji = 1, jpi
-              a(ji,jj,jk) = fconst
+              a(ji,jj,jk) = 0.0
             end do
           end do
         end if
@@ -727,19 +730,19 @@ def test_imperfectly_nested_loop_if(fortran_reader):
     jj_loop = psyir.walk(Loop)[1]
     ji_loop = psyir.walk(Loop)[2]
     assert not jk_loop.is_perfectly_nested
-    assert jj_loop.is_perfectly_nested
-    assert ji_loop.is_perfectly_nested
+    assert jj_loop.is_simple
+    assert ji_loop.is_simple
 
     code = '''
     subroutine imperfect_nest_if()
       integer, parameter :: jpi=16, jpj=16, jpk=16
       integer :: ji, jj, jk
-      real :: a(jpi, jpj, jpk), fconst
+      real :: a(jpi, jpj, jpk)
       do jk = 1, jpk
         do jj = 1, jpj
           if (jj > 1) then
             do ji = 1, jpi
-              a(ji,jj,jk) = fconst
+              a(ji,jj,jk) = 0.0
             end do
           end if
         end do
@@ -752,4 +755,4 @@ def test_imperfectly_nested_loop_if(fortran_reader):
     ji_loop = psyir.walk(Loop)[2]
     assert not jk_loop.is_perfectly_nested
     assert not jj_loop.is_perfectly_nested
-    assert ji_loop.is_perfectly_nested
+    assert ji_loop.is_simple

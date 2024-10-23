@@ -45,6 +45,7 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
@@ -658,3 +659,23 @@ class Loop(Statement):
             # Otherwise, the nest level is not okay
             return False
         return True
+
+    @property
+    def is_simple(self):
+        '''
+        Determine whether the nest of descendents starting at a Loop is
+        'simple', i.e., perfectly nested with only literal assignments at the
+        deepest level.
+
+        :returns: True if the Loop nest is simple, otherwise False
+        :rtype: bool
+        '''
+        children = [
+            grandchild
+            for child in self.walk(Loop)[-1].children
+            for grandchild in child.children
+        ]
+        return self.is_perfectly_nested and all(
+            isinstance(child, Assignment) and child.walk(Literal)
+            for child in children
+        )
