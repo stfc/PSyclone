@@ -97,7 +97,7 @@ def main(args):
                         help='the position of the panel-ID field in the '
                         'meta_args list of arguments in the kernel metadata '
                         '(LFRic only)')
-    parser.add_argument('-otest',
+    parser.add_argument('-otest', default=None,
                         help='filename for the unit test (implies -t)',
                         dest='test_filename')
     parser.add_argument('-oad', help='filename for the transformed code')
@@ -145,7 +145,8 @@ def main(args):
             tl_fortran_str, args.active, api=args.api,
             coord_arg_index=args.coord_arg,
             panel_id_arg_index=args.panel_id_arg,
-            create_test=generate_test)
+            create_test=generate_test,
+            test_filename=args.test_filename)
     except TangentLinearError as info:
         print(str(info.value))
         sys.exit(1)
