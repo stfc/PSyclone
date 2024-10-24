@@ -46,7 +46,7 @@ from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import (
     OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
 
-PROFILING_ENABLED = False
+PROFILING_ENABLED = True
 
 # List of all files that psyclone will skip processing
 
@@ -145,8 +145,9 @@ def trans(psyir):
         if psyir.name.startswith("ice"):
             return
 
-        # This files does not compile with nvfortran 24.5
-        if psyir.name == "trazdf.f90":
+        # Without loop directive, loops with string literal comparisons fail
+        # if omp_loop_trans.omp_directive != "loop":
+        if psyir.name in ["tranxt.f90", "trazdf.f90", "crsdom.f90"]:
             return
 
         if psyir.name not in DONT_PARALLELISE:
@@ -156,5 +157,7 @@ def trans(psyir):
                     loop_directive_trans=omp_loop_trans,
                     # Collapse is necessary to give GPUs enough parallel items
                     collapse=True,
-                    privatise_arrays=psyir.name != "ldftra.f90",
+                    privatise_arrays=(psyir.name not in [
+                                        "ldftra.f90",  # Wrong runtime results
+                                        ])
             )
