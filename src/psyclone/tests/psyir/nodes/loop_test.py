@@ -35,6 +35,7 @@
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # Modified by L. Turner, Met Office
+# Modified J. G. Wallwork, University of Cambridge
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Loop PSyIR node. '''
@@ -590,3 +591,6 @@ def test_loop_type(fortran_reader):
     Loop.set_loop_type_inference_rules(None)
     assert outer_loop.loop_type is None
     assert inner_loop.loop_type is None
+
+    assert outer_loop.is_parallelisable
+    assert inner_loop.is_parallelisable

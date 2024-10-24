@@ -441,7 +441,8 @@ def test_array_access_pairs_multi_var(lhs, rhs, independent, fortran_reader):
                           ])
 def test_improved_dependency_analysis(lhs, rhs, is_parallelisable,
                                       fortran_reader):
-    '''Tests the array checks of can_loop_be_parallelised.
+    '''Tests the array checks of can_loop_be_parallelised as called via the
+    is_parallelisable method of the Loop node.
     '''
     source = f'''program test
                  integer j, k, d_k
@@ -458,8 +459,7 @@ def test_improved_dependency_analysis(lhs, rhs, is_parallelisable,
                  end program test'''
     psyir = fortran_reader.psyir_from_source(source)
     loop = psyir.children[0].children[0]
-    dep_tools = DependencyTools()
-    result = dep_tools.can_loop_be_parallelised(loop)
+    result = loop.is_parallelisable
     assert result is is_parallelisable
 
 
