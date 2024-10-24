@@ -940,28 +940,47 @@ class KernCallArgList(ArgOrdering):
         if self._kern.is_coloured():
             colour_sym = self._symtab.find_or_create_integer_symbol(
                 "colour", tag="colours_loop_idx")
+
+            from psyclone.domain.lfric import LFRicLoop
+            loop_type = self._kern.ancestor(LFRicLoop)._loop_type
+
+            # If there is only one colourmap we need to specify the tag
+            # to make sure we get the right symbol.
             if self._kern.is_intergrid:
                 tag = None
+            elif loop_type == "tile":
+                tag = "tmap"
             else:
-                # If there is only one colourmap we need to specify the tag
-                # to make sure we get the right symbol.
                 tag = "cmap"
-            array_ref = self.get_array_reference(self._kern.colourmap,
-                                                 [Reference(colour_sym),
-                                                  Reference(cell_sym)],
-                                                 ScalarType.Intrinsic.INTEGER,
-                                                 tag=tag)
-            if var_accesses is not None:
-                var_accesses.add_access(Signature(colour_sym.name),
-                                        AccessType.READ, self._kern)
-                var_accesses.add_access(Signature(cell_sym.name),
-                                        AccessType.READ, self._kern)
-                var_accesses.add_access(Signature(array_ref.name),
-                                        AccessType.READ,
-                                        self._kern, ["colour", "cell"])
 
-            return (self._kern.colourmap + "(colour,cell)",
-                    array_ref)
+            if loop_type == "tile":
+                tile_sym = self._symtab.find_or_create_integer_symbol(
+                    "tile", tag="tile_loop_idx")
+                array_ref = self.get_array_reference(
+                    self._kern.tilecolourmap,
+                    [Reference(colour_sym), Reference(tile_sym),
+                     Reference(cell_sym)],
+                    ScalarType.Intrinsic.INTEGER,
+                    tag=tag)
+                return (self._kern.tilecolourmap + "(colour,tile,cell)",
+                        array_ref)
+            else:
+                array_ref = self.get_array_reference(
+                                self._kern.colourmap,
+                                [Reference(colour_sym), Reference(cell_sym)],
+                                ScalarType.Intrinsic.INTEGER,
+                                tag=tag)
+                if var_accesses is not None:
+                    var_accesses.add_access(Signature(colour_sym.name),
+                                            AccessType.READ, self._kern)
+                    var_accesses.add_access(Signature(cell_sym.name),
+                                            AccessType.READ, self._kern)
+                    var_accesses.add_access(Signature(array_ref.name),
+                                            AccessType.READ,
+                                            self._kern, ["colour", "cell"])
+
+                return (self._kern.colourmap + "(colour,cell)",
+                        array_ref)
 
         if var_accesses is not None:
             var_accesses.add_access(Signature("cell"), AccessType.READ,

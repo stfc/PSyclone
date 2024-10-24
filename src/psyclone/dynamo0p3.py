@@ -764,14 +764,26 @@ class LFRicMeshProperties(LFRicCollection):
         # it now, rather than when this class was first constructed.
         need_colour_limits = False
         need_colour_halo_limits = False
+        # need_tilecolour_limits = False
+        # need_tilecolour_halo_limits = False
         for call in self._calls:
             if call.is_coloured() and not call.is_intergrid:
-                loop = call.parent.parent
-                # Record whether or not this coloured loop accesses the halo.
-                if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
-                    need_colour_halo_limits = True
+
+                is_tiled = call.parent.parent.loop_type == "tile"
+                has_halo = (call.parent.parent.upper_bound_name in
+                            const.HALO_ACCESS_LOOP_BOUNDS)
+                if has_halo:
+                    if is_tiled:
+                        # need_tilecolour_halo_limits = True
+                        pass
+                    else:
+                        need_colour_halo_limits = True
                 else:
-                    need_colour_limits = True
+                    if is_tiled:
+                        # need_tilecolour_limits = True
+                        pass
+                    else:
+                        need_colour_limits = True
 
         if not self._properties and not (need_colour_limits or
                                          need_colour_halo_limits):
@@ -820,6 +832,24 @@ class LFRicMeshProperties(LFRicCollection):
                 "last_edge_cell_all_colours").name
             rhs = f"{mesh}%get_last_edge_cell_all_colours()"
             parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+        # if need_tilecolour_halo_limits:
+        #     lhs = self._symbol_table.find_or_create_tag(
+        #         "last_halo_tile_per_colour").name
+        #     rhs = f"{mesh}%get_last_halo_tile_per_colour()"
+        #     parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+        #     lhs = self._symbol_table.find_or_create_tag(
+        #         "last_halo_cell_per_colour_and_tiel").name
+        #     rhs = f"{mesh}%get_last_halo_cell_per_colour_and_tile()"
+        #     parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+        # if need_tilecolour_limits:
+        #     lhs = self._symbol_table.find_or_create_tag(
+        #         "last_edge_tile_per_colour").name
+        #     rhs = f"{mesh}%get_last_edge_tile_per_colour()"
+        #     parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+        #     lhs = self._symbol_table.find_or_create_tag(
+        #         "last_edge_cell_per_colour_and_tile").name
+        #     rhs = f"{mesh}%get_last_edge_cell_per_colour_and_tile()"
+        #     parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
 
 
 class DynReferenceElement(LFRicCollection):
@@ -1971,6 +2001,8 @@ class DynMeshes():
         # Whether or not the associated Invoke requires colourmap information
         self._needs_colourmap = False
         self._needs_colourmap_halo = False
+        self._needs_colourtilemap = False
+        self._needs_colourtilemap_halo = False
         # Keep a reference to the InvokeSchedule so we can check for colouring
         # later
         self._schedule = invoke.schedule
@@ -2093,12 +2125,20 @@ class DynMeshes():
                      call.is_coloured()]:
             # Keep a record of whether or not any kernels (loops) in this
             # invoke have been coloured and, if so, whether the associated loop
-            # goes into the halo.
-            if (call.parent.parent.upper_bound_name in
-                    const.HALO_ACCESS_LOOP_BOUNDS):
-                self._needs_colourmap_halo = True
+            # is tiled or it goes into the halo.
+            is_tiled = call.parent.parent.loop_type == "tile"
+            has_halo = (call.parent.parent.upper_bound_name in
+                        const.HALO_ACCESS_LOOP_BOUNDS)
+            if has_halo:
+                if is_tiled:
+                    self._needs_colourtilemap_halo = True
+                else:
+                    self._needs_colourmap_halo = True
             else:
-                self._needs_colourmap = True
+                if is_tiled:
+                    self._needs_colourtilemap = True
+                else:
+                    self._needs_colourmap = True
 
             if not call.is_intergrid:
                 non_intergrid_kern = call
@@ -2108,32 +2148,72 @@ class DynMeshes():
             # the colourmap variables associated with the coarse
             # mesh (since that determines the iteration space).
             carg_name = call._intergrid_ref.coarse.name
-            # Colour map
-            base_name = "cmap_" + carg_name
-            colour_map = sym_tab.find_or_create_array(
-                base_name, 2, ScalarType.Intrinsic.INTEGER,
-                tag=base_name)
-            # No. of colours
-            base_name = "ncolour_" + carg_name
-            ncolours = sym_tab.find_or_create_integer_symbol(
-                base_name, tag=base_name)
-            # Array holding the last cell of a given colour.
-            if (Config.get().distributed_memory and
-                    not call.all_updates_are_writes):
-                # This will require a loop into the halo and so the array is
-                # 2D (indexed by colour *and* halo depth).
-                base_name = "last_halo_cell_all_colours_" + carg_name
-                last_cell = self._schedule.symbol_table.find_or_create_array(
-                    base_name, 2, ScalarType.Intrinsic.INTEGER, tag=base_name)
+            if is_tiled:
+                base_name = "tmap_" + carg_name
+                tilecolour_map = sym_tab.find_or_create_array(
+                    base_name, 3, ScalarType.Intrinsic.INTEGER,
+                    tag=base_name)
+                base_name = "ntilecolour_" + carg_name
+                ntilecolours = sym_tab.find_or_create_integer_symbol(
+                    base_name, tag=base_name)
+                # Array holding the last cell of a given colour.
+                if (Config.get().distributed_memory and
+                        not call.all_updates_are_writes):
+                    # This will require a loop into the halo and so the array
+                    # is 2D (indexed by colour *and* halo depth).
+                    base_name = "last_halo_tile_per_colour_" + carg_name
+                    last_tile = sym_tab.find_or_create_array(
+                        base_name, 2, ScalarType.Intrinsic.INTEGER,
+                        tag=base_name)
+                    base_name = ("last_halo_cell_per_colour_and_tile_" +
+                                 carg_name)
+                    last_cell_tile = sym_tab.find_or_create_array(
+                        base_name, 3, ScalarType.Intrinsic.INTEGER,
+                        tag=base_name)
+                else:
+                    # Array holding the last edge cell of a given colour. Just
+                    # 1D as indexed by colour only.
+                    base_name = "last_edge_tile_all_colours_" + carg_name
+                    last_tile = sym_tab.find_or_create_array(
+                        base_name, 1, ScalarType.Intrinsic.INTEGER,
+                        tag=base_name)
+                    base_name = ("last_edge_cell_all_colours_and_tiles_"
+                                 + carg_name)
+                    last_cell_tile = sym_tab.find_or_create_array(
+                        base_name, 2, ScalarType.Intrinsic.INTEGER,
+                        tag=base_name)
+                # Add these symbols into the dictionary entry for this
+                # inter-grid kernel
+                call._intergrid_ref.set_tilecolour_info(
+                    tilecolour_map, ntilecolours, last_tile, last_cell_tile)
             else:
-                # Array holding the last edge cell of a given colour. Just 1D
-                # as indexed by colour only.
-                base_name = "last_edge_cell_all_colours_" + carg_name
-                last_cell = self._schedule.symbol_table.find_or_create_array(
-                    base_name, 1, ScalarType.Intrinsic.INTEGER, tag=base_name)
-            # Add these symbols into the DynInterGrid entry for this kernel
-            call._intergrid_ref.set_colour_info(colour_map, ncolours,
-                                                last_cell)
+                base_name = "cmap_" + carg_name
+                colour_map = sym_tab.find_or_create_array(
+                    base_name, 2, ScalarType.Intrinsic.INTEGER,
+                    tag=base_name)
+                base_name = "ncolour_" + carg_name
+                ncolours = sym_tab.find_or_create_integer_symbol(
+                    base_name, tag=base_name)
+                # Array holding the last cell of a given colour.
+                if (Config.get().distributed_memory and
+                        not call.all_updates_are_writes):
+                    # This will require a loop into the halo and so the array
+                    # is 2D (indexed by colour *and* halo depth).
+                    base_name = "last_halo_cell_all_colours_" + carg_name
+                    last_cell = sym_tab.find_or_create_array(
+                        base_name, 2, ScalarType.Intrinsic.INTEGER,
+                        tag=base_name)
+                else:
+                    # Array holding the last edge cell of a given colour. Just
+                    # 1D as indexed by colour only.
+                    base_name = "last_edge_cell_all_colours_" + carg_name
+                    last_cell = sym_tab.find_or_create_array(
+                        base_name, 1, ScalarType.Intrinsic.INTEGER,
+                        tag=base_name)
+                # Add these symbols into the dictionary entry for this
+                # inter-grid kernel
+                call._intergrid_ref.set_colour_info(colour_map, ncolours,
+                                                    last_cell)
 
         if non_intergrid_kern and (self._needs_colourmap or
                                    self._needs_colourmap_halo):
@@ -2146,6 +2226,30 @@ class DynMeshes():
             # No. of colours
             ncolours = sym_tab.find_or_create_integer_symbol(
                 "ncolour", tag="ncolour").name
+
+            if self._needs_colourmap_halo:
+                sym_tab.find_or_create_array(
+                    "last_halo_cell_all_colours", 2,
+                    ScalarType.Intrinsic.INTEGER,
+                    tag="last_halo_cell_all_colours")
+            if self._needs_colourmap:
+                sym_tab.find_or_create_array(
+                    "last_edge_cell_all_colours", 1,
+                    ScalarType.Intrinsic.INTEGER,
+                    tag="last_edge_cell_all_colours")
+
+        if non_intergrid_kern and (self._needs_colourtilemap or
+                                   self._needs_colourtilemap_halo):
+            # There aren't any inter-grid kernels but we do need colourmap
+            # information and that means we'll need a mesh object
+            self._add_mesh_symbols(["mesh"])
+            # This creates the colourmap information for this invoke if we
+            # don't already have one.
+            colour_map = non_intergrid_kern.tilecolourmap
+            # No. of colours
+            ntilecolours = sym_tab.find_or_create_integer_symbol(
+                "ntilecolour", tag="ntilecolour").name
+
             if self._needs_colourmap_halo:
                 sym_tab.find_or_create_array(
                     "last_halo_cell_all_colours", 2,
@@ -2232,6 +2336,17 @@ class DynMeshes():
                     DeclGen(parent, datatype="integer", allocatable=True,
                             kind=api_config.default_kind["integer"],
                             entity_decls=[decln]))
+            if kern.tilecolourmap_symbol:
+                parent.add(
+                    DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            pointer=True,
+                            entity_decls=[kern.tilecolourmap_symbol.name +
+                                          "(:,:,:)"]))
+                parent.add(
+                    DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            entity_decls=[kern.ntilecolours_var_symbol.name]))
 
         if not self.intergrid_kernels and (self._needs_colourmap or
                                            self._needs_colourmap_halo):
@@ -2266,6 +2381,39 @@ class DynMeshes():
                                    kind=api_config.default_kind["integer"],
                                    allocatable=True,
                                    entity_decls=[last_cell.name+"(:)"]))
+
+        if not self.intergrid_kernels and (self._needs_colourtilemap or
+                                           self._needs_colourtilemap_halo):
+            # There aren't any inter-grid kernels but we do need
+            # colourmap information
+            base_name = "tmap"
+            csym = self._schedule.symbol_table.lookup_with_tag("tmap")
+            base_name = "ntilecolour"
+            ntilecolours = \
+                self._schedule.symbol_table.find_or_create_tag(base_name).name
+            colour_map = csym.name
+            # Add declarations for these variables
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               pointer=True,
+                               entity_decls=[colour_map+"(:,:,:)"]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               entity_decls=[ntilecolours]))
+            # if self._needs_colourtilemap_halo:
+            #     last_cell = self._symbol_table.find_or_create_tag(
+            #         "last_halo_cell_all_colours")
+            #     parent.add(DeclGen(parent, datatype="integer",
+            #                        kind=api_config.default_kind["integer"],
+            #                        allocatable=True,
+            #                        entity_decls=[last_cell.name+"(:,:)"]))
+            # if self._needs_colourtilemap:
+            #     last_cell = self._symbol_table.find_or_create_tag(
+            #         "last_edge_cell_all_colours")
+            #     parent.add(DeclGen(parent, datatype="integer",
+            #                        kind=api_config.default_kind["integer"],
+            #                        allocatable=True,
+            #                        entity_decls=[last_cell.name+"(:)"]))
 
     def initialise(self, parent):
         '''
@@ -2316,6 +2464,23 @@ class DynMeshes():
                 # Get the colour map
                 parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
                                      rhs=f"{mesh_name}%get_colour_map()"))
+            if self._needs_colourtilemap or self._needs_colourtilemap_halo:
+                parent.add(CommentGen(parent, ""))
+                parent.add(CommentGen(parent, " Get the tilecolourmap"))
+                parent.add(CommentGen(parent, ""))
+                # Look-up variable names for colourmap and number of colours
+                ntilecolours = self._schedule.symbol_table.find_or_create_tag(
+                    "ntilecolour").name
+                colour_map = self._schedule.symbol_table.find_or_create_tag(
+                    "tmap").name
+                # Get the number of colourtiles
+                parent.add(AssignGen(
+                    parent, lhs=ntilecolours,
+                    rhs=f"{mesh_name}%get_ntilecolours()"))
+                # Get the colour map
+                parent.add(AssignGen(
+                    parent, pointer=True, lhs=colour_map,
+                    rhs=f"{mesh_name}%get_coloured_tiling_map()"))
             return
 
         parent.add(CommentGen(
@@ -2414,6 +2579,7 @@ class DynMeshes():
                               rhs=dig.mmap +
                               "%get_ntarget_cells_per_source_y()"))
 
+            # import pdb; pdb.set_trace()
             # Colour map for the coarse mesh (if required)
             if dig.colourmap_symbol:
                 # Number of colours
@@ -2433,6 +2599,27 @@ class DynMeshes():
                     name = "%get_last_edge_cell_all_colours()"
                 parent.add(AssignGen(parent, lhs=sym.name,
                                      rhs=coarse_mesh + name))
+            # Colour map for the coarse mesh (if required)
+            if dig.tilecolourmap_symbol:
+                # Number of colours
+                parent.add(AssignGen(parent,
+                                     lhs=dig.ntilecolours_var_symbol.name,
+                                     rhs=coarse_mesh + "%get_ntilecolours()"))
+                # Colour map itself
+                parent.add(AssignGen(parent, lhs=dig.tilecolourmap_symbol.name,
+                                     pointer=True,
+                                     rhs=(coarse_mesh +
+                                          "%get_coloured_tiling_map()")))
+                # Last halo/edge cell per colour.
+                # sym = dig.last_cell_tile_var_symbol
+                # if len(sym.datatype.shape) == 2:
+                #     # Array is 2D so is a halo access.
+                #     name = "%get_last_halo_tile_per_colour()"
+                # else:
+                #     # Array is just 1D so go to the last edge cell.
+                #     name = "%get_last_edge_tile_per_colour()"
+                # parent.add(AssignGen(parent, lhs=sym.name,
+                #                      rhs=coarse_mesh + name))
 
     @property
     def intergrid_kernels(self):
@@ -2494,10 +2681,20 @@ class DynInterGrid():
         self._colourmap_symbol = None
         # Symbol for the variable holding the number of colours
         self._ncolours_var_symbol = None
+        self._ntilecolours_var_symbol = None
         # Symbol of the variable holding the last cell of a particular colour.
         # Will be a 2D array if the kernel iteration space includes the halo
         # and 1D otherwise.
         self._last_cell_var_symbol = None
+
+        # We have no colourmap information when first created
+        self._tilecolourmap_symbol = None
+        # Symbol for the variable holding the number of colours
+        self._ntilecolours_var_symbol = None
+        # Symbol of the variable holding the last tile of a particular colour
+        self._last_tile_var_symbol = None
+        # Symbol of the variable holding the last cell of a particular tile
+        self._last_cell_tile_var_symbol = None
 
     def set_colour_info(self, colour_map, ncolours, last_cell):
         '''Sets the colour_map, number of colours, and
@@ -2514,6 +2711,24 @@ class DynInterGrid():
         self._colourmap_symbol = colour_map
         self._ncolours_var_symbol = ncolours
         self._last_cell_var_symbol = last_cell
+
+    def set_tilecolour_info(self, tilecolour_map, ntilecolours,
+                            last_tile, last_cell_tile):
+        '''Sets the colour_map, number of colours, and
+        last cell of a particular colour.
+
+        :param colour_map: the colour map symbol.
+        :type: colour_map:py:class:`psyclone.psyir.symbols.Symbol`
+        :param ncolours: the number of colours.
+        :type: ncolours: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param last_cell: the last cell of a particular colour.
+        :type last_cell: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        '''
+        self._tilecolourmap_symbol = tilecolour_map
+        self._ntilecolours_var_symbol = ntilecolours
+        self._last_tile_var_symbol = last_tile
+        self._last_cell_tile_var_symbol = last_cell_tile
 
     @property
     def colourmap_symbol(self):
@@ -2535,6 +2750,34 @@ class DynInterGrid():
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
         '''
         return self._last_cell_var_symbol
+
+    @property
+    def tilecolourmap_symbol(self):
+        ''':returns: the colour map symbol.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
+        return self._tilecolourmap_symbol
+
+    @property
+    def ntilecolours_var_symbol(self):
+        ''':returns: the symbol for storing the number of colours.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
+        return self._ntilecolours_var_symbol
+
+    @property
+    def last_tile_var_symbol(self):
+        ''':returns: the last cell variable.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
+        return self._last_tile_var_symbol
+
+    @property
+    def last_cell_tile_var_symbol(self):
+        ''':returns: the last cell variable.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
+        return self._last_cell_tile_var_symbol
 
 
 class DynBasisFunctions(LFRicCollection):
@@ -4711,10 +4954,15 @@ class HaloReadAccess(HaloDepth):
         # anyway. (If the values of the field being modified are
         # required, at some later point, in that level of the halo
         # then we do a halo swap.)
+        # import pdb; pdb.set_trace()
         self._needs_clean_outer = (
             not (field.access == AccessType.INC
-                 and loop.upper_bound_name in ["cell_halo",
-                                               "colour_halo"]))
+                 and loop.upper_bound_name in [
+                        "cell_halo",
+                        "colour_halo",
+                        "last_halo_tile_per_colour",
+                        "last_halo_cell_per_colour_and_tile",
+                 ]))
         # now we have the parent loop we can work out what part of the
         # halo this field accesses
         if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
@@ -4725,7 +4973,9 @@ class HaloReadAccess(HaloDepth):
             else:
                 # loop redundant computation is to the maximum depth
                 self._max_depth = True
-        elif loop.upper_bound_name == "ncolour":
+        elif loop.upper_bound_name in ("ncolour",
+                                       "last_edge_tile_per_colour",
+                                       "last_edge_cell_per_coloured_tile"):
             # Loop is coloured but does not access the halo.
             pass
         elif loop.upper_bound_name in ["ncells", "nannexed"]:
@@ -4771,6 +5021,7 @@ class HaloReadAccess(HaloDepth):
             self._stencil_type = "region"
         if field.descriptor.stencil:
             # field has a stencil access
+            # import pdb; pdb.set_trace()
             if self._max_depth:
                 raise GenerationError(
                     "redundant computation to max depth with a stencil is "
