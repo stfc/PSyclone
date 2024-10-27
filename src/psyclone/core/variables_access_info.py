@@ -84,10 +84,18 @@ class VariablesAccessInfo(dict):
     # COLLECT-ARRAY-SHAPE-READS: controls if access to the shape of an array
     #     (e.g. ``ubound(a)`` are reported as read or not at all. Defaults
     #     to True.
+    # FLATTEN: by default, accesses in blocks (e.g. if blocks, loops) will
+    #     all be added to the access information, with no indication that an
+    #     accesses might be conditional (i.e. it's up to the calling program
+    #     to check if a node is inside an if block etc). If FLATTEN is set to
+    #     True, only the statements in the original node list will be
+    #     reported, but accesses including in block will be marked as
+    #     conditional if required. Check the manual for additional details.
     # USE-ORIGINAL-NAMES: if set this will report the original names of any
     #     symbol that is being renamed (``use mod, renamed_a=>a``). Defaults
     #     to False.
     _DEFAULT_OPTIONS = {"COLLECT-ARRAY-SHAPE-READS": False,
+                        "FLATTEN": False,
                         "USE-ORIGINAL-NAMES": False}
 
     def __init__(self, nodes=None, options=None):
@@ -159,7 +167,9 @@ class VariablesAccessInfo(dict):
                         mode = "READ"
                 elif self.is_written(signature):
                     mode = "WRITE"
-            output_list.append(f"{signature}: {mode}")
+                all_accesses = self[signature]
+                cond = any(acc.conditional for acc in all_accesses)
+            output_list.append(f"{'%' if cond else ''}{signature}: {mode}")
         return ", ".join(output_list)
 
     def options(self, key=None):
@@ -203,7 +213,9 @@ class VariablesAccessInfo(dict):
         '''Increases the location number.'''
         self._location = self._location + 1
 
-    def add_access(self, signature, access_type, node, component_indices=None):
+    def add_access(self, signature, access_type, node, component_indices=None,
+                   conditional=False):
+        # pylint: disable=too-many-arguments
         '''Adds access information for the variable with the given signature.
         If the `component_indices` parameter is not an instance of
         `ComponentIndices`, it is used to construct an instance. Therefore it
@@ -266,11 +278,13 @@ class VariablesAccessInfo(dict):
         if signature in self:
             self[signature].add_access_with_location(access_type,
                                                      self._location, node,
-                                                     component_indices)
+                                                     component_indices,
+                                                     conditional=conditional)
         else:
             var_info = SingleVariableAccessInfo(signature)
             var_info.add_access_with_location(access_type, self._location,
-                                              node, component_indices)
+                                              node, component_indices,
+                                              conditional=conditional)
             self[signature] = var_info
 
     @property
@@ -314,7 +328,8 @@ class VariablesAccessInfo(dict):
                                                   new_location,
                                                   access_info.node,
                                                   access_info.
-                                                  component_indices)
+                                                  component_indices,
+                                                  access_info.conditional)
         # Increase the current location of this instance by the amount of
         # locations just merged in
         self._location = self._location + max_new_location

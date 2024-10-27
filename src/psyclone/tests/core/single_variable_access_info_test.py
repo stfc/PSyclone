@@ -55,6 +55,7 @@ def test_access_info():
     assert access_info.access_type == AccessType.READ
     assert access_info.location == location
     assert access_info.component_indices.indices_lists == [[]]
+    assert not access_info.conditional
     assert not access_info.is_array()
     assert str(access_info) == "READ(12)"
     access_info.change_read_to_write()
@@ -87,6 +88,17 @@ def test_access_info():
     assert access_info.access_type == AccessType.UNKNOWN
     assert access_info.location == location
     assert access_info.component_indices.indices_lists == [["i", "j"]]
+
+    # Test conditional markings
+    access_info = AccessInfo(AccessType.READ, location, Node(),
+                             conditional=True)
+    assert access_info.conditional
+    assert str(access_info) == "%READ(12)"
+
+    access_info = AccessInfo(AccessType.WRITE, location, Node(),
+                             conditional=True)
+    assert access_info.conditional
+    assert str(access_info) == "%WRITE(12)"
 
 
 # -----------------------------------------------------------------------------

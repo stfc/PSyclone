@@ -68,12 +68,16 @@ class AccessInfo():
     :type component_indices: None, [], a list or a list of lists of \
         :py:class:`psyclone.psyir.nodes.Node` objects, or an object of type \
         :py:class:`psyclone.core.component_indices.ComponentIndices`
+    :param bool conditional: if the access is a conditional access.
 
     '''
-    def __init__(self, access_type, location, node, component_indices=None):
+    def __init__(self, access_type, location, node, component_indices=None,
+                 conditional=False):
+        # pylint: disable=too-many-arguments
         self._location = location
         self._access_type = access_type
         self._node = node
+        self._conditional = conditional
         if not isinstance(component_indices, ComponentIndices):
             self.component_indices = ComponentIndices(component_indices)
         else:
@@ -82,7 +86,8 @@ class AccessInfo():
     def __str__(self):
         '''Returns a string representation showing the access mode
         and location, e.g.: WRITE(5).'''
-        return f"{self._access_type}({self._location})"
+        return (f"{'%' if self._conditional else ''}"
+                f"{self._access_type}({self._location})")
 
     def change_read_to_write(self):
         '''This changes the access mode from READ to WRITE.
@@ -166,6 +171,13 @@ class AccessInfo():
         :rtype: :py:class:`psyclone.psyir.nodes.Node` '''
         return self._node
 
+    @property
+    def conditional(self):
+        ''':returns: whether the access is conditional.
+        :rtype: bool
+        '''
+        return self._conditional
+
 
 # =============================================================================
 class SingleVariableAccessInfo():
@@ -215,6 +227,22 @@ class SingleVariableAccessInfo():
         return any(access_info.access_type in
                    AccessType.all_write_accesses()
                    for access_info in self._accesses)
+
+    def is_conditional_read(self):
+        ''':returns: if all read accesses to this variable are conditional,
+            meaning that this variable is read conditional
+        :rtype: bool
+        '''
+        return all(access_read.conditional
+                   for access_read in self.all_read_accesses)
+
+    def is_conditional_write(self):
+        ''':returns: if all write accesses to this variable are conditional,
+            meaning that this variable is written conditional
+        :rtype: bool
+        '''
+        return all(access_written.conditional
+                   for access_written in self.all_write_accesses)
 
     def is_written_first(self):
         ''':returns: True if this variable is written in the first access \
@@ -286,7 +314,8 @@ class SingleVariableAccessInfo():
                 if access.access_type in AccessType.all_write_accesses()]
 
     def add_access_with_location(self, access_type, location, node,
-                                 component_indices):
+                                 component_indices, conditional=False):
+        # pylint: disable=too-many-arguments
         '''Adds access information to this variable.
 
         :param access_type: the type of access (READ, WRITE, ....)
@@ -300,9 +329,10 @@ class SingleVariableAccessInfo():
             access.
         :type component_indices:  \
             :py:class:`psyclone.core.component_indices.ComponentIndices`
+        :param bool conditional: if the access is conditional
         '''
         self._accesses.append(AccessInfo(access_type, location, node,
-                                         component_indices))
+                                         component_indices, conditional))
 
     def change_read_to_write(self):
         '''This function is only used when analysing an assignment statement.
