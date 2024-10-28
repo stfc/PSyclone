@@ -97,29 +97,23 @@ class Reference(DataNode):
     @property
     def is_read(self):
         '''
-        :returns: whether this reference is a read to its symbol.
+        :returns: whether this reference is reading from its symbol.
         :rtype: bool
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.assignment import Assignment
-        from psyclone.psyir.nodes.call import Call
         parent = self.parent
-        if isinstance(parent, Call):
-            # For now we assume that all arguments of a Call (or non-
-            # inquiry or pure IntrinsicCalls) are read (they may also be
-            # written to. This can be improved in the future by looking
-            # at intents.
-            return True
         if isinstance(parent, Assignment):
             if parent.lhs is self:
                 return False
-        # All references other than LHS of assignments represent a read.
+        # All references other than LHS of assignments represent a read. This
+        # can be improved in the future by looking at Call intents.
         return True
 
     @property
     def is_write(self):
         '''
-        :returns: whether this reference is a write to its symbol.
+        :returns: whether this reference is writing to its symbol.
         :rtype: bool
         '''
         # pylint: disable=import-outside-toplevel
@@ -268,12 +262,11 @@ class Reference(DataNode):
             return all_accesses[index-1].node
         return None
 
-    def next_access(self):
+    def next_accesses(self):
         '''
-        :returns: the following References to the same symbol. There may be
-                  multiple References returned as control flow may result
-                  in many possible next_accesses and all may need to be
-                  checked.
+        :returns: the nodes accessing the same symbol directly after this
+                  reference. It can be multiple nodes if the control flow
+                  diverges and there are multiple possible accesses.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         # Avoid circular import

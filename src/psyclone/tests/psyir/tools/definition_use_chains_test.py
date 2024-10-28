@@ -36,6 +36,7 @@
 '''This module contains the tests for the DefinitionUseChain class'''
 
 import pytest
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     Routine,
     IfBlock,
@@ -473,9 +474,8 @@ def test_definition_use_chain_find_forward_accesses_ifelse_example(
     # Start the chain from a = 1.
     chains = DefinitionUseChain(routine.children[0].lhs)
     reaches = chains.find_forward_accesses()
-    # TODO For now the if statement doesn't kill the accesses,
+    # TODO #2760 For now the if statement doesn't kill the accesses,
     # even though it will always be written to.
-    # FIXME Add issue to the previous comment
     assert len(reaches) == 4
     assert reaches[0] is routine.children[1].rhs.children[0]
     assert reaches[1] is routine.children[2].if_body.children[0].lhs
@@ -753,3 +753,23 @@ def test_definition_use_chain_find_forward_accesses_call_and_codeblock_nlocal(
     reaches = chains.find_forward_accesses()
     assert len(reaches) == 1
     assert reaches[0] is routine.children[1]
+
+
+def test_definition_use_chains_goto_statement(
+    fortran_reader,
+):
+    """Tests that we get an error when a region contains a GOTO statement."""
+    code = """
+    subroutine x()
+    integer :: a
+    a = a + 2
+    GOTO 100
+    100 a = a + 3
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(routine.children[0].lhs)
+    with pytest.raises(InternalError) as excinfo:
+        reaches = chains.find_forward_accesses()
+    assert ("DefinitionUseChains can't handle code containing GOTO statements"
+            in str(excinfo.value))

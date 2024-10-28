@@ -37,6 +37,9 @@
 
 import sys
 
+from fparser.two.Fortran2003 import Goto_Stmt
+
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     Assignment,
     Call,
@@ -55,8 +58,8 @@ from psyclone.psyir.symbols import AutomaticInterface
 
 
 class DefinitionUseChain:
-    """The DefinitionUseChain class is used to find References in a tree
-    that have data dependencies on the input reference.
+    """The DefinitionUseChain class is used to find nodes in a tree
+    that have data dependencies on the provided reference.
 
     :param reference: The Reference for which the dependencies will be
                       computed.
@@ -65,8 +68,8 @@ class DefinitionUseChain:
                                 dependencies. Default is the parent Routine or
                                 the root of the tree's children if no ancestor
                                 Routine exists.
-    :type control_flow_region: None or
-                               List[:py:class:`psyclone.psyir.nodes.Node`]
+    :type control_flow_region: Optional[List[
+                               :py:class:`psyclone.psyir.nodes.Node`]]
     :param bool is_local: Optional argument to define whether reference is a
                           local variable or not. Default behaviour is to check
                           if its interface is an AutomaticInterface or not.
@@ -120,7 +123,7 @@ class DefinitionUseChain:
                 )
             self._scope = control_flow_region
         if is_local is None:
-            # TODO Work out if symbol is local to the scope or
+            # Work out if symbol is local to the scope or
             # globally accessible. Anything that isn't a local
             # variable in a Routine has to be assumed as globally
             # accessible for now.
@@ -142,7 +145,8 @@ class DefinitionUseChain:
     @property
     def uses(self):
         """
-        :returns: the list of nodes used by this DefinitionUseChain.
+        :returns: the list of nodes using the value that the referenced symbol
+                  has before it is reassigned.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         """
         return self._uses
@@ -159,7 +163,9 @@ class DefinitionUseChain:
     def killed(self):
         """
         :returns: the list of killed output nodes computed by this
-                  DefinitionUseChain.
+                  DefinitionUseChain. The killed output nodes are those
+                  output nodes whose values are superceded by a later write to
+                  the symbol in the same basic block.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         """
         return self._killed
@@ -171,8 +177,7 @@ class DefinitionUseChain:
                   block, i.e. whether it contains any control flow nodes.
         :rtype: bool
         """
-        # This is a basic block if there is no control flow inside this scope
-        # then it is a basic block.
+        # A basic block is a scope without any control flow nodes inside.
         # In PSyclone, possible control flow nodes are IfBlock, Loop
         # and WhileLoop.
         for node in self._scope:
@@ -201,12 +206,12 @@ class DefinitionUseChain:
         # matter?
         # Find the position of the Reference's highest-level parent in
         # the Routine.
-        routine = self._reference.ancestor(Routine)
-        if routine is None:
+        scope = self._reference.ancestor(Routine)
+        if scope is None:
             # Handle subtrees without a routine
-            routine = self._reference.root
+            scope = self._reference.root
         node = self._reference
-        while node.depth > routine.depth + 1:
+        while node.depth > scope.depth + 1:
             node = node.parent
 
         # Setup the start and stop positions
@@ -302,7 +307,7 @@ class DefinitionUseChain:
                         )
                         control_flow_nodes.append(None)
                         chains.append(chain)
-                        # TODO For now I'm assuming the for an expression
+                        # N.B. For now this assumes that for an expression
                         # b = a * a, that next_access to the first Reference
                         # to a should not return the second Reference to a.
             # Now add all the other standardly handled basic_blocks to the
@@ -413,6 +418,7 @@ class DefinitionUseChain:
             # We're not in a control flow region, so we stop if the
             # reference is written to, so we don't need to ever add
             # elements of the killed array here.
+            # FIXME This is wrong.
 
         # Reset the start and stop points before returning the result.
         self._start_point = save_start_position
@@ -425,7 +431,6 @@ class DefinitionUseChain:
         basic_block_list provided. This function will not work
         correctly if there is control flow inside the
         basic_block_list provided.
-        FIXME should we check and raise an exception?
         Reads to the reference that occur before a write will
         be added to the self._uses array, the final write will
         be provided as self._defsout and all previous writes
@@ -434,6 +439,9 @@ class DefinitionUseChain:
         :param basic_block_list: The list of nodes that make up the basic
                                  block to find the forward uses in.
         :type basic_block_list: list[:py:class:`psyclone.psyir.nodes.Node`]
+
+        :raises InternalError: If a GOTO statement is found in the code
+                               region.
         """
         sig, _ = self._reference.get_signature_and_indices()
         # For a basic block we will only ever have one defsout
@@ -448,14 +456,15 @@ class DefinitionUseChain:
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
                     # positives for structure accesses inside CodeBlocks.
+                    if isinstance(reference._fp2_nodes[0], Goto_Stmt):
+                        raise InternalError("DefinitionUseChains can't handle "
+                                            "code containing GOTO statements.")
                     if (
                         self._reference.symbol.name
                         in reference.get_symbol_names()
                     ):
                         # Assume the worst for a CodeBlock and we count them
                         # as killed and defsout and uses.
-                        if defs_out is None:
-                            self._uses.append(reference)
                         if defs_out is not None:
                             self._killed.append(defs_out)
                         defs_out = reference
@@ -554,11 +563,7 @@ class DefinitionUseChain:
         # Routine's children.
         if len(nodelist) == 1 and isinstance(nodelist[0], Routine):
             nodelist = nodelist[0].children[:]
-        # We want to expand Schedules if they're in the nodelist.
-        # TODO I don't like this, can we instead expand this when placing it
-        # in? At the moment if we do this it breaks the is_basic_block check
-        # as we end up with a list inside a list.
-        # Maybe this is ok now?
+        # We expand Schedules if they're in the nodelist.
         new_nodelist = []
         for node in nodelist:
             if isinstance(node, Schedule):
