@@ -63,7 +63,7 @@ def trans(psy):
     fvisitor = FortranWriter()
     print("")
     print("FortranWriter code:")
-    print(fvisitor(psy.container))
+    print(fvisitor(schedule.root))
 
     # This PSyclone call should terminate gracefully here
     sys.exit(0)

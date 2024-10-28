@@ -49,7 +49,7 @@ from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
     Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation, \
-    StructureReference, FileContainer, CodeBlock, IntrinsicCall
+    StructureReference, FileContainer, CodeBlock, IntrinsicCall, Container
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, RoutineSymbol, ContainerSymbol,
     UnsupportedFortranType, ArgumentInterface, ImportInterface,
@@ -264,15 +264,16 @@ class GOOpenCLTrans(Transformation):
 
         # Insert, if they don't already exist, the necessary OpenCL helper
         # subroutines in the root Container.
-        psy_init = self._insert_opencl_init_routine(node.root)
-        init_grid = self._insert_initialise_grid_buffers(node.root)
-        write_grid_buf = self._insert_write_grid_buffers(node.root)
-        self._insert_ocl_read_from_device_function(node.root)
-        self._insert_ocl_write_to_device_function(node.root)
-        init_buf = self._insert_ocl_initialise_buffer(node.root)
+        module = node.ancestor(Container)
+        psy_init = self._insert_opencl_init_routine(module)
+        init_grid = self._insert_initialise_grid_buffers(module)
+        write_grid_buf = self._insert_write_grid_buffers(module)
+        self._insert_ocl_read_from_device_function(module)
+        self._insert_ocl_write_to_device_function(module)
+        init_buf = self._insert_ocl_initialise_buffer(module)
 
         for kern in node.coded_kernels():
-            self._insert_ocl_arg_setter_routine(node.root, kern)
+            self._insert_ocl_arg_setter_routine(module, kern)
 
         # Insert fortcl, clfortran and c_iso_binding import statement
         fortcl = ContainerSymbol("fortcl")

@@ -56,8 +56,6 @@ def trans(psy):
     :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
     '''
-    print(psy.gen)
-
     print(psy.invokes.names)
 
     schedule = psy.invokes.get('invoke_0').schedule

@@ -38,6 +38,7 @@
 ''' This module contains the FileContainer node implementation.'''
 
 from psyclone.psyir.nodes.container import Container
+from psyclone.errors import GenerationError
 
 
 class FileContainer(Container):
@@ -54,6 +55,40 @@ class FileContainer(Container):
 
     def __str__(self):
         return f"FileContainer[name='{self.name}']\n"
+
+    @property
+    def invokes(self):
+        ''' Return the Invokes object associated to this FileContainer.
+        This is for compatibility with old psyclone transformation scripts.
+        Before the entry point was PSy, and the script had to find the list
+        of InvokeSchedules, now the entry point is the root FileContainer:
+
+        before: PSy -> Invokes -> Invoke -> InvokeSchedule
+        now:                FileContainer --^
+
+        This method creates a shortcut:
+        PSy -> Invokes -> Invoke -> InvokeSchedule
+               ^--- FileContainer --^
+
+        So that previous:
+            def trans(psy):
+                psy.invokes.get_invoke('name').schedule
+
+        Still work as expected. However, it still exposes the PSy hierachy to
+        users scripts, so this will be deprecated after a grace period.
+
+        :return: the associated Invokes object.
+        :rtype: :py:class:`psyclone.psyGen.Invokes`
+        :raises GenerationError: if no InvokeSchedule was found.
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyGen import InvokeSchedule
+        invokes = self.walk(InvokeSchedule, stop_type=InvokeSchedule)
+        if not invokes:
+            raise GenerationError(
+                f"No InvokeSchedule found in {self.name}, does it come from"
+                f" a PSyKAl file?")
+        return invokes[0].invoke.invokes
 
 
 # For AutoAPI documentation generation

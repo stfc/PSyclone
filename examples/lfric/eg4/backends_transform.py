@@ -57,9 +57,6 @@ def trans(psy):
         print("DSL level view:")
         print(schedule.view())
 
-    print("f2pygen code:")
-    print(str(psy.gen))
-
     # TODO #1010: This script should terminate here until LFRic declares
     # all its symbols to the symbol table.
     sys.exit(0)
