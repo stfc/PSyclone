@@ -89,7 +89,7 @@ compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinj
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.f90 \
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.F90 \
 		  compare_variables_mod.F90
 
 allclean: clean
