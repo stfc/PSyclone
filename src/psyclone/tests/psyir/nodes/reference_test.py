@@ -163,9 +163,12 @@ def test_reference_is_character():
     assert not reference.is_character()
 
     reference = Reference(DataSymbol("unknown", UnresolvedType()))
-    assert not reference.is_character(unknown_as=False)
-
+    with pytest.raises(Exception) as excinfo:
+        _ = reference.is_character()
+    assert ("is_character could not resolve whether the expression 'unknown'"
+            " operates on characters." in str(excinfo.value))
     reference = Reference(DataSymbol("unknown", UnresolvedType()))
+    assert not reference.is_character(unknown_as=False)
     assert reference.is_character(unknown_as=True)
 
 
