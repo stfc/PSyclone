@@ -149,10 +149,10 @@ def main(args):
             regex_search = re.search(filename_standard, args.test_filename)
             if regex_search is None:
                 logger.error("Filename '%s' with 'lfric' API "
-                            "must be of the form "
-                            "<path>/adjt_<name>_alg_mod.[Xx]90 or "
-                            "<path>/atlt_<name>_alg_mod.[Xx]90.",
-                            args.test_filename)
+                             "must be of the form "
+                             "<path>/adjt_<name>_alg_mod.[Xx]90 or "
+                             "<path>/atlt_<name>_alg_mod.[Xx]90.",
+                             args.test_filename)
                 sys.exit(1)
             # At this stage filename should be valid, so we take the base name
             test_name = args.test_filename.split("_mod.")[0].split("/")[-1]
