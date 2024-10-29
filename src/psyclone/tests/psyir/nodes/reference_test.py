@@ -35,7 +35,6 @@
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
-# Modified J. G. Wallwork, University of Cambridge
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Reference PSyIR node. '''
@@ -46,11 +45,11 @@ from psyclone.core import VariablesAccessInfo
 from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (ArrayReference, Assignment, colored,
                                   KernelSchedule, Literal, Reference)
-from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE, ContainerSymbol,
-                                    DataSymbol, UnresolvedType,
-                                    ImportInterface, INTEGER_SINGLE_TYPE,
-                                    REAL_SINGLE_TYPE, REAL_TYPE, ScalarType,
-                                    Symbol, SymbolTable, UnresolvedInterface)
+from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
+                                    UnresolvedType, ImportInterface,
+                                    INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
+                                    REAL_TYPE, ScalarType, Symbol, SymbolTable,
+                                    UnresolvedInterface)
 
 
 def test_reference_bad_init():
@@ -148,28 +147,6 @@ def test_reference_is_array():
                               interface=UnresolvedInterface())
     ref = Reference(array_symbol)
     assert ref.is_array is True
-
-
-def test_reference_is_character():
-    '''Test that character references are marked correctly.
-    '''
-    reference = Reference(DataSymbol("char", CHARACTER_TYPE))
-    assert reference.is_character()
-
-    reference = Reference(DataSymbol("int", INTEGER_SINGLE_TYPE))
-    assert not reference.is_character()
-
-    reference = Reference(DataSymbol("real", REAL_TYPE))
-    assert not reference.is_character()
-
-    reference = Reference(DataSymbol("unknown", UnresolvedType()))
-    with pytest.raises(Exception) as excinfo:
-        _ = reference.is_character()
-    assert ("is_character could not resolve whether the expression 'unknown'"
-            " operates on characters." in str(excinfo.value))
-    reference = Reference(DataSymbol("unknown", UnresolvedType()))
-    assert not reference.is_character(unknown_as=False)
-    assert reference.is_character(unknown_as=True)
 
 
 def test_reference_datatype():
