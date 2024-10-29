@@ -538,8 +538,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         field in the list of arguments in the kernel metadata (if present).
     :param Optional[int] panel_id_arg_idx: 1-indexed position of the panel-id \
         field in the list of arguments in the kernel metadata (if present).
-    :param Optional[str] test_name: Name of the adjoint test LFRic alg.
-        derived from the adjoint test filename (if present)
+    :param Optional[str] test_name: Name of the adjoint test algorithm \
+        (if present).
 
     :returns: PSyIR of an Algorithm that tests the adjoint of the supplied \
               LFRic TL kernel.
