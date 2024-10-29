@@ -18,9 +18,9 @@ make
 
 This will construct the adjoint of the kernel (written to
 `adj_hydrostatic_kernel_mod.x90`) and a test harness in the form of LFRic
-Algorithm-layer code (`adjoint_test_mod.x90`). The Makefile then proceeds to
+Algorithm-layer code (`adjt_hydrostatic_alg_mod.x90`). The Makefile then proceeds to
 use PSyclone to process the test harness Algorithm code to generate algorithm
-(`adjoint_test_mod.F90`) and PSy layer (`psy.f90`) code.
+(`adjt_hydrostatic_alg_mod.F90`) and PSy layer (`psy.f90`) code.
 
 There is no `compile` target for this example because the generated code
 requires the full LFRic infrastructure. However, it is straightforward
@@ -51,7 +51,7 @@ make
    test-harness code and the TL and adjoint kernels:
 ```sh
 cd <lfric-root>/miniapps/skeleton
-cp <work-dir>/adjoint_test_mod.x90 source/algorithm/.
+cp <work-dir>/adjt_hydrostatic_alg_mod.x90 source/algorithm/.
 cp <work-dir>/tl_hydrostatic_kernel_mod.F90 source/kernel/.
 cp <work-dir>/adj_hydrostatic_kernel_mod.F90 source/kernel/.
 ```
@@ -61,7 +61,7 @@ cp <work-dir>/adj_hydrostatic_kernel_mod.F90 source/kernel/.
    example - if the skeleton mini-app is modified on LFRic trunk then it will
    need to be updated):
 ```sh
-sed -e 's/  subroutine run()/  subroutine run()\n    use adjoint_test_mod, only: adjoint_test/' -e 's/call skeleton_alg(field_1)/call adjoint_test(mesh, chi, panel_id)/' source/driver/skeleton_driver_mod.f90 > new_driver.f90
+sed -e 's/  subroutine run()/  subroutine run()\n    use adjt_hydrostatic_alg_mod, only: adjoint_test/' -e 's/call skeleton_alg(field_1)/call adjoint_test(mesh, chi, panel_id)/' source/driver/skeleton_driver_mod.f90 > new_driver.f90
 mv source/driver/skeleton_driver_mod.f90{,.bak}
 mv new_driver.f90 source/driver/skeleton_driver_mod.f90
 ```
