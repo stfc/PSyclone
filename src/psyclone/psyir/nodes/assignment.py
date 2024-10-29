@@ -249,7 +249,7 @@ class Assignment(Statement):
     @property
     def is_literal_assignment(self):
         '''
-        returns: True if the rhs of the assignment is a literal value and False
+        returns: True if the rhs of the assignment is a literal value and False \
             otherwise.
         rtype: bool
 
