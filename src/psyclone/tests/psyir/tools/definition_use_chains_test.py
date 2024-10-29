@@ -712,6 +712,31 @@ def test_definition_use_chain_find_forward_accesses_codeblock_and_call_nlocal(
     assert reaches[0] is routine.children[1]
 
 
+def test_definition_use_chain_find_forward_accesses_codeblock_and_call_cflow(
+    fortran_reader,
+):
+    """Functionality test for the find_forward_accesses routine. This
+    tests the behaviour for a simple case with a CodeBlock and a Call inside
+    control flow, and where the variable is not a local variable."""
+    code = """
+    subroutine x()
+    use some_mod
+    a = a + 2
+    if(cond) then
+      print *, a
+      call b(a)
+    end if
+    call c(a)
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(routine.children[0].lhs)
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 2
+    assert reaches[0] is routine.children[1].if_body.children[0]
+    assert reaches[1] is routine.children[2]
+
+
 def test_definition_use_chain_find_forward_accesses_codeblock_and_call_local(
     fortran_reader,
 ):
@@ -770,6 +795,6 @@ def test_definition_use_chains_goto_statement(
     routine = psyir.walk(Routine)[0]
     chains = DefinitionUseChain(routine.children[0].lhs)
     with pytest.raises(InternalError) as excinfo:
-        reaches = chains.find_forward_accesses()
+        chains.find_forward_accesses()
     assert ("DefinitionUseChains can't handle code containing GOTO statements"
             in str(excinfo.value))

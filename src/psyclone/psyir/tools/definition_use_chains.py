@@ -415,6 +415,12 @@ class DefinitionUseChain:
             if len(self.killed) == 0:
                 for ref in self._defsout:
                     self._reaches.append(ref)
+            else:
+                # If this block killed any accesses, then the first element
+                # of the killed writes is the access access that we're
+                # dependent with.
+                self._reaches.append(self.killed[0])
+
             # We're not in a control flow region, so we stop if the
             # reference is written to, so we don't need to ever add
             # elements of the killed array here.
@@ -483,8 +489,8 @@ class DefinitionUseChain:
                     # For now just assume calls are bad if we have a non-local
                     # variable and we count them as killed and defsout
                     # and uses.
-                    if defs_out is None:
-                        self._uses.append(reference)
+#                    if defs_out is None:
+#                        self._uses.append(reference)
                     if defs_out is not None:
                         self._killed.append(defs_out)
                     defs_out = reference
