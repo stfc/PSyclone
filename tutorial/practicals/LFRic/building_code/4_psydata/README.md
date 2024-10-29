@@ -40,14 +40,13 @@ is to use the name that was given to the invoke call. Look at the
 file ``time_evolution_alg_mod.x90`` and find the name given to the
 invoke statement that propagates the perturbation.
 
-PSyclone adds ``invoke_`` as a prefix to the name given to an invoke.
-This name can then be used to get the invoke object from
-``psy.invokes``. Use this name in the script (see line 68).
+PSyclone adds ``invoke_`` as a prefix to the subroutine name that implements
+the invoke body.
 
-### Step 1.3: Apply the transformation to the schedule
-Next you need to apply the transformation to the schedule.
+### Step 1.3: Apply the transformation to the PSyIR
+Next you need to apply the transformation to the PSyIR.
 See lines 76 - call the ``apply`` method of the transformation
-object with the schedule as parameter.
+object with the subroutine as parameter.
 
 
 ## Step 2: Modify the makefile so that PSyclone invokes the script

@@ -774,26 +774,25 @@ what the **psyclone** script calls internally).
 ###.. autofunction:: psyclone.generator.generate
 ###          :noindex:
 
-A valid script file must contain a **trans** function which accepts a **PSy**
-object as an argument and returns a **PSy** object, i.e.:
+A valid script file must contain a **trans** function which accepts a **PSyIR**
+node representing the root of the psy-layer code (as a FileConatainer).
 ::
 
-    >>> def trans(psy):
+    >>> def trans(psyir):
     ...     # ...
-    ...     return psy
 
-It is up to the script what it does with the PSy object. The example
-below does the same thing as the example in the
+It is up to the script how to modify the PSyIR representation of the code.
+The example below does the same thing as the example in the
 :ref:`sec_transformations_interactive` section.
 ::
 
-    >>> def trans(psy):
+    >>> def trans(psyir):
     ...     from psyclone.transformations import OMPParallelLoopTrans
-    ...     invoke = psy.invokes.get('invoke_0_v3_kernel_type')
-    ...     schedule = invoke.schedule
-    ...     ol = OMPParallelLoopTrans()
-    ...     ol.apply(schedule.children[0])
-    ...     return psy
+    ...     from psyclone.psyir.node import Routine
+    ...     for subroutine in psyir.walk(Routine):
+    ...         if subroutine.name == 'invoke_0_v3_kernel_type':
+    ...             ol = OMPParallelLoopTrans()
+    ...             ol.apply(subroutine.children[0])
 
 In the gocean API (and in the future the lfric API) an
 optional **trans_alg** function may also be supplied. This function

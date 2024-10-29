@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: O. Brunt, Met Office
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''A PSyclone transformation script that transforms all synchronous
 halo exchanges into asynchronous halo exchanges and moves the halo
@@ -48,12 +49,13 @@ This PSyclone transformation script is designed to be passed to
 PSyclone, it is not designed to be run directly from python.
 
 '''
+from psylcone.psyir.nodes import Routine
 from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
     MoveTrans, TransformationError
 from psyclone.dynamo0p3 import LFRicHaloExchange, LFRicHaloExchangeStart
 
 
-def trans(psy):
+def trans(psyir):
     '''Transforms all synchronous halo exchanges into asynchronous halo
     exchanges and moves the halo exchange start part of each
     asynchronous halo exchange as early as possible in the schedule in
@@ -61,29 +63,24 @@ def trans(psy):
     computation. Also outputs a textual view of the transformed PSyIR
     representing the PSy-layer.
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
-        kernel information required by PSyclone.
-    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     # Create the required transformations
     async_hex = Dynamo0p3AsyncHaloExchangeTrans()
     move_trans = MoveTrans()
 
-    # Iterate over the invokes in this algorithm file
-    invokes = psy.invokes.invoke_list
-    for invoke in invokes:
-
-        # Get the schedule (the PSyIR representation of the PSy-layer)
-        schedule = invoke.schedule
+    for subroutine in psyir.walk(Routine):
         # Split any synchronous halo exchanges into asynchronous halo exchanges
-        for hex_node in schedule.walk(LFRicHaloExchange):
+        for hex_node in subroutine.walk(LFRicHaloExchange):
             async_hex.apply(hex_node)
 
         # Move any halo exchange starts as early as possible in the
-        # schedule to maximise overlap of compute and comms within the
+        # subroutine to maximise overlap of compute and comms within the
         # invoke.
-        for hex_start_node in reversed(schedule.walk(LFRicHaloExchangeStart)):
+        for hex_start_node in reversed(subroutine.walk(
+                                                LFRicHaloExchangeStart)):
             idx = hex_start_node.position
             parent = hex_start_node.parent
             # Move halo exchange start node up one node at a time
@@ -98,5 +95,5 @@ def trans(psy):
             except TransformationError:
                 pass
 
-        # Take a look at the modified PSy-layer PSyIR
-        print(schedule.view())
+    # Take a look at the modified PSy-layer PSyIR
+    print(psyir.view())

@@ -117,25 +117,21 @@ be printed at runtime, e.g.::
 
 The transformation that adds read-only-verification to an application
 can be applied for both the :ref:`LFRic <lfric-api>` and
-:ref:`GOcean API <gocean-api>` - no API-specific
-transformations are required. Below is an example that searches for each
-loop in an invoke (which will always surround kernel calls) and applies the
-transformation to each one. This code has been successfully used as a
-global transformation with the LFRic Gravity Wave miniapp (the executable
-is named ``gravity_wave``)::
+:ref:`GOcean API <gocean-api>` - no API-specific transformations are required.
+Below is an example that searches for each loop in a PSyKAl invoke code (which
+will always surround kernel calls) and applies the transformation to each one.
+This code has been successfully used as aglobal transformation with the LFRic
+Gravity Wave miniapp (the executable is named ``gravity_wave``)
 
-    def trans(psy):
+.. code-block:: fortran
+
+    def trans(psyir):
         from psyclone.psyir.transformations import ReadOnlyVerifyTrans
         from psyclone.psyir.nodes import Loop
         read_only_verify = ReadOnlyVerifyTrans()
 
-        for invoke in psy.invokes.invoke_list:
-            schedule = invoke.schedule
-            for node in schedule:
-                if isinstance(node, Loop):
-                    read_only_verify.apply(node)
-
-        return psy
+        for loop in psyir.walk(Loop):
+            read_only_verify.apply(loop)
 
 Besides the transformation, a library is required to do the actual
 verification at runtime. There are two implementations of the

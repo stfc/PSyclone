@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''File containing a PSyclone transformation script for the dynamo0p3
 API to apply loop fusion.
@@ -40,32 +40,27 @@ This script can be applied via the -s option to the psyclone command,
 it is not designed to be directly run from python.
 
 '''
-from __future__ import print_function
 from psyclone.transformations import DynamoLoopFuseTrans, TransformationError
 
 
-def trans(psy):
+def trans(psyir):
     '''PSyclone transformation script for the dynamo0p3 API to apply loop
     fusion for a particular example - it is not meant to work
     generically.
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
-        kernel information required by PSyclone.
-    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     ftrans = DynamoLoopFuseTrans()
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
+    for subroutine in psyir.children[0].children:
 
         try:
             while True:
-                ftrans.apply(schedule[0], schedule[1])
+                ftrans.apply(subroutine[0], subroutine[1])
         except TransformationError as info:
             print(str(info.value))
 
         # take a look at what we've done
-        print(schedule.view())
-
-    return psy
+        print(subroutine.view())
