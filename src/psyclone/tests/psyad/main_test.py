@@ -63,7 +63,7 @@ TEST_MOD = (
     "end module my_mod\n"
 )
 
-TEST_LFRIC_KERNEL ='''module tl_foo_kernel_mod
+TEST_LFRIC_KERNEL = '''module tl_foo_kernel_mod
 
   use argument_mod,      only : arg_type, func_type, &
                                 GH_FIELD, GH_REAL,   &
@@ -567,8 +567,10 @@ def test_main_otest_verbose(tmpdir, caplog):
     assert "Writing test harness for adjoint kernel to file" in caplog.text
     assert "/harness.f90" in caplog.text
 
-# Testing filenames conform to LFRic API
+
 def test_main_otest_lfric(tmpdir, capsys, caplog):
+    ''' Test that the -otest option combined with LFRic API
+    generates the expected adjoint test. '''
     filename_in = str(tmpdir.join("tl_foo_kernel_mod.f90"))
     filename_out = str(tmpdir.join("atl_foo_kernel_mod.f90"))
     harness_out = str(tmpdir.join("atlt_foo_alg_mod.x90"))

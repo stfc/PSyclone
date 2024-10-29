@@ -144,18 +144,18 @@ def main(args):
     # Processing filename
     test_name = "adjoint_test"
     if generate_test:
-      if args.api in LFRIC_API_NAMES:
-          filename_standard = "adjt_.+_alg_mod.[Xx]90|atlt_.+_alg_mod.[Xx]90"
-          regex_search = re.search(filename_standard, args.test_filename)
-          if regex_search is None:
-              logger.error("Filename '%s' with 'lfric' API "
-                           "must be of the form "
-                           "<path>/adjt_<name>_alg_mod.[Xx]90 or "
-                           "<path>/atlt_<name>_alg_mod.[Xx]90.",
-                           args.test_filename)
-              sys.exit(1)
-          # At this stage filename should be valid, so we take the base name
-          test_name = args.test_filename.split("_mod.")[0].split("/")[-1]
+        if args.api in LFRIC_API_NAMES:
+            filename_standard = "adjt_.+_alg_mod.[Xx]90|atlt_.+_alg_mod.[Xx]90"
+            regex_search = re.search(filename_standard, args.test_filename)
+            if regex_search is None:
+                logger.error("Filename '%s' with 'lfric' API "
+                            "must be of the form "
+                            "<path>/adjt_<name>_alg_mod.[Xx]90 or "
+                            "<path>/atlt_<name>_alg_mod.[Xx]90.",
+                            args.test_filename)
+                sys.exit(1)
+            # At this stage filename should be valid, so we take the base name
+            test_name = args.test_filename.split("_mod.")[0].split("/")[-1]
 
     try:
         # Create the adjoint (and associated test framework if requested)
