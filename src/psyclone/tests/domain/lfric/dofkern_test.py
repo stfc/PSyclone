@@ -318,10 +318,42 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     )
     assert output in code
 
+    # Now check that correct halo exchanges and set clean/dirty are
+    # performed after the dof kernel call and before the next kernel (cell)
     if dist_mem:
-        if annexed:
-            # Check halos are set dirty/clean for modified fields in dof kernel
+        if not annexed:
+            # Check f1 field has halo exchange performed when annexed == False
             output = (
+                "      DO df = loop0_start, loop0_stop, 1\n"
+                "        CALL testkern_dofs_code(f1_data(df), f2_data(df), "
+                "f3_data(df), f4_data(df), scalar_arg)\n"
+                "      END DO\n"
+                "      !\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n"
+                "      CALL f1_proxy%halo_exchange(depth=1)\n"
+                )
+        else:
+            # Check f1 field is set dirty but no halo exchange is performed
+            output = (
+                "      DO df = loop0_start, loop0_stop, 1\n"
+                "        CALL testkern_dofs_code(f1_data(df), f2_data(df), "
+                "f3_data(df), f4_data(df), scalar_arg)\n"
+                "      END DO\n"
+                "      !\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n"
+                )
+        # This should be present in all distributed memory cases:
+        # Check halos are set dirty/clean for modified fields in dof
+        # kernel (above) and happen before the next kernel (cell_column)
+        common_halo_exchange_code = (
                 "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
                 "        CALL f2_proxy%halo_exchange(depth=1)\n"
                 "      END IF\n"
@@ -331,16 +363,11 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
                 "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
                 "        CALL m2_proxy%halo_exchange(depth=1)\n"
                 "      END IF\n"
-            )
-            assert output in code
-        else:
-            # Check f1 field has halo exchange performed when annexed == False
-            output = (
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !\n"
-                "      CALL f1_proxy%halo_exchange(depth=1)"
-            )
-            assert output in code
+                "      DO cell = loop1_start, loop1_stop, 1\n"
+                "        CALL testkern_code"
+                )
+        output += common_halo_exchange_code     # Append common
+        assert output in code
 
     # Check cell-column kern is called correctly
     output = (
