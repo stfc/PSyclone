@@ -213,9 +213,9 @@ class Assignment(Statement):
     @property
     def is_array_assignment(self):
         '''
-        returns: True if the lhs of the assignment is an array access with at \
+        :returns: True if the lhs of the assignment is an array access with at
             least one of its dimensions being a range and False otherwise.
-        rtype: bool
+        :rtype: bool
 
         '''
         # It's not sufficient simply to check for a Range node as that may be
@@ -249,9 +249,9 @@ class Assignment(Statement):
     @property
     def is_literal_assignment(self):
         '''
-        returns: True if the rhs of the assignment is a literal value and \
+        :returns: True if the rhs of the assignment is a literal value and
             False otherwise.
-        rtype: bool
+        :rtype: bool
 
         '''
         return isinstance(self.rhs, Literal)
