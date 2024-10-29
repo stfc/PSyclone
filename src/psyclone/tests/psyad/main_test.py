@@ -599,7 +599,7 @@ def test_main_otest_lfric_error_name(tmpdir, capsys, caplog):
     logger.propagate = True
     with caplog.at_level(logging.ERROR, "psyclone.psyad.main"):
         with pytest.raises(SystemExit) as err:
-            main([filename_in, "-a", "field", "-api", "lfric", "-oad", 
+            main([filename_in, "-a", "field", "-api", "lfric", "-oad",
                   filename_out, "-otest", harness_out])
     assert str(err.value) == "1"
     x_fail_str = (rf"Filename '{harness_out}' with 'lfric' API "
