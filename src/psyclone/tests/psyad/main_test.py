@@ -585,3 +585,28 @@ def test_main_otest_lfric(tmpdir, capsys, caplog):
         data = my_file.read()
     assert "module atlt_foo_alg_mod" in data.lower()
     assert "subroutine atlt_foo_alg" in data.lower()
+
+
+def test_main_otest_lfric_error_name(tmpdir, capsys, caplog):
+    ''' Test that a bad -otest option combined with LFRic API
+    generates the expected error. '''
+    filename_in = str(tmpdir.join("tl_foo_kernel_mod.f90"))
+    filename_out = str(tmpdir.join("atl_foo_kernel_mod.f90"))
+    harness_out = str(tmpdir.join("foo_alg_mod.x90"))
+    with open(filename_in, "w", encoding='utf-8') as my_file:
+        my_file.write(TEST_LFRIC_KERNEL)
+    logger = logging.getLogger("psyclone.psyad.main")
+    logger.propagate = True
+    with caplog.at_level(logging.ERROR, "psyclone.psyad.main"):
+        with pytest.raises(SystemExit) as err:
+            main([filename_in, "-a", "field", "-api", "lfric", "-oad", 
+                  filename_out, "-otest", harness_out])
+    assert str(err.value) == "1"
+    x_fail_str = (rf"Filename '{harness_out}' with 'lfric' API "
+                  "must be of the form "
+                  "<path>/adjt_<name>_alg_mod.[Xx]90 or "
+                  "<path>/atlt_<name>_alg_mod.[Xx]90.")
+    assert x_fail_str in caplog.text
+    output, error = capsys.readouterr()
+    assert error == ""
+    assert output == ""
