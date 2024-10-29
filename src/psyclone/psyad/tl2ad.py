@@ -77,7 +77,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     :param Optional[bool] create_test: whether or not to create test code for
         the adjoint kernel.
     :param Optional[str] test_name: base name to use for the file containing
-        the adjoint test.
+        the created adjoint test.
     :param Optional[int] coord_arg_index: the (1-based) index of the kernel
         argument holding the mesh coordinates (if any). Only applies to the
         LFRic API.
