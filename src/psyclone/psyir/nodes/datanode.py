@@ -62,9 +62,12 @@ class DataNode(Node):
         :param unknown_as: Determines behaviour in the case where it cannot be
             determined whether the DataNode is a character. Defaults to None,
             in which case an exception is raised.
-        :type unknown_as: bool
+        :type unknown_as: Optional[bool]
+
         :returns: True if this DataNode is a character, otherwise False.
         :rtype: bool
+
+        :raises Exception: if the intrinsic type cannot be determined.
 
         '''
         if not hasattr(self.datatype, "intrinsic"):
