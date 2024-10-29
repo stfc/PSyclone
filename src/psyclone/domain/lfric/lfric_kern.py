@@ -595,8 +595,8 @@ class LFRicKern(CodedKern):
         const = LFRicConstants()
         supported_operates_on = const.USER_KERNEL_ITERATION_SPACES[:]
         # TODO #925 Add support for 'domain' kernels
-        supported_operates_on.remove("domain")
         # TODO #1351 Add support for 'dof' kernels
+        supported_operates_on.remove("domain")
         supported_operates_on.remove("dof")
 
         # Check operates-on (iteration space) before generating code

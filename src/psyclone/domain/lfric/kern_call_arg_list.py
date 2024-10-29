@@ -218,10 +218,9 @@ class KernCallArgList(ArgOrdering):
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         if self._kern.iterates_over not in ["cell_column", "domain"]:
@@ -612,36 +611,36 @@ class KernCallArgList(ArgOrdering):
         '''Add compulsory arguments associated with this function space to
         the list. If supplied it also stores this access in var_accesses.
 
-        :param function_space: the function space for which the compulsory \
+        :param function_space: the function space for which the compulsory
             arguments are added.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
+        :type var_accesses:
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         if self._kern.iterates_over == "dof":
             # Dofmaps and `undf` are not required for DoF kernels
-            pass
-        else:
-            sym = self.append_integer_reference(function_space.undf_name)
-            self.append(sym.name, var_accesses)
+            return
 
-            map_name = function_space.map_name
-            if self._kern.iterates_over == 'domain':
-                # This kernel takes responsibility for iterating over cells so
-                # pass the whole dofmap.
-                sym = self.append_array_reference(map_name, [":", ":"],
-                                                  ScalarType.Intrinsic.INTEGER)
-                self.append(sym.name, var_accesses, var_access_name=sym.name)
-            else:
-                # Pass the dofmap for the cell column
-                cell_name, cell_ref = self.cell_ref_name(var_accesses)
-                sym = self.append_array_reference(map_name, [":", cell_ref],
-                                                  ScalarType.Intrinsic.INTEGER)
-                self.append(f"{sym.name}(:,{cell_name})",
-                            var_accesses, var_access_name=sym.name)
+        sym = self.append_integer_reference(function_space.undf_name)
+        self.append(sym.name, var_accesses)
+
+        map_name = function_space.map_name
+        if self._kern.iterates_over == 'domain':
+            # This kernel takes responsibility for iterating over cells so
+            # pass the whole dofmap.
+            sym = self.append_array_reference(map_name, [":", ":"],
+                                              ScalarType.Intrinsic.INTEGER)
+            self.append(sym.name, var_accesses, var_access_name=sym.name)
+        else:
+            # Pass the dofmap for the cell column
+            cell_name, cell_ref = self.cell_ref_name(var_accesses)
+            sym = self.append_array_reference(map_name, [":", cell_ref],
+                                              ScalarType.Intrinsic.INTEGER)
+            self.append(f"{sym.name}(:,{cell_name})",
+                        var_accesses, var_access_name=sym.name)
 
     def fs_intergrid(self, function_space, var_accesses=None):
         '''Add function-space related arguments for an intergrid kernel.

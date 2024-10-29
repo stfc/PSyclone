@@ -237,7 +237,7 @@ def test_redundant_comp_trans(tmpdir, monkeypatch):
     assert isinstance(first_invoke.schedule[0], LFRicLoop)
 
     # Now transform the first loop to perform redundant computation out to
-    # the level-1 halo
+    # the level-3 halo
     rtrans = Dynamo0p3RedundantComputationTrans()
     rtrans.apply(first_invoke.schedule[0], options={"depth": 3})
 
@@ -334,7 +334,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
             )
             assert output in code
         else:
-            # Check f1 field has halo exchange performed when annexed = true
+            # Check f1 field has halo exchange performed when annexed == False
             output = (
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n"

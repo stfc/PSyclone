@@ -32,6 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author I. Kavcic, Met Office
+! Modified O. Brunt, Met Office
 
 program single_invoke_dofs
 
