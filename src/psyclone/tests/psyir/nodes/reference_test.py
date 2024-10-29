@@ -161,6 +161,9 @@ def test_reference_is_character():
     reference = Reference(DataSymbol("test", CHARACTER_TYPE))
     assert reference.is_character
 
+    reference = Reference(DataSymbol("test", UnresolvedType()))
+    assert not reference.is_character
+
 
 def test_reference_datatype():
     '''Test the datatype property.
