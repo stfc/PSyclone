@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+#             T. Vockerodt, Met Office
 
 '''Top-level driver functions for PSyAD : the PSyclone Adjoint
 support. Transforms an LFRic tangent linear kernel to its adjoint.
@@ -41,6 +42,7 @@ support. Transforms an LFRic tangent linear kernel to its adjoint.
 import argparse
 import logging
 import sys
+import re
 
 from psyclone.configuration import Config, LFRIC_API_NAMES
 from psyclone.line_length import FortLineLength
@@ -139,6 +141,22 @@ def main(args):
         logger.error("psyad error: file '%s', not found.", filename)
         sys.exit(1)
 
+    # Processing filename
+    test_name = "adjoint_test"
+    if generate_test:
+      if args.api in LFRIC_API_NAMES:
+          filename_standard = "adjt_.+_alg_mod.[Xx]90|atlt_.+_alg_mod.[Xx]90"
+          regex_search = re.search(filename_standard, args.test_filename)
+          if regex_search is None:
+              logger.error("Filename '%s' with 'lfric' API "
+                           "must be of the form "
+                           "<path>/adjt_<name>_alg_mod.[Xx]90 or "
+                           "<path>/atlt_<name>_alg_mod.[Xx]90.",
+                           args.test_filename)
+              sys.exit(1)
+          # At this stage filename should be valid, so we take the base name
+          test_name = args.test_filename.split("_mod.")[0].split("/")[-1]
+
     try:
         # Create the adjoint (and associated test framework if requested)
         ad_fortran_str, test_fortran_str = generate_adjoint_str(
@@ -146,7 +164,7 @@ def main(args):
             coord_arg_index=args.coord_arg,
             panel_id_arg_index=args.panel_id_arg,
             create_test=generate_test,
-            test_filename=args.test_filename)
+            test_name=test_name)
     except TangentLinearError as info:
         print(str(info.value))
         sys.exit(1)
