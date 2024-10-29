@@ -40,7 +40,6 @@
 
 ''' This module contains the Loop node implementation.'''
 
-from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
@@ -637,7 +636,9 @@ class Loop(Statement):
                 for child in loops[0].children
                 for grandchild in child.children
             ]
-            non_loops = [node for node in children if not isinstance(node, exclude)]
+            non_loops = [
+                node for node in children if not isinstance(node, exclude)
+            ]
             loops = intersect(
                 [node for node in children if isinstance(node, Loop)],
                 subnest
