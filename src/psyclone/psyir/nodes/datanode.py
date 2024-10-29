@@ -32,12 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified J. G. Wallwork, University of Cambridge
 # -----------------------------------------------------------------------------
 
 ''' This module contains the DataNode abstract node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols.datatypes import UnresolvedType
+from psyclone.psyir.symbols.datatypes import ScalarType, UnresolvedType
 
 
 class DataNode(Node):
@@ -55,3 +56,14 @@ class DataNode(Node):
         :rtype: :py:class:`psyclone.psyir.symbols.UnresolvedType`
         '''
         return UnresolvedType()
+
+    @property
+    def is_character(self):
+        '''
+        :returns: True if this reference is a character, otherwise False.
+        :rtype: bool
+
+        '''
+        return (
+            self.datatype._intrinsic == ScalarType.Intrinsic.CHARACTER
+        )
