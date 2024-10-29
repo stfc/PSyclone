@@ -248,7 +248,7 @@ def normalise_loops(
 
     if convert_array_notation:
         # Make sure all array dimensions are explicit
-        for reference in schedule.walk(Reference, stop_type=Reference):
+        for reference in schedule.walk(Reference):
             part_of_the_call = reference.ancestor(Call)
             if part_of_the_call:
                 if not part_of_the_call.is_elemental:
@@ -258,15 +258,6 @@ def normalise_loops(
                     Reference2ArrayRangeTrans().apply(reference)
                 except TransformationError:
                     pass
-            if hasattr(reference, "indices"):
-                # Look at array-index expressions too.
-                for exprn in reference.indices:
-                    if (isinstance(exprn, Reference) and
-                            isinstance(exprn.symbol, DataSymbol)):
-                        try:
-                            Reference2ArrayRangeTrans().apply(exprn)
-                        except TransformationError:
-                            pass
 
     if loopify_array_intrinsics:
         for intr in schedule.walk(IntrinsicCall):
