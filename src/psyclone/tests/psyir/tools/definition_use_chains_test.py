@@ -851,6 +851,7 @@ def test_definition_use_chains_cycle_statement(
     a = 1
     do i = 1, 100
        a = a + i
+       a = b * 4
        cycle
        b = a + 2
     end do
@@ -864,15 +865,17 @@ def test_definition_use_chains_cycle_statement(
         routine.children[1].loop_body.children[0].lhs
     )
     reaches = chains.find_forward_accesses()
-    # We should have 3 reaches
+    # We should have 4 reaches
     # First two are A = A + i
-    # Second is c = a + b
-    assert len(reaches) == 3
+    # Then A = b * 4
+    # Then c = A + b
+    assert len(reaches) == 4
     assert (
         reaches[0] is routine.children[1].loop_body.children[0].rhs.children[0]
     )
     assert reaches[1] is routine.children[1].loop_body.children[0].lhs
-    assert reaches[2] is routine.children[2].rhs.children[0]
+    assert reaches[2] is routine.children[1].loop_body.children[1].lhs
+    assert reaches[3] is routine.children[2].rhs.children[0]
 
 
 def test_definition_use_chains_return_statement(
@@ -887,6 +890,7 @@ def test_definition_use_chains_return_statement(
     a = 1
     do i = 1, 100
        a = a + i
+       a = b + 4
        return
        b = a + 2
     end do
@@ -900,12 +904,14 @@ def test_definition_use_chains_return_statement(
         routine.children[1].loop_body.children[0].lhs
     )
     reaches = chains.find_forward_accesses()
-    # We should have 3 reaches
+    # We should have 4 reaches
     # First two are A = A + i
-    # Second is c = a + b
-    assert len(reaches) == 3
+    # Then A = b + 4
+    # Then c = A + b
+    assert len(reaches) == 4
     assert (
         reaches[0] is routine.children[1].loop_body.children[0].rhs.children[0]
     )
     assert reaches[1] is routine.children[1].loop_body.children[0].lhs
-    assert reaches[2] is routine.children[2].rhs.children[0]
+    assert reaches[2] is routine.children[1].loop_body.children[1].lhs
+    assert reaches[3] is routine.children[2].rhs.children[0]
