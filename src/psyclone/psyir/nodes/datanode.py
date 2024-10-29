@@ -57,13 +57,17 @@ class DataNode(Node):
         '''
         return UnresolvedType()
 
-    @property
-    def is_character(self):
+    def is_character(self, unknown_as=False):
         '''
-        :returns: True if this reference is a character, otherwise False.
+        :param unknown_as: Determines behaviour in the case where it cannot be
+            determined whether the DataNode is a character.
+        :type unknown_as: bool
+        :returns: True if this DataNode is a character, otherwise False.
         :rtype: bool
 
         '''
+        if not hasattr(self.datatype, "intrinsic"):
+            return unknown_as
         return (
-            self.datatype._intrinsic == ScalarType.Intrinsic.CHARACTER
+            self.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
         )

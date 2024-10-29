@@ -79,10 +79,6 @@ def test_reference_equality():
     ref2 = Reference(symbol1)
     ref3 = Reference(symbol2)
 
-    assert not ref1.is_character
-    assert not ref2.is_character
-    assert not ref3.is_character
-
     assert ref2 == ref1
     assert ref1 != ref3
 
@@ -140,7 +136,6 @@ def test_reference_is_array():
     '''
     reference = Reference(DataSymbol("test", REAL_TYPE))
     assert reference.is_array is False
-    assert not reference.is_character
 
     # Test that a standard symbol (which would raise an exception if
     # `is_array` of the symbol is called), does not raise an exception
@@ -156,13 +151,22 @@ def test_reference_is_array():
 
 
 def test_reference_is_character():
-    '''Test that a character reference is marked correctly.
+    '''Test that character references are marked correctly.
     '''
-    reference = Reference(DataSymbol("test", CHARACTER_TYPE))
-    assert reference.is_character
+    reference = Reference(DataSymbol("char", CHARACTER_TYPE))
+    assert reference.is_character()
 
-    reference = Reference(DataSymbol("test", UnresolvedType()))
-    assert not reference.is_character
+    reference = Reference(DataSymbol("int", INTEGER_SINGLE_TYPE))
+    assert not reference.is_character()
+
+    reference = Reference(DataSymbol("real", REAL_TYPE))
+    assert not reference.is_character()
+
+    reference = Reference(DataSymbol("unknown", UnresolvedType()))
+    assert not reference.is_character(unknown_as=False)
+
+    reference = Reference(DataSymbol("unknown", UnresolvedType()))
+    assert reference.is_character(unknown_as=True)
 
 
 def test_reference_datatype():
