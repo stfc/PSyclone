@@ -37,7 +37,11 @@
 
 import sys
 
-from fparser.two.Fortran2003 import Goto_Stmt
+from fparser.two.Fortran2003 import (
+    Cycle_Stmt,
+    Exit_Stmt,
+    Goto_Stmt,
+)
 
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
@@ -49,6 +53,7 @@ from psyclone.psyir.nodes import (
     Loop,
     Node,
     Reference,
+    Return,
     Routine,
     Schedule,
     Statement,
@@ -453,11 +458,17 @@ class DefinitionUseChain:
         # For a basic block we will only ever have one defsout
         defs_out = None
         for region in basic_block_list:
-            for reference in region.walk((Reference, Call, CodeBlock)):
+            for reference in region.walk((Reference, Call, CodeBlock, Return)):
                 # Store the position instead of computing it twice.
                 abs_pos = reference.abs_position
                 if abs_pos <= self._start_point or abs_pos >= self._stop_point:
                     continue
+                if isinstance(reference, Return):
+                    # When we find a return statement any following statements
+                    # can be ignored so we can return.
+                    if defs_out is not None:
+                        self._defsout.append(defs_out)
+                    return
                 if isinstance(reference, CodeBlock):
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
@@ -465,6 +476,13 @@ class DefinitionUseChain:
                     if isinstance(reference._fp2_nodes[0], Goto_Stmt):
                         raise InternalError("DefinitionUseChains can't handle "
                                             "code containing GOTO statements.")
+                    # If we find an Exit or Cycle statement, we can't
+                    # reach further in this code region so we can return.
+                    if isinstance(reference._fp2_nodes[0], (Exit_Stmt,
+                                                            Cycle_Stmt)):
+                        if defs_out is not None:
+                            self._defsout.append(defs_out)
+                        return
                     if (
                         self._reference.symbol.name
                         in reference.get_symbol_names()
