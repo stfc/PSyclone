@@ -67,12 +67,12 @@ class DataNode(Node):
         :returns: True if this DataNode is a character, otherwise False.
         :rtype: bool
 
-        :raises Exception: if the intrinsic type cannot be determined.
+        :raises ValueError: if the intrinsic type cannot be determined.
 
         '''
         if not hasattr(self.datatype, "intrinsic"):
             if unknown_as is None:
-                raise Exception(
+                raise ValueError(
                     "is_character could not resolve whether the expression"
                     f" '{self.debug_string()}' operates on characters."
                 )

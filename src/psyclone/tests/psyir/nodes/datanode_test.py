@@ -40,7 +40,7 @@
 '''
 import pytest
 
-from psyclone.psyir.nodes import DataNode, Reference
+from psyclone.psyir.nodes import DataNode, Reference, BinaryOperation
 from psyclone.psyir.symbols import (CHARACTER_TYPE, DataSymbol, UnresolvedType,
                                     INTEGER_SINGLE_TYPE, REAL_TYPE)
 
@@ -55,19 +55,24 @@ def test_datanode_datatype():
 
 
 def test_datanode_is_character():
-    '''Test that character references are marked correctly.
+    '''Test that character expressions are marked correctly.
     '''
     reference = Reference(DataSymbol("char", CHARACTER_TYPE))
     assert reference.is_character()
 
     reference = Reference(DataSymbol("int", INTEGER_SINGLE_TYPE))
+    reference2 = Reference(DataSymbol("int2", INTEGER_SINGLE_TYPE))
+    bop = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                 reference, reference2)
     assert not reference.is_character()
+    assert not reference2.is_character()
+    assert not bop.is_character()
 
     reference = Reference(DataSymbol("real", REAL_TYPE))
     assert not reference.is_character()
 
     reference = Reference(DataSymbol("unknown", UnresolvedType()))
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         _ = reference.is_character()
     assert ("is_character could not resolve whether the expression 'unknown'"
             " operates on characters." in str(excinfo.value))
