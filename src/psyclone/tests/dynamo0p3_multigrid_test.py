@@ -700,7 +700,7 @@ def test_fine_halo_read(monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
     hexch = schedule.children[5]
     assert isinstance(hexch, LFRicHaloExchange)
-    assert hexch._compute_halo_depth() == '2'
+    assert hexch._compute_halo_depth().value == '2'
     call = schedule.children[6]
     field = call.args[1]
     hra = HaloReadAccess(field, schedule.symbol_table)

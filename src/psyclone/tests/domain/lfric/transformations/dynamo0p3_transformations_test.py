@@ -4991,8 +4991,8 @@ def test_rc_continuous_halo_remove():
     rc_trans.apply(f3_inc_loop, {"depth": 3})
     result = str(psy.gen)
     assert result.count("CALL f3_proxy%halo_exchange(depth=") == 2
-    assert f3_inc_hex._compute_halo_depth() == "2"
-    assert f3_read_hex._compute_halo_depth() == "3"
+    assert f3_inc_hex._compute_halo_depth().value == "2"
+    assert f3_read_hex._compute_halo_depth().value == "3"
     assert "IF (f3_proxy%is_dirty(depth=2)) THEN" in result
     assert "IF (f3_proxy%is_dirty(depth=3)) THEN" not in result
     #
@@ -5003,7 +5003,7 @@ def test_rc_continuous_halo_remove():
     rc_trans.apply(f3_inc_loop, {"depth": 4})
     result = str(psy.gen)
     assert result.count("CALL f3_proxy%halo_exchange(depth=") == 1
-    assert f3_inc_hex._compute_halo_depth() == "3"
+    assert f3_inc_hex._compute_halo_depth().value == "3"
     # Position 7 is now halo exchange on f4 instead of f3
     assert schedule.children[7].field != "f3"
     assert "IF (f3_proxy%is_dirty(depth=4)" not in result
@@ -5330,7 +5330,7 @@ def test_rc_max_w_to_r_continuous_known_halo(monkeypatch, annexed):
         w_to_r_halo_exchange = schedule.children[4]
 
     # sanity check that the halo exchange goes to the full halo depth
-    assert (w_to_r_halo_exchange._compute_halo_depth() ==
+    assert (w_to_r_halo_exchange._compute_halo_depth().symbol.name ==
             "max_halo_depth_mesh")
 
     # the halo exchange should be both required to be added and known
@@ -5890,7 +5890,7 @@ def test_haloex_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "1"
+        assert halo_exchange._compute_halo_depth().value == "1"
         assert halo_exchange.required() == (True, True)
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
@@ -5970,7 +5970,8 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "max_halo_depth_mesh"
+        assert (halo_exchange._compute_halo_depth().symbol.name ==
+                "max_halo_depth_mesh")
         assert halo_exchange.required
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
@@ -6059,7 +6060,7 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "1"
+        assert halo_exchange._compute_halo_depth().value == "1"
         assert halo_exchange.required() == (True, False)
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
@@ -6146,7 +6147,8 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "max_halo_depth_mesh"
+        assert (halo_exchange._compute_halo_depth().symbol.name ==
+                "max_halo_depth_mesh")
         assert halo_exchange.required() == (True, True)
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly

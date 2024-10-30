@@ -247,7 +247,7 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     def _create_type_map(self, list_of_expressions, identical_variables=None,
-                         all_variables_positive=False):
+                         all_variables_positive=None):
         '''This function creates a dictionary mapping each Reference in any
         of the expressions to either a SymPy Function (if the reference
         is an array reference) or a Symbol (if the reference is not an
@@ -294,6 +294,11 @@ class SymPyWriter(FortranWriter):
         for reserved in SymPyWriter._RESERVED_NAMES:
             self._symbol_table.new_symbol(reserved)
 
+        # Set-up whether we should assume all Symbols are positive.
+        assumptions = dict()
+        if all_variables_positive:
+            assumptions["positive"] = True
+
         # Find each reference in each of the expression, and declare this name
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
         # (an array).
@@ -321,7 +326,7 @@ class SymPyWriter(FortranWriter):
                 # Test if an array or an array expression is used:
                 if not ref.is_array:
                     self._sympy_type_map[unique_sym.name] = Symbol(
-                        name, positive=all_variables_positive)
+                        name, **assumptions)
                     continue
 
                 # A Fortran array is used which has not been seen before.
@@ -570,8 +575,7 @@ class SymPyWriter(FortranWriter):
         # but the required symbol is mapped to the original name, which means
         # if the SymPy expression is converted to a string (in order to be
         # parsed), it will use the original structure reference syntax:
-        self._sympy_type_map[unique_name] = Symbol(
-            sig.to_language(), positive=all_variables_positive)
+        self._sympy_type_map[unique_name] = Symbol(sig.to_language())
         return unique_name
 
     # -------------------------------------------------------------------------

@@ -2903,7 +2903,7 @@ def test_haloexchange_unknown_halo_depth():
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 10
     halo_exchange = schedule.children[1]
-    assert halo_exchange._compute_halo_depth() == '11'
+    assert halo_exchange._compute_halo_depth().value == '11'
 
 
 def test_haloexchange_correct_parent():

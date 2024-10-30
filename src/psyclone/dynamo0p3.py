@@ -72,7 +72,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Reference, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
     StructureReference, Literal, IfBlock, Call, BinaryOperation,
-    IntrinsicCall, UnaryOperation)
+    IntrinsicCall)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     UnresolvedType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
@@ -4051,8 +4051,9 @@ class LFRicHaloExchange(HaloExchange):
                 required = True
                 known = False
                 return required, known
-            left_dirty = SymbolicMaths.greater_than(required_clean.var_depth,
-                                                    clean_depth)
+            left_dirty = SymbolicMaths.greater_than(
+                required_clean.var_depth, clean_depth,
+                all_variables_positive=True)
             if left_dirty == SymbolicMaths.Fuzzy.FALSE:
                 # Nothing is left dirty so no hexch required for this
                 # read access.
@@ -4093,7 +4094,7 @@ class LFRicHaloExchange(HaloExchange):
             field_id += f"({self.vector_index})"
         return (f"{self.coloured_name(colour)}[field='{field_id}', "
                 f"type='{self._compute_stencil_type()}', "
-                f"depth={self._compute_halo_depth()}, "
+                f"depth={self._compute_halo_depth().debug_string()}, "
                 f"check_dirty={runtime_check}]")
 
     def gen_code(self, parent):
@@ -4326,7 +4327,7 @@ class HaloDepth():
 
     '''
     def __init__(self, sym_table, parent):
-        # var_depth is used to store the
+        # var_depth is used to store the PSyIR of the expression holding
         # depth of halo that is accessed.
         self._var_depth = None
         # max_depth specifies whether the full depth of halo (whatever
@@ -4449,6 +4450,8 @@ class HaloDepth():
         else:
             if self.var_depth:
                 depth_str += FortranWriter()(self.var_depth)
+            else:
+                depth_str = "0"
         return depth_str
 
     def psyir_expression(self):

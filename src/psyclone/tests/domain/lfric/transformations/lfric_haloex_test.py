@@ -43,11 +43,12 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicLoop
-from psyclone.dynamo0p3 import (LFRicHaloExchange, HaloDepth,
+from psyclone.dynamo0p3 import (LFRicHaloExchange, HaloDepth, HaloReadAccess,
                                 _create_depth_list)
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyir import nodes, symbols
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.transformations import (Dynamo0p3RedundantComputationTrans,
                                       Dynamo0p3AsyncHaloExchangeTrans)
@@ -394,7 +395,8 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
         assert isinstance(haloex, LFRicHaloExchange)
         assert haloex.field.name == "f1"
         assert haloex.required() == (True, True)
-        assert haloex._compute_halo_depth().debug_string().endswith(depth)
+        text = haloex._compute_halo_depth().debug_string().strip()
+        assert text.endswith(depth)
     if annexed:
         haloidx = 2
         loop1idx = 3
@@ -608,7 +610,7 @@ def test_gh_readinc(tmpdir):
     _, known = f1_hex.required()
     check_dirty = not known
     assert not check_dirty
-    assert f1_hex._compute_halo_depth() == '1'
+    assert f1_hex._compute_halo_depth().value == '1'
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -622,28 +624,6 @@ def test_stencil_then_w3_read(tmpdir):
     is to owned dofs so does not access the halo (a halo depth of 0).
 
     '''
-    # Check that an instance of the HaloDepth class returns the
-    # expected results for this case.
-    halo_depth = HaloDepth(None)
-    assert str(halo_depth) == "0"
-    halo_depth2 = HaloDepth(None)
-    halo_depth2._var_depth = "extent"
-    assert str(halo_depth2) == "extent"
-    # Quick check when we have both depth and literal depth > 0.
-    halo_depth2.literal_depth = 1
-    assert str(halo_depth2) == "extent+1"
-    # Go back to original 0 depth case.
-    halo_depth2.literal_depth = 0
-
-    # Check that '_create_depth_list' removes depths that are 0 from
-    # its return list. It takes two entries as input and returns one.
-    result = _create_depth_list([halo_depth, halo_depth2], None)
-    assert isinstance(result, list)
-    assert len(result) == 1
-    assert isinstance(result[0], HaloDepth)
-    assert str(result[0]) == "extent"
-
-    # Check that it all works in practice (functional test).
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.16_disc_stencil_then_read.f90"),
                     api=API)

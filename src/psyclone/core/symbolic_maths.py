@@ -180,7 +180,7 @@ class SymbolicMaths:
     # -------------------------------------------------------------------------
     @staticmethod
     def _subtract(exp1, exp2, identical_variables=None,
-                  all_variables_positive=False):
+                  all_variables_positive=None):
         '''Subtracts two PSyIR expressions and returns the simplified result
         of this operation. An expression might result in multiple SymPy
         expressions - for example, a `Range` node becomes a 3-tuple (start,
@@ -199,6 +199,8 @@ class SymbolicMaths:
         :param identical_variables: which variable names are known to be
             identical
         :type identical_variables: Optional[dict[str, str]]
+        :param Optional[bool] all_variables_positive: whether or not to assume
+            that all variables are positive definite.
 
         :returns: the sympy expression resulting from subtracting exp2
             from exp1.
@@ -231,21 +233,25 @@ class SymbolicMaths:
         # the expression.
         return simplify(sympy_expressions[0] - sympy_expressions[1])
 
-    def greater_than(exp1, exp2):
+    def greater_than(exp1, exp2, all_variables_positive=None):
         '''
-        Determines whether exp1 is, or might be numerically greater than exp2.
+        Determines whether exp1 is, or might be, numerically greater than exp2.
 
         :param exp1: the first expression for the comparison.
         :type exp1: :py:class:`psyclone.psyir.nodes.Node`
         :param exp1: the second expression for the comparison.
         :type exp1: :py:class:`psyclone.psyir.nodes.Node`
+        :param Optional[bool] all_variables_positive: whether or not to assume
+            that all variables appearing in either expression are positive
+            definite. Default is not to make this assumption.
 
         :returns: whether exp1 is, or might be, numerically greater than exp2.
         :rtype: :py:class:`psyclone.core.symbolic_maths.Fuzzy`
 
         '''
-        diff_val = SymbolicMaths._subtract(exp1, exp2,
-                                           all_variables_positive=True)
+        diff_val = SymbolicMaths._subtract(
+            exp1, exp2,
+            all_variables_positive=all_variables_positive)
         if isinstance(diff_val, core.numbers.Integer):
             if diff_val.is_zero or diff_val.is_negative:
                 return SymbolicMaths.Fuzzy.FALSE
