@@ -250,8 +250,8 @@ def test_acc_loop(fortran_reader, fortran_writer):
     for clause in ("gang", "vector"):
         with pytest.raises(ValueError) as err:
             acc_trans.apply(loops[0], {"sequential": True, clause: True})
-            assert ("The OpenACC seq clause cannot be used in conjuction with"
-                    " the gang or vector clauses." in str(err.value))
+        assert ("The OpenACC seq clause cannot be used in conjuction with the"
+                " gang or vector clauses." in str(err.value))
 
 
 # ----------------------------------------------------------------------------
