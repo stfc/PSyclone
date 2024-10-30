@@ -41,8 +41,9 @@ support. Transforms an LFRic tangent linear kernel to its adjoint.
 '''
 import argparse
 import logging
-import sys
+import os
 import re
+import sys
 
 from psyclone.configuration import Config, LFRIC_API_NAMES
 from psyclone.line_length import FortLineLength
@@ -155,7 +156,7 @@ def main(args):
                              args.test_filename)
                 sys.exit(1)
             # At this stage filename should be valid, so we take the base name
-            test_name = args.test_filename.split("_mod.")[0].split("/")[-1]
+            test_name = os.path.basename(args.test_filename).split("_mod.")[0]
 
     try:
         # Create the adjoint (and associated test framework if requested)

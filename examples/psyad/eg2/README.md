@@ -36,9 +36,9 @@ psyad tl_hydrostatic_kernel_mod.F90 -a r_u exner theta moist_dyn_gas moist_dyn_t
 In this case, the adjoint of the tangent-linear kernel is written to
 `stdout`.
 
-## Using the generated test harness in the LFRic skeleton mini-app
+## Using the generated test harness in the LFRic core skeleton application
 
-These instructions assume that you have a local, compiled version of LFRic
+These instructions assume that you have a local, compiled version of LFRic core
 in `<lfric-root>` and that the directory containing this file is `<work-dir>`.
 
 1. Create the adjoint kernel and test harness code:
@@ -61,12 +61,12 @@ cp <work-dir>/adj_hydrostatic_kernel_mod.F90 source/kernel/.
    example - if the skeleton mini-app is modified on LFRic trunk then it will
    need to be updated):
 ```sh
-sed -e 's/  subroutine run()/  subroutine run()\n    use adjt_hydrostatic_alg_mod, only: adjoint_test/' -e 's/call skeleton_alg(field_1)/call adjoint_test(mesh, chi, panel_id)/' source/driver/skeleton_driver_mod.f90 > new_driver.f90
+sed -e 's/  subroutine run()/  subroutine run()\n    use adjt_hydrostatic_alg_mod, only: adjt_hydrostatic_alg/' -e 's/call skeleton_alg(field_1)/call adjt_hydrostatic_alg(mesh, chi, panel_id)/' source/driver/skeleton_driver_mod.f90 > new_driver.f90
 mv source/driver/skeleton_driver_mod.f90{,.bak}
 mv new_driver.f90 source/driver/skeleton_driver_mod.f90
 ```
 
-4. Build the modified miniapp:
+4. Build the modified application:
 ```sh
 make clean
 make
@@ -75,7 +75,7 @@ make
 Note that at this stage you may get errors relating to the LFRic unit-test
 framework. These can be ignored.
 
-5. Run the miniapp:
+5. Run the application:
 ```sh
 cd example
 ../bin/skeleton ./configuration.nml
