@@ -50,7 +50,7 @@ from psyclone.f2pygen import CallGen, CommentGen
 from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (BinaryOperation, Loop, Literal, Node,
+from psyclone.psyir.nodes import (Loop, Literal, Node,
                                   ArrayReference, ACCRegionDirective,
                                   OMPRegionDirective, Reference, Routine,
                                   Schedule)
@@ -243,11 +243,7 @@ class LFRicLoop(PSyLoop):
             if Config.get().distributed_memory:
                 if kern.iterates_over == "halo_cell_column":
                     self.set_lower_bound("cell_halo_start")
-                #sym = self.scope.symbol_table.find_or_create_tag(
-                #    f"{kern.halo_depth}", root_name=kern.halo_depth,
-                #    symbol_type=DataSymbol,
-                #    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                self.set_upper_bound("cell_halo", index=kern.halo_depth)#sym.name)
+                self.set_upper_bound("cell_halo", index=kern.halo_depth)
                 return
 
         if Config.get().distributed_memory:

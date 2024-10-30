@@ -192,8 +192,6 @@ class KernCallArgList(ArgOrdering):
 
         '''
         if Config.get().distributed_memory:
-            #tag_name = f"{self._kern.halo_depth}"
-            #sym = self._symtab.lookup_with_tag(tag_name)
             self.psyir_append(self._kern.halo_depth.copy())
             txt = FortranWriter()(self._kern.halo_depth)
             if isinstance(self._kern.halo_depth, Reference):

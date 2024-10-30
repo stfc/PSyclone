@@ -199,7 +199,6 @@ class LFRicInvoke(Invoke):
         # Add the halo depth(s) for any kernel(s) that operate in the halos
         self._alg_unique_halo_depth_args = []
         if Config.get().distributed_memory:
-            table = self.schedule.symbol_table
             for call in self.schedule.kernels():
                 if call.iterates_over not in ["halo_cell_column",
                                               "owned_and_halo_cell_column"]:
