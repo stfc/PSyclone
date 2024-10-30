@@ -37,8 +37,8 @@
 
 ''' This module contains the FileContainer node implementation.'''
 
+import sys
 from psyclone.psyir.nodes.container import Container
-from psyclone.errors import GenerationError
 
 
 class FileContainer(Container):
@@ -74,19 +74,25 @@ class FileContainer(Container):
             def trans(psy):
                 psy.invokes.get_invoke('name').schedule
 
-        Still work as expected. However, it still exposes the PSy hierachy to
-        users scripts, so this will be deprecated after a grace period.
+        Still work as expected. However, it exposes the PSy hierachy to
+        users scripts, so this will eventually be deprecated.
 
         :return: the associated Invokes object.
         :rtype: :py:class:`psyclone.psyGen.Invokes`
-        :raises GenerationError: if no InvokeSchedule was found.
+
+        :raises ValueError: if no InvokeSchedule was found.
+
         '''
+        print("Deprecation warning: PSyclone script uses the legacy "
+              "transformation signature 'def trans(psy)', please update the "
+              "script to recive the root psyir node as argument.",
+              file=sys.stderr)
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import InvokeSchedule
         invokes = self.walk(InvokeSchedule, stop_type=InvokeSchedule)
         if not invokes:
-            raise GenerationError(
-                f"No InvokeSchedule found in {self.name}, does it come from"
+            raise ValueError(
+                f"No InvokeSchedule found in '{self.name}', does it come from"
                 f" a PSyKAl file?")
         return invokes[0].invoke.invokes
 

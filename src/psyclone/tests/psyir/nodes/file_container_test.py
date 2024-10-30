@@ -37,12 +37,12 @@
 
 ''' Performs py.test tests on the FileContainer PSyIR node. '''
 
-from __future__ import absolute_import
-
+import pytest
 from psyclone.psyir.nodes import Routine, FileContainer, Container
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes.node import colored
+from psyclone.tests.utilities import get_invoke
 
 
 def test_file_container_init():
@@ -97,3 +97,31 @@ def test_file_container_create():
         "end module mod_1\n"
         "program prog_1\n\n\n"
         "end program prog_1\n")
+
+
+def test_invokes_property(capsys):
+    ''' Test that the invokes property can find the associated Invokes object in
+    order to emulate legacy trans scripts that recieved a PSy object as input.
+    '''
+    _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
+
+    # Get a psykal FileContainer
+    filecontainer = invoke.schedule.root
+
+    # This can be used as if it where a PSy
+    assert len(filecontainer.invokes.invoke_list) == 1
+    assert "invoke_0_testkern_type" in filecontainer.invokes.names
+
+    # The deprecation warning message was printed
+    captured = capsys.readouterr()
+    assert ("Deprecation warning: PSyclone script uses the legacy "
+            "transformation signature 'def trans(psy)', please update the "
+            "script to recive the root psyir node as argument."
+            in captured.err)
+
+    # If produces an error if it doesn't come from a generated PSy-layer
+    filecontainer = FileContainer("test")
+    with pytest.raises(ValueError) as err:
+        _ = filecontainer.invokes
+    assert ("No InvokeSchedule found in 'test', does it come from a "
+            "PSyKAl file?" in str(err.value))

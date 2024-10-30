@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,27 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
-# Modified by J. Henrichs, Bureau of Meteorology
-# Modified by S. Siso, STFC Daresbury Lab
+# Author: S. Siso, STFC Daresbury Lab
+
+''' PSyclone transformation script that expects the 'legacy' trans signature
+with a psy object. '''
 
 
-'''
-    A test module that provides a script to perform loop fusion on the
-    first two loops of an invoke called 'invoke_0'. This module does
-    not perform any error checking. It is used by the test system to
-    ensure that transformation scripts work correctly.
-'''
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+def trans(psy):
+    '''
+    :param psy: PSyclone's representation of the PSy-layer code.
+    :type psy: :class:py:`psyclone.psyGen.PSy`
 
+    :returns: modified algorithm-layer code.
+    :rtype: :class:py:`psyclone.psyGen.PSy`
 
-def trans(psyir):
-    ''' A test loop fusion transformation for use with the transformation
-    unit tests '''
-    module = psyir.children[0]
-    schedule = [x for x in module.children if x.name == "invoke_0"][0]
-    loop1 = schedule.children[4]
-    loop2 = schedule.children[5]
-    transform = LFRicLoopFuseTrans()
-    transform.apply(loop1, loop2)
+    '''
+    # The following are backwards-compatible expressions with legacy scripts
+    _ = psy.invokes.invoke_list
+    _ = psy.invokes.names
+    return psy

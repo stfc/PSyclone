@@ -201,7 +201,7 @@ def test_script_no_trans():
             in str(error.value))
 
 
-def test_script_no_trans_alg():
+def test_script_no_trans_alg(capsys):
     '''Checks that load_script() function in generator.py does not raise
     an exception when a script file does not contain a trans_alg()
     function as these are optional. At the moment this function is
@@ -214,6 +214,33 @@ def test_script_no_trans_alg():
         os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
         api="gocean",
         script_name=os.path.join(BASE_PATH, "gocean1p0", "script.py"))
+
+    # The legacy script deprecation warning is not printed in this case
+    captured = capsys.readouterr()
+    assert "Deprecation warning:" not in captured.err
+
+
+def test_script_with_legacy_trans_signature(capsys):
+    '''Checks that load_script() function in generator.py does not raise
+    an exception when a script file that uses the legacy trans signature.
+
+    This are scripts that recieve a PSy object and use the psy.invokes....
+    to access the PSyIR.
+
+    This will eventually be deprecated.
+
+    '''
+    _, _ = generate(
+        os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
+        api="gocean",
+        script_name=os.path.join(BASE_PATH, "gocean1p0", "legacy_script.py"))
+
+    # The deprecation warning message was printed
+    captured = capsys.readouterr()
+    assert ("Deprecation warning: PSyclone script uses the legacy "
+            "transformation signature 'def trans(psy)', please update the "
+            "script to recive the root psyir node as argument."
+            in captured.err)
 
 
 # a set of unit tests for the generate function

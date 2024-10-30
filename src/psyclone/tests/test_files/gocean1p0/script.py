@@ -31,22 +31,19 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Null PSyclone transformation script that only includes an example
 of the 'trans()' function which is required for a valid script file.
 '''
 
 
-def trans(psy):
-    '''Function to modify the algorithm layer PSyIR. This function is
+def trans(psyir):
+    '''Function to modify the PSy-layer PSyIR. This function is
     designed to be called by the psyclone script.
 
-    :param psy: PSyclone's representation of the PSy-layer code.
-    :type psy: :class:py:`psyclone.gocean1p0.GOPSy`
-
-    :returns: modified algorithm-layer code.
-    :rtype: :class:py:`psyclone.gocean1p0.GOPSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    return psy

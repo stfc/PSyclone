@@ -1,4 +1,3 @@
-def trans(psy):
+def trans(psyir):
     # this will produce a runtime error as b has not been assigned
-    psy = b
-    return psy
+    psyir = b

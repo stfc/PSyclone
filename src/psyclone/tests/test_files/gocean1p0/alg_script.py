@@ -53,15 +53,11 @@ def trans_alg(psyir):
     return psyir
 
 
-def trans(psy):
-    '''Function to modify the algorithm layer PSyIR. This function is
+def trans(psyir):
+    '''Function to modify the PSy-layer PSyIR. This function is
     designed to be called by the psyclone script.
 
-    :param psy: PSyclone's representation of the PSy-layer code.
-    :type psy: :class:py:`psyclone.gocean1p0.GOPSy`
-
-    :returns: modified algorithm-layer code.
-    :rtype: :class:py:`psyclone.gocean1p0.GOPSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    return psy

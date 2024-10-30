@@ -6,11 +6,9 @@
 '''
 
 
-def nottrans(psy):
+def nottrans(psyir):
     ''' first invalid name examples for a trans function '''
-    return psy
 
 
-def tran(psy):
+def tran(psyir):
     ''' second invalid name example for a trans function '''
-    return psy
