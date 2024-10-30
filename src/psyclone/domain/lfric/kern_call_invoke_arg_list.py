@@ -357,8 +357,7 @@ class KernCallInvokeArgList(ArgOrdering):
 
     def halo_depth(self, var_accesses=None):
         '''
-        Add a halo-depth argument to the Kernel argument list if this kernel
-        operates on halo cells.
+        Add a halo-depth argument to the Kernel argument list.
         Optionally, also adds variable access information to the var_accesses
         object.
 
@@ -368,11 +367,7 @@ class KernCallInvokeArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        sym = self._symtab.new_symbol(
-            self._kern.halo_depth,
-            symbol_type=DataSymbol,
-            datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-        self.append(sym.name, var_accesses)
+        self.append(self._kern.halo_depth.symbol.name, var_accesses)
 
 
 # ============================================================================

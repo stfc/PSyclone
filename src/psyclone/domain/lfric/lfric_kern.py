@@ -48,6 +48,7 @@ from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
 from psyclone.parse.algorithm import Arg, KernelCall
@@ -314,6 +315,8 @@ class LFRicKern(CodedKern):
                 f"Evaluator shape(s) {list(invalid_shapes)} is/are not "
                 f"recognised. Must be one of {const.VALID_EVALUATOR_SHAPES}.")
 
+        # If this kernel operates into the halo then it must be passed a
+        # halo depth.
         freader = FortranReader()
         invoke_schedule = self.ancestor(InvokeSchedule)
         table = invoke_schedule.symbol_table if invoke_schedule else None
@@ -321,7 +324,12 @@ class LFRicKern(CodedKern):
                                    "owned_and_halo_cell_column"]:
             self._halo_depth = freader.psyir_from_expression(
                 args[-1].text.lower(), symbol_table=table)
-
+            if isinstance(self._halo_depth, Reference):
+                sym = self._halo_depth.symbol
+                if not hasattr(sym, "datatype"):
+                    self._halo_depth.symbol.specialise(
+                        DataSymbol,
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")())
         # If there are any quadrature rule(s), what are the names of the
         # corresponding algorithm arguments? Can't use set() here because
         # we need to preserve the ordering specified in the metadata.

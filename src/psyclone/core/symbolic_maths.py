@@ -179,7 +179,8 @@ class SymbolicMaths:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _subtract(exp1, exp2, identical_variables=None):
+    def _subtract(exp1, exp2, identical_variables=None,
+                  all_variables_positive=False):
         '''Subtracts two PSyIR expressions and returns the simplified result
         of this operation. An expression might result in multiple SymPy
         expressions - for example, a `Range` node becomes a 3-tuple (start,
@@ -212,8 +213,10 @@ class SymbolicMaths:
         # Use the SymPyWriter to convert the two expressions to
         # SymPy expressions:
         writer = SymPyWriter()
-        sympy_expressions = writer([exp1, exp2],
-                                   identical_variables=identical_variables)
+        sympy_expressions = writer(
+            [exp1, exp2],
+            identical_variables=identical_variables,
+            all_variables_positive=all_variables_positive)
 
         # If an expression is a range node, then the corresponding SymPy
         # expression will be a tuple:
@@ -232,20 +235,29 @@ class SymbolicMaths:
         '''
         Determines whether exp1 is, or might be numerically greater than exp2.
 
-        :param exp1:
-        :type exp1:
+        :param exp1: the first expression for the comparison.
+        :type exp1: :py:class:`psyclone.psyir.nodes.Node`
+        :param exp1: the second expression for the comparison.
+        :type exp1: :py:class:`psyclone.psyir.nodes.Node`
 
-        TODO
+        :returns: whether exp1 is, or might be, numerically greater than exp2.
+        :rtype: :py:class:`psyclone.core.symbolic_maths.Fuzzy`
+
         '''
-        diff_val = SymbolicMaths._subtract(exp1, exp2)
-        #import pdb; pdb.set_trace()
+        diff_val = SymbolicMaths._subtract(exp1, exp2,
+                                           all_variables_positive=True)
         if isinstance(diff_val, core.numbers.Integer):
             if diff_val.is_zero or diff_val.is_negative:
                 return SymbolicMaths.Fuzzy.FALSE
             return SymbolicMaths.Fuzzy.TRUE
-        else:
-            # We have some sort of symbolic result
+
+        # We have some sort of symbolic result
+        result = diff_val.is_positive
+        if result is None:
             return SymbolicMaths.Fuzzy.MAYBE
+        if result:
+            return SymbolicMaths.Fuzzy.TRUE
+        return SymbolicMaths.Fuzzy.FALSE
 
     # -------------------------------------------------------------------------
     @staticmethod

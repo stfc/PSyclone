@@ -4228,7 +4228,7 @@ def test_rc_continuous_no_depth():
     assert "loop0_stop = mesh%get_last_halo_cell()" in result
     assert "DO cell = loop0_start, loop0_stop" in result
     assert ("      CALL f1_proxy%set_dirty()\n"
-            "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)") in result
+            "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)") in result
 
 
 def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
@@ -4759,7 +4759,7 @@ def test_rc_vector_no_depth(tmpdir):
     for idx in range(1, 4):
         assert f"CALL chi_proxy({idx})%set_dirty()" in result
     for idx in range(1, 4):
-        assert (f"CALL chi_proxy({idx})%set_clean(max_halo_depth_mesh-1)"
+        assert (f"CALL chi_proxy({idx})%set_clean(max_halo_depth_mesh - 1)"
                 in result)
 
 
@@ -5684,7 +5684,7 @@ def test_rc_max_colour(tmpdir):
 
     assert (
         "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5812,7 +5812,7 @@ def test_rc_then_colour2(tmpdir):
 
     assert (
         "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5869,7 +5869,7 @@ def test_loop_fuse_then_rc(tmpdir):
         "max_halo_depth_mesh), 1\n" in result)
     assert (
         "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5896,9 +5896,8 @@ def test_haloex_colouring(tmpdir, monkeypatch, annexed):
         # the previous writer) has been computed correctly
         write_access = halo_exchange._compute_halo_write_info()
         assert write_access.set_by_value
-        assert not write_access.var_depth
+        assert write_access.var_depth.value == "1"
         assert not write_access.max_depth
-        assert write_access.literal_depth == 1
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -5906,9 +5905,8 @@ def test_haloex_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert depth_info.literal_depth == 1
+        assert depth_info.var_depth.value == "1"
         assert not depth_info.max_depth
-        assert not depth_info.var_depth
 
     config = Config.get()
     dyn_config = config.api_conf("lfric")
@@ -5978,9 +5976,8 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
         # the previous writer) has been computed correctly
         write_access = halo_exchange._compute_halo_write_info()
         assert write_access.set_by_value
-        assert not write_access.var_depth
+        assert write_access.var_depth.value == "1"
         assert not write_access.max_depth
-        assert write_access.literal_depth == 1
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -5988,7 +5985,6 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert not depth_info.literal_depth
         assert depth_info.max_depth
         assert not depth_info.var_depth
 
@@ -6038,8 +6034,6 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
-        print("OK for iteration ", idx)
-
 
 def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
@@ -6073,7 +6067,6 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         assert write_access.set_by_value
         assert not write_access.var_depth
         assert write_access.max_depth
-        assert not write_access.literal_depth
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -6081,9 +6074,8 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert depth_info.literal_depth == 1
         assert not depth_info.max_depth
-        assert not depth_info.var_depth
+        assert depth_info.var_depth.value == "1"
 
     config = Config.get()
     dyn_config = config.api_conf("lfric")
@@ -6130,8 +6122,6 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
-        print("OK for iteration ", idx)
-
 
 def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
@@ -6164,7 +6154,6 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         assert write_access.set_by_value
         assert not write_access.var_depth
         assert write_access.max_depth
-        assert not write_access.literal_depth
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -6172,7 +6161,6 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert not depth_info.literal_depth
         assert depth_info.max_depth
         assert not depth_info.var_depth
 
@@ -6219,8 +6207,6 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         check_halo_exchange(halo_exchange)
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
-
-        print("OK for iteration ", idx)
 
 
 def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):

@@ -841,7 +841,7 @@ class LFRicLoop(PSyLoop):
                     # TODO: #696 Add kind (precision) once the
                     # LFRicInvokeSchedule constructor has been extended to
                     # create the necessary symbols.
-                    halo_depth = self._upper_bound_halo_depth
+                    halo_depth = self._upper_bound_halo_depth.copy()
                 else:
                     # We need to go to the full depth of the halo.
                     root_name = "mesh"

@@ -246,7 +246,8 @@ class SymPyWriter(FortranWriter):
         return new_func
 
     # -------------------------------------------------------------------------
-    def _create_type_map(self, list_of_expressions, identical_variables=None):
+    def _create_type_map(self, list_of_expressions, identical_variables=None,
+                         all_variables_positive=False):
         '''This function creates a dictionary mapping each Reference in any
         of the expressions to either a SymPy Function (if the reference
         is an array reference) or a Symbol (if the reference is not an
@@ -319,7 +320,8 @@ class SymPyWriter(FortranWriter):
                 unique_sym = self._symbol_table.new_symbol(name, tag=name)
                 # Test if an array or an array expression is used:
                 if not ref.is_array:
-                    self._sympy_type_map[unique_sym.name] = Symbol(name)
+                    self._sympy_type_map[unique_sym.name] = Symbol(
+                        name, positive=all_variables_positive)
                     continue
 
                 # A Fortran array is used which has not been seen before.
@@ -377,7 +379,8 @@ class SymPyWriter(FortranWriter):
         return self._sympy_type_map
 
     # -------------------------------------------------------------------------
-    def _to_str(self, list_of_expressions, identical_variables=None):
+    def _to_str(self, list_of_expressions, identical_variables=None,
+                all_variables_positive=False):
         '''Converts PSyIR expressions to strings. It will replace Fortran-
         specific expressions with code that can be parsed by SymPy. The
         argument can either be a single element (in which case a single string
@@ -407,7 +410,8 @@ class SymPyWriter(FortranWriter):
         # Create the type map in `self._sympy_type_map`, which is required
         # when converting these strings to SymPy expressions
         self._create_type_map(list_of_expressions,
-                              identical_variables=identical_variables)
+                              identical_variables=identical_variables,
+                              all_variables_positive=all_variables_positive)
 
         expression_str_list = []
         for expr in list_of_expressions:
@@ -420,7 +424,8 @@ class SymPyWriter(FortranWriter):
         return expression_str_list
 
     # -------------------------------------------------------------------------
-    def __call__(self, list_of_expressions, identical_variables=None):
+    def __call__(self, list_of_expressions, identical_variables=None,
+                 all_variables_positive=False):
         '''
         This function takes a list of PSyIR expressions, and converts
         them all into Sympy expressions using the SymPy parser.
@@ -466,7 +471,8 @@ class SymPyWriter(FortranWriter):
         if not is_list:
             list_of_expressions = [list_of_expressions]
         expression_str_list = self._to_str(
-            list_of_expressions, identical_variables=identical_variables)
+            list_of_expressions, identical_variables=identical_variables,
+            all_variables_positive=all_variables_positive)
 
         result = []
         for expr in expression_str_list:
@@ -564,7 +570,8 @@ class SymPyWriter(FortranWriter):
         # but the required symbol is mapped to the original name, which means
         # if the SymPy expression is converted to a string (in order to be
         # parsed), it will use the original structure reference syntax:
-        self._sympy_type_map[unique_name] = Symbol(sig.to_language())
+        self._sympy_type_map[unique_name] = Symbol(
+            sig.to_language(), positive=all_variables_positive)
         return unique_name
 
     # -------------------------------------------------------------------------

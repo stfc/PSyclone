@@ -116,7 +116,7 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[0], {"depth": 1})
     assert schedule.children[0].upper_bound_name == "dof_halo"
-    assert schedule.children[0].upper_bound_halo_depth == 1
+    assert schedule.children[0].upper_bound_halo_depth.value == "1"
     check_schedule(schedule)
 
     # make 1st loop iterate over dofs to the maximum halo depth and
@@ -176,7 +176,7 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     assert len(schedule.children) == 3
     assert isinstance(loop1, LFRicLoop)
     assert loop1.upper_bound_name == "dof_halo"
-    assert loop1.upper_bound_halo_depth == 1
+    assert loop1.upper_bound_halo_depth.value == "1"
     assert isinstance(haloex, LFRicHaloExchange)
     assert haloex.field.name == "f2"
     assert haloex.required() == (True, False)
@@ -230,7 +230,7 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
     assert isinstance(haloex, LFRicHaloExchange)
     assert haloex.field.name == "f2"
     assert haloex.required() == (True, False)
-    assert haloex._compute_halo_depth() == "1"
+    assert haloex._compute_halo_depth().value == "1"
     assert isinstance(loop1, LFRicLoop)
     assert isinstance(loop2, LFRicLoop)
 
@@ -262,11 +262,11 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
         loop2 = schedule.children[3]
         assert isinstance(haloex1, LFRicHaloExchange)
         assert haloex1.field.name == "f2"
-        assert haloex1._compute_halo_depth() == f2depth
+        assert haloex1._compute_halo_depth().debug_string() == f2depth
         assert haloex1.required() == (True, False)
         assert isinstance(haloex2, LFRicHaloExchange)
         assert haloex2.field.name == "f1"
-        assert haloex2._compute_halo_depth() == f1depth
+        assert haloex2._compute_halo_depth().debug_string() == f1depth
         assert haloex2.required() == (True, False)
         assert isinstance(loop1, LFRicLoop)
         assert isinstance(loop2, LFRicLoop)
@@ -280,7 +280,7 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
     rc_trans.apply(schedule.children[2])
     # we should now have a speculative halo exchange at the start of
     # the schedule for "f1" to depth max halo - 1 and "f2" to max halo
-    check(schedule, f1depth="max_halo_depth_mesh-1",
+    check(schedule, f1depth="max_halo_depth_mesh - 1",
           f2depth="max_halo_depth_mesh")
 
 
@@ -328,11 +328,11 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
         loop2 = schedule.children[3]
         assert isinstance(haloex1, LFRicHaloExchange)
         assert haloex1.field.name == "f1"
-        assert haloex1._compute_halo_depth() == f1depth
+        assert haloex1._compute_halo_depth().debug_string() == f1depth
         assert haloex1.required() == (True, False)
         assert isinstance(haloex2, LFRicHaloExchange)
         assert haloex2.field.name == "f2"
-        assert haloex2._compute_halo_depth() == f2depth
+        assert haloex2._compute_halo_depth().debug_string() == f2depth
         assert haloex2.required() == (True, False)
         assert isinstance(loop1, LFRicLoop)
         assert isinstance(loop2, LFRicLoop)
@@ -357,7 +357,7 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
     rc_trans.apply(schedule.children[2])
     # we should now have a speculative halo exchange at the start of
     # the schedule for "f1" to depth max halo - 1 and "f2" to max halo
-    check(schedule, f1depth="max_halo_depth_mesh-1",
+    check(schedule, f1depth="max_halo_depth_mesh - 1",
           f2depth="max_halo_depth_mesh")
 
 
@@ -394,7 +394,7 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
         assert isinstance(haloex, LFRicHaloExchange)
         assert haloex.field.name == "f1"
         assert haloex.required() == (True, True)
-        assert haloex._compute_halo_depth() == depth
+        assert haloex._compute_halo_depth().debug_string().endswith(depth)
     if annexed:
         haloidx = 2
         loop1idx = 3
@@ -418,7 +418,7 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     rc_trans.apply(schedule.children[loop2idx])
     # f1 halo exchange should be depth max(1,max-1)
     haloex = schedule.children[haloidx]
-    check(haloex, "max(max_halo_depth_mesh-1,1)")
+    check(haloex, "MAX(1, max_halo_depth_mesh - 1)")
     # just check compilation here as it is the most
     # complicated. (Note, compilation of redundant computation is
     # checked separately)

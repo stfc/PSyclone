@@ -301,7 +301,7 @@ def test_psy_gen_halo_kernel_literal_depths(dist_mem, tmpdir):
         # field on a continuous function space so only the level-1 halo is
         # left clean.
         assert '''call f1_proxy%set_dirty()
-      call f1_proxy%set_clean(2 - 1)
+      call f1_proxy%set_clean(1)
       !''' in gen_code
         assert '''call f1_proxy%set_dirty()
       call f1_proxy%set_clean(hdepth)

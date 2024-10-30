@@ -3686,7 +3686,8 @@ def _create_depth_list(halo_info_list, sym_table, parent):
         # check whether we match with existing depth information
         for depth_info in depth_info_list:
             if depth_info.var_depth == var_depth:
-                # This dependence has the same depth as an existing one
+                # This dependence has exactly the same depth as an existing one
+                # so no need to add a new HaloDepth.
                 break
         else:
             # No matches were found with existing entries so create a
@@ -3756,6 +3757,8 @@ class LFRicHaloExchange(HaloExchange):
         :rtype: str
 
         '''
+        return self._psyir_depth_expression()
+
         # get information about reading from the halo from all read fields
         # dependent on this halo exchange
         depth_info_list = self._compute_halo_read_depth_info()
@@ -4044,6 +4047,10 @@ class LFRicHaloExchange(HaloExchange):
         required = False
         known = False
         for required_clean in required_clean_info:
+            if required_clean.max_depth or required_clean.max_depth_m1:
+                required = True
+                known = False
+                return required, known
             left_dirty = SymbolicMaths.greater_than(required_clean.var_depth,
                                                     clean_depth)
             if left_dirty == SymbolicMaths.Fuzzy.FALSE:
