@@ -89,13 +89,20 @@ class SymbolicMaths:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def equal(exp1, exp2):
+    def equal(exp1, exp2, identical_variables=None):
         '''Test if the two PSyIR expressions are symbolically equivalent.
+        The optional identical_variables dictionary can contain information
+        about variables which are known to be the same. For example, if
+        `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
+        considered equal.
 
         :param exp1: the first expression to be compared.
         :type exp1: :py:class:`psyclone.psyir.nodes.Node`
         :param exp2: the second expression to be compared.
         :type exp2: :py:class:`psyclone.psyir.nodes.Node`
+        :param identical_variables: which variable names are known to be
+            identical
+        :type identical_variables: Optional[dict[str, str]]
 
         :returns: whether the two expressions are mathematically \
             identical.
@@ -106,7 +113,8 @@ class SymbolicMaths:
         if exp1 is None or exp2 is None:
             return exp1 == exp2
 
-        diff = SymbolicMaths._subtract(exp1, exp2)
+        diff = SymbolicMaths._subtract(exp1, exp2,
+                                       identical_variables=identical_variables)
         # For ranges all values (start, stop, step) must be equal, meaning
         # each index of the difference must evaluate to 0:
         if isinstance(diff, list):
@@ -171,17 +179,25 @@ class SymbolicMaths:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _subtract(exp1, exp2):
+    def _subtract(exp1, exp2, identical_variables=None):
         '''Subtracts two PSyIR expressions and returns the simplified result
         of this operation. An expression might result in multiple SymPy
         expressions - for example, a `Range` node becomes a 3-tuple (start,
         stop, step). In this case, each of the components will be handled
         individually, and a list will be returned.
 
+        The optional identical_variables dictionary can contain information
+        about variables which are known to be the same. For example, if
+        `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
+        considered equal.
+
         :param exp1: the first expression to be compared.
         :type exp1: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         :param exp2: the second expression to be compared.
         :type exp2: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :param identical_variables: which variable names are known to be
+            identical
+        :type identical_variables: Optional[dict[str, str]]
 
         :returns: the sympy expression resulting from subtracting exp2
             from exp1.
@@ -195,8 +211,10 @@ class SymbolicMaths:
 
         # Use the SymPyWriter to convert the two expressions to
         # SymPy expressions:
-        sympy_writer = SymPyWriter()
-        sympy_expressions = sympy_writer([exp1, exp2])
+        writer = SymPyWriter()
+        sympy_expressions = writer([exp1, exp2],
+                                   identical_variables=identical_variables)
+
         # If an expression is a range node, then the corresponding SymPy
         # expression will be a tuple:
         if isinstance(sympy_expressions[0], tuple) and \
