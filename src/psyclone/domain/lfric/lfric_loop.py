@@ -455,10 +455,7 @@ class LFRicLoop(PSyLoop):
         # one of the if clauses
         halo_index = ""
         if self._upper_bound_halo_depth:
-            if isinstance(self._upper_bound_halo_depth, Node):
-                halo_index = FortranWriter()(self._upper_bound_halo_depth)
-            else:
-                halo_index = str(self._upper_bound_halo_depth)
+            halo_index = FortranWriter()(self._upper_bound_halo_depth)
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
