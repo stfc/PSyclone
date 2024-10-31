@@ -57,9 +57,8 @@ def trans(psyir):
 
     for schedule in psyir.children[0].children:
         if schedule.name == "invoke_0":
-            # You could just apply the transform for all elements of
-            # psy.invokes.invoke_list. But in this case we also
-            # want to give the regions a friendlier name:
+            # You could just apply the transform for all subroutines, but
+            # in this case we also want to give the regions a friendlier name:
             nan_test.apply(schedule.children, {"region_name":
                                                ("main", "init")})
 
