@@ -50,10 +50,9 @@ from psyclone.f2pygen import CallGen, CommentGen
 from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (Loop, Literal, Node,
-                                  ArrayReference, ACCRegionDirective,
-                                  OMPRegionDirective, Reference, Routine,
-                                  Schedule)
+from psyclone.psyir.nodes import (ArrayReference, ACCRegionDirective,
+                                  Loop, Literal, OMPRegionDirective, Reference,
+                                  Routine, Schedule)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
