@@ -70,9 +70,9 @@ from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Reference, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
-    StructureReference, Literal, IfBlock, Call, BinaryOperation,
-    IntrinsicCall)
+    Assignment, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
+    Reference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall,
+    Schedule, StructureReference)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     UnresolvedType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
@@ -3603,7 +3603,7 @@ class DynGlobalSum(GlobalSum):
         parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
 
 
-def _create_depth_list(halo_info_list, sym_table, parent):
+def _create_depth_list(halo_info_list, parent):
     '''Halo exchanges may have more than one dependency. This method
     simplifies multiple dependencies to remove duplicates and any
     obvious redundancy. For example, if one dependency is for depth=1
@@ -3617,8 +3617,8 @@ def _create_depth_list(halo_info_list, sym_table, parent):
     :param halo_info_list: a list containing halo access information
         derived from all read fields dependent on this halo exchange.
     :type: list[:py:class:`psyclone.dynamo0p3.HaloReadAccess`]
-    :param sym_table: the symbol table of the enclosing InvokeSchedule.
-    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param parent: the parent PSyIR node of the related halo exchange.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :returns: a list containing halo depth information derived from
         the halo access information.
@@ -3641,7 +3641,7 @@ def _create_depth_list(halo_info_list, sym_table, parent):
             annexed_only = False
             break
     if annexed_only:
-        depth_info = HaloDepth(sym_table, parent)
+        depth_info = HaloDepth(parent)
         depth_info.set_by_value(max_depth=False,
                                 var_depth=Literal("1", INTEGER_TYPE),
                                 annexed_only=True,
@@ -3656,7 +3656,7 @@ def _create_depth_list(halo_info_list, sym_table, parent):
             if halo_info.needs_clean_outer:
                 # Found a max_depth access so we only need one
                 # HaloDepth entry.
-                depth_info = HaloDepth(sym_table, parent)
+                depth_info = HaloDepth(parent)
                 depth_info.set_by_value(max_depth=True, var_depth=None,
                                         annexed_only=False, max_depth_m1=False)
                 return [depth_info]
@@ -3665,7 +3665,7 @@ def _create_depth_list(halo_info_list, sym_table, parent):
 
     if max_depth_m1:
         # We have at least one max_depth-1 access.
-        depth_info = HaloDepth(sym_table, parent)
+        depth_info = HaloDepth(parent)
         depth_info.set_by_value(max_depth=False, var_depth=None,
                                 annexed_only=False, max_depth_m1=True)
         depth_info_list.append(depth_info)
@@ -3693,7 +3693,7 @@ def _create_depth_list(halo_info_list, sym_table, parent):
             # No matches were found with existing entries so create a
             # new one if 'var_depth' is set.
             if var_depth:
-                depth_info = HaloDepth(sym_table, parent)
+                depth_info = HaloDepth(parent)
                 depth_info.set_by_value(max_depth=False, var_depth=var_depth,
                                         annexed_only=False, max_depth_m1=False)
                 depth_info_list.append(depth_info)
@@ -3824,8 +3824,7 @@ class LFRicHaloExchange(HaloExchange):
         # get our halo information
         halo_info_list = self._compute_halo_read_info(ignore_hex_dep)
         # use the halo information to generate depth information
-        depth_info_list = _create_depth_list(halo_info_list,
-                                             self._symbol_table, self)
+        depth_info_list = _create_depth_list(halo_info_list, self)
         return depth_info_list
 
     def _compute_halo_read_info(self, ignore_hex_dep=False):
@@ -4322,11 +4321,12 @@ class HaloDepth():
     '''Determines how much of the halo a read to a field accesses (the
     halo depth).
 
-    :param sym_table: the symbol table of the enclosing InvokeSchedule.
-    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param parent: the parent PSyIR node of the region containing the field
+                   access that is represented.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    def __init__(self, sym_table, parent):
+    def __init__(self, parent):
         # var_depth is used to store the PSyIR of the expression holding
         # depth of halo that is accessed.
         self._var_depth = None
@@ -4350,15 +4350,11 @@ class HaloDepth():
         # FIXME #2503: This can become invalid if the HaloExchange
         # containing this HaloDepth changes its ancestors.
         self._parent = parent
-        if parent:
-            self._symbol_table = parent.scope.symbol_table
-        else:
-            self._symbol_table = sym_table
 
     @property
     def annexed_only(self):
         '''
-        :returns: True if only annexed dofs are accessed in the halo and \
+        :returns: True if only annexed dofs are accessed in the halo and
                   False otherwise.
         :rtype: bool
         '''
@@ -4367,7 +4363,7 @@ class HaloDepth():
     @property
     def max_depth(self):
         '''
-        :returns: True if the read to the field is known to access all \
+        :returns: True if the read to the field is known to access all
                   of the halo and False otherwise.
         :rtype: bool
         '''
@@ -4378,7 +4374,7 @@ class HaloDepth():
         '''Returns whether the read to the field is known to access all of the
         halo except the outermost level or not.
 
-        :returns: True if the read to the field is known to access all \
+        :returns: True if the read to the field is known to access all
                   of the halo except the outermost and False otherwise.
         :rtype: bool
 
@@ -4397,8 +4393,7 @@ class HaloDepth():
         '''
         return self._var_depth
 
-    def set_by_value(self, max_depth, var_depth, annexed_only,
-                     max_depth_m1):
+    def set_by_value(self, max_depth, var_depth, annexed_only, max_depth_m1):
         # pylint: disable=too-many-arguments
         '''Set halo depth information directly
 
@@ -4412,8 +4407,6 @@ class HaloDepth():
             the halo but does not require the outermost halo to be correct
             and False otherwise
 
-        :raises TypeError: if literal_depth is supplied but is not an int.
-
         '''
         self._max_depth = max_depth
         self._annexed_only = annexed_only
@@ -4423,11 +4416,13 @@ class HaloDepth():
         if not var_depth:
             return
 
+        # Simplify any provided PSyIR expression.
         sym_maths = SymbolicMaths.get()
-        from psyclone.psyir.nodes import Assignment, Schedule
+        # In order to be able to apply the SymbolicMaths.expand() method we
+        # have to create a fake Assignment and temporarily graft it into the
+        # tree.
         fake_assign = Assignment.create(
-            Reference(DataSymbol("tmp", INTEGER_TYPE)),
-            var_depth.detach())
+            Reference(DataSymbol("tmp", INTEGER_TYPE)), var_depth.detach())
         sched = self._parent.ancestor(Schedule)
         sched.addchild(fake_assign)
 
@@ -4436,16 +4431,13 @@ class HaloDepth():
         fake_assign.detach()
 
     def __str__(self):
-        '''return the depth of a halo dependency
-        as a string'''
+        table = self._parent.scope.symbol_table
         depth_str = ""
         if self.max_depth:
-            max_depth = self._symbol_table.lookup_with_tag(
-                "max_halo_depth_mesh")
+            max_depth = table.lookup_with_tag("max_halo_depth_mesh")
             depth_str += max_depth.name
         elif self.max_depth_m1:
-            max_depth = self._symbol_table.lookup_with_tag(
-                "max_halo_depth_mesh")
+            max_depth = table.lookup_with_tag("max_halo_depth_mesh")
             depth_str += f"{max_depth.name}-1"
         else:
             if self.var_depth:
@@ -4459,20 +4451,19 @@ class HaloDepth():
         :returns: the PSyIR expression representing this HaloDepth.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
+        table = self._parent.scope.symbol_table
         if self.max_depth:
-            max_depth = self._symbol_table.lookup_with_tag(
-                "max_halo_depth_mesh")
+            max_depth = table.lookup_with_tag("max_halo_depth_mesh")
             return Reference(max_depth)
         if self.max_depth_m1:
-            max_depth = self._symbol_table.lookup_with_tag(
-                "max_halo_depth_mesh")
+            max_depth = table.lookup_with_tag("max_halo_depth_mesh")
             return BinaryOperation.create(
                         BinaryOperation.Operator.SUB,
                         Reference(max_depth),
                         Literal('1', INTEGER_TYPE))
         if self.var_depth:
-            depth_ref = self.var_depth.copy()
-            return depth_ref
+            return self.var_depth.copy()
+
         return None
 
 
@@ -4650,13 +4641,13 @@ class HaloReadAccess(HaloDepth):
 
     :param field: the field for which we want information.
     :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param sym_table: the symbol table associated with the scoping region \
+    :param sym_table: the symbol table associated with the scoping region
                       that contains this halo access.
     :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     '''
-    def __init__(self, field, sym_table, parent=None):
-        HaloDepth.__init__(self, sym_table, parent)
+    def __init__(self, field, parent=None):
+        super().__init__(parent)
         self._stencil_type = None
         self._needs_clean_outer = None
         self._compute_from_field(field)
