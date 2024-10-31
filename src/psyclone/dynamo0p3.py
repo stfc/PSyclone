@@ -3916,8 +3916,7 @@ class LFRicHaloExchange(HaloExchange):
                 f"Internal logic error. There should be at most one write "
                 f"dependence for a halo exchange. Found "
                 f"'{len(write_dependencies)}'")
-        return HaloWriteAccess(write_dependencies[0], self._symbol_table,
-                               parent=self)
+        return HaloWriteAccess(write_dependencies[0], parent=self)
 
     def required(self, ignore_hex_dep=False):
         '''Determines whether this halo exchange is definitely required
@@ -4509,13 +4508,13 @@ class HaloWriteAccess(HaloDepth):
 
     :param field: the field that we are concerned with.
     :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
-    :param sym_table: the symbol table associated with the scoping region \
-                      that contains this halo access.
-    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param parent: the parent PSyIR node associated with the scoping region
+                   that contains this halo access.
+    :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
-    def __init__(self, field, sym_table, parent):
-        HaloDepth.__init__(self, sym_table, parent)
+    def __init__(self, field, parent):
+        HaloDepth.__init__(self, parent)
         self._compute_from_field(field)
 
     @property
@@ -4537,8 +4536,8 @@ class HaloWriteAccess(HaloDepth):
         '''
         Returns the depth to which this halo is clean following the write.
 
-        :returns:
-        :rtype:
+        :returns: PSyIR for the expression for the clean halo depth or None.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node` | NoneType
 
         '''
         if self.var_depth:
@@ -4546,8 +4545,9 @@ class HaloWriteAccess(HaloDepth):
         elif self.max_depth:
             # halo accesses(s) is/are to the full halo
             # depth (-1 if continuous)
-            halo_depth = Reference(self._symbol_table.lookup_with_tag(
-                "max_halo_depth_mesh"))
+            table = self._parent.scope.symbol_table
+            halo_depth = Reference(
+                table.lookup_with_tag("max_halo_depth_mesh"))
         else:
             return None
 
@@ -4557,7 +4557,6 @@ class HaloWriteAccess(HaloDepth):
                 halo_depth.copy(), Literal("1", INTEGER_TYPE))
 
         sym_maths = SymbolicMaths.get()
-        from psyclone.psyir.nodes import Assignment, Schedule
         fake_assign = Assignment.create(
             Reference(DataSymbol("tmp", INTEGER_TYPE)),
             halo_depth)

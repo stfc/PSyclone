@@ -931,8 +931,6 @@ class LFRicLoop(PSyLoop):
         # Set halo clean/dirty for all fields that are modified
         fields = self.unique_modified_args("gh_field")
 
-        sym_table = self.ancestor(InvokeSchedule).symbol_table
-
         # First set all of the halo dirty unless we are
         # subsequently going to set all of the halo clean
         for field in fields:
@@ -941,7 +939,7 @@ class LFRicLoop(PSyLoop):
             from psyclone.dynamo0p3 import HaloWriteAccess
             # The HaloWriteAccess class provides information about how the
             # supplied field is accessed within its parent loop
-            hwa = HaloWriteAccess(field, sym_table, self)
+            hwa = HaloWriteAccess(field, self)
             if not hwa.max_depth or hwa.dirty_outer:
                 # output set dirty as some of the halo will not be set to clean
                 if field.vector_size > 1:
