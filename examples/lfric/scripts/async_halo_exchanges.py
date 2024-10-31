@@ -42,20 +42,19 @@ in the generator.py script.
 '''
 
 from psyclone.dynamo0p3 import LFRicHaloExchange, LFRicHaloExchangeStart
+from psyclone.psyGen import InvokeSchedule
 from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
     MoveTrans, TransformationError
 
 
-def trans(psy):
+def trans(psyir):
     '''A transformation script to use asynchronous halo exchanges with
     overlapping compute and communication for the LFRic model. '''
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
-
+    for subroutine in psyir.walk(InvokeSchedule):
         # This transformation splits the three synchronous halo exchanges
         ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
-        for h_ex in schedule.walk(LFRicHaloExchange):
+        for h_ex in subroutine.walk(LFRicHaloExchange):
             ahex_trans.apply(h_ex)
 
         # This transformation moves the start of the halo exchanges as far
@@ -63,16 +62,14 @@ def trans(psy):
         # and computation.
         mtrans = MoveTrans()
         location_cursor = 0
-        for ahex in schedule.walk(LFRicHaloExchangeStart):
+        for ahex in subroutine.walk(LFRicHaloExchangeStart):
             if ahex.position <= location_cursor:
                 continue
             try:
-                mtrans.apply(ahex, schedule.children[location_cursor])
+                mtrans.apply(ahex, subroutine.children[location_cursor])
                 location_cursor += 1
             except TransformationError:
                 pass
 
         print(f"{location_cursor} AsyncHaloExchanges have been rearranged"
-              f" in {invoke.name}")
-
-    return psy
+              f" in {subroutine.name}")

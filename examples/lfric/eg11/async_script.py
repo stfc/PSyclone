@@ -41,7 +41,7 @@ in the generator.py script.
 '''
 
 
-def trans(psy):
+def trans(psyir):
     '''A sample transformation script to demonstrate the use of asynchronous
     halo exchanges with overlapping compute and communication for the
     most costly halo exchanges in the (current version of the) LFRic model.
@@ -52,7 +52,8 @@ def trans(psy):
         Dynamo0p3AsyncHaloExchangeTrans, \
         MoveTrans
 
-    schedule = psy.invokes.invoke_list[0].schedule
+    # Get first subroutine of the first module
+    schedule = psyir.children[0].children[0]
     print(schedule.view())
 
     # This transformation removes the halo exchange associated with
@@ -78,5 +79,3 @@ def trans(psy):
     for kern in schedule.children[5:0:-2]:
         mtrans.apply(kern, schedule.children[0])
     print(schedule.view())
-
-    return psy

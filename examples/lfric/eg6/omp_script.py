@@ -45,14 +45,14 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.transformations import DynamoOMPParallelLoopTrans
 
 
-def trans(psy):
+def trans(psyir):
     ''' PSyclone transformation script for the dynamo0p3 API to apply
     loop fusion and OpenMP for a particular example.'''
     otrans = DynamoOMPParallelLoopTrans()
     ftrans = LFRicLoopFuseTrans()
 
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
+    # Get first invoke subroutine
+    schedule = psyir.children[0].children[0]
 
     config = Config.get()
     if config.api_conf("lfric").compute_annexed_dofs and \
@@ -72,5 +72,3 @@ def trans(psy):
     # take a look at what we've done
     print(schedule.view())
     schedule.dag(file_format="png")
-
-    return psy

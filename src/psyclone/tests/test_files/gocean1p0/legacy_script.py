@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ def trans(psy):
     :param psy: PSyclone's representation of the PSy-layer code.
     :type psy: :class:py:`psyclone.psyGen.PSy`
 
-    :returns: modified algorithm-layer code.
+    :returns: modified PSy-layer code.
     :rtype: :class:py:`psyclone.psyGen.PSy`
 
     '''

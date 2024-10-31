@@ -40,19 +40,18 @@ This script calls a successful exit from inside because it is a work in
 progress of the development tracked by issue #1010.
 '''
 
-from __future__ import print_function
 import sys
+from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
-def trans(psy):
+def trans(psyir):
     ''' Use the PSyIR back-end to generate PSy-layer target code'''
 
     # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
+    for schedule in psyir.walk(InvokeSchedule):
 
-        print("Transforming invoke '"+invoke.name+"'...")
-        schedule = invoke.schedule
+        print(f"Transforming invoke '{schedule.name}'...")
 
         print("DSL level view:")
         print(schedule.view())
@@ -61,7 +60,7 @@ def trans(psy):
     # all its symbols to the symbol table.
     sys.exit(0)
 
-    for invoke in psy.invokes.invoke_list:
+    for schedule in psyir.walk(InvokeSchedule):
         # In-place lowering to Language-level PSyIR
         print(schedule.symbol_table.view())
         schedule.lower_to_language_level()
@@ -73,4 +72,4 @@ def trans(psy):
     print("")
     print("FortranWriter code:")
     fvisitor = FortranWriter()
-    print(fvisitor(psy.container))
+    print(fvisitor(psyir))
