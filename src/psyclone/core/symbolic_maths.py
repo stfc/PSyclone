@@ -67,6 +67,9 @@ class SymbolicMaths:
 
     class Fuzzy(Enum):
         '''
+        Enumeration used as a return value for situations where we need to
+        support 'true', 'false' and 'maybe'.
+
         '''
         FALSE = 0
         TRUE = 1
@@ -233,6 +236,7 @@ class SymbolicMaths:
         # the expression.
         return simplify(sympy_expressions[0] - sympy_expressions[1])
 
+    @staticmethod
     def greater_than(exp1, exp2, all_variables_positive=None):
         '''
         Determines whether exp1 is, or might be, numerically greater than exp2.
