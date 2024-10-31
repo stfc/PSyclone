@@ -3753,30 +3753,7 @@ class LFRicHaloExchange(HaloExchange):
         as the depth can change as transformations are applied to the
         schedule.
 
-        :return: the halo exchange depth as a Fortran string
-        :rtype: str
-
-        '''
-        return self._psyir_depth_expression()
-
-        # get information about reading from the halo from all read fields
-        # dependent on this halo exchange
-        depth_info_list = self._compute_halo_read_depth_info()
-
-        # if there is only one entry in the list we can just return
-        # the depth
-        if len(depth_info_list) == 1:
-            return str(depth_info_list[0])
-        # the depth information can't be reduced to a single
-        # expression, therefore we need to determine the maximum
-        # of all expressions
-        depth_str_list = [str(depth_info) for depth_info in
-                          depth_info_list]
-        return "max("+",".join(depth_str_list)+")"
-
-    def _psyir_depth_expression(self):
-        '''
-        :returns: the PSyIR expression to compute the halo depth.
+        :return: the PSyIR for the halo exchange depth.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
@@ -3788,11 +3765,11 @@ class LFRicHaloExchange(HaloExchange):
                 IntrinsicCall.Intrinsic.MAX,
                 [depth.psyir_expression() for depth in depth_info_list])
 
+        # Simplify the resulting expression. We need to create a fake
+        # Assignment to temporarily host the expression.
         sym_maths = SymbolicMaths.get()
-        from psyclone.psyir.nodes import Assignment
         fake_assign = Assignment.create(
-            Reference(DataSymbol("tmp", INTEGER_TYPE)),
-            psyir)
+            Reference(DataSymbol("tmp", INTEGER_TYPE)), psyir)
         self.parent.addchild(fake_assign)
 
         sym_maths.expand(fake_assign.rhs)
@@ -4112,7 +4089,7 @@ class LFRicHaloExchange(HaloExchange):
         '''
         symbol = DataSymbol(self._field.proxy_name, UnresolvedType())
         method = self._halo_exchange_name
-        depth_expr = self._psyir_depth_expression()
+        depth_expr = self._compute_halo_depth()
 
         # Create infrastructure Calls
         if self.vector_index:
@@ -4213,18 +4190,6 @@ class LFRicHaloExchangeStart(LFRicHaloExchange):
         '''
         # pylint: disable=protected-access
         return self._get_hex_end()._compute_halo_depth()
-
-    def _psyir_depth_expression(self):
-        '''
-        Call the required method in the corresponding halo exchange end
-        object. This is done as the field in halo exchange start is
-        only read and the dependence analysis beneath this call
-        requires the field to be modified.
-
-        :returns: the PSyIR expression to compute the halo depth.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
-        '''
-        return self._get_hex_end()._psyir_depth_expression()
 
     def required(self):
         '''Call the required method in the corresponding halo exchange end
@@ -4774,13 +4739,10 @@ class HaloReadAccess(HaloDepth):
             stencil_depth = field.descriptor.stencil['extent']
             if stencil_depth:
                 # stencil_depth is provided in the kernel metadata
-                if self._var_depth:
-                    self._var_depth = BinaryOperation.create(
-                        BinaryOperation.Operator.ADD,
-                        Literal(str(stencil_depth), INTEGER_TYPE),
-                        self._var_depth)
-                else:
-                    self._var_depth = Literal(str(stencil_depth), INTEGER_TYPE)
+                self._var_depth = BinaryOperation.create(
+                    BinaryOperation.Operator.ADD,
+                    Literal(str(stencil_depth), INTEGER_TYPE),
+                    self._var_depth.copy())
             else:
                 # Stencil_depth is provided by the algorithm layer.
                 # It is currently not possible to specify kind for an
