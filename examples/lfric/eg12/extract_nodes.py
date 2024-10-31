@@ -85,5 +85,3 @@ def trans(psyir):
     print("\nExtracting Nodes '[" + str(LBOUND) + ":" + str(UBOUND) +
           "]' from Invoke '" + schedule.name + "'\n")
     etrans.apply(schedule.children[LBOUND:UBOUND])
-
-    return psyir

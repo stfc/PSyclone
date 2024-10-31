@@ -50,19 +50,14 @@ def trans(psyir):
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
-    :returns: the transformed PSy-layer.
-    :rtype: :py:class:`psyclone.psyir.nodes.FileContainer`
-
     '''
     proftrans = ProfileTrans()
 
     # Use the trans() routine in acc_transform.py to add the OpenACC directives
-    psyir = acc_trans(psyir)
+    acc_trans(psyir)
 
     schedule = next(x for x in psyir.children[0].children
                     if x.name == 'invoke_0_inc_field')
 
     # Enclose everything in a profiling region
     proftrans.apply(schedule.children)
-
-    return psyir

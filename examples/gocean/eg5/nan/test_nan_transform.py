@@ -52,9 +52,6 @@ def trans(psyir):
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
-    :returns: the transformed PSy-layer.
-    :rtype: :py:class:`psyclone.psyir.nodes.FileContainer`
-
     '''
     nan_test = NanTestTrans()
 
@@ -70,5 +67,3 @@ def trans(psyir):
             # Enclose everything in a nan_test region
             nan_test.apply(schedule.children, {"region_name":
                                                ("main", "update")})
-
-    return psyir

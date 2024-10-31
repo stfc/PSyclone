@@ -802,7 +802,6 @@ returns **PSyIR** i.e.:
 
    >>> def trans_alg(psyir):
    ...     # ...
-   ...    return psyir
 
 As with the `trans()` function it is up to the script what it does with
 the algorithm PSyIR. Note that the `trans_alg()` script is applied to

@@ -72,5 +72,3 @@ def trans(psyir):
                 # having to rely on the compiler to do it) but this does not
                 # currently work for the fparser2 AST (issue #229).
                 # itrans.apply(kern)
-
-    return psyir

@@ -76,5 +76,3 @@ def trans(psyir):
             g2localtrans.apply(kern)
         ktrans.apply(kern)
         itrans.apply(kern)
-
-    return psyir

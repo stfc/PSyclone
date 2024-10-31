@@ -52,11 +52,8 @@ def trans(psyir):
     kernels and enter data directives generically. User-supplied kernels are
     transformed through the addition of a routine directive.
 
-    :param psy: the PSy object containing the invokes to transform.
-    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     const = LFRicConstants()
@@ -66,7 +63,7 @@ def trans(psyir):
     kernel_trans = ACCKernelsTrans()
     rtrans = ACCRoutineTrans()
 
-    # Loop over all of the Invokes in the PSy object
+    # Loop over all of the Invokes Schedules
     for subroutine in psyir.walk(InvokeSchedule):
 
         print(f"Transforming invoke '{subroutine.name}'...")

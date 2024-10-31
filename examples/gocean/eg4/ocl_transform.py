@@ -48,10 +48,8 @@ def trans(psyir):
     Transformation routine for use with PSyclone. Applies the OpenCL
     transform to the first Invoke in the psy object.
 
-    :param psy: the PSy object which this script will transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     # Convert any kernel accesses to imported data into arguments
@@ -71,5 +69,3 @@ def trans(psyir):
     # Transform the Schedule of the first invoke
     cltrans = GOOpenCLTrans()
     cltrans.apply(psyir.children[0].children[0], options={"end_barrier": True})
-
-    return psyir

@@ -44,7 +44,6 @@ from psyclone.domain.common.algorithm.psyir import AlgorithmInvokeCall
 
 def trans(psyir):
     '''The trans function is required for the script to be valid.'''
-    return psyir
 
 
 def trans_alg(psyir):

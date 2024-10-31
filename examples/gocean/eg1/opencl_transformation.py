@@ -73,5 +73,3 @@ def trans(psyir):
 
         # Transform invoke to OpenCL
         cltrans.apply(schedule)
-
-    return psyir

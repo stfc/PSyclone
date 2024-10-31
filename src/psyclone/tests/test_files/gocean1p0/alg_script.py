@@ -46,11 +46,7 @@ def trans_alg(psyir):
     :param psyir: algorithm-layer code represented in PSyIR.
     :type psyir: :class:py:`psyclone.psyir.nodes.Node`
 
-    :returns: modified algorithm-layer code.
-    :rtype: :class:py:`psyclone.psyir.nodes.Node`
-
     '''
-    return psyir
 
 
 def trans(psyir):

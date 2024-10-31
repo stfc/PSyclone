@@ -63,5 +63,3 @@ def trans(psyir):
         singletrans.apply(schedule)
         paralleltrans.apply(schedule)
         taskwaittrans.apply(schedule[0])
-
-    return psyir

@@ -44,7 +44,7 @@ from psyclone.psyGen import Kern, InvokeSchedule
 def trans(psyir):
     '''
     PSyclone transformation routine. This is an example which module-inlines
-    the kernel used in the second 'invoke' in the supplied PSy object.
+    the kernel used in the second 'invoke' in the supplied PSy-layer.
 
     '''
     for schedule in psyir.walk(InvokeSchedule):

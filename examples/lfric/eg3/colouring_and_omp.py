@@ -52,7 +52,7 @@ def trans(psyir):
     otrans = DynamoOMPParallelLoopTrans()
     const = LFRicConstants()
 
-    # Loop over all of the Invokes in the PSy object
+    # Loop over all of the Invokes subroutines
     for subroutine in psyir.walk(Routine):
 
         print(f"Transforming invoke '{subroutine.name}' ...")

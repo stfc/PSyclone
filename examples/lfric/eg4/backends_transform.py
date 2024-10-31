@@ -48,7 +48,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 def trans(psyir):
     ''' Use the PSyIR back-end to generate PSy-layer target code'''
 
-    # Loop over all of the Invokes in the PSy object
+    # Loop over all of the Invokes Schedules
     for schedule in psyir.walk(InvokeSchedule):
 
         print(f"Transforming invoke '{schedule.name}'...")
