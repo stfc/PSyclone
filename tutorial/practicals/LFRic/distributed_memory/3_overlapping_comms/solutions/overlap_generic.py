@@ -49,7 +49,7 @@ This PSyclone transformation script is designed to be passed to
 PSyclone, it is not designed to be run directly from python.
 
 '''
-from psylcone.psyir.nodes import Routine
+from psyclone.psyir.nodes import Routine
 from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
     MoveTrans, TransformationError
 from psyclone.dynamo0p3 import LFRicHaloExchange, LFRicHaloExchangeStart
