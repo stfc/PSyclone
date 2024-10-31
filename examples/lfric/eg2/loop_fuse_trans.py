@@ -37,29 +37,19 @@
     script. This example performs loop fusion.
 '''
 
-from __future__ import print_function
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 
 
-def trans(psy):
+def trans(psyir):
     '''
     PSyclone transformation routine. This is an example which performs loop
     fusion for the Built-in 'setval_c' kernels in the first 'invoke'. For the
     sake of this example we use the 'same_space' option to tell the
     transformation that this is safe to do.
-
-    :param psy: the PSy object that PSyclone has constructed for the \
-                'invoke'(s) found in the Algorithm file.
-    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
-
     '''
-    print(psy.invokes.names)
 
-    schedule = psy.invokes.get('invoke_0').schedule
-    print(schedule.view())
+    # Get first subroutine of the first module
+    schedule = psyir.children[0].children[0]
 
     lftrans = LFRicLoopFuseTrans()
 
@@ -71,7 +61,3 @@ def trans(psy):
     lftrans.apply(schedule[0], schedule[1], {"same_space": True})
     lftrans.apply(schedule[0], schedule[1], {"same_space": True})
     lftrans.apply(schedule[0], schedule[1], {"same_space": True})
-
-    print(schedule.view())
-
-    return psy

@@ -56,7 +56,6 @@ Please note that ExtractTrans works for consecutive Nodes in an
 Invoke Schedule (the Nodes also need to be children of the same parent).
 '''
 
-from __future__ import print_function
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
 
@@ -71,23 +70,20 @@ LBOUND = 0
 UBOUND = 3
 
 
-def trans(psy):
+def trans(psyir):
     ''' PSyclone transformation script for the Dynamo0.3 API to extract
     the specified Nodes in an Invoke. '''
 
     # Get instance of the ExtractTrans transformation
     etrans = LFRicExtractTrans()
 
-    # Get Invoke and its Schedule
-    invoke = psy.invokes.get(INVOKE_NAME)
-    schedule = invoke.schedule
+    # Get the Invoke Schedule
+    schedule = next(x for x in psyir.children[0].children
+                    if x.name == INVOKE_NAME)
 
     # Apply extract transformation to selected Nodes
     print("\nExtracting Nodes '[" + str(LBOUND) + ":" + str(UBOUND) +
-          "]' from Invoke '" + invoke.name + "'\n")
+          "]' from Invoke '" + schedule.name + "'\n")
     etrans.apply(schedule.children[LBOUND:UBOUND])
 
-    # Take a look at the transformed Schedule
-    print(schedule.view())
-
-    return psy
+    return psyir

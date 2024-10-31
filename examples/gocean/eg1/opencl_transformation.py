@@ -36,21 +36,16 @@
 ''' Module providing a PSyclone transformation script that converts the
 Schedule of each Invoke to use OpenCL. '''
 
-from psyclone.psyGen import TransInfo
+from psyclone.psyGen import TransInfo, InvokeSchedule
 from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
     GOMoveIterationBoundariesInsideKernelTrans
 
 
-def trans(psy):
+def trans(psyir):
     '''
     Transformation routine for use with PSyclone. Converts any imported-
     variable accesses into kernel arguments and then applies the OpenCL
     transformation to the PSy layer.
-
-    :param psy: the PSy object which this script will transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
 
@@ -60,14 +55,13 @@ def trans(psy):
     move_boundaries_trans = GOMoveIterationBoundariesInsideKernelTrans()
     cltrans = GOOpenCLTrans()
 
-    for invoke in psy.invokes.invoke_list:
-        print("Converting to OpenCL invoke: " + invoke.name)
-        schedule = invoke.schedule
+    for schedule in psyir.walk(InvokeSchedule):
+        print("Converting to OpenCL invoke: " + schedule.name)
 
         # Skip invoke_2 as its time_smooth_code kernel contains a
         # module variable (alpha) which is not dealt with by the
         # KernelImportsToArguments transformation, see issue #826.
-        if invoke.name == "invoke_2":
+        if schedule.name == "invoke_2":
             continue
 
         # Remove the imports from inside each kernel and move PSy-layer
@@ -80,4 +74,4 @@ def trans(psy):
         # Transform invoke to OpenCL
         cltrans.apply(schedule)
 
-    return psy
+    return psyir

@@ -43,37 +43,34 @@ from psyclone.transformations import (
 from psyclone.psyir.nodes import Loop
 
 
-def trans(psy):
-    ''' Take the supplied psy object, apply OpenACC transformations
-    to the schedule of invoke_0 and return the new psy object '''
+def trans(psyir):
+    ''' Apply OpenACC transformations to the invoke_0 subroutine'''
     ptrans = ACCParallelTrans()
     ltrans = ACCLoopTrans()
     dtrans = ACCEnterDataTrans()
     ktrans = ACCRoutineTrans()
 
-    invoke = psy.invokes.get('invoke_0_inc_field')
-    schedule = invoke.schedule
-    print(schedule.view())
+    for schedule in psyir.children[0].children:
+        if schedule.name == 'invoke_0_inc_field':
 
-    # Apply the OpenACC Loop transformation to *every* loop
-    # nest in the schedule
-    for child in schedule.children:
-        if isinstance(child, Loop):
-            ltrans.apply(child, {"collapse": 2})
+            # Apply the OpenACC Loop transformation to *every* loop
+            # nest in the schedule
+            for child in schedule.children:
+                if isinstance(child, Loop):
+                    ltrans.apply(child, {"collapse": 2})
 
-    # Put all of the loops in a single parallel region
-    ptrans.apply(schedule.children)
+            # Put all of the loops in a single parallel region
+            ptrans.apply(schedule.children)
 
-    # Add an enter-data directive
-    dtrans.apply(schedule)
+            # Add an enter-data directive
+            dtrans.apply(schedule)
 
-    # Put an 'acc routine' directive inside each kernel
-    for kern in schedule.coded_kernels():
-        ktrans.apply(kern)
-        # Ideally we would module-inline the kernel here (to save having to
-        # rely on the compiler to do it) but this does not currently work
-        # for the fparser2 AST (issue #229).
-        # itrans.apply(kern)
+            # Put an 'acc routine' directive inside each kernel
+            for kern in schedule.coded_kernels():
+                ktrans.apply(kern)
+                # Ideally we would module-inline the kernel here (to save
+                # having to rely on the compiler to do it) but this does not
+                # currently work for the fparser2 AST (issue #229).
+                # itrans.apply(kern)
 
-    print(schedule.view())
-    return psy
+    return psyir

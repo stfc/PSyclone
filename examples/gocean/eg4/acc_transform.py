@@ -45,9 +45,9 @@ from psyclone.transformations import (
 from psyclone.psyir.nodes import Loop
 
 
-def trans(psy):
-    ''' Take the supplied psy object, apply OpenACC transformations
-    to the schedule of the first invoke and return the new psy object '''
+def trans(psyir):
+    ''' Take the supplied psy-layer, apply OpenACC transformations
+    to the schedule of the first invoke.'''
     ptrans = ACCParallelTrans()
     ltrans = ACCLoopTrans()
     dtrans = ACCEnterDataTrans()
@@ -55,9 +55,7 @@ def trans(psy):
     itrans = KernelModuleInlineTrans()
     g2localtrans = KernelImportsToArguments()
 
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    print(schedule.view())
+    schedule = psyir.children[0].children[0]
 
     # Apply the OpenACC Loop transformation to *every* loop
     # nest in the schedule
@@ -79,5 +77,4 @@ def trans(psy):
         ktrans.apply(kern)
         itrans.apply(kern)
 
-    print(schedule.view())
-    return psy
+    return psyir

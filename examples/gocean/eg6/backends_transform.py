@@ -44,11 +44,11 @@ import sys
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
-def trans(psy):
+def trans(psyir):
     ''' Use the PSyIR back-end to generate PSy-layer target code'''
 
-    invoke = psy.invokes.get('invoke_0_inc_field')
-    schedule = invoke.schedule
+    schedule = next(x for x in psyir.children[0].children
+                    if x.name == 'invoke_0_inc_field')
 
     print("DSL level view:")
     print(schedule.view())

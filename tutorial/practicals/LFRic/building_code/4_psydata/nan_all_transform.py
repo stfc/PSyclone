@@ -60,7 +60,7 @@ def trans(psyir):
         # ------------------------------------------------------
         # TODO: Apply the transformation
         # ------------------------------------------------------
-        ....apply(subroutine,{
+        ....apply(subroutine, {
                     "region_name": ("time_evolution", subroutine.name)})
 
         # Just as feedback: show the modified PSyIR, which should have

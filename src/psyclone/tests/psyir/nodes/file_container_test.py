@@ -100,8 +100,9 @@ def test_file_container_create():
 
 
 def test_invokes_property(capsys):
-    ''' Test that the invokes property can find the associated Invokes object in
-    order to emulate legacy trans scripts that recieved a PSy object as input.
+    ''' Test that the invokes property can find the associated Invokes object
+    in order to emulate legacy trans scripts that recieved a PSy object as
+    input.
     '''
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
 

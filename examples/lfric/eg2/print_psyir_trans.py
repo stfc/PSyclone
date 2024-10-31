@@ -34,30 +34,18 @@
 # Author R. W. Ford, STFC Daresbury Laboratory
 
 ''' Simple transformation script that prints out the names of the 'invoke'(s)
-    in the supplied PSy object and the PSyIR for each. '''
+    in the supplied PSy-layer and the PSyIR for each. '''
 
-from __future__ import print_function
+from psyclone.psyGen import InvokeSchedule
 
 
-def trans(psy):
+def trans(psyir):
     '''
     PSyclone transformation routine. This is an example which only prints
     information about the object with which it has been supplied.
-
-    :param psy: the PSy object that PSyclone has constructed for the \
-                'invoke'(s) found in the Algorithm file.
-    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
-
-    :returns: the supplied PSy object unmodified.
-    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
-
     '''
-    print("Supplied code has Invokes: ", psy.invokes.names)
+    names = [x.name for x in psyir.walk(InvokeSchedule)]
+    print("Supplied code has Invokes: ", names)
 
-    schedule = psy.invokes.get('invoke_0').schedule
-    print(schedule.view())
-
-    schedule = psy.invokes.get('invoke_1').schedule
-    print(schedule.view())
-
-    return psy
+    for schedule in psyir.walk(InvokeSchedule):
+        print(schedule.view())

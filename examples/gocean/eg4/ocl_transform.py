@@ -43,7 +43,7 @@ from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
     GOMoveIterationBoundariesInsideKernelTrans
 
 
-def trans(psy):
+def trans(psyir):
     '''
     Transformation routine for use with PSyclone. Applies the OpenCL
     transform to the first Invoke in the psy object.
@@ -54,27 +54,22 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-
-    # Get the Schedule associated with the first Invoke
-    invoke = psy.invokes.invoke_list[0]
-    sched = invoke.schedule
-
     # Convert any kernel accesses to imported data into arguments
     ktrans = KernelImportsToArguments()
-    for kern in sched.kernels():
+    for kern in psyir.kernels():
         ktrans.apply(kern)
 
     # Provide kernel-specific OpenCL optimization options
     move_boundaries_trans = GOMoveIterationBoundariesInsideKernelTrans()
-    for kern in sched.kernels():
+    for kern in psyir.kernels():
         # Move the PSy-layer loop boundaries inside the kernel as a kernel
         # mask, this allows to iterate through the whole domain
         move_boundaries_trans.apply(kern)
         # Specify the OpenCL queue and workgroup size of the kernel
         kern.set_opencl_options({"queue_number": 1, 'local_size': 4})
 
-    # Transform the Schedule
+    # Transform the Schedule of the first invoke
     cltrans = GOOpenCLTrans()
-    cltrans.apply(sched, options={"end_barrier": True})
+    cltrans.apply(psyir.children[0].children[0], options={"end_barrier": True})
 
-    return psy
+    return psyir
