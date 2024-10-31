@@ -4146,6 +4146,23 @@ def test_rc_nodm():
             "distributed memory must be switched on") in str(excinfo.value)
 
 
+def test_rc_no_halo_kernels():
+    '''
+    Test that Dynamo0p3RedundantComputationTrans refuses to transform a kernel
+    that operates on halo cells.
+
+    '''
+    _, invoke = get_invoke("1.4.1_into_halos_plus_domain_invoke.f90",
+                           TEST_API, idx=0, dist_mem=True)
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = invoke.schedule.walk(LFRicLoop)[0]
+    with pytest.raises(TransformationError) as err:
+        rc_trans.validate(loop)
+    assert ("Dynamo0p3RedundantComputationTrans transformation to kernels that"
+            " operate on halo cells but kernel 'testkern_halo_only_code' "
+            "operates on 'halo_cell_column'" in str(err.value))
+
+
 def test_rc_invalid_depth():
     ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied depth is less than 1. '''
