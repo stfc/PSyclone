@@ -4627,19 +4627,16 @@ class HaloWriteAccess(HaloDepth):
         # If this is an inter-grid kernel and we're writing to the
         # field on the fine mesh then the halo depth is effectively
         # doubled
-        if call.is_intergrid and field.mesh == "gh_fine":
-            if depth:
-                depth = BinaryOperation.create(
-                    BinaryOperation.Operator.MUL,
-                    Literal("2", INTEGER_TYPE), depth.copy())
-            else:
-                depth = Literal("0", INTEGER_TYPE)
-        # The third argument for set_by_value specifies the name of a
-        # variable used to specify the depth.
+        if call.is_intergrid and field.mesh == "gh_fine" and depth:
+            depth = BinaryOperation.create(
+                BinaryOperation.Operator.MUL,
+                Literal("2", INTEGER_TYPE), depth.copy())
+        # The third argument for set_by_value gives the PSyIR of the
+        # expression specifying the depth.
         var_depth = depth
-        # The fifth argument for set_by_value indicates whether
+        # The fourth argument for set_by_value indicates whether
         # we only access annexed_dofs. At the moment this is not possible when
-        # modifying a field so we always supply False. The sixth
+        # modifying a field so we always supply False. The fifth
         # argument indicates if the depth of access is the
         # maximum-1. This is not possible here so we supply False.
         HaloDepth.set_by_value(self, max_depth, var_depth,
