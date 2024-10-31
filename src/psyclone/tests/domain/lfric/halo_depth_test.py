@@ -39,6 +39,7 @@ pytest tests for the dynamo0p3.HaloDepth class.
 '''
 
 from psyclone.dynamo0p3 import HaloDepth
+from psyclone.psyir import symbols, nodes
 from psyclone.tests.utilities import get_invoke
 
 
@@ -47,8 +48,8 @@ def test_halo_depth_ctor():
     Basic test that we can construct a HaloDepth object.
 
     '''
-    psy, invoke = get_invoke("14.4.2_halo_vector_xory.f90",
-                             "lfric", idx=0)
+    _, invoke = get_invoke("14.4.2_halo_vector_xory.f90",
+                           "lfric", idx=0)
     hdepth = HaloDepth(invoke.schedule)
     assert hdepth.max_depth is False
     assert hdepth.max_depth_m1 is False
@@ -61,6 +62,36 @@ def test_halo_depth_ctor():
 
 def test_halo_depth_set_by_value():
     '''
-    Test for the set_by_value() method of HaloDepth.
+    Test for the set_by_value() method of HaloDepth. Also indirectly tests
+    the psyir_expression() method by checking the result of str().
 
     '''
+    _, invoke = get_invoke("14.4.2_halo_vector_xory.f90",
+                           "lfric", idx=0)
+    hdepth = HaloDepth(invoke.schedule)
+    # Halo is accessed to max depth.
+    hdepth.set_by_value(True, None, False, False)
+    assert hdepth.var_depth is None
+    assert str(hdepth) == "max_halo_depth_mesh"
+    # Halo is accessed to max-depth minus 1.
+    hdepth.set_by_value(False, None, False, True)
+    assert str(hdepth) == "max_halo_depth_mesh - 1"
+    # Annexed dofs only.
+    hdepth.set_by_value(False, None, True, False)
+    assert str(hdepth) == "0"
+    # PSyIR expression.
+    my_depth = symbols.DataSymbol("my_depth", symbols.INTEGER_TYPE)
+    invoke.schedule.symbol_table.add(my_depth)
+    exprn = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.MUL,
+        nodes.Literal("2", symbols.INTEGER_TYPE),
+        nodes.Reference(my_depth))
+    hdepth.set_by_value(False, exprn, False, False)
+    assert str(hdepth) == "2 * my_depth"
+    # Check that the PSyIR expression is simplified where possible.
+    exprn2 = nodes.BinaryOperation.create(
+        nodes.BinaryOperation.Operator.MUL,
+        nodes.Literal("2", symbols.INTEGER_TYPE),
+        nodes.Literal("2", symbols.INTEGER_TYPE))
+    hdepth.set_by_value(False, exprn2, False, False)
+    assert str(hdepth) == "4"

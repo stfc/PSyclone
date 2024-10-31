@@ -4399,8 +4399,9 @@ class HaloDepth():
 
         :param bool max_depth: True if the field accesses all of the
             halo and False otherwise
-        :param str var_depth: A variable name specifying the halo
+        :param var_depth: PSyIR expression specifying the halo
             access depth, if one exists, and None if not
+        :type var_depth: :py:class:`psyclone.psyir.nodes.Node`
         :param bool annexed_only: True if only the halo's annexed dofs
             are accessed and False otherwise
         :param bool max_depth_m1: True if the field accesses all of
@@ -4423,7 +4424,7 @@ class HaloDepth():
         # tree.
         fake_assign = Assignment.create(
             Reference(DataSymbol("tmp", INTEGER_TYPE)), var_depth.detach())
-        sched = self._parent.ancestor(Schedule)
+        sched = self._parent.ancestor(Schedule, include_self=True)
         sched.addchild(fake_assign)
 
         sym_maths.expand(fake_assign.rhs)
@@ -4431,20 +4432,10 @@ class HaloDepth():
         fake_assign.detach()
 
     def __str__(self):
-        table = self._parent.scope.symbol_table
-        depth_str = ""
-        if self.max_depth:
-            max_depth = table.lookup_with_tag("max_halo_depth_mesh")
-            depth_str += max_depth.name
-        elif self.max_depth_m1:
-            max_depth = table.lookup_with_tag("max_halo_depth_mesh")
-            depth_str += f"{max_depth.name}-1"
-        else:
-            if self.var_depth:
-                depth_str += FortranWriter()(self.var_depth)
-            else:
-                depth_str = "0"
-        return depth_str
+        psyir = self.psyir_expression()
+        if psyir:
+            return FortranWriter()(psyir)
+        return "0"
 
     def psyir_expression(self):
         '''
