@@ -980,7 +980,7 @@ multiple InvokeSchedule and kernel-specific optimization options.
 .. literalinclude:: ../../examples/gocean/eg3/ocl_trans.py
     :language: python
     :linenos:
-    :lines: 39-79
+    :pyobject: trans
 
 
 OpenCL delays the decision of which and where kernels will execute until

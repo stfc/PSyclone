@@ -533,7 +533,7 @@ input source file is required:
 
 
 However, we usually want to redirect the output to a file so that we can later
-compile. We can do this using the `-o` flag:
+compile it. We can do this using the `-o` flag:
 
 .. code-block:: console
 
@@ -564,6 +564,26 @@ with a `trans` function defined. For example:
                 omp_trans.apply(loop)
             except TransformationError as err:
                 print(f"Loop not paralellised because: {err.value}")
+
+
+.. warning::
+
+   Before PSyclone 3.0 the transformation scripts took a PSy object as argument:
+
+   .. code-block:: python
+
+       def trans(psy):
+           ''' Add OpenMP Parallel Loop directives.
+
+           :param psy: the PSy object that PSyclone has constructed for the \
+                      'invoke'(s) found in the Algorithm file.
+           :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+
+           '''
+           for invoke in psy.invokes.invoke_list:
+              invoke.schedule
+
+   This is deprecated and will stop working in the upcoming psyclone release.
 
 
 And can be applied using the `-s` flag:
