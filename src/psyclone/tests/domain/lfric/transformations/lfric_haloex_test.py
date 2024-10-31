@@ -48,6 +48,7 @@ from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (Dynamo0p3RedundantComputationTrans,
                                       Dynamo0p3AsyncHaloExchangeTrans)
 
@@ -637,3 +638,33 @@ def test_stencil_then_w3_read(tmpdir):
             "      END IF" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_stencil_with_redundant_comp_trans(monkeypatch, tmpdir, annexed):
+    '''
+    Test that applying redundant computation to a kernel which has stencil
+    sizes passed from the algorithm layer results in the correct halo
+    exchanges.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("lfric")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    psy, invoke = get_invoke("14.6_halo_depth_2.f90", API, 0, dist_mem=True)
+    sched = invoke.schedule
+    loop = sched.walk(LFRicLoop)[0]
+    # Transform the loop to perform redundant computation out to depth 2.
+    rtrans = Dynamo0p3RedundantComputationTrans()
+    rtrans.apply(loop, {"depth": 2})
+    result = str(psy.gen).lower()
+    # Updated argument is on w0 and has gh_inc access. If we are not
+    # redundantly computing annexed dofs then this means it needs a halo
+    # exchange to ensure that those dofs are clean.
+    if not annexed:
+        assert "call f1_proxy%halo_exchange(depth=1)" in result
+    # The fields that are read all have stencil accesses and so must be
+    # clean out to the depth of the stencil access *plus* the depth of the
+    # redundant computation.
+    for fidx in range(2, 5):
+        assert f'''if (f{fidx}_proxy%is_dirty(depth=f{fidx}_extent + 2)) then
+        call f{fidx}_proxy%halo_exchange(depth=f{fidx}_extent + 2)''' in result

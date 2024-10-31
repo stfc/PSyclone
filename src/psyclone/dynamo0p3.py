@@ -4628,7 +4628,6 @@ class HaloWriteAccess(HaloDepth):
         # field on the fine mesh then the halo depth is effectively
         # doubled
         if call.is_intergrid and field.mesh == "gh_fine":
-            # TODO ensure intergrid and 'halo cell' kernels are forbidden.
             if depth:
                 depth = BinaryOperation.create(
                     BinaryOperation.Operator.MUL,
@@ -4792,6 +4791,7 @@ class HaloReadAccess(HaloDepth):
             self._stencil_type = field.descriptor.stencil['type']
             if self._var_depth:
                 # halo exchange does not support mixed accesses to the halo
+                # so we simply set the stencil type as 'region'.
                 self._stencil_type = "region"
             stencil_depth = field.descriptor.stencil['extent']
             if stencil_depth:
