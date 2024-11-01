@@ -256,6 +256,8 @@
 
 	89) PR #2712 for #2711. Adds support for user-supplied Kernels that
         operate on dofs (in the LFRic API).
+	
+	99) PR #2685 for #2027. Improves datatype and shape inference.
 
 release 2.5.0 14th of February 2024
 
