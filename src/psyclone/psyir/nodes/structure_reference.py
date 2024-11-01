@@ -353,13 +353,8 @@ class StructureReference(Reference, StructureAccessorMixin):
         if shape:
             return ArrayType(cursor_type, shape)
 
-        # We don't have an explicit array access (because `shape` is Falsey)
-        # but is the ultimate member itself an array?
+        # We must have a scalar.
         if isinstance(cursor_type, ArrayType):
-            if not cursor.children:
-                # It is and there are no index expressions so we return the
-                # ArrayType.
-                return cursor_type
             # We have an access to a single element of the array.
             # Currently arrays of scalars are handled in a
             # different way to all other types of array. Issue #1857 will

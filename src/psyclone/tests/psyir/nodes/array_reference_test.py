@@ -580,6 +580,13 @@ def test_array_datatype():
     aref6._symbol = test_struc_sym
     assert isinstance(aref6.datatype, UnresolvedType)
 
+    # TODO #2448 - we don't handle an array access to something that we
+    # don't know is an array.
+    aref7 = ArrayReference(generic_sym)
+    aref7.addchild(one.copy())
+    aref7._symbol = DataSymbol("int_test", INTEGER_TYPE)
+    assert isinstance(aref7.datatype, UnresolvedType)
+
 
 def test_array_create_colon(fortran_writer):
     '''Test that the create method accepts ":" as shortcut to automatically

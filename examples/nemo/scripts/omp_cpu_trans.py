@@ -48,7 +48,6 @@ PROFILING_ENABLED = False
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = OTHER_ISSUES
 
-
 def trans(psyir):
     ''' Add OpenMP Parallel and Do directives to all loops, including the
     implicit ones.
