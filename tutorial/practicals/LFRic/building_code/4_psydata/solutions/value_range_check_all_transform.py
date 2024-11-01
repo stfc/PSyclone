@@ -34,17 +34,16 @@
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: R. W. Ford, STFC Daresbury Lab
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds NAN verification code to
-the invokes.
+'''Python script passed to the psyclone command via the -s option. It
+adds ValueRangeCheck code to the invokes.
 '''
 
-from __future__ import print_function
+from psyclone.psyir.transformations import ValueRangeCheckTrans
 
 
 def trans(psy):
     '''
-    Take the supplied psy object, and add NAN verification code.
+    Take the supplied psy object, and add value_range_check code.
 
     :param psy: the PSy layer to transform.
     :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -53,25 +52,18 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-
-    # ------------------------------------------------------
-    # TOOD: import the transformation and create an instance
-    # ------------------------------------------------------
-    # from ... import ...
-    # my_transform = ...()
+    value_range_check = ValueRangeCheckTrans()
 
     for invoke_name in psy.invokes.names:
-        print(invoke_name)
 
         invoke = psy.invokes.get(invoke_name)
 
         # Now get the schedule, to which we want to apply the transformation
         schedule = invoke.schedule
 
-        # ------------------------------------------------------
-        # TODO: Apply the transformation
-        # ------------------------------------------------------
-        ....apply(schedule, {"region_name": ("time_evolution", invoke_name)})
+        # Apply the transformation
+        value_range_check.apply(schedule, {"region_name": ("time_evolution",
+                                                           str(invoke_name))})
 
         # Just as feedback: show the modified schedule, which should have
         # a new node at the top:
