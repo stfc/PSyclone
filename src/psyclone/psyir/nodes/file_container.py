@@ -38,6 +38,7 @@
 ''' This module contains the FileContainer node implementation.'''
 
 import sys
+from psyclone.alg_gen import NoInvokesError
 from psyclone.psyir.nodes.container import Container
 
 
@@ -80,7 +81,7 @@ class FileContainer(Container):
         :return: the associated Invokes object.
         :rtype: :py:class:`psyclone.psyGen.Invokes`
 
-        :raises ValueError: if no InvokeSchedule was found.
+        :raises NoInvokesError: if no InvokeSchedule was found.
 
         '''
         print("Deprecation warning: PSyclone script uses the legacy "
@@ -91,7 +92,7 @@ class FileContainer(Container):
         from psyclone.psyGen import InvokeSchedule
         invokes = self.walk(InvokeSchedule, stop_type=InvokeSchedule)
         if not invokes:
-            raise ValueError(
+            raise NoInvokesError(
                 f"No InvokeSchedule found in '{self.name}', does it come from"
                 f" a PSyKAl file?")
         return invokes[0].invoke.invokes
