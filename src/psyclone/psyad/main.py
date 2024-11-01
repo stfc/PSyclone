@@ -131,18 +131,7 @@ def main(args):
                          "the 'lfric' API.")
             sys.exit(1)
 
-    # TL Fortran code
-    filename = args.filename
-    logger.info("Reading kernel file %s", filename)
-    try:
-        with open(filename, mode="r", encoding="utf-8") as my_file:
-            tl_fortran_str = my_file.read()
-            tl_fortran_str = str(tl_fortran_str)
-    except FileNotFoundError:
-        logger.error("psyad error: file '%s', not found.", filename)
-        sys.exit(1)
-
-    # Processing filename
+    # Processing test filename
     test_name = "adjoint_test"
     if generate_test:
         if args.api in LFRIC_API_NAMES:
@@ -155,8 +144,19 @@ def main(args):
                              "<path>/atlt_<name>_alg_mod.[Xx]90.",
                              args.test_filename)
                 sys.exit(1)
-            # At this stage filename should be valid, so we take the base name
+            # At this stage test filename should be valid, so we take the base name
             test_name = os.path.basename(args.test_filename).split("_mod.")[0]
+
+    # TL Fortran code
+    filename = args.filename
+    logger.info("Reading kernel file %s", filename)
+    try:
+        with open(filename, mode="r", encoding="utf-8") as my_file:
+            tl_fortran_str = my_file.read()
+            tl_fortran_str = str(tl_fortran_str)
+    except FileNotFoundError:
+        logger.error("psyad error: file '%s', not found.", filename)
+        sys.exit(1)
 
     try:
         # Create the adjoint (and associated test framework if requested)

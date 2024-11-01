@@ -568,7 +568,7 @@ def test_main_otest_verbose(tmpdir, caplog):
     assert "/harness.f90" in caplog.text
 
 
-def test_main_otest_lfric(tmpdir, capsys, caplog):
+def test_main_otest_lfric(tmpdir, capsys):
     ''' Test that the -otest option combined with LFRic API
     generates the expected adjoint test. '''
     filename_in = str(tmpdir.join("tl_foo_kernel_mod.f90"))
@@ -593,8 +593,6 @@ def test_main_otest_lfric_error_name(tmpdir, capsys, caplog):
     filename_in = str(tmpdir.join("tl_foo_kernel_mod.f90"))
     filename_out = str(tmpdir.join("atl_foo_kernel_mod.f90"))
     harness_out = str(tmpdir.join("foo_alg_mod.x90"))
-    with open(filename_in, "w", encoding='utf-8') as my_file:
-        my_file.write(TEST_LFRIC_KERNEL)
     logger = logging.getLogger("psyclone.psyad.main")
     logger.propagate = True
     with caplog.at_level(logging.ERROR, "psyclone.psyad.main"):
