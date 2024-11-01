@@ -44,27 +44,64 @@ of a kernel are valid numbers (i.e. neither NAN nor infinite).
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
-class NanTestNode(PSyDataNode):
+class ValueRangeCheckNode(PSyDataNode):
     '''
     This class can be inserted into a Schedule to mark Nodes for
     NAN-checking using the NanTestTrans transformation. The Nodes
-    marked for checking become children of (the Schedule of) a NanTestNode.
+    marked for checking become children of (the Schedule of) a
+    ValueRangeCheckNode.
 
     '''
     # Textual description of the node.
-    _text_name = "NanTest"
+    _text_name = "ValueRangeCheck"
     _colour = "green"
     # The default prefix to add to the PSyData module name and PSyDataType
-    _default_prefix = "nan_test"
+    _default_prefix = "value_range_check"
 
     @property
-    def nan_test_body(self):
+    def value_range_check_body(self):
         '''
-        :returns: the Schedule associated with this NanTestNode.
+        :returns: the Schedule associated with this ValueRangeCheckNode.
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
         return super().psy_data_body
+
+    def _get_var_lists(self):
+        '''This method uses the CallTreeUtils to get all input-
+        and output-variables. They are added to a dictionary, which
+        will be provided to the code creation method in the base class.
+
+        :returns: dictionary with key/values for pre_var_list and
+            post_var_list.
+        :rtype: Dict[str, List[Tuple[str,:py:class:`psyclone.core.Signature`]]]
+
+        '''
+        # This cannot be moved to the top, it would cause a circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
+
+        ctu = CallTreeUtils()
+        read_write_info = ctu.get_in_out_parameters(self)
+        return {'pre_var_list': read_write_info.read_list,
+                'post_var_list': read_write_info.write_list}
+
+    def gen_code(self, parent, options=None):
+        '''Old style code creation function.
+
+        :param parent: f2pygen node to which to add AST nodes.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param options: a dictionary with options for transformations
+            and validation.
+        :type options: Optional[Dict[str, Any]]
+
+        '''
+        local_options = options.copy() if options else {}
+
+        var_lists_options = self._get_var_lists()
+        local_options.update(var_lists_options)
+
+        super().gen_code(parent, local_options)
 
     def lower_to_language_level(self):
         # pylint: disable=arguments-differ
@@ -76,18 +113,9 @@ class NanTestNode(PSyDataNode):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        # This cannot be moved to the top, it would cause a circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
-        # Determine the variables to check:
-        ctu = CallTreeUtils()
-        read_write_info = ctu.get_in_out_parameters(self)
-
-        options = {'pre_var_list': read_write_info.read_list,
-                   'post_var_list': read_write_info.write_list}
-
+        options = self._get_var_lists()
         return super().lower_to_language_level(options)
 
 
 # For AutoAPI documentation generation
-__all__ = ['NanTestNode']
+__all__ = ['ValueRangeCheckNode']
