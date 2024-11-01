@@ -45,18 +45,17 @@ Program test
 
     use init_field_mod,   only : init_field
     use update_field_mod, only : update_field
-    use nan_test_psy_data_mod, only: nan_test_PSyDataInit, &
-        nan_test_PSyDataShutdown, nan_test_PSyDataStart
+    use value_range_check_psy_data_mod, only: value_range_check_PSyDataInit, &
+        value_range_check_PSyDataShutdown, value_range_check_PSyDataStart
 
     TYPE(r2d_field)          :: a_fld, b_fld
     TYPE(grid_type), target  :: grid
 
     ! Initialise dl_esm_inf and create a grid:
     call parallel_init()
-    call nan_test_PSyDataInit()
     ! Just to show how to use the start function. It is not
     ! actually required, since the previous call enables it anyway.
-    call nan_test_PSyDataStart()
+    call value_range_check_PSyDataStart()
     grid = grid_type(GO_ARAKAWA_C,                                 &
                      (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/), &
                      GO_OFFSET_SW)
@@ -79,6 +78,5 @@ Program test
     ! the output field `a_fld`.
     call invoke (update_field(a_fld, b_fld) )
     print *,"a_fld is", a_fld%data
-    call nan_test_PSyDataShutdown()
 
 end program test
