@@ -39,9 +39,10 @@ This module contains pytest tests for the LFRicHaloDepths class.
 '''
 import pytest
 
-from psyclone.domain.lfric import LFRicHaloDepths
+from psyclone.domain.lfric import LFRicHaloDepths, LFRicKern
 from psyclone.f2pygen import ModuleGen, SubroutineGen
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.nodes import BinaryOperation, Literal
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.tests.utilities import get_invoke
 
 API = "lfric"
@@ -108,3 +109,24 @@ def test_lfric_halo_depth_no_stub_gen():
         hdepths2._stub_declarations(None)
     assert ("Kernel-stub generation is not supported for kernels which "
             "operate on halo cells" in str(err.value))
+
+
+def test_no_exprn_for_halo_depth():
+    '''
+    Test that an expression for a halo depth is rejected. This is normally
+    caught earlier (at the Algorithm-processing stage) but the LFRicHaloDepths
+    class also checks.
+
+    '''
+    _, invoke = get_invoke("1.4.3_literal_depth_into_halos_invoke.f90",
+                           API, dist_mem=True, idx=0)
+    # Change one of the halo depths so that it is an expression
+    kern = invoke.schedule.walk(LFRicKern)[0]
+    kern._halo_depth = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                              Literal("1", INTEGER_TYPE),
+                                              Literal("1", INTEGER_TYPE))
+    with pytest.raises(NotImplementedError) as err:
+        _ = LFRicHaloDepths(invoke)
+    assert ("halo-depth argument must currently be a scalar reference or "
+            "literal but Kernel 'testkern_halo_only_code' is passed a depth "
+            "given by '1 + 1'" in str(err.value))

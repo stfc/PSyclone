@@ -43,7 +43,7 @@ into the halo cells.
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.f2pygen import DeclGen
-from psyclone.psyir.nodes import Literal
+from psyclone.psyir.nodes import Literal, Reference
 
 
 class LFRicHaloDepths(LFRicCollection):
@@ -54,6 +54,9 @@ class LFRicHaloDepths(LFRicCollection):
 
     :param node: the LFRic Invoke for which to manage halo-depth arguments.
     :type node: py:class:`psyclone.domain.lfric.lfric_invoke.LFRicInvoke`
+
+    :raises NotImplementedError: if the halo-depth passed to a Kernel from the
+        Algorithm layer is not a literal or a scalar reference.
 
     '''
     def __init__(self, node):
@@ -67,6 +70,13 @@ class LFRicHaloDepths(LFRicCollection):
             if not kern.halo_depth:
                 continue
             if not isinstance(kern.halo_depth, Literal):
+                # pylint: disable-next=unidiomatic-typecheck
+                if not type(kern.halo_depth) is Reference:
+                    raise NotImplementedError(
+                        f"A kernel halo-depth argument must currently be a "
+                        f"scalar reference or literal but Kernel '{kern.name}'"
+                        f" is passed a depth given by "
+                        f"'{kern.halo_depth.debug_string()}'")
                 name = kern.halo_depth.symbol.name
                 if name not in depth_names:
                     # An invoke could call the same kernel multiple times with
@@ -76,13 +86,12 @@ class LFRicHaloDepths(LFRicCollection):
 
     def _invoke_declarations(self, parent):
         '''
+        Creates the f2pygen declarations for the depths to which any 'halo'
+        kernels iterate into the halos.
 
         :param parent: the node in the f2pygen AST representing the PSy-layer
                        routine to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        :raises InternalError: for unsupported intrinsic types of field
-                               argument data.
 
         '''
         # Add the Invoke subroutine argument declarations for the

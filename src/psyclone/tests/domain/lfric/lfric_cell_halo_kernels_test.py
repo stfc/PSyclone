@@ -38,19 +38,14 @@
     halo cells (OPERATES_ON = HALO_CELL_COLUMN or OWNED_AND_HALO_CELL_COLUMN).
 '''
 
-import os
 import pytest
 from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
 
-BASE_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))),
-    "test_files", "dynamo0p3")
 TEST_API = "lfric"
 
 
@@ -112,9 +107,8 @@ end module testkern_domain_mod
 def test_psy_gen_halo_kernel(dist_mem, tmpdir, fortran_writer):
     ''' Check the generation of the PSy layer for an invoke consisting of a
     single kernel with operates_on=halo_cell_column. '''
-    _, info = parse(os.path.join(BASE_PATH, "1.4_into_halos_invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    psy, _ = get_invoke("1.4_into_halos_invoke.f90", TEST_API,
+                        dist_mem=dist_mem, idx=0)
     gen_code = str(psy.gen).lower()
 
     # A halo kernel needs to look up the last halo column in the mesh.
@@ -182,10 +176,8 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
     kernel with operates_on=domain and another with
     operates_on=halo_cell_column.
     '''
-    _, info = parse(
-        os.path.join(BASE_PATH, "1.4.1_into_halos_plus_domain_invoke.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    psy, _ = get_invoke("1.4.1_into_halos_plus_domain_invoke.f90",
+                        TEST_API, dist_mem=dist_mem, idx=0)
     gen_code = str(psy.gen).lower()
 
     if dist_mem:
@@ -224,10 +216,8 @@ def test_psy_gen_halo_kernel_discontinuous_space(dist_mem, tmpdir):
     function space.
 
     '''
-    _, info = parse(
-        os.path.join(BASE_PATH, "1.4.2_multi_into_halos_invoke.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    psy, _ = get_invoke("1.4.2_multi_into_halos_invoke.f90",
+                        TEST_API, dist_mem=dist_mem, idx=0)
     gen_code = str(psy.gen).lower()
     if dist_mem:
         assert "integer, intent(in) :: hdepth, other_depth" in gen_code
@@ -288,10 +278,8 @@ def test_psy_gen_halo_kernel_literal_depths(dist_mem, tmpdir):
     specified using a literal value.
 
     '''
-    _, info = parse(
-        os.path.join(BASE_PATH, "1.4.3_literal_depth_into_halos_invoke.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    psy, _ = get_invoke("1.4.3_literal_depth_into_halos_invoke.f90",
+                        TEST_API, dist_mem=dist_mem, idx=0)
     gen_code = str(psy.gen).lower()
     if dist_mem:
         # Make sure we aren't attempting to specify literal values in the
@@ -313,3 +301,15 @@ def test_psy_gen_halo_kernel_literal_depths(dist_mem, tmpdir):
         assert "call testkern_halo_only_code(" not in gen_code
         assert "call testkern_halo_and_owned_code(nlayers_f1, 0, a" in gen_code
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_halo_kernel_depth_as_expression(dist_mem):
+    '''
+    Check that the expected exception is raised if the Algorithm layer
+    specifies the halo depth as an expression.
+
+    '''
+    with pytest.raises(InternalError) as err:
+        _, _ = get_invoke("1.4.4_exprn_depth_into_halos_invoke.f90", TEST_API,
+                          dist_mem=dist_mem, idx=0)
+    assert "Unsupported argument structure" in str(err.value)
