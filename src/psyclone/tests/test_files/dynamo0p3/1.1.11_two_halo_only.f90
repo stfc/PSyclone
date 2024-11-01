@@ -35,7 +35,8 @@
 program single_invoke
 
   ! Description: an invoke containing multiple calls to a kernel that requires
-  ! XYoZ quadrature and that operates on halo cells specified in an invoke call.
+  ! XYoZ quadrature and that operates on halo cells to a depth specified in
+  ! the invoke call.
   use constants_mod,       only: r_def, i_def
   use field_mod,           only: field_type
   use quadrature_xyoz_mod, only: quadrature_xyoz_type

@@ -35,7 +35,7 @@
 
 program single_invoke
 
-  ! Invokes three kernels, two of which include the halo in their iteration
+  ! Invokes four kernels, three of which include the halo in their iteration
   ! space.
   use constants_mod, only: r_def
   use field_mod,     only: field_type
