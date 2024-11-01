@@ -303,6 +303,40 @@ def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
             in output_test4)
 
 
+def test_apply_indirect_indexing(fortran_reader, fortran_writer):
+    '''
+    Check the application of the transformation when the array is indexed
+    indirectly.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    program test
+      use dom_oce
+      INTEGER, DIMENSION(4)  ::   iwewe
+      INTEGER, DIMENSION(8,kfld)  :: ishtSi
+      integer :: jf
+      do jf = 1, kfld
+        ishtSi(5:8,jf) = ishtSi(iwewe, jf)
+        ishtSi(1:4,jf) = grid(3)%var(iwewe, jf)
+      end do
+    end program test
+    ''')
+    assignments = psyir.walk(Assignment)
+    trans = ArrayAssignment2LoopsTrans()
+    trans.apply(assignments[0])
+    trans.apply(assignments[1])
+    result = fortran_writer(psyir)
+    assert ('''
+    do idx = 5, 8, 1
+      ishtsi(idx,jf) = ishtsi(iwewe(idx + (1 - 5)),jf)
+    enddo''' in result)
+    assert ('''
+    do idx_1 = 1, 4, 1
+      ishtsi(idx_1,jf) = grid(3)%var(iwewe(idx_1),jf)
+    enddo
+  enddo''' in result)
+
+
 def test_apply_outside_routine(fortran_reader, fortran_writer):
     ''' Check that the transformation still succeeds and generates valid
     code when found in a scope detached from a Routine. '''
@@ -568,15 +602,18 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
     '''
     psyir = fortran_reader.psyir_from_source('''
     subroutine test(unsupported)
-        use my_variables, only: unresolved
+        use my_variables, only: unresolved, map
         integer :: scalar = 1
         integer, dimension(:) :: array = 1, x
         integer, dimension(:), optional :: unsupported
-
+        integer, dimension(4) :: ishtsi
         x(:) = scalar
         x(:) = array
         x(:) = unresolved
         x(:) = unsupported
+        ! An indirectly-addressed RHS but we can't tell whether or not map is
+        ! an array reference
+        x(:) = ishtsi(map,scalar)
     end subroutine test
     ''')
 
@@ -594,7 +631,7 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
     with pytest.raises(TransformationError) as info:
         trans.apply(assign_with_unresolved, opts)
     assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
-            "contains the variable 'unresolved' which is not a DataSymbol "
+            "contains the access 'unresolved' which is not a DataSymbol "
             "and therefore cannot be guaranteed to be ScalarType. Resolving "
             "the import that brings this variable into scope may help."
             in str(info.value))
@@ -604,17 +641,24 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
     with pytest.raises(TransformationError) as info:
         trans.apply(assign_with_unresolved)
     assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
-            "contains the variable 'unresolved' which is an UnresolvedType "
+            "contains the access 'unresolved' which is an UnresolvedType "
             "and therefore cannot be guaranteed to be ScalarType. Resolving "
             "the import that brings this variable into scope may help."
             in str(info.value))
     with pytest.raises(TransformationError) as info:
         trans.apply(psyir.walk(Assignment)[3], opts)
     assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
-            "contains the variable 'unsupported' which is an Unsupported"
+            "contains the access 'unsupported' which is an Unsupported"
             "FortranType('INTEGER, DIMENSION(:), OPTIONAL :: unsupported') "
             "and therefore cannot be guaranteed to be ScalarType."
             in str(info.value))
+
+    with pytest.raises(TransformationError) as info:
+        trans.apply(psyir.walk(Assignment)[4], opts)
+    assert ("ArrayAssignment2LoopsTrans cannot expand expression because it "
+            "contains the access 'ishtsi(map,scalar)' which is an "
+            "UnresolvedType and therefore cannot be guaranteed to be "
+            "ScalarType" in str(info.value))
 
     # The end result should look like:
     assert (
@@ -625,15 +669,19 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
         "    x(idx_1) = array(idx_1)\n"
         "  enddo\n"
         "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "
-        "contains the variable 'unresolved' which is not a DataSymbol and "
+        "contains the access 'unresolved' which is not a DataSymbol and "
         "therefore cannot be guaranteed to be ScalarType. Resolving the import"
         " that brings this variable into scope may help.\n"
         "  x(:) = unresolved\n"
         "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "
-        "contains the variable 'unsupported' which is an UnsupportedFortran"
+        "contains the access 'unsupported' which is an UnsupportedFortran"
         "Type('INTEGER, DIMENSION(:), OPTIONAL :: unsupported') and therefore "
         "cannot be guaranteed to be ScalarType.\n"
         "  x(:) = unsupported\n"
+        "  ! ArrayAssignment2LoopsTrans cannot expand expression because it "
+        "contains the access 'ishtsi(map,scalar)' which is an UnresolvedType "
+        "and therefore cannot be guaranteed to be ScalarType.\n"
+        "  x(:) = ishtsi(map,scalar)\n"
     ) in fortran_writer(psyir)
 
 
@@ -685,7 +733,7 @@ def test_validate_non_elemental_functions(fortran_reader):
     with pytest.raises(TransformationError) as err:
         trans.validate(assignment3, options={"verbose": True})
     errormsg = ("ArrayAssignment2LoopsTrans cannot expand expression because "
-                "it contains the variable 'myfunc' which is not a DataSymbol "
+                "it contains the access 'myfunc(y)' which is not a DataSymbol "
                 "and therefore cannot be guaranteed to be ScalarType. "
                 "Resolving the import that brings this variable into scope "
                 "may help.")
@@ -695,9 +743,95 @@ def test_validate_non_elemental_functions(fortran_reader):
     with pytest.raises(TransformationError) as err:
         trans.validate(assignment4, options={"verbose": True})
     errormsg = ("ArrayAssignment2LoopsTrans cannot expand expression because "
-                "it contains the variable 'var' which is an UnresolvedType "
-                "and therefore cannot be guaranteed to be ScalarType. "
-                "Resolving the import that brings this variable into scope "
-                "may help.")
+                "it contains the access 'var%myfunc(y)' which is an "
+                "UnresolvedType and therefore cannot be guaranteed to be "
+                "ScalarType. Resolving the import that brings this variable "
+                "into scope may help.")
     assert errormsg in assignment4.preceding_comment
     assert errormsg in str(err.value)
+
+
+def test_validate_indirect_indexing(fortran_reader):
+    '''
+    Check the validation of the transformation when the array is indexed
+    indirectly in unsupported ways.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    program test
+      use dom_oce
+      INTEGER, DIMENSION(4)  ::   iwewe
+      INTEGER, DIMENSION(8,kfld)  :: ishtSi
+      ! Assignment with CodeBlock on RHS.
+      iwewe(:) = (/ jpwe,jpea,jpwe,jpea /)
+      ! Assignment with CodeBlock in array-index expression.
+      iwewe(:) = ishtSi((/ jpwe,jpea,jpwe,jpea /), 1)
+      ! Index expression does evaluate to an array but we don't currently
+      ! handle getting a type in this case (TODO #1799).
+      ishtSi(5:8,jf) = ishtSi(iwewe+1, jf)
+      ! Index expression contains a call to an unknown function.
+      ishtSi(5:8,jf) = ishtSi(my_func(1), jf)
+    end program test
+    ''')
+    assignments = psyir.walk(Assignment)
+    assert isinstance(assignments[0].rhs, CodeBlock)
+    trans = ArrayAssignment2LoopsTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignments[0])
+    assert ("ArrayAssignment2LoopsTrans does not support array assignments "
+            "that contain a CodeBlock anywhere in the expression"
+            in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignments[1])
+    assert ("ArrayAssignment2LoopsTrans does not support array assignments "
+            "that contain a CodeBlock anywhere in the expression"
+            in str(err.value))
+    # TODO #1799 - this requires that we extended ArrayMixin.datatype to
+    # support array accesses with index expressions that are Operations.
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignments[2])
+    assert ("cannot expand expression because it contains the access "
+            "'ishtsi(iwewe + 1,jf)' which is an UnresolvedType and therefore "
+            "cannot be guaranteed" in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignments[3])
+    assert ("cannot expand expression because it contains the access "
+            "'ishtsi(my_func(1),jf)' which is an UnresolvedType and therefore "
+            "cannot be guaranteed to be ScalarType." in str(err.value))
+
+
+def test_validate_structure(fortran_reader):
+    '''
+    Check the validation of the transformation when it is a structure access
+    on the RHS.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    program test
+      integer, parameter :: ngrids = 4, kfld=5
+      integer, dimension(8,kfld)  :: ishtSi
+      type :: sub_grid_type
+        integer, dimension(kfld,kfld) :: map
+      end type sub_grid_type
+      type :: grid_type
+        real, dimension(:,:), allocatable :: data
+        type(sub_grid_type), dimension(ngrids) :: subgrid
+      end type grid_type
+      type(grid_type) :: grid
+      integer :: jf
+      ! Cannot tell whether or not the access on the RHS is an array.
+      ishtSi(5:8,jf) = grid%data(my_func(1), jf)
+      ! The array access to subgrid is not yet supported.
+      ishtSi(5:8,jf) = grid%subgrid%map(1,1)
+    end program test
+    ''')
+    assignments = psyir.walk(Assignment)
+    trans = ArrayAssignment2LoopsTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignments[0])
+    assert ("contains the access 'grid%data(my_func(1),jf)' which is an "
+            "UnresolvedType" in str(err.value))
+    # TODO #1858 - once we've extended Reference2ArrayRangeTrans to support
+    # StructureMembers we can use it as part of this transformation and this
+    # example will be supported.
+    trans.validate(assignments[1])

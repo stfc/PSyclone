@@ -850,6 +850,18 @@ def test_unsupported_decln(fortran_reader):
     assert ("Invalid variable declaration found in _process_decln for "
             "'problem'" in str(err.value))
 
+    reader = FortranStringReader("integer, intent(in) :: l1")
+    fparser2spec = Specification_Part(reader).content[0]
+    # Break the attribute-spec list for this declaration.
+    attr_specs = fparser2spec.items[1]
+    attr_specs.items = (attr_specs.items[0], "rubbish")
+    fake_parent = KernelSchedule.create("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    processor = Fparser2Reader()
+    with pytest.raises(NotImplementedError) as error:
+        processor._process_decln(fake_parent, symtab, fparser2spec)
+    assert "Unrecognised attribute type 'str'" in str(error.value)
+
 
 def test_unsupported_decln_structure_type(fortran_reader):
     '''
