@@ -49,7 +49,6 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import CallGen, CommentGen
 from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (ArrayReference, ACCRegionDirective,
                                   Loop, Literal, OMPRegionDirective, Reference,
                                   Routine, Schedule)
@@ -245,51 +244,54 @@ class LFRicLoop(PSyLoop):
                 self.set_upper_bound("cell_halo", index=kern.halo_depth)
                 return
 
-        if Config.get().distributed_memory:
-            if self._field.is_operator:
-                # We always compute operators redundantly out to the L1
-                # halo
+        if not Config.get().distributed_memory:
+            # Sequential
+            self.set_upper_bound("ncells")
+            return
+
+        # Otherwise, distributed memory is enabled.
+        if self._field.is_operator:
+            # We always compute operators redundantly out to the L1
+            # halo
+            self.set_upper_bound("cell_halo", index=1)
+            return
+        if (self.field_space.orig_name in
+                const.VALID_DISCONTINUOUS_NAMES):
+            # Iterate to ncells for all discontinuous quantities,
+            # including any_discontinuous_space
+            self.set_upper_bound("ncells")
+            return
+        if (self.field_space.orig_name in
+                const.CONTINUOUS_FUNCTION_SPACES):
+            # Must iterate out to L1 halo for continuous quantities
+            # unless the only arguments that are updated all have
+            # 'GH_WRITE' access. The only time such an access is
+            # permitted for a field on a continuous space is when the
+            # kernel is implemented such that any writes to a given
+            # shared dof are guaranteed to write the same value. There
+            # is therefore no need to iterate into the L1 halo in order
+            # to get correct values for annexed dofs.
+            if not kern.all_updates_are_writes:
                 self.set_upper_bound("cell_halo", index=1)
                 return
-            if (self.field_space.orig_name in
-                    const.VALID_DISCONTINUOUS_NAMES):
-                # Iterate to ncells for all discontinuous quantities,
-                # including any_discontinuous_space
-                self.set_upper_bound("ncells")
+            self.set_upper_bound("ncells")
+            return
+        if (self.field_space.orig_name in
+                const.VALID_ANY_SPACE_NAMES):
+            # We don't know whether any_space is continuous or not
+            # so we have to err on the side of caution and assume that
+            # it is. Again, if the only arguments that are updated have
+            # 'GH_WRITE' access then we can relax this condition.
+            if not kern.all_updates_are_writes:
+                self.set_upper_bound("cell_halo", index=1)
                 return
-            if (self.field_space.orig_name in
-                    const.CONTINUOUS_FUNCTION_SPACES):
-                # Must iterate out to L1 halo for continuous quantities
-                # unless the only arguments that are updated all have
-                # 'GH_WRITE' access. The only time such an access is
-                # permitted for a field on a continuous space is when the
-                # kernel is implemented such that any writes to a given
-                # shared dof are guaranteed to write the same value. There
-                # is therefore no need to iterate into the L1 halo in order
-                # to get correct values for annexed dofs.
-                if not kern.all_updates_are_writes:
-                    self.set_upper_bound("cell_halo", index=1)
-                    return
-                self.set_upper_bound("ncells")
-                return
-            if (self.field_space.orig_name in
-                    const.VALID_ANY_SPACE_NAMES):
-                # We don't know whether any_space is continuous or not
-                # so we have to err on the side of caution and assume that
-                # it is. Again, if the only arguments that are updated have
-                # 'GH_WRITE' access then we can relax this condition.
-                if not kern.all_updates_are_writes:
-                    self.set_upper_bound("cell_halo", index=1)
-                    return
-                self.set_upper_bound("ncells")
-                return
+            self.set_upper_bound("ncells")
+            return
 
-            raise GenerationError(
-                f"Unexpected function space found. Expecting one of "
-                f"{const.VALID_FUNCTION_SPACES} but found "
-                f"'{self.field_space.orig_name}'")
-        # Sequential
-        self.set_upper_bound("ncells")
+        raise GenerationError(
+            f"Unexpected function space found. Expecting one of "
+            f"{const.VALID_FUNCTION_SPACES} but found "
+            f"'{self.field_space.orig_name}'")
 
     def set_lower_bound(self, name, index=None):
         ''' Set the lower bounds of this loop '''
@@ -310,7 +312,7 @@ class LFRicLoop(PSyLoop):
         :param name: A loop upper bound name. This should be a supported name.
         :type name: str
         :param index: An optional argument indicating the depth of halo
-        :type index: Optional[int]
+        :type index: Optional[:py:class:`psyclone.psyir.nodes.Node` | int]
 
         :raises GenerationError: if supplied with an invalid upper-bound name.
         :raises GenerationError: if supplied with a halo depth < 1.
@@ -334,11 +336,10 @@ class LFRicLoop(PSyLoop):
                     f"The specified index '{index}' for this upper loop bound "
                     f"is invalid")
         self._upper_bound_name = name
-        if index and isinstance(index, (str, int)):
-            table = self.ancestor(InvokeSchedule).symbol_table
-            index_str = index if isinstance(index, str) else f"{index}"
-            psyir = FortranReader().psyir_from_expression(index_str,
-                                                          symbol_table=table)
+        if index and isinstance(index, int):
+            # We support specifying depth as an int as a convenience but we
+            # now convert it to a PSyIR literal.
+            psyir = Literal(f"{index}", INTEGER_TYPE)
             self._upper_bound_halo_depth = psyir
         else:
             self._upper_bound_halo_depth = index
@@ -830,9 +831,6 @@ class LFRicLoop(PSyLoop):
 
             if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if self._upper_bound_halo_depth:
-                    # TODO: #696 Add kind (precision) once the
-                    # LFRicInvokeSchedule constructor has been extended to
-                    # create the necessary symbols.
                     halo_depth = self._upper_bound_halo_depth.copy()
                 else:
                     # We need to go to the full depth of the halo.
@@ -875,6 +873,8 @@ class LFRicLoop(PSyLoop):
         if (not Config.get().distributed_memory and
             all(kern.iterates_over == "halo_cell_column" for
                 kern in self.kernels())):
+            # No distributed memory and thus no halo cells but all kernels
+            # only operate on halo cells => nothing to do.
             return
 
         # Check that we're not within an OpenMP parallel region if

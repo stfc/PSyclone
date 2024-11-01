@@ -316,7 +316,8 @@ class LFRicKern(CodedKern):
                 f"recognised. Must be one of {const.VALID_EVALUATOR_SHAPES}.")
 
         # If this kernel operates into the halo then it must be passed a
-        # halo depth.
+        # halo depth. This is currently restricted to being either a simple
+        # variable name or a literal value.
         freader = FortranReader()
         invoke_schedule = self.ancestor(InvokeSchedule)
         table = invoke_schedule.symbol_table if invoke_schedule else None
@@ -325,6 +326,8 @@ class LFRicKern(CodedKern):
             self._halo_depth = freader.psyir_from_expression(
                 args[-1].text.lower(), symbol_table=table)
             if isinstance(self._halo_depth, Reference):
+                # If we got a Reference, check whether we need to specialise
+                # the associated Symbol.
                 sym = self._halo_depth.symbol
                 if not hasattr(sym, "datatype"):
                     self._halo_depth.symbol.specialise(
@@ -406,9 +409,10 @@ class LFRicKern(CodedKern):
         If this is a kernel that has metadata specifying that it operates on
         halo cells then this property gives the depth of halo that is written.
 
-        :returns: the name of the variable holding the depth of halo that is
-                  modified.
-        :rtype: str
+        :returns: the PSyIR of the depth of halo that is modified.
+        :rtype: :py:class:`psyclone.psyir.nodes.Literal` |
+                :py:class:`psyclone.psyir.nodes.Reference`
+
         '''
         return self._halo_depth
 

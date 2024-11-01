@@ -275,14 +275,20 @@ class SymPyWriter(FortranWriter):
         `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
         considered equal.
 
-        :param identical_variables: which variable names are known to be
-            identical
-        :type identical_variables: Optional[dict[str, str]]
+        The optional `all_variables_positive` flag can be used to indicate that
+        all variables are positive definite. This means that, e.g. 'i+j' will
+        be considered greater than 'i'.
 
         :param list_of_expressions: the list of expressions from which all
             references are taken and added to a symbol table to avoid
             renaming any symbols (so that only member names will be renamed).
         :type list_of_expressions: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param identical_variables: which variable names are known to represent
+            identical quantities.
+        :type identical_variables: Optional[dict[str, str]]
+        :param Optional[bool] all_variables_positive: whether or not (the
+            default) to assume that all variables are positive definite
+            quantities.
 
         '''
         # Create a new symbol table, so previous symbol will not affect this
@@ -403,6 +409,9 @@ class SymPyWriter(FortranWriter):
             converted into SymPy-parsable strings.
         :type list_of_expressions: Union[:py:class:`psyclone.psyir.nodes.Node`,
             List[:py:class:`psyclone.psyir.nodes.Node`]]
+        :param Optional[bool] all_variables_positive: whether or not (the
+            default) to assume that all variables are positive definite
+            quantities.
 
         :returns: the converted strings(s).
         :rtype: Union[str, List[str]]
@@ -450,6 +459,9 @@ class SymPyWriter(FortranWriter):
         :param identical_variables: which variable names are known to be
             identical
         :type identical_variables: Optional[dict[str, str]]
+        :param Optional[bool] all_variables_positive: whether or not (the
+            default) to assume that all variables are positive definite
+            quantities.
 
         :returns: a 2-tuple consisting of the the converted PSyIR
             expressions, followed by a dictionary mapping the symbol names

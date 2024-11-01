@@ -55,6 +55,7 @@ from psyclone.psyir.nodes import Node, Loop
 from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (ACCEnterDataTrans, check_intergrid,
                                       Dynamo0p3ColourTrans,
                                       DynamoOMPParallelLoopTrans,
@@ -690,7 +691,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
         assert expected in output
 
 
-def test_fine_halo_read(monkeypatch):
+def test_fine_halo_read():
     ''' Check that the halo exchange has double the depth if it is
     for a field on the fine mesh with a read dependence '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -705,10 +706,6 @@ def test_fine_halo_read(monkeypatch):
     field = call.args[1]
     hra = HaloReadAccess(field, schedule.symbol_table)
     assert hra._var_depth.debug_string() == "2 * 1"
-    # Change the internal state of the HaloReadAccess to mimic the case
-    # where the field in question has a stencil access with a variable depth
-    # supplied from the Algorithm layer.
-    # TODO this is very hard to achieve so maybe need a new test example?
 
 
 def test_prolong_with_gp_error():

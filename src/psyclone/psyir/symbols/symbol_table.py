@@ -573,6 +573,7 @@ class SymbolTable():
         if key in self._symbols:
             raise KeyError(f"Symbol table already contains a symbol with "
                            f"name '{new_symbol.name}'.")
+
         if tag:
             if tag in self.get_tags():
                 raise KeyError(
