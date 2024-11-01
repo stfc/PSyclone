@@ -144,7 +144,7 @@ def main(args):
                              "<path>/atlt_<name>_alg_mod.[Xx]90.",
                              args.test_filename)
                 sys.exit(1)
-            # At this stage test filename should be valid, so we take the base name
+            # At this stage filename should be valid, so we take the base name
             test_name = os.path.basename(args.test_filename).split("_mod.")[0]
 
     # TL Fortran code
