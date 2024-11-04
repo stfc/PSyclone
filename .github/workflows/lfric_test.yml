@@ -47,7 +47,7 @@ jobs:
     runs-on: self-hosted
     env:
       LFRIC_APPS_REV: 3269
-      PYTHON_VERSION: 3.12.5
+      PYTHON_VERSION: 3.13.0
 
     steps:
     - uses: actions/checkout@v3
@@ -73,7 +73,6 @@ jobs:
         # than the latest release from pypi.
         # pip install external/fparser
         pip install .[test]
-        pip install jinja2
 
     # PSyclone, compile and run MetOffice gungho_model on GPU
     - name: LFRic GungHo with OpenMP offload

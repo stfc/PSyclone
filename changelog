@@ -243,6 +243,25 @@
 	83) PR #2743 for #2742. Ensure generated code for function spaces in
 	LFRic is always in a consistent order.
 
+	84) PR #2746. Update minor versions of CUDA, HDF5, nvfortran and
+	Python used in the CI.
+
+	85) PR #2748. Revert Python used on RTD to 3.12 as 3.13 unsupported.
+	
+	86) PR #2707 for #257. Fixes bugs in the loop-fusion transformation.
+
+	87) PR #2752 towards #2717. Adds Assignment.is_literal_assignment property.
+
+	88) PR #2753 towards #2717. Adds DataNode.is_character method.
+
+	89) PR #2712 for #2711. Adds support for user-supplied Kernels that
+        operate on dofs (in the LFRic API).
+
+	99) PR #2685 for #2027. Improves datatype and shape inference.
+
+	100) PR #2694 for #2690. Extends the PSyData NaN-checking tooling to
+	perform value verification.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
