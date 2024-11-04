@@ -64,8 +64,8 @@ TL_KERNEL_TYPE = ${TL_KERNEL_NAME}_type
 ADJ_KERNEL_TYPE = $(subst tl_,adj_,${TL_KERNEL_TYPE})
 
 # The name of the file that will contain the generated test harness.
-HARNESS_X90_FILE = adjoint_test_mod.x90
-HARNESS_F90_FILE = adjoint_test_mod.F90
+HARNESS_X90_FILE = adjt_hydrostatic_alg_mod.x90
+HARNESS_F90_FILE = adjt_hydrostatic_alg_mod.F90
 
 GENERATED_FILES += adj_*.[fF]90 test_harness.exe \
                    *.x90 ${HARNESS_F90_FILE} psy.f90 *.mod *.o
