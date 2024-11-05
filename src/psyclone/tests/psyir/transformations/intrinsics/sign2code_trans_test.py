@@ -191,7 +191,7 @@ def test_correct_expr(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_correct_2sign(tmpdir):
+def test_correct_2sign(tmpdir, fortran_writer):
     '''Check that a valid example produces the expected output when there
     is more than one SIGN in an expression.
 
@@ -209,8 +209,7 @@ def test_correct_2sign(tmpdir):
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  intr_call2, intr_call)
     assignment.addchild(op1)
-    writer = FortranWriter()
-    result = writer(root)
+    result = fortran_writer(root)
     assert (
         "subroutine sign_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -221,7 +220,7 @@ def test_correct_2sign(tmpdir):
     trans = Sign2CodeTrans()
     trans.apply(intr_call, root.symbol_table)
     trans.apply(intr_call2, root.symbol_table)
-    result = writer(root)
+    result = fortran_writer(root)
     assert (
         "subroutine sign_example(arg, arg_1)\n"
         "  real, intent(inout) :: arg\n"
@@ -259,6 +258,25 @@ def test_correct_2sign(tmpdir):
         "  end if\n"
         "  psyir_tmp = res_sign_1 + res_sign\n\n"
         "end subroutine sign_example\n") in result
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_sign_of_array(fortran_reader, fortran_writer, tmpdir):
+    '''
+    '''
+    code = '''\
+    program test_prog
+      integer, parameter :: wp = kind(1.0d0)
+      integer, parameter, dimension(0:4) :: A2D = (/1, 2, 3, 4, 5/)
+      REAL(wp), DIMENSION(A2D(0)) :: ztmp1
+      ztmp1 = 0.0
+      ztmp1 = SIGN( MAX(ABS(ztmp1),1.E-6_wp), ztmp1 )
+    end program test_prog'''
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Sign2CodeTrans()
+    sgn_call = psyir.walk(IntrinsicCall)[0]
+    trans.apply(sgn_call)
+    result = fortran_writer(psyir)
     assert Compile(tmpdir).string_compiles(result)
 
 
