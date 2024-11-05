@@ -622,6 +622,7 @@ def test_get_effective_shape(fortran_reader):
         "  b(indices(2:3,1:2), 2:5) = 2.0\n"
         "  a(f()) = 2.0\n"
         "  a(2+3) = 1.0\n"
+        "  b(idx, 1+indices(1,1):) = 1\n"
         "  b(idx, a) = -1.0\n"
         "  b(scalarval, arrayval) = 1\n"
         "end subroutine\n")
@@ -688,12 +689,17 @@ def test_get_effective_shape(fortran_reader):
     child_idx += 1
     with pytest.raises(NotImplementedError) as err:
         _ = routine.children[child_idx].lhs._get_effective_shape()
-    assert "include a function call or expression" in str(err.value)
-    # Array access with expression in indices.
+    assert "include a function call or unsupported feature" in str(err.value)
+    # Array access with simple expression in indices.
     child_idx += 1
-    with pytest.raises(NotImplementedError) as err:
-        _ = routine.children[child_idx].lhs._get_effective_shape()
-    assert "include a function call or expression" in str(err.value)
+    shape = routine.children[child_idx].lhs._get_effective_shape()
+    assert shape == []
+    # Array access with expression involving indirect access in indices.
+    child_idx += 1
+    shape = routine.children[child_idx].lhs._get_effective_shape()
+    assert len(shape) == 1
+    assert (shape[0].debug_string().lower() ==
+            "ubound(b, dim=2) - (1 + indices(1,1)) + 1")
     # Array access with indices given by another array that is not explicitly
     # indexed.
     child_idx += 1
