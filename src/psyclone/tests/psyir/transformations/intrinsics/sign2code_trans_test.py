@@ -275,10 +275,14 @@ def test_sign_with_integer_arg(fortran_reader, fortran_writer, tmpdir):
     end program test_prog'''
     psyir = fortran_reader.psyir_from_source(code)
     trans = Sign2CodeTrans()
-    sgn_call = psyir.walk(IntrinsicCall)
+    sgn_call = psyir.walk(IntrinsicCall)[0]
     trans.apply(sgn_call)
     result = fortran_writer(psyir)
-    assert "dadadada" in result
+    assert "integer(kind=idef) :: res_abs" in result
+    assert "integer(kind=idef) :: tmp_abs" in result
+    assert "if (tmp_abs > 0_idef) then" in result
+    assert "res_abs = tmp_abs * -1_idef" in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_sign_of_unknown_type(fortran_reader):
