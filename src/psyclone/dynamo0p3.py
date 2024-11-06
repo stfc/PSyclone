@@ -1651,8 +1651,8 @@ class DynLMAOperators(LFRicCollection):
             ndf_name_to = arg.function_space_to.ndf_name
             ndf_name_from = arg.function_space_from.ndf_name
             parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
-                               dimension=",".join([ndf_name_to,
-                                                   ndf_name_from, size]),
+                               dimension=",".join([size, ndf_name_to,
+                                                   ndf_name_from]),
                                intent=arg.intent,
                                entity_decls=[arg.name]))
 
