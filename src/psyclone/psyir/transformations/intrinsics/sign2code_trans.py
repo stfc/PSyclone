@@ -42,10 +42,11 @@ than the intrinsic.
 '''
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
-from psyclone.psyir.transformations import Abs2CodeTrans
+from psyclone.psyir.transformations import (
+    Abs2CodeTrans, TransformationError)
 from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference, Literal, IfBlock, IntrinsicCall)
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import ArrayType, DataSymbol, REAL_TYPE, ScalarType
 
 
 class Sign2CodeTrans(Intrinsic2CodeTrans):
@@ -73,6 +74,35 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
     def __init__(self):
         super().__init__()
         self._intrinsic = IntrinsicCall.Intrinsic.SIGN
+
+    def validate(self, node, options=None):
+        '''
+        Check that it is safe to apply the transformation to the supplied node.
+
+        :param node: the SIGN call to transform.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+        :param options: any of options for the transformation.
+        :type options: dict[str, Any]
+
+        :raises TransformationError: if the supplied SIGN call operates on
+            an argument of array type or unsupported/unresolved type.
+
+        '''
+        super().validate(node, options=options)
+        result_type = node.arguments[0].datatype
+        if isinstance(result_type, ArrayType):
+            raise TransformationError(
+                f"Transformation {self.name} cannot be applied to SIGN calls "
+                f"which have an array as argument but "
+                f"'{node.arguments[0].debug_string()}' is of array type. It "
+                f"may be possible to use the ArrayAssignment2LoopsTrans "
+                f"to convert this to a scalar argument.")
+        if not isinstance(result_type, ScalarType):
+            raise TransformationError(
+                f"Transformation {self.name} cannot be applied to "
+                f"'{node.debug_string()} calls because the type of the "
+                f"argument '{node.arguments[0].debug_string()}' is "
+                f"{result_type}")
 
     def apply(self, node, options=None):
         '''Apply the SIGN intrinsic conversion transformation to the specified
@@ -121,16 +151,14 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
 
-        # Create two temporary variables.  There is an assumption here
-        # that the SIGN IntrinsicCall returns a PSyIR real type. This might
-        # not be what is wanted (e.g. the args might PSyIR integers),
-        # or there may be errors (arguments are of different types)
-        # but this can't be checked as we don't have the appropriate
-        # methods to query nodes (see #658).
+        # Create two temporary variables. We need to get the type of the
+        # first argument to SIGN. validate() has checked that this is a
+        # known, scalar type.
+        result_type = node.arguments[0].datatype
         res_var_symbol = symbol_table.new_symbol(
-            "res_sign", symbol_type=DataSymbol, datatype=REAL_TYPE)
+            "res_sign", symbol_type=DataSymbol, datatype=result_type)
         tmp_var_symbol = symbol_table.new_symbol(
-            "tmp_sign", symbol_type=DataSymbol, datatype=REAL_TYPE)
+            "tmp_sign", symbol_type=DataSymbol, datatype=result_type)
 
         # Replace operator with a temporary (res_var).
         node.replace_with(Reference(res_var_symbol))
@@ -155,14 +183,14 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
 
         # if_condition: tmp_var<0.0
         lhs = Reference(tmp_var_symbol)
-        rhs = Literal("0.0", REAL_TYPE)
+        rhs = Literal("0", result_type)
         if_condition = BinaryOperation.create(BinaryOperation.Operator.LT,
                                               lhs, rhs)
 
         # then_body: res_var=res_var*-1.0
         lhs = Reference(res_var_symbol)
         lhs_child = Reference(res_var_symbol)
-        rhs_child = Literal("-1.0", REAL_TYPE)
+        rhs_child = Literal("1", result_type)
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      lhs_child, rhs_child)
         then_body = [Assignment.create(lhs, rhs)]
