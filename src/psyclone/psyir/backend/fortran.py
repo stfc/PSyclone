@@ -1350,12 +1350,20 @@ class FortranWriter(LanguageWriter):
                         )
                 quote_symbol = '"'
             result = f"{quote_symbol}{node.value}{quote_symbol}"
-        elif (node.datatype.intrinsic == ScalarType.Intrinsic.REAL and
-              precision == ScalarType.Precision.DOUBLE):
-            # The PSyIR stores real scalar values using the standard 'e'
-            # notation. If the scalar is in fact double precision then this
-            # 'e' must be replaced by 'd' for Fortran.
-            result = node.value.replace("e", "d", 1)
+        elif node.datatype.intrinsic == ScalarType.Intrinsic.REAL:
+            # Ensure it ends with ".0" if it isn't already explicitly
+            # formatted as a real.
+            try:
+                _ = int(node.value)
+                result = node.value + ".0"
+            except ValueError:
+                # It is already formatted as a real.
+                result = node.value
+            if precision == ScalarType.Precision.DOUBLE:
+                # The PSyIR stores real scalar values using the standard 'e'
+                # notation. If the scalar is in fact double precision then this
+                # 'e' must be replaced by 'd' for Fortran.
+                result = node.value.replace("e", "d", 1)
         else:
             result = node.value
 
