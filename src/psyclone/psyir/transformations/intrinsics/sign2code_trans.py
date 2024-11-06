@@ -42,11 +42,10 @@ than the intrinsic.
 '''
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
-from psyclone.psyir.transformations import (
-    Abs2CodeTrans, TransformationError)
+from psyclone.psyir.transformations import Abs2CodeTrans
 from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference, Literal, IfBlock, IntrinsicCall)
-from psyclone.psyir.symbols import ArrayType, DataSymbol, ScalarType
+from psyclone.psyir.symbols import DataSymbol
 
 
 class Sign2CodeTrans(Intrinsic2CodeTrans):
@@ -81,28 +80,12 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
 
         :param node: the SIGN call to transform.
         :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
-        :param options: any of options for the transformation.
+        :param options: any options for the transformation.
         :type options: dict[str, Any]
-
-        :raises TransformationError: if the supplied SIGN call operates on
-            an argument of array type or unsupported/unresolved type.
 
         '''
         super().validate(node, options=options)
-        result_type = node.arguments[0].datatype
-        if isinstance(result_type, ArrayType):
-            raise TransformationError(
-                f"Transformation {self.name} cannot be applied to SIGN calls "
-                f"which have an array as argument but "
-                f"'{node.arguments[0].debug_string()}' is of array type. It "
-                f"may be possible to use the ArrayAssignment2LoopsTrans "
-                f"to convert this to a scalar argument.")
-        if not isinstance(result_type, ScalarType):
-            raise TransformationError(
-                f"Transformation {self.name} cannot be applied to "
-                f"'{node.debug_string()} because the type of the "
-                f"argument '{node.arguments[0].debug_string()}' is "
-                f"{result_type}")
+        super()._validate_scalar_arg(node)
 
     def apply(self, node, options=None):
         '''Apply the SIGN intrinsic conversion transformation to the specified

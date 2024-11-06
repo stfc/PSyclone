@@ -261,6 +261,26 @@ def test_correct_2sign(tmpdir, fortran_writer):
     assert Compile(tmpdir).string_compiles(result)
 
 
+def test_sign_with_integer_arg(fortran_reader, fortran_writer, tmpdir):
+    '''
+    Test that the transformation works when the SIGN argument is an
+    integer.
+
+    '''
+    code = '''\
+    program test_prog
+      integer, parameter :: idef = kind(1)
+      integer(idef) :: my_arg, other_arg
+      my_arg = SIGN(my_arg, other_arg)
+    end program test_prog'''
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Sign2CodeTrans()
+    sgn_call = psyir.walk(IntrinsicCall)
+    trans.apply(sgn_call)
+    result = fortran_writer(psyir)
+    assert "dadadada" in result
+
+
 def test_sign_of_unknown_type(fortran_reader):
     '''
     Check that we refuse to apply the transformation if the argument
