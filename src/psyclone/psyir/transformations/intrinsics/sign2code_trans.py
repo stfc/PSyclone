@@ -46,7 +46,7 @@ from psyclone.psyir.transformations import (
     Abs2CodeTrans, TransformationError)
 from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference, Literal, IfBlock, IntrinsicCall)
-from psyclone.psyir.symbols import ArrayType, DataSymbol, REAL_TYPE, ScalarType
+from psyclone.psyir.symbols import ArrayType, DataSymbol, ScalarType
 
 
 class Sign2CodeTrans(Intrinsic2CodeTrans):
