@@ -100,7 +100,7 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
         if not isinstance(result_type, ScalarType):
             raise TransformationError(
                 f"Transformation {self.name} cannot be applied to "
-                f"'{node.debug_string()} calls because the type of the "
+                f"'{node.debug_string()} because the type of the "
                 f"argument '{node.arguments[0].debug_string()}' is "
                 f"{result_type}")
 
@@ -190,7 +190,7 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
         # then_body: res_var=res_var*-1.0
         lhs = Reference(res_var_symbol)
         lhs_child = Reference(res_var_symbol)
-        rhs_child = Literal("1", result_type)
+        rhs_child = Literal("-1", result_type)
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      lhs_child, rhs_child)
         then_body = [Assignment.create(lhs, rhs)]
