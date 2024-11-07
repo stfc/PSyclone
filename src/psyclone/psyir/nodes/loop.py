@@ -604,61 +604,25 @@ class Loop(Statement):
         :returns: True if the Loop nest is perfect, otherwise False
         :rtype: bool
         '''
-        exclude = (
-            Literal,
-            Reference,
-            Loop,
-            IntrinsicCall,
-        )
-        subnest = self.walk(Loop)
+        loop_count = 0
+        next_loop = self
+        while isinstance(next_loop, Loop):
+            loop_count += 1
 
-        def intersect(list1, list2):
-            '''
-            Compute the intersection of two lists.
+            # If it has more than one child, the next loop will not be perfectly nested,
+            # so stop searching. If there is no child, we have an empty loop and we also
+            # stop here.
+            if len(next_loop.loop_body.children) != 1:
+                if (next_loop.loop_body.children and
+                        isinstance(next_loop.loop_body[0], Loop)):
+                    return False
+                return len(self.walk(Loop)) == loop_count
 
-            We cannot use the inbuilt set interesection in Python because
-            Nodes are not hashable.
-
-            :param list1: the first list to intersect
-            :type list1: list
-            :param list2: the second list to intersect
-            :type list2: list
-            :returns: the intersection of the two lists
-            :rtype: list
-            '''
-            return [item for item in list1 if item in list2]
-
-        # Check whether the subnest is perfect by checking each level in turn
-        loops, non_loops = [self], []
-        while len(loops) > 0:
-            children = [
-                grandchild
-                for child in loops[0].children
-                for grandchild in child.children
-            ]
-            non_loops = [
-                node for node in children if not isinstance(node, exclude)
-            ]
-            loops = intersect(
-                [node for node in children if isinstance(node, Loop)],
-                subnest
-            )
-
-            # Case of one loop and no non-loops: this nest level is okay
-            if len(loops) == 1 and not non_loops:
-                continue
-
-            # Case of no loops and no non-loops with descendents outside the
-            # subnest: this nest level is also okay
-            if not loops:
-                for node in non_loops:
-                    if intersect(node.walk(Loop), subnest):
-                        break
-                else:
-                    continue
-
-            # Otherwise, the nest level is not okay
-            return False
+            # If there are no more loops then check all the expected loops have been
+            # counted.
+            next_loop = next_loop.loop_body[0]
+            if not isinstance(next_loop, Loop):
+                return len(self.walk(Loop)) == loop_count
         return True
 
     @property
