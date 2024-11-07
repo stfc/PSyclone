@@ -44,7 +44,7 @@ from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
 from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference, Literal, IfBlock, IntrinsicCall)
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol
 
 
 class Abs2CodeTrans(Intrinsic2CodeTrans):
