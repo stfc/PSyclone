@@ -255,12 +255,16 @@
 	88) PR #2753 towards #2717. Adds DataNode.is_character method.
 
 	89) PR #2712 for #2711. Adds support for user-supplied Kernels that
-        operate on dofs (in the LFRic API).
+	operate on dofs (in the LFRic API).
 
 	99) PR #2685 for #2027. Improves datatype and shape inference.
 
 	100) PR #2694 for #2690. Extends the PSyData NaN-checking tooling to
 	perform value verification.
+
+	101) PR #2749 for #2311. Alters test-harness generation for the LFRic
+	API in PSyAD to base the generated test-code filenames on the name of
+	the supplied LFRic Algorithm file.
 
 release 2.5.0 14th of February 2024
 
