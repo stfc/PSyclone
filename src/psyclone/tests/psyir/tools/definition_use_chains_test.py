@@ -36,7 +36,6 @@
 '''This module contains the tests for the DefinitionUseChain class'''
 
 import pytest
-from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     Routine,
     IfBlock,
@@ -66,7 +65,6 @@ def test_definition_use_chain_init_and_properties(fortran_reader):
     routine = psyir.walk(Routine)[0]
     references = psyir.walk(Reference)
     a_1 = references[0]
-    b = references[2]
 
     # Check the basic initialisation with default setup.
     duc = DefinitionUseChain(a_1)
@@ -76,22 +74,12 @@ def test_definition_use_chain_init_and_properties(fortran_reader):
     assert duc._reference_abs_pos == a_1.abs_position
     assert len(duc._scope) == 1
     assert duc._scope[0] is routine
-    assert not duc._is_local
-
-    # Check the basic initiailisation with a local variable
-    # has the correct is_local set.
-    duc = DefinitionUseChain(b)
-    assert duc._is_local
 
     # Test the control_flow_region setter
     duc = DefinitionUseChain(a_1, routine.children[0:2])
     assert len(duc._scope) == 2
     assert duc._scope[0] is routine.children[0]
     assert duc._scope[1] is routine.children[1]
-
-    # Test the is_local setter to override the computed default.
-    duc = DefinitionUseChain(a_1, is_local=True)
-    assert duc._is_local
 
     # Test the start and stop point setters
     duc = DefinitionUseChain(a_1, start_point=0, stop_point=1)
@@ -196,7 +184,7 @@ def test_definition_use_chain_compute_forward_uses(fortran_reader):
     assert a_1 is psyir.walk(Assignment)[0].lhs
 
     duc = DefinitionUseChain(
-        a_1, control_flow_region=[routine], is_local=False
+        a_1, control_flow_region=[routine]
     )
     basic_block_list = routine.children[:]
     # Need to set the start point and stop points similar to what
@@ -222,7 +210,7 @@ def test_definition_use_chain_compute_forward_uses(fortran_reader):
     a_1 = psyir.walk(Reference)[1]
 
     duc = DefinitionUseChain(
-        a_1, control_flow_region=[routine], is_local=False
+        a_1, control_flow_region=[routine]
     )
     basic_block_list = routine.children[:]
     # Need to set the start point and stop points similar to what
@@ -251,7 +239,7 @@ def test_definition_use_chain_compute_forward_uses(fortran_reader):
     a_1 = psyir.walk(Reference)[1]
 
     duc = DefinitionUseChain(
-        a_1, control_flow_region=[routine], is_local=False
+        a_1, control_flow_region=[routine]
     )
     basic_block_list = routine.children[:]
     # Need to set the start point and stop points similar to what
@@ -794,7 +782,7 @@ def test_definition_use_chains_goto_statement(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     chains = DefinitionUseChain(routine.children[0].lhs)
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(NotImplementedError) as excinfo:
         chains.find_forward_accesses()
     assert ("DefinitionUseChains can't handle code containing GOTO statements"
             in str(excinfo.value))

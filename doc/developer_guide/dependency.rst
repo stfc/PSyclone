@@ -670,8 +670,8 @@ dependencies (backward NYI) for a given Reference inside a region of code. This
 implementation differs from the DependencyTools as it is control-flow aware, so
 can find many dependencies for a single Reference in a given Routine or scope.
 
-This is primarily used in the `References.next_accesses` function, but can be
-used as follows:
+This is primarily used to implement the `References.next_accesses` function, but can be
+used directly as follows:
 
 .. code::
 
@@ -684,7 +684,7 @@ By default the dependencies will be searched for in the containing Routine.
 
 Limitations
 -----------
-At the moment the DefinitionUseChain assumes that all control flow is optional, i.e.
+At the moment the DefinitionUseChain assumes that any control flow could not be taken, i.e.
 any code inside a Loop or If statement is not guaranteed to occur. These dependencies
 will be found, but will not limit further searching into the tree.
 Additionally, GOTO statements are not supported and if found, will throw an Exception.

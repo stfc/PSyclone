@@ -43,7 +43,6 @@ from fparser.two.Fortran2003 import (
     Goto_Stmt,
 )
 
-from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     Assignment,
     Call,
@@ -59,7 +58,6 @@ from psyclone.psyir.nodes import (
     Statement,
     WhileLoop,
 )
-from psyclone.psyir.symbols import AutomaticInterface
 
 
 class DefinitionUseChain:
@@ -75,9 +73,6 @@ class DefinitionUseChain:
                                 Routine exists.
     :type control_flow_region: Optional[List[
                                :py:class:`psyclone.psyir.nodes.Node`]]
-    :param bool is_local: Optional argument to define whether reference is a
-                          local variable or not. Default behaviour is to check
-                          if its interface is an AutomaticInterface or not.
     :param int start_point: Optional argument to define a start point for the
                             dependency search.
     :param int stop_point: Optional argument to define a stop point for the
@@ -91,7 +86,6 @@ class DefinitionUseChain:
         self,
         reference,
         control_flow_region=None,
-        is_local=None,
         start_point=None,
         stop_point=None,
     ):
@@ -127,16 +121,6 @@ class DefinitionUseChain:
                     f"'{type(control_flow_region).__name__}'."
                 )
             self._scope = control_flow_region
-        if is_local is None:
-            # Work out if symbol is local to the scope or
-            # globally accessible. Anything that isn't a local
-            # variable in a Routine has to be assumed as globally
-            # accessible for now.
-            self._is_local = isinstance(
-                reference.symbol.interface, AutomaticInterface
-            )
-        else:
-            self._is_local = is_local
 
         # The uses, defsout and killed sets as defined for each basic block.
         self._uses = []
@@ -159,7 +143,9 @@ class DefinitionUseChain:
     @property
     def defsout(self):
         """
-        :returns: the list of output nodes computed by this DefinitionUseChain.
+        :returns: the list of nodes that reach the end of the block without
+                  being killed, and therefore can have dependencies outside
+                  of this block.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         """
         return self._defsout
@@ -167,10 +153,9 @@ class DefinitionUseChain:
     @property
     def killed(self):
         """
-        :returns: the list of killed output nodes computed by this
-                  DefinitionUseChain. The killed output nodes are those
-                  output nodes whose values are superceded by a later write to
-                  the symbol in the same basic block.
+        :returns: the list of nodes that represent the last use of an assigned
+                  variable. Calling next_access on any of these nodes will find
+                  a write that reassigns it's value.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         """
         return self._killed
@@ -205,20 +190,6 @@ class DefinitionUseChain:
                   DefinitionUseChain
         :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
         """
-        # FIXME If all defsout is in control flow we should add a None into
-        # the defsout array. @Reviewer not sure about this - should we make
-        # it clear somehow its not guaranteed to be written to or does it not
-        # matter?
-        # Find the position of the Reference's highest-level parent in
-        # the Routine.
-        scope = self._reference.ancestor(Routine)
-        if scope is None:
-            # Handle subtrees without a routine
-            scope = self._reference.root
-        node = self._reference
-        while node.depth > scope.depth + 1:
-            node = node.parent
-
         # Setup the start and stop positions
         save_start_position = self._start_point
         save_stop_position = self._stop_point
@@ -231,7 +202,8 @@ class DefinitionUseChain:
         if self._stop_point is None:
             self._stop_point = sys.maxsize
         if not self.is_basic_block:
-            # If this isn't a basic block, the we find all the basic blocks.
+            # If this isn't a basic block, the we find all of the basic
+            # blocks.
             control_flow_nodes, basic_blocks = self._find_basic_blocks(
                 self._scope
             )
@@ -271,7 +243,6 @@ class DefinitionUseChain:
                     chain = DefinitionUseChain(
                         self._reference.copy(),
                         body,
-                        self._is_local,
                         start_point=ancestor.abs_position,
                         stop_point=sub_stop_point,
                     )
@@ -284,7 +255,6 @@ class DefinitionUseChain:
                         chain = DefinitionUseChain(
                             self._reference.copy(),
                             [ancestor.condition],
-                            self._is_local,
                             start_point=ancestor.abs_position,
                             stop_point=sub_stop_point,
                         )
@@ -306,7 +276,6 @@ class DefinitionUseChain:
                         chain = DefinitionUseChain(
                             self._reference,
                             [ancestor.lhs],
-                            self._is_local,
                             start_point=ancestor.lhs.abs_position - 1,
                             stop_point=ancestor.lhs.abs_position + 1,
                         )
@@ -321,7 +290,6 @@ class DefinitionUseChain:
                 chain = DefinitionUseChain(
                     self._reference,
                     block,
-                    self._is_local,
                     start_point=self._start_point,
                     stop_point=self._stop_point,
                 )
@@ -350,11 +318,11 @@ class DefinitionUseChain:
                         self._stop_point = save_stop_position
                         return self._reaches
                 else:
-                    # We assume that the control flow here is "optional", i.e.
-                    # that this doesn't kill the chain.
-                    # In theory we could analyse loop structures or if block
-                    # structures to see if we're guaranteed to write to the
-                    # symbol.
+                    # We assume that the control flow here could not be taken,
+                    # i.e. that this doesn't kill the chain.
+                    # TODO #2760: In theory we could analyse loop structures
+                    # or if block structures to see if we're guaranteed to
+                    # write to the symbol.
                     # If the control flow node is a Loop we have to check
                     # if the variable is the same symbol as the _reference.
                     if isinstance(cfn, Loop):
@@ -395,7 +363,6 @@ class DefinitionUseChain:
                     chain = DefinitionUseChain(
                         self._reference,
                         [ancestor.lhs],
-                        self._is_local,
                         start_point=ancestor.lhs.abs_position - 1,
                         stop_point=ancestor.lhs.abs_position + 1,
                     )
@@ -425,11 +392,6 @@ class DefinitionUseChain:
                 # of the killed writes is the access access that we're
                 # dependent with.
                 self._reaches.append(self.killed[0])
-
-            # We're not in a control flow region, so we stop if the
-            # reference is written to, so we don't need to ever add
-            # elements of the killed array here.
-            # FIXME This is wrong.
 
         # Reset the start and stop points before returning the result.
         self._start_point = save_start_position
@@ -474,8 +436,9 @@ class DefinitionUseChain:
                     # as checking the symbol - this means we can get false
                     # positives for structure accesses inside CodeBlocks.
                     if isinstance(reference._fp2_nodes[0], Goto_Stmt):
-                        raise InternalError("DefinitionUseChains can't handle "
-                                            "code containing GOTO statements.")
+                        raise NotImplementedError("DefinitionUseChains can't "
+                                                  "handle code containing GOTO"
+                                                  " statements.")
                     # If we find an Exit or Cycle statement, we can't
                     # reach further in this code region so we can return.
                     if isinstance(reference._fp2_nodes[0], (Exit_Stmt,
@@ -496,19 +459,16 @@ class DefinitionUseChain:
                 elif isinstance(reference, Call):
                     # If its a local variable we can ignore it as we'll catch
                     # the Reference later if its passed into the Call.
-                    if self._is_local:
+                    if self._reference.symbol.is_automatic:
                         continue
                     if isinstance(reference, IntrinsicCall):
                         # IntrinsicCall can only do stuff to arguments, these
                         # will be caught by Reference walk already.
-                        # Note that this assumption two symbols are not
+                        # Note that this assumes two symbols are not
                         # aliases of each other.
                         continue
                     # For now just assume calls are bad if we have a non-local
-                    # variable and we count them as killed and defsout
-                    # and uses.
-#                    if defs_out is None:
-#                        self._uses.append(reference)
+                    # variable and we treat them as though they were a write.
                     if defs_out is not None:
                         self._killed.append(defs_out)
                     defs_out = reference
@@ -639,8 +599,6 @@ class DefinitionUseChain:
                 basic_blocks.append(node.if_body.children[:])
                 # Check if the node is in the if_body
                 in_if_body = False
-                # FIXME We could potentially optimise this loop if its
-                # expensive
                 refs = node.if_body.walk(Reference)
                 for ref in refs:
                     if ref is self._reference:
