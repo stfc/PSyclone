@@ -594,12 +594,8 @@ def test_loop_type(fortran_reader):
     assert outer_loop.loop_type is None
     assert inner_loop.loop_type is None
 
-    # The loops are perfectly nested...
     assert outer_loop.is_perfectly_nested
     assert inner_loop.is_perfectly_nested
-    # ...but not simple because the innermost assignment is not literal
-    assert not outer_loop.is_simple
-    assert not inner_loop.is_simple
 
     assert outer_loop.nest_variable_names == ("jj", "ji")
     assert inner_loop.nest_variable_names == ("ji",)
@@ -630,8 +626,8 @@ def test_imperfectly_nested_loop_before(fortran_reader):
     jj_loop = psyir.walk(Loop)[1]
     ji_loop = psyir.walk(Loop)[2]
     assert not jk_loop.is_perfectly_nested
-    assert jj_loop.is_simple
-    assert ji_loop.is_simple
+    assert jj_loop.is_perfectly_nested
+    assert ji_loop.is_perfectly_nested
 
     code = '''
     subroutine imperfect_nest_before()
@@ -654,7 +650,7 @@ def test_imperfectly_nested_loop_before(fortran_reader):
     ji_loop = psyir.walk(Loop)[2]
     assert not jk_loop.is_perfectly_nested
     assert not jj_loop.is_perfectly_nested
-    assert ji_loop.is_simple
+    assert ji_loop.is_perfectly_nested
 
 
 def test_imperfectly_nested_loop_after(fortran_reader):
@@ -682,8 +678,8 @@ def test_imperfectly_nested_loop_after(fortran_reader):
     jj_loop = psyir.walk(Loop)[1]
     ji_loop = psyir.walk(Loop)[2]
     assert not jk_loop.is_perfectly_nested
-    assert jj_loop.is_simple
-    assert ji_loop.is_simple
+    assert jj_loop.is_perfectly_nested
+    assert ji_loop.is_perfectly_nested
 
     code = '''
     subroutine imperfect_nest_after()
@@ -706,7 +702,7 @@ def test_imperfectly_nested_loop_after(fortran_reader):
     ji_loop = psyir.walk(Loop)[2]
     assert not jk_loop.is_perfectly_nested
     assert not jj_loop.is_perfectly_nested
-    assert ji_loop.is_simple
+    assert ji_loop.is_perfectly_nested
 
 
 def test_imperfectly_nested_loop_if(fortran_reader):
@@ -735,8 +731,8 @@ def test_imperfectly_nested_loop_if(fortran_reader):
     jj_loop = psyir.walk(Loop)[1]
     ji_loop = psyir.walk(Loop)[2]
     assert not jk_loop.is_perfectly_nested
-    assert jj_loop.is_simple
-    assert ji_loop.is_simple
+    assert jj_loop.is_perfectly_nested
+    assert ji_loop.is_perfectly_nested
 
     code = '''
     subroutine imperfect_nest_if()
@@ -760,4 +756,4 @@ def test_imperfectly_nested_loop_if(fortran_reader):
     ji_loop = psyir.walk(Loop)[2]
     assert not jk_loop.is_perfectly_nested
     assert not jj_loop.is_perfectly_nested
-    assert ji_loop.is_simple
+    assert ji_loop.is_perfectly_nested

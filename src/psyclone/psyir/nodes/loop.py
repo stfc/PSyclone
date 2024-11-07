@@ -662,26 +662,6 @@ class Loop(Statement):
         return True
 
     @property
-    def is_simple(self):
-        '''
-        Determine whether the nest of descendents starting at a Loop is
-        'simple', i.e., perfectly nested with only literal assignments at the
-        deepest level.
-
-        :returns: True if the Loop nest is simple, otherwise False
-        :rtype: bool
-        '''
-        children = [
-            grandchild
-            for child in self.walk(Loop)[-1].children
-            for grandchild in child.children
-        ]
-        return self.is_perfectly_nested and all(
-            isinstance(child, Assignment) and child.walk(Literal)
-            for child in children
-        )
-
-    @property
     def nest_variable_names(self):
         '''
         :returns: Names of all variables within the Loop nest of descendents
