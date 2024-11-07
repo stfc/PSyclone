@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,17 +30,39 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
-# Setting for the PSyData NAN check library
-PSYDATA_PATH?=$(PSYCLONE_RELPATH)/lib/nan_test/lfric
-PSYDATA_LIB_NAME?=_nan_test
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option. It adds kernel NAN-verification to
+the invokes. This then creates code that, at runtime, verifies that
+all input and output parameters of a region are a valid number, i.e.
+not infinity or NAN.
+'''
 
-include Makefile.inc
+from psyclone.psyir.transformations import ValueRangeCheckTrans
 
-time_evolution_alg_mod_psy.f90: time_evolution_alg_mod.x90
-	psyclone $(PSYCLONE_CMD)                                   \
-	-opsy time_evolution_alg_mod_psy.f90                       \
-	-oalg time_evolution_alg_mod.f90 time_evolution_alg_mod.x90
 
+def trans(psyir):
+    '''
+    Add verification to both invokes that read only parameters are
+    not modified.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
+    value_range_check = ValueRangeCheckTrans()
+
+    for schedule in psyir.children[0].children:
+        if schedule.name == "invoke_0":
+            # You could just apply the transform for all subroutines, but
+            # in this case we also want to give the regions a friendlier name:
+            value_range_check.apply(schedule.children,
+                                    {"region_name": ("main", "init")})
+
+        if schedule.name == "invoke_1_update_field":
+            # Enclose everything in a value_range_check region
+            value_range_check.apply(schedule.children,
+                                    {"region_name": ("main", "update")})

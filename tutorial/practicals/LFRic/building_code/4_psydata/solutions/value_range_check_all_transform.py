@@ -34,34 +34,31 @@
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds NAN verification code to
-the invokes.
+'''Python script passed to the psyclone command via the -s option. It
+adds ValueRangeCheck code to the invokes.
 '''
+
+from psyclone.psyir.nodes import Routine
+from psyclone.psyir.transformations import ValueRangeCheckTrans
 
 
 def trans(psyir):
     '''
-    Add NAN verification code.
+    Add value_range_check verification code.
 
-    :param psyir: the PSyIR of the generated PSy-layer
+    :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    value_range_check = ValueRangeCheckTrans()
 
-    # ------------------------------------------------------
-    # TOOD: import the transformation and create an instance
-    # ------------------------------------------------------
-    # from ... import ...
-    # my_transform = ...()
+    for subroutine in psyir.walk(Routine):
+        print(subroutine.name)
 
-    for subroutine in psyir.children:
-
-        # ------------------------------------------------------
-        # TODO: Apply the transformation
-        # ------------------------------------------------------
-        ....apply(subroutine, {
-                    "region_name": ("time_evolution", subroutine.name)})
+        # Apply the transformation
+        value_range_check.apply(subroutine, {"region_name":
+                                             ("time_evolution",
+                                              subroutine.name)})
 
         # Just as feedback: show the modified PSyIR, which should have
         # a new node at the top:

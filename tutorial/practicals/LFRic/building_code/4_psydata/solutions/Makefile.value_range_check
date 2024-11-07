@@ -30,36 +30,19 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds NAN verification code to
-the invokes.
-'''
+# Setting for the PSyData value range check library
+PSYDATA_PATH?=$(PSYCLONE_RELPATH)/lib/value_range_check/lfric
+PSYDATA_LIB_NAME?=_value_range_check
 
-from psyclone.psyir.transformations import NanTestTrans
-from psyclone.psyir.nodes import Routine
+include Makefile.inc
 
+time_evolution_alg_mod_psy.f90: time_evolution_alg_mod.x90 solutions/value_range_check_all_transform.py
+	psyclone $(PSYCLONE_CMD)                                   \
+	-d . -d ../gungho_lib                                      \
+	-s ./solutions/value_range_check_all_transform.py          \
+	-opsy time_evolution_alg_mod_psy.f90                       \
+	-oalg time_evolution_alg_mod.f90 time_evolution_alg_mod.x90
 
-def trans(psyir):
-    '''
-    Add NAN verification code.
-
-    :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
-
-    '''
-    nan_check = NanTestTrans()
-
-    for subroutine in psyir.walk(Routine):
-        print(subroutine.name)
-
-        # Apply the transformation
-        nan_check.apply(subroutine, {"region_name": ("time_evolution",
-                                                     subroutine.name)})
-
-        # Just as feedback: show the modified PSyIR, which should have
-        # a new node at the top:
-        print(subroutine.view())
