@@ -686,6 +686,6 @@ class Loop(Statement):
         '''
         :returns: Names of all variables within the Loop nest of descendents
             of this Loop, inclusive.
-        :rtype: tuple
+        :rtype: tuple[str]
         '''
         return tuple(loop.variable.name for loop in self.walk(Loop))
