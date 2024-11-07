@@ -796,9 +796,6 @@ support for i-first kernels
 point the looping (and associated parallelisation) will be put
 back into the PSy layer.
 
-.. note:: Support for DoF kernels have not yet been implemented in PSyclone
-          (see PSyclone issue #1351 for progress).
-
 .. _lfric-user-kernel-rules:
 
 Rules for all User-Supplied Kernels that Operate on Cell-Columns
@@ -981,9 +978,6 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
 Rules for all User-Supplied Kernels that Operate on DoFs (DoF Kernels)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-.. note:: Support for DoF kernels have not yet been implemented in PSyclone
-          (see PSyclone issue #1351 for progress).
-
 Kernels that have ``operates_on = DOF`` and
 :ref:`LFRic Built-ins<lfric-built-ins>` overlap significantly in their
 scope, and the conventions that DoF Kernels must follow are influenced
@@ -1015,8 +1009,9 @@ The list of rules for DoF Kernels is as follows:
    to do this.) Any scalar arguments must therefore be declared in the metadata
    as `GH_READ` - see :ref:`below<lfric-kernel-valid-access>`
 
-6) Kernels must be written to operate on a single DoF, such that single DoFs
-   can be provided to the Kernel within a loop over the DoFs of a field.
+6) Kernels must be written to operate on a single DoF, such that field values
+   at the same dof location/index can be provided to the Kernel within a loop
+   over the DoFs of the function space of the field that is being updated.
 
 .. _lfric-api-kernel-metadata:
 
@@ -1889,16 +1884,14 @@ operates_on
 The fourth type of metadata provided is ``OPERATES_ON``. This
 specifies that the Kernel has been written with the assumption that it
 is supplied with the specified data for each field/operator argument.
-For user-supplied kernels this is currently only permitted to be
-``CELL_COLUMN`` or ``DOMAIN``. The possible values for ``OPERATES_ON``
-and their interpretation are summarised in the following table:
+The possible values for ``OPERATES_ON`` and their interpretation are
+summarised in the following table:
 
 ===========  =========================================================
 operates_on  Data passed for each field/operator argument
 ===========  =========================================================
 cell_column  Single column of cells
-dof          Single DoF (currently :ref:`built-ins` only, but see PSyclone
-             issue #1351)
+dof          Single DoF
 domain       All columns of cells
 ===========  =========================================================
 
@@ -2477,9 +2470,6 @@ as the second argument to the kernel (after ``nlayers``).
 Rules for DoF Kernels
 #####################
 
-.. note:: Support for DoF kernels have not yet been implemented in PSyclone
-          (see PSyclone issue #1351 for progress).
-
 The rules for kernels that have ``operates_on = DOF`` are similar to those for
 general-purpose kernels but, due to the restriction that only fields and
 scalars can be passed to them, are much fewer. The full set of rules, along
@@ -2503,12 +2493,6 @@ with PSyclone's naming conventions, are:
          <lfric-mixed-precision>` section for more details. This value is
          passed in separately. Again, the intent is determined from the
          metadata (see :ref:`meta_args <lfric-api-meta-args>`).
-
-   3) Include the unique number of degrees of freedom for the function space.
-      This is an ``integer`` of kind ``i_def`` with intent ``in``. The name of
-      this argument is simply ``undf`` without a function space suffix (as for
-      general purpose kernels) since all fields will be on the same function
-      space.
 
 .. _lfric-kernel-arg-intents:
 

@@ -530,7 +530,10 @@ class InlineTrans(Transformation):
                 break
             cursor = cursor.member
 
-        if not actual_arg.walk(Range) and local_indices:
+        # TODO #1858 - once we support converting structure accesses into
+        # explicit array accesses, we can put back the testing in
+        # inline_trans_test.py that covers this code and remove the pragma:
+        if not actual_arg.walk(Range) and local_indices:  # pragma: no cover
             # There are no Ranges in the actual argument but the local
             # reference is an array access.
             # Create updated index expressions for that access.

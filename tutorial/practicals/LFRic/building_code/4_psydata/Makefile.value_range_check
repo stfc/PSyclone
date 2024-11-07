@@ -30,46 +30,17 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, STFC Daresbury Lab
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds NAN verification code to
-the invokes.
-'''
+# Setting for the PSyData value range check library
+PSYDATA_PATH?=$(PSYCLONE_RELPATH)/lib/value_range_check/lfric
+PSYDATA_LIB_NAME?=_value_range_check
 
-from __future__ import print_function
+include Makefile.inc
 
-from psyclone.psyir.transformations import NanTestTrans
+time_evolution_alg_mod_psy.f90: time_evolution_alg_mod.x90
+	psyclone $(PSYCLONE_CMD)                                   \
+	-opsy time_evolution_alg_mod_psy.f90                       \
+	-oalg time_evolution_alg_mod.f90 time_evolution_alg_mod.x90
 
-
-def trans(psy):
-    '''
-    Take the supplied psy object, and add NAN verification code.
-
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
-
-    '''
-    nan_check = NanTestTrans()
-
-    for invoke_name in psy.invokes.names:
-
-        invoke = psy.invokes.get(invoke_name)
-
-        # Now get the schedule, to which we want to apply the transformation
-        schedule = invoke.schedule
-
-        # Apply the transformation
-        nan_check.apply(schedule, {"region_name": ("time_evolution",
-                                                   str(invoke_name))})
-
-        # Just as feedback: show the modified schedule, which should have
-        # a new node at the top:
-        print(schedule.view())
-
-    return psy
