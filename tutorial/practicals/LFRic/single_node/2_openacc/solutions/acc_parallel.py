@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-'''File containing a PSyclone transformation script for the Dynamo0p3
+'''File containing a PSyclone transformation script for the LFRic
 API to apply OpenACC Loop, Parallel and Enter Data directives
 generically. This can be applied via the -s option in the psyclone
 command, it is not designed to be directly run from python.
@@ -47,7 +47,7 @@ from psyclone.domain.lfric import LFRicConstants
 
 
 def trans(psyir):
-    '''PSyclone transformation script for the dynamo0p3 api to apply
+    '''PSyclone transformation script for the LFRic api to apply
     OpenACC loop, parallel and enter data directives generically.
 
     :param psyir: the PSyIR of the PSy-layer.

@@ -34,9 +34,8 @@
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
 
-'''A PSyclone transformation script that outputs a textual
-representation of the PSyIR representing the PSy-layer for the first
-invoke found in the algorithm layer code.
+'''A PSyclone transformation script that outputs a textual representation
+of the PSyIR representing the PSy-layer for the given algorithm layer code.
 
 This PSyclone transformation script is designed to be passed to
 PSyclone, it is not designed to be run directly from python.
@@ -45,8 +44,8 @@ PSyclone, it is not designed to be run directly from python.
 
 
 def trans(psyir):
-    '''Output a textual view of the PSyIR representing the PSy-layer for
-    the first invoke found in the algorithm layer code.
+    '''Output a textual view of the PSyIR representing the PSy-layer
+    generated for the given algorithm layer code.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

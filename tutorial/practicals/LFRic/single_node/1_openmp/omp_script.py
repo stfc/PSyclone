@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-'''File containing a PSyclone transformation script for the dynamo0p3
+'''File containing a PSyclone transformation script for the LFRic
 API to apply OpenMP Parallel Loop parallelisation. This script can be
 applied via the -s option in the psyclone command, it is not designed
 to be directly run from python.
@@ -47,7 +47,7 @@ from psyclone.domain.lfric.function_space import FunctionSpace
 
 
 def trans(psyir):
-    '''PSyclone transformation script for the dynamo0p3 API that applies
+    '''PSyclone transformation script for the LFRic API that applies
     OpenMP parallel loop parallelisation. It also outputs a textual
     representation of the transformated PSyIR.
 

@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-'''File containing a PSyclone transformation script for the dynamo0p3
+'''File containing a PSyclone transformation script for the LFRic
 API to apply loop fusion.
 
 This script can be applied via the -s option to the psyclone command,
@@ -44,7 +44,7 @@ from psyclone.transformations import DynamoLoopFuseTrans, TransformationError
 
 
 def trans(psyir):
-    '''PSyclone transformation script for the dynamo0p3 API to apply loop
+    '''PSyclone transformation script for the LFRic API to apply loop
     fusion for a particular example - it is not meant to work
     generically.
 

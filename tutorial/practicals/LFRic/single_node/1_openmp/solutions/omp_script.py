@@ -34,7 +34,7 @@
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
 # Modified by J. Henrichs, Bureau of Meteorology
 
-'''File containing a PSyclone transformation script for the dynamo0p3
+'''File containing a PSyclone transformation script for the LFRic
 API to apply colouring and then OpenMP parallelisation to an
 invoke. This script can be applied via the -s option in the psyclone
 command.
@@ -48,7 +48,7 @@ from psyclone.domain.lfric import LFRicConstants
 
 
 def trans(psyir):
-    '''PSyclone transformation script for the dynamo0p3 API that applies
+    '''PSyclone transformation script for the LFRic API that applies
     loop colouring and OpenMP parallel loop parallelisation. It also
     outputs a textual representation of the transformated PSyIR.
 

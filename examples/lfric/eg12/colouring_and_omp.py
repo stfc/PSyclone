@@ -36,7 +36,7 @@
 # Modified by J. Henrichs, Bureau of Meteorology
 
 
-''' File containing a PSyclone transformation script for the Dynamo0p3
+''' File containing a PSyclone transformation script for the LFRic
 API to apply colouring and OpenMP generically. This can be applied via
 the -s option in the "psyclone" script. '''
 from psyclone.transformations import Dynamo0p3ColourTrans, \

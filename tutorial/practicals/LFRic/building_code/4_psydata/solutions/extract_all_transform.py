@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import Routine
 
 def trans(psyir):
     '''
-    Take the supplied psy object, and add kernel extraction code.
+    Take the supplied PSyIR, and add kernel extraction code.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

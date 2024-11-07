@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
-'''File containing a PSyclone transformation script for the Dynamo0p3
+'''File containing a PSyclone transformation script for the LFRic
 API to make asynchronous halo exchanges and overlap their
 communication with computation. This can be applied via the -s option
 in the generator.py script.

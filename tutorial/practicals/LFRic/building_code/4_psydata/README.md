@@ -31,8 +31,8 @@ the one that propagates the perturbation. Open the file
 The kernel extraction transformation for LFRic is called
 ``LFRicExtractTrans`` and can be imported from
 ``psyclone.domain.lfric.transformations``. Add the import statement
-and then create an instance of the transformation (see line 59
-and 60 of the script).
+and then create an instance of the transformation (first TODO in the
+script).
 
 ### Step 1.2: Get the invoke object to be transformed
 The easiest way of getting this invoke in the transformation script
@@ -45,7 +45,7 @@ the invoke body.
 
 ### Step 1.3: Apply the transformation to the PSyIR
 Next you need to apply the transformation to the PSyIR.
-See lines 76 - call the ``apply`` method of the transformation
+See third TODO in the script - call the ``apply`` method of the transformation
 object with the subroutine as parameter.
 
 
@@ -188,8 +188,8 @@ to apply the extraction transformation to all invokes in a file. This script
 actually requires less changes than the``extract_one_transform.py`` template
 (since it works on all invokes):
 
-1. Import the required transformation and create an instance (line 59).
-2. In the loop over all invokes apply the transformation (line 75).
+1. Import the required transformation and create an instance (first TODO).
+2. In the loop over all invokes apply the transformation (second TODO).
 
  Then modify ``Makefile.extract_all`` to supply your
 ``extract_all_transform.py`` script to PSyclone.
