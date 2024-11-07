@@ -40,18 +40,18 @@
 
 ''' This module contains the Loop node implementation.'''
 
-from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.nodes.routine import Routine
-from psyclone.psyir.nodes import Schedule
-from psyclone.psyir.nodes.assignment import Assignment
-from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
-from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import DeclGen, PSyIRGen, UseGen
+from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.nodes.routine import Routine
+from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.symbols import ScalarType, DataSymbol
 
 
 class Loop(Statement):
