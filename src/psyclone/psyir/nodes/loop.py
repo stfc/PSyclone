@@ -44,11 +44,7 @@ from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import DeclGen, PSyIRGen, UseGen
 from psyclone.psyir.nodes import Schedule
-from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
-from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.symbols import ScalarType, DataSymbol
@@ -609,17 +605,17 @@ class Loop(Statement):
         while isinstance(next_loop, Loop):
             loop_count += 1
 
-            # If it has more than one child, the next loop will not be perfectly nested,
-            # so stop searching. If there is no child, we have an empty loop and we also
-            # stop here.
+            # If it has more than one child, the next loop will not be
+            # perfectly nested, so stop searching. If there is no child, we
+            # have an empty loop and we also stop here.
             if len(next_loop.loop_body.children) != 1:
                 if (next_loop.loop_body.children and
                         isinstance(next_loop.loop_body[0], Loop)):
                     return False
                 return len(self.walk(Loop)) == loop_count
 
-            # If there are no more loops then check all the expected loops have been
-            # counted.
+            # If there are no more loops then check all the expected loops
+            # have been counted.
             next_loop = next_loop.loop_body[0]
             if not isinstance(next_loop, Loop):
                 return len(self.walk(Loop)) == loop_count
