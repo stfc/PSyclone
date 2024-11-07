@@ -192,7 +192,7 @@ class GOInvokes(Invokes):
             # Then insert it into a f2pygen AST as a PSyIRGen node.
             # Note that other routines besides the Invoke could have been
             # inserted during the lowering (e.g. module-inlined kernels),
-            # so have to iterate over all current children of root.
+            # so have to iterate over all current children of parent.
             for child in invoke.schedule.parent.children:
                 parent.add(PSyIRGen(parent, child))
 

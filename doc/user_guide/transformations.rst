@@ -771,12 +771,9 @@ the Python search path **PYTHONPATH** as before. For example::
 PSyclone also provides the same functionality via a function (which is
 what the **psyclone** script calls internally).
 
-###.. autofunction:: psyclone.generator.generate
-###          :noindex:
-
-A valid script file must contain a **trans** function which accepts a **PSyIR**
-node representing the root of the psy-layer code (as a FileConatainer).
-::
+A valid script file must contain a **trans** function which accepts a
+:ref:`PSyIR node<psyir-ug>` representing the root of the psy-layer
+code (as a FileConatainer)::
 
     >>> def trans(psyir):
     ...     # ...

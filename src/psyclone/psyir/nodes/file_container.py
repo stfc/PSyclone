@@ -61,21 +61,21 @@ class FileContainer(Container):
     def invokes(self):
         ''' Return the Invokes object associated to this FileContainer.
         This is for compatibility with old psyclone transformation scripts.
-        Before the entry point was PSy, and the script had to find the list
-        of InvokeSchedules, now the entry point is the root FileContainer:
+        Previously, the entry point was PSy, and the script had to find the
+        list of InvokeSchedules, now the entry point is the root FileContainer:
 
         before: PSy -> Invokes -> Invoke -> InvokeSchedule
         now:                FileContainer --^
 
         This method creates a shortcut:
-        PSy -> Invokes -> Invoke -> InvokeSchedule
-               ^--- FileContainer --^
+            PSy -> Invokes -> Invoke -> InvokeSchedule
+                   ^--- FileContainer --^
 
         So that previous:
             def trans(psy):
                 psy.invokes.get_invoke('name').schedule
 
-        Still work as expected. However, it exposes the PSy hierachy to
+        still work as expected. However, it exposes the PSy hierachy to
         users scripts, so this will eventually be deprecated.
 
         :return: the associated Invokes object.
@@ -86,7 +86,7 @@ class FileContainer(Container):
         '''
         print("Deprecation warning: PSyclone script uses the legacy "
               "transformation signature 'def trans(psy)', please update the "
-              "script to recive the root psyir node as argument.",
+              "script to recieve the root psyir node as argument.",
               file=sys.stderr)
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import InvokeSchedule
@@ -94,7 +94,7 @@ class FileContainer(Container):
         if not invokes:
             raise NoInvokesError(
                 f"No InvokeSchedule found in '{self.name}', does it come from"
-                f" a PSyKAl file?")
+                f" a PSyKAl file that conforms to the GOcean or LFRic API?")
         return invokes[0].invoke.invokes
 
 

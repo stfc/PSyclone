@@ -110,7 +110,7 @@ def test_invokes_property(capsys):
     # Get a psykal FileContainer
     filecontainer = invoke.schedule.root
 
-    # This can be used as if it where a PSy
+    # This can be used as if it were a PSy
     assert len(filecontainer.invokes.invoke_list) == 1
     assert "invoke_0_testkern_type" in filecontainer.invokes.names
 
@@ -118,7 +118,7 @@ def test_invokes_property(capsys):
     captured = capsys.readouterr()
     assert ("Deprecation warning: PSyclone script uses the legacy "
             "transformation signature 'def trans(psy)', please update the "
-            "script to recive the root psyir node as argument."
+            "script to recieve the root psyir node as argument."
             in captured.err)
 
     # If produces an error if it doesn't come from a generated PSy-layer
@@ -126,4 +126,5 @@ def test_invokes_property(capsys):
     with pytest.raises(NoInvokesError) as err:
         _ = filecontainer.invokes
     assert ("No InvokeSchedule found in 'test', does it come from a "
-            "PSyKAl file?" in str(err.value))
+            "PSyKAl file that conforms to the GOcean or LFRic API?"
+            in str(err.value))

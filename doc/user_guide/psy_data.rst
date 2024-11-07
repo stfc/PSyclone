@@ -120,8 +120,8 @@ can be applied for both the :ref:`LFRic <lfric-api>` and
 :ref:`GOcean API <gocean-api>` - no API-specific transformations are required.
 Below is an example that searches for each loop in a PSyKAl invoke code (which
 will always surround kernel calls) and applies the transformation to each one.
-This code has been successfully used as aglobal transformation with the LFRic
-Gravity Wave miniapp (the executable is named ``gravity_wave``)
+This code has been successfully used as a global transformation with the LFRic
+Gravity Wave application (the executable is named ``gravity_wave``)
 
 .. code-block:: fortran
 

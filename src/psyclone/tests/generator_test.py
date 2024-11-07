@@ -222,9 +222,9 @@ def test_script_no_trans_alg(capsys):
 
 def test_script_with_legacy_trans_signature(capsys):
     '''Checks that load_script() function in generator.py does not raise
-    an exception when a script file that uses the legacy trans signature.
+    an exception when a script file uses the legacy trans signature.
 
-    This are scripts that recieve a PSy object and use the psy.invokes....
+    These are scripts that recieve a PSy object and use the psy.invokes....
     to access the PSyIR.
 
     This will eventually be deprecated.
@@ -239,7 +239,7 @@ def test_script_with_legacy_trans_signature(capsys):
     captured = capsys.readouterr()
     assert ("Deprecation warning: PSyclone script uses the legacy "
             "transformation signature 'def trans(psy)', please update the "
-            "script to recive the root psyir node as argument."
+            "script to recieve the root psyir node as argument."
             in captured.err)
 
 

@@ -575,15 +575,15 @@ with a `trans` function defined. For example:
        def trans(psy):
            ''' Add OpenMP Parallel Loop directives.
 
-           :param psy: the PSy object that PSyclone has constructed for the \
-                      'invoke'(s) found in the Algorithm file.
+           :param psy: the PSy object that PSyclone has constructed for the
+                       'invoke'(s) found in the Algorithm file.
            :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
            '''
            for invoke in psy.invokes.invoke_list:
               invoke.schedule
 
-   This is deprecated and will stop working in the upcoming psyclone release.
+   This is deprecated and will stop working in PSyclone releases post version 3.0
 
 
 And can be applied using the `-s` flag:
