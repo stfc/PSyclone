@@ -36,7 +36,7 @@
 # Modified by J. Henrichs, Bureau of Meteorology
 
 
-''' File containing a PSyclone transformation script for the Dynamo0p3
+''' File containing a PSyclone transformation script for the LFRic
 API to apply colouring and OpenMP generically. This can be applied via
 the -s option in the "psyclone" script. '''
 from psyclone.transformations import Dynamo0p3ColourTrans, \
@@ -47,8 +47,13 @@ from psyclone.domain.lfric import LFRicConstants
 
 
 def trans(psyir):
-    ''' PSyclone transformation script for the dynamo0p3 api to apply
-    colouring and OpenMP generically.'''
+    ''' PSyclone transformation script for the LFRic api to apply
+    colouring and OpenMP generically.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
     const = LFRicConstants()

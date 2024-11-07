@@ -42,7 +42,12 @@ from psyclone.psyir.backend.fortran import FortranWriter
 
 
 def trans(psyir):
-    '''Print out Fortran versions of all kernels found in this file.'''
+    '''Print out Fortran versions of all kernels found in this file.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     fortran_writer = FortranWriter()
 
     already_printed = []

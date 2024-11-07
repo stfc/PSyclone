@@ -49,8 +49,12 @@ from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
 
 def trans(psyir):
     '''A transformation script to use asynchronous halo exchanges with
-    overlapping compute and communication for the LFRic model. '''
+    overlapping compute and communication for the LFRic model.
 
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     for subroutine in psyir.walk(InvokeSchedule):
         # This transformation splits the three synchronous halo exchanges
         ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()

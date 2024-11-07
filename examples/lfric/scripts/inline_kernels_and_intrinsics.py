@@ -45,7 +45,12 @@ from psyclone.transformations import TransformationError
 
 
 def trans(psyir):
-    '''Applies LFRic serial optimisations'''
+    ''' Applies optimisations inside LFRic kernels.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
 
     matmul_trans = Matmul2CodeTrans()
     inline_trans = KernelModuleInlineTrans()
@@ -54,11 +59,11 @@ def trans(psyir):
     for kernel in psyir.coded_kernels():
         try:
             inline_trans.apply(kernel)
-            print(f"Inline transformation was successful for "
+            print(f"Module-inline transformation was successful for "
                   f"'{kernel.name}' in '{kernel.ancestor(Routine).name}'.")
         except TransformationError as err:
-            print(f"Inline transformation failed for '{kernel.name}' in "
-                  f"'{kernel.ancestor(Routine).name}' because:")
+            print(f"Module-inline transformation failed for '{kernel.name}' "
+                  f"in '{kernel.ancestor(Routine).name}' because:")
             print(str(err))
 
     # Then we transform all the kernels inlined into the module

@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
-'''File containing a PSyclone transformation script for the Dynamo0.3
+'''File containing a PSyclone transformation script for the LFRic
 API to apply redundant computation to halo depth 1 for all instances
 of loops that iterate over dofs and contain the setval_c builtin.
 
@@ -54,6 +54,9 @@ def trans(psyir):
     halo exchanges, or increases in halo exchange depth, through
     redundant computation.
 
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
     '''
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
@@ -64,12 +67,11 @@ def trans(psyir):
             # we may have more than one kernel in the loop so
             # check that all of them are in the list of accepted
             # kernel names
-            setcalls = True
             for call in loop.kernels():
                 if call.name not in KERNEL_NAMES:
-                    setcalls = False
                     break
-            if setcalls:
+            else:
+                # All kernels are valid
                 transformed += 1
                 rc_trans.apply(loop, {"depth": DEPTH})
 

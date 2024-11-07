@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory.
 
 ''' Module implementing a `trans` method for use as a PSyclone transformation
     script. This example performs loop fusion.
@@ -46,8 +46,11 @@ def trans(psyir):
     fusion for the Built-in 'setval_c' kernels in the first 'invoke'. For the
     sake of this example we use the 'same_space' option to tell the
     transformation that this is safe to do.
-    '''
 
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     # Get first subroutine of the first module
     schedule = psyir.children[0].children[0]
 

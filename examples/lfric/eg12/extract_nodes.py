@@ -71,9 +71,13 @@ UBOUND = 3
 
 
 def trans(psyir):
-    ''' PSyclone transformation script for the Dynamo0.3 API to extract
-    the specified Nodes in an Invoke. '''
+    ''' PSyclone transformation script for the LFRic API to extract
+    the specified Nodes in an Invoke.
 
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     # Get instance of the ExtractTrans transformation
     etrans = LFRicExtractTrans()
 

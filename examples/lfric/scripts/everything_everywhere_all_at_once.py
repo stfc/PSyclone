@@ -63,7 +63,12 @@ ENABLE_INTRINSIC_INLINING = True
 
 
 def trans(psyir):
-    ''' Apply all possible LFRic transformations. '''
+    ''' Apply all possible LFRic transformations.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     rtrans = Dynamo0p3RedundantComputationTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = Dynamo0p3OMPLoopTrans()

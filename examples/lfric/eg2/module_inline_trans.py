@@ -46,19 +46,13 @@ def trans(psyir):
     PSyclone transformation routine. This is an example which module-inlines
     the kernel used in the second 'invoke' in the supplied PSy-layer.
 
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
     '''
     for schedule in psyir.walk(InvokeSchedule):
         if schedule.name == "invoke_1":
-            print(schedule.view())
             # Find the kernel we want to inline.
             kern = schedule.walk(Kern)[0]
-            # Setting module inline directly.
-            kern.module_inline = True
-            print(schedule.view())
-            # Unsetting module inline via a transformation.
-            inline_trans = KernelModuleInlineTrans()
-            inline_trans.apply(kern, {"inline": False})
-            print(schedule.view())
             # Setting module inline via a transformation.
-            inline_trans.apply(kern)
-            print(schedule.view())
+            KernelModuleInlineTrans().apply(kern)

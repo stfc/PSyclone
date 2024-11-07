@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Laboratory
+# Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: S. Siso, STFC Daresbury Laboratory
 
 ''' Simple transformation script that prints out the names of the 'invoke'(s)
     in the supplied PSy-layer and the PSyIR for each. '''
@@ -41,8 +42,12 @@ from psyclone.psyGen import InvokeSchedule
 
 def trans(psyir):
     '''
-    PSyclone transformation routine. This is an example which only prints
-    information about the object with which it has been supplied.
+    This is an example that prints the names of the 'invoke'(s) and their
+    associated PSyIR in the provided PSy-layer.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
     '''
     names = [x.name for x in psyir.walk(InvokeSchedule)]
     print("Supplied code has Invokes: ", names)

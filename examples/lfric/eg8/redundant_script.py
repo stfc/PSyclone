@@ -47,9 +47,14 @@ the kernels to allow redundant computation'''
 
 
 def trans(psyir):
-    '''removes the grad_p halo exchanges by redundant computation then
+    '''Removes the grad_p halo exchanges by redundant computation then
     moves the remaining halo exchanges to the beginning of the invoke
-    call'''
+    call.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     from psyclone.transformations import Dynamo0p3RedundantComputationTrans, \
         MoveTrans
     rc_trans = Dynamo0p3RedundantComputationTrans()

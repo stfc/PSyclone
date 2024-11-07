@@ -46,8 +46,13 @@ from psyclone.domain.lfric import LFRicConstants
 
 
 def trans(psyir):
-    ''' PSyclone transformation script for the dynamo0p3 api to apply
-    colouring and OpenMP generically.'''
+    ''' PSyclone transformation script for the LFRic API to apply
+    colouring and OpenMP generically.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
     const = LFRicConstants()

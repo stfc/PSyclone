@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
-'''File containing a PSyclone transformation script for the Dynamo0.3
+'''File containing a PSyclone transformation script for the LFRic
 API to apply redundant computation to halo depth 1 for all loops that
 iterate over dofs and do not contain a reduction.
 
@@ -50,6 +50,9 @@ def trans(psyir):
     dofs, with the exception of loops containing kernels with
     reductions.
 
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
     '''
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
@@ -59,12 +62,11 @@ def trans(psyir):
         if loop.iteration_space in ITERATION_SPACES:
             # we may have more than one kernel in the loop so
             # check that none of them are reductions
-            reduction = False
             for call in loop.kernels():
                 if call.is_reduction:
-                    reduction = True
                     break
-            if not reduction:
+            else:
+                # No reduction found
                 transformed += 1
                 rc_trans.apply(loop, {"depth": DEPTH})
 

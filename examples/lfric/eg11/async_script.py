@@ -46,6 +46,9 @@ def trans(psyir):
     halo exchanges with overlapping compute and communication for the
     most costly halo exchanges in the (current version of the) LFRic model.
 
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
     '''
     from psyclone.transformations import \
         Dynamo0p3RedundantComputationTrans, \

@@ -38,17 +38,24 @@
 function via the -s option. Transforms all kernels in the invoke
 to have them compiled for an OpenACC accelerator. '''
 
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.psyir.nodes import Loop
 from psyclone.transformations import (
     ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans)
-from psyclone.psyir.nodes import Loop
 
 
 def trans(psyir):
-    ''' Apply OpenACC transformations to the invoke_0 subroutine'''
+    ''' Apply OpenACC transformations to the invoke_0 subroutine
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     ptrans = ACCParallelTrans()
     ltrans = ACCLoopTrans()
     dtrans = ACCEnterDataTrans()
     ktrans = ACCRoutineTrans()
+    itrans = KernelModuleInlineTrans()
 
     for schedule in psyir.children[0].children:
         if schedule.name == 'invoke_0_inc_field':
@@ -68,7 +75,4 @@ def trans(psyir):
             # Put an 'acc routine' directive inside each kernel
             for kern in schedule.coded_kernels():
                 ktrans.apply(kern)
-                # Ideally we would module-inline the kernel here (to save
-                # having to rely on the compiler to do it) but this does not
-                # currently work for the fparser2 AST (issue #229).
-                # itrans.apply(kern)
+                itrans.apply(kern)

@@ -75,12 +75,15 @@ from psyclone.psyir.backend.fortran import FortranWriter
 
 
 def trans(psyir):
-    '''PSyclone transformation script for the Dynamo0.3 API to optimise
+    '''PSyclone transformation script for the LFRic API to optimise
     the matvec kernel for many-core CPUs. For the moment simply find
     the first matvec kernel in the example, transform the matmul
     intrinsic to equivalant inline code and then print out its PSyIR
     representation and output it as Fortran using the PSyIR Fortran
     back-end.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     matmul2code_trans = Matmul2CodeTrans()

@@ -47,8 +47,10 @@ def trans(psyir):
     variable accesses into kernel arguments and then applies the OpenCL
     transformation to the PSy layer.
 
-    '''
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
+    '''
     # Get the necessary transformations
     tinfo = TransInfo()
     import_trans = tinfo.get_trans_name('KernelImportsToArguments')

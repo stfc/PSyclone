@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Authors: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
 
 '''An example PSyclone transformation script which makes ndofs, nqp*
@@ -72,8 +72,11 @@ CONSTANT_QUADRATURE = True
 
 
 def trans(psyir):
-    '''PSyclone transformation script for the Dynamo0.3 API to make the
+    '''PSyclone transformation script for the LFRic API to make the
     kernel values of ndofs, nlayers and nquadrature-point sizes constant.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     const_trans = Dynamo0p3KernelConstTrans()

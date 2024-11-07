@@ -49,6 +49,9 @@ def trans(psyir):
     Add verification checks to both invokes that read only parameters are not
     modified.
 
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
     '''
     read_only_verify = ReadOnlyVerifyTrans()
 

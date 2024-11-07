@@ -35,7 +35,7 @@
 # Modified: I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
-'''File containing a PSyclone transformation script for the dynamo0p3
+'''File containing a PSyclone transformation script for the LFRic
 API to apply loop fusion and then OpenMP parallelisation to an invoke
 with two Kernels. This can be applied via the -s option in the
 generator.py script.'''
@@ -46,8 +46,13 @@ from psyclone.transformations import DynamoOMPParallelLoopTrans
 
 
 def trans(psyir):
-    ''' PSyclone transformation script for the dynamo0p3 API to apply
-    loop fusion and OpenMP for a particular example.'''
+    ''' PSyclone transformation script for the LFRic API to apply
+    loop fusion and OpenMP for a particular example.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     otrans = DynamoOMPParallelLoopTrans()
     ftrans = LFRicLoopFuseTrans()
 

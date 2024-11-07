@@ -49,8 +49,11 @@ def trans(psyir):
     '''
     Transformation routine for use with PSyclone. Applies the OpenMP
     taskloop and taskwait transformations to the PSy layer.
-    '''
 
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     singletrans = OMPSingleTrans()
     paralleltrans = OMPParallelTrans()
     tasklooptrans = OMPTaskloopTrans(nogroup=False)

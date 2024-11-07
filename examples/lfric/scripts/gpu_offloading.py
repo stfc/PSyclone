@@ -67,6 +67,9 @@ def trans(psyir):
     on the CPU. Any setval_* kernels are transformed so as to compute
     into the L1 halos.
 
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
     '''
     rtrans = Dynamo0p3RedundantComputationTrans()
     ctrans = Dynamo0p3ColourTrans()

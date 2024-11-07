@@ -47,7 +47,12 @@ from psyclone.psyir.nodes import Loop
 
 def trans(psyir):
     ''' Take the supplied psy-layer, apply OpenACC transformations
-    to the schedule of the first invoke.'''
+    to the schedule of the first invoke.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     ptrans = ACCParallelTrans()
     ltrans = ACCLoopTrans()
     dtrans = ACCEnterDataTrans()

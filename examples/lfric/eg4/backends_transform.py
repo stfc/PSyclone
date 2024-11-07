@@ -46,8 +46,12 @@ from psyclone.psyir.backend.fortran import FortranWriter
 
 
 def trans(psyir):
-    ''' Use the PSyIR back-end to generate PSy-layer target code'''
+    ''' Use the PSyIR back-end to generate PSy-layer target code.
 
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     # Loop over all of the Invokes Schedules
     for schedule in psyir.walk(InvokeSchedule):
 

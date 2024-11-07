@@ -51,6 +51,9 @@ def trans(psyir):
     '''PSyclone transformation script for the LFRic API to apply loop
     fusion generically to all top level loops.
 
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
     '''
     total_fused = 0
     lf_trans = LFRicLoopFuseTrans()
