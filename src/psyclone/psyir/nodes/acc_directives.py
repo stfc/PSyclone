@@ -474,12 +474,12 @@ class ACCLoopDirective(ACCRegionDirective):
         '''
         Check that the clauses applied to the loop directive make sense.
 
-        :raises ValueError: if sequential is used in conjuction with gang
+        :raises ValueError: if sequential is used in conjunction with gang
             and/or vector
         '''
         if self.sequential and (self.gang or self.vector):
             raise ValueError(
-                "The OpenACC seq clause cannot be used in conjuction with the"
+                "The OpenACC seq clause cannot be used in conjunction with the"
                 " gang or vector clauses."
             )
 

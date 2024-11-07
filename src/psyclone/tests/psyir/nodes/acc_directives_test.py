@@ -277,7 +277,7 @@ def test_accloopdirective_inconsistent_clause_error():
     for kwargs in ({"gang": True}, {"vector": True}):
         with pytest.raises(ValueError) as err:
             _ = ACCLoopDirective(sequential=True, **kwargs)
-        assert ("The OpenACC seq clause cannot be used in conjuction with the"
+        assert ("The OpenACC seq clause cannot be used in conjunction with the"
                 " gang or vector clauses." in str(err.value))
 
 
