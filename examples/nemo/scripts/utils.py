@@ -37,8 +37,8 @@
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Loop, Assignment, Directive, Container, Reference, CodeBlock, Call,
-    Return, IfBlock, Routine, IntrinsicCall)
+    Assignment, Loop, Directive, Container, Reference, CodeBlock,
+    Call, Return, IfBlock, Routine, IntrinsicCall)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ScalarType,
     RoutineSymbol, ImportInterface)
@@ -248,7 +248,7 @@ def normalise_loops(
 
     if convert_array_notation:
         # Make sure all array dimensions are explicit
-        for reference in schedule.walk(Reference, stop_type=Reference):
+        for reference in schedule.walk(Reference):
             part_of_the_call = reference.ancestor(Call)
             if part_of_the_call:
                 if not part_of_the_call.is_elemental:

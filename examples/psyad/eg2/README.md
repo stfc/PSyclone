@@ -18,9 +18,9 @@ make
 
 This will construct the adjoint of the kernel (written to
 `adj_hydrostatic_kernel_mod.x90`) and a test harness in the form of LFRic
-Algorithm-layer code (`adjoint_test_mod.x90`). The Makefile then proceeds to
+Algorithm-layer code (`adjt_hydrostatic_alg_mod.x90`). The Makefile then proceeds to
 use PSyclone to process the test harness Algorithm code to generate algorithm
-(`adjoint_test_mod.F90`) and PSy layer (`psy.f90`) code.
+(`adjt_hydrostatic_alg_mod.F90`) and PSy layer (`psy.f90`) code.
 
 There is no `compile` target for this example because the generated code
 requires the full LFRic infrastructure. However, it is straightforward
@@ -36,9 +36,9 @@ psyad tl_hydrostatic_kernel_mod.F90 -a r_u exner theta moist_dyn_gas moist_dyn_t
 In this case, the adjoint of the tangent-linear kernel is written to
 `stdout`.
 
-## Using the generated test harness in the LFRic skeleton mini-app
+## Using the generated test harness in the LFRic core skeleton application
 
-These instructions assume that you have a local, compiled version of LFRic
+These instructions assume that you have a local, compiled version of LFRic core
 in `<lfric-root>` and that the directory containing this file is `<work-dir>`.
 
 1. Create the adjoint kernel and test harness code:
@@ -51,7 +51,7 @@ make
    test-harness code and the TL and adjoint kernels:
 ```sh
 cd <lfric-root>/miniapps/skeleton
-cp <work-dir>/adjoint_test_mod.x90 source/algorithm/.
+cp <work-dir>/adjt_hydrostatic_alg_mod.x90 source/algorithm/.
 cp <work-dir>/tl_hydrostatic_kernel_mod.F90 source/kernel/.
 cp <work-dir>/adj_hydrostatic_kernel_mod.F90 source/kernel/.
 ```
@@ -61,12 +61,12 @@ cp <work-dir>/adj_hydrostatic_kernel_mod.F90 source/kernel/.
    example - if the skeleton mini-app is modified on LFRic trunk then it will
    need to be updated):
 ```sh
-sed -e 's/  subroutine run()/  subroutine run()\n    use adjoint_test_mod, only: adjoint_test/' -e 's/call skeleton_alg(field_1)/call adjoint_test(mesh, chi, panel_id)/' source/driver/skeleton_driver_mod.f90 > new_driver.f90
+sed -e 's/  subroutine run()/  subroutine run()\n    use adjt_hydrostatic_alg_mod, only: adjt_hydrostatic_alg/' -e 's/call skeleton_alg(field_1)/call adjt_hydrostatic_alg(mesh, chi, panel_id)/' source/driver/skeleton_driver_mod.f90 > new_driver.f90
 mv source/driver/skeleton_driver_mod.f90{,.bak}
 mv new_driver.f90 source/driver/skeleton_driver_mod.f90
 ```
 
-4. Build the modified miniapp:
+4. Build the modified application:
 ```sh
 make clean
 make
@@ -75,7 +75,7 @@ make
 Note that at this stage you may get errors relating to the LFRic unit-test
 framework. These can be ignored.
 
-5. Run the miniapp:
+5. Run the application:
 ```sh
 cd example
 ../bin/skeleton ./configuration.nml

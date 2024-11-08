@@ -44,7 +44,6 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicConstants, LFRicKern
-from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import CallGen, CommentGen
@@ -231,9 +230,8 @@ class LFRicLoop(PSyLoop):
         # Loop bounds
         self.set_lower_bound("start")
         const = LFRicConstants()
-        if isinstance(kern, LFRicBuiltIn):
-            # If the kernel is a built-in/pointwise operation
-            # then this loop must be over DoFs
+        if kern.iterates_over == "dof":
+            # This loop must be over DoFs
             if Config.get().api_conf("lfric").compute_annexed_dofs \
                and Config.get().distributed_memory \
                and not kern.is_reduction:
@@ -516,8 +514,9 @@ class LFRicLoop(PSyLoop):
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
-                    result = (f"{self.field.proxy_name_indexed}%"
-                              f"{self.field.ref_name()}%get_last_dof_owned()")
+                    result = (
+                        f"{self.field.proxy_name_indexed}%"
+                        f"{self.field.ref_name()}%get_last_dof_owned()")
                 else:  # nannexed
                     result = (
                         f"{self.field.proxy_name_indexed}%"
