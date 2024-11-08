@@ -289,7 +289,7 @@ class LFRicKernelMetadata(CommonMetadata):
                 "A general purpose kernel should not operate on a domain, "
                 "however this does"))
 
-        # General-purpose kernels with operates_on = *_CELL_COLUMN only
+        # General-purpose kernels with operates_on = *CELL_COLUMN only
         # accept meta_arg arguments of the following types: field,
         # field vector, LMA operator, scalar. Scalar meta_arg
         # arguments must be one of 'real', 'integer' or 'logical' (but
@@ -302,7 +302,7 @@ class LFRicKernelMetadata(CommonMetadata):
                         OperatorArgMetadata, ScalarArgMetadata]:
                     raise ParseError(self._validation_error_str(
                         f"General purpose kernels with 'operates_on == "
-                        f"*_cell_column' should only have meta_arg arguments "
+                        f"*cell_column' should only have meta_arg arguments "
                         f"of type field, field vector, LMA operator or scalar"
                         f", but found '{meta_arg.check_name}'"))
 
@@ -737,7 +737,7 @@ class LFRicKernelMetadata(CommonMetadata):
             fortran_string = str(fparser2_node).lower()
             # pylint: disable=protected-access
             if "operates_on" in fortran_string:
-                # the value of operates on (*_CELL_COLUMN, ...)
+                # the value of operates on (*CELL_COLUMN, ...)
                 kernel_metadata._operates_on = OperatesOnMetadata.\
                     create_from_fparser2(fparser2_node)
             elif "meta_args" in fortran_string:
