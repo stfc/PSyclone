@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified by: J. G. Wallwork, Met Office
+# Modified by: J. G. Wallwork, Met Office / University of Cambridge
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the support for OpenACC directives in the
@@ -245,6 +245,13 @@ def test_acc_loop(fortran_reader, fortran_writer):
     assert ("  !$acc kernels\n"
             "  !$acc loop gang vector\n"
             "  do jj = 1, jpj, 1\n" in result)
+
+    # Check clause inconsistencies are caught when using the apply method
+    for clause in ("gang", "vector"):
+        with pytest.raises(ValueError) as err:
+            acc_trans.apply(loops[0], {"sequential": True, clause: True})
+        assert ("The OpenACC seq clause cannot be used in conjunction with the"
+                " gang or vector clauses." in str(err.value))
 
 
 # ----------------------------------------------------------------------------
