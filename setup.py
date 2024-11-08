@@ -162,10 +162,10 @@ if __name__ == '__main__':
         packages=PACKAGES,
         package_dir={"": "src"},
         install_requires=['pyparsing', 'fparser>=0.1.4', 'configparser',
-                          'jsonschema', 'sympy', "Jinja2"],
+                          'jsonschema', 'sympy', "Jinja2", 'termcolor',
+                          'graphviz'],
         extras_require={
-            'dag': ["graphviz"],
-            'doc': ["sphinx", "sphinxcontrib.bibtex",
+            'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx-tabs",
                     "sphinx_rtd_theme", "autoapi"],
             'test': ["flake8", "pylint", "pytest-cov", "pytest-xdist"],
         },
