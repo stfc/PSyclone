@@ -115,10 +115,6 @@ class LFRicKern(CodedKern):
         self._reference_element = None
         # The mesh properties required by this kernel
         self._mesh_properties = None
-        # The depth of halo that this kernel expects to operate on. (Only
-        # applicable to kernels with operates_on=HALO_CELL_COLUMN or
-        # OWNED_AND_HALO_CELL_COLUMN.)
-        self._halo_depth = None
         # Initialise kinds (precisions) of all kernel arguments (start
         # with 'real' and 'integer' kinds)
         api_config = Config.get().api_conf("lfric")
@@ -315,24 +311,8 @@ class LFRicKern(CodedKern):
                 f"Evaluator shape(s) {list(invalid_shapes)} is/are not "
                 f"recognised. Must be one of {const.VALID_EVALUATOR_SHAPES}.")
 
-        # If this kernel operates into the halo then it must be passed a
-        # halo depth. This is currently restricted to being either a simple
-        # variable name or a literal value.
-        freader = FortranReader()
         invoke_schedule = self.ancestor(InvokeSchedule)
         table = invoke_schedule.symbol_table if invoke_schedule else None
-        if ktype.iterates_over in ["halo_cell_column",
-                                   "owned_and_halo_cell_column"]:
-            self._halo_depth = freader.psyir_from_expression(
-                args[-1].text.lower(), symbol_table=table)
-            if isinstance(self._halo_depth, Reference):
-                # If we got a Reference, check whether we need to specialise
-                # the associated Symbol.
-                sym = self._halo_depth.symbol
-                if not hasattr(sym, "datatype"):
-                    self._halo_depth.symbol.specialise(
-                        DataSymbol,
-                        datatype=LFRicTypes("LFRicIntegerScalarDataType")())
         # If there are any quadrature rule(s), what are the names of the
         # corresponding algorithm arguments? Can't use set() here because
         # we need to preserve the ordering specified in the metadata.
@@ -342,8 +322,6 @@ class LFRicKern(CodedKern):
         # The quadrature-related arguments to a kernel always come last so
         # construct an enumerator with start value -<no. of qr rules>
         start_value = -len(qr_shapes)
-        if self._halo_depth:
-            start_value -= 1
         for idx, shape in enumerate(qr_shapes, start_value):
 
             qr_arg = args[idx]
@@ -402,19 +380,6 @@ class LFRicKern(CodedKern):
 
         # Properties of the mesh required by this kernel
         self._mesh_properties = ktype.mesh
-
-    @property
-    def halo_depth(self):
-        '''
-        If this is a kernel that has metadata specifying that it operates on
-        halo cells then this property gives the depth of halo that is written.
-
-        :returns: the PSyIR of the depth of halo that is modified.
-        :rtype: :py:class:`psyclone.psyir.nodes.Literal` |
-                :py:class:`psyclone.psyir.nodes.Reference`
-
-        '''
-        return self._halo_depth
 
     @property
     def qr_rules(self):
@@ -637,8 +602,7 @@ class LFRicKern(CodedKern):
         :rtype: :py:class:`fparser.one.block_statements.Module`
 
         :raises GenerationError: if the supplied kernel stub does not operate
-            on a supported subset of the domain (currently only
-            "owned_cell_column").
+            on a supported subset of the domain (currently only "cell_column").
 
         '''
         # The operates-on/iterates-over values supported by the stub generator.
@@ -954,7 +918,7 @@ class LFRicKern(CodedKern):
         tree to be complete).
 
         :raises GenerationError: if this kernel does not have a supported
-                        operates-on (currently only "owned_cell_column").
+                        operates-on (currently only "cell_column").
         :raises GenerationError: if the loop goes beyond the level 1
                         halo and an operator is accessed.
         :raises GenerationError: if a kernel in the loop has an inc access

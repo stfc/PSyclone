@@ -190,7 +190,7 @@ def test_ad_invalid_iteration_space():
         _ = LFRicArgDescriptor(arg_type, "colours", 0)
     assert ("Expected operates_on in the kernel metadata to be one of "
             "['cell_column', 'domain', 'dof', 'halo_cell_column', "
-            "'owned_cell_column', 'owned_and_halo_cell_column'] but got "
+            "'owned_and_halo_cell_column'] but got "
             "'colours'." in str(excinfo.value))
 
 
@@ -322,8 +322,7 @@ def test_kernel_call_invalid_iteration_space():
         _ = kernel.validate_global_constraints()
     assert ("The LFRic API supports calls to user-supplied kernels that "
             "operate on one of ['cell_column', 'domain', 'dof', "
-            "'halo_cell_column', 'owned_cell_column', "
-            "'owned_and_halo_cell_column'], but "
+            "'halo_cell_column', 'owned_and_halo_cell_column'], but "
             "kernel 'testkern_dofs_code' operates on 'vampires'."
             in str(excinfo.value))
 

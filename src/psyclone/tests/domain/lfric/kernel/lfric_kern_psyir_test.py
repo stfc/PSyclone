@@ -109,7 +109,7 @@ def test_lfrickernelcontainer_create():
         "    func_type(w3, gh_basis), &\n"
         "    func_type(wchi, gh_basis, gh_diff_basis)/)\n"
         "  INTEGER :: GH_SHAPE = gh_quadrature_xyoz\n"
-        "  INTEGER :: OPERATES_ON = owned_cell_column\n"
+        "  INTEGER :: OPERATES_ON = cell_column\n"
         "  CONTAINS\n"
         "    PROCEDURE, NOPASS :: solver_w3_code\n"
         "END TYPE w3_solver_kernel_type\n")

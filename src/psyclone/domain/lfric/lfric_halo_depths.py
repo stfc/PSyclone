@@ -104,19 +104,13 @@ class LFRicHaloDepths(LFRicCollection):
 
     def _stub_declarations(self, parent):
         '''
-        Add halo-depth-related declarations to a Kernel stub.
+        Does nothing as halo depths are not passed to a kernel.
 
         :param parent: the node in the f2pygen AST representing the Kernel
                        stub to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
-        :raises NotImplementedError: kernel-stub generation is not supported
-            for kernels which operate on halo cells.
-
         '''
-        raise NotImplementedError(
-            "Kernel-stub generation is not supported for kernels which "
-            "operate on halo cells.")
 
 
 # ---------- Documentation utils -------------------------------------------- #

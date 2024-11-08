@@ -218,7 +218,6 @@ module argument_mod
   !> @defgroup operates_on Enumeration of kernel iterator property descriptors.
   !> @{
   integer, public, parameter :: CELL_COLUMN                = 396
-  integer, public, parameter :: OWNED_CELL_COLUMN          = 396
   integer, public, parameter :: HALO_CELL_COLUMN           = 397
   integer, public, parameter :: OWNED_AND_HALO_CELL_COLUMN = 398
   integer, public, parameter :: DOMAIN                     = 945

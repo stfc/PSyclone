@@ -200,10 +200,8 @@ class LFRicInvoke(Invoke):
         self._alg_unique_halo_depth_args = []
         if Config.get().distributed_memory:
             for call in self.schedule.kernels():
-                if call.iterates_over not in ["halo_cell_column",
-                                              "owned_and_halo_cell_column"]:
-                    continue
-                if not isinstance(call.halo_depth, Literal):
+                if ("halo" in call.iterates_over and not
+                        isinstance(call.halo_depth, Literal)):
                     sym = call.halo_depth.symbol
                     if sym.name not in self._alg_unique_halo_depth_args:
                         self._alg_unique_halo_depth_args.append(sym.name)

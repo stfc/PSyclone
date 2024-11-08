@@ -138,7 +138,7 @@ def test_cma_operator():
     '''Test the _cma_operator method.'''
     meta_arg = ColumnwiseOperatorArgMetadata("GH_REAL", "GH_WRITE", "W0", "W1")
     metadata = LFRicKernelMetadata(
-        operates_on="owned_cell_column", meta_args=[meta_arg])
+        operates_on="cell_column", meta_args=[meta_arg])
     cls = call_method("_cma_operator", meta_arg, metadata)
     assert len(cls._info) == 1
     # pylint: disable=unsubscriptable-object
@@ -151,8 +151,7 @@ def test_add_arg():
     field_meta_arg = FieldArgMetadata("GH_REAL", "GH_WRITE", "W0")
     scalar_meta_arg = ScalarArgMetadata("GH_REAL", "GH_READ")
     metadata = LFRicKernelMetadata(
-        operates_on="owned_cell_column", meta_args=[field_meta_arg,
-                                                    scalar_meta_arg])
+        operates_on="cell_column", meta_args=[field_meta_arg, scalar_meta_arg])
     cls = ArgIndexToMetadataIndex
     cls._initialise(None)
     cls._metadata = metadata

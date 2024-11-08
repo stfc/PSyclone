@@ -71,11 +71,6 @@ class LFRicKernMetadata(KernelType):
 
         KernelType.__init__(self, ast, name=name)
 
-        # For backwards compatibility, we retain "cell_column" as a
-        # synonym for "owned_cell_column".
-        if self.iterates_over == "cell_column":
-            self._iterates_over = "owned_cell_column"
-
         # The type of CMA operation this kernel performs (or None if
         # no CMA operators are involved)
         self._cma_operation = None

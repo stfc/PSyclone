@@ -408,9 +408,8 @@ class LFRicArgDescriptor(Descriptor):
                     f"'{self._function_space1.lower()}' in '{arg_type}'.")
         # Check accesses for kernels that operate on cell-columns or the
         # domain
-        elif operates_on in ["cell_column", "owned_cell_column",
-                             "halo_cell_column", "owned_and_halo_cell_column",
-                             "domain"]:
+        elif operates_on in ["cell_column", "halo_cell_column",
+                             "owned_and_halo_cell_column", "domain"]:
             # Fields on discontinuous function spaces
             if (self._function_space1.lower() in
                     const.VALID_DISCONTINUOUS_NAMES and

@@ -108,11 +108,7 @@ class OperatesOnMetadata(CommonDeclarationMetadata):
         const = LFRicConstants()
         OperatesOnMetadata.validate_scalar_value(
             value, const.VALID_ITERATION_SPACES, "OPERATES_ON")
-        if value.lower() == "cell_column":
-            # cell_column is the deprecated form of 'owned_cell_column'
-            self._operates_on = "owned_cell_column"
-        else:
-            self._operates_on = value.lower()
+        self._operates_on = value.lower()
 
 
 __all__ = ["OperatesOnMetadata"]

@@ -181,29 +181,6 @@ class KernCallArgList(ArgOrdering):
         self.psyir_append(ref)
         self.append(cell_ref_name)
 
-    def halo_depth(self, var_accesses=None):
-        '''Add halo depth to the argument list and store this
-        access in var_accesses (if supplied).
-
-        :param var_accesses: optional VariablesAccessInfo instance to store
-            the information about variable accesses.
-        :type var_accesses: Optional[
-            :py:class:`psyclone.core.VariablesAccessInfo`]
-
-        '''
-        if Config.get().distributed_memory:
-            self.psyir_append(self._kern.halo_depth.copy())
-            txt = FortranWriter()(self._kern.halo_depth)
-            if isinstance(self._kern.halo_depth, Reference):
-                name = self._kern.halo_depth.symbol.name
-            else:
-                name = None
-            self.append(txt, var_accesses=var_accesses,
-                        var_access_name=name)
-        else:
-            self.psyir_append(Literal("0", INTEGER_TYPE))
-            self.append("0")
-
     def cell_map(self, var_accesses=None):
         '''Add cell-map and related cell counts (for inter-grid kernels)
         to the argument list. If supplied it also stores these accesses to the
@@ -250,8 +227,7 @@ class KernCallArgList(ArgOrdering):
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        if not (self._kern.iterates_over.endswith("cell_column") or
-                self._kern.iterates_over == "domain"):
+        if self._kern.iterates_over == "dof":
             return
         name = f"nlayers_{self._kern.arguments.iteration_space_arg().name}"
         nlayers_symbol = self.append_integer_reference(name, tag=name)
@@ -622,14 +598,13 @@ class KernCallArgList(ArgOrdering):
         :param function_space: the function space for which the related \
             arguments common to LMA operators and fields are added.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses:
+            Optional[:py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
-        if not (self._kern.iterates_over.endswith("cell_column")
-                or self._kern.iterates_over == "domain"):
+        if self._kern.iterates_over == "dof":
             return
         super().fs_common(function_space, var_accesses)
         self._ndf_positions.append(

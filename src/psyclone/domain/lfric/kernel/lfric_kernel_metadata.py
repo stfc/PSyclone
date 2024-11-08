@@ -412,9 +412,9 @@ class LFRicKernelMetadata(CommonMetadata):
         self._validate_generic_kernel()
 
         # Must operate on a cell_column.
-        if self.operates_on != "owned_cell_column":
+        if self.operates_on != "cell_column":
             raise ParseError(self._validation_error_str(
-                f"A CMA kernel should only operate on an 'owned_cell_column', "
+                f"A CMA kernel should only operate on a 'cell_column', "
                 f"but found '{self.operates_on}'"))
 
         # At least one CMA operator argument required.
@@ -611,11 +611,11 @@ class LFRicKernelMetadata(CommonMetadata):
         # Generic constraints.
         self._validate_generic_kernel()
 
-        # Must operate on an owned_cell_column.
-        if self.operates_on != "owned_cell_column":
+        # Must operate on a cell_column.
+        if self.operates_on != "cell_column":
             raise ParseError(self._validation_error_str(
-                f"An intergrid kernel should only operate on an "
-                f"'owned_cell_column', but found '{self.operates_on}'"))
+                f"An intergrid kernel should only operate on a "
+                f"'cell_column', but found '{self.operates_on}'"))
 
         # All args must be intergrid args.
         for meta_arg in self.meta_args:

@@ -226,7 +226,6 @@ class LFRicConstants():
             "cell_column", "domain",
             "dof",
             "halo_cell_column",
-            "owned_cell_column",
             "owned_and_halo_cell_column"]
 
         LFRicConstants.VALID_ITERATION_SPACES = \

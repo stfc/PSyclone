@@ -236,10 +236,13 @@ class LFRicLoop(PSyLoop):
                 self.set_upper_bound("ndofs")
             return
 
-        if kern.iterates_over in ["halo_cell_column",
-                                  "owned_and_halo_cell_column"]:
+        if "halo" in kern.iterates_over:
             if Config.get().distributed_memory:
                 if kern.iterates_over == "halo_cell_column":
+                    # In LFRic, the local cell-indexing scheme is set up such
+                    # that owned cells have lower indices than halo cells, the
+                    # first halo cell starts immediately after the last owned
+                    # cell, and the cell indices are contiguous.
                     self.set_lower_bound("cell_halo_start")
                 self.set_upper_bound("cell_halo", index=kern.halo_depth)
                 return
@@ -593,7 +596,7 @@ class LFRicLoop(PSyLoop):
                     # that the halo might be accessed.
                     return True
                 if (not arg.discontinuous and
-                        self.kernel.iterates_over == "owned_cell_column" and
+                        self.kernel.iterates_over == "cell_column" and
                         self.kernel.all_updates_are_writes and
                         self._upper_bound_name == "ncells"):
                     # This is the special case of a kernel that guarantees to
