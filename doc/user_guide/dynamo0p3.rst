@@ -1041,7 +1041,7 @@ metadata, 1) 'meta_args_', 2) 'meta_funcs_', 3) 'meta_reference_element_',
     type(reference_element_data_type) :: meta_reference_element(...) = (/ ... /)
     type(mesh_data_type) :: meta_mesh(...) = (/ ... /)
     integer :: gh_shape = gh_quadrature_XYoZ
-    integer :: operates_on = owned_cell_column
+    integer :: operates_on = cell_column
   contains
     procedure, nopass :: my_kernel_code
   end type
@@ -1744,7 +1744,7 @@ following kernel metadata::
              func_type(w1, gh_basis)                              &
           /)
       integer :: gh_shape = gh_quadrature_XYoZ
-      integer :: operates_on = owned_cell_column
+      integer :: operates_on = cell_column
     contains
       procedure, nopass :: code => testkern_operator_code
     end type testkern_operator_type
@@ -1899,20 +1899,21 @@ is supplied with the specified data for each field/operator argument.
 The possible values for ``OPERATES_ON`` and their interpretation are
 summarised in the following table:
 
-============================== ========================================================
+============================== =======================================================
 operates_on                    Data passed for each field/operator argument
-============================== ========================================================
-``owned_cell_column``          Single column of cells exclusively from owned region. If
-                               performing an INC operation on continuous fields this
-			       will loop to depth one in the halo, but otherwise the
-			       columns are exclusively from the owned region.
-``cell_column``                Synonym for ``owned_cell_column``.
+============================== =======================================================
+``cell_column``                Single column of cells from the owned region (except
+                               when performing an INC operation on continuous fields
+			       when it will include one level of halo cells).
 ``halo_cell_column``           Single column of cells exclusively from halo region.
 ``owned_and_halo_cell_column`` Single column of cells but iteration space will include
                                both owned and halo regions.
 ``dof``                        Single DoF .
 ``domain``                     All columns of cells in the (sub-)domain.
-============================== ========================================================
+============================== =======================================================
+
+(For a description of the concepts of 'owned' and 'halo' cells please see the
+:ref:`dev_guide:lfric-developers`.)
 
 procedure
 #########
@@ -1949,11 +1950,7 @@ conventions, are:
    is an ``integer`` of kind ``i_def`` and has intent ``in``. PSyclone
    will obtain the value of ``nlayers`` to use for a particular kernel
    from the first field (in the argument list) that is written to.
-3) If the kernel operates_on_ either ``HALO_CELL_COLUMN`` or
-   ``OWNED_AND_HALO_CELL_COLUMN`` then include the ``halo_depth``
-   argument. This is an ``integer`` of kind ``i_def`` and has intent
-   ``in``.
-4) For each scalar/field/vector_field/operator in the order specified by
+3) For each scalar/field/vector_field/operator in the order specified by
    the meta_args metadata:
 
    1) If the current entry is a scalar quantity then include the Fortran
@@ -2010,7 +2007,7 @@ conventions, are:
       ``"op_"<argument_position>``. Again the intent is determined
       from the metadata (see :ref:`lfric-api-meta-args`).
 
-5) For each function space in the order they appear in the metadata arguments
+4) For each function space in the order they appear in the metadata arguments
    (the ``to`` function space of an operator is considered to be before the
    ``from`` function space of the same operator as it appears first in
    lexicographic order)
@@ -2086,7 +2083,7 @@ conventions, are:
       |               |           | W2Vtrace, W3, Wtheta, Wchi         |
       +---------------+-----------+------------------------------------+
 
-6) If either the ``normals_to_horizontal_faces`` or
+5) If either the ``normals_to_horizontal_faces`` or
    ``outward_normals_to_horizontal_faces`` properties of the reference
    element are required then pass the number of horizontal faces of the
    reference element (``nfaces_re_h``). Similarly, if either the
@@ -2108,7 +2105,7 @@ conventions, are:
       a rank-2 ``integer`` array of kind ``i_def`` with dimensions
       ``(3, nfaces_re)``.
 
-7) If the ``adjacent_face`` mesh property is required then:
+6) If the ``adjacent_face`` mesh property is required then:
 
    1) If the number of horizontal cell faces obtained from the reference
       element (``nfaces_re_h``) is not already being passed to the kernel (due
@@ -2117,7 +2114,7 @@ conventions, are:
    2) Pass a rank-1, ``integer`` array of kind ``i_def`` and extent
       ``nfaces_re_h``.
 
-8) If Quadrature is required (``gh_shape = gh_quadrature_*``) then, for
+7) If Quadrature is required (``gh_shape = gh_quadrature_*``) then, for
    each shape in the order specified in the ``gh_shape`` metadata:
 
    1) Include ``integer``, scalar arguments of kind ``i_def`` with intent

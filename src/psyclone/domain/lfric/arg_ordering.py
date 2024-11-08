@@ -373,12 +373,6 @@ class ArgOrdering:
         # if self._kern.arguments.has_operator(op_type="gh_operator"):
         #     self.mesh_ncell3d()
 
-        # If this kernel iterates into the halos then include a halo-depth
-        # argument.
-        if self._kern.iterates_over in ["halo_cell_column",
-                                        "owned_and_halo_cell_column"]:
-            self.halo_depth(var_accesses=var_accesses)
-
         # Pass the number of columns in the mesh if this kernel operates on
         # the 'domain' or has a CMA operator argument. For the former we
         # exclude halo columns.
@@ -559,16 +553,6 @@ class ArgOrdering:
         :type var_accesses: \
             :py:class:`psyclone.core.VariablesAccessInfo`
 
-        '''
-
-    def halo_depth(self, var_accesses=None):
-        '''Add halo depth (halo_depth) to the argument list and store this
-        access in var_accesses (if supplied).
-
-        :param var_accesses: optional VariablesAccessInfo instance to store
-            the information about variable accesses.
-        :type var_accesses: Optional[
-            :py:class:`psyclone.core.VariablesAccessInfo`]
         '''
 
     def _mesh_ncell2d(self, var_accesses=None):
