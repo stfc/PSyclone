@@ -355,6 +355,18 @@ class KernCallInvokeArgList(ArgOrdering):
             self._qr_objects.append((sym, shape))
             self.append(sym.name, var_accesses)
 
+    def halo_depth(self, var_accesses=None):
+        '''
+        Add a halo-depth argument to the Kernel argument list.
+        Optionally, also adds variable access information to the var_accesses
+        object.
+        :param var_accesses: optional VariablesAccessInfo instance to store
+            information about variable accesses.
+        :type var_accesses: Optional[
+            :py:class:`psyclone.core.VariablesAccessInfo`
+        '''
+        self.append(self._kern.halo_depth.symbol.name, var_accesses)
+
 
 # ============================================================================
 # For automatic documentation creation:

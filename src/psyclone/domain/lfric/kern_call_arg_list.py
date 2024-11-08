@@ -45,18 +45,16 @@ should be removed as we migrate to use PSyIR in LFRic.
 from collections import namedtuple
 
 from psyclone import psyGen
-from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 # Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
-    ArrayReference, Literal, Reference, StructureReference)
+    ArrayReference, Reference, StructureReference)
 from psyclone.psyir.symbols import (
-    DataSymbol, DataTypeSymbol, INTEGER_TYPE, UnresolvedType, ContainerSymbol,
+    DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
     ImportInterface, ScalarType)
 
 # psyir has classes created at runtime

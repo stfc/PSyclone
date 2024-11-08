@@ -305,7 +305,7 @@ def test_validate_general_purpose_kernel():
         operates_on="cell_column", meta_args=meta_args)
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_general_purpose_kernel()
-    assert ("General purpose kernels with 'operates_on == *_cell_column' "
+    assert ("General purpose kernels with 'operates_on == *cell_column' "
             "should only have meta_arg arguments of type field, field vector, "
             "LMA operator or scalar, but found 'inter-grid' in kernel metadata"
             " 'unset' for procedure 'unset'." in str(info.value))
@@ -594,7 +594,7 @@ def test_validate_cma_apply_kernel():
     lfric_kernel_metadata = LFRicKernelMetadata(operates_on="domain")
     with pytest.raises(ParseError) as info:
         lfric_kernel_metadata._validate_cma_apply_kernel()
-    assert ("A CMA kernel should only operate on an 'cell_column', but "
+    assert ("A CMA kernel should only operate on a 'cell_column', but "
             "found 'domain' in kernel metadata 'unset' for procedure 'unset'."
             in str(info.value))
 

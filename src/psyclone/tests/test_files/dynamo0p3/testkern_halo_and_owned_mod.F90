@@ -58,7 +58,7 @@ module testkern_halo_and_owned_mod
 
 contains
 
-  subroutine testkern_halo_and_owned_code(nlayers, halo_depth, ascalar, &
+  subroutine testkern_halo_and_owned_code(nlayers, ascalar,        &
                                           fld1, fld2, fld3, fld4,  &
                                           ndf_w3, undf_w3, map_w3, &
                                           ndf_w2, undf_w2, map_w2)
@@ -66,7 +66,6 @@ contains
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: halo_depth
     integer(kind=i_def), intent(in) :: ndf_w2
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: undf_w2, undf_w3

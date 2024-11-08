@@ -271,7 +271,7 @@ def test_kerncallarglist_evaluator(fortran_writer):
 
 def test_kerncallarglist_halo_depth(dist_mem):
     '''Test that a kernel that iterates over halo cells is passed the
-    halo depth.
+    usual arguments.
 
     '''
     psy, _ = get_invoke("1.4_into_halos_invoke.f90", TEST_API,
@@ -279,9 +279,8 @@ def test_kerncallarglist_halo_depth(dist_mem):
     schedule = psy.invokes.invoke_list[0].schedule
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
-    halo_arg = "hdepth" if dist_mem else "0"
 
-    assert create_arg_list._arglist == ['nlayers_f1', f'{halo_arg}', 'a',
+    assert create_arg_list._arglist == ['nlayers_f1', 'a',
                                         'f1_data', 'f2_data',
                                         'm1_data', 'm2_data',
                                         'ndf_w1', 'undf_w1', 'map_w1(:,cell)',

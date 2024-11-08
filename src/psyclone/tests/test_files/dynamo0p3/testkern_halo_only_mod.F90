@@ -56,15 +56,14 @@ module testkern_halo_only_mod
 
 contains
 
-  subroutine testkern_halo_only_code(nlayers, halo_depth, ascalar, &
-                           fld1, fld2, fld3, fld4,  &
-                           ndf_w1, undf_w1, map_w1, &
-                           ndf_w2, undf_w2, map_w2, &
-                           ndf_w3, undf_w3, map_w3)
+  subroutine testkern_halo_only_code(nlayers, ascalar, &
+                              fld1, fld2, fld3, fld4,  &
+                              ndf_w1, undf_w1, map_w1, &
+                              ndf_w2, undf_w2, map_w2, &
+                              ndf_w3, undf_w3, map_w3)
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: halo_depth
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), intent(in) :: ndf_w2
     integer(kind=i_def), intent(in) :: ndf_w3

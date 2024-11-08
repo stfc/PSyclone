@@ -99,16 +99,13 @@ def test_lfric_halo_depth_invoke_declns():
 
 def test_lfric_halo_depth_no_stub_gen():
     '''
-    Test that the _stub_declarations() method raises the expected error since
-    stub generation is not supported for kernels which operate on halo cells.
+    Test that the _stub_declarations() method does nothing (because whether
+    or not a kernel operates on halo cells does not affect the signature).
 
     '''
     _, invoke2 = get_invoke("1.4.2_multi_into_halos_invoke.f90", API, idx=0)
     hdepths2 = LFRicHaloDepths(invoke2)
-    with pytest.raises(NotImplementedError) as err:
-        hdepths2._stub_declarations(None)
-    assert ("Kernel-stub generation is not supported for kernels which "
-            "operate on halo cells" in str(err.value))
+    hdepths2._stub_declarations(None)
 
 
 def test_no_exprn_for_halo_depth():

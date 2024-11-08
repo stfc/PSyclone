@@ -124,7 +124,7 @@ def test_psy_gen_halo_kernel(dist_mem, tmpdir, fortran_writer):
                 in gen_code)
 
         assert ("      do cell = loop0_start, loop0_stop, 1\n"
-                "        call testkern_halo_only_code(nlayers_f1, hdepth, a, "
+                "        call testkern_halo_only_code(nlayers_f1, a, "
                 "f1_data, f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
                 "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
                 "undf_w3, map_w3(:,cell))"
@@ -159,16 +159,10 @@ def test_psy_gen_halo_kernel(dist_mem, tmpdir, fortran_writer):
         kern.lower_to_language_level()
     # Now call the loop handling method directly.
     out = fortran_writer.loop_node(schedule.walk(Loop)[0])
-    if dist_mem:
-        assert ("call testkern_halo_only_code(nlayers_f1, hdepth, a, f1_data, "
-                "f2_data, m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), "
-                "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-                "map_w3(:,cell))" in out)
-    else:
-        assert ("call testkern_halo_only_code(nlayers_f1, 0, a, f1_data, "
-                "f2_data, m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), "
-                "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-                "map_w3(:,cell))" in out)
+    assert ("call testkern_halo_only_code(nlayers_f1, a, f1_data, "
+            "f2_data, m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), "
+            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+            "map_w3(:,cell))" in out)
 
 
 def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
@@ -224,7 +218,7 @@ def test_psy_gen_halo_kernel_discontinuous_space(dist_mem, tmpdir):
 
         # The halo-only kernel updates a field on a continuous function space
         # and thus leaves the outermost halo cell dirty.
-        assert '''call testkern_halo_only_code(nlayers_f1, hdepth, a, f1_data,\
+        assert '''call testkern_halo_only_code(nlayers_f1, a, f1_data,\
  f2_data, m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, \
 map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))
       end do
@@ -249,7 +243,7 @@ ndf_w3, undf_w3, map_w3(:,cell))
         # testkern_halo_and_owned_code operates in the halo for a field on a
         # discontinuous function space and therefore the halo is left clean to
         # the specified depth.
-        assert '''call testkern_halo_and_owned_code(nlayers_f1, other_depth, \
+        assert '''call testkern_halo_and_owned_code(nlayers_f1, \
 a, f1_data, f2_data, m1_data, m2_data, ndf_w3, undf_w3, map_w3(:,cell), \
 ndf_w2, undf_w2, map_w2(:,cell))
       end do
@@ -266,8 +260,8 @@ ndf_w2, undf_w2, map_w2(:,cell))
         #    halo cells.
         assert "call testkern_halo_only_code(" not in gen_code
         # However, a kernel that operates on owned *and* halo cells must still
-        # be called, with the halo depth specified as zero.
-        assert "call testkern_halo_and_owned_code(nlayers_f1, 0, a" in gen_code
+        # be called.
+        assert "call testkern_halo_and_owned_code(nlayers_f1, a" in gen_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -299,7 +293,7 @@ def test_psy_gen_halo_kernel_literal_depths(dist_mem, tmpdir):
       !''' in gen_code
     else:
         assert "call testkern_halo_only_code(" not in gen_code
-        assert "call testkern_halo_and_owned_code(nlayers_f1, 0, a" in gen_code
+        assert "call testkern_halo_and_owned_code(nlayers_f1, a" in gen_code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
