@@ -572,11 +572,12 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
     '''Test that the generate_lfric_adjoint_harness() function generates the
     expected test-harness code.'''
     tl_psyir = fortran_reader.psyir_from_source(TL_CODE)
-    psyir = generate_lfric_adjoint_harness(tl_psyir)
+    adjt_name = "adjoint_test_alg"
+    psyir = generate_lfric_adjoint_harness(tl_psyir, test_name=adjt_name)
     gen = fortran_writer(psyir).lower()
     assert "use finite_element_config_mod, only : element_order" in gen
-    assert "module adjoint_test_mod" in gen
-    assert "subroutine adjoint_test(mesh, chi, panel_id)" in gen
+    assert "module adjoint_test_alg_mod" in gen
+    assert "subroutine adjoint_test_alg(mesh, chi, panel_id)" in gen
     # We should have a field, a copy of that field and an inner-product value
     # for that field.
     assert ("    real(kind=r_def) :: ascalar\n"
