@@ -45,7 +45,7 @@ PSyclone provides transformations that will insert callbacks to
 an external library at runtime. These callbacks allow third-party
 libraries to access data structures at specified locations in the
 code. The PSyclone :ref:`wrappers <libraries>` to external libraries
-are provided with the :ref:`PSyclone installation <getting-going-env-loc>`.
+are provided in ``share/psyclone/lib`` in PSyclone :ref:`getting-going-install-loc`.
 Some example use cases are:
 
 Profiling:

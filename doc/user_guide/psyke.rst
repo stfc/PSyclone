@@ -564,9 +564,9 @@ The libraries in
 and
 `lib/extract/netcdf/nemo
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/nemo>`_
-implement the full PSyData API for use with the
-:ref:`NEMO <nemo-api>` API. When running the
-code, it will create an output file for each instrumented code region.
+implement the full PSyData API for use with generic code transformation.
+When running the code, it will create an output file for each instrumented
+code region.
 The same logic for naming variables used in :ref:`extraction_for_gocean`
 is used here.
 

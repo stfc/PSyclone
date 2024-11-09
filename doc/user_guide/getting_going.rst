@@ -71,6 +71,11 @@ please see :ref:`Installation section in the Developer Guide <dev-installation>`
 
       pip install psyclone==X.Y.Z
 
+
+    For more information about using ``pip`` or encapsulating the installation
+    in its own ``virtual environment`` we recomment reading the
+    `Python Packaging User Guide <https://packaging.python.org/en/latest/tutorials/installing-packages/>`_.
+
   .. tab:: from Spack
 
     To install psyclone to your loaded Spack installation use:
@@ -79,9 +84,14 @@ please see :ref:`Installation section in the Developer Guide <dev-installation>`
 
       spack install psyclone
 
+
+    For more information about how to use Spack we recommend readign the
+    `Spack documentation <https://spack-tutorial.readthedocs.io/>`_.
+
   .. tab:: from Source
 
-    To download and install a specific release (where ``X.Y.Z`` is the release version) use:
+    To download and install a specific PSyclone release (where ``X.Y.Z`` is the release version)
+    from source, use:
 
     .. code-block:: bash
 
@@ -91,6 +101,25 @@ please see :ref:`Installation section in the Developer Guide <dev-installation>`
        pip install .
 
 
+.. _getting-going-install-loc:
+
+Installation location
+^^^^^^^^^^^^^^^^^^^^^
+
+PSyclone installation location will vary depending on the specific installation
+method and options used. The ``pyclone`` command will typically already be
+prepended to your ``PATH`` after following the instructions above, but sometimes
+you will need to source the virtual environment or load the Spack module again
+after restarting your terminal.
+
+Once psyclone is in your `PATH` you can execute ``which psyclone`` to see
+the installation directory. Some supporting files such as configuration,
+examples and instrumentation libraries are installed under the ``share/psyclone``
+directory relative to the psyclone installation. You can replace
+``bin/psyclone`` in the string returned by ``which psyclone`` with
+``share/psyclone`` to find their location.
+
+
 .. _getting-going-configuration:
 
 Configuration
@@ -98,9 +127,7 @@ Configuration
 
 Various aspects of PSyclone are configured through a configuration
 file, ``psyclone.cfg``.  The default version of this file is located in
-the ``share/psyclone`` directory relative to the psyclone installation.
-You can run ``which psyclone`` and replace the ``bin/psyclone`` with
-``share/psyclone`` to find its location.
+the ``share/psyclone/psyclone.cfg`` file in the :ref:`getting-going-install-loc`.
 
 .. warning::
 
