@@ -771,29 +771,25 @@ the Python search path **PYTHONPATH** as before. For example::
 PSyclone also provides the same functionality via a function (which is
 what the **psyclone** script calls internally).
 
-###.. autofunction:: psyclone.generator.generate
-###          :noindex:
+A valid script file must contain a **trans** function which accepts a
+:ref:`PSyIR node<psyir-ug>` representing the root of the psy-layer
+code (as a FileConatainer)::
 
-A valid script file must contain a **trans** function which accepts a **PSy**
-object as an argument and returns a **PSy** object, i.e.:
-::
-
-    >>> def trans(psy):
+    >>> def trans(psyir):
     ...     # ...
-    ...     return psy
 
-It is up to the script what it does with the PSy object. The example
-below does the same thing as the example in the
+It is up to the script how to modify the PSyIR representation of the code.
+The example below does the same thing as the example in the
 :ref:`sec_transformations_interactive` section.
 ::
 
-    >>> def trans(psy):
+    >>> def trans(psyir):
     ...     from psyclone.transformations import OMPParallelLoopTrans
-    ...     invoke = psy.invokes.get('invoke_0_v3_kernel_type')
-    ...     schedule = invoke.schedule
-    ...     ol = OMPParallelLoopTrans()
-    ...     ol.apply(schedule.children[0])
-    ...     return psy
+    ...     from psyclone.psyir.node import Routine
+    ...     for subroutine in psyir.walk(Routine):
+    ...         if subroutine.name == 'invoke_0_v3_kernel_type':
+    ...             ol = OMPParallelLoopTrans()
+    ...             ol.apply(subroutine.children[0])
 
 In the gocean API (and in the future the lfric API) an
 optional **trans_alg** function may also be supplied. This function
@@ -803,7 +799,6 @@ returns **PSyIR** i.e.:
 
    >>> def trans_alg(psyir):
    ...     # ...
-   ...    return psyir
 
 As with the `trans()` function it is up to the script what it does with
 the algorithm PSyIR. Note that the `trans_alg()` script is applied to
@@ -981,7 +976,7 @@ multiple InvokeSchedule and kernel-specific optimization options.
 .. literalinclude:: ../../examples/gocean/eg3/ocl_trans.py
     :language: python
     :linenos:
-    :lines: 39-79
+    :pyobject: trans
 
 
 OpenCL delays the decision of which and where kernels will execute until
