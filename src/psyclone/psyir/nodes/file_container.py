@@ -86,7 +86,7 @@ class FileContainer(Container):
         '''
         print("Deprecation warning: PSyclone script uses the legacy "
               "transformation signature 'def trans(psy)', please update the "
-              "script to recieve the root psyir node as argument.",
+              "script to receive the root psyir node as argument.",
               file=sys.stderr)
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import InvokeSchedule

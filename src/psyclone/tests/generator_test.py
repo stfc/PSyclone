@@ -254,7 +254,7 @@ def test_script_with_legacy_trans_signature(capsys, script_factory):
     '''Checks that load_script() function in generator.py does not raise
     an exception when a script file uses the legacy trans signature.
 
-    These are scripts that recieve a PSy object and use the psy.invokes....
+    These are scripts that receive a PSy object and use the psy.invokes....
     to access the PSyIR.
 
     This will eventually be deprecated.
@@ -275,7 +275,7 @@ def trans(psy):
     captured = capsys.readouterr()
     assert ("Deprecation warning: PSyclone script uses the legacy "
             "transformation signature 'def trans(psy)', please update the "
-            "script to recieve the root psyir node as argument."
+            "script to receive the root psyir node as argument."
             in captured.err)
 
 
@@ -486,8 +486,7 @@ def trans(psyir):
 
 def test_script_null_trans(script_factory):
     '''Checks that generator.py works correctly when the trans() function
-    in a valid script file does no transformations. In this case the valid
-    script file has an absolut path and must therefore exist at this location.
+    in a valid script file does no transformations.
 
     '''
     empty_script = script_factory("def trans(psyir):\n  pass")

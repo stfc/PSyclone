@@ -102,7 +102,7 @@ def test_file_container_create():
 
 def test_invokes_property(capsys):
     ''' Test that the invokes property can find the associated Invokes object
-    in order to emulate legacy trans scripts that recieved a PSy object as
+    in order to emulate legacy trans scripts that received a PSy object as
     input.
     '''
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
@@ -118,7 +118,7 @@ def test_invokes_property(capsys):
     captured = capsys.readouterr()
     assert ("Deprecation warning: PSyclone script uses the legacy "
             "transformation signature 'def trans(psy)', please update the "
-            "script to recieve the root psyir node as argument."
+            "script to receive the root psyir node as argument."
             in captured.err)
 
     # If produces an error if it doesn't come from a generated PSy-layer
