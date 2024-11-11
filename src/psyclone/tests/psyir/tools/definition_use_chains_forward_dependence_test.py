@@ -33,7 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
-'''This module contains the tests for the DefinitionUseChain class'''
+'''This module contains the tests for the DefinitionUseChain class's
+forward_accesses routine.'''
 
 import pytest
 from psyclone.psyir.nodes import (
@@ -95,6 +96,12 @@ def test_definition_use_chain_init_and_properties(fortran_reader):
         duc = DefinitionUseChain(a_1, control_flow_region=2)
     assert ("The control_flow_region passed into a DefinitionUseChain "
             "must be a list but found 'int'." in str(excinfo.value))
+
+    with pytest.raises(TypeError) as excinfo:
+        duc = DefinitionUseChain(a_1, control_flow_region=[2])
+    assert ("Each element of the control_flow_region passed into a "
+            "DefinitionUseChain must be a Node but found a non-Node "
+            "element. Full input is " in str(excinfo.value))
 
     # Check if we don't pass a routine child then we get the root
     sym = DataSymbol("sym", INTEGER_TYPE)
@@ -903,3 +910,30 @@ def test_definition_use_chains_return_statement(
     assert reaches[1] is routine.children[1].loop_body.children[0].lhs
     assert reaches[2] is routine.children[1].loop_body.children[1].lhs
     assert reaches[3] is routine.children[2].rhs.children[0]
+
+
+def test_definition_use_chains_forward_accesses_multiple_routines(
+    fortran_reader,
+):
+    '''Test the forward_accesses function doesn't find accesses outside of the
+    containing subroutine.'''
+    code = """
+module my_mod
+    integer :: a, b
+    contains
+    subroutine test()
+         a = 1
+    end subroutine
+    subroutine test2()
+        b = a
+    end subroutine
+end module
+"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(
+        routine.children[0].lhs
+    )
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 0

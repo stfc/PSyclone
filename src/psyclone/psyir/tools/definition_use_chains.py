@@ -120,6 +120,12 @@ class DefinitionUseChain:
                     f"DefinitionUseChain must be a list but found "
                     f"'{type(control_flow_region).__name__}'."
                 )
+            if not all(isinstance(x, Node) for x in control_flow_region):
+                raise TypeError(
+                    f"Each element of the control_flow_region passed into a "
+                    f"DefinitionUseChain must be a Node but found a non-Node "
+                    f"element. Full input is '{str(control_flow_region)}'."
+                )
             self._scope = control_flow_region
 
         # The uses, defsout and killed sets as defined for each basic block.
@@ -180,11 +186,12 @@ class DefinitionUseChain:
         """
         Find all the forward accesses for the reference defined in this
         DefinitionUseChain.
-        Forward accesses are all of the References (or Calls) that read
+        Forward accesses are all of the References or Calls that read
         or write to the symbol of the reference up to the point that a
         write to the symbol is guaranteed to occur.
-        PSyclone only assumes a write to the symbol is guaranteed to occur
-        if it occurs outside of a control flow region.
+        PSyclone assumes all control flow may not be taken, so writes
+        that occur inside control flow do not end the forward access
+        chain.
 
         :returns: the forward accesses of the reference given to this
                   DefinitionUseChain
@@ -202,7 +209,7 @@ class DefinitionUseChain:
         if self._stop_point is None:
             self._stop_point = sys.maxsize
         if not self.is_basic_block:
-            # If this isn't a basic block, the we find all of the basic
+            # If this isn't a basic block, then we find all of the basic
             # blocks.
             control_flow_nodes, basic_blocks = self._find_basic_blocks(
                 self._scope
@@ -413,8 +420,8 @@ class DefinitionUseChain:
                                  block to find the forward uses in.
         :type basic_block_list: list[:py:class:`psyclone.psyir.nodes.Node`]
 
-        :raises InternalError: If a GOTO statement is found in the code
-                               region.
+        :raises NotImplementedError: If a GOTO statement is found in the code
+                                     region.
         """
         sig, _ = self._reference.get_signature_and_indices()
         # For a basic block we will only ever have one defsout
