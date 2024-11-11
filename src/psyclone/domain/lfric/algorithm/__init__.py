@@ -45,10 +45,11 @@ from psyclone.domain.lfric.algorithm.psyir.lfric_kernel_functor import \
 
 
 # For AutoAPI documentation generation.
-__all__ = [
-    'LFRicAlg',
-    'LFRicAlgorithmInvokeCall',
-    'LFRicBuiltinFunctor',
-    'LFRicBuiltinFunctorFactory',
-    'LFRicFunctor',
-    'LFRicKernelFunctor']
+if False:
+    __all__ = [
+        'LFRicAlg',
+        'LFRicAlgorithmInvokeCall',
+        'LFRicBuiltinFunctor',
+        'LFRicBuiltinFunctorFactory',
+        'LFRicFunctor',
+        'LFRicKernelFunctor']

@@ -1051,10 +1051,11 @@ CHARACTER_TYPE = ScalarType(ScalarType.Intrinsic.CHARACTER,
 
 # Mapping from PSyIR scalar data types to intrinsic Python types
 # ignoring precision.
-TYPE_MAP_TO_PYTHON = {ScalarType.Intrinsic.INTEGER: int,
-                      ScalarType.Intrinsic.CHARACTER: str,
-                      ScalarType.Intrinsic.BOOLEAN: bool,
-                      ScalarType.Intrinsic.REAL: float}
+TYPE_MAP_TO_PYTHON = {
+    ScalarType.Intrinsic.INTEGER: int,
+    ScalarType.Intrinsic.CHARACTER: str,
+    ScalarType.Intrinsic.BOOLEAN: bool,
+    ScalarType.Intrinsic.REAL: float}
 
 
 # For automatic documentation generation
