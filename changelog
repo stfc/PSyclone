@@ -266,6 +266,9 @@
 	API in PSyAD to base the generated test-code filenames on the name of
 	the supplied LFRic Algorithm file.
 
+	102) PR #2763 towards #2717. Upstreams PSyACC functionality: ensures
+	that clauses on an OpenACC directive are consistent.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
