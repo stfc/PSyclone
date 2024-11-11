@@ -204,9 +204,25 @@ epub_title = project
 epub_exclude_files = ['search.html']
 
 
-# -- Extension configuration -------------------------------------------------
+# -- Autodoc configuration ---------------------------------------------------
 
-# Generate the Doxygen documentation
+import collections
+
+
+def remove_namedtuple_attrib_docstring(app, what, name, obj, skip, options):
+    if type(obj) is collections._tuplegetter:
+        return True
+    if "Operator" in name:
+        print(f"ARPDBG: skipping '{name}'")
+        return True
+    return skip
+
+
+def setup(app):
+    app.connect('autodoc-skip-member', remove_namedtuple_attrib_docstring)
+
+
+# -- Generate the Doxygen documentation --------------------------------------
 subprocess.call('cd ..; doxygen doxygen.config', shell=True)
 # If we want to completely replace the Sphinx-generated documentation
 # with that constructed by Doxygen then we uncomment the line below.
