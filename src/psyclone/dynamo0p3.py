@@ -4363,7 +4363,7 @@ class HaloDepth():
         self._annexed_only = False
         # Keep a reference to the symbol table so that we can look-up
         # variables holding the maximum halo depth.
-        # FIXME #2503: This can become invalid if the HaloExchange
+        # TODO #2503: This can become invalid if the HaloExchange
         # containing this HaloDepth changes its ancestors.
         self._symbol_table = sym_table
 
