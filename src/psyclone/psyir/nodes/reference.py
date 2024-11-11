@@ -271,19 +271,8 @@ class Reference(DataNode):
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.routine import Routine
         from psyclone.psyir.tools import DefinitionUseChain
-        # The scope is as far as the Routine that contains this
-        # Reference.
-        routine = self.ancestor(Routine)
-        # Handle the case when this is a subtree without an ancestor
-        # Routine
-        if routine is None:
-            routine = self.root
-        chain = DefinitionUseChain(
-                self,
-                [routine]
-        )
+        chain = DefinitionUseChain(self)
         return chain.find_forward_accesses()
 
     def replace_symbols_using(self, table):
