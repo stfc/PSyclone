@@ -50,7 +50,7 @@ class LFRicHaloDepths(LFRicCollection):
     '''
     Manages the declarations for all halo-depth arguments (as needed by
     kernels that have operates_on == HALO_CELL_COLUMNS or
-    OWNED_AND_HALO_CELL_COLUMNS) required by an Invoke or Kernel stub.
+    OWNED_AND_HALO_CELL_COLUMNS) required by an Invoke.
 
     :param node: the LFRic Invoke for which to manage halo-depth arguments.
     :type node: py:class:`psyclone.domain.lfric.lfric_invoke.LFRicInvoke`
@@ -101,16 +101,6 @@ class LFRicHaloDepths(LFRicCollection):
             var_names.sort()
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=var_names, intent="in"))
-
-    def _stub_declarations(self, parent):
-        '''
-        Does nothing as halo depths are not passed to a kernel.
-
-        :param parent: the node in the f2pygen AST representing the Kernel
-                       stub to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
 
 
 # ---------- Documentation utils -------------------------------------------- #

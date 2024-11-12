@@ -228,8 +228,7 @@ class LFRicKern(CodedKern):
 
         # If this kernel operates on halo cells then it takes an additional
         # argument specifying the halo depth.
-        if ktype.iterates_over in ["halo_cell_column",
-                                   "owned_and_halo_cell_column"]:
+        if "halo" in ktype.iterates_over:
             args.append(Arg("variable", "halo_depth"))
 
         self._setup(ktype, "dummy_name", args, None, check=False)
@@ -321,8 +320,7 @@ class LFRicKern(CodedKern):
         freader = FortranReader()
         invoke_schedule = self.ancestor(InvokeSchedule)
         table = invoke_schedule.symbol_table if invoke_schedule else None
-        if ktype.iterates_over in ["halo_cell_column",
-                                   "owned_and_halo_cell_column"]:
+        if "halo" in ktype.iterates_over:
             self._halo_depth = freader.psyir_from_expression(
                 args[-1].text.lower(), symbol_table=table)
             if isinstance(self._halo_depth, Reference):
