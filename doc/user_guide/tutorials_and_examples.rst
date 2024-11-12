@@ -48,7 +48,7 @@ PSyclone provides a hands-on tutorial. The easiest way to follow it is reading
 the `Readme files in github <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals>`_.
 The tutorial is divided in two sections, a first section that introduces
 PSyclone and how to
-`use it to transform generic Fortran code  <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals/nemo>`_
+`use it to transform generic Fortran code  <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals/generic>`_
 (this is the recommended starting point for everybody).
 And a second sections about
 `the LFRic DSL <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals/LFRic>`_

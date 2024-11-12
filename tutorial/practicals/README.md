@@ -4,7 +4,7 @@ Welcome to the PSyclone hands-on practicals. The sections in the directories
 below this one work through using PSyclone in a 'normal' Linux-type environment.
 There are two sections to the practicals:
 
-1. Transforming [existing code](nemo/README.md)
+1. Transforming [existing Fortran code](generic/README.md)
 2. Using the [LFRic DSL](LFRic/README.md)
 
 ## Prerequisites
@@ -129,10 +129,10 @@ free and easily installed, e.g. on Ubuntu:
 $ sudo apt install gfortran
 ```
 
-For the session on adding OpenACC to NEMO, you may wish to be able to
-compile the generated OpenACC code. This requires version 11 or higher
-of gfortran (compiled with nvpvtx support). Alternatively, the NVIDIA
-HPC SDK is also freely available
+For the session on adding OpenACC to a tracer advection miniapp, you may
+wish to be able to compile the generated OpenACC code. This requires version
+11 or higher of gfortran (compiled with nvpvtx support). Alternatively, the
+NVIDIA HPC SDK is also freely available
 (https://developer.nvidia.com/hpc-sdk). This has the advantage that
 the NVIDIA Fortran compiler is also capable of compiling OpenACC code
 to target multi-core CPUs as well as GPUs.
