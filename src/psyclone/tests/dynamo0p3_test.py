@@ -61,7 +61,7 @@ from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
 from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
-                                  Reference, Routine)
+                                  Reference, Routine, Container)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
 from psyclone.tests.lfric_build import LFRicBuild
@@ -4385,7 +4385,7 @@ def test_dynpsy_gen_container_routines(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
     # Manually add a new top-level routine
-    psy.invokes.invoke_list[0].schedule.root.addchild(
+    psy.invokes.invoke_list[0].schedule.ancestor(Container).addchild(
             Routine.create("new_routine"))
 
     # Search the routine in the code_gen output

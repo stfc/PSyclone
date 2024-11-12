@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by T. Vockerodt, Met Office
 
 '''A module to perform pytest tests on the code in the tl2ad.py file
 within the psyad directory.
@@ -137,10 +138,14 @@ def test_generate_adjoint_str_lfric_api():
     testkern = os.path.join(LFRIC_TEST_FILES_DIR, "tl_testkern_mod.F90")
     with open(testkern, mode="r", encoding="utf-8") as kfile:
         tl_code = kfile.read()
-    result, _ = generate_adjoint_str(tl_code,
+    adj, test = generate_adjoint_str(tl_code,
                                      ["xi", "u", "res_dot_product", "curl_u"],
-                                     api="lfric")
-    assert "subroutine adj_testkern_code" in result.lower()
+                                     api="lfric",
+                                     create_test=True,
+                                     test_name="atlt_testkern")
+    assert "subroutine adj_testkern_code" in adj.lower()
+    assert "module atlt_testkern_mod" in test.lower()
+    assert "subroutine atlt_testkern" in test.lower()
 
 
 def test_generate_adjoint_str_function():

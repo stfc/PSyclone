@@ -88,7 +88,7 @@ class ComponentIndices():
 
     # ------------------------------------------------------------------------
     def __str__(self):
-        '''Returns a string representating the indices.'''
+        '''Returns a string representing the indices.'''
         return str(self._component_indices)
 
     # ------------------------------------------------------------------------

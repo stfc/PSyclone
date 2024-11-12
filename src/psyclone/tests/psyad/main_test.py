@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by T. Vockerodt, Met Office
 
 '''A module to perform pytest tests on the code in the main.py file
 within the psyad directory.
@@ -61,6 +62,59 @@ TEST_MOD = (
     "  end subroutine kern\n"
     "end module my_mod\n"
 )
+
+TEST_LFRIC_KERNEL = '''module tl_foo_kernel_mod
+
+  use argument_mod,      only : arg_type, func_type, &
+                                GH_FIELD, GH_REAL,   &
+                                GH_INC, CELL_COLUMN
+  use constants_mod,     only : r_def, i_def
+  use fs_continuity_mod, only : W2
+  use kernel_mod,        only : kernel_type
+
+  implicit none
+
+  private
+
+  type, public, extends(kernel_type) :: tl_foo_kernel_type
+    private
+    type(arg_type) :: meta_args(1) = (/            &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2)  &
+         /)
+    integer :: operates_on = CELL_COLUMN
+  contains
+    procedure, nopass :: tl_foo_kernel_code
+  end type
+
+  public :: tl_foo_kernel_code
+
+contains
+
+subroutine tl_foo_kernel_code(nlayers,           &
+                              field,             &
+                              ndf2, undf2, map2  &
+                              )
+
+  implicit none
+
+  ! Arguments
+  integer(kind=i_def),                      intent(in)    :: nlayers
+  integer(kind=i_def),                      intent(in)    :: ndf2, undf2
+  integer(kind=i_def), dimension(ndf2),     intent(in)    :: map2
+  real(kind=r_def), dimension(undf2),       intent(inout) :: field
+
+  ! Internal variables
+  integer(kind=i_def)            :: df2, k
+
+  do k = 0, nlayers-1
+    do df2 = 1,ndf2
+      field( map2(df2)+k ) = 0.0_r_def
+    end do
+  end do
+
+end subroutine tl_foo_kernel_code
+
+end module tl_foo_kernel_mod'''
 
 EXPECTED_HARNESS_CODE = '''program adj_test
   use my_mod, only : kern
@@ -517,3 +571,43 @@ def test_main_otest_verbose(tmpdir, caplog):
                      "github actions.")
     assert "Writing test harness for adjoint kernel to file" in caplog.text
     assert "/harness.f90" in caplog.text
+
+
+def test_main_otest_lfric(tmpdir, capsys):
+    ''' Test that the -otest option combined with LFRic API
+    generates the expected adjoint test. '''
+    filename_in = str(tmpdir.join("tl_foo_kernel_mod.f90"))
+    filename_out = str(tmpdir.join("atl_foo_kernel_mod.f90"))
+    harness_out = str(tmpdir.join("atlt_foo_alg_mod.x90"))
+    with open(filename_in, "w", encoding='utf-8') as my_file:
+        my_file.write(TEST_LFRIC_KERNEL)
+    main([filename_in, "-a", "field", "-api", "lfric", "-oad", filename_out,
+          "-otest", harness_out])
+    output, error = capsys.readouterr()
+    assert error == ""
+    assert output == ""
+    with open(harness_out, 'r', encoding='utf-8') as my_file:
+        data = my_file.read()
+    assert "module atlt_foo_alg_mod" in data.lower()
+    assert "subroutine atlt_foo_alg" in data.lower()
+
+
+def test_main_otest_lfric_error_name(capsys, caplog):
+    ''' Test that a bad -otest option combined with LFRic API
+    generates the expected error. '''
+    harness_out = "some/path/foo_alg_mod.x90"
+    logger = logging.getLogger("psyclone.psyad.main")
+    logger.propagate = True
+    with caplog.at_level(logging.ERROR, "psyclone.psyad.main"):
+        with pytest.raises(SystemExit) as err:
+            main(["input.f90", "-a", "field", "-api", "lfric", "-oad",
+                  "output.f90", "-otest", harness_out])
+    assert str(err.value) == "1"
+    x_fail_str = (rf"Filename '{harness_out}' with 'lfric' API "
+                  "must be of the form "
+                  "<path>/adjt_<name>_alg_mod.[Xx]90 or "
+                  "<path>/atlt_<name>_alg_mod.[Xx]90.")
+    assert x_fail_str in caplog.text
+    output, error = capsys.readouterr()
+    assert error == ""
+    assert output == ""

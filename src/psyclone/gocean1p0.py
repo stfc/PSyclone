@@ -188,12 +188,12 @@ class GOInvokes(Invokes):
 
             # Lower the GOcean PSyIR to language level so it can be visited
             # by the backends
-            invoke.schedule.root.lower_to_language_level()
+            invoke.schedule.parent.lower_to_language_level()
             # Then insert it into a f2pygen AST as a PSyIRGen node.
             # Note that other routines besides the Invoke could have been
             # inserted during the lowering (e.g. module-inlined kernels),
-            # so have to iterate over all current children of root.
-            for child in invoke.schedule.root.children:
+            # so have to iterate over all current children of parent.
+            for child in invoke.schedule.parent.children:
                 parent.add(PSyIRGen(parent, child))
 
 
@@ -1493,11 +1493,18 @@ class GOKernelArgument(KernelArgument):
                                property is not 'go_r_scalar' or 'go_i_scalar'.
 
         '''
+        scope = self._call.ancestor(Container)
+        if scope is None:
+            # Prefer the module scope, but some tests that are disconnected can
+            # use the current scope
+            scope = self._call.scope
+
+        symtab = scope.symbol_table
         # All GOcean fields are r2d_field
         if self.argument_type == "field":
             # r2d_field can have UnresolvedType and UnresolvedInterface because
             # it is an unnamed import from a module.
-            type_symbol = self._call.root.symbol_table.find_or_create_tag(
+            type_symbol = symtab.find_or_create_tag(
                 "r2d_field", symbol_type=DataTypeSymbol,
                 datatype=UnresolvedType(), interface=UnresolvedInterface())
             return type_symbol
@@ -1505,7 +1512,7 @@ class GOKernelArgument(KernelArgument):
         # Gocean scalars can be REAL or INTEGER
         if self.argument_type == "scalar":
             if self.space.lower() == "go_r_scalar":
-                go_wp = self._call.root.symbol_table.find_or_create_tag(
+                go_wp = symtab.find_or_create_tag(
                     "go_wp", symbol_type=DataSymbol, datatype=UnresolvedType(),
                     interface=UnresolvedInterface())
                 return ScalarType(ScalarType.Intrinsic.REAL, go_wp)
@@ -2145,8 +2152,18 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
 
         :returns: the symbol representing the read_from_device routine.
         :rtype: :py:class:`psyclone.psyir.symbols.symbol`
+
+        :raises GenerationError: if this class is lowered from a location where
+            a Routine can not be inserted.
         '''
-        symtab = self.root.symbol_table
+        # Insert the routine as a child of the ancestor Container
+        if not self.ancestor(Container):
+            raise GenerationError(
+                f"The GOACCEnterDataDirective can only be generated/lowered "
+                f"inside a Container in order to insert a sibling "
+                f"subroutine, but '{self}' is not inside a Container.")
+
+        symtab = self.ancestor(Container).symbol_table
         try:
             return symtab.lookup_with_tag("openacc_read_func")
         except KeyError:
@@ -2175,12 +2192,6 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         # Add an ACCUpdateDirective inside the subroutine
         subroutine.addchild(ACCUpdateDirective([Signature("to")], "host",
                                                if_present=False))
-        # Insert the routine as a child of the ancestor Container
-        if not self.ancestor(Container):
-            raise GenerationError(
-                f"The GOACCEnterDataDirective can only be generated/lowered "
-                f"inside a Container in order to insert a sibling "
-                f"subroutine, but '{self}' is not inside a Container.")
 
         self.ancestor(Container).symbol_table.add(subroutine_symbol,
                                                   tag="openacc_read_func")
