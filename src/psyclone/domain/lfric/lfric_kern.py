@@ -39,8 +39,8 @@
 ''' This module implements the PSyclone LFRic API by specialising the required
     base class Kern in psyGen.py '''
 
-# Imports
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict
+from dataclasses import dataclass
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
@@ -66,16 +66,21 @@ class LFRicKern(CodedKern):
 
     '''
     # pylint: disable=too-many-instance-attributes
-    # An instance of this `namedtuple` is used to store information on each of
-    # the quadrature rules required by a kernel.
-    #
-    # alg_name: The actual argument text specifying the QR object in the
-    #           Alg. layer.
-    # psy_name: The PSy-layer variable name for the QR object.
-    # kernel_args: List of kernel arguments associated with this QR rule.
 
-    QRRule = namedtuple("QRRule",
-                        ["alg_name", "psy_name", "kernel_args"])
+    @dataclass(frozen=True)
+    class QRRule:
+        '''
+        Used to store information on each of the quadrature rules required by
+        a kernel.
+
+        :param alg_name: the actual argument text specifying the QR object in
+                         the Alg. layer.
+        :param psy_name: the PSy-layer variable name for the QR object.
+        :param kernel_args: kernel arguments associated with this QR rule.
+        '''
+        alg_name: str
+        psy_name: str
+        kernel_args: list[str]
 
     def __init__(self):
         # The super-init is called from the _setup() method which in turn
