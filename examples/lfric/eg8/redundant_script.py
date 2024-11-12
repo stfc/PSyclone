@@ -46,16 +46,22 @@ repository but an operator has been replaced with a field in one of
 the kernels to allow redundant computation'''
 
 
-def trans(psy):
-    '''removes the grad_p halo exchanges by redundant computation then
+def trans(psyir):
+    '''Removes the grad_p halo exchanges by redundant computation then
     moves the remaining halo exchanges to the beginning of the invoke
-    call'''
+    call.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     from psyclone.transformations import Dynamo0p3RedundantComputationTrans, \
         MoveTrans
     rc_trans = Dynamo0p3RedundantComputationTrans()
     m_trans = MoveTrans()
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
+
+    # Get first invoke subroutine
+    schedule = psyir.children[0].children[0]
 
     # redundant computation to remove grad_p halo exchanges
     rc_trans.apply(schedule.children[5], {"depth": 2})
@@ -63,5 +69,3 @@ def trans(psy):
 
     # move remaining (potential) halo exchanges to start of the invoke
     m_trans.apply(schedule.children[0], schedule.children[4])
-
-    return psy

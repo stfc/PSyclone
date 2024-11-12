@@ -269,6 +269,12 @@
 	102) PR #2763 towards #2717. Upstreams PSyACC functionality: ensures
 	that clauses on an OpenACC directive are consistent.
 
+	103) PR #2734 towards #2704. Implements the forward_dependency part of
+	the new DefinitionUseChain PSyIR tool.
+
+	104) PR #2761 for #2739. Updates the signature of the PSyKAl
+	transformation script to accept a PSyIR node.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data

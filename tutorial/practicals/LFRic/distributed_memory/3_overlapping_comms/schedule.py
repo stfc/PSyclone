@@ -5,18 +5,15 @@ invoke found in the algorithm layer code.
 '''
 
 
-def trans(psy):
+def trans(psyir):
     '''Output a textual view of the PSyIR representing the PSy-layer for
     the first invoke found in the algorithm layer code.
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
-    kernel information required by PSyclone.
-    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    # Get the object representing the first PSy-layer invoke
-    invoke = psy.invokes.invoke_list[0]
-    # Get the schedule (the PSyIR representation of the PSy-layer)
-    schedule = invoke.schedule
+    # Get the subroutine of the first PSy-layer invoke
+    first_invoke_subroutine = psyir.children[0].children[0]
     # Take a look at the PSy-layer PSyIR
-    print(schedule.view())
+    print(first_invoke_subroutine.view())

@@ -70,7 +70,8 @@ from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Reference, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
-    StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall)
+    StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall,
+    Container)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     UnresolvedType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
@@ -4606,7 +4607,7 @@ class HaloDepth():
         self._annexed_only = False
         # Keep a reference to the symbol table so that we can look-up
         # variables holding the maximum halo depth.
-        # FIXME #2503: This can become invalid if the HaloExchange
+        # TODO #2503: This can become invalid if the HaloExchange
         # containing this HaloDepth changes its ancestors.
         self._symbol_table = sym_table
 
@@ -6288,12 +6289,13 @@ class DynKernelArgument(KernelArgument):
         :raises NotImplementedError: if an unsupported argument type is found.
 
         '''
-        # We want to put any Container symbols in the outermost scope so find
-        # the corresponding symbol table.
-        symbol_table = self._call.scope.symbol_table
-        root_table = symbol_table
-        while root_table.parent_symbol_table():
-            root_table = root_table.parent_symbol_table()
+        scope = self._call.ancestor(Container)
+        if scope is None:
+            # Prefer the module scope, but some tests that are disconnected can
+            # use the current scope
+            scope = self._call.scope
+
+        symtab = scope.symbol_table
 
         def _find_or_create_type(mod_name, type_name):
             '''
@@ -6309,11 +6311,11 @@ class DynKernelArgument(KernelArgument):
             :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
             '''
-            return root_table.find_or_create(
+            return symtab.find_or_create(
                     type_name,
                     symbol_type=DataTypeSymbol,
                     datatype=UnresolvedType(),
-                    interface=ImportInterface(root_table.find_or_create(
+                    interface=ImportInterface(symtab.find_or_create(
                         mod_name,
                         symbol_type=ContainerSymbol)
                         ))
@@ -6332,22 +6334,22 @@ class DynKernelArgument(KernelArgument):
 
             kind_name = self.precision
             try:
-                kind_symbol = symbol_table.lookup(kind_name)
+                kind_symbol = symtab.lookup(kind_name)
             except KeyError:
                 mod_map = LFRicConstants().UTILITIES_MOD_MAP
                 const_mod = mod_map["constants"]["module"]
                 try:
-                    constants_container = symbol_table.lookup(const_mod)
+                    constants_container = symtab.lookup(const_mod)
                 except KeyError:
                     # TODO Once #696 is done, we should *always* have a
                     # symbol for this container at this point so should
                     # raise an exception if we haven't.
                     constants_container = LFRicTypes(const_mod)
-                    root_table.add(constants_container)
+                    symtab.add(constants_container)
                 kind_symbol = DataSymbol(
                     kind_name, INTEGER_TYPE,
                     interface=ImportInterface(constants_container))
-                root_table.add(kind_symbol)
+                symtab.add(kind_symbol)
             return ScalarType(prim_type, kind_symbol)
 
         if self.is_field or self.is_operator:
