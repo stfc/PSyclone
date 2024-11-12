@@ -49,7 +49,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import CallGen, CommentGen
 from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (ArrayReference, ACCRegionDirective,
+from psyclone.psyir.nodes import (ArrayReference, ACCRegionDirective, DataNode,
                                   Loop, Literal, OMPRegionDirective, Reference,
                                   Routine, Schedule)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
@@ -244,7 +244,7 @@ class LFRicLoop(PSyLoop):
                     # first halo cell starts immediately after the last owned
                     # cell, and the cell indices are contiguous.
                     self.set_lower_bound("cell_halo_start")
-                self.set_upper_bound("cell_halo", index=kern.halo_depth)
+                self.set_upper_bound("cell_halo", halo_depth=kern.halo_depth)
                 return
 
         if not Config.get().distributed_memory:
@@ -256,7 +256,7 @@ class LFRicLoop(PSyLoop):
         if self._field.is_operator:
             # We always compute operators redundantly out to the L1
             # halo
-            self.set_upper_bound("cell_halo", index=1)
+            self.set_upper_bound("cell_halo", halo_depth=1)
             return
         if (self.field_space.orig_name in
                 const.VALID_DISCONTINUOUS_NAMES):
@@ -275,7 +275,7 @@ class LFRicLoop(PSyLoop):
             # is therefore no need to iterate into the L1 halo in order
             # to get correct values for annexed dofs.
             if not kern.all_updates_are_writes:
-                self.set_upper_bound("cell_halo", index=1)
+                self.set_upper_bound("cell_halo", halo_depth=1)
                 return
             self.set_upper_bound("ncells")
             return
@@ -286,7 +286,7 @@ class LFRicLoop(PSyLoop):
             # it is. Again, if the only arguments that are updated have
             # 'GH_WRITE' access then we can relax this condition.
             if not kern.all_updates_are_writes:
-                self.set_upper_bound("cell_halo", index=1)
+                self.set_upper_bound("cell_halo", halo_depth=1)
                 return
             self.set_upper_bound("ncells")
             return
@@ -309,17 +309,18 @@ class LFRicLoop(PSyLoop):
         self._lower_bound_name = name
         self._lower_bound_index = index
 
-    def set_upper_bound(self, name, index=None):
+    def set_upper_bound(self, name, halo_depth=None):
         '''Set the upper bound of this loop.
 
-        :param name: A loop upper bound name. This should be a supported name.
-        :type name: str
-        :param index: An optional argument indicating the depth of halo
-        :type index: Optional[:py:class:`psyclone.psyir.nodes.Node` | int]
+        :param str name: Loop upper-bound name. Must be a supported name.
+        :param halo_depth: An optional argument indicating the depth of halo
+                           that this loop accesses.
+        :type halo_depth: Optional[:py:class:`psyclone.psyir.nodes.Node` | int]
 
         :raises GenerationError: if supplied with an invalid upper-bound name.
         :raises GenerationError: if supplied with a halo depth < 1.
-
+        :raises TypeError: if the supplied index value is neither an int or
+                           DataNode.
         '''
         const = LFRicConstants()
         if name not in const.VALID_LOOP_BOUNDS_NAMES:
@@ -333,19 +334,23 @@ class LFRicLoop(PSyLoop):
         # types of bounds, but checking the type of bound as well is a
         # safer option.
         if (name in (["inner"] + const.HALO_ACCESS_LOOP_BOUNDS) and
-                isinstance(index, int)):
-            if index < 1:
+                isinstance(halo_depth, int)):
+            if halo_depth < 1:
                 raise GenerationError(
-                    f"The specified index '{index}' for this upper loop bound "
-                    f"is invalid")
+                    f"The specified halo depth '{halo_depth}' for this loop "
+                    f"upper bound is < 1 which is invalid.")
         self._upper_bound_name = name
-        if index and isinstance(index, int):
+        if halo_depth and isinstance(halo_depth, int):
             # We support specifying depth as an int as a convenience but we
             # now convert it to a PSyIR literal.
-            psyir = Literal(f"{index}", INTEGER_TYPE)
+            psyir = Literal(f"{halo_depth}", INTEGER_TYPE)
             self._upper_bound_halo_depth = psyir
         else:
-            self._upper_bound_halo_depth = index
+            if halo_depth and not isinstance(halo_depth, DataNode):
+                raise TypeError(f"When setting the upper bound of a loop, any "
+                                f"halo depth must be supplied as an int or "
+                                f"PSyIR DataNode but got {type(halo_depth)}")
+            self._upper_bound_halo_depth = halo_depth
 
     @property
     def upper_bound_name(self):
