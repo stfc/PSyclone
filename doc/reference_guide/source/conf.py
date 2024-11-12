@@ -210,10 +210,10 @@ import collections
 
 
 def remove_namedtuple_attrib_docstring(app, what, name, obj, skip, options):
-    if type(obj) is collections._tuplegetter:
-        return True
+#    if type(obj) is collections._tuplegetter:
+#        return True
     if "Operator" in name:
-        print(f"ARPDBG: skipping '{name}'")
+        print(f"ARPDBG: skipping '{name}', type={type(obj)}, what='{what}'")
         return True
     return skip
 

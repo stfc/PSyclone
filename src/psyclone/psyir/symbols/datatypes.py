@@ -40,7 +40,9 @@
 import abc
 import copy
 from collections import OrderedDict, namedtuple
+from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
@@ -310,6 +312,14 @@ class ScalarType(DataType):
         DOUBLE = 2
         UNDEFINED = 3
 
+    #: Mapping from PSyIR scalar data types to intrinsic Python types
+    #: ignoring precision.
+    TYPE_MAP_TO_PYTHON = {
+        Intrinsic.INTEGER: int,
+        Intrinsic.CHARACTER: str,
+        Intrinsic.BOOLEAN: bool,
+        Intrinsic.REAL: float}
+
     def __init__(self, intrinsic, precision):
         if not isinstance(intrinsic, ScalarType.Intrinsic):
             raise TypeError(
@@ -463,8 +473,18 @@ class ArrayType(DataType):
             '''
             return copy.copy(self)
 
-    #: namedtuple used to store lower and upper limits of an array dimension
-    ArrayBounds = namedtuple("ArrayBounds", ["lower", "upper"])
+    @dataclass(frozen=True)
+    class ArrayBounds:
+        '''
+        Class to store lower and upper limits of an array dimension
+
+        TODO - does not enforce that the limits are PSyIR.
+
+        :param lower: the lower bound of the array dimension.
+        :param upper: the upper bound of the array dimension.
+        '''
+        lower: Any
+        upper: Any
 
     def __init__(self, datatype, shape):
 
@@ -699,6 +719,9 @@ class ArrayType(DataType):
                         f"'{dimension}' has {len(dimension)} entries.")
                 _validate_data_node(dimension[0], is_lower_bound=True)
                 _validate_data_node(dimension[1])
+            elif isinstance(dimension, ArrayType.ArrayBounds):
+                _validate_data_node(dimension.lower, is_lower_bound=True)
+                _validate_data_node(dimension.upper)
             else:
                 _validate_data_node(dimension)
 
@@ -716,7 +739,9 @@ class ArrayType(DataType):
             for dim in extents:
                 if not (dim == ArrayType.Extent.ATTRIBUTE or
                         (isinstance(dim, tuple) and
-                         dim[-1] == ArrayType.Extent.ATTRIBUTE)):
+                         dim[-1] == ArrayType.Extent.ATTRIBUTE) or
+                        (isinstance(dim, ArrayType.ArrayBounds) and
+                         dim.upper == ArrayType.Extent.ATTRIBUTE)):
                     raise TypeError(
                         f"An assumed-shape array must have every "
                         f"dimension unspecified (either as 'ATTRIBUTE' or "
@@ -802,7 +827,8 @@ class ArrayType(DataType):
 
         '''
         new_shape = []
-        for dim in self.shape:
+        current_shape = self.shape
+        for dim in current_shape:
             if isinstance(dim, ArrayType.ArrayBounds):
                 new_bounds = ArrayType.ArrayBounds(dim.lower.copy(),
                                                    dim.upper.copy())
@@ -850,7 +876,7 @@ class ArrayType(DataType):
         # Update any Symbols referenced in the array shape
         for dim in self.shape:
             if isinstance(dim, ArrayType.ArrayBounds):
-                exprns = dim
+                exprns = [dim.lower, dim.upper]
             else:
                 exprns = [dim]
             for bnd in exprns:
@@ -870,10 +896,24 @@ class StructureType(DataType):
     SymbolTable functionality then this decision could be revisited.
 
     '''
-    # Each member of a StructureType is represented by a ComponentType
-    # (named tuple).
-    ComponentType = namedtuple("ComponentType", [
-        "name", "datatype", "visibility", "initial_value"])
+    @dataclass(frozen=True)
+    class ComponentType:
+        '''
+        Represents a member of a StructureType.
+
+        :param name: the name of the member.
+        :param datatype: the type of the member.
+        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` |
+                        :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+        :param visibility: whether this member is public or private.
+        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+        :param initial_value: the initial value of this member (if any).
+        :type initial_value: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
+        name: str
+        datatype: Any
+        visibility: Any
+        initial_value: Any
 
     def __init__(self):
         self._components = OrderedDict()
@@ -1048,14 +1088,6 @@ BOOLEAN_TYPE = ScalarType(ScalarType.Intrinsic.BOOLEAN,
                           ScalarType.Precision.UNDEFINED)
 CHARACTER_TYPE = ScalarType(ScalarType.Intrinsic.CHARACTER,
                             ScalarType.Precision.UNDEFINED)
-
-# Mapping from PSyIR scalar data types to intrinsic Python types
-# ignoring precision.
-TYPE_MAP_TO_PYTHON = {
-    ScalarType.Intrinsic.INTEGER: int,
-    ScalarType.Intrinsic.CHARACTER: str,
-    ScalarType.Intrinsic.BOOLEAN: bool,
-    ScalarType.Intrinsic.REAL: float}
 
 
 # For automatic documentation generation

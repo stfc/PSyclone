@@ -36,7 +36,9 @@
 
 ''' This module contains the GenericInterfaceSymbol.'''
 
-from collections import namedtuple
+from dataclasses import dataclass
+from typing import Any
+
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 
 
@@ -54,7 +56,17 @@ class GenericInterfaceSymbol(RoutineSymbol):
     :type kwargs: unwrapped dict.
 
     '''
-    RoutineInfo = namedtuple("RoutineInfo", ["symbol", "from_container"])
+    @dataclass(frozen=True)
+    class RoutineInfo:
+        '''
+        Holds information on a single routine member of an interface.
+
+        :param symbol: the symbol representing the routine.
+        :param from_container: whether or not this routine is from a Container
+                               (i.e. a 'module procedure' in Fortran).
+        '''
+        symbol: Any
+        from_container: bool
 
     def __init__(self, name, routines, **kwargs):
         super().__init__(name, **kwargs)
@@ -149,7 +161,8 @@ class GenericInterfaceSymbol(RoutineSymbol):
         '''
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
-        return type(self)(self.name, self.routines[:],
+        rt_info = [(rt.symbol, rt.from_container) for rt in self.routines]
+        return type(self)(self.name, rt_info,
                           datatype=self.datatype.copy(),
                           visibility=self.visibility,
                           interface=self.interface.copy())

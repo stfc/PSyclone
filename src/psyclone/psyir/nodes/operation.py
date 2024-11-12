@@ -64,10 +64,11 @@ class Operation(DataNode, metaclass=ABCMeta):
                        self.Operator.
 
     '''
-    # Must be overridden in sub-class to hold an Enumeration of the Operators
-    # that it can represent.
+    #: Must be overridden in sub-class to hold an Enumeration of the Operators
+    #: that it can represent.
+    #: :meta private:
     Operator = object
-    # Colour of the node in a view tree.
+    #: Colour of the node in a view tree.
     _colour = "blue"
 
     def __init__(self, operator, parent=None):
