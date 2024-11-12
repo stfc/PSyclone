@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone's generate()
 function via the -s option. It adds kernel NAN-verification to
@@ -44,35 +44,25 @@ not infinity or NAN.
 from psyclone.psyir.transformations import ValueRangeCheckTrans
 
 
-def trans(psy):
+def trans(psyir):
     '''
-    Take the supplied psy object, and add verification to both
-    invokes that read only parameters are not modified.
+    Add verification to both invokes that read only parameters are
+    not modified.
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     value_range_check = ValueRangeCheckTrans()
 
-    invoke = psy.invokes.get("invoke_0")
-    schedule = invoke.schedule
+    for schedule in psyir.children[0].children:
+        if schedule.name == "invoke_0":
+            # You could just apply the transform for all subroutines, but
+            # in this case we also want to give the regions a friendlier name:
+            value_range_check.apply(schedule.children,
+                                    {"region_name": ("main", "init")})
 
-    # You could just apply the transform for all elements of
-    # psy.invokes.invoke_list. But in this case we also
-    # want to give the regions a friendlier name:
-    value_range_check.apply(schedule.children,
-                            {"region_name": ("main", "init")})
-
-    invoke = psy.invokes.get("invoke_1_update_field")
-    schedule = invoke.schedule
-
-    # Enclose everything in a value_range_check region
-    value_range_check.apply(schedule.children,
-                            {"region_name": ("main", "update")})
-
-    # print(schedule.view())
-    return psy
+        if schedule.name == "invoke_1_update_field":
+            # Enclose everything in a value_range_check region
+            value_range_check.apply(schedule.children,
+                                    {"region_name": ("main", "update")})
