@@ -728,7 +728,7 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
     when graphviz is not installed. We make this test independent of whether or
     not graphviz is installed by monkeypatching sys.modules. '''
     def not_installed(_, **kwargs):
-        raise graphviz.backend.execute.ExecutableNotFound("error")
+        raise graphviz.ExecutableNotFound("error")
     monkeypatch.setattr(graphviz.graphs.Digraph, "render", not_installed)
     monkeypatch.setitem(sys.modules, 'graphviz', None)
     _, invoke_info = parse(

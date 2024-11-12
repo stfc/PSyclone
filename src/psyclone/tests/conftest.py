@@ -81,10 +81,11 @@ def have_graphviz():
     ''' Whether or not the system has graphviz installed. Note that this
     only checks for the Python bindings. The underlying library must
     also have been installed for dag generation to work correctly. '''
+    # pylint: disable=import-outside-toplevel
+    import graphviz
     try:
-        # pylint: disable=import-outside-toplevel, unused-import
-        import graphviz  # noqa: F401
-    except ImportError:
+        graphviz.version()
+    except graphviz.ExecutableNotFound:
         return False
     return True
 

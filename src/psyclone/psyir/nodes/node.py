@@ -553,7 +553,7 @@ class Node():
         self.dag_gen(graph)
         try:
             graph.render(filename=file_name)
-        except graphviz.backend.execute.ExecutableNotFound as error:
+        except graphviz.ExecutableNotFound as error:
             print(error)
             # TODO #11 add a warning to a log file here
             # silently return if graphviz bindings are not installed
