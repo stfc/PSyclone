@@ -50,6 +50,7 @@ from psyclone.psyir.symbols import (
     RoutineSymbol, Symbol, SymbolError, UnsupportedFortranType, DataSymbol)
 from typing import List
 
+
 class Call(Statement, DataNode):
     ''' Node representing a Call. This can be found as a standalone statement
     or an expression.
@@ -601,7 +602,7 @@ class Call(Statement, DataNode):
             f" is within a CodeBlock.")
 
     class MatchingArgumentsNotFound(BaseException):
-        """Excepction to signal that matching arguments have not been found 
+        """Excepction to signal that matching arguments have not been found
         for this routine
         """
 
@@ -659,7 +660,7 @@ class Call(Statement, DataNode):
                             f"'{call_arg}' and routine argument "
                             f"'{routine_arg}'"
                         )
-                
+
                 ret_arg_idx_list.append(call_arg_idx)
                 routine_argument_list[call_arg_idx] = None
                 continue
@@ -691,7 +692,7 @@ class Call(Statement, DataNode):
                                 f"'{call_arg}' and routine argument "
                                 f"'{routine_arg}'"
                             )
-                    
+
                     ret_arg_idx_list.append(routine_arg_idx)
                     named_arg_found = True
                     break
@@ -699,10 +700,10 @@ class Call(Statement, DataNode):
             if not named_arg_found:
                 # It doesn't match => Raise exception
                 raise self.MatchingArgumentsNotFound
-            
+
             if routine_arg_idx is None:
                 raise IndexError("Internal error")
-            
+
             routine_argument_list[routine_arg_idx] = None
 
         #
