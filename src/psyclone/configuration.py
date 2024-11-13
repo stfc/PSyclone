@@ -441,6 +441,8 @@ class Config:
         # 1. .psyclone/ in the CWD
         _file_paths = [os.path.join(os.getcwd(), ".psyclone")]
         if within_virtual_env():
+            print("within_virtual_env")
+            sys.exit(1)
             # 2. <virtual-env-base>/share/psyclone/
             _file_paths.append(share_dir)
         # 3. ~/.local/share/psyclone/
@@ -449,8 +451,15 @@ class Config:
         if not within_virtual_env():
             # 4. <python-installation-base>/share/psyclone/
             _file_paths.append(share_dir)
+
         # 5. <psyclone-installation-base>/share/psyclone/
         _file_paths.extend(pkg_share_dir)
+
+        # 6. Default fallback to psyclone installed in development mode
+        directories = os.path.split(__file__)[:-1]
+        dev_mode_path = os.path.join(*directories, "..", "..", "config")
+        dev_mode_path = os.path.abspath(dev_mode_path)
+        _file_paths.append(dev_mode_path)
 
         for cfile in [os.path.join(cdir, _FILE_NAME) for cdir in _file_paths]:
             if os.path.isfile(cfile):
