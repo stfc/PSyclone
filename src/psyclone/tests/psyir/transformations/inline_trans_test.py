@@ -397,11 +397,12 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
     # Second one should fail.
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(calls[1])
-    assert ("Routine 'sub3' cannot be inlined because the type of the actual "
-            "argument 'mystery' corresponding to an array formal argument "
-            "('x') is unknown" in str(err.value))
+    print(f">>> {err.value}")
+    assert ("Routine 'sub3' cannot be inlined because the type of the actual argument "
+            "'mystery' corresponding to an array formal argument ('x') is unknown"
+            in str(err.value))
     # Third one should be fine because it is a scalar argument.
-    inline_trans.apply(calls[2])
+    inline_trans.apply(calls[2], check_argument_of_unsupported_type=False)
     # We can't do the fourth one.
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(calls[3])
@@ -1653,8 +1654,8 @@ def test_validate_return_stmt(fortran_reader):
 
 def test_validate_codeblock(fortran_reader):
     '''Test that validate() raises the expected error for a routine that
-    contains a CodeBlock. Also test that using the "force" option overrides
-    this check.'''
+    contains a CodeBlock. Also test that using the "check_for_codeblocks"
+    option overrides this check.'''
     code = (
         "module test_mod\n"
         "contains\n"
@@ -1675,7 +1676,7 @@ def test_validate_codeblock(fortran_reader):
         inline_trans.validate(call)
     assert ("Routine 'sub' contains one or more CodeBlocks and therefore "
             "cannot be inlined. (If you are confident " in str(err.value))
-    inline_trans.validate(call, options={"force": True})
+    inline_trans.validate(call, check_for_codeblocks=False)
 
 
 def test_validate_unsupportedtype_argument(fortran_reader):

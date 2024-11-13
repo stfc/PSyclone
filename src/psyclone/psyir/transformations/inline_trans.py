@@ -122,23 +122,45 @@ class InlineTrans(Transformation):
         Some of these restrictions will be lifted by #924.
 
     '''
-    def apply(self, node, options=None):
+    def apply(self, node, routine=None, options=None,
+                check_for_codeblocks:bool=True,
+                check_for_different_container_clashes:bool=True,
+                check_for_different_container_clashes_unresolved_types:bool=True,
+                check_resolve_imports:bool=True,
+                check_static_interface:bool=True,
+                check_array_type:bool=True,
+                check_argument_of_unsupported_type:bool=True,
+                check_for_named_arguments:bool=True,
+        ):
         '''
         Takes the body of the routine that is the target of the supplied
         call and replaces the call with it.
 
         :param node: target PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine`
+        :type node: :py:class:`psyclone.psyir.nodes.Call`
+        :param routine: PSyIR subroutine to be inlined.
+                Default: Automatically determine subroutine (search)
+        :type routine: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["force"]: whether or not to permit the inlining
-            of Routines containing CodeBlocks. Default is False.
         '''
-        self.validate(node, options)
+        self.validate(node, routine=routine, options=options,
+                      check_for_codeblocks=check_for_codeblocks,
+                      check_for_different_container_clashes=check_for_different_container_clashes,
+                      check_for_different_container_clashes_unresolved_types=check_for_different_container_clashes_unresolved_types,
+                      check_resolve_imports=check_resolve_imports,
+                      check_static_interface=check_static_interface,
+                      check_array_type=check_array_type,
+                      check_argument_of_unsupported_type=check_argument_of_unsupported_type,
+                      check_for_named_arguments=check_for_named_arguments,
+                )
         # The table associated with the scoping region holding the Call.
         table = node.scope.symbol_table
-        # Find the routine to be inlined.
-        orig_routine = node.get_callees()[0]
+
+        if routine is not None:
+            orig_routine = routine
+        else:
+            # Find the routine to be inlined.
+            orig_routine = node.get_callees()[0]
 
         if not orig_routine.children or isinstance(orig_routine.children[0],
                                                    Return):
@@ -579,11 +601,22 @@ class InlineTrans(Transformation):
         # Just an array reference.
         return ArrayReference.create(actual_arg.symbol, members[0][1])
 
-    def validate(self, node, options=None):
+    def validate(self, node, routine=None, options=None,
+                check_for_codeblocks:bool=True,
+                check_for_different_container_clashes:bool=True,
+                check_for_different_container_clashes_unresolved_types:bool=True,
+                check_resolve_imports:bool=True,
+                check_static_interface:bool=True,
+                check_array_type:bool=True,
+                check_argument_of_unsupported_type:bool=True,
+                check_for_named_arguments:bool=True,
+        ):
         '''
         Checks that the supplied node is a valid target for inlining.
 
         :param node: target PSyIR node.
+        :param routine: Routine to inline.
+            Default is to search for it.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
@@ -619,9 +652,6 @@ class InlineTrans(Transformation):
         '''
         super().validate(node, options=options)
 
-        options = {} if options is None else options
-        forced = options.get("force", False)
-
         # The node should be a Call.
         if not isinstance(node, Call):
             raise TransformationError(
@@ -633,14 +663,16 @@ class InlineTrans(Transformation):
                 f"Cannot inline an IntrinsicCall ('{node.routine.name}')")
         name = node.routine.name
 
-        # Check that we can find the source of the routine being inlined.
-        # TODO #924 allow for multiple routines (interfaces).
-        try:
-            routine = node.get_callees()[0]
-        except (NotImplementedError, FileNotFoundError, SymbolError) as err:
-            raise TransformationError(
-                f"Cannot inline routine '{name}' because its source cannot be "
-                f"found: {err}") from err
+        if routine is None:
+            # Check that we can find the source of the routine being inlined.
+            # TODO #924 allow for multiple routines (interfaces).
+            try:
+                #routine = node.get_callees()[0]
+                routine = node.get_callee(check_strict_array_datatype=False)
+            except (NotImplementedError, FileNotFoundError, SymbolError) as err:
+                raise TransformationError(
+                    f"Cannot inline routine '{name}' because its source cannot be "
+                    f"found: {err}") from err
 
         if not routine.children or isinstance(routine.children[0], Return):
             # An empty routine is fine.
@@ -656,22 +688,24 @@ class InlineTrans(Transformation):
                     f"Routine '{name}' contains one or more "
                     f"Return statements and therefore cannot be inlined.")
 
-        if routine.walk(CodeBlock) and not forced:
-            # N.B. we permit the user to specify the "force" option to allow
-            # CodeBlocks to be included.
-            raise TransformationError(
-                f"Routine '{name}' contains one or more CodeBlocks and "
-                "therefore cannot be inlined. (If you are confident that "
-                "the code may safely be inlined despite this then use "
-                "`options={'force': True}` to override.)")
+        if check_for_codeblocks:
+            if routine.walk(CodeBlock):
+                # N.B. we permit the user to specify the "force" option to allow
+                # CodeBlocks to be included.
+                raise TransformationError(
+                    f"Routine '{name}' contains one or more CodeBlocks and "
+                    "therefore cannot be inlined. (If you are confident that "
+                    "the code may safely be inlined despite this then use "
+                    "`check_for_codeblocks=False` to override.)")
 
         # Support for routines with named arguments is not yet implemented.
         # TODO #924.
-        for arg in node.argument_names:
-            if arg:
-                raise TransformationError(
-                    f"Routine '{routine.name}' cannot be inlined because it "
-                    f"has a named argument '{arg}' (TODO #924).")
+        if check_for_named_arguments:
+            for arg in node.argument_names:
+                if arg:
+                    raise TransformationError(
+                        f"Routine '{routine.name}' cannot be inlined because it "
+                        f"has a named argument '{arg}' (TODO #924).")
 
         table = node.scope.symbol_table
         routine_table = routine.symbol_table
@@ -681,38 +715,45 @@ class InlineTrans(Transformation):
             # arguments since we don't know if a simple assignment if
             # enough (e.g. pointers)
             if isinstance(sym.interface, ArgumentInterface):
-                if isinstance(sym.datatype, UnsupportedType):
-                    raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
-                        f"it contains a Symbol '{sym.name}' which is an "
-                        f"Argument of UnsupportedType: "
-                        f"'{sym.datatype.declaration}'")
+                if check_argument_of_unsupported_type:
+                    if isinstance(sym.datatype, UnsupportedType):
+                        raise TransformationError(
+                            f"Routine '{routine.name}' cannot be inlined because "
+                            f"it contains a Symbol '{sym.name}' which is an "
+                            f"Argument of UnsupportedType: "
+                            f"'{sym.datatype.declaration}'")
             # We don't inline symbols that have an UnknownInterface, as we
             # don't know how they are brought into this scope.
-            if isinstance(sym.interface, UnknownInterface):
-                raise TransformationError(
-                    f"Routine '{routine.name}' cannot be inlined because it "
-                    f"contains a Symbol '{sym.name}' with an UnknownInterface:"
-                    f" '{sym.datatype.declaration}'")
-            # Check that there are no static variables in the routine (because
-            # we don't know whether the routine is called from other places).
-            if (isinstance(sym.interface, StaticInterface) and
-                    not sym.is_constant):
-                raise TransformationError(
-                    f"Routine '{routine.name}' cannot be inlined because it "
-                    f"has a static (Fortran SAVE) interface for Symbol "
-                    f"'{sym.name}'.")
+            if check_argument_of_unsupported_type:
+                if isinstance(sym.interface, UnknownInterface):
+                    raise TransformationError(
+                        f"Routine '{routine.name}' cannot be inlined because it "
+                        f"contains a Symbol '{sym.name}' with an UnknownInterface:"
+                        f" '{sym.datatype.declaration}'")
 
-        # We can't handle a clash between (apparently) different symbols that
-        # share a name but are imported from different containers.
-        try:
-            table.check_for_clashes(
-                routine_table,
-                symbols_to_skip=routine_table.argument_list[:])
-        except SymbolError as err:
-            raise TransformationError(
-                f"One or more symbols from routine '{routine.name}' cannot be "
-                f"added to the table at the call site.") from err
+            if check_static_interface:
+                # Check that there are no static variables in the routine (because
+                # we don't know whether the routine is called from other places).
+                if (isinstance(sym.interface, StaticInterface) and
+                        not sym.is_constant):
+                    raise TransformationError(
+                        f"Routine '{routine.name}' cannot be inlined because it "
+                        f"has a static (Fortran SAVE) interface for Symbol "
+                        f"'{sym.name}'.")
+
+        if check_for_different_container_clashes:
+            # We can't handle a clash between (apparently) different symbols that
+            # share a name but are imported from different containers.
+            try:
+                table.check_for_clashes(
+                    routine_table,
+                    symbols_to_skip=routine_table.argument_list[:],
+                    check_unresolved_symbols=
+                        check_for_different_container_clashes_unresolved_types)
+            except SymbolError as err:
+                raise TransformationError(
+                    f"One or more symbols from routine '{routine.name}' cannot be "
+                    f"added to the table at the call site.") from err
 
         # Check for unresolved symbols or for any accessed from the Container
         # containing the target routine.
@@ -754,25 +795,27 @@ class InlineTrans(Transformation):
             _symbol_cache.add(sym)
             if isinstance(sym, IntrinsicSymbol):
                 continue
-            # We haven't seen this Symbol before.
-            if sym.is_unresolved:
-                try:
-                    routine_table.resolve_imports(symbol_target=sym)
-                except KeyError:
-                    # The symbol is not (directly) imported into the symbol
-                    # table local to the routine.
-                    # pylint: disable=raise-missing-from
-                    raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined "
-                        f"because it accesses variable '{sym.name}' and this "
-                        f"cannot be found in any of the containers directly "
-                        f"imported into its symbol table.")
-            else:
-                if sym.name not in routine_table:
-                    raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
-                        f"it accesses variable '{sym.name}' from its "
-                        f"parent container.")
+
+            if check_resolve_imports:
+                # We haven't seen this Symbol before.
+                if sym.is_unresolved:
+                    try:
+                        routine_table.resolve_imports(symbol_target=sym)
+                    except KeyError:
+                        # The symbol is not (directly) imported into the symbol
+                        # table local to the routine.
+                        # pylint: disable=raise-missing-from
+                        raise TransformationError(
+                            f"Routine '{routine.name}' cannot be inlined "
+                            f"because it accesses variable '{sym.name}' and this "
+                            f"cannot be found in any of the containers directly "
+                            f"imported into its symbol table.")
+                else:
+                    if sym.name not in routine_table:
+                        raise TransformationError(
+                            f"Routine '{routine.name}' cannot be inlined because "
+                            f"it accesses variable '{sym.name}' from its "
+                            f"parent container.")
 
         # Check that the shapes of any formal array arguments are the same as
         # those at the call site.
@@ -814,55 +857,56 @@ class InlineTrans(Transformation):
             # TODO #924. It would be useful if the `datatype` property was
             # a method that took an optional 'resolve' argument to indicate
             # that it should attempt to resolve any UnresolvedTypes.
-            if (isinstance(actual_arg.datatype,
-                           (UnresolvedType, UnsupportedType)) or
-                (isinstance(actual_arg.datatype, ArrayType) and
-                 isinstance(actual_arg.datatype.intrinsic,
-                            (UnresolvedType, UnsupportedType)))):
-                raise TransformationError(
-                    f"Routine '{routine.name}' cannot be inlined because "
-                    f"the type of the actual argument "
-                    f"'{actual_arg.symbol.name}' corresponding to an array"
-                    f" formal argument ('{formal_arg.name}') is unknown.")
+            if check_array_type:
+                if (isinstance(actual_arg.datatype,
+                            (UnresolvedType, UnsupportedType)) or
+                    (isinstance(actual_arg.datatype, ArrayType) and
+                    isinstance(actual_arg.datatype.intrinsic,
+                                (UnresolvedType, UnsupportedType)))):
+                    raise TransformationError(
+                        f"Routine '{routine.name}' cannot be inlined because "
+                        f"the type of the actual argument "
+                        f"'{actual_arg.symbol.name}' corresponding to an array"
+                        f" formal argument ('{formal_arg.name}') is unknown.")
 
-            formal_rank = 0
-            actual_rank = 0
-            if isinstance(formal_arg.datatype, ArrayType):
-                formal_rank = len(formal_arg.datatype.shape)
-            if isinstance(actual_arg.datatype, ArrayType):
-                actual_rank = len(actual_arg.datatype.shape)
-            if formal_rank != actual_rank:
-                # It's OK to use the loop variable in the lambda definition
-                # because if we get to this point then we're going to quit
-                # the loop.
-                # pylint: disable=cell-var-from-loop
-                raise TransformationError(LazyString(
-                        lambda: f"Cannot inline routine '{routine.name}' "
-                        f"because it reshapes an argument: actual argument "
-                        f"'{actual_arg.debug_string()}' has rank {actual_rank}"
-                        f" but the corresponding formal argument, "
-                        f"'{formal_arg.name}', has rank {formal_rank}"))
-            if actual_rank:
-                ranges = actual_arg.walk(Range)
-                for rge in ranges:
-                    ancestor_ref = rge.ancestor(Reference)
-                    if ancestor_ref is not actual_arg:
-                        # Have a range in an indirect access.
-                        # pylint: disable=cell-var-from-loop
-                        raise TransformationError(LazyString(
+                formal_rank = 0
+                actual_rank = 0
+                if isinstance(formal_arg.datatype, ArrayType):
+                    formal_rank = len(formal_arg.datatype.shape)
+                if isinstance(actual_arg.datatype, ArrayType):
+                    actual_rank = len(actual_arg.datatype.shape)
+                if formal_rank != actual_rank:
+                    # It's OK to use the loop variable in the lambda definition
+                    # because if we get to this point then we're going to quit
+                    # the loop.
+                    # pylint: disable=cell-var-from-loop
+                    raise TransformationError(LazyString(
                             lambda: f"Cannot inline routine '{routine.name}' "
-                            f"because argument '{actual_arg.debug_string()}' "
-                            f"has an array range in an indirect access (TODO "
-                            f"#924)."))
-                    if rge.step != _ONE:
-                        # TODO #1646. We could resolve this problem by making
-                        # a new array and copying the necessary values into it.
-                        # pylint: disable=cell-var-from-loop
-                        raise TransformationError(LazyString(
-                            lambda: f"Cannot inline routine '{routine.name}' "
-                            f"because one of its arguments is an array slice "
-                            f"with a non-unit stride: "
-                            f"'{actual_arg.debug_string()}' (TODO #1646)"))
+                            f"because it reshapes an argument: actual argument "
+                            f"'{actual_arg.debug_string()}' has rank {actual_rank}"
+                            f" but the corresponding formal argument, "
+                            f"'{formal_arg.name}', has rank {formal_rank}"))
+                if actual_rank:
+                    ranges = actual_arg.walk(Range)
+                    for rge in ranges:
+                        ancestor_ref = rge.ancestor(Reference)
+                        if ancestor_ref is not actual_arg:
+                            # Have a range in an indirect access.
+                            # pylint: disable=cell-var-from-loop
+                            raise TransformationError(LazyString(
+                                lambda: f"Cannot inline routine '{routine.name}' "
+                                f"because argument '{actual_arg.debug_string()}' "
+                                f"has an array range in an indirect access (TODO "
+                                f"#924)."))
+                        if rge.step != _ONE:
+                            # TODO #1646. We could resolve this problem by making
+                            # a new array and copying the necessary values into it.
+                            # pylint: disable=cell-var-from-loop
+                            raise TransformationError(LazyString(
+                                lambda: f"Cannot inline routine '{routine.name}' "
+                                f"because one of its arguments is an array slice "
+                                f"with a non-unit stride: "
+                                f"'{actual_arg.debug_string()}' (TODO #1646)"))
 
 
 # For AutoAPI auto-documentation generation.

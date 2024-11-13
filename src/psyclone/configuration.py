@@ -441,8 +441,6 @@ class Config:
         # 1. .psyclone/ in the CWD
         _file_paths = [os.path.join(os.getcwd(), ".psyclone")]
         if within_virtual_env():
-            print("within_virtual_env")
-            sys.exit(1)
             # 2. <virtual-env-base>/share/psyclone/
             _file_paths.append(share_dir)
         # 3. ~/.local/share/psyclone/
