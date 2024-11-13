@@ -67,7 +67,6 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
                              KernelArgument, HaloExchange, GlobalSum,
                              DataAccess)
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Assignment, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
