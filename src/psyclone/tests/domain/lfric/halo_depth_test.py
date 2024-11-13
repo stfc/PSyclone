@@ -56,7 +56,6 @@ def test_halo_depth_ctor():
     assert hdepth.annexed_only is False
     assert hdepth.var_depth is None
     assert hdepth._parent is invoke.schedule
-    assert str(hdepth) == "0"
     assert hdepth.psyir_expression() is None
 
 
@@ -72,13 +71,13 @@ def test_halo_depth_set_by_value():
     # Halo is accessed to max depth.
     hdepth.set_by_value(True, None, False, False)
     assert hdepth.var_depth is None
-    assert str(hdepth) == "max_halo_depth_mesh"
     # Halo is accessed to max-depth minus 1.
     hdepth.set_by_value(False, None, False, True)
-    assert str(hdepth) == "max_halo_depth_mesh - 1"
+    assert (hdepth.psyir_expression().debug_string() ==
+            "max_halo_depth_mesh - 1")
     # Annexed dofs only.
     hdepth.set_by_value(False, None, True, False)
-    assert str(hdepth) == "0"
+    assert hdepth.var_depth is None
     # PSyIR expression.
     my_depth = symbols.DataSymbol("my_depth", symbols.INTEGER_TYPE)
     invoke.schedule.symbol_table.add(my_depth)
@@ -87,11 +86,11 @@ def test_halo_depth_set_by_value():
         nodes.Literal("2", symbols.INTEGER_TYPE),
         nodes.Reference(my_depth))
     hdepth.set_by_value(False, exprn, False, False)
-    assert str(hdepth) == "2 * my_depth"
+    assert hdepth.var_depth.debug_string() == "2 * my_depth"
     # Check that the PSyIR expression is simplified where possible.
     exprn2 = nodes.BinaryOperation.create(
         nodes.BinaryOperation.Operator.MUL,
         nodes.Literal("2", symbols.INTEGER_TYPE),
         nodes.Literal("2", symbols.INTEGER_TYPE))
     hdepth.set_by_value(False, exprn2, False, False)
-    assert str(hdepth) == "4"
+    assert hdepth.var_depth.debug_string() == "4"

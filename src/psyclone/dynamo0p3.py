@@ -4395,12 +4395,6 @@ class HaloDepth():
         self._var_depth = fake_assign.rhs.detach()
         fake_assign.detach()
 
-    def __str__(self):
-        psyir = self.psyir_expression()
-        if psyir:
-            return FortranWriter()(psyir)
-        return "0"
-
     def psyir_expression(self):
         '''
         :returns: the PSyIR expression representing this HaloDepth.
