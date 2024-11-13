@@ -39,14 +39,15 @@ directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, OTHER_ISSUES, DONT_PARALLELISE)
+    enhance_tree_information, PASSTHROUGH_ISSUES, PARALLELISATION_ISSUES)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
 PROFILING_ENABLED = False
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = OTHER_ISSUES
+FILES_TO_SKIP = PASSTHROUGH_ISSUES
+
 
 def trans(psyir):
     ''' Add OpenMP Parallel and Do directives to all loops, including the
@@ -76,7 +77,7 @@ def trans(psyir):
                 hoist_expressions=False
         )
 
-        if psyir.name not in DONT_PARALLELISE:
+        if psyir.name not in PARALLELISATION_ISSUES:
             insert_explicit_loop_parallelism(
                     subroutine,
                     region_directive_trans=omp_parallel_trans,

@@ -79,22 +79,30 @@ NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
                   "glob_sum_full", "ptr_sj", "ptr_sjk", "interp1", "interp2",
                   "interp3", "integ_spline", "nf90_put_var"]
 
-# In the files below, psyclone creates different results from the baseline if
-# parallelisation is attempted
-DONT_PARALLELISE = [
-    "domqco.f90",
-    "dynspg_ts.f90",
-    "icedyn_rhg_evp.f90",
+# Currently fparser has no way of distinguishing array accesses from statement
+# functions, the following subroutines contains known statement functions
+CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
+
+# These files change the results from baseline when psyclone processes them
+PASSTHROUGH_ISSUES = [
+    "ldfslp.f90",
+]
+
+# These files change the results from the baseline when psyclone adds
+# parallelisation dirctives
+PARALLELISATION_ISSUES = [
     "ldfc1d_c2d.f90",
     "tramle.f90",
 ]
 
-OTHER_ISSUES = ["ldfslp.f90"]
-
-
-# Currently fparser has no way of distinguishing array accesses from statement
-# functions, the following subroutines contains known statement functions
-CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
+# These files get the same results when parallelised by PSyclone and using
+# conservative optimsation flags (e.g. nvfortran -O1 -Kieee -nofma -Mnovect)
+# but can be excluded for more stable results when using more aggressive flags
+IMPROVE_REPRODUCIBILITY = [
+    "icedyn_rhg_evp.f90",
+    "domqco.f90",
+    "dynspg_ts.f90",
+]
 
 
 def _it_should_be(symbol, of_type, instance):
