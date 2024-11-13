@@ -595,7 +595,10 @@ class Call(Statement, DataNode):
             f"{_location_txt(root_node)}. This is normally because the routine"
             f" is within a CodeBlock.")
 
-    class MatchingArgumentsNotFound(BaseException): ...
+    class MatchingArgumentsNotFound(BaseException):
+        """Excepction to signal that matching arguments have not been found 
+        for this routine
+        """
 
     def get_argument_routine_match(self, routine: Routine):
         """Return a list of integers giving for each argument of the call
@@ -653,6 +656,7 @@ class Call(Statement, DataNode):
             #
             arg_name = self.argument_names[call_arg_idx]
             named_arg_found = False
+            routine_arg_idx = None
             for routine_arg_idx, routine_arg in enumerate(routine_argument_list):
                 routine_arg: DataSymbol
 
@@ -676,6 +680,9 @@ class Call(Statement, DataNode):
             if not named_arg_found:
                 # It doesn't match => Raise exception
                 raise self.MatchingArgumentsNotFound
+            
+            if routine_arg_idx is None:
+                raise IndexError("Internal error")
             
             routine_argument_list[routine_arg_idx] = None
 
@@ -724,7 +731,7 @@ class Call(Statement, DataNode):
 
             try:
                 arg_match_list = self.get_argument_routine_match(routine)
-            except self.MatchingArgumentsNotFound as e:
+            except self.MatchingArgumentsNotFound:
                 continue
 
             if ret_arg_match_list is not None:

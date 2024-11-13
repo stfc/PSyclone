@@ -255,7 +255,7 @@ def test_call_add_args_error2():
         _ = Call._add_args(routine, [(1, 2)])
     assert ("If a child of the children argument in create method of Call "
             "class is a tuple, its first argument should be a str, but "
-            " - Found int." in str(info.value))
+            "found int." in str(info.value))
 
 
 def test_call_appendnamedarg():
