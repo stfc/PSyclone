@@ -115,11 +115,11 @@ class OMPTargetTrans(RegionTrans):
         routine = node.ancestor(Routine)
         if routine and routine.return_symbol:
             # if it is a function, the target must not include its return sym
-            for node in node_list:
-                for ref in node.walk(Reference):
+            for check_node in node_list:
+                for ref in check_node.walk(Reference):
                     if ref.symbol is routine.return_symbol:
                         raise TransformationError(
-                            f"OpenMP Target cannot enclose a region that has"
+                            f"OpenMP Target cannot enclose a region that has "
                             f"a function return value symbol, but found one in"
                             f" '{routine.return_symbol.name}'.")
 
