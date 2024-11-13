@@ -32,25 +32,22 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone using the -s option.
 This is a template that doesn't do anything, but it contains the
 framework to find a certain invoke.
 '''
 
-from __future__ import print_function
+from psyclone.psyir.nodes import Routine
 
 
-def trans(psy):
+def trans(psyir):
     '''
-    Take the supplied psy object, and add kernel extraction code.
+    Add kernel extraction code.
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
 
@@ -60,23 +57,19 @@ def trans(psy):
     # from ... import ...
     # extract = ...()
 
-    # ------------------------------------------------------
-    # TODO: use the name that is specified for the perturbation
-    # propagation invoke here. Note that it will get a "invoke_"
-    # as prefix!
-    # ------------------------------------------------------
-    invoke = psy.invokes.get("")
+    for subroutine in psyir.walk(Routine):
+        # ------------------------------------------------------
+        # TODO: use the name that is specified for the perturbation
+        # propagation invoke here. Note that it will get a "invoke_"
+        # as prefix!
+        # ------------------------------------------------------
+        if subroutine.name == "":
 
-    # Now get the schedule, to which we want to apply the transformation
-    schedule = invoke.schedule
+            # ------------------------------------------------------
+            # TODO: Apply the transformation
+            # ------------------------------------------------------
+            ... .apply(subroutine)
 
-    # ------------------------------------------------------
-    # TODO: Apply the transformation
-    # ------------------------------------------------------
-    ... .apply(schedule)
-
-    # Just as feedback: show the modified schedule, which should have
-    # a new node at the top:
-    print(schedule.view())
-
-    return psy
+            # Just as feedback: show the modified PSyIR, which should have
+            # a new node at the top:
+            print(subroutine.view())

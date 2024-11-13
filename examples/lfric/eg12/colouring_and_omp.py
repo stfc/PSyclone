@@ -36,45 +36,43 @@
 # Modified by J. Henrichs, Bureau of Meteorology
 
 
-''' File containing a PSyclone transformation script for the Dynamo0p3
+''' File containing a PSyclone transformation script for the LFRic
 API to apply colouring and OpenMP generically. This can be applied via
 the -s option in the "psyclone" script. '''
-from __future__ import print_function, absolute_import
 from psyclone.transformations import Dynamo0p3ColourTrans, \
     DynamoOMPParallelLoopTrans
-from psyclone.psyGen import Loop
+from psyclone.psyGen import Loop, InvokeSchedule
 from psyclone.domain.lfric import LFRicConstants
 
 
-def trans(psy):
-    ''' PSyclone transformation script for the dynamo0p3 api to apply
-    colouring and OpenMP generically.'''
+def trans(psyir):
+    ''' PSyclone transformation script for the LFRic api to apply
+    colouring and OpenMP generically.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
     const = LFRicConstants()
-    # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
+    for subroutine in psyir.walk(InvokeSchedule):
 
-        print("Transforming invoke '"+invoke.name+"'...")
-        schedule = invoke.schedule
+        print(f"Transforming invoke '{subroutine.name}'...")
 
         # Colour all of the loops over cells unless they are on
         # discontinuous spaces
-        for child in schedule.children:
+        for child in subroutine.children:
             if isinstance(child, Loop) \
                and child.field_space.orig_name \
                not in const.VALID_DISCONTINUOUS_NAMES \
                and child.iteration_space.endswith("cell_column"):
                 ctrans.apply(child)
         # Then apply OpenMP to each of the colour loops
-        for child in schedule.children:
+        for child in subroutine.children:
             if isinstance(child, Loop):
                 if child.loop_type == "colours":
                     otrans.apply(child.loop_body[0])
                 else:
                     otrans.apply(child)
-
-        print(schedule.view())
-
-    return psy

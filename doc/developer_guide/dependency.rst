@@ -662,3 +662,29 @@ can be parallelised:
     :hide:
 
     Error: The write access to 'a(i,i)' and the read access to 'a(i + 1,i + 1)' are dependent and cannot be parallelised. Variable: 'a'.
+
+DefinitionUseChain
+==================
+PSyclone also provides a DefinitionUseChain class, which can search for forward
+dependencies (backward NYI) for a given Reference inside a region of code. This
+implementation differs from the DependencyTools as it is control-flow aware, so
+can find many dependencies for a single Reference in a given Routine or scope.
+
+This is primarily used to implement the `References.next_accesses` function, but can be
+used directly as follows:
+
+.. code::
+
+    chain = DefinitionUseChain(reference)
+    accesses = chain.find_forward_accesses()
+    # accesses contains Nodes that are dependent on reference
+    accesses[0].....
+
+By default the dependencies will be searched for in the containing Routine.
+
+Limitations
+-----------
+At the moment the DefinitionUseChain assumes that any control flow could not be taken, i.e.
+any code inside a Loop or If statement is not guaranteed to occur. These dependencies
+will be found, but will not limit further searching into the tree.
+Additionally, GOTO statements are not supported and if found, will throw an Exception.
