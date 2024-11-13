@@ -47,8 +47,8 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
-    RoutineSymbol, Symbol, SymbolError, UnsupportedFortranType)
-
+    RoutineSymbol, Symbol, SymbolError, UnsupportedFortranType, DataSymbol)
+from typing import List
 
 class Call(Statement, DataNode):
     ''' Node representing a Call. This can be found as a standalone statement
@@ -334,7 +334,7 @@ class Call(Statement, DataNode):
         return None
 
     @property
-    def arguments(self):
+    def arguments(self) -> DataNode:
         '''
         :returns: the children of this node that represent its arguments.
         :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
@@ -418,6 +418,7 @@ class Call(Statement, DataNode):
     def __str__(self):
         return self.node_str(False)
 
+
     def copy(self):
         '''Return a copy of this node. This is a bespoke implementation for
         a Call node that ensures that any internal id's are
@@ -425,7 +426,6 @@ class Call(Statement, DataNode):
 
         :returns: a copy of this node and its children.
         :rtype: :py:class:`psyclone.psyir.node.Node`
-
         '''
         # ensure _argument_names is consistent with actual arguments
         # before copying.
@@ -442,16 +442,17 @@ class Call(Statement, DataNode):
 
         return new_copy
 
+
     def get_callees(self):
         '''
-        Searches for the implementation(s) of the target routine for this Call.
+        Searches for the implementation(s) of all potential target routines
+        for this Call without any arguments check.
 
         :returns: the Routine(s) that this call targets.
         :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
 
         :raises NotImplementedError: if the routine is not local and not found
             in any containers in scope at the call site.
-
         '''
         def _location_txt(node):
             '''
@@ -593,3 +594,148 @@ class Call(Statement, DataNode):
             f"Failed to find a Routine named '{rsym.name}' in "
             f"{_location_txt(root_node)}. This is normally because the routine"
             f" is within a CodeBlock.")
+
+    class MatchingArgumentsNotFound(BaseException): ...
+
+    def get_argument_routine_match(self, routine: Routine):
+        """Return a list of integers giving for each argument of the call
+        the index of the argument in argument_list (typically of a routine)
+
+        :param argument_list: List of arguments
+        :type argument_list: Arguments
+        :return: None if no match was found, otherwise list of integers
+        referring to matching arguments.
+        :rtype: None|List[int]
+        """
+
+        # Create a copy of the list
+        # Once an argument has been successfully matched, set it to 'None'
+        routine_argument_list: List[DataNode] = routine.symbol_table.argument_list[:]
+
+        # Find matching argument list
+        #if len(self.arguments) != len(routine_argument_list):
+        #    return None
+
+        if len(self.arguments) > len(routine.symbol_table.argument_list):
+            raise self.MatchingArgumentsNotFound(
+                f"More arguments in callee  (call '{self.routine.name}') than caller (routine '{routine.name}')"
+            )
+
+        assert len(self.arguments) == len(self.argument_names)
+
+        # Iterate over all arguments
+        ret_arg_idx_list = []
+        for call_arg_idx, call_arg in enumerate(self.arguments):
+            call_arg_idx: int
+            call_arg: DataSymbol
+
+            # If None, it's a positional argument => Just return the index if the types match
+            if self.argument_names[call_arg_idx] is None:
+                routine_arg = routine_argument_list[call_arg_idx]
+                routine_arg: DataSymbol
+
+                # Do the types of arguments match?
+                #
+                # TODO #759: If optional is used, it's an unsupported Fortran type and we need to use the following workaround
+                # Once this issue is resolved, simply remove this if branch
+                if not isinstance(routine_arg.datatype, UnsupportedFortranType):
+                    if call_arg.datatype != routine_arg.datatype:
+                        raise self.MatchingArgumentsNotFound(
+                            f"Argument type mismatch of call argument '{call_arg}' and routine argument '{routine_arg}'"
+                        )
+                
+                ret_arg_idx_list.append(call_arg_idx)
+                routine_argument_list[call_arg_idx] = None
+                continue
+
+            #
+            # Next, we handle all named arguments
+            #
+            arg_name = self.argument_names[call_arg_idx]
+            named_arg_found = False
+            for routine_arg_idx, routine_arg in enumerate(routine_argument_list):
+                routine_arg: DataSymbol
+
+                # Check if argument was already processed
+                if routine_arg is None:
+                    continue
+
+                if arg_name == routine_arg.name:
+                    # TODO #759: If optional is used, it's an unsupported Fortran type and we need to use the following workaround
+                    # Once this issue is resolved, simply remove this if branch
+                    if not isinstance(routine_arg.datatype, UnsupportedFortranType):
+                        if call_arg.datatype != routine_arg.datatype:
+                            raise self.MatchingArgumentsNotFound(
+                                f"Argument type mismatch of call argument '{call_arg}' and routine argument '{routine_arg}'"
+                            )
+                    
+                    ret_arg_idx_list.append(routine_arg_idx)
+                    named_arg_found = True
+                    break
+
+            if not named_arg_found:
+                # It doesn't match => Raise exception
+                raise self.MatchingArgumentsNotFound
+            
+            routine_argument_list[routine_arg_idx] = None
+
+
+
+        #
+        # Finally, we check if all left-over arguments are optional arguments
+        #
+        for routine_arg in routine_argument_list:
+            routine_arg: DataNode
+
+            if routine_arg is None:
+                continue
+
+            # TODO #759: Optional keyword is not yet supported in psyir.
+            # Hence, we use a simple string match.
+            if ", OPTIONAL" in str(routine_arg.datatype):
+                continue
+
+            raise self.MatchingArgumentsNotFound(
+                f"Argument '{routine_arg}' in subroutine '{routine.name}' not handled"
+            )
+
+        return ret_arg_idx_list
+
+
+    def get_callee(self, ret_arg_match_list:List[int] = None, check_matching_arguments: bool=True):
+        '''
+        Searches for the implementation(s) of the target routine for this Call
+        including argument checks.
+
+        :param ret_arg_match_list: List in which the matching argument indices will be returned
+
+        :returns: the Routine(s) that this call targets.
+        :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
+
+        :raises NotImplementedError: if the routine is not local and not found
+            in any containers in scope at the call site.
+        '''
+
+        routine_list = self.get_callees()
+
+        # Search for the routine matching the right arguments
+        for routine in routine_list:
+            routine: Routine
+
+            try:
+                arg_match_list = self.get_argument_routine_match(routine)
+            except self.MatchingArgumentsNotFound as e:
+                continue
+
+            if ret_arg_match_list is not None:
+                ret_arg_match_list[:] = arg_match_list
+            
+            return routine
+        
+        # If we didn't find any routine, return some routine if no matching arguments have been found.
+        # This is handy for the transition phase until optional argument matching is supported.
+        if not check_matching_arguments:
+            return routine_list[0]
+        
+
+        raise NotImplementedError(f"No matching routine for call '{self.routine.name}' found")

@@ -43,7 +43,7 @@ from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import (
     ArrayReference, Assignment, BinaryOperation, Call, CodeBlock, Literal,
-    Reference, Routine, Schedule)
+    Reference, Routine, Schedule, Node)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
     ArrayType, INTEGER_TYPE, DataSymbol, NoType, RoutineSymbol, REAL_TYPE,
@@ -255,7 +255,7 @@ def test_call_add_args_error2():
         _ = Call._add_args(routine, [(1, 2)])
     assert ("If a child of the children argument in create method of Call "
             "class is a tuple, its first argument should be a str, but "
-            "found int." in str(info.value))
+            " - Found int." in str(info.value))
 
 
 def test_call_appendnamedarg():
@@ -626,6 +626,447 @@ end module some_mod'''
     call = psyir.walk(Call)[0]
     result = call.get_callees()
     assert result == [psyir.walk(Routine)[1]]
+
+
+
+def test_call_get_callee_1_simple_match(fortran_reader):
+    '''
+    Check that right routine has been found.
+    '''
+    code = '''
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f, g
+    call foo(e, f, g)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b, c)
+    integer :: a, b, c
+  end subroutine
+
+end module some_mod'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = psyir.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+
+    result = call_foo.get_callee()
+    
+    routine_match: Routine = psyir.walk(Routine)[1]
+    assert result is routine_match
+
+
+def test_call_get_callee_2_optional_args(fortran_reader):
+    '''
+    Check that optional arguments have been correlated correctly.
+    '''
+    code = '''
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f, g
+    call foo(e, f)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b, c)
+    integer :: a, b
+    integer, optional :: c
+  end subroutine
+
+end module some_mod'''
+
+    root_node: Node = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_match: Routine = root_node.walk(Routine)[1]
+    assert routine_match.name == "foo"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+    assert call_foo.routine.name == "foo"
+
+    arg_idx_list = []
+    result: Routine = call_foo.get_callee(ret_arg_match_list=arg_idx_list)
+
+    assert len(arg_idx_list) == 2
+    assert arg_idx_list[0] == 0
+    assert arg_idx_list[1] == 1
+    
+    assert result is routine_match
+
+
+def test_call_get_callee_3_trigger_error(fortran_reader):
+    '''
+    Test which is supposed to trigger an error.
+    '''
+    code = '''
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f, g
+    call foo(e, f, g)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b)
+    integer :: a, b
+  end subroutine
+
+end module some_mod'''
+
+    root_node: Node = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_match: Routine = root_node.walk(Routine)[1]
+    assert routine_match.name == "foo"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+    assert call_foo.routine.name == "foo"
+
+    arg_idx_list = []
+
+    try:
+        result: Routine = call_foo.get_callee(ret_arg_match_list=arg_idx_list)
+    except:
+        print("Success! Exception triggered (as expected)")
+        return
+
+    assert False, "This should have triggered an error since there are more arguments in the call than in the routine"
+
+
+def test_call_get_callee_4_named_arguments(fortran_reader):
+    '''
+    Check that named arguments have been correlated correctly
+    '''
+    code = '''
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f, g
+    call foo(c=e, a=f, b=g)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b, c)
+    integer :: a, b, c
+  end subroutine
+
+end module some_mod'''
+
+    root_node: Node = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_match: Routine = root_node.walk(Routine)[1]
+    assert routine_match.name == "foo"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+    assert call_foo.routine.name == "foo"
+
+    arg_idx_list = []
+    result: Routine = call_foo.get_callee(ret_arg_match_list=arg_idx_list)
+
+    assert len(arg_idx_list) == 3
+    assert arg_idx_list[0] == 2
+    assert arg_idx_list[1] == 0
+    assert arg_idx_list[2] == 1
+    
+    assert result is routine_match
+
+
+def test_call_get_callee_5_optional_and_named_arguments(fortran_reader):
+    '''
+    Check that optional and named arguments have been correlated correctly
+    '''
+    code = '''
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f, g
+    call foo(b=e, a=f)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b, c)
+    integer :: a, b
+    integer, optional :: c
+  end subroutine
+
+end module some_mod'''
+
+    root_node: Node = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_match: Routine = root_node.walk(Routine)[1]
+    assert routine_match.name == "foo"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+    assert call_foo.routine.name == "foo"
+
+    arg_idx_list = []
+    result: Routine = call_foo.get_callee(ret_arg_match_list=arg_idx_list)
+
+    assert len(arg_idx_list) == 2
+    assert arg_idx_list[0] == 1
+    assert arg_idx_list[1] == 0
+    
+    assert result is routine_match
+
+
+def test_call_get_callee_6_interfaces(fortran_reader):
+    '''
+    Check that optional and named arguments have been correlated correctly
+    '''
+    code = '''
+module some_mod
+  implicit none
+
+  interface foo
+    procedure foo_a, foo_b, foo_c
+  end interface
+contains
+
+  subroutine main()
+    integer :: e_int, f_int, g_int
+    real :: e_real, f_real, g_real
+
+    ! Should match foo_a
+    call foo(e_int, f_int)
+
+    ! Should match foo_a
+    call foo(e_int, f_int, g_int)
+
+    
+    ! Should match foo_b
+    call foo(e_real, f_int)
+
+    ! Should match foo_b
+    call foo(e_real, f_int, g_int)
+
+    ! Should match foo_b
+    call foo(e_real, c=f_int, b=g_int)
+
+    
+    ! Should match foo_c
+    call foo(e_int, f_real, g_int)
+
+    ! Should match foo_c
+    call foo(b=e_real, a=f_int)
+
+    ! Should match foo_c
+    call foo(b=e_real, a=f_int, g_int)
+  end subroutine
+
+  subroutine foo_a(a, b, c)
+    integer :: a, b
+    integer, optional :: c
+  end subroutine
+
+  subroutine foo_b(a, b, c)
+    real :: a
+    integer :: b
+    integer, optional :: c
+  end subroutine
+
+  subroutine foo_c(a, b, c)
+    integer :: a
+    real :: b
+    integer, optional :: c
+  end subroutine
+
+end module some_mod'''
+
+    root_node: Node = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    if 1:
+        routine_foo_a: Routine = root_node.walk(Routine)[1]
+        assert routine_foo_a.name == "foo_a"
+
+        if 1:
+            print("Subtest foo_a[0]:")
+
+            call_foo_a: Call = routine_main.walk(Call)[0]
+            assert call_foo_a.routine.name == "foo"
+
+            arg_idx_list = []
+            result: Routine = call_foo_a.get_callee(ret_arg_match_list=arg_idx_list)
+
+            print(f" - Found matching argument list: {arg_idx_list}")
+
+            assert len(arg_idx_list) == 2
+            assert arg_idx_list[0] == 0
+            assert arg_idx_list[1] == 1
+
+            assert result is routine_foo_a
+            print(" - Passed subtest foo_a[0]")
+
+        if 1:
+            print("Subtest foo_a[1]:")
+
+            call_foo_a: Call = routine_main.walk(Call)[1]
+            assert call_foo_a.routine.name == "foo"
+
+            arg_idx_list = []
+            result: Routine = call_foo_a.get_callee(ret_arg_match_list=arg_idx_list)
+
+            print(f" - Found matching argument list: {arg_idx_list}")
+
+            assert len(arg_idx_list) == 3
+            assert arg_idx_list[0] == 0
+            assert arg_idx_list[1] == 1
+            assert arg_idx_list[2] == 2
+
+            assert result is routine_foo_a
+            print(" - Passed subtest foo_a[1]")
+    
+    if 1:
+        routine_foo_b: Routine = root_node.walk(Routine)[2]
+        assert routine_foo_b.name == "foo_b"
+
+        if 1:
+            print("Subtest foo_b[0]:")
+
+            call_foo_b: Call = routine_main.walk(Call)[2]
+            assert call_foo_b.routine.name == "foo"
+          
+            arg_idx_list = []
+            result: Routine = call_foo_b.get_callee(ret_arg_match_list=arg_idx_list)
+
+            print(f" - Found matching argument list: {arg_idx_list}")
+
+            assert len(arg_idx_list) == 2
+            assert arg_idx_list[0] == 0
+            assert arg_idx_list[1] == 1
+
+            assert result is routine_foo_b
+            print(" - Passed subtest foo_b[0]")
+
+        if 1:
+            print("Subtest foo_b[1]:")
+
+            call_foo_b: Call = routine_main.walk(Call)[3]
+            assert call_foo_b.routine.name == "foo"
+          
+            arg_idx_list = []
+            result: Routine = call_foo_b.get_callee(ret_arg_match_list=arg_idx_list)
+
+            print(f" - Found matching argument list: {arg_idx_list}")
+
+            assert len(arg_idx_list) == 3
+            assert arg_idx_list[0] == 0
+            assert arg_idx_list[1] == 1
+            assert arg_idx_list[2] == 2
+
+            assert result is routine_foo_b
+            print(" - Passed subtest foo_b[1]")
+
+        if 1:
+            print("Subtest foo_b[2]:")
+
+            call_foo_b: Call = routine_main.walk(Call)[4]
+            assert call_foo_b.routine.name == "foo"
+          
+            arg_idx_list = []
+            result: Routine = call_foo_b.get_callee(ret_arg_match_list=arg_idx_list)
+
+            print(f" - Found matching argument list: {arg_idx_list}")
+
+            assert len(arg_idx_list) == 3
+            assert arg_idx_list[0] == 0
+            assert arg_idx_list[1] == 2
+            assert arg_idx_list[2] == 1
+
+            assert result is routine_foo_b
+            print(" - Passed subtest foo_b[2]")
+
+
+
+    if 1:
+        routine_foo_c: Routine = root_node.walk(Routine)[3]
+        assert routine_foo_c.name == "foo_c"
+
+        if 1:
+            print("Subtest foo_c[0]:")
+
+            call_foo_c: Call = routine_main.walk(Call)[5]
+            assert call_foo_c.routine.name == "foo"
+          
+            arg_idx_list = []
+            result: Routine = call_foo_c.get_callee(ret_arg_match_list=arg_idx_list)
+
+            print(f" - Found matching argument list: {arg_idx_list}")
+
+            assert len(arg_idx_list) == 3
+            assert arg_idx_list[0] == 0
+            assert arg_idx_list[1] == 1
+            assert arg_idx_list[2] == 2
+
+            assert result is routine_foo_c
+            print(" - Passed subtest foo_c[0]")
+
+        if 1:
+            print("Subtest foo_c[1]:")
+
+            call_foo_c: Call = routine_main.walk(Call)[6]
+            assert call_foo_c.routine.name == "foo"
+          
+            arg_idx_list = []
+            result: Routine = call_foo_c.get_callee(ret_arg_match_list=arg_idx_list)
+
+            print(f" - Found matching argument list: {arg_idx_list}")
+
+            assert len(arg_idx_list) == 2
+            assert arg_idx_list[0] == 1
+            assert arg_idx_list[1] == 0
+
+            assert result is routine_foo_c
+            print(" - Passed subtest foo_c[1]")
+
+        if 1:
+            print("Subtest foo_c[2]:")
+
+            call_foo_c: Call = routine_main.walk(Call)[7]
+            assert call_foo_c.routine.name == "foo"
+          
+            arg_idx_list = []
+            result: Routine = call_foo_c.get_callee(ret_arg_match_list=arg_idx_list)
+
+            print(f" - Found matching argument list: {arg_idx_list}")
+
+            assert len(arg_idx_list) == 3
+            assert arg_idx_list[0] == 1
+            assert arg_idx_list[1] == 0
+            assert arg_idx_list[2] == 2
+
+            assert result is routine_foo_c
+            print(" - Passed subtest foo_c[2]")
+
+
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
