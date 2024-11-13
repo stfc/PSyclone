@@ -4877,8 +4877,7 @@ def check_args(call, parent_call):
     # If a kernel operates on halo columns then it takes an extra, halo-depth
     # argument from the Algorithm layer.
     halo_depth_count = 0
-    if call.ktype.iterates_over in ["halo_cell_column",
-                                    "owned_and_halo_cell_column"]:
+    if "halo" in call.ktype.iterates_over:
         halo_depth_count = 1
     expected_arg_count = (len(call.ktype.arg_descriptors) +
                           stencil_arg_count + qr_arg_count + halo_depth_count)

@@ -40,7 +40,7 @@
 
 import keyword
 
-from sympy import Function, Symbol
+import sympy
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -233,7 +233,7 @@ class SymPyWriter(FortranWriter):
         # https://docs.sympy.org/latest/modules/functions/index.html:
         # "It [Function class] also serves as a constructor for undefined
         # function classes."
-        new_func = Function(name)
+        new_func = sympy.Function(name)
         # pylint: disable=protected-access
         new_func._sympystr = SymPyReader.print_fortran_array
 
@@ -301,7 +301,7 @@ class SymPyWriter(FortranWriter):
             self._symbol_table.new_symbol(reserved)
 
         # Set-up whether we should assume all Symbols are positive.
-        assumptions = dict()
+        assumptions = {}
         if all_variables_positive:
             assumptions["positive"] = True
 
@@ -331,7 +331,7 @@ class SymPyWriter(FortranWriter):
                 unique_sym = self._symbol_table.new_symbol(name, tag=name)
                 # Test if an array or an array expression is used:
                 if not ref.is_array:
-                    self._sympy_type_map[unique_sym.name] = Symbol(
+                    self._sympy_type_map[unique_sym.name] = sympy.Symbol(
                         name, **assumptions)
                     continue
 
@@ -587,7 +587,7 @@ class SymPyWriter(FortranWriter):
         # but the required symbol is mapped to the original name, which means
         # if the SymPy expression is converted to a string (in order to be
         # parsed), it will use the original structure reference syntax:
-        self._sympy_type_map[unique_name] = Symbol(sig.to_language())
+        self._sympy_type_map[unique_name] = sympy.Symbol(sig.to_language())
         return unique_name
 
     # -------------------------------------------------------------------------

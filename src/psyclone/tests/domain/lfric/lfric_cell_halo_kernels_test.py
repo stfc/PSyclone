@@ -49,12 +49,8 @@ from psyclone.tests.utilities import get_invoke
 TEST_API = "lfric"
 
 
-@pytest.fixture(name="operates_on",
-                params=["halo_cell_column", "owned_and_halo_cell_column"])
-def operates_on_fixture(request):
-    yield request.param
-
-
+@pytest.mark.parametrize("operates_on", ["halo_cell_column",
+                                         "owned_and_halo_cell_column"])
 def test_halo_cell_kernel(operates_on):
     ''' Check that we can successfully parse metadata that specifies a
     kernel with operates_on = HALO_CELL_COLUMN. '''
@@ -81,6 +77,8 @@ end module testkern_halo_mod
     assert dkm.iterates_over == operates_on
 
 
+@pytest.mark.parametrize("operates_on", ["halo_cell_column",
+                                         "owned_and_halo_cell_column"])
 def test_stencil_halo_kernel(operates_on):
     ''' Check that we accept a halo kernel if it has an argument with a
     stencil access. '''

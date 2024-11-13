@@ -1944,8 +1944,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                 f" or 'colour', but found '{node.loop_type}'")
 
         for kern in node.kernels():
-            if kern.iterates_over in ["owned_and_halo_cell_column",
-                                      "halo_cell_column"]:
+            if "halo" in kern.iterates_over:
                 raise TransformationError(
                     f"Cannot apply the {self.name} transformation to kernels "
                     f"that operate on halo cells but kernel '{kern.name}' "
