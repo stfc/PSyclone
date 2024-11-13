@@ -491,20 +491,27 @@ class Call(Statement, DataNode):
             current_table = self.scope.symbol_table
             while current_table:
                 for container_symbol in current_table.containersymbols:
+
                     if container_symbol.wildcard_import:
                         wildcard_names.append(container_symbol.name)
+
                         try:
                             container = container_symbol.find_container_psyir(
                                 local_node=self)
                         except SymbolError:
                             container = None
+
+                        container: Container
                         if not container:
                             # Failed to find/process this Container.
                             containers_not_found.append(container_symbol.name)
                             continue
+
                         routines = []
                         for name in container.resolve_routine(rsym.name):
-                            psyir = container.find_routine_psyir(name)
+                            # Allow private imports if an 'interface' has been used
+                            allow_private = (name != rsym.name)
+                            psyir = container.find_routine_psyir(name, allow_private=allow_private)
                             if psyir:
                                 routines.append(psyir)
                         if routines:
