@@ -418,7 +418,6 @@ class Call(Statement, DataNode):
     def __str__(self):
         return self.node_str(False)
 
-
     def copy(self):
         '''Return a copy of this node. This is a bespoke implementation for
         a Call node that ensures that any internal id's are
@@ -441,7 +440,6 @@ class Call(Statement, DataNode):
         new_copy._argument_names = new_list
 
         return new_copy
-
 
     def get_callees(self):
         '''
@@ -613,15 +611,17 @@ class Call(Statement, DataNode):
 
         # Create a copy of the list
         # Once an argument has been successfully matched, set it to 'None'
-        routine_argument_list: List[DataNode] = routine.symbol_table.argument_list[:]
+        routine_argument_list: List[DataNode] = \
+            routine.symbol_table.argument_list[:]
 
         # Find matching argument list
-        #if len(self.arguments) != len(routine_argument_list):
+        # if len(self.arguments) != len(routine_argument_list):
         #    return None
 
         if len(self.arguments) > len(routine.symbol_table.argument_list):
             raise self.MatchingArgumentsNotFound(
-                f"More arguments in callee  (call '{self.routine.name}') than caller (routine '{routine.name}')"
+                f"More arguments in callee  (call '{self.routine.name}')"
+                f" than caller (routine '{routine.name}')"
             )
 
         assert len(self.arguments) == len(self.argument_names)
@@ -632,19 +632,25 @@ class Call(Statement, DataNode):
             call_arg_idx: int
             call_arg: DataSymbol
 
-            # If None, it's a positional argument => Just return the index if the types match
+            # If None, it's a positional argument => Just return the index if
+            # the types match
             if self.argument_names[call_arg_idx] is None:
                 routine_arg = routine_argument_list[call_arg_idx]
                 routine_arg: DataSymbol
 
                 # Do the types of arguments match?
                 #
-                # TODO #759: If optional is used, it's an unsupported Fortran type and we need to use the following workaround
+                # TODO #759: If optional is used, it's an unsupported Fortran
+                # type and we need to use the following workaround
                 # Once this issue is resolved, simply remove this if branch
-                if not isinstance(routine_arg.datatype, UnsupportedFortranType):
+                if not isinstance(
+                            routine_arg.datatype,
+                            UnsupportedFortranType):
                     if call_arg.datatype != routine_arg.datatype:
                         raise self.MatchingArgumentsNotFound(
-                            f"Argument type mismatch of call argument '{call_arg}' and routine argument '{routine_arg}'"
+                            f"Argument type mismatch of call argument "
+                            f"'{call_arg}' and routine argument "
+                            f"'{routine_arg}'"
                         )
                 
                 ret_arg_idx_list.append(call_arg_idx)
@@ -657,7 +663,8 @@ class Call(Statement, DataNode):
             arg_name = self.argument_names[call_arg_idx]
             named_arg_found = False
             routine_arg_idx = None
-            for routine_arg_idx, routine_arg in enumerate(routine_argument_list):
+            for routine_arg_idx, routine_arg in enumerate(
+                                routine_argument_list):
                 routine_arg: DataSymbol
 
                 # Check if argument was already processed
@@ -665,12 +672,17 @@ class Call(Statement, DataNode):
                     continue
 
                 if arg_name == routine_arg.name:
-                    # TODO #759: If optional is used, it's an unsupported Fortran type and we need to use the following workaround
+                    # TODO #759: If optional is used, it's an unsupported
+                    # Fortran type and we need to use the following workaround
                     # Once this issue is resolved, simply remove this if branch
-                    if not isinstance(routine_arg.datatype, UnsupportedFortranType):
+                    if not isinstance(
+                                routine_arg.datatype,
+                                UnsupportedFortranType):
                         if call_arg.datatype != routine_arg.datatype:
                             raise self.MatchingArgumentsNotFound(
-                                f"Argument type mismatch of call argument '{call_arg}' and routine argument '{routine_arg}'"
+                                f"Argument type mismatch of call argument "
+                                f"'{call_arg}' and routine argument "
+                                f"'{routine_arg}'"
                             )
                     
                     ret_arg_idx_list.append(routine_arg_idx)
@@ -685,8 +697,6 @@ class Call(Statement, DataNode):
                 raise IndexError("Internal error")
             
             routine_argument_list[routine_arg_idx] = None
-
-
 
         #
         # Finally, we check if all left-over arguments are optional arguments
@@ -703,18 +713,22 @@ class Call(Statement, DataNode):
                 continue
 
             raise self.MatchingArgumentsNotFound(
-                f"Argument '{routine_arg}' in subroutine '{routine.name}' not handled"
+                f"Argument '{routine_arg}' in subroutine"
+                f" '{routine.name}' not handled"
             )
 
         return ret_arg_idx_list
 
-
-    def get_callee(self, ret_arg_match_list:List[int] = None, check_matching_arguments: bool=True):
+    def get_callee(
+                self,
+                ret_arg_match_list: List[int] = None,
+                check_matching_arguments: bool = True):
         '''
         Searches for the implementation(s) of the target routine for this Call
         including argument checks.
 
-        :param ret_arg_match_list: List in which the matching argument indices will be returned
+        :param ret_arg_match_list: List in which the matching argument
+            indices will be returned
 
         :returns: the Routine(s) that this call targets.
         :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
@@ -736,13 +750,15 @@ class Call(Statement, DataNode):
 
             if ret_arg_match_list is not None:
                 ret_arg_match_list[:] = arg_match_list
-            
+
             return routine
-        
-        # If we didn't find any routine, return some routine if no matching arguments have been found.
-        # This is handy for the transition phase until optional argument matching is supported.
+
+        # If we didn't find any routine, return some routine if no matching
+        # arguments have been found.
+        # This is handy for the transition phase until optional argument
+        # matching is supported.
         if not check_matching_arguments:
             return routine_list[0]
-        
 
-        raise NotImplementedError(f"No matching routine for call '{self.routine.name}' found")
+        raise NotImplementedError(f"No matching routine for call "
+                                  f"'{self.routine.name}' found")

@@ -628,7 +628,6 @@ end module some_mod'''
     assert result == [psyir.walk(Routine)[1]]
 
 
-
 def test_call_get_callee_1_simple_match(fortran_reader):
     '''
     Check that right routine has been found.
@@ -741,12 +740,13 @@ end module some_mod'''
     arg_idx_list = []
 
     try:
-        result: Routine = call_foo.get_callee(ret_arg_match_list=arg_idx_list)
-    except:
+        call_foo.get_callee(ret_arg_match_list=arg_idx_list)
+    except Exception:
         print("Success! Exception triggered (as expected)")
         return
 
-    assert False, "This should have triggered an error since there are more arguments in the call than in the routine"
+    assert False, ("This should have triggered an error since there"
+                   "are more arguments in the call than in the routine")
 
 
 def test_call_get_callee_4_named_arguments(fortran_reader):
@@ -914,7 +914,8 @@ end module some_mod'''
             assert call_foo_a.routine.name == "foo"
 
             arg_idx_list = []
-            result: Routine = call_foo_a.get_callee(ret_arg_match_list=arg_idx_list)
+            result: Routine = call_foo_a.get_callee(
+                                ret_arg_match_list=arg_idx_list)
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
@@ -932,7 +933,8 @@ end module some_mod'''
             assert call_foo_a.routine.name == "foo"
 
             arg_idx_list = []
-            result: Routine = call_foo_a.get_callee(ret_arg_match_list=arg_idx_list)
+            result: Routine = call_foo_a.get_callee(
+                                ret_arg_match_list=arg_idx_list)
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
@@ -955,7 +957,8 @@ end module some_mod'''
             assert call_foo_b.routine.name == "foo"
           
             arg_idx_list = []
-            result: Routine = call_foo_b.get_callee(ret_arg_match_list=arg_idx_list)
+            result: Routine = call_foo_b.get_callee(
+                                ret_arg_match_list=arg_idx_list)
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
@@ -973,7 +976,8 @@ end module some_mod'''
             assert call_foo_b.routine.name == "foo"
           
             arg_idx_list = []
-            result: Routine = call_foo_b.get_callee(ret_arg_match_list=arg_idx_list)
+            result: Routine = call_foo_b.get_callee(
+                                ret_arg_match_list=arg_idx_list)
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
@@ -992,7 +996,8 @@ end module some_mod'''
             assert call_foo_b.routine.name == "foo"
           
             arg_idx_list = []
-            result: Routine = call_foo_b.get_callee(ret_arg_match_list=arg_idx_list)
+            result: Routine = call_foo_b.get_callee(
+                                ret_arg_match_list=arg_idx_list)
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
@@ -1004,8 +1009,6 @@ end module some_mod'''
             assert result is routine_foo_b
             print(" - Passed subtest foo_b[2]")
 
-
-
     if 1:
         routine_foo_c: Routine = root_node.walk(Routine)[3]
         assert routine_foo_c.name == "foo_c"
@@ -1015,9 +1018,10 @@ end module some_mod'''
 
             call_foo_c: Call = routine_main.walk(Call)[5]
             assert call_foo_c.routine.name == "foo"
-          
+
             arg_idx_list = []
-            result: Routine = call_foo_c.get_callee(ret_arg_match_list=arg_idx_list)
+            result: Routine = call_foo_c.get_callee(
+                                ret_arg_match_list=arg_idx_list)
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
@@ -1034,9 +1038,10 @@ end module some_mod'''
 
             call_foo_c: Call = routine_main.walk(Call)[6]
             assert call_foo_c.routine.name == "foo"
-          
+
             arg_idx_list = []
-            result: Routine = call_foo_c.get_callee(ret_arg_match_list=arg_idx_list)
+            result: Routine = call_foo_c.get_callee(
+                                ret_arg_match_list=arg_idx_list)
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
@@ -1052,9 +1057,10 @@ end module some_mod'''
 
             call_foo_c: Call = routine_main.walk(Call)[7]
             assert call_foo_c.routine.name == "foo"
-          
+
             arg_idx_list = []
-            result: Routine = call_foo_c.get_callee(ret_arg_match_list=arg_idx_list)
+            result: Routine = call_foo_c.get_callee(
+                                ret_arg_match_list=arg_idx_list)
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
@@ -1065,8 +1071,6 @@ end module some_mod'''
 
             assert result is routine_foo_c
             print(" - Passed subtest foo_c[2]")
-
-
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
