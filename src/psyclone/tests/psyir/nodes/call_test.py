@@ -657,7 +657,7 @@ end module some_mod'''
     call_foo: Call = routine_main.walk(Call)[0]
 
     result = call_foo.get_callee()
-    
+
     routine_match: Routine = psyir.walk(Routine)[1]
     assert result is routine_match
 
@@ -701,7 +701,7 @@ end module some_mod'''
     assert len(arg_idx_list) == 2
     assert arg_idx_list[0] == 0
     assert arg_idx_list[1] == 1
-    
+
     assert result is routine_match
 
 
@@ -788,7 +788,7 @@ end module some_mod'''
     assert arg_idx_list[0] == 2
     assert arg_idx_list[1] == 0
     assert arg_idx_list[2] == 1
-    
+
     assert result is routine_match
 
 
@@ -831,7 +831,7 @@ end module some_mod'''
     assert len(arg_idx_list) == 2
     assert arg_idx_list[0] == 1
     assert arg_idx_list[1] == 0
-    
+
     assert result is routine_match
 
 
@@ -858,7 +858,7 @@ contains
     ! Should match foo_a
     call foo(e_int, f_int, g_int)
 
-    
+
     ! Should match foo_b
     call foo(e_real, f_int)
 
@@ -868,7 +868,7 @@ contains
     ! Should match foo_b
     call foo(e_real, c=f_int, b=g_int)
 
-    
+
     ! Should match foo_c
     call foo(e_int, f_real, g_int)
 
@@ -945,7 +945,7 @@ end module some_mod'''
 
             assert result is routine_foo_a
             print(" - Passed subtest foo_a[1]")
-    
+
     if 1:
         routine_foo_b: Routine = root_node.walk(Routine)[2]
         assert routine_foo_b.name == "foo_b"
@@ -955,7 +955,7 @@ end module some_mod'''
 
             call_foo_b: Call = routine_main.walk(Call)[2]
             assert call_foo_b.routine.name == "foo"
-          
+
             arg_idx_list = []
             result: Routine = call_foo_b.get_callee(
                                 ret_arg_match_list=arg_idx_list)
@@ -974,7 +974,7 @@ end module some_mod'''
 
             call_foo_b: Call = routine_main.walk(Call)[3]
             assert call_foo_b.routine.name == "foo"
-          
+
             arg_idx_list = []
             result: Routine = call_foo_b.get_callee(
                                 ret_arg_match_list=arg_idx_list)
@@ -994,7 +994,7 @@ end module some_mod'''
 
             call_foo_b: Call = routine_main.walk(Call)[4]
             assert call_foo_b.routine.name == "foo"
-          
+
             arg_idx_list = []
             result: Routine = call_foo_b.get_callee(
                                 ret_arg_match_list=arg_idx_list)
