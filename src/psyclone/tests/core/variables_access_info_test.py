@@ -41,7 +41,7 @@ import pytest
 from psyclone.core import ComponentIndices, Signature, VariablesAccessInfo
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Assignment, Node
+from psyclone.psyir.nodes import Assignment, IfBlock, Node
 from psyclone.tests.utilities import get_invoke
 
 
@@ -395,18 +395,20 @@ def test_variables_access_info_options():
     assert vai.options("COLLECT-ARRAY-SHAPE-READS") is True
     assert vai.options("USE-ORIGINAL-NAMES") is False
     assert vai.options() == {"COLLECT-ARRAY-SHAPE-READS": True,
+                             "FLATTEN": False,
                              "USE-ORIGINAL-NAMES": False}
 
     vai = VariablesAccessInfo(options={'USE-ORIGINAL-NAMES': True})
     assert vai.options("COLLECT-ARRAY-SHAPE-READS") is False
     assert vai.options("USE-ORIGINAL-NAMES") is True
     assert vai.options() == {"COLLECT-ARRAY-SHAPE-READS": False,
+                             "FLATTEN": False,
                              "USE-ORIGINAL-NAMES": True}
 
     with pytest.raises(InternalError) as err:
         vai.options("invalid")
     assert ("Option key 'invalid' is invalid, it must be one of "
-            "['COLLECT-ARRAY-SHAPE-READS', 'USE-ORIGINAL-NAMES']."
+            "['COLLECT-ARRAY-SHAPE-READS', 'FLATTEN', 'USE-ORIGINAL-NAMES']."
             in str(err.value))
 
 
@@ -477,3 +479,66 @@ def test_lfric_access_info():
             "READ, np_xy_qr: READ, np_z_qr: READ, undf_w1: READ, undf_w2: "
             "READ, undf_w3: READ, weights_xy_qr: READ, weights_z_qr: READ"
             == str(vai))
+
+
+# -----------------------------------------------------------------------------
+def test_variables_access_info_flatten(fortran_reader):
+    '''Test that flatten works as expected.
+    '''
+    code = '''module test
+        contains
+        subroutine tmp()
+          integer :: cond_var
+          integer :: write_if, write_else, write_if_else
+          integer :: read_if, read_else, read_if_else
+          if (cond_var .eq. 1) then
+              write_if = read_if
+              write_if_else = read_if_else
+          else
+              write_else = read_else
+              write_if_else = read_if_else
+          endif
+
+        end subroutine tmp
+        end module test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    node1 = psyir.walk(IfBlock)[0]
+
+    # By default, array shape accesses are not reads.
+    vai = VariablesAccessInfo(node1, options={"FLATTEN": True})
+
+    print(vai)
+
+
+# -----------------------------------------------------------------------------
+def test_variables_access_info_array_conditional(fortran_reader):
+    '''Test that flatten works as expected.
+    '''
+    code = '''module test
+        contains
+        subroutine tmp(i)
+          integer :: cond_var, i
+          integer, dimension(10) :: write_if, write_else, write_if_else
+          integer, dimension(10) :: read_if, read_else, read_if_else
+          if (cond_var .ne. 1) then
+              if (cond_var .eq. 2) then
+                  write_if(i) = read_if(i)
+                  write_if_else(i+1) = read_if_else(i)
+              endif
+              write_if_else(i+1) = read_if_else(1+i-1)
+          else
+              write_if(i) = read_if(i)
+              write_else(i) = read_else(i)
+              write_if_else(i) = read_if_else(i)
+              write_if_else(i+1) = read_if_else(i)
+          endif
+
+        end subroutine tmp
+        end module test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    node1 = psyir.walk(IfBlock)[0]
+
+    # By default, array shape accesses are not reads.
+    vai = VariablesAccessInfo(node1, options={"FLATTEN": True})
+
+    print(vai)

@@ -40,6 +40,7 @@
 '''This module provides management of variable access information.'''
 
 
+from psyclone.core.access_type import AccessType
 from psyclone.core.component_indices import ComponentIndices
 from psyclone.core.signature import Signature
 from psyclone.core.single_variable_access_info import SingleVariableAccessInfo
@@ -167,8 +168,8 @@ class VariablesAccessInfo(dict):
                         mode = "READ"
                 elif self.is_written(signature):
                     mode = "WRITE"
-                all_accesses = self[signature]
-                cond = any(acc.conditional for acc in all_accesses)
+            all_accesses = self[signature]
+            cond = any(acc.conditional for acc in all_accesses)
             output_list.append(f"{'%' if cond else ''}{signature}: {mode}")
         return ", ".join(output_list)
 
@@ -381,6 +382,140 @@ class VariablesAccessInfo(dict):
 
         var_access_info = self[signature]
         return var_access_info.has_read_write()
+
+    def set_conditional_accesses(self, if_branch, else_branch):
+        '''This function adds the accesses from `if_branch` and `else_branch`,
+        marking them as conditional if the accesses are already conditional,
+        or only happen in one of the two branches. While this function is
+        at the moment only used for if-statements, it can also be used for
+        e.g. loops by providing None as `else_branch` object.
+
+        :param if_branch: the first branch.
+        :type if_branch: :py:class:`psyclone.psyir.nodes.Node`
+        :param else_branch: the second branch, which can be None.
+        :type else_branch: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        var_if = VariablesAccessInfo(if_branch, self.options())
+        # Create an empty access info object in case that we do not have
+        # a second branch.
+        if else_branch:
+            var_else = VariablesAccessInfo(else_branch, self.options())
+        else:
+            var_else = VariablesAccessInfo()
+
+        # Get the list of all signatures in the if and else branch:
+        all_sigs = set(var_if.keys())
+        all_sigs.update(set(var_else.keys()))
+
+        for sig in all_sigs:
+            if sig not in var_if or sig not in var_else:
+                # Signature is only in one branch. Mark all existing accesses
+                # as conditional
+                var_access = var_if[sig] if sig in var_if else var_else[sig]
+                for access in var_access.all_accesses:
+                    access.conditional = True
+                continue
+
+            # Now we have a signature that is accessed in both
+            # the if and else block. In case of array variables, we need to
+            # distinguish between different indices, e.g. a(i) might be
+            # written to unconditionally, but a(i+1) might be written
+            # conditionally. Additionally, we should support mathematically
+            # equivalent statements (e.g. a(i+1), and a(1+i)).
+            # As a first step, split all the accesses into equivalence
+            # classes. Each equivalent class stores two lists as a pair: the
+            # first one with the accesses from the if branch, the second with
+            # the accesses from the else branch.
+            equiv = {}
+            for access in var_if[sig].all_accesses:
+                for comp_access in equiv.keys():
+                    if access.component_indices.equal(comp_access):
+                        equiv[comp_access][0].append(access)
+                        break
+                else:
+                    # New component index:
+                    equiv[access.component_indices] = ([access], [])
+            # While we know that the signature is used in both branches, the
+            # accesses for a given equivalence class of indices could still
+            # be in only in one of them (e.g.
+            # if () then a(i)=1 else a(i+1)=2 endif). So it is still possible
+            # that we a new equivalence class in the second branch
+            for access in var_else[sig].all_accesses:
+                for comp_access in equiv.keys():
+                    if access.component_indices.equal(comp_access):
+                        equiv[comp_access][1].append(access)
+                        break
+                else:
+                    # New component index:
+                    equiv[access.component_indices] = ([], [access])
+
+            # Now handle each equivalent set of component indices:
+            for comp_index in equiv.keys():
+                if_accesses, else_accesses = equiv[comp_index]
+                # If the access is not in both branches, it is conditional:
+                if not if_accesses or not else_accesses:
+                    # Only accesses in one section, therefore conditional:
+                    var_access = if_accesses if if_accesses else else_accesses
+                    for access in var_access:
+                        access.conditional = True
+                    continue
+
+                # Now we have accesses to the same indices in both branches.
+                # We still need to distinguish between read and write accesses.
+                # This can result in incorrect/unexpected results in some rare
+                # cases:
+                # if ()
+                #    call kernel(a(i))     ! Assume a(i) is READWRITE
+                # else
+                #    b = a(i)
+                # endif
+                # Now the read access to a(i) is unconditional, but the write
+                # access to a(i) as part of the readwrite is conditional. But
+                # since there is only one accesses for the readwrite, we can't
+                # mark it as both conditional and unconditional
+                is_conditional = True
+
+                for mode in [AccessType.READ, AccessType.WRITE]:
+                    for access in if_accesses:
+                        # Ignore read or write accesses depending on mode
+                        if mode is AccessType.READ and not access.is_read:
+                            continue
+                        if mode is AccessType.WRITE and not access.is_written:
+                            continue
+                        if not access.conditional:
+                            is_conditional = False
+                            break
+                    # If an access is unconditional in the if branch, then we
+                    # need to check the if branch
+                    if not is_conditional:
+                        for access in if_accesses:
+                            # Ignore read or write accesses depending on mode
+                            if mode is AccessType.READ and not access.is_read:
+                                continue
+                            if mode is AccessType.WRITE and \
+                                    not access.is_written:
+                                continue
+                            if not access.conditional:
+                                is_conditional = False
+                                break
+
+                    # If the access to this equivalence class is conditional,
+                    # mark all accesses as conditional:
+                    if is_conditional:
+                        for access in if_accesses + else_accesses:
+                            # Ignore read or write accesses depending on mode
+                            if mode is AccessType.READ and not access.is_read:
+                                continue
+                            if mode is AccessType.WRITE and \
+                                    not access.is_written:
+                                continue
+                            access.conditional = True
+                            print("CONDITIONAL", sig.to_language(
+                                  component_indices=comp_index))
+
+        self.merge(var_if)
+        self.merge(var_else)
 
 
 # ---------- Documentation utils -------------------------------------------- #
