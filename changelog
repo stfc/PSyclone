@@ -275,6 +275,8 @@
 	104) PR #2761 for #2739. Updates the signature of the PSyKAl
 	transformation script to accept a PSyIR node.
 
+	105) PR #2745 for #2661. Add support for kernels that operate on halos.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data

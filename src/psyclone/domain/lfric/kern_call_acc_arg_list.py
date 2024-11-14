@@ -226,7 +226,7 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
-        if self._kern.iterates_over != "cell_column":
+        if not self._kern.iterates_over.endswith("cell_column"):
             return
         self.append(function_space.undf_name, var_accesses)
         # The base class only adds one dimension to the list, while OpenACC
