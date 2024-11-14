@@ -127,7 +127,7 @@ class InlineTrans(Transformation):
                 self,
                 node,
                 routine: Routine = None,
-                options: Dict[str] = None,
+                options: Dict[str, str] = None,
                 check_codeblocks: bool = True,
                 check_diff_container_clashes: bool = True,
                 check_diff_container_clashes_unresolved_types: bool = True,
@@ -614,7 +614,7 @@ class InlineTrans(Transformation):
                 self,
                 node: Node,
                 routine: Routine = None,
-                options: Dict[str] = None,
+                options: Dict[str, str] = None,
                 check_codeblocks: bool = True,
                 check_diff_container_clashes: bool = True,
                 check_diff_container_clashes_unresolved_types: bool = True,
@@ -903,7 +903,7 @@ class InlineTrans(Transformation):
                             f"argument '{actual_arg.debug_string()}' has rank "
                             f"{actual_rank} but the corresponding formal "
                             f"argument, '{formal_arg.name}', has rank "
-                            f" {formal_rank}"))
+                            f"{formal_rank}"))
                 if actual_rank:
                     ranges = actual_arg.walk(Range)
                     for rge in ranges:

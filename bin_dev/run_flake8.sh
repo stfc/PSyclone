@@ -3,6 +3,16 @@
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 cd "$SCRIPTPATH/.."
 
+#
+# Hint for vscode:
+#
+# Install black-formatter
+#
+# In settings:
+#  - Activate 'Code Actions On Save'
+#  - Set 'Format on Save Mode' to 'modifications'
+#
+
 # An example hook script to verify what is about to be pushed.  Called by "git
 # push" after it has checked the remote status, but before anything has been
 # pushed.  If this script exits with a non-zero status nothing will be pushed.
@@ -21,6 +31,7 @@ cd "$SCRIPTPATH/.."
 #
 # This script ensures that the whole of PSyclone is linted successfully
 # before the push is executed.
+#
 
 remote="$1"
 url="$2"

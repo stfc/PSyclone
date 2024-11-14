@@ -383,7 +383,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # Now add all non-local symbols, which need to be
         # imported from the appropriate module:
         # -----------------------------------------------
-        mod_man = ModuleManager.get()
+        mod_man = ModuleManager.get_singleton()
         for module_name, signature in read_write_info.set_of_all_used_vars:
             if not module_name:
                 # Ignore local symbols, which will have been added above
@@ -572,7 +572,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
-        mod_man = ModuleManager.get()
+        mod_man = ModuleManager.get_singleton()
 
         # First handle variables that are read:
         # -------------------------------------
@@ -983,7 +983,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             all_mods.update(symbol.name for symbol in sym_tab.symbols
                             if isinstance(symbol, ContainerSymbol))
 
-        mod_manager = ModuleManager.get()
+        mod_manager = ModuleManager.get_singleton()
         return mod_manager.get_all_dependencies_recursively(all_mods)
 
     # -------------------------------------------------------------------------
@@ -1034,7 +1034,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # that have no dependency. This is required for compilation, the
         # compiler must have found any dependent modules before it can
         # compile a module.
-        mod_manager = ModuleManager.get()
+        mod_manager = ModuleManager.get_singleton()
         sorted_modules = mod_manager.sort_modules(module_dependencies)
 
         # Inline all required modules into the driver source file so that

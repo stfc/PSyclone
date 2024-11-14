@@ -624,7 +624,7 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
     :param arg_type_defns: dictionary holding a 2-tuple consisting of \
         type and precision information for each variable declared in \
         the algorithm layer, indexed by variable name.
-    :type arg_type_defns: dict[str] = (str, str or NoneType)
+    :type arg_type_defns: dict[str,str|None] = (str, str or NoneType)
 
     :returns: a 2-tuple with the name of the kernel being called and a \
         list of 'Arg' instances containing the required information for \

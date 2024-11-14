@@ -2025,6 +2025,8 @@ def test_validate_array_reshape(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
+    print("XXXXXXXXX")
+    print(err.value)
     assert ("Cannot inline routine 's' because it reshapes an argument: actual"
             " argument 'a(:,:)' has rank 2 but the corresponding formal "
             "argument, 'x', has rank 1" in str(err.value))

@@ -243,7 +243,7 @@ class FortranModuleInterface(ContainerSymbolInterface):
         '''
         # pylint: disable-next=import-outside-toplevel
         from psyclone.parse import ModuleManager
-        mod_manager = ModuleManager.get()
+        mod_manager = ModuleManager.get_singleton()
 
         # TODO #2011 - rationalise how this interacts with the kernel search
         # path set in generate().

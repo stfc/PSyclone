@@ -709,12 +709,12 @@ def test_ignore_modules(tmpdir, monkeypatch):
     '''Test that the config file ignores modules, i.e. adds them to the
     ModuleManager. '''
 
-    mod_manager = ModuleManager.get()
+    mod_manager = ModuleManager.get_singleton()
     monkeypatch.setattr(mod_manager, "_ignore_modules", set())
     config_file = tmpdir.join("config")
     get_config(config_file, _CONFIG_CONTENT)
 
-    assert mod_manager.ignores() == {'mpi', 'netcdf'}
+    assert mod_manager.ignore_modules() == {'mpi', 'netcdf'}
 
     # Make sure it works if IGNORE_MODULES is not specified at all by checking
     # that the module manager list of modules to ignore stays empty.
@@ -723,7 +723,7 @@ def test_ignore_modules(tmpdir, monkeypatch):
                      _CONFIG_CONTENT, flags=re.MULTILINE)
     monkeypatch.setattr(mod_manager, "_ignore_modules", set())
     get_config(config_file, content)
-    assert mod_manager.ignores() == set()
+    assert mod_manager.ignore_modules() == set()
 
     # Make sure an empty entry works as expected (i.e. it does not get
     # added as an empty string to the module manager):
@@ -732,7 +732,7 @@ def test_ignore_modules(tmpdir, monkeypatch):
                      _CONFIG_CONTENT, flags=re.MULTILINE)
     monkeypatch.setattr(mod_manager, "_ignore_modules", set())
     get_config(config_file, content)
-    assert mod_manager.ignores() == set()
+    assert mod_manager.ignore_modules() == set()
 
 
 def test_aliased_api_names(tmpdir):

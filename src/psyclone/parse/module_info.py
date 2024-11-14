@@ -50,6 +50,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import SymbolError
 
+from typing import Set
 
 # ============================================================================
 class ModuleInfoError(PSycloneError):
@@ -86,17 +87,17 @@ class ModuleInfo:
         self._file_info = finfo
 
         # A cache for the fparser tree
-        self._parse_tree = None
+        self._fparser_tree = None
 
         # Whether we've attempted to parse the source.
-        self._parse_attempted = False
+        self._fparser_attempted = False
 
         # A cache for the PSyIR representation
         self._psyir = None
 
         # A cache for the module dependencies: this is just a set
         # of all modules used by this module. Type: set[str]
-        self._used_modules = None
+        self._used_modules: Set[str] = None
 
         # This is a dictionary containing the sets of symbols imported from
         # each module, indexed by the module names: dict[str, set[str]].
@@ -151,18 +152,18 @@ class ModuleInfo:
         :rtype: :py:class:`fparser.two.Fortran2003.Program`
 
         '''
-        if not self._parse_attempted:
+        if not self._fparser_attempted:
             # This way we avoid that any other function might trigger to
             # parse this file again (in case of parsing errors).
-            self._parse_attempted = True
+            self._fparser_attempted = True
 
             reader = FortranStringReader(
                 self.get_source_code(),
                 include_dirs=Config.get().include_paths)
             parser = ParserFactory().create(std="f2008")
-            self._parse_tree = parser(reader)
+            self._fparser_tree = parser(reader)
 
-        return self._parse_tree
+        return self._fparser_tree
 
     # ------------------------------------------------------------------------
     def _extract_import_information(self):

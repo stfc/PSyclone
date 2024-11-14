@@ -1476,7 +1476,7 @@ def test_accroutinetrans_module_use():
             "represents data then it must first" in str(err.value))
     # Tell the ModuleManager where to find the module that is being USED by
     # the kernel.
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager.get_singleton()
     mod_man.add_search_path(get_base_path("gocean"))
     # Now that we can resolve the symbols, we know that `rdt` is a parameter
     # (and is not a problem) but that `magic` is a variable.

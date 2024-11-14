@@ -1107,7 +1107,7 @@ end subroutine top'''
             "The module search path is set to []" in str(err.value))
     # Repeat but when some_mod_somewhere *is* resolved but doesn't help us
     # find the routine we're looking for.
-    mod_manager = ModuleManager.get()
+    mod_manager = ModuleManager.get_singleton()
     monkeypatch.setattr(mod_manager, "_instance", None)
     path = str(tmpdir)
     monkeypatch.setattr(Config.get(), '_include_paths', [path])
@@ -1122,7 +1122,7 @@ end module some_mod_somewhere
     assert ("Failed to find the source code of the unresolved routine 'bottom'"
             " - looked at any routines in the same source file and wildcard "
             "imports from ['some_mod_somewhere']." in str(err.value))
-    mod_manager = ModuleManager.get()
+    mod_manager = ModuleManager.get_singleton()
     monkeypatch.setattr(mod_manager, "_instance", None)
     code = '''
 subroutine top()

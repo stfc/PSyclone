@@ -63,7 +63,7 @@ def test_module_info():
             "code for module 'a_mod'" in str(err.value))
 
     # Try to read the file a_mod.f90, which is contained in the d1 directory
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager.get_singleton()
     mod_man.add_search_path("d1")
     assert len(mod_man._visited_files) == 0
 
@@ -77,10 +77,10 @@ def test_module_info():
     assert "end module a_mod" in source_code
 
     # Now access the parse tree:
-    assert mod_info._parse_tree is None
+    assert mod_info._fparser_tree is None
     parse_tree = mod_info.get_parse_tree()
-    assert mod_info._parse_tree is parse_tree
-    assert isinstance(mod_info._parse_tree, Fortran2003.Program)
+    assert mod_info._fparser_tree is parse_tree
+    assert isinstance(mod_info._fparser_tree, Fortran2003.Program)
 
 
 # -----------------------------------------------------------------------------
@@ -177,7 +177,7 @@ def test_mod_info_get_used_modules():
     tmp/d2/d4/f_mod.ignore
     '''
 
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager.get_singleton()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
@@ -228,7 +228,7 @@ def test_mod_info_get_used_symbols_from_modules():
     tmp/d2/d4/f_mod.ignore
     '''
 
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager.get_singleton()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
@@ -249,7 +249,7 @@ def test_mod_info_get_psyir(capsys, tmpdir):
     '''This tests the handling of PSyIR representation of the module.
     '''
 
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager.get_singleton()
     dyn_path = get_base_path("lfric")
     mod_man.add_search_path(f"{dyn_path}/driver_creation", recursive=False)
 
@@ -295,7 +295,7 @@ def test_generic_interface():
     `myfunc2`
 
     '''
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager.get_singleton()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
@@ -320,7 +320,7 @@ def test_module_info_extract_import_information_error():
     '''
     # TODO 2120: Once proper error handling is implemented, this should
     # likely just raise an exception.
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager.get_singleton()
     mod_man.add_search_path("d2")
     mod_info = mod_man.get_module_info("error_mod")
     assert mod_info.name == "error_mod"

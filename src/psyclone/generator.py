@@ -237,7 +237,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
     # TODO #2011: investigate if kernel search path and module manager
     # can be combined.
-    ModuleManager.get().add_search_path(kernel_paths)
+    ModuleManager.get_singleton().add_search_path(kernel_paths)
 
     ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                              kernel_paths=kernel_paths,

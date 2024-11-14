@@ -292,7 +292,7 @@ class CallTreeUtils():
         # that is following the corresponding modules will be queried and
         # the right accesses (functions or variables) will be used.
         todo = []
-        mod_manager = ModuleManager.get()
+        mod_manager = ModuleManager.get_singleton()
         for node in node_list:
             # TODO #2494 - we need to support calls in order to work for
             # generic PSyIR.
@@ -365,7 +365,7 @@ class CallTreeUtils():
         '''
         # pylint: disable=too-many-branches, too-many-locals
         # pylint: disable=too-many-statements
-        mod_manager = ModuleManager.get()
+        mod_manager = ModuleManager.get_singleton()
         done = set()
         # Using a set here means that duplicated entries will automatically
         # be filtered out.
@@ -378,7 +378,7 @@ class CallTreeUtils():
                 continue
             done.add(info)
             external_type, module_name, signature, access_info = info
-            if module_name in mod_manager.ignores():
+            if module_name in mod_manager.ignore_modules():
                 continue
             if external_type == "routine":
                 if module_name is None:

@@ -365,7 +365,7 @@ class Config:
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.parse import ModuleManager
-        mod_manager = ModuleManager.get()
+        mod_manager = ModuleManager.get_singleton()
         for module_name in ignore_modules:
             mod_manager.add_ignore_module(module_name)
 

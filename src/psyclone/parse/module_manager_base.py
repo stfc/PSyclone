@@ -48,7 +48,7 @@ from psyclone.parse.file_info import FileInfo
 from psyclone.parse.module_info import ModuleInfo
 
 
-class ModuleManager:
+class ModuleManagerBase:
     '''This class implements a singleton that manages module
     dependencies.
 
@@ -64,19 +64,19 @@ class ModuleManager:
     @staticmethod
     def get_singleton():
         '''Static function that if necessary creates and returns the singleton
-        ModuleManager instance.
+        ModuleManagerBase instance.
 
         '''
-        if not ModuleManager._instance:
-            ModuleManager._instance = ModuleManager()
+        if not ModuleManagerBase._instance:
+            ModuleManagerBase._instance = ModuleManagerBase()
 
-        return ModuleManager._instance
+        return ModuleManagerBase._instance
 
     # ------------------------------------------------------------------------
     def __init__(self):
 
-        if ModuleManager._instance is not None:
-            raise InternalError("You need to use 'ModuleManager.get()' "
+        if ModuleManagerBase._instance is not None:
+            raise InternalError("You need to use 'ModuleManagerBase.get()' "
                                 "to get the singleton instance.")
 
         self._modules = {}
@@ -294,7 +294,7 @@ class ModuleManager:
         include the original set of modules as well.
 
         If a module cannot be found (e.g. its path was not given to the
-        ModuleManager, or it might be a system module for which the sources
+        ModuleManagerBase, or it might be a system module for which the sources
         are not available, a message will be printed, and this module will
         be ignored (i.e. not listed in any dependencies).
         # TODO 2120: allow a choice to abort or ignore.

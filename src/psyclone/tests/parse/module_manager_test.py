@@ -48,8 +48,8 @@ from psyclone.parse import ModuleManager
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_manager_instance():
     '''Tests the singleton functionality.'''
-    mod_man1 = ModuleManager.get()
-    mod_man2 = ModuleManager.get()
+    mod_man1 = ModuleManager.get_singleton()
+    mod_man2 = ModuleManager.get_singleton()
     assert mod_man1 is mod_man2
 
     with pytest.raises(InternalError) as err:
@@ -73,7 +73,7 @@ def test_mod_manager_directory_reading():
     tmp/d2/d4/f_mod.ignore
     '''
 
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager.get_singleton()
 
     # Add a path to the directory recursively (as default):
     mod_man.add_search_path("d1")
@@ -115,7 +115,7 @@ def test_mod_manager_precedence_preprocessed():
     with open(os.path.join("d1", "a_mod.F90"), "w", encoding="utf-8") as f_out:
         f_out.write("module a_mod\nend module a_mod")
 
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager.get_singleton()
     mod_man.add_search_path("d1")
     mod_info = mod_man.get_module_info("a_mod")
     # Make sure we get the lower case filename:
@@ -136,7 +136,7 @@ def test_mod_manager_add_files_from_dir():
     tmp/d2/d4/f_mod.ignore
 
     '''
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager.get_singleton()
 
     # Now check adding files:
     assert mod_man._modules == {}
@@ -174,7 +174,7 @@ def test_mod_manager_get_module_info():
     tmp/d2/d4/f_mod.ignore
     '''
 
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager.get_singleton()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
     assert list(mod_man._remaining_search_paths) == ["d1", "d1/d3", "d2",
@@ -238,7 +238,7 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
     tmp/d2/d4/f_mod.ignore
 
     '''
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager.get_singleton()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
@@ -275,7 +275,7 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
 def test_mod_man_sort_modules(capsys):
     '''Tests that sorting of modules works as expected.'''
 
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager.get_singleton()
     # Empty input:
     assert mod_man.sort_modules({}) == []
 
@@ -332,14 +332,14 @@ def test_mod_manager_add_ignore_modules():
     tmp/d2/d4/f_mod.ignore
 
     '''
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager.get_singleton()
     mod_man.add_search_path("d1")
 
     # First finds a_mod, which will parse the first directory
     mod_man.add_ignore_module("a_mod")
     mod_info = mod_man.get_module_info("a_mod")
     assert mod_info is None
-    assert "a_mod" in mod_man.ignores()
+    assert "a_mod" in mod_man.ignore_modules()
 
     # Just in case verify that other modules are not affected
     mod_info = mod_man.get_module_info("b_mod")
