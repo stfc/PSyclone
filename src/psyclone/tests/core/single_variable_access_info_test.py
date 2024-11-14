@@ -55,7 +55,7 @@ def test_access_info():
     assert access_info.access_type == AccessType.READ
     assert access_info.location == location
     assert access_info.component_indices.indices_lists == [[]]
-    assert access_info.is_read()
+    assert access_info.is_read
     assert not access_info.is_written
     assert not access_info.conditional
     assert not access_info.is_array()
