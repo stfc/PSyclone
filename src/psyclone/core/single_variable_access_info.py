@@ -172,11 +172,34 @@ class AccessInfo():
         return self._node
 
     @property
+    def is_read(self):
+        ''':returns: whether this access includes a read access
+            (e.g. a READWRITE would also be a read access).
+        :rtype: bool
+        '''
+        return self._access_type in AccessType.all_read_accesses()
+
+    @property
+    def is_written(self):
+        ''':returns: whether this access includes a write access
+            (e.g. a READWRITE would also be a write access).
+        :rtype: bool
+        '''
+        return self._access_type in AccessType.all_write_accesses()
+
+    @property
     def conditional(self):
         ''':returns: whether the access is conditional.
         :rtype: bool
         '''
         return self._conditional
+
+    @conditional.setter
+    def conditional(self, conditional):
+        '''Sets whether this access is conditional.
+        :param bool conditional: whether this access is conditional or not.
+        '''
+        self._conditional = conditional
 
 
 # =============================================================================

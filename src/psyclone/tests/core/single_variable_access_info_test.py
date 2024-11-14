@@ -55,6 +55,8 @@ def test_access_info():
     assert access_info.access_type == AccessType.READ
     assert access_info.location == location
     assert access_info.component_indices.indices_lists == [[]]
+    assert access_info.is_read()
+    assert not access_info.is_written
     assert not access_info.conditional
     assert not access_info.is_array()
     assert str(access_info) == "READ(12)"
@@ -89,11 +91,45 @@ def test_access_info():
     assert access_info.location == location
     assert access_info.component_indices.indices_lists == [["i", "j"]]
 
-    # Test conditional markings
+
+@pytest.mark.parametrize("mode", [AccessType.READ,
+                                  AccessType.READWRITE,
+                                  AccessType.INC,
+                                  AccessType.READINC,
+                                  AccessType.SUM])
+def test_access_info_is_read(mode):
+    '''Test the convenient functions is_read, esp. if readwrite and
+    increment accesses are returned as being a read access
+    '''
+    location = 12
+    access_info = AccessInfo(mode, location, Node())
+    assert access_info.is_read
+
+
+@pytest.mark.parametrize("mode", [AccessType.WRITE,
+                                  AccessType.READWRITE,
+                                  AccessType.INC,
+                                  AccessType.READINC,
+                                  AccessType.SUM])
+def test_access_info_is_written(mode):
+    '''Test the convenient functions is_read/is_written.
+    '''
+    location = 12
+    access_info = AccessInfo(mode, location, Node())
+    assert access_info.is_written
+
+
+def test_access_info_conditional():
+    '''Test the handling of conditional accesses
+    '''
+    location = 12
     access_info = AccessInfo(AccessType.READ, location, Node(),
                              conditional=True)
     assert access_info.conditional
     assert str(access_info) == "%READ(12)"
+    access_info.conditional = False
+    assert not access_info.conditional
+    assert str(access_info) == "READ(12)"
 
     access_info = AccessInfo(AccessType.WRITE, location, Node(),
                              conditional=True)
