@@ -621,3 +621,150 @@ class DefinitionUseChain:
             basic_blocks.append(current_block)
             control_flow_nodes.append(None)
         return control_flow_nodes, basic_blocks
+
+    def _compute_backward_uses(self, basic_block_list):
+        """
+        Compute the backward uses for self._reference for the
+        basic_block_list provided. This function will not work
+        correctly if there is control flow inside the
+        basic_block_list provided.
+        The basic_block_list will be reversed to find the backward
+        accesses.
+        Reads to the reference that occur before a write will
+        be added to the self._uses array, the earliest write will
+        be provided as self._defsout and all previous writes
+        will be inside self._killed.
+
+        :param basic_block_list: The list of nodes that make up the basic
+                                 block to find the forward uses in.
+        :type basic_block_list: list[:py:class:`psyclone.psyir.nodes.Node`]
+
+        :raises NotImplementedError: If a GOTO statement is found in the code
+                                     region.
+        """
+        sig, _ = self._reference.get_signature_and_indices()
+        # For a basic block we will only ever have one defsout
+        defs_out = None
+        # Working backwards so reverse the basic_block_list
+        basic_block_list.reverse()
+        for region in basic_block_list:
+            region_list = region.walk((Reference, Call, CodeBlock, Return))
+            # If the regoin contains any Return, Exit or Cycle statements then
+            # we modify the stop position to only look at statements that
+            # occur before this statement.
+            # FIXME: This doesn't work correctly if the Reference that
+            # is having its backwards dependencies analysed occurs after
+            # one of these such statements in a basic block, however
+            # since they're unreachable maybe we don't care?
+            stop_position = self._stop_point
+            for reference in region_list:
+                if isinstance(reference, Return):
+                    stop_position = reference.abs_position
+                if isinstance(reference, CodeBlock):
+                    if isinstance(reference._fp2_nodes[0], (Exit_Stmt,
+                                                            Cycle_Stmt)):
+                        stop_position = reference.abs_position
+            # Reverse the list
+            region_list.reverse()
+            for reference in region_list:
+                # Store the position instead of computing it twice.
+                abs_pos = reference.abs_position
+                # TODO Fix start and stop positions
+                if abs_pos <= self._start_point or abs_pos >= stop_position:
+                    continue
+                if isinstance(reference, Return):
+                    # We can ignore Return statements as we only check for
+                    # nodes that occur before them.
+                    continue
+                if isinstance(reference, CodeBlock):
+                    # CodeBlocks only find symbols, so we can only do as good
+                    # as checking the symbol - this means we can get false
+                    # positives for structure accesses inside CodeBlocks.
+                    if isinstance(reference._fp2_nodes[0], Goto_Stmt):
+                        raise NotImplementedError("DefinitionUseChains can't "
+                                                  "handle code containing GOTO"
+                                                  " statements.")
+                    # If we find an Exit or Cycle statement, only check for
+                    # nodes that occur before them so we can skip.
+                    if isinstance(reference._fp2_nodes[0], (Exit_Stmt,
+                                                            Cycle_Stmt)):
+                        continue
+                    if (
+                        self._reference.symbol.name
+                        in reference.get_symbol_names()
+                    ):
+                        # Assume the worst for a CodeBlock and we count them
+                        # as killed and defsout and uses.
+                        if defs_out is not None:
+                            self._killed.append(defs_out)
+                        defs_out = reference
+                        continue
+                elif isinstance(reference, Call):
+                    # If its a local variable we can ignore it as we'll catch
+                    # the Reference later if its passed into the Call.
+                    if self._reference.symbol.is_automatic:
+                        continue
+                    if isinstance(reference, IntrinsicCall):
+                        # IntrinsicCall can only do stuff to arguments, these
+                        # will be caught by Reference walk already.
+                        # Note that this assumes two symbols are not
+                        # aliases of each other.
+                        continue
+                    # For now just assume calls are bad if we have a non-local
+                    # variable and we treat them as though they were a write.
+                    if defs_out is not None:
+                        self._killed.append(defs_out)
+                    defs_out = reference
+                    continue
+                elif reference.get_signature_and_indices()[0] == sig:
+                    # Work out if its read only or not.
+                    assign = reference.ancestor(Assignment)
+                    # TODO Need to invert how we think about assignments.
+                    # RHS reads occur "before" LHS writes, so if we
+                    # hit the LHS or an assignment then we won't have
+                    # a dependency to the value used from the LHS.
+                    if assign is not None:
+                        if assign.lhs is reference:
+                            # This is a write to the reference, so kill the
+                            # previous defs_out and set this to be the
+                            # defs_out.
+                            print("OK")
+                            if defs_out is not None:
+                                self._killed.append(defs_out)
+                            defs_out = reference
+                        elif (
+                            assign.lhs.get_signature_and_indices()[0]
+                            == sig
+                            and assign.lhs is not self._reference
+                        ):
+                            # Reference is on the rhs of an assignment such as
+                            # a = a + 1. Since we're looping through the tree
+                            # walk in reverse, we find the a on the RHS of the
+                            # statement before the a on the LHS. Since the LHS
+                            # of the statement is a write to this symbol, the
+                            # RHS needs to not be a dependency when working
+                            # backwards.
+                            continue
+                        else:
+                            # Read only, so if we've not yet set written to
+                            # this variable this is a use. NB. We need to
+                            # check the if the write is the LHS of the parent
+                            # assignment and if so check if we killed any
+                            # previous assignments.
+                            if defs_out is None:
+                                self._uses.append(reference)
+                    elif reference.ancestor(Call):
+                        # It has a Call ancestor so assume read/write access
+                        # for now.
+                        # We can do better for IntrinsicCalls realistically.
+                        if defs_out is not None:
+                            self._killed.append(defs_out)
+                        defs_out = reference
+                    else:
+                        # Reference outside an Assignment - read only
+                        # This could be References inside a While loop
+                        # condition for example.
+                        if defs_out is None:
+                            self._uses.append(reference)
+        if defs_out is not None:
+            self._defsout.append(defs_out)
