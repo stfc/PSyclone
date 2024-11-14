@@ -37,10 +37,10 @@
     the first Invoke to use OpenCL. '''
 
 from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.transformations import \
-    FoldConditionalReturnExpressionsTrans
-from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
-    GOMoveIterationBoundariesInsideKernelTrans
+from psyclone.psyir.transformations import (
+    FoldConditionalReturnExpressionsTrans)
+from psyclone.domain.gocean.transformations import (
+    GOOpenCLTrans, GOMoveIterationBoundariesInsideKernelTrans)
 
 
 def trans(psyir):

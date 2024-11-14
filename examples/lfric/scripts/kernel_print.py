@@ -58,9 +58,9 @@ def trans(psyir):
             _, kernel_schedules = kernel.get_kernel_schedule()
             for ksched in kernel_schedules:
                 if ksched not in already_printed:
-                    kern = fortran_writer(kernel_schedule)
+                    kern = fortran_writer(ksched)
                     print(kern)
-                already_printed.append(kernel_schedule)
+                already_printed.append(ksched)
         except Exception as err:  # pylint: disable=broad-except
             print(f"Code of '{kernel.name}' "
                   f"cannot be printed because:\n{err}")

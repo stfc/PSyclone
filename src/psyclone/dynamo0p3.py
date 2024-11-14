@@ -72,10 +72,10 @@ from psyclone.psyir.nodes import (
     Assignment, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
     Reference, Schedule, StructureReference, Literal, IfBlock, Call,
     BinaryOperation, IntrinsicCall, Container)
-from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
-                                    UnresolvedType, DataTypeSymbol,
-                                    ContainerSymbol, ImportInterface,
-                                    ArrayType, UnsupportedFortranType)
+from psyclone.psyir.symbols import (
+    GenericInterfaceSymbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol,
+    ScalarType, UnresolvedType, ContainerSymbol, ImportInterface,
+    ArrayType, UnsupportedFortranType)
 
 
 # pylint: disable=too-many-lines
