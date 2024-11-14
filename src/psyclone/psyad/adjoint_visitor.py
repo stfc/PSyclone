@@ -451,10 +451,10 @@ class AdjointVisitor(PSyIRVisitor):
             if isinstance(symbol_obj,
                           GenericInterfaceSymbol):
                 new_routines = []
-                for rsym, mod_pro in symbol_obj.routines:
+                for rinfo in symbol_obj.routines:
                     new_routines.append((
-                            sym_tab.lookup(rsym.name),
-                            mod_pro
+                            sym_tab.lookup(rinfo.symbol.name),
+                            rinfo.from_container
                     ))
                 symbol_obj.routines = new_routines
 

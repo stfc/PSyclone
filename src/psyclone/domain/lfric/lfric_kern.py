@@ -41,6 +41,7 @@
 
 from collections import OrderedDict
 from dataclasses import dataclass
+from typing import List
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
@@ -70,17 +71,18 @@ class LFRicKern(CodedKern):
     @dataclass(frozen=True)
     class QRRule:
         '''
-        Used to store information on each of the quadrature rules required by
+        Used to store information on a quadrature rule required by
         a kernel.
 
-        :param alg_name: the actual argument text specifying the QR object in
+        :param alg_name: The actual argument text specifying the QR object in
                          the Alg. layer.
-        :param psy_name: the PSy-layer variable name for the QR object.
-        :param kernel_args: kernel arguments associated with this QR rule.
+        :param psy_name: The PSy-layer variable name for the QR object.
+        :param kernel_args: Kernel arguments associated with this QR rule.
+
         '''
         alg_name: str
         psy_name: str
-        kernel_args: list[str]
+        kernel_args: List[str]
 
     def __init__(self):
         # The super-init is called from the _setup() method which in turn

@@ -3703,9 +3703,12 @@ def test_kerncallarglist_positions_noquad(dist_mem):
     assert create_arg_list.nlayers_positions == [1]
     assert not create_arg_list.nqp_positions
     assert len(create_arg_list.ndf_positions) == 3
-    assert create_arg_list.ndf_positions[0] == (7, "w1")
-    assert create_arg_list.ndf_positions[1] == (10, "w2")
-    assert create_arg_list.ndf_positions[2] == (13, "w3")
+    assert create_arg_list.ndf_positions[0].position == 7
+    assert create_arg_list.ndf_positions[0].function_space == "w1"
+    assert create_arg_list.ndf_positions[1].position == 10
+    assert create_arg_list.ndf_positions[1].function_space == "w2"
+    assert create_arg_list.ndf_positions[2].position == 13
+    assert create_arg_list.ndf_positions[2].function_space == "w3"
 
 
 def test_kerncallarglist_positions_quad(dist_mem):
@@ -3732,9 +3735,12 @@ def test_kerncallarglist_positions_quad(dist_mem):
     assert create_arg_list.nqp_positions[0]["horizontal"] == 21
     assert create_arg_list.nqp_positions[0]["vertical"] == 22
     assert len(create_arg_list.ndf_positions) == 3
-    assert create_arg_list.ndf_positions[0] == (8, "w1")
-    assert create_arg_list.ndf_positions[1] == (12, "w2")
-    assert create_arg_list.ndf_positions[2] == (16, "w3")
+    assert create_arg_list.ndf_positions[0].position == 8
+    assert create_arg_list.ndf_positions[0].function_space == "w1"
+    assert create_arg_list.ndf_positions[1].position == 12
+    assert create_arg_list.ndf_positions[1].function_space == "w2"
+    assert create_arg_list.ndf_positions[2].position == 16
+    assert create_arg_list.ndf_positions[2].function_space == "w3"
 
 # Class DynKernelArguments start
 
