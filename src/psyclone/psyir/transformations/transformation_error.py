@@ -44,12 +44,10 @@ class TransformationError(PSycloneError):
         code transformation operations. '''
 
     def __init__(self, value):
-        PSycloneError.__init__(self, value)
+        super().__init__(value)
         self.value = LazyString(
             lambda: f"Transformation Error: {value}")
 
 
-# TODO #1280: This currently causes 'more than one target for cross-reference'
-#             warnings when building the reference guide.
 # For AutoAPI documentation generation
-# __all__ = ["TransformationError"]
+__all__ = ["TransformationError"]
