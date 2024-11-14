@@ -46,11 +46,13 @@ from dataclasses import dataclass
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric import ArgOrdering, LFRicConstants
+from psyclone.domain.lfric.arg_ordering import ArgOrdering
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
 # Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import ArrayReference, Reference, StructureReference
+from psyclone.psyir.nodes import (
+    ArrayReference, Reference, StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
     ImportInterface, ScalarType)
@@ -232,7 +234,7 @@ class KernCallArgList(ArgOrdering):
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        if self._kern.iterates_over not in ["cell_column", "domain"]:
+        if self._kern.iterates_over == "dof":
             return
         name = f"nlayers_{self._kern.arguments.iteration_space_arg().name}"
         nlayers_symbol = self.append_integer_reference(name, tag=name)
@@ -603,13 +605,13 @@ class KernCallArgList(ArgOrdering):
         :param function_space: the function space for which the related \
             arguments common to LMA operators and fields are added.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses:
+            Optional[:py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
-        if self._kern.iterates_over not in ["cell_column", "domain"]:
+        if self._kern.iterates_over == "dof":
             return
         super().fs_common(function_space, var_accesses)
         self._ndf_positions.append(

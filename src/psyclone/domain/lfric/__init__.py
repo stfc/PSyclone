@@ -45,6 +45,7 @@
 from psyclone.domain.lfric.function_space import FunctionSpace
 from psyclone.domain.lfric.lfric_arg_descriptor import LFRicArgDescriptor
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_halo_depths import LFRicHaloDepths
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.kern_call_acc_arg_list import KernCallAccArgList
@@ -90,6 +91,7 @@ __all__ = [
     'LFRicDofmaps',
     'LFRicExtractDriverCreator',
     'LFRicFields',
+    'LFRicHaloDepths',
     'LFRicInvoke',
     'LFRicInvokes',
     'LFRicInvokeSchedule',
