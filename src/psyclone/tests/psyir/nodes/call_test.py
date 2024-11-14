@@ -48,6 +48,7 @@ from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
     ArrayType, INTEGER_TYPE, DataSymbol, NoType, RoutineSymbol, REAL_TYPE,
     SymbolError, UnsupportedFortranType)
+from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
 from psyclone.errors import GenerationError
 
 
@@ -741,7 +742,9 @@ end module some_mod'''
 
     try:
         call_foo.get_callee(ret_arg_match_list=arg_idx_list)
-    except Exception:
+
+    except CallMatchingArgumentsNotFound as err:
+        assert "More arguments in callee" in str(err)
         print("Success! Exception triggered (as expected)")
         return
 
@@ -1071,6 +1074,92 @@ end module some_mod'''
 
             assert result is routine_foo_c
             print(" - Passed subtest foo_c[2]")
+
+
+def test_call_get_callee_7_matching_arguments_not_found(fortran_reader):
+    """
+    Trigger error that matching arguments were not found
+    """
+    code = """
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f, g
+    ! Use name 'd' which doesn't exist
+    call foo(e, f, d=g)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b, c)
+    integer :: a, b, c
+  end subroutine
+
+end module some_mod"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = psyir.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+
+    try:
+        call_foo.get_callee()
+
+    except CallMatchingArgumentsNotFound as err:
+        assert "Named argument 'd' not found" in str(err)
+        print("Success! Exception triggered (as expected)")
+        return
+
+    assert False, (
+        "This should have triggered an error since there"
+        "are more arguments in the call than in the routine"
+    )
+
+
+def test_call_get_callee_8_arguments_not_handled(fortran_reader):
+    """
+    Trigger error that matching arguments were not found
+    """
+    code = """
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f
+    ! Use name 'd' which doesn't exist
+    call foo(e, f)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b, c)
+    integer :: a, b, c
+  end subroutine
+
+end module some_mod"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = psyir.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+
+    try:
+        call_foo.get_callee()
+
+    except CallMatchingArgumentsNotFound as err:
+        assert "Argument 'c' in subroutine 'foo' not handled" in str(err)
+        print("Success! Exception triggered (as expected)")
+        return
+
+    assert False, (
+        "This should have triggered an error since there"
+        "are more arguments in the call than in the routine"
+    )
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
