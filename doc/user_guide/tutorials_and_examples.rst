@@ -46,16 +46,16 @@ Tutorial
 
 PSyclone provides a hands-on tutorial. The easiest way to follow it is reading
 the `Readme files in github <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals>`_.
-The tutorial is divided in two sections, a first section that introduces
+The tutorial is divided into two sections, a first section that introduces
 PSyclone and how to
 `use it to transform generic Fortran code  <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals/generic>`_
 (this is the recommended starting point for everybody).
-And a second sections about
+And a second section about
 `the LFRic DSL <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals/LFRic>`_
-(this is only recommended for people interested in PSKAL DSLs and LFRic in particular).
+(this is only recommended for people interested in PSyKAL DSLs and LFRic in particular).
 
 To do the proposed hands-on you will need a linux shell with Python installed and to
-download the hand-on directory with:
+download the hands-on directory with:
 
 .. code-block:: bash
 
@@ -765,9 +765,8 @@ Demonstrates the introduction of simple OpenACC parallelisation (using the
 Example 4: Transforming Fortran code to the SIR
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Demonstrates that simple Fortran code examples which conform to the
-NEMO API can be transformed to the Stencil Intermediate Representation
-(SIR). The SIR is the front-end language to DAWN
+Demonstrates that simple Fortran code can be transformed to the Stencil
+Intermediate Representation (SIR). The SIR is the front-end language to DAWN
 (https://github.com/MeteoSwiss-APN/dawn), a tool which generates
 optimised cuda, or gridtools code. Thus various simple Fortran
 examples and the computational part of the tracer-advection benchmark
@@ -778,7 +777,7 @@ Example 5: Kernel Data Extraction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This example shows the use of kernel data extraction in PSyclone for
-the NEMO API. It instruments each kernel in the NEMO tracer-advection
+generic Fortran code. It instruments each kernel in the NEMO tracer-advection
 benchmark with the PSyData-based kernel extraction code. Detailed
 compilation instructions are in the ``README.md`` file, including how
 to switch from using the stand-alone extraction library to the NetCDF-based
@@ -797,6 +796,6 @@ adds the largest possible OpenACC Kernels regions to the code being processed.
 
 For more details see the ``examples/nemo/README.md`` file.
 
-Note that these scripts are here to support the ongoing development of the
-NEMO API in PSyclone. They are *not* intended as 'turn-key' solutions but
-as a starting point.
+Note that these scripts are here to support the ongoing development of PSyclone
+to transform the NEMO source. They are *not* intended as 'turn-key' solutions
+but as a starting point.

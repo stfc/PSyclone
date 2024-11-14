@@ -47,11 +47,12 @@ Installation
 The following instructions are intended for a PSyclone user who wants
 to work with a released version of the code. If you are a developer or
 wish to test a specific branch of PSyclone from the GitHub repository
-please see :ref:`Installation section in the Developer Guide <dev-installation>`.
+please see the
+:ref:`Installation section in the Developer Guide <dev-installation>`.
 
 .. tabs::
 
-  .. tab:: from PyPI
+  .. tab:: From PyPI:
 
     For a system-wide installation use:
 
@@ -73,10 +74,10 @@ please see :ref:`Installation section in the Developer Guide <dev-installation>`
 
 
     For more information about using ``pip`` or encapsulating the installation
-    in its own ``virtual environment`` we recomment reading the
+    in its own ``virtual environment`` we recommend reading the
     `Python Packaging User Guide <https://packaging.python.org/en/latest/tutorials/installing-packages/>`_.
 
-  .. tab:: from Spack
+  .. tab:: From Spack:
 
     To install psyclone to your loaded Spack installation use:
 
@@ -85,10 +86,10 @@ please see :ref:`Installation section in the Developer Guide <dev-installation>`
       spack install psyclone
 
 
-    For more information about how to use Spack we recommend readign the
+    For more information about how to use Spack we recommend reading the
     `Spack documentation <https://spack-tutorial.readthedocs.io/>`_.
 
-  .. tab:: from Source
+  .. tab:: From Source:
 
     To download and install a specific PSyclone release (where ``X.Y.Z`` is the release version)
     from source, use:
@@ -106,8 +107,8 @@ please see :ref:`Installation section in the Developer Guide <dev-installation>`
 Installation location
 ^^^^^^^^^^^^^^^^^^^^^
 
-PSyclone installation location will vary depending on the specific installation
-method and options used. The ``pyclone`` command will typically already be
+The PSyclone installation location will vary depending on the specific installation
+method and options used. The ``psyclone`` command will typically already be
 prepended to your ``PATH`` after following the instructions above, but sometimes
 you will need to source the virtual environment or load the Spack module again
 after restarting your terminal.
@@ -125,20 +126,20 @@ directory relative to the psyclone installation. You can replace
 Configuration
 -------------
 
-Various aspects of PSyclone are configured through a configuration
+Various aspects of PSyclone are controlled through a configuration
 file, ``psyclone.cfg``.  The default version of this file is located in
 the ``share/psyclone/psyclone.cfg`` file in the :ref:`getting-going-install-loc`.
 
 .. warning::
 
-   If PSyclone is installed in 'editable' mode (``-e`` flag to ``pip``), ``pip``
+   If PSyclone is installed in 'editable' mode (``-e`` flag to ``pip``),
    or in a non-standard location, then PSyclone will not be able to find the
    default configuration file. There are two solutions to this:
 
    1. copy a configuration file to the location specified above.
 
-   2. set the ``PSYCLONE_CONFIG`` environment variable to the full-path to
-   the configuration file, e.g.:
+   2. set the ``PSYCLONE_CONFIG`` environment variable (or the ``--config``
+   flag) to the full-path to the configuration file, e.g.:
 
    .. code-block:: bash
 
@@ -212,7 +213,7 @@ There is more detailed information about each flag in :ref:`psyclone_command` se
 but the main parameters are the input source file that we aim to transform, and a transformation
 recipe that is provided with the ``-s`` flag.
 In addition to these, note that psyclone can be used in two distinct modes:
-the code-transformation mode (when no ``-api``/``--psykal-dsl`` flags is provided) or the
+the code-transformation mode (when no ``-api``/``--psykal-dsl`` flags are provided) or the
 PSyKAl DSL mode (when a ``-api``/``--psykal-dsl`` flag is provided). The following sections provide
 a brief introduction to each mode.
 

@@ -78,9 +78,9 @@ def pytest_addoption(parser):
 
 @pytest.fixture
 def have_graphviz():
-    ''' Whether or not the system has graphviz installed. Note that this
-    only checks for the Python bindings. The underlying library must
-    also have been installed for dag generation to work correctly. '''
+    ''' Whether or not the system has graphviz installed. This refers to
+    the underlying system library, not the python bindings that are provided
+    by 'import graphviz'. '''
     # pylint: disable=import-outside-toplevel
     import graphviz
     try:

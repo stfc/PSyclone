@@ -32,8 +32,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
-# Top-level Makefile to test all of the NEMO hands-on tutorials.
+# Top-level Makefile to test all the hands-on tutorials for transforming
+# generic code.
 
 TUTORIALS = $(sort $(dir $(wildcard */)))
 
