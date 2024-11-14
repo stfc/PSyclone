@@ -315,12 +315,13 @@ class LFRicLoop(PSyLoop):
         :param str name: Loop upper-bound name. Must be a supported name.
         :param halo_depth: An optional argument indicating the depth of halo
                            that this loop accesses.
-        :type halo_depth: Optional[:py:class:`psyclone.psyir.nodes.Node` | int]
+        :type halo_depth: Optional[:py:class:`psyclone.psyir.nodes.DataNode` |
+                                   int]
 
         :raises GenerationError: if supplied with an invalid upper-bound name.
         :raises GenerationError: if supplied with a halo depth < 1.
-        :raises TypeError: if the supplied index value is neither an int or
-                           DataNode.
+        :raises TypeError: if the supplied halo_depth value is neither an int
+                           or DataNode.
         '''
         const = LFRicConstants()
         if name not in const.VALID_LOOP_BOUNDS_NAMES:
@@ -346,7 +347,7 @@ class LFRicLoop(PSyLoop):
             psyir = Literal(f"{halo_depth}", INTEGER_TYPE)
             self._upper_bound_halo_depth = psyir
         else:
-            if halo_depth and not isinstance(halo_depth, DataNode):
+            if halo_depth is not None and not isinstance(halo_depth, DataNode):
                 raise TypeError(f"When setting the upper bound of a loop, any "
                                 f"halo depth must be supplied as an int or "
                                 f"PSyIR DataNode but got {type(halo_depth)}")
