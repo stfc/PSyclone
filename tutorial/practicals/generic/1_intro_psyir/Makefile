@@ -32,9 +32,25 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 
-# Top-level Makefile to test all of the NEMO hands-on tutorials.
+include ../../../common.mk
 
-TUTORIALS = $(sort $(wildcard ?_nemo_*))
+.PHONY: transform
 
-include ./top_level.mk
+transform:
+	$(PSYCLONE) -s ./view_trans.py -o /dev/null tra_adv.F90
+
+compile: transform
+	@echo "No compilation targets for this example"
+
+run: compile
+	@echo "No run targets for this example"
+
+# (output.f90 is created when following the tutorial instructions)
+clean:
+	rm -f output.f90 *.o *.mod *~
+
+allclean: clean
+	rm -f *.exe output.dat

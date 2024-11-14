@@ -40,4 +40,4 @@ ALL_TARGETS = transform compile run clean allclean
 
 $(ALL_TARGETS):
 	$(MAKE) -C LFRic $@
-	$(MAKE) -C nemo $@
+	$(MAKE) -C generic $@
