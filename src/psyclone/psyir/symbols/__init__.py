@@ -93,11 +93,9 @@ __all__ = ['ArgumentInterface',
            'Symbol',
            'SymbolError',
            'SymbolTable',
-           #'TYPE_MAP_TO_PYTHON',
            'TypedSymbol',
            'UnsupportedFortranType',
            'UnknownInterface',
            'UnsupportedType',
            'UnresolvedInterface',
            'UnresolvedType']
-

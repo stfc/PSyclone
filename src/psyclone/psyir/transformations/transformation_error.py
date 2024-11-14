@@ -47,7 +47,3 @@ class TransformationError(PSycloneError):
         super().__init__(value)
         self.value = LazyString(
             lambda: f"Transformation Error: {value}")
-
-
-# For AutoAPI documentation generation
-__all__ = ["TransformationError"]

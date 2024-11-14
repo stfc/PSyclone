@@ -221,6 +221,8 @@ def remove_op_enum_attrib_docstring(app, what, name, obj, skip, options):
     '''
     if name.endswith("Operator") and isinstance(obj, enum.EnumType):
         return True
+    if name.endswith("TransformationError") and what == "class":
+        return True
     return skip
 
 
