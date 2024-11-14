@@ -51,6 +51,12 @@ from psyclone.psyir.symbols import (
 from typing import List
 
 
+class CallMatchingArgumentsNotFound(BaseException):
+    """Excepction to signal that matching arguments have not been found
+    for this routine
+    """
+
+
 class Call(Statement, DataNode):
     ''' Node representing a Call. This can be found as a standalone statement
     or an expression.
@@ -258,7 +264,8 @@ class Call(Statement, DataNode):
             raise ValueError(
                 f"The value of the existing_name argument ({existing_name}) "
                 f"in 'replace_named_arg' in the 'Call' node was not found "
-                f"in the existing arguments.")
+                f"in the existing arguments."
+            )
         # The n'th argument is placed at the n'th+1 children position
         # because the 1st child is the routine reference
         self.children[index + 1] = arg
@@ -594,11 +601,6 @@ class Call(Statement, DataNode):
             f"{_location_txt(root_node)}. This is normally because the routine"
             f" is within a CodeBlock.")
 
-    class MatchingArgumentsNotFound(BaseException):
-        """Excepction to signal that matching arguments have not been found
-        for this routine
-        """
-
     def get_argument_routine_match(self, routine: Routine):
         """Return a list of integers giving for each argument of the call
         the index of the argument in argument_list (typically of a routine)
@@ -615,12 +617,8 @@ class Call(Statement, DataNode):
         routine_argument_list: List[DataNode] = \
             routine.symbol_table.argument_list[:]
 
-        # Find matching argument list
-        # if len(self.arguments) != len(routine_argument_list):
-        #    return None
-
         if len(self.arguments) > len(routine.symbol_table.argument_list):
-            raise self.MatchingArgumentsNotFound(
+            raise CallMatchingArgumentsNotFound(
                 f"More arguments in callee  (call '{self.routine.name}')"
                 f" than caller (routine '{routine.name}')"
             )
@@ -648,7 +646,7 @@ class Call(Statement, DataNode):
                             routine_arg.datatype,
                             UnsupportedFortranType):
                     if call_arg.datatype != routine_arg.datatype:
-                        raise self.MatchingArgumentsNotFound(
+                        raise CallMatchingArgumentsNotFound(
                             f"Argument type mismatch of call argument "
                             f"'{call_arg}' and routine argument "
                             f"'{routine_arg}'"
@@ -680,7 +678,7 @@ class Call(Statement, DataNode):
                                 routine_arg.datatype,
                                 UnsupportedFortranType):
                         if call_arg.datatype != routine_arg.datatype:
-                            raise self.MatchingArgumentsNotFound(
+                            raise CallMatchingArgumentsNotFound(
                                 f"Argument type mismatch of call argument "
                                 f"'{call_arg}' and routine argument "
                                 f"'{routine_arg}'"
@@ -692,10 +690,9 @@ class Call(Statement, DataNode):
 
             if not named_arg_found:
                 # It doesn't match => Raise exception
-                raise self.MatchingArgumentsNotFound
-
-            if routine_arg_idx is None:
-                raise IndexError("Internal error")
+                raise CallMatchingArgumentsNotFound(
+                    f"Named argument '{arg_name}' not found"
+                )
 
             routine_argument_list[routine_arg_idx] = None
 
@@ -713,8 +710,8 @@ class Call(Statement, DataNode):
             if ", OPTIONAL" in str(routine_arg.datatype):
                 continue
 
-            raise self.MatchingArgumentsNotFound(
-                f"Argument '{routine_arg}' in subroutine"
+            raise CallMatchingArgumentsNotFound(
+                f"Argument '{routine_arg.name}' in subroutine"
                 f" '{routine.name}' not handled"
             )
 
@@ -740,14 +737,19 @@ class Call(Statement, DataNode):
 
         routine_list = self.get_callees()
 
+        error: Exception = None
+
         # Search for the routine matching the right arguments
         for routine in routine_list:
             routine: Routine
 
             try:
                 arg_match_list = self.get_argument_routine_match(routine)
-            except self.MatchingArgumentsNotFound:
+            except CallMatchingArgumentsNotFound as err:
+                error = err
                 continue
+
+            error = None
 
             if ret_arg_match_list is not None:
                 ret_arg_match_list[:] = arg_match_list
@@ -761,5 +763,9 @@ class Call(Statement, DataNode):
         if not check_matching_arguments:
             return routine_list[0]
 
-        raise NotImplementedError(f"No matching routine for call "
-                                  f"'{self.routine.name}' found")
+        if error is not None:
+            raise error
+        else:
+            raise NotImplementedError(
+                f"No matching routine for call " f"'{self.routine.name}' found"
+            )
