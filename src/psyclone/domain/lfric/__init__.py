@@ -77,6 +77,7 @@ from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.domain.lfric.lfric_dofmaps import LFRicDofmaps
 from psyclone.domain.lfric.lfric_stencils import LFRicStencils
 
+
 __all__ = [
     'ArgOrdering',
     'FunctionSpace',
