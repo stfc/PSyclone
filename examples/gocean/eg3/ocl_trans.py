@@ -36,33 +36,27 @@
 ''' Module providing a transformation script that converts the Schedule of
     the first Invoke to use OpenCL. '''
 
-from psyclone.psyir.transformations import (
-    FoldConditionalReturnExpressionsTrans)
-from psyclone.domain.gocean.transformations import (
-    GOOpenCLTrans, GOMoveIterationBoundariesInsideKernelTrans)
+from psyclone.psyGen import InvokeSchedule
+from psyclone.psyir.transformations import \
+    FoldConditionalReturnExpressionsTrans
+from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
+    GOMoveIterationBoundariesInsideKernelTrans
 
 
-def trans(psy):
+def trans(psyir):
     '''
-    Transformation routine for use with PSyclone. Applies the OpenCL
-    transform to the first Invoke in the psy object.
+    Applies OpenCL to the given PSy-layer.
 
-    :param psy: the PSy object which this script will transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     ocl_trans = GOOpenCLTrans()
     fold_trans = FoldConditionalReturnExpressionsTrans()
     move_boundaries_trans = GOMoveIterationBoundariesInsideKernelTrans()
 
-    # Get the Schedule associated with the first Invoke
-    invoke = psy.invokes.invoke_list[0]
-    sched = invoke.schedule
-
     # Provide kernel-specific OpenCL optimization options
-    for idx, kern in enumerate(sched.kernels()):
+    for idx, kern in enumerate(psyir.kernels()):
         # Move the PSy-layer loop boundaries inside the kernel as a kernel
         # mask, this allows to iterate through the whole domain
         move_boundaries_trans.apply(kern)
@@ -79,6 +73,5 @@ def trans(psy):
         kern.set_opencl_options({"queue_number": idx+1, 'local_size': 4})
 
     # Transform the Schedule
-    ocl_trans.apply(sched, options={"end_barrier": True})
-
-    return psy
+    for schedule in psyir.walk(InvokeSchedule):
+        ocl_trans.apply(schedule, options={"end_barrier": True})

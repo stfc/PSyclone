@@ -38,27 +38,21 @@
     transformation for the LFRic domain. '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.psyGen import Kern
+from psyclone.psyGen import Kern, InvokeSchedule
 
 
-def trans(psy):
+def trans(psyir):
     '''
     PSyclone transformation routine. This is an example which module-inlines
-    the kernel used in the second 'invoke' in the supplied PSy object.
+    the kernel used in the second 'invoke' in the supplied PSy-layer.
 
-    :param psy: the PSy object that PSyclone has constructed for the
-                'invoke'(s) found in the Algorithm file.
-    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    invokes = psy.invokes
-    print(psy.invokes.names)
-    invoke = invokes.get("invoke_1")
-    schedule = invoke.schedule
-    print(schedule.view())
-    # Find the kernel we want to inline.
-    kern = schedule.walk(Kern)[0]
-    inline_trans = KernelModuleInlineTrans()
-    # Apply the inlining transformation.
-    inline_trans.apply(kern)
-    print(schedule.view())
+    for schedule in psyir.walk(InvokeSchedule):
+        if schedule.name == "invoke_1":
+            # Find the kernel we want to inline.
+            kern = schedule.walk(Kern)[0]
+            # Setting module inline via a transformation.
+            KernelModuleInlineTrans().apply(kern)

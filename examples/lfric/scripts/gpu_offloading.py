@@ -45,7 +45,7 @@ import os
 import sys
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.psyir.nodes import Directive, Loop
+from psyclone.psyir.nodes import Directive, Loop, Routine
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, TransformationError, OMPTargetTrans)
 from psyclone.transformations import (
@@ -62,11 +62,14 @@ INVOKE_EXCLUSIONS = [
 OFFLOAD_DIRECTIVES = os.getenv('LFRIC_OFFLOAD_DIRECTIVES', "none")
 
 
-def trans(psy):
+def trans(psyir):
     '''Applies PSyclone colouring and GPU offloading transformations. Any
     kernels that cannot be offloaded to GPU are parallelised using OpenMP
     on the CPU. Any setval_* kernels are transformed so as to compute
     into the L1 halos.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     rtrans = Dynamo0p3RedundantComputationTrans()
@@ -99,24 +102,22 @@ def trans(psy):
               f"but found '{OFFLOAD_DIRECTIVES}'.")
         sys.exit(-1)
 
-    print(f"PSy name = '{psy.name}'")
+    print(f"PSy name = '{psyir.name}'")
 
-    # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
+    for subroutine in psyir.walk(Routine):
 
-        print("Transforming invoke '{0}' ...".format(invoke.name))
-        schedule = invoke.schedule
+        print("Transforming invoke '{0}' ...".format(subroutine.name))
 
         # Make setval_* compute redundantly to the level 1 halo if it
         # is in its own loop
-        for loop in schedule.loops():
+        for loop in subroutine.loops():
             if loop.iteration_space == "dof":
                 if len(loop.kernels()) == 1:
                     if loop.kernels()[0].name in ["setval_c", "setval_x"]:
                         rtrans.apply(loop, options={"depth": 1})
 
-        if psy.name.lower() in INVOKE_EXCLUSIONS:
-            print(f"Not adding GPU offloading to invoke '{psy.name}'")
+        if psyir.name.lower() in INVOKE_EXCLUSIONS:
+            print(f"Not adding GPU offloading to invoke '{psyir.name}'")
             offload = False
         else:
             offload = True
@@ -127,16 +128,16 @@ def trans(psy):
 
         # Colour loops over cells unless they are on discontinuous spaces
         # (alternatively we could annotate the kernels with atomics)
-        for loop in schedule.loops():
-            if loop.iteration_space == "cell_column":
+        for loop in subroutine.loops():
+            if loop.iteration_space.endswith("cell_column"):
                 if (loop.field_space.orig_name not in
                         const.VALID_DISCONTINUOUS_NAMES):
                     ctrans.apply(loop)
 
         # Mark Kernels inside the loops over cells as GPU-enabled
         # (alternatively we could inline them)
-        for loop in schedule.loops():
-            if loop.iteration_space == "cell_column":
+        for loop in subroutine.loops():
+            if loop.iteration_space.endswith("cell_column"):
                 if offload:
                     for kern in loop.kernels():
                         try:
@@ -157,8 +158,7 @@ def trans(psy):
                         # arrays and convert to code unsupported intrinsics.
 
         # Add GPU offloading to loops unless they are over colours or are null.
-        schedule = invoke.schedule
-        for loop in schedule.walk(Loop):
+        for loop in subroutine.walk(Loop):
             kernel_names = [k.name.lower() for k in loop.kernels()]
             if offload and all(name not in failed_to_offload for name in
                                kernel_names):
@@ -195,11 +195,9 @@ def trans(psy):
 
         # Apply OpenMP thread parallelism for any kernels we've not been able
         # to offload to GPU.
-        for loop in schedule.walk(Loop):
+        for loop in subroutine.walk(Loop):
             if not offload or any(kern.name.lower() in failed_to_offload for
                                   kern in loop.kernels()):
                 if loop.loop_type not in ["colours", "null"]:
                     cpu_parallel.apply(loop)
                     otrans.apply(loop, options={"reprod": True})
-
-    return psy
