@@ -50,7 +50,7 @@ cloning this repository and using:
 
     $ pip install .
 
-or in developer mode using
+or in developer (editable) mode using
 
     $ pip install -e .
 
