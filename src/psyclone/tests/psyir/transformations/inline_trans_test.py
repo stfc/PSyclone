@@ -397,7 +397,6 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
     # Second one should fail.
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(calls[1])
-    print(f">>> {err.value}")
     assert ("Routine 'sub3' cannot be inlined because the type of the actual "
             "argument 'mystery' corresponding to an array formal argument "
             "('x') is unknown" in str(err.value))
