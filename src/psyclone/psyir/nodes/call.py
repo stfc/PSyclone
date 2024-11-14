@@ -443,11 +443,12 @@ class Call(Statement, DataNode):
         new_copy._argument_names = new_list
 
         return new_copy
-    
-    def _get_container_symbols_rec(self,
-                            container_symbols_list:List[str],
-                            _stack_container_name_list:List[str] = [],
-                            _depth:int = 0):
+
+    def _get_container_symbols_rec(
+                            self,
+                            container_symbols_list: List[str],
+                            _stack_container_name_list: List[str] = [],
+                            _depth: int = 0):
         """Return a list of all container symbols that can be found
         recursively
 
@@ -460,7 +461,7 @@ class Call(Statement, DataNode):
         #
         # TODO: This function seems to be extremely slow
         #
-        indent = "  "*_depth
+        # indent = "  "*_depth
         retlist = container_symbols_list[:]
 
         # Cache the container names from symbols
@@ -490,14 +491,13 @@ class Call(Statement, DataNode):
                         container.symbol_table.containersymbols,
                         _stack_container_name_list+[container.name.lower()],
                         _depth+1)
-            
+
             # Remove duplicates
             for r in new_container_symbols:
                 if r not in retlist:
                     retlist.append(r)
 
         return retlist
-
 
     def get_callees(self):
         '''
@@ -558,8 +558,9 @@ class Call(Statement, DataNode):
                         wildcard_names.append(container_symbol.name)
 
                         try:
-                            container: Container = container_symbol.find_container_psyir(
-                                local_node=self)
+                            container: Container = (
+                                    container_symbol.find_container_psyir(
+                                        local_node=self))
                         except SymbolError:
                             container = None
 
@@ -570,9 +571,12 @@ class Call(Statement, DataNode):
 
                         routines = []
                         for name in container.resolve_routine(rsym.name):
-                            # Allow private imports if an 'interface' has been used
+                            # Allow private imports if an 'interface'
+                            # has been used
                             allow_private = (name != rsym.name)
-                            psyir = container.find_routine_psyir(name, allow_private=allow_private)
+                            psyir = container.find_routine_psyir(
+                                                name,
+                                                allow_private=allow_private)
                             if psyir:
                                 routines.append(psyir)
                         if routines:
@@ -666,9 +670,10 @@ class Call(Statement, DataNode):
         for this routine
         """
 
-    def get_argument_routine_match( self,
-                                    routine: Routine,
-                                    check_strict_array_datatype:bool = True):
+    def get_argument_routine_match(
+            self,
+            routine: Routine,
+            check_strict_array_datatype: bool = True):
         """Return a list of integers giving for each argument of the call
         the index of the argument in argument_list (typically of a routine)
 
@@ -704,7 +709,6 @@ class Call(Statement, DataNode):
                 routine_arg = routine_argument_list[call_arg_idx]
                 routine_arg: DataSymbol
 
-
                 type_matches = False
                 if not check_strict_array_datatype:
                     if (isinstance(call_arg.datatype, ArrayType) and
@@ -714,8 +718,8 @@ class Call(Statement, DataNode):
                 if not type_matches:
                     # Do the types of arguments match?
                     #
-                    # TODO #759: If optional is used, it's an unsupported Fortran
-                    # type and we need to use the following workaround
+                    # TODO #759: If optional is used, it's an unsupported
+                    # Fortran type and we need to use the following workaround
                     # Once this issue is resolved, simply remove this if branch
                     if not isinstance(
                                 routine_arg.datatype,
@@ -822,8 +826,8 @@ class Call(Statement, DataNode):
 
             try:
                 arg_match_list = self.get_argument_routine_match(
-                        routine,
-                        check_strict_array_datatype=check_strict_array_datatype)
+                    routine,
+                    check_strict_array_datatype=check_strict_array_datatype)
             except self.MatchingArgumentsNotFound:
                 continue
 

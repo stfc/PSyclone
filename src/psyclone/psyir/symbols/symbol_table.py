@@ -585,7 +585,11 @@ class SymbolTable():
 
         self._symbols[key] = new_symbol
 
-    def check_for_clashes(self, other_table, symbols_to_skip=(), check_unresolved_symbols=True):
+    def check_for_clashes(
+            self,
+            other_table,
+            symbols_to_skip=(),
+            check_unresolved_symbols=True):
         '''
         Checks the symbols in the supplied table against those in
         this table. If there is a name clash that cannot be resolved by
