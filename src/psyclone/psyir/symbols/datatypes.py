@@ -42,7 +42,7 @@ import copy
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, Union
 
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
@@ -909,7 +909,8 @@ class StructureType(DataType):
         :type initial_value: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         name: str
-        datatype: DataType | DataTypeSymbol
+        # Use Union for compatibility with Python < 3.10
+        datatype: Union[DataType, DataTypeSymbol]
         visibility: Symbol.Visibility
         initial_value: Any
 
