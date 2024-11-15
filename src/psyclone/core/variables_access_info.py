@@ -414,6 +414,9 @@ class VariablesAccessInfo(dict):
                 # as conditional
                 var_access = var_if[sig] if sig in var_if else var_else[sig]
                 for access in var_access.all_accesses:
+                    print("conditional 1", sig.to_language(
+                          component_indices=access.component_indices))
+
                     access.conditional = True
                 continue
 
@@ -450,8 +453,11 @@ class VariablesAccessInfo(dict):
                     # New component index:
                     equiv[access.component_indices] = ([], [access])
 
+            print("===============================")
             # Now handle each equivalent set of component indices:
             for comp_index in equiv.keys():
+                # print("evaluating equivalence", sig.to_language(
+                #           component_indices=comp_index))
                 if_accesses, else_accesses = equiv[comp_index]
                 # If the access is not in both branches, it is conditional:
                 if not if_accesses or not else_accesses:
@@ -502,18 +508,18 @@ class VariablesAccessInfo(dict):
 
                     # If the access to this equivalence class is conditional,
                     # mark all accesses as conditional:
-                    if is_conditional:
-                        for access in if_accesses + else_accesses:
-                            # Ignore read or write accesses depending on mode
-                            if mode is AccessType.READ and not access.is_read:
-                                continue
-                            if mode is AccessType.WRITE and \
-                                    not access.is_written:
-                                continue
-                            access.conditional = True
-                            print("CONDITIONAL", sig.to_language(
-                                  component_indices=comp_index))
-
+                    for access in if_accesses + else_accesses:
+                        # Ignore read or write accesses depending on mode
+                        if mode is AccessType.READ and not access.is_read:
+                            continue
+                        if mode is AccessType.WRITE and \
+                                not access.is_written:
+                            continue
+                        access.conditional = is_conditional
+                        print("conditional" if is_conditional
+                              else "unconditional",
+                              sig.to_language(component_indices=comp_index))
+                print("-----------------------------")
         self.merge(var_if)
         self.merge(var_else)
 
