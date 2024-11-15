@@ -34,29 +34,34 @@
 # Author J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module provides tools to analyse the sequence of calls
-across different subroutines and modules.'''
+""" This module provides tools to analyse the sequence of calls
+across different subroutines and modules."""
 
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.parse import ModuleManager
+from psyclone.parse import ModuleManagerAutoSearch
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import Container, Reference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DefaultModuleInterface, GenericInterfaceSymbol,
-    ImportInterface, IntrinsicSymbol, RoutineSymbol)
+    ArgumentInterface,
+    DefaultModuleInterface,
+    GenericInterfaceSymbol,
+    ImportInterface,
+    IntrinsicSymbol,
+    RoutineSymbol,
+)
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 
 # pylint: disable=too-few-public-methods
-class CallTreeUtils():
-    '''This class provides functions to analyse the sequence of
+class CallTreeUtils:
+    """This class provides functions to analyse the sequence of
     calls.
-    '''
+    """
 
     # ------------------------------------------------------------------------
     def _compute_all_non_locals(self, routine):
         # pylint: disable=too-many-branches
-        '''This function computes all non-local access of the specified
+        """This function computes all non-local access of the specified
         routine node. It returns a list of 3-tuples containing:
         - the type of the non-local as string, one of:
           - routine: A routine that is called
@@ -75,15 +80,15 @@ class CallTreeUtils():
         :rtype: list[tuple[str, str, :py:class:`psyclone.core.Signature`]]
 
 
-        '''
+        """
         non_locals = []
 
         outer_module = routine.ancestor(Container)
 
         for access in routine.walk((Kern, Reference)):
             if isinstance(access, BuiltIn) or (
-                    isinstance(access, Reference) and
-                    isinstance(access.symbol, IntrinsicSymbol)
+                isinstance(access, Reference)
+                and isinstance(access.symbol, IntrinsicSymbol)
             ):
                 # Builtins and Intrinsics are certainly not externals,
                 # so ignore them.
@@ -93,28 +98,36 @@ class CallTreeUtils():
                 # A kernel is a subroutine call from a module:
                 # TODO #2054: This will not be necessary anymore once
                 # a Kernel is also a Call.
-                non_locals.append(("routine", access.module_name,
-                                   Signature(access.name)))
+                non_locals.append(
+                    ("routine", access.module_name, Signature(access.name))
+                )
                 continue
 
             if isinstance(access.symbol, RoutineSymbol):
                 if isinstance(access.symbol.interface, ImportInterface):
                     module_name = access.symbol.interface.container_symbol.name
-                    non_locals.append(("routine", module_name,
-                                       Signature(access.symbol.name)))
+                    non_locals.append(
+                        ("routine", module_name, Signature(access.symbol.name))
+                    )
                     continue
 
                 # No import. This could either be a routine from
                 # this module, or just a global function.
                 if isinstance(access.symbol.interface, DefaultModuleInterface):
                     # A function defined in the same module
-                    non_locals.append(("routine", outer_module.name,
-                                       Signature(access.symbol.name)))
+                    non_locals.append(
+                        (
+                            "routine",
+                            outer_module.name,
+                            Signature(access.symbol.name),
+                        )
+                    )
                     continue
 
                 # We don't know where the subroutine comes from
-                non_locals.append(("routine", None,
-                                   Signature(access.symbol.name)))
+                non_locals.append(
+                    ("routine", None, Signature(access.symbol.name))
+                )
                 continue
 
             # Now access must be a Reference
@@ -151,17 +164,20 @@ class CallTreeUtils():
 
             # Check for an assignment of a result in a function, which
             # does not need to be reported:
-            if hasattr(routine, "return_symbol") and \
-                    routine.return_symbol and \
-                    sym.name == routine.return_symbol.name:
+            if (
+                hasattr(routine, "return_symbol")
+                and routine.return_symbol
+                and sym.name == routine.return_symbol.name
+            ):
                 continue
 
         return non_locals
 
     # -------------------------------------------------------------------------
-    def get_input_parameters(self, read_write_info, node_list,
-                             variables_info=None, options=None):
-        '''Adds all variables that are input parameters (i.e. are read before
+    def get_input_parameters(
+        self, read_write_info, node_list, variables_info=None, options=None
+    ):
+        """Adds all variables that are input parameters (i.e. are read before
         potentially being written) to the read_write_info object.
 
         :param read_write_info: this object stores the information about
@@ -182,7 +198,7 @@ class CallTreeUtils():
             PSyIR operators lbound, ubound, or size will be reported as
             'read'. Otherwise, these accesses will be ignored.
 
-        '''
+        """
         # Collect the information about all variables used:
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list, options=options)
@@ -196,9 +212,10 @@ class CallTreeUtils():
                 read_write_info.add_read(signature)
 
     # -------------------------------------------------------------------------
-    def get_output_parameters(self, read_write_info, node_list,
-                              variables_info=None, options=None):
-        '''Adds all variables that are output parameters (i.e. are written)
+    def get_output_parameters(
+        self, read_write_info, node_list, variables_info=None, options=None
+    ):
+        """Adds all variables that are output parameters (i.e. are written)
         to the read_write_info object.
 
         :param read_write_info: this object stores the information about
@@ -219,7 +236,7 @@ class CallTreeUtils():
             PSyIR operators lbound, ubound, or size will be reported as
             'read'. Otherwise, these accesses will be ignored.
 
-        '''
+        """
         # Collect the information about all variables used:
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list, options=options)
@@ -229,9 +246,10 @@ class CallTreeUtils():
                 read_write_info.add_write(signature)
 
     # -------------------------------------------------------------------------
-    def get_in_out_parameters(self, node_list, collect_non_local_symbols=False,
-                              options=None):
-        '''Returns a ReadWriteInfo object that contains all variables that are
+    def get_in_out_parameters(
+        self, node_list, collect_non_local_symbols=False, options=None
+    ):
+        """Returns a ReadWriteInfo object that contains all variables that are
         input and output parameters to the specified node list. This function
         calls `get_input_parameter` and `get_output_parameter`, but avoids the
         repeated computation of the variable usage. If
@@ -263,7 +281,7 @@ class CallTreeUtils():
             and output parameters.
         :rtype: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
-        '''
+        """
         variables_info = VariablesAccessInfo(node_list, options=options)
         read_write_info = ReadWriteInfo()
         self.get_input_parameters(read_write_info, node_list, variables_info)
@@ -275,7 +293,7 @@ class CallTreeUtils():
 
     # -------------------------------------------------------------------------
     def get_non_local_read_write_info(self, node_list, read_write_info):
-        '''Returns the information about non-local variables that are read
+        """Returns the information about non-local variables that are read
         or written.
 
         :param node_list: list of nodes containing Kernel calls to interrogate.
@@ -284,7 +302,7 @@ class CallTreeUtils():
                                 information obtained.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
-        '''
+        """
         # First collect all non-local symbols from the kernels called. They
         # are collected in the todo list. This list will initially contain
         # unknown accesses, since at this stage we cannot always differentiate
@@ -292,7 +310,7 @@ class CallTreeUtils():
         # that is following the corresponding modules will be queried and
         # the right accesses (functions or variables) will be used.
         todo = []
-        mod_manager = ModuleManager.get_singleton()
+        mod_manager = ModuleManagerAutoSearch.get_singleton()
         for node in node_list:
             # TODO #2494 - we need to support calls in order to work for
             # generic PSyIR.
@@ -304,13 +322,17 @@ class CallTreeUtils():
                 # Get the non-local access information from the kernel
                 # by querying the module that contains the kernel:
                 try:
-                    mod_info = mod_manager.get_module_info(kernel.module_name)
+                    mod_info = mod_manager.get_module_info_with_auto_add_files(
+                        kernel.module_name
+                    )
                 except FileNotFoundError as err:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
-                    print(f"[CallTreeUtils.get_non_local_read_write_info] "
-                          f"Could not find module '{kernel.module_name}' - "
-                          f"ignored.")
+                    print(
+                        f"[CallTreeUtils.get_non_local_read_write_info] "
+                        f"Could not find module '{kernel.module_name}' - "
+                        f"ignored."
+                    )
                     # This includes the currently defined search path:
                     print(str(err))
                     continue
@@ -318,32 +340,39 @@ class CallTreeUtils():
                 # Get the Container for this module.
                 cntr = mod_info.get_psyir()
                 if not cntr:
-                    print(f"[CallTreeUtils.get_non_local_read_write_info] "
-                          f"Could not get PSyIR for module "
-                          f"'{kernel.module_name}' - ignored.")
+                    print(
+                        f"[CallTreeUtils.get_non_local_read_write_info] "
+                        f"Could not get PSyIR for module "
+                        f"'{kernel.module_name}' - ignored."
+                    )
                     continue
                 all_possible_routines = cntr.resolve_routine(kernel.name)
                 if not all_possible_routines:
-                    print(f"[CallTreeUtils.get_non_local_read_write_info] "
-                          f"Could not get PSyIR for Routine "
-                          f"'{kernel.name}' from module "
-                          f"'{kernel.module_name}' as no possible routines "
-                          f" were found - ignored.")
+                    print(
+                        f"[CallTreeUtils.get_non_local_read_write_info] "
+                        f"Could not get PSyIR for Routine "
+                        f"'{kernel.name}' from module "
+                        f"'{kernel.module_name}' as no possible routines "
+                        f" were found - ignored."
+                    )
                 for routine_name in all_possible_routines:
                     psyir = cntr.find_routine_psyir(routine_name)
                     if not psyir:
-                        print(f"[CallTreeUtils.get_non_local_read_write_info] "
-                              f"Could not get PSyIR for Routine "
-                              f"'{routine_name}' from module "
-                              f"'{kernel.module_name}' - ignored.")
+                        print(
+                            f"[CallTreeUtils.get_non_local_read_write_info] "
+                            f"Could not get PSyIR for Routine "
+                            f"'{routine_name}' from module "
+                            f"'{kernel.module_name}' - ignored."
+                        )
                         continue
                     todo.extend(self.get_non_local_symbols(psyir))
         return self._resolve_calls_and_unknowns(todo, read_write_info)
 
     # -------------------------------------------------------------------------
-    def _resolve_calls_and_unknowns(self, outstanding_nonlocals,
-                                    read_write_info):
-        '''This function updates the list of non-local symbols by:
+    def _resolve_calls_and_unknowns(
+        self, outstanding_nonlocals, read_write_info
+    ):
+        """This function updates the list of non-local symbols by:
         1. replacing all subroutine calls with the list of their corresponding
             non-local symbols.
         2. Resolving unknown types to be either function calls (which then
@@ -362,10 +391,10 @@ class CallTreeUtils():
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
-        '''
+        """
         # pylint: disable=too-many-branches, too-many-locals
         # pylint: disable=too-many-statements
-        mod_manager = ModuleManager.get_singleton()
+        mod_manager = ModuleManagerAutoSearch.get_singleton()
         done = set()
         # Using a set here means that duplicated entries will automatically
         # be filtered out.
@@ -386,22 +415,30 @@ class CallTreeUtils():
                     # For now ignore this
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
-                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                          f"Unknown routine '{signature[0]} - ignored.")
+                    print(
+                        f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                        f"Unknown routine '{signature[0]} - ignored."
+                    )
                     continue
                 try:
-                    mod_info = mod_manager.get_module_info(module_name)
+                    mod_info = mod_manager.get_module_info_with_auto_add_files(
+                        module_name
+                    )
                 except FileNotFoundError:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
-                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                          f"Cannot find module '{module_name}' - ignored.")
+                    print(
+                        f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                        f"Cannot find module '{module_name}' - ignored."
+                    )
                     continue
                 cntr = mod_info.get_psyir()
                 if not cntr:
-                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                          f"Cannot get PSyIR for module '{module_name}' - "
-                          f"ignoring unknown symbol '{signature[0]}'.")
+                    print(
+                        f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                        f"Cannot get PSyIR for module '{module_name}' - "
+                        f"ignoring unknown symbol '{signature[0]}'."
+                    )
                     continue
                 # Check that we find at least one valid routine (several
                 # could be found in case of a generic interface):
@@ -411,46 +448,58 @@ class CallTreeUtils():
                     if not routine:
                         # TODO #11: Add proper logging
                         # TODO #2120: Handle error
-                        print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                              f"Cannot find routine '{routine_name}' in module"
-                              f" '{module_name}' - ignored.")
+                        print(
+                            f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                            f"Cannot find routine '{routine_name}' in module"
+                            f" '{module_name}' - ignored."
+                        )
                         continue
                     # Add the list of non-locals to our todo list:
                     outstanding_nonlocals.extend(
-                        self.get_non_local_symbols(routine))
+                        self.get_non_local_symbols(routine)
+                    )
                     at_least_one_routine_found = True
 
                 if not at_least_one_routine_found:
-                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                          f"Cannot resolve routine '{signature[0]}' in module "
-                          f"'{module_name}' - ignored.")
+                    print(
+                        f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                        f"Cannot resolve routine '{signature[0]}' in module "
+                        f"'{module_name}' - ignored."
+                    )
                 continue
 
             if external_type == "unknown":
                 # It could be a function (TODO #1314) or a variable. Check if
                 # there is a routine with that name in the module information:
                 try:
-                    mod_info = mod_manager.get_module_info(module_name)
+                    mod_info = mod_manager.get_module_info_with_auto_add_files(
+                        module_name
+                    )
                 except FileNotFoundError:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
-                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                          f"Cannot find module '{module_name}' - ignoring "
-                          f"unknown symbol '{signature}'.")
+                    print(
+                        f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                        f"Cannot find module '{module_name}' - ignoring "
+                        f"unknown symbol '{signature}'."
+                    )
                     continue
 
                 cntr = mod_info.get_psyir()
                 if not cntr:
-                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                          f"Cannot get PSyIR for module '{module_name}' - "
-                          f"ignoring unknown symbol '{signature}'.")
+                    print(
+                        f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                        f"Cannot get PSyIR for module '{module_name}' - "
+                        f"ignoring unknown symbol '{signature}'."
+                    )
                 else:
                     psyir = cntr.find_routine_psyir(str(signature))
                     if psyir:
                         # It is a routine, which we need to analyse for the use
                         # of non-local symbols:
-                        outstanding_nonlocals.append(("routine", module_name,
-                                                      signature, access_info))
+                        outstanding_nonlocals.append(
+                            ("routine", module_name, signature, access_info)
+                        )
                         continue
 
                     # Check whether it is a generic function (the symbol
@@ -460,26 +509,35 @@ class CallTreeUtils():
                     try:
                         sym = sym_tab.lookup(signature[0])
                     except KeyError:
-                        print(f"[CallTreeUtils._resolve_calls_and_unknowns]"
-                              f"Cannot find symbol '{signature[0]}'.")
+                        print(
+                            f"[CallTreeUtils._resolve_calls_and_unknowns]"
+                            f"Cannot find symbol '{signature[0]}'."
+                        )
                         continue
                     # Check if we have a generic interface (of a function):
                     if isinstance(sym, GenericInterfaceSymbol):
-                        all_possible_routines = \
-                            cntr.resolve_routine(signature[0])
+                        all_possible_routines = cntr.resolve_routine(
+                            signature[0]
+                        )
                         for function_name in all_possible_routines:
                             psyir = cntr.find_routine_psyir(function_name)
                             if not psyir:
-                                print(f"[CallTreeUtils._resolve_calls_and_"
-                                      f"unknowns] Could not get PSyIR for "
-                                      f"Function '{function_name}' from "
-                                      f"module '{module_name}' - "
-                                      f"ignored.")
+                                print(
+                                    f"[CallTreeUtils._resolve_calls_and_"
+                                    f"unknowns] Could not get PSyIR for "
+                                    f"Function '{function_name}' from "
+                                    f"module '{module_name}' - "
+                                    f"ignored."
+                                )
                                 continue
                             outstanding_nonlocals.append(
-                                ("routine", module_name,
-                                 Signature(function_name),
-                                 access_info))
+                                (
+                                    "routine",
+                                    module_name,
+                                    Signature(function_name),
+                                    access_info,
+                                )
+                            )
                         # It was a generic interface. All possible functions
                         # have been added, so this entry is done.
                         continue
@@ -506,7 +564,7 @@ class CallTreeUtils():
 
     # ------------------------------------------------------------------------
     def get_non_local_symbols(self, routine):
-        '''This function returns a list of non-local accesses in this
+        """This function returns a list of non-local accesses in this
         routine. It returns a list of triplets, each one containing:
 
         - the type ('routine', 'function', 'reference', 'unknown').
@@ -525,18 +583,20 @@ class CallTreeUtils():
         :rtype: list[tuple[str, str, :py:class:`psyclone.core.Signature`,
             :py:class:`psyclone.core.SingleVariableAccessInfo`]]
 
-        '''
+        """
         non_locals = self._compute_all_non_locals(routine)
 
-        var_accesses = \
-            VariablesAccessInfo(routine, options={"USE-ORIGINAL-NAMES": True})
+        var_accesses = VariablesAccessInfo(
+            routine, options={"USE-ORIGINAL-NAMES": True}
+        )
 
         result = []
-        for (symbol_type, module, signature) in non_locals:
+        for symbol_type, module, signature in non_locals:
             if symbol_type == "routine":
                 result.append((symbol_type, module, signature, None))
                 continue
-            result.append((symbol_type, module, signature,
-                           var_accesses[signature]))
+            result.append(
+                (symbol_type, module, signature, var_accesses[signature])
+            )
 
         return result

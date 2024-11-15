@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 
-'''This module contains a singleton class that manages information about
-which module is contained in which file (including full location). '''
+"""This module contains a singleton class that manages information about
+which module is contained in which file (including full location). """
 
 
 from collections import OrderedDict
@@ -42,17 +42,21 @@ import copy
 from difflib import SequenceMatcher
 import os
 import re
+import warnings
+from typing import Dict, Set, List
 
 from psyclone.errors import InternalError
 from psyclone.parse.file_info import FileInfo
 from psyclone.parse.module_info import ModuleInfo
+from psyclone.parse.module_manager_base import ModuleManagerBase
 
 
-class ModuleManager:
-    '''This class implements a singleton that manages module
+class ModuleManagerAutoSearch(ModuleManagerBase):
+    """This class implements a singleton that manages module
     dependencies.
 
-    '''
+    """
+
     # Class variable to store the singleton instance
     _instance = None
 
@@ -63,23 +67,27 @@ class ModuleManager:
     # ------------------------------------------------------------------------
     @staticmethod
     def get_singleton():
-        '''Static function that if necessary creates and returns the singleton
+        """Static function that if necessary creates and returns the singleton
         ModuleManager instance.
+        """
 
-        '''
-        if not ModuleManager._instance:
-            ModuleManager._instance = ModuleManager()
+        # warnings.warn("Using Singletons is not recommended")
 
-        return ModuleManager._instance
+        if not ModuleManagerAutoSearch._instance:
+            ModuleManagerAutoSearch._instance = ModuleManagerAutoSearch()
+
+        return ModuleManagerAutoSearch._instance
 
     # ------------------------------------------------------------------------
     def __init__(self):
+        super().__init__()
 
-        if ModuleManager._instance is not None:
-            raise InternalError("You need to use 'ModuleManager.get()' "
-                                "to get the singleton instance.")
+        if ModuleManagerAutoSearch._instance is not None:
+            raise InternalError(
+                "You need to use 'ModuleManager.get()' "
+                "to get the singleton instance."
+            )
 
-        self._modules = {}
         self._visited_files = {}
 
         # The list of all search paths which have not yet all their files
@@ -88,16 +96,16 @@ class ModuleManager:
         self._remaining_search_paths = OrderedDict()
         self._original_search_paths = []
 
-        self._ignore_modules = set()
-
         # Setup the regex used to find Fortran modules. Have to be careful not
         # to match e.g. "module procedure :: some_sub".
-        self._module_pattern = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
-                                          flags=(re.IGNORECASE | re.MULTILINE))
+        self._module_pattern = re.compile(
+            r"^\s*module\s+([a-z]\S*)\s*$",
+            flags=(re.IGNORECASE | re.MULTILINE),
+        )
 
     # ------------------------------------------------------------------------
     def add_search_path(self, directories, recursive=True):
-        '''If the directory is not already contained in the search path,
+        """If the directory is not already contained in the search path,
         add it. Directory can either be a string, in which case it is a single
         directory, or a list of directories, each one a string.
 
@@ -107,15 +115,17 @@ class ModuleManager:
         :param bool recursive: whether recursively all subdirectories should
             be added to the search path.
 
-        '''
+        """
         if isinstance(directories, str):
             # Make sure we always have a list
             directories = [directories]
 
         for directory in directories:
             if not os.access(directory, os.R_OK):
-                raise IOError(f"Directory '{directory}' does not exist or "
-                              f"cannot be read.")
+                raise IOError(
+                    f"Directory '{directory}' does not exist or "
+                    f"cannot be read."
+                )
             self._remaining_search_paths[directory] = 1
             self._original_search_paths.append(directory)
             if recursive:
@@ -127,7 +137,7 @@ class ModuleManager:
 
     # ------------------------------------------------------------------------
     def _add_all_files_from_dir(self, directory):
-        '''This function creates (and caches) FileInfo objects for all files
+        """This function creates (and caches) FileInfo objects for all files
         with an extension of (F/f/X/x)90 in the given directory that have
         not previously been visited. The new FileInfo objects are returned.
 
@@ -138,13 +148,17 @@ class ModuleManager:
                   previously visited.
         :rtype: list[:py:class:`psyclone.parse.FileInfo` | None]
 
-        '''
+        """
         new_files = []
         with os.scandir(directory) as all_entries:
             for entry in all_entries:
                 _, ext = os.path.splitext(entry.name)
-                if (not entry.is_file() or
-                        ext not in [".F90", ".f90", ".X90", ".x90"]):
+                if not entry.is_file() or ext not in [
+                    ".F90",
+                    ".f90",
+                    ".X90",
+                    ".x90",
+                ]:
                     continue
                 full_path = os.path.join(directory, entry.name)
                 if full_path in self._visited_files:
@@ -154,8 +168,8 @@ class ModuleManager:
         return new_files
 
     # ------------------------------------------------------------------------
-    def _find_module_in_files(self, name, file_list):
-        '''
+    def _find_module_in_files(self, name, fileinfo_list: List[FileInfo]):
+        """
         Searches the files represented by the supplied list of FileInfo objects
         to find the one defining the named Fortran module.
 
@@ -167,47 +181,32 @@ class ModuleManager:
                   it wasn't found.
         :rtype: :py:class:`psyclone.parse.FileInfo` | None
 
-        '''
+        """
         mod_info = None
-        for finfo in file_list:
+        for file_info in fileinfo_list:
             # We only proceed to read a file to check for a module if its
             # name is sufficiently similar to that of the module.
-            score = SequenceMatcher(None,
-                                    finfo.basename, name).ratio()
+            score = SequenceMatcher(None, file_info.basename, name).ratio()
             if score > self._threshold_similarity:
-                mod_names = self.get_modules_in_file(finfo)
+                mod_names = self.get_modules_in_file_regexp(file_info)
                 if name in mod_names:
                     # We've found the module we want. Create a ModuleInfo
                     # object for it and cache it.
-                    mod_info = ModuleInfo(name, finfo)
-                    self._modules[name] = mod_info
+                    mod_info = ModuleInfo(name, file_info)
+                    self._module_name_to_modinfo[name] = mod_info
                     # A file that has been (or does not require)
                     # preprocessing always takes precendence.
-                    if finfo.filename.endswith(".f90"):
+                    if file_info.filepath.endswith(".f90"):
                         return mod_info
         return mod_info
 
     # ------------------------------------------------------------------------
-    def add_ignore_module(self, module_name):
-        '''Adds the specified module name to the modules to be ignored.
-
-        :param str module_name: name of the module to ignore.
-
-        '''
-        self._ignore_modules.add(module_name.lower())
-
-    # ------------------------------------------------------------------------
-    def ignore_modules(self):
-        ''':returns: the set of modules to ignore.
-        :rtype: set[str]
-
-        '''
-        return self._ignore_modules
-
-    # ------------------------------------------------------------------------
-    def get_module_info(self, module_name):
-        '''This function returns the ModuleInformation for the specified
-        module.
+    def get_module_info_with_auto_add_files(
+        self, module_name: str
+    ) -> ModuleInfo:
+        """This function returns the ModuleInformation for the specified
+        module and automatically searches all provided directories for the
+        respective file with the module.
 
         :param str module_name: name of the module.
 
@@ -218,7 +217,7 @@ class ModuleManager:
         :raises FileNotFoundError: if the module_name is not found in
             either the cached data nor in the search path.
 
-        '''
+        """
         mod_lower = module_name.lower()
 
         if mod_lower in self._ignore_modules:
@@ -227,14 +226,15 @@ class ModuleManager:
         # First check if we have already seen this module. We only end the
         # search early if the file we've found does not require pre-processing
         # (i.e. has a .f90 suffix).
-        mod_info = self._modules.get(mod_lower, None)
-        if mod_info and mod_info.filename.endswith(".f90"):
+        mod_info = self._module_name_to_modinfo.get(mod_lower, None)
+        if mod_info and mod_info.filepath.endswith(".f90"):
             return mod_info
         old_mod_info = mod_info
         # Are any of the files that we've already seen a good match?
-        mod_info = self._find_module_in_files(mod_lower,
-                                              self._visited_files.values())
-        if mod_info and mod_info.filename.endswith(".f90"):
+        mod_info = self._find_module_in_files(
+            mod_lower, self._visited_files.values()
+        )
+        if mod_info and mod_info.filepath.endswith(".f90"):
             return mod_info
         old_mod_info = mod_info
 
@@ -253,15 +253,17 @@ class ModuleManager:
         if old_mod_info:
             return old_mod_info
 
-        raise FileNotFoundError(f"Could not find source file for module "
-                                f"'{module_name}' in any of the directories "
-                                f"'{', '.join(self._original_search_paths)}'. "
-                                f"You can add search paths using the '-d' "
-                                f"command line option.")
+        raise FileNotFoundError(
+            f"Could not find source file for module "
+            f"'{module_name}' in any of the directories "
+            f"'{', '.join(self._original_search_paths)}'. "
+            f"You can add search paths using the '-d' "
+            f"command line option."
+        )
 
     # ------------------------------------------------------------------------
-    def get_modules_in_file(self, finfo):
-        '''
+    def get_modules_in_file_regexp(self, finfo):
+        """
         Uses a regex search to find all modules defined in the file with the
         supplied name.
 
@@ -271,19 +273,14 @@ class ModuleManager:
         :returns: the names of any modules present in the supplied file.
         :rtype: list[str]
 
-        '''
-        # TODO #2597: perhaps use the fparser FortranReader here as this regex
-        # could be defeated by e.g.
-        #   module &
-        #    my_mod
-        # `finfo.contents` will read the file if it hasn't already been cached.
+        """
         mod_names = self._module_pattern.findall(finfo.contents)
 
         return [name.lower() for name in mod_names]
 
     # ------------------------------------------------------------------------
     def get_all_dependencies_recursively(self, all_mods):
-        '''This function collects recursively all module dependencies
+        """This function collects recursively all module dependencies
         for any of the modules in the ``all_mods`` set. I.e. it will
         add all modules used by any module listed in ``all_mods``,
         and any modules used by the just added modules etc. In the end,
@@ -306,7 +303,7 @@ class ModuleManager:
             or indirectly) for the modules in ``all_mods``.
         :rtype: dict[str, set[str]]
 
-        '''
+        """
         # This contains the mapping from each module name to the
         # list of the dependencies and is returned as result:
         module_dependencies = {}
@@ -327,7 +324,9 @@ class ModuleManager:
             if module in self.ignore_modules():
                 continue
             try:
-                mod_deps = self.get_module_info(module).get_used_modules()
+                mod_deps = self.get_module_info_with_auto_add_files(
+                    module
+                ).get_used_modules()
             except FileNotFoundError:
                 if module not in not_found:
                     # We don't have any information about this module,
@@ -360,8 +359,8 @@ class ModuleManager:
         return module_dependencies
 
     # -------------------------------------------------------------------------
-    def sort_modules(self, module_dependencies):
-        '''This function sorts the given dependencies so that all
+    def sort_modules(self, module_dependencies: Dict[str, Set[str]]):
+        """This function sorts the given dependencies so that all
         dependencies of a module are before any module that
         needs it. Input is a dictionary that contains all modules to
         be sorted as keys, and the value for each module is the set
@@ -374,7 +373,7 @@ class ModuleManager:
         :returns: the sorted list of modules.
         :rtype: list[str]
 
-        '''
+        """
         result = []
 
         # Create a copy to avoid modifying the callers data structure:
@@ -394,8 +393,10 @@ class ModuleManager:
                 # Print a warning if this module is not supposed to be ignored
                 if dep not in self.ignore_modules():
                     # TODO 2120: allow a choice to abort or ignore.
-                    print(f"Cannot find module `{dep}` which is used by "
-                          f"module '{module}'.")
+                    print(
+                        f"Cannot find module `{dep}` which is used by "
+                        f"module '{module}'."
+                    )
                 dependencies.remove(dep)
 
         while todo:
@@ -407,15 +408,18 @@ class ModuleManager:
             else:
                 # If there is no module without a dependency, there
                 # is a circular dependency
-                print(f"Circular dependency - cannot sort "
-                      f"module dependencies: {todo}")
+                print(
+                    f"Circular dependency - cannot sort "
+                    f"module dependencies: {todo}"
+                )
                 # TODO 2120: allow a choice to abort or ignore.
                 # In this case pick a module with the least number of
                 # dependencies, the best we can do in this case - and
                 # it's better to provide all modules (even if they cannot)
                 # be sorted, than missing some.
-                all_mods_sorted = sorted((mod for mod in todo.keys()),
-                                         key=lambda x: len(todo[x]))
+                all_mods_sorted = sorted(
+                    (mod for mod in todo.keys()), key=lambda x: len(todo[x])
+                )
                 mod = all_mods_sorted[0]
 
             # Add the current module to the result and remove it from

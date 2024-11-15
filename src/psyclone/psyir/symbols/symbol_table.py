@@ -38,7 +38,7 @@
 #          J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
-''' This module contains the SymbolTable implementation. '''
+""" This module contains the SymbolTable implementation. """
 
 # pylint: disable=too-many-lines
 
@@ -50,8 +50,16 @@ import copy
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (
-    DataSymbol, ContainerSymbol, DataTypeSymbol, GenericInterfaceSymbol,
-    ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
+    DataSymbol,
+    ContainerSymbol,
+    DataTypeSymbol,
+    GenericInterfaceSymbol,
+    ImportInterface,
+    RoutineSymbol,
+    Symbol,
+    SymbolError,
+    UnresolvedInterface,
+)
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
@@ -62,9 +70,9 @@ from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 DEFAULT_SENTINEL = object()
 
 
-class SymbolTable():
+class SymbolTable:
     # pylint: disable=too-many-public-methods
-    '''Encapsulates the symbol table and provides methods to add new
+    """Encapsulates the symbol table and provides methods to add new
     symbols and look up existing symbols. Nested scopes are supported
     and, by default, the add and lookup methods take any ancestor
     symbol tables into consideration (ones attached to nodes that are
@@ -83,7 +91,8 @@ class SymbolTable():
 
     :raises TypeError: if node argument is not a Schedule or a Container.
 
-    '''
+    """
+
     def __init__(self, node=None, default_visibility=Symbol.Visibility.PUBLIC):
         # Dict of Symbol objects with the symbol names as keys. Make
         # this ordered so that different versions of Python always
@@ -106,15 +115,15 @@ class SymbolTable():
 
     @property
     def default_visibility(self):
-        '''
+        """
         :returns: the default visibility of symbols in this table.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-        '''
+        """
         return self._default_visibility
 
     @default_visibility.setter
     def default_visibility(self, vis):
-        '''
+        """
         Sets the default visibility of symbols in this table.
 
         :param vis: the default visibility.
@@ -122,33 +131,34 @@ class SymbolTable():
 
         :raises TypeError: if the supplied value is of the wrong type.
 
-        '''
+        """
         if not isinstance(vis, Symbol.Visibility):
             raise TypeError(
                 f"Default visibility must be an instance of psyir.symbols."
-                f"Symbol.Visibility but got '{type(vis).__name__}'")
+                f"Symbol.Visibility but got '{type(vis).__name__}'"
+            )
         self._default_visibility = vis
 
     @property
     def node(self):
-        '''
+        """
         :returns: the Schedule or Container to which this symbol table belongs.
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`, \
             :py:class:`psyclone.psyir.nodes.Container` or NoneType
 
-        '''
+        """
         return self._node
 
     def is_empty(self):
-        '''
+        """
         :returns: True if the symbol table is empty, and False otherwise.
         :rtype: bool
 
-        '''
+        """
         return len(self._symbols) == 0
 
     def parent_symbol_table(self, scope_limit=None):
-        '''If this symbol table is enclosed in another scope, return the
+        """If this symbol table is enclosed in another scope, return the
         symbol table of the next outer scope. Otherwise return None.
 
         :param scope_limit: optional Node which limits the symbol search
@@ -162,15 +172,17 @@ class SymbolTable():
                   the one that encloses this one in the PSyIR hierarchy).
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
 
-        '''
+        """
         # Validate the supplied scope_limit
         if scope_limit is not None:
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.nodes import Node
+
             if not isinstance(scope_limit, Node):
                 raise TypeError(
                     f"The scope_limit argument '{scope_limit}', is not of "
-                    f"type `Node`.")
+                    f"type `Node`."
+                )
 
         # We use the Node with which this table is associated in order to
         # move up the Node hierarchy
@@ -178,12 +190,12 @@ class SymbolTable():
             search_next = self.node
             while search_next is not scope_limit and search_next.parent:
                 search_next = search_next.parent
-                if hasattr(search_next, 'symbol_table'):
+                if hasattr(search_next, "symbol_table"):
                     return search_next.symbol_table
         return None
 
     def get_symbols(self, scope_limit=None):
-        '''Return symbols from this symbol table and all symbol tables
+        """Return symbols from this symbol table and all symbol tables
         associated with ancestors of the node that this symbol table
         is attached to. If there are name duplicates we only return the
         one from the closest ancestor including self. It accepts an
@@ -200,7 +212,7 @@ class SymbolTable():
         :returns: ordered dictionary of symbols indexed by symbol name.
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
-        '''
+        """
         all_symbols = OrderedDict()
         current = self
         while current:
@@ -211,7 +223,7 @@ class SymbolTable():
         return all_symbols
 
     def get_tags(self, scope_limit=None):
-        '''Return tags from this symbol table and all symbol tables associated
+        """Return tags from this symbol table and all symbol tables associated
         with ancestors of the node that this symbol table is attached
         to. If there are tag duplicates we only return the one from the closest
         ancestor including self. It accepts an optional scope_limit argument.
@@ -228,7 +240,7 @@ class SymbolTable():
         :returns: ordered dictionary of symbols indexed by tag.
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
-        '''
+        """
         all_tags = OrderedDict()
         current = self
         while current:
@@ -239,7 +251,7 @@ class SymbolTable():
         return all_tags
 
     def shallow_copy(self):
-        '''Create a copy of the symbol table with new instances of the
+        """Create a copy of the symbol table with new instances of the
         top-level data structures but keeping the same existing symbol
         objects. Symbols added to the new symbol table will not be added
         in the original but the existing objects are still the same.
@@ -247,7 +259,7 @@ class SymbolTable():
         :returns: a shallow copy of this symbol table.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        '''
+        """
         # pylint: disable=protected-access
         new_st = type(self)()
         new_st._symbols = copy.copy(self._symbols)
@@ -258,7 +270,7 @@ class SymbolTable():
         return new_st
 
     def deep_copy(self):
-        '''Create a copy of the symbol table with new instances of the
+        """Create a copy of the symbol table with new instances of the
         top-level data structures and also new instances of the symbols
         contained in these data structures. Modifying a symbol attribute
         will not affect the equivalent named symbol in the original symbol
@@ -270,7 +282,7 @@ class SymbolTable():
         :returns: a deep copy of this symbol table.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        '''
+        """
         # pylint: disable=protected-access
         new_st = type(self)()
 
@@ -300,21 +312,21 @@ class SymbolTable():
 
     @staticmethod
     def _normalize(key):
-        '''Normalises the symboltable key strings.
+        """Normalises the symboltable key strings.
 
         :param str key: an input key.
 
         :returns: the normalized key.
         :rtype: str
 
-        '''
+        """
         # The symbol table is currently case insensitive
         new_key = key.lower()
         return new_key
 
     @classmethod
     def _has_same_name(cls, first, second):
-        ''' Compare if two symbols have the same normalized name. For
+        """Compare if two symbols have the same normalized name. For
         convenience it accepts symbols and strings.
 
         :param first: first item of the comparison.
@@ -325,14 +337,21 @@ class SymbolTable():
         :returns: whether the two symbols names are the same.
         :rtype: bool
 
-        '''
+        """
         string1 = first if isinstance(first, str) else first.name
         string2 = second if isinstance(second, str) else second.name
         return cls._normalize(string1) == cls._normalize(string2)
 
-    def new_symbol(self, root_name=None, tag=None, shadowing=False,
-                   symbol_type=None, allow_renaming=True, **symbol_init_args):
-        ''' Create a new symbol. Optional root_name and shadowing
+    def new_symbol(
+        self,
+        root_name=None,
+        tag=None,
+        shadowing=False,
+        symbol_type=None,
+        allow_renaming=True,
+        **symbol_init_args,
+    ):
+        """Create a new symbol. Optional root_name and shadowing
         arguments can be given to choose the name following the rules of
         next_available_name(). An optional tag can also be given.
         By default it creates a generic symbol but a symbol_type argument
@@ -363,16 +382,19 @@ class SymbolTable():
                              need to be renamed to be created and
                              allow_renaming is False.
 
-        '''
+        """
         # Only type-check symbol_type, the other arguments are just passed down
         # and type checked inside each relevant method.
         if symbol_type is not None:
-            if not (isinstance(symbol_type, type) and
-                    Symbol in inspect.getmro(symbol_type)):
+            if not (
+                isinstance(symbol_type, type)
+                and Symbol in inspect.getmro(symbol_type)
+            ):
                 raise TypeError(
                     f"The symbol_type parameter should be a type class of "
                     f"Symbol or one of its sub-classes but found "
-                    f"'{type(symbol_type).__name__}' instead.")
+                    f"'{type(symbol_type).__name__}' instead."
+                )
         else:
             symbol_type = Symbol
 
@@ -383,7 +405,7 @@ class SymbolTable():
 
         available_name = self.next_available_name(root_name, shadowing)
         # TODO #2546 - we should disallow renaming of UnsupportedFortranTypes
-        if (not allow_renaming and available_name != root_name):
+        if not allow_renaming and available_name != root_name:
             raise SymbolError(
                 f"Cannot create symbol '{root_name}' as a symbol with that "
                 f"name already exists in this scope, and renaming is "
@@ -393,15 +415,14 @@ class SymbolTable():
             interface = symbol_init_args["interface"]
             if isinstance(interface, ImportInterface):
                 symbol_init_args["interface"] = ImportInterface(
-                    symbol_init_args["interface"].container_symbol,
-                    root_name
+                    symbol_init_args["interface"].container_symbol, root_name
                 )
         symbol = symbol_type(available_name, **symbol_init_args)
         self.add(symbol, tag)
         return symbol
 
     def find_or_create(self, name, **new_symbol_args):
-        ''' Lookup a symbol by its name, if it doesn't exist create a new
+        """ Lookup a symbol by its name, if it doesn't exist create a new
         symbol with the given properties.
 
         :param str name: name of the symbol to lookup or create.
@@ -412,26 +433,26 @@ class SymbolTable():
                              argument does not match the type of the symbol \
                              found.
 
-        '''
+        """
         try:
             symbol = self.lookup(name)
             # Check that the symbol found matches the requested description
-            if 'symbol_type' in new_symbol_args:
-                symbol_type = new_symbol_args['symbol_type']
-                if not isinstance(symbol, new_symbol_args['symbol_type']):
+            if "symbol_type" in new_symbol_args:
+                symbol_type = new_symbol_args["symbol_type"]
+                if not isinstance(symbol, new_symbol_args["symbol_type"]):
                     raise SymbolError(
                         f"Expected symbol with name '{name}' to be of type "
                         f"'{symbol_type.__name__}' but found type "
-                        f"'{type(symbol).__name__}'.")
+                        f"'{type(symbol).__name__}'."
+                    )
             # TODO #1057: If the symbol is found and some unmatching arguments
             # were given it should also fail here.
             return symbol
         except KeyError:
             return self.new_symbol(name, **new_symbol_args)
 
-    def find_or_create_tag(self, tag, root_name=None,
-                           **new_symbol_args):
-        ''' Lookup a tag, if it doesn't exist create a new symbol with the
+    def find_or_create_tag(self, tag, root_name=None, **new_symbol_args):
+        """ Lookup a tag, if it doesn't exist create a new symbol with the
         given tag. By default it creates a generic Symbol with the tag as the
         root of the symbol name. Optionally, a different root_name or any of
         the arguments available in the new_symbol() method can be given to
@@ -460,17 +481,18 @@ class SymbolTable():
                              argument does not match the type of the symbol \
                              found.
 
-        '''
+        """
         try:
             symbol = self.lookup_with_tag(tag)
             # Check that the symbol found matches the requested description
-            if 'symbol_type' in new_symbol_args:
-                symbol_type = new_symbol_args['symbol_type']
-                if not isinstance(symbol, new_symbol_args['symbol_type']):
+            if "symbol_type" in new_symbol_args:
+                symbol_type = new_symbol_args["symbol_type"]
+                if not isinstance(symbol, new_symbol_args["symbol_type"]):
                     raise SymbolError(
                         f"Expected symbol with tag '{tag}' to be of type "
                         f"'{symbol_type.__name__}' but found type "
-                        f"'{type(symbol).__name__}'.")
+                        f"'{type(symbol).__name__}'."
+                    )
             # TODO #1057: If the symbol is found and some unmatching arguments
             # were given it should also fail here.
             return symbol
@@ -479,9 +501,10 @@ class SymbolTable():
                 root_name = tag
             return self.new_symbol(root_name, tag, **new_symbol_args)
 
-    def next_available_name(self, root_name=None, shadowing=False,
-                            other_table=None):
-        '''Return a name that is not in the symbol table and therefore can
+    def next_available_name(
+        self, root_name=None, shadowing=False, other_table=None
+    ):
+        """Return a name that is not in the symbol table and therefore can
         be used to declare a new symbol.
         If the `root_name` argument is not supplied or if it is
         an empty string then the name is generated internally,
@@ -507,16 +530,18 @@ class SymbolTable():
 
         :raises TypeError: if any of the arguments are of the wrong type.
 
-        '''
+        """
         if not isinstance(shadowing, bool):
             raise TypeError(
                 f"Argument 'shadowing' should be of type bool"
-                f" but found '{type(shadowing).__name__}'.")
+                f" but found '{type(shadowing).__name__}'."
+            )
 
         if other_table and not isinstance(other_table, SymbolTable):
             raise TypeError(
                 f"If supplied, argument 'other_table' should be of type "
-                f"SymbolTable but found '{type(other_table).__name__}'.")
+                f"SymbolTable but found '{type(other_table).__name__}'."
+            )
 
         if shadowing:
             symbols = self._symbols
@@ -539,7 +564,8 @@ class SymbolTable():
             if not isinstance(root_name, str):
                 raise TypeError(
                     f"Argument root_name should be of type str or NoneType "
-                    f"but found '{type(root_name).__name__}'.")
+                    f"but found '{type(root_name).__name__}'."
+                )
         if not root_name:
             root_name = Config.get().psyir_root_name
         candidate_name = root_name
@@ -550,7 +576,7 @@ class SymbolTable():
         return candidate_name
 
     def add(self, new_symbol, tag=None):
-        '''Add a new symbol to the symbol table if the symbol name is not
+        """Add a new symbol to the symbol table if the symbol name is not
         already in use.
 
         :param new_symbol: the symbol to add to the symbol table.
@@ -564,15 +590,19 @@ class SymbolTable():
         :raises KeyError: if a tag is supplied and it is already in \
             use.
 
-        '''
+        """
         if not isinstance(new_symbol, Symbol):
-            raise InternalError(f"Symbol '{new_symbol}' is not a symbol, but "
-                                f"'{type(new_symbol).__name__}'.'")
+            raise InternalError(
+                f"Symbol '{new_symbol}' is not a symbol, but "
+                f"'{type(new_symbol).__name__}'.'"
+            )
 
         key = self._normalize(new_symbol.name)
         if key in self._symbols:
-            raise KeyError(f"Symbol table already contains a symbol with "
-                           f"name '{new_symbol.name}'.")
+            raise KeyError(
+                f"Symbol table already contains a symbol with "
+                f"name '{new_symbol.name}'."
+            )
 
         if tag:
             if tag in self.get_tags():
@@ -580,17 +610,16 @@ class SymbolTable():
                     f"This symbol table, or an outer scope ancestor symbol "
                     f"table, already contains the tag '{tag}' for the symbol"
                     f" '{self.lookup_with_tag(tag).name}', so it can not be "
-                    f"associated with symbol '{new_symbol.name}'.")
+                    f"associated with symbol '{new_symbol.name}'."
+                )
             self._tags[tag] = new_symbol
 
         self._symbols[key] = new_symbol
 
     def check_for_clashes(
-            self,
-            other_table,
-            symbols_to_skip=(),
-            check_unresolved_symbols=True):
-        '''
+        self, other_table, symbols_to_skip=(), check_unresolved_symbols=True
+    ):
+        """
         Checks the symbols in the supplied table against those in
         this table. If there is a name clash that cannot be resolved by
         renaming then a SymbolError is raised. Any symbols appearing
@@ -608,14 +637,15 @@ class SymbolTable():
         :raises SymbolError: if there would be an unresolvable name clash
             when importing symbols from `other_table` into this table.
 
-        '''
+        """
         # pylint: disable-next=import-outside-toplevel
         from psyclone.psyir.nodes import IntrinsicCall
 
         if not isinstance(symbols_to_skip, Iterable):
             raise TypeError(
                 f"check_for_clashes: 'symbols_to_skip' must be an instance of "
-                f"Iterable but got '{type(symbols_to_skip).__name__}'")
+                f"Iterable but got '{type(symbols_to_skip).__name__}'"
+            )
 
         # Check whether there are any wildcard imports common to both tables.
         self_imports = self.wildcard_imports()
@@ -632,13 +662,15 @@ class SymbolTable():
 
             # If they are both ContainerSymbols then that's OK as they refer to
             # the same Container.
-            if (isinstance(this_sym, ContainerSymbol) and
-                    isinstance(other_sym, ContainerSymbol)):
+            if isinstance(this_sym, ContainerSymbol) and isinstance(
+                other_sym, ContainerSymbol
+            ):
                 continue
 
             # If they are both IntrinsicSymbol then that's fine.
-            if (isinstance(this_sym, IntrinsicSymbol) and
-                    isinstance(other_sym, IntrinsicSymbol)):
+            if isinstance(this_sym, IntrinsicSymbol) and isinstance(
+                other_sym, IntrinsicSymbol
+            ):
                 continue
 
             if other_sym.is_import and this_sym.is_import:
@@ -649,7 +681,8 @@ class SymbolTable():
                     raise SymbolError(
                         f"This table has an import of '{this_sym.name}' via "
                         f"interface '{this_sym.interface}' but the supplied "
-                        f"table imports it via '{other_sym.interface}'.")
+                        f"table imports it via '{other_sym.interface}'."
+                    )
                 continue
 
             if not check_unresolved_symbols:
@@ -679,7 +712,8 @@ class SymbolTable():
                 # We can't rename a symbol if we don't know its origin.
                 raise SymbolError(
                     f"A symbol named '{this_sym.name}' is present but "
-                    f"unresolved in one or both tables.")
+                    f"unresolved in one or both tables."
+                )
 
             # Can either of them be renamed?
             try:
@@ -692,10 +726,11 @@ class SymbolTable():
                     raise SymbolError(
                         f"There is a name clash for symbol '{this_sym.name}' "
                         f"that cannot be resolved by renaming "
-                        f"one of the instances because:\n- {err1}\n- {err2}")
+                        f"one of the instances because:\n- {err1}\n- {err2}"
+                    )
 
     def _add_container_symbols_from_table(self, other_table):
-        '''
+        """
         Takes container symbols from the supplied symbol table and adds them to
         this table. All references to each container symbol are also updated.
         (This is a preliminary step to adding all symbols from other_table to
@@ -705,7 +740,7 @@ class SymbolTable():
                             symbols.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        '''
+        """
         for csym in other_table.containersymbols:
             if csym.name in self:
                 # We have a clash with another symbol in this table.
@@ -714,9 +749,11 @@ class SymbolTable():
                     # The symbol in *this* table is not a Container so we
                     # may be able to rename it.
                     self.rename_symbol(
-                            self_csym,
-                            self.next_available_name(
-                                csym.name, other_table=other_table))
+                        self_csym,
+                        self.next_available_name(
+                            csym.name, other_table=other_table
+                        ),
+                    )
                     # We can then add an import from the Container.
                     self.add(csym)
                 else:
@@ -745,13 +782,15 @@ class SymbolTable():
                         self.rename_symbol(
                             other_sym,
                             self.next_available_name(
-                                other_sym.name, other_table=other_table))
+                                other_sym.name, other_table=other_table
+                            ),
+                        )
                 isym.interface = ImportInterface(
-                        self.lookup(csym.name),
-                        orig_name=isym.interface.orig_name)
+                    self.lookup(csym.name), orig_name=isym.interface.orig_name
+                )
 
     def _add_symbols_from_table(self, other_table, symbols_to_skip=()):
-        '''
+        """
         Takes symbols from the supplied symbol table and adds them to this
         table (unless they appear in `symbols_to_skip`).
         _add_container_symbols_from_table() MUST have been called
@@ -768,11 +807,12 @@ class SymbolTable():
         :raises InternalError: if an imported symbol is found that has not
             already been updated to refer to a Container in this table.
 
-        '''
+        """
         for old_sym in other_table.symbols:
 
-            if old_sym in symbols_to_skip or isinstance(old_sym,
-                                                        ContainerSymbol):
+            if old_sym in symbols_to_skip or isinstance(
+                old_sym, ContainerSymbol
+            ):
                 # We've dealt with Container symbols in _add_container_symbols.
                 continue
 
@@ -784,7 +824,7 @@ class SymbolTable():
                 self._handle_symbol_clash(old_sym, other_table)
 
     def _handle_symbol_clash(self, old_sym, other_table):
-        '''
+        """
         Adds the supplied Symbol to the current table in the presence
         of a name clash. `check_for_clashes` MUST have been called
         prior to this method in order to check for any unresolvable cases.
@@ -798,7 +838,7 @@ class SymbolTable():
         :raises InternalError: if the supplied symbol is imported from a
             Container that is not represented in this table.
 
-        '''
+        """
         if old_sym.is_import:
             # This symbol is imported from a Container so should
             # already have been updated so as to be imported from the
@@ -809,7 +849,8 @@ class SymbolTable():
             raise InternalError(
                 f"Symbol '{old_sym.name}' imported from '{self_csym.name}' "
                 f"has not been updated to refer to the corresponding "
-                f"container in the current table.")
+                f"container in the current table."
+            )
 
         self_sym = self.lookup(old_sym.name)
         if old_sym.is_unresolved and self_sym.is_unresolved:
@@ -822,7 +863,8 @@ class SymbolTable():
         # first the one that we are adding and failing that, the existing
         # symbol in this table.
         new_name = self.next_available_name(
-            old_sym.name, other_table=other_table)
+            old_sym.name, other_table=other_table
+        )
         try:
             other_table.rename_symbol(old_sym, new_name)
             self.add(old_sym)
@@ -830,8 +872,13 @@ class SymbolTable():
             self.rename_symbol(self_sym, new_name)
             self.add(old_sym)
 
-    def merge(self, other_table, symbols_to_skip=()):
-        '''Merges all of the symbols found in `other_table` into this
+    def merge(
+        self,
+        other_table,
+        symbols_to_skip=(),
+        check_unresolved_symbols: bool = False,
+    ):
+        """Merges all of the symbols found in `other_table` into this
         table. Symbol objects in *either* table may be renamed in the
         event of clashes.
 
@@ -843,38 +890,49 @@ class SymbolTable():
                                 the merge.
         :type symbols_to_skip: Iterable[
             :py:class:`psyclone.psyir.symbols.Symbol`]
+        :param check_unresolved_symbols: Check for arguments of unresolved
+            symbols
+        :type check_unresolved_symbols: bool
 
         :raises TypeError: if `other_table` is not a SymbolTable.
         :raises TypeError: if `symbols_to_skip` is not an Iterable.
         :raises SymbolError: if name clashes prevent the merge.
 
-        '''
+        """
         if not isinstance(other_table, SymbolTable):
-            raise TypeError(f"SymbolTable.merge() expects a SymbolTable "
-                            f"instance but got '{type(other_table).__name__}'")
+            raise TypeError(
+                f"SymbolTable.merge() expects a SymbolTable "
+                f"instance but got '{type(other_table).__name__}'"
+            )
         if not isinstance(symbols_to_skip, Iterable):
             raise TypeError(
                 f"SymbolTable.merge() expects 'symbols_to_skip' to be an "
-                f"Iterable but got '{type(symbols_to_skip).__name__}'")
+                f"Iterable but got '{type(symbols_to_skip).__name__}'"
+            )
 
         try:
-            self.check_for_clashes(other_table,
-                                   symbols_to_skip=symbols_to_skip)
+            self.check_for_clashes(
+                other_table,
+                symbols_to_skip=symbols_to_skip,
+                check_unresolved_symbols=check_unresolved_symbols,
+            )
         except SymbolError as err:
             raise SymbolError(
                 f"Cannot merge {other_table.view()} with {self.view()} due to "
-                f"unresolvable name clashes.") from err
+                f"unresolvable name clashes."
+            ) from err
 
         # Deal with any Container symbols first.
         self._add_container_symbols_from_table(other_table)
 
         # Copy each Symbol from the supplied table into this one, excluding
         # ContainerSymbols and any listed in `symbols_to_skip`.
-        self._add_symbols_from_table(other_table,
-                                     symbols_to_skip=symbols_to_skip)
+        self._add_symbols_from_table(
+            other_table, symbols_to_skip=symbols_to_skip
+        )
 
     def swap_symbol_properties(self, symbol1, symbol2):
-        '''Swaps the properties of symbol1 and symbol2 apart from the symbol
+        """Swaps the properties of symbol1 and symbol2 apart from the symbol
         name. Argument list positions are also updated appropriately.
 
         :param symbol1: the first symbol.
@@ -888,17 +946,22 @@ class SymbolTable():
                  or the names of the symbols are the same in the SymbolTable \
                  instance.
 
-        '''
+        """
         for symbol in [symbol1, symbol2]:
             if not isinstance(symbol, Symbol):
-                raise TypeError(f"Arguments should be of type 'Symbol' but "
-                                f"found '{type(symbol).__name__}'.")
+                raise TypeError(
+                    f"Arguments should be of type 'Symbol' but "
+                    f"found '{type(symbol).__name__}'."
+                )
             if symbol.name not in self._symbols:
-                raise KeyError(f"Symbol '{symbol.name}' is not in the symbol "
-                               f"table.")
+                raise KeyError(
+                    f"Symbol '{symbol.name}' is not in the symbol " f"table."
+                )
         if self._has_same_name(symbol1.name, symbol2.name):
-            raise ValueError(f"The symbols should have different names, but "
-                             f"found '{symbol1.name}' for both.")
+            raise ValueError(
+                f"The symbols should have different names, but "
+                f"found '{symbol1.name}' for both."
+            )
 
         tmp_symbol = symbol1.copy()
         symbol1.copy_properties(symbol2)
@@ -917,7 +980,7 @@ class SymbolTable():
             self._argument_list[index2] = symbol1
 
     def specify_argument_list(self, argument_symbols):
-        '''
+        """
         Sets-up the internal list storing the order of the arguments to this
         kernel.
 
@@ -927,13 +990,18 @@ class SymbolTable():
         :raises ValueError: if the new argument_list is not consistent with \
             the existing entries in the SymbolTable.
 
-        '''
+        """
         self._validate_arg_list(argument_symbols)
         self._argument_list = argument_symbols[:]
 
-    def lookup(self, name, visibility=None, scope_limit=None,
-               otherwise=DEFAULT_SENTINEL):
-        '''Look up a symbol in the symbol table. The lookup can be limited
+    def lookup(
+        self,
+        name,
+        visibility=None,
+        scope_limit=None,
+        otherwise=DEFAULT_SENTINEL,
+    ):
+        """Look up a symbol in the symbol table. The lookup can be limited
         by visibility (e.g. just show public methods) or by scope_limit (e.g.
         just show symbols up to a certain scope).
 
@@ -963,11 +1031,12 @@ class SymbolTable():
         :raises KeyError: if the given name is not in the Symbol Table and
                           `otherwise` is not supplied.
 
-        '''
+        """
         if not isinstance(name, str):
             raise TypeError(
                 f"Expected the name argument to the lookup() method to be "
-                f"a str but found '{type(name).__name__}'.")
+                f"a str but found '{type(name).__name__}'."
+            )
 
         try:
             symbol = self.get_symbols(scope_limit)[self._normalize(name)]
@@ -987,22 +1056,25 @@ class SymbolTable():
                                 f"be an instance (or list of instances) of "
                                 f"Symbol.Visibility but got "
                                 f"'{type(vis).__name__}' when searching for "
-                                f"symbol '{name}'")
+                                f"symbol '{name}'"
+                            )
                         vis_names.append(vis.name)
                     raise SymbolError(
                         f"Symbol '{name}' exists in the Symbol Table but has "
                         f"visibility '{symbol.visibility.name}' which does not"
-                        f" match with the requested visibility: {vis_names}")
+                        f" match with the requested visibility: {vis_names}"
+                    )
             return symbol
         except KeyError as err:
             if otherwise is DEFAULT_SENTINEL:
                 # No 'otherwise' value supplied so we raise an exception.
-                raise KeyError(f"Could not find '{name}' in the Symbol "
-                               f"Table.") from err
+                raise KeyError(
+                    f"Could not find '{name}' in the Symbol " f"Table."
+                ) from err
             return otherwise
 
     def lookup_with_tag(self, tag, scope_limit=None):
-        '''Look up a symbol by its tag. The lookup can be limited by
+        """Look up a symbol by its tag. The lookup can be limited by
         scope_limit (e.g. just show symbols up to a certain scope).
 
         :param str tag: tag identifier.
@@ -1019,30 +1091,32 @@ class SymbolTable():
         :raises TypeError: if the tag argument is not a string.
         :raises KeyError: if the given tag is not in the Symbol Table.
 
-        '''
+        """
         if not isinstance(tag, str):
             raise TypeError(
                 f"Expected the tag argument to the lookup_with_tag() method "
-                f"to be a str but found '{type(tag).__name__}'.")
+                f"to be a str but found '{type(tag).__name__}'."
+            )
 
         try:
             return self.get_tags(scope_limit)[tag]
         except KeyError as err:
-            raise KeyError(f"Could not find the tag '{tag}' in the Symbol "
-                           f"Table.") from err
+            raise KeyError(
+                f"Could not find the tag '{tag}' in the Symbol " f"Table."
+            ) from err
 
     def __contains__(self, key):
-        '''Check if the given key is part of the Symbol Table.
+        """Check if the given key is part of the Symbol Table.
 
         :param str key: key to check for existance.
 
         :returns: whether the Symbol Table contains the given key.
         :rtype: bool
-        '''
+        """
         return self._normalize(key.lower()) in self._symbols
 
     def symbols_imported_from(self, csymbol):
-        '''
+        """
         Examines the contents of this symbol table to see which DataSymbols
         (if any) are imported from the supplied ContainerSymbol (which must
         be present in the SymbolTable).
@@ -1057,22 +1131,28 @@ class SymbolTable():
         :raises TypeError: if the supplied object is not a ContainerSymbol.
         :raises KeyError: if the supplied object is not in this SymbolTable.
 
-        '''
+        """
         if not isinstance(csymbol, ContainerSymbol):
             raise TypeError(
                 f"symbols_imported_from() expects a ContainerSymbol but got "
-                f"an object of type '{type(csymbol).__name__}'")
+                f"an object of type '{type(csymbol).__name__}'"
+            )
         # self.lookup(name) will raise a KeyError if there is no symbol with
         # that name in the table.
         if self.lookup(csymbol.name) is not csymbol:
-            raise KeyError(f"The '{csymbol.name}' entry in this SymbolTable "
-                           f"is not the supplied ContainerSymbol.")
+            raise KeyError(
+                f"The '{csymbol.name}' entry in this SymbolTable "
+                f"is not the supplied ContainerSymbol."
+            )
 
-        return [symbol for symbol in self.imported_symbols if
-                symbol.interface.container_symbol is csymbol]
+        return [
+            symbol
+            for symbol in self.imported_symbols
+            if symbol.interface.container_symbol is csymbol
+        ]
 
     def swap(self, old_symbol, new_symbol):
-        '''
+        """
         Remove the `old_symbol` from the table and replace it with the
         `new_symbol`.
 
@@ -1084,24 +1164,29 @@ class SymbolTable():
         :raises TypeError: if either old/new_symbol are not Symbols.
         :raises SymbolError: if `old_symbol` and `new_symbol` don't have
                              the same name (after normalising).
-        '''
+        """
         if not isinstance(old_symbol, Symbol):
-            raise TypeError(f"Symbol to remove must be of type Symbol but "
-                            f"got '{type(old_symbol).__name__}'")
+            raise TypeError(
+                f"Symbol to remove must be of type Symbol but "
+                f"got '{type(old_symbol).__name__}'"
+            )
         if not isinstance(new_symbol, Symbol):
-            raise TypeError(f"Symbol to add must be of type Symbol but "
-                            f"got '{type(new_symbol).__name__}'")
+            raise TypeError(
+                f"Symbol to add must be of type Symbol but "
+                f"got '{type(new_symbol).__name__}'"
+            )
         if not self._has_same_name(old_symbol, new_symbol):
             raise SymbolError(
                 f"Cannot swap symbols that have different names, got: "
-                f"'{old_symbol.name}' and '{new_symbol.name}'")
+                f"'{old_symbol.name}' and '{new_symbol.name}'"
+            )
         # TODO #898 remove() does not currently check for any uses of
         # old_symbol.
         self.remove(old_symbol)
         self.add(new_symbol)
 
     def _validate_remove_routinesymbol(self, symbol):
-        '''
+        """
         Checks whether the supplied RoutineSymbol can be removed from this
         table.
 
@@ -1113,7 +1198,7 @@ class SymbolTable():
 
         :raises ValueError: if the Symbol cannot be removed.
 
-        '''
+        """
         parent_table = self.parent_symbol_table()
         if parent_table:
             try:
@@ -1131,12 +1216,14 @@ class SymbolTable():
         # variable initialisation expressions or CodeBlocks).
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Call
+
         all_calls = self.node.walk(Call) if self.node else []
         for call in all_calls:
             if call.routine.symbol is symbol:
                 raise ValueError(
                     f"Cannot remove RoutineSymbol '{symbol.name}' "
-                    f"because it is referenced by '{call.debug_string()}'")
+                    f"because it is referenced by '{call.debug_string()}'"
+                )
         # Check for any references to it within interfaces.
         for sym in self._symbols.values():
             if not isinstance(sym, GenericInterfaceSymbol):
@@ -1145,10 +1232,11 @@ class SymbolTable():
                 if rt_info.symbol is symbol:
                     raise ValueError(
                         f"Cannot remove RoutineSymbol '{symbol.name}' "
-                        f"because it is referenced in interface '{sym.name}'")
+                        f"because it is referenced in interface '{sym.name}'"
+                    )
 
     def remove(self, symbol):
-        '''
+        """
         Remove the supplied symbol from the Symbol Table. This has a high
         potential to leave broken links, so this method checks for some
         references to the removed symbol depending on the symbol type.
@@ -1171,18 +1259,23 @@ class SymbolTable():
                             by one or more DataSymbols.
         :raises InternalError: if the supplied symbol is not the same as the
                                entry with that name in this SymbolTable.
-        '''
+        """
         if not isinstance(symbol, Symbol):
-            raise TypeError(f"remove() expects a Symbol argument but found: "
-                            f"'{type(symbol).__name__}'.")
+            raise TypeError(
+                f"remove() expects a Symbol argument but found: "
+                f"'{type(symbol).__name__}'."
+            )
 
         # pylint: disable=unidiomatic-typecheck
-        if not (isinstance(symbol, (ContainerSymbol, RoutineSymbol)) or
-                type(symbol) is Symbol):
+        if not (
+            isinstance(symbol, (ContainerSymbol, RoutineSymbol))
+            or type(symbol) is Symbol
+        ):
             raise NotImplementedError(
                 f"remove() currently only supports generic Symbol, "
                 f"ContainerSymbol and RoutineSymbol types but got: "
-                f"'{type(symbol).__name__}'")
+                f"'{type(symbol).__name__}'"
+            )
         # pylint: enable=unidiomatic-typecheck
 
         # Since we are manipulating the _symbols dict directly we must use
@@ -1190,24 +1283,29 @@ class SymbolTable():
         norm_name = self._normalize(symbol.name)
 
         if norm_name not in self._symbols:
-            raise KeyError(f"Cannot remove Symbol '{symbol.name}' from symbol "
-                           f"table because it does not exist.")
+            raise KeyError(
+                f"Cannot remove Symbol '{symbol.name}' from symbol "
+                f"table because it does not exist."
+            )
         # Sanity-check that the entry in the table is the symbol we've
         # been passed.
         if self._symbols[norm_name] is not symbol:
             raise InternalError(
                 f"The Symbol with name '{symbol.name}' in this symbol table "
                 f"is not the same Symbol object as the one that has been "
-                f"supplied to the remove() method.")
+                f"supplied to the remove() method."
+            )
 
         # We can only remove a ContainerSymbol if no DataSymbols are
         # being imported from it
-        if (isinstance(symbol, ContainerSymbol) and
-                self.symbols_imported_from(symbol)):
+        if isinstance(symbol, ContainerSymbol) and self.symbols_imported_from(
+            symbol
+        ):
             raise ValueError(
                 f"Cannot remove ContainerSymbol '{symbol.name}' since symbols"
                 f" {[sym.name for sym in self.symbols_imported_from(symbol)]} "
-                f"are imported from it - remove them first.")
+                f"are imported from it - remove them first."
+            )
 
         # RoutineSymbols require special consideration as they may be the
         # target of a Call or a member of a GenericInterfaceSymbol.
@@ -1223,7 +1321,7 @@ class SymbolTable():
 
     @property
     def argument_list(self):
-        '''
+        """
         Checks that the contents of the SymbolTable are self-consistent
         and then returns the list of kernel arguments.
 
@@ -1233,7 +1331,7 @@ class SymbolTable():
         :raises InternalError: if the entries of the SymbolTable are not
                                self-consistent.
 
-        '''
+        """
         try:
             self._validate_arg_list(self._argument_list)
             self._validate_non_args()
@@ -1244,7 +1342,7 @@ class SymbolTable():
         return self._argument_list
 
     def insert_argument(self, index, argument):
-        '''
+        """
         Insert a new argument at a given index in the argument list and add
         it in the symbol table itself.
 
@@ -1259,19 +1357,22 @@ class SymbolTable():
         :raises TypeError: if the supplied argument is not a DataSymbol.
         :raises ValueError: if the supplied argument is not marked as a
                             kernel argument.
-        '''
+        """
         if not isinstance(index, int):
             raise TypeError(
                 f"Expected an integer index for the position at which to "
-                f"insert the argument but found '{type(index).__name__}'.")
+                f"insert the argument but found '{type(index).__name__}'."
+            )
         if not isinstance(argument, DataSymbol):
             raise TypeError(
                 f"Expected a DataSymbol for the argument to insert but found "
-                f"'{type(argument).__name__}'.")
+                f"'{type(argument).__name__}'."
+            )
         if not argument.is_argument:
             raise ValueError(
                 f"DataSymbol '{argument.name}' is not marked as a kernel "
-                "argument.")
+                "argument."
+            )
 
         self._argument_list.insert(index, argument)
         self.add(argument)
@@ -1285,7 +1386,7 @@ class SymbolTable():
             raise InternalError(str(err.args)) from err
 
     def append_argument(self, argument):
-        '''
+        """
         Append a new argument to the argument list and add it in the symbol
         table itself.
 
@@ -1297,15 +1398,17 @@ class SymbolTable():
         :raises TypeError: if the supplied argument is not a DataSymbol.
         :raises ValueError: if the supplied argument is not marked as a
                             kernel argument.
-        '''
+        """
         if not isinstance(argument, DataSymbol):
             raise TypeError(
                 f"Expected a DataSymbol for the argument to insert but found "
-                f"'{type(argument).__name__}'.")
+                f"'{type(argument).__name__}'."
+            )
         if not argument.is_argument:
             raise ValueError(
                 f"DataSymbol '{argument.name}' is not marked as a kernel "
-                "argument.")
+                "argument."
+            )
 
         self._argument_list.append(argument)
         self.add(argument)
@@ -1320,7 +1423,7 @@ class SymbolTable():
 
     @staticmethod
     def _validate_arg_list(arg_list):
-        '''
+        """
         Checks that the supplied list of Symbols are valid kernel arguments.
 
         :param arg_list: the proposed kernel arguments.
@@ -1331,27 +1434,30 @@ class SymbolTable():
         :raises ValueError: if any of the symbols does not have an argument
                             interface.
 
-        '''
+        """
         for symbol in arg_list:
             if not isinstance(symbol, DataSymbol):
-                raise TypeError(f"Expected a list of DataSymbols but found an "
-                                f"object of type '{type(symbol).__name__}'.")
+                raise TypeError(
+                    f"Expected a list of DataSymbols but found an "
+                    f"object of type '{type(symbol).__name__}'."
+                )
             if not symbol.is_argument:
                 raise ValueError(
                     f"DataSymbol '{symbol}' is listed as a kernel argument "
                     f"but has an interface of type "
                     f"'{type(symbol.interface).__name__}' "
-                    f"rather than ArgumentInterface")
+                    f"rather than ArgumentInterface"
+                )
 
     def _validate_non_args(self):
-        '''
+        """
         Performs internal consistency checks on the current entries in the
         SymbolTable that do not represent kernel arguments.
 
         :raises ValueError: if a symbol that is not in the argument list
                             has an argument interface.
 
-        '''
+        """
         for symbol in self.datasymbols:
             if symbol not in self._argument_list:
                 # DataSymbols not in the argument list must not have a
@@ -1359,35 +1465,36 @@ class SymbolTable():
                 if symbol.is_argument:
                     raise ValueError(
                         f"Symbol '{symbol}' is not listed as a kernel argument"
-                        f" and yet has an ArgumentInterface interface.")
+                        f" and yet has an ArgumentInterface interface."
+                    )
 
     @property
     def symbols_dict(self):
-        '''
+        """
         :returns: ordered dictionary of symbols indexed by symbol name.
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
-        '''
+        """
         return self._symbols
 
     @property
     def tags_dict(self):
-        '''
+        """
         :returns: ordered dictionary of symbols indexed by tag.
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
 
-        '''
+        """
         return self._tags
 
     def get_reverse_tags_dict(self):
-        '''
+        """
         Constructs and returns a reverse of the map returned by tags_dict
         method.
 
         :returns: ordered dictionary of tags indexed by symbol.
         :rtype: OrderedDict[:py:class:`psyclone.psyir.symbols.Symbol`, str]
 
-        '''
+        """
         tags_dict_reversed = OrderedDict()
         # TODO #1654. This assumes that there is only ever one tag associated
         # with a particular Symbol. At present this is guaranteed by the
@@ -1398,116 +1505,123 @@ class SymbolTable():
 
     @property
     def symbols(self):
-        '''
+        """
         :returns: list of symbols.
         :rtype: List[:py:class:`psyclone.psyir.symbols.Symbol`]
-        '''
+        """
         return list(self._symbols.values())
 
     @property
     def datasymbols(self):
-        '''
+        """
         :returns: list of symbols representing data variables.
         :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-        '''
-        return [sym for sym in self._symbols.values() if
-                isinstance(sym, DataSymbol)]
+        """
+        return [
+            sym
+            for sym in self._symbols.values()
+            if isinstance(sym, DataSymbol)
+        ]
 
     @property
     def automatic_datasymbols(self):
-        '''
+        """
         :returns: list of symbols representing automatic variables.
         :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-        '''
+        """
         return [sym for sym in self.datasymbols if sym.is_automatic]
 
     @property
     def argument_datasymbols(self):
-        '''
+        """
         :returns: list of symbols representing arguments.
         :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-        '''
+        """
         return [sym for sym in self.datasymbols if sym.is_argument]
 
     @property
     def imported_symbols(self):
-        '''
+        """
         :returns: list of symbols that have an imported interface (are \
             associated with data that exists outside the current scope).
         :rtype: List[:py:class:`psyclone.psyir.symbols.Symbol`]
 
-        '''
+        """
         return [sym for sym in self.symbols if sym.is_import]
 
     @property
     def unresolved_datasymbols(self):
-        '''
+        """
         :returns: list of symbols representing unresolved variables.
         :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-        '''
+        """
         return [sym for sym in self.datasymbols if sym.is_unresolved]
 
     @property
     def precision_datasymbols(self):
-        '''
+        """
         :returns: list of all symbols used to define the precision of \
                   other symbols within the table.
         :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
-        '''
+        """
         # Accumulate into a set so as to remove any duplicates
         precision_symbols = set()
         for sym in self.datasymbols:
             # Not all types have the 'precision' attribute (e.g.
             # UnresolvedType)
-            if (hasattr(sym.datatype, "precision") and
-                    isinstance(sym.datatype.precision, DataSymbol)):
+            if hasattr(sym.datatype, "precision") and isinstance(
+                sym.datatype.precision, DataSymbol
+            ):
                 precision_symbols.add(sym.datatype.precision)
         return list(precision_symbols)
 
     @property
     def containersymbols(self):
-        '''
+        """
         :returns: a list of the ContainerSymbols present in the Symbol Table.
         :rtype: List[:py:class:`psyclone.psyir.symbols.ContainerSymbol`]
-        '''
-        return [sym for sym in self.symbols if isinstance(sym,
-                                                          ContainerSymbol)]
+        """
+        return [
+            sym for sym in self.symbols if isinstance(sym, ContainerSymbol)
+        ]
 
     @property
     def datatypesymbols(self):
-        '''
+        """
         :returns: the DataTypeSymbols present in the Symbol Table.
         :rtype: List[:py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
-        '''
+        """
         return [sym for sym in self.symbols if isinstance(sym, DataTypeSymbol)]
 
     @property
     def iteration_indices(self):
-        '''
+        """
         :returns: list of symbols representing kernel iteration indices.
         :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         :raises NotImplementedError: this method is abstract.
-        '''
+        """
         raise NotImplementedError(
             "Abstract property. Which symbols are iteration indices is"
-            " API-specific.")
+            " API-specific."
+        )
 
     @property
     def data_arguments(self):
-        '''
+        """
         :returns: list of symbols representing kernel data arguments.
         :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         :raises NotImplementedError: this method is abstract.
-        '''
+        """
         raise NotImplementedError(
             "Abstract property. Which symbols are data arguments is"
-            " API-specific.")
+            " API-specific."
+        )
 
     def copy_external_import(self, imported_var, tag=None):
-        '''
+        """
         Copy the given imported variable (and its referenced ContainerSymbol if
         needed) into the SymbolTable.
 
@@ -1520,18 +1634,20 @@ class SymbolTable():
         :raises KeyError: if the given variable name already exists in the \
             symbol table.
 
-        '''
+        """
         if not isinstance(imported_var, DataSymbol):
             raise TypeError(
                 f"The imported_var argument of "
                 f"SymbolTable.copy_external_import method should be a "
-                f"DataSymbol, but found '{type(imported_var).__name__}'.")
+                f"DataSymbol, but found '{type(imported_var).__name__}'."
+            )
 
         if not imported_var.is_import:
             raise TypeError(
                 f"The imported_var argument of SymbolTable.copy_external_"
                 f"import method should have an ImportInterface interface, "
-                f"but found '{type(imported_var.interface).__name__}'.")
+                f"but found '{type(imported_var.interface).__name__}'."
+            )
 
         external_container_name = imported_var.interface.container_symbol.name
 
@@ -1551,14 +1667,18 @@ class SymbolTable():
             # If it already exists it must refer to the same Container and have
             # the same tag.
             local_instance = self.lookup(imported_var.name)
-            if not (local_instance.is_import and
-                    self._has_same_name(
-                        local_instance.interface.container_symbol,
-                        external_container_name)):
+            if not (
+                local_instance.is_import
+                and self._has_same_name(
+                    local_instance.interface.container_symbol,
+                    external_container_name,
+                )
+            ):
                 raise KeyError(
                     f"Couldn't copy '{imported_var}' into the SymbolTable. The"
                     f" name '{imported_var.name}' is already used by another "
-                    f"symbol.")
+                    f"symbol."
+                )
             if tag:
                 # If the symbol already exists and a tag is provided
                 try:
@@ -1572,10 +1692,11 @@ class SymbolTable():
                 if self.lookup(imported_var.name) != self.lookup_with_tag(tag):
                     raise KeyError(
                         f"Couldn't copy '{imported_var}' into the SymbolTable."
-                        f" The tag '{tag}' is already used by another symbol.")
+                        f" The tag '{tag}' is already used by another symbol."
+                    )
 
     def resolve_imports(self, container_symbols=None, symbol_target=None):
-        ''' Try to resolve deferred and unknown information from imported
+        """ Try to resolve deferred and unknown information from imported
         symbols in this symbol table by searching for their definitions in
         referred external container. A single symbol to resolve can be
         specified for a more targeted import.
@@ -1599,19 +1720,21 @@ class SymbolTable():
         :raises KeyError: if a symbol_target has been specified but this has \
             not been found in any of the searched containers.
 
-        '''
+        """
         if container_symbols is not None:
             if not isinstance(container_symbols, list):
                 raise TypeError(
                     f"The resolve_imports container_symbols argument must be a"
                     f" list but found '{type(container_symbols).__name__}' "
-                    f"instead.")
+                    f"instead."
+                )
             for item in container_symbols:
                 if not isinstance(item, ContainerSymbol):
                     raise TypeError(
                         f"The resolve_imports container_symbols argument list "
                         f"elements must be ContainerSymbols, but found a "
-                        f"'{type(item).__name__}' instead.")
+                        f"'{type(item).__name__}' instead."
+                    )
         else:
             # If no container_symbol is given, search in all the containers
             container_symbols = self.containersymbols
@@ -1619,12 +1742,14 @@ class SymbolTable():
         if symbol_target and not isinstance(symbol_target, Symbol):
             raise TypeError(
                 f"The resolve_imports symbol_target argument must be a Symbol "
-                f"but found '{type(symbol_target).__name__}' instead.")
+                f"but found '{type(symbol_target).__name__}' instead."
+            )
 
         for c_symbol in container_symbols:
             try:
                 external_container = c_symbol.find_container_psyir(
-                    local_node=self.node)
+                    local_node=self.node
+                )
             # pylint: disable=broad-except
             except Exception:
                 # Ignore this container if the associated module file has not
@@ -1647,7 +1772,8 @@ class SymbolTable():
                 # If we are just resolving a single specific symbol we don't
                 # need to process this symbol unless the name matches.
                 if symbol_target and not self._has_same_name(
-                                            symbol, symbol_target):
+                    symbol, symbol_target
+                ):
                     continue
 
                 # Determine if there is an Unresolved Symbol in a
@@ -1664,27 +1790,35 @@ class SymbolTable():
                 # Import here to avoid circular dependencies
                 # pylint: disable=import-outside-toplevel
                 from psyclone.psyir.nodes import ScopingNode, Reference
+
                 for scoping_node in self.node.walk(ScopingNode):
                     symbol_table = scoping_node.symbol_table
                     if symbol.name in symbol_table:
                         test_symbol = symbol_table.lookup(symbol.name)
                         # pylint: disable=unidiomatic-typecheck
-                        if (type(test_symbol) is Symbol
-                                and test_symbol.is_unresolved):
+                        if (
+                            type(test_symbol) is Symbol
+                            and test_symbol.is_unresolved
+                        ):
                             # No wildcard imports in this symbol table
-                            if not [sym for sym in
-                                    symbol_table.containersymbols if
-                                    sym.wildcard_import]:
+                            if not [
+                                sym
+                                for sym in symbol_table.containersymbols
+                                if sym.wildcard_import
+                            ]:
                                 symbol_table.remove(test_symbol)
                                 if test_symbol.name not in self:
                                     self.add(test_symbol)
                                 else:
                                     for ref in symbol_table.node.walk(
-                                            Reference):
+                                        Reference
+                                    ):
                                         if SymbolTable._has_same_name(
-                                                ref.symbol, symbol):
+                                            ref.symbol, symbol
+                                        ):
                                             mod_symbol = self.lookup(
-                                                symbol.name)
+                                                symbol.name
+                                            )
                                             ref.symbol = mod_symbol
 
                 # This Symbol matches the name of a symbol in the current table
@@ -1698,8 +1832,10 @@ class SymbolTable():
                     # matching symbol must have the appropriate interface
                     # referring to this c_symbol
                     if not c_symbol.wildcard_import:
-                        if not isinstance(interface, ImportInterface) or \
-                                interface.container_symbol is not c_symbol:
+                        if (
+                            not isinstance(interface, ImportInterface)
+                            or interface.container_symbol is not c_symbol
+                        ):
                             continue  # It doesn't come from this import
 
                     # Found a match, update the interface if necessary or raise
@@ -1715,7 +1851,8 @@ class SymbolTable():
                         raise SymbolError(
                             f"Found a name clash with symbol '{symbol.name}' "
                             f"when importing symbols from container "
-                            f"'{c_symbol.name}'.")
+                            f"'{c_symbol.name}'."
+                        )
 
                     # If the external symbol is a subclass of the local
                     # symbol_match, copy the external symbol properties,
@@ -1727,7 +1864,8 @@ class SymbolTable():
                                 # All TypedSymbols have a mandatory datatype
                                 # argument
                                 symbol_match.specialise(
-                                    type(symbol), datatype=symbol.datatype)
+                                    type(symbol), datatype=symbol.datatype
+                                )
                             else:
                                 symbol_match.specialise(type(symbol))
 
@@ -1757,10 +1895,11 @@ class SymbolTable():
             raise KeyError(
                 f"The target symbol '{symbol_target.name}' was not found in "
                 f"any of the searched containers: "
-                f"{[cont.name for cont in container_symbols]}.")
+                f"{[cont.name for cont in container_symbols]}."
+            )
 
     def rename_symbol(self, symbol, name, dry_run=False):
-        '''
+        """
         Rename the given symbol which should belong to this symbol table
         with the new name provided.
 
@@ -1782,20 +1921,24 @@ class SymbolTable():
             CodeBlock in the scope of this table.
         :raises SymbolError: if the symbol has a common block interface.
 
-        '''
+        """
         if not isinstance(symbol, Symbol):
             raise TypeError(
                 f"The symbol argument of rename_symbol() must be a Symbol, but"
-                f" found: '{type(symbol).__name__}'.")
+                f" found: '{type(symbol).__name__}'."
+            )
 
         if symbol not in self.symbols:
             raise ValueError(
                 f"The symbol argument of rename_symbol() must belong to this "
-                f"symbol_table instance, but '{symbol}' does not.")
+                f"symbol_table instance, but '{symbol}' does not."
+            )
 
         if isinstance(symbol, ContainerSymbol):
-            raise SymbolError(f"Cannot rename symbol '{symbol.name}' because "
-                              f"it is a ContainerSymbol.")
+            raise SymbolError(
+                f"Cannot rename symbol '{symbol.name}' because "
+                f"it is a ContainerSymbol."
+            )
 
         if symbol.is_import:
             raise SymbolError(
@@ -1806,43 +1949,53 @@ class SymbolTable():
         if symbol.is_unresolved:
             raise SymbolError(
                 f"Cannot rename symbol '{symbol.name}' because it is "
-                f"unresolved.")
+                f"unresolved."
+            )
 
         if symbol.is_argument:
             raise SymbolError(
                 f"Cannot rename symbol '{symbol.name}' because it is a routine"
-                f" argument and as such may be named in a Call.")
+                f" argument and as such may be named in a Call."
+            )
 
         if symbol.is_commonblock:
             raise SymbolError(
                 f"Cannot rename symbol '{symbol.name}' because it has a "
-                f"CommonBlock interface.")
+                f"CommonBlock interface."
+            )
 
         if not isinstance(name, str):
             raise TypeError(
                 f"The name argument of rename_symbol() must be a str, but"
-                f" found: '{type(symbol).__name__}'.")
+                f" found: '{type(symbol).__name__}'."
+            )
 
         if self._normalize(name) in self._symbols:
             raise KeyError(
                 f"The name argument of rename_symbol() must not already exist "
-                f"in this symbol_table instance, but '{name}' does.")
+                f"in this symbol_table instance, but '{name}' does."
+            )
 
         old_name = self._normalize(symbol.name)
         if self.node:
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.nodes import CodeBlock
+
             cblocks = self.node.walk(CodeBlock)
             for cblock in cblocks:
-                sym_names = [self._normalize(sname) for sname in
-                             cblock.get_symbol_names()]
+                sym_names = [
+                    self._normalize(sname)
+                    for sname in cblock.get_symbol_names()
+                ]
                 if old_name in sym_names:
-                    cblk_txt = "\n".join(str(anode) for anode in
-                                         cblock.get_ast_nodes)
+                    cblk_txt = "\n".join(
+                        str(anode) for anode in cblock.get_ast_nodes
+                    )
                     raise SymbolError(
                         f"Cannot rename Symbol '{symbol.name}' because it is "
                         f"accessed in a CodeBlock:\n"
-                        f"{cblk_txt}")
+                        f"{cblk_txt}"
+                    )
 
         if dry_run:
             return
@@ -1859,7 +2012,7 @@ class SymbolTable():
         self.add(symbol)
 
     def wildcard_imports(self):
-        '''
+        """
         Searches this symbol table and then up through any parent symbol
         tables for a ContainerSymbol that has a wildcard import.
 
@@ -1867,7 +2020,7 @@ class SymbolTable():
             into the current scope.
         :rtype: set[str]
 
-        '''
+        """
         wildcards = set()
         current_table = self
         while current_table:
@@ -1878,25 +2031,26 @@ class SymbolTable():
         return wildcards
 
     def view(self):
-        '''
+        """
         :returns: a representation of this Symbol Table.
         :rtype: str
 
-        '''
+        """
         return str(self)
 
     def __str__(self):
         header = "Symbol Table"
         if self.node:
             header += f" of {self.node.coloured_name(False)}"
-            if hasattr(self.node, 'name'):
+            if hasattr(self.node, "name"):
                 header += f" '{self.node.name}'"
         header += ":"
         header += "\n" + "-" * len(header) + "\n"
 
         # Unique types of symbols, alpha-sorted.
-        symbol_types = list({type(symbol)
-                             for symbol in self._symbols.values()})
+        symbol_types = list(
+            {type(symbol) for symbol in self._symbols.values()}
+        )
         symbol_types.sort(key=lambda t: t.__name__)
         for symbol_type in symbol_types:
             header += symbol_type.__name__ + ":\n"
@@ -1910,20 +2064,20 @@ class SymbolTable():
 
     @property
     def scope(self):
-        '''
+        """
         :returns: the scope associated to this symbol table.
         :rtype: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
-        '''
+        """
         return self._node
 
     def detach(self):
-        ''' Detach this symbol table from the associated scope and return self.
+        """Detach this symbol table from the associated scope and return self.
 
         :returns: this symbol table.
         :rtype: py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        '''
+        """
         if self._node:
             # pylint: disable=protected-access
             self._node._symbol_table = None
@@ -1931,36 +2085,40 @@ class SymbolTable():
         return self
 
     def attach(self, node):
-        ''' Attach this symbol table to the provided scope.
+        """Attach this symbol table to the provided scope.
 
         :param node: the scoped node this symbol table will attach to.
         :type node: py:class:`psyclone.psyir.nodes.ScopingNode`
 
-        '''
+        """
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import ScopingNode
+
         if not isinstance(node, ScopingNode):
             raise TypeError(
                 f"A SymbolTable must be attached to a ScopingNode"
-                f" but found '{type(node).__name__}'.")
+                f" but found '{type(node).__name__}'."
+            )
 
         if node.symbol_table is not None:
             raise ValueError(
                 "The provided scope already has a symbol table attached "
-                "to it. You may need to detach that one first.")
+                "to it. You may need to detach that one first."
+            )
 
         if self._node is not None:
             raise ValueError(
                 f"The symbol table is already bound to another "
                 f"scope ({self.node.node_str(False)}). Consider "
-                f"detaching or deepcopying the symbol table first.")
+                f"detaching or deepcopying the symbol table first."
+            )
 
         self._node = node
         # pylint: disable=protected-access
         node._symbol_table = self
 
     def __eq__(self, other):
-        '''
+        """
         Checks whether two SymbolTables are equal.
 
         # TODO 1698: Improve. Currently it uses a quick implementation
@@ -1973,12 +2131,12 @@ class SymbolTable():
 
         :returns: whether other is equal to self.
         :rtype: bool
-        '''
+        """
         # pylint: disable=unidiomatic-typecheck
         if type(self) is not type(other):
             return False
-        this_lines = self.view().split('\n')
-        other_lines = other.view().split('\n')
+        this_lines = self.view().split("\n")
+        other_lines = other.view().split("\n")
         for line in other_lines:
             if line not in this_lines:
                 return False

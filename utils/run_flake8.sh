@@ -11,8 +11,9 @@ cd "$SCRIPTPATH/.."
 # Install black-formatter
 #
 # In settings:
-#  - Activate 'Code Actions On Save'
-#  - Set 'Format on Save Mode' to 'modifications'
+#  - black-formatter.args: Add two elements: "--line-length" and "79" (without ")
+#  - editor.formatOnSave: Activate
+#  - editor.formatOnSaveMode: Set to 'modifications'
 #
 
 #

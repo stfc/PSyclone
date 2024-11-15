@@ -34,7 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-''' Module containing tests for generating PSyData hooks'''
+""" Module containing tests for generating PSyData hooks"""
 
 import os
 import re
@@ -44,20 +44,31 @@ from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.psyir.nodes import (
-    CodeBlock, PSyDataNode, Schedule, Return, Routine)
-from psyclone.parse import ModuleManager
+    CodeBlock,
+    PSyDataNode,
+    Schedule,
+    Return,
+    Routine,
+)
+from psyclone.parse import ModuleManagerAutoSearch
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyir.symbols import (
-    ContainerSymbol, ImportInterface, SymbolTable, DataTypeSymbol,
-    UnresolvedType, DataSymbol, UnsupportedFortranType)
+    ContainerSymbol,
+    ImportInterface,
+    SymbolTable,
+    DataTypeSymbol,
+    UnresolvedType,
+    DataSymbol,
+    UnsupportedFortranType,
+)
 from psyclone.tests.utilities import get_base_path, get_invoke
 
 
 # -----------------------------------------------------------------------------
 def test_psy_data_node_constructor():
-    ''' Check that we can construct a PSyDataNode and that any options are
-    picked up correctly. '''
+    """Check that we can construct a PSyDataNode and that any options are
+    picked up correctly."""
     psy_node = PSyDataNode()
     assert psy_node._prefix == ""
     assert psy_node._var_name == ""
@@ -81,18 +92,21 @@ def test_psy_data_node_constructor():
     # Test incorrect rename type
     with pytest.raises(InternalError) as error:
         PSyDataNode(options={"region_name": 1})
-    assert ("The name must be a tuple containing two non-empty strings." in
-            str(error.value))
+    assert "The name must be a tuple containing two non-empty strings." in str(
+        error.value
+    )
 
     # Invalid prefix
     with pytest.raises(InternalError) as err:
         PSyDataNode(options={"prefix": "not-a-valid-prefix"})
-    assert ("Invalid 'prefix' parameter: found 'not-a-valid-prefix', "
-            "expected" in str(err.value))
+    assert (
+        "Invalid 'prefix' parameter: found 'not-a-valid-prefix', "
+        "expected" in str(err.value)
+    )
 
 
 def test_psy_data_node_equality():
-    ''' Check the __eq__ member of the PSyDataNode.'''
+    """Check the __eq__ member of the PSyDataNode."""
     options1 = {"prefix": "profile", "region_name": ("a_routine", "ref1")}
     options2 = {"prefix": "extract", "region_name": ("a_routine", "ref1")}
     options3 = {"prefix": "profile", "region_name": ("a_routine1", "ref1")}
@@ -110,10 +124,11 @@ def test_psy_data_node_equality():
 
 # -----------------------------------------------------------------------------
 def test_psy_data_node_basics():
-    '''Tests some elementary functions.'''
+    """Tests some elementary functions."""
     psy_node = PSyDataNode.create([], SymbolTable())
-    assert "PSyDataStart[var=psy_data]\n"\
-        "PSyDataEnd[var=psy_data]" in str(psy_node)
+    assert "PSyDataStart[var=psy_data]\n" "PSyDataEnd[var=psy_data]" in str(
+        psy_node
+    )
 
     psy_node.children = []
     with pytest.raises(InternalError) as error:
@@ -123,27 +138,33 @@ def test_psy_data_node_basics():
 
 # -----------------------------------------------------------------------------
 def test_psy_data_node_create_errors():
-    ''' Test the various checks on the arguments to the create() method. '''
+    """Test the various checks on the arguments to the create() method."""
     sym_tab = SymbolTable()
     with pytest.raises(TypeError) as err:
         PSyDataNode.create("hello", sym_tab)
-    assert ("create(). The 'children' argument must be a list (of PSyIR "
-            "nodes) but got 'str'" in str(err.value))
+    assert (
+        "create(). The 'children' argument must be a list (of PSyIR "
+        "nodes) but got 'str'" in str(err.value)
+    )
     with pytest.raises(TypeError) as err:
         PSyDataNode.create(["hello"], sym_tab)
-    assert ("create(). The 'children' argument must be a list of PSyIR "
-            "nodes but it contains: ['str']" in str(err.value))
+    assert (
+        "create(). The 'children' argument must be a list of PSyIR "
+        "nodes but it contains: ['str']" in str(err.value)
+    )
     with pytest.raises(TypeError) as err:
         PSyDataNode.create([], "hello")
-    assert ("create(). The 'symbol_table' argument must be an instance of "
-            "psyir.symbols.SymbolTable but got 'str'" in str(err.value))
+    assert (
+        "create(). The 'symbol_table' argument must be an instance of "
+        "psyir.symbols.SymbolTable but got 'str'" in str(err.value)
+    )
 
 
 # -----------------------------------------------------------------------------
 def test_psy_data_node_tree_correct():
-    '''Test that adding children and parents will result in the correct
+    """Test that adding children and parents will result in the correct
     relationship with the inserted node.
-    '''
+    """
 
     # 1. No parent and no children:
     # =============================
@@ -152,7 +173,7 @@ def test_psy_data_node_tree_correct():
     # We must have a single profile node with a schedule which has
     # no children:
     assert psy_node.parent is None
-    assert len(psy_node.children) == 1   # This is the Schedule
+    assert len(psy_node.children) == 1  # This is the Schedule
     assert isinstance(psy_node.psy_data_body, Schedule)
     assert psy_node.psy_data_body.parent == psy_node
     assert not psy_node.psy_data_body.children
@@ -225,11 +246,11 @@ def test_psy_data_node_tree_correct():
 
 # -----------------------------------------------------------------------------
 def test_psy_data_generate_symbols():
-    ''' Check that the generate_symbols method inserts the appropriate
-    symbols in the provided symbol table if they don't exist already. '''
+    """Check that the generate_symbols method inserts the appropriate
+    symbols in the provided symbol table if they don't exist already."""
 
     # By inserting the psy_data no symbols are created.
-    routine = Routine.create('my_routine')
+    routine = Routine.create("my_routine")
     psy_data = PSyDataNode()
     psy_data2 = PSyDataNode()
     routine.addchild(psy_data)
@@ -240,9 +261,11 @@ def test_psy_data_generate_symbols():
     tmp_sym = routine.symbol_table.new_symbol(psy_data.fortran_module)
     with pytest.raises(InternalError) as err:
         psy_data.generate_symbols(routine.symbol_table)
-    assert ("Cannot add PSyData module 'psy_data_mod' because another Symbol "
-            "already exists with that name and is a Symbol rather"
-            in str(err.value))
+    assert (
+        "Cannot add PSyData module 'psy_data_mod' because another Symbol "
+        "already exists with that name and is a Symbol rather"
+        in str(err.value)
+    )
     routine.symbol_table.remove(tmp_sym)
     # Successfully executing generate_symbols adds 3 more symbols:
     psy_data.generate_symbols(routine.symbol_table)
@@ -250,10 +273,13 @@ def test_psy_data_generate_symbols():
 
     # - The module (with a tag equal to its name)
     assert "psy_data_mod" in routine.symbol_table
-    assert isinstance(routine.symbol_table.lookup("psy_data_mod"),
-                      ContainerSymbol)
-    assert routine.symbol_table.lookup_with_tag("psy_data_mod").name == \
-        "psy_data_mod"
+    assert isinstance(
+        routine.symbol_table.lookup("psy_data_mod"), ContainerSymbol
+    )
+    assert (
+        routine.symbol_table.lookup_with_tag("psy_data_mod").name
+        == "psy_data_mod"
+    )
 
     # - The type (with a tag equal to its name)
     assert "PSyDataType" in routine.symbol_table
@@ -286,35 +312,48 @@ def test_psy_data_generate_symbols():
     typesymbol.interface.container_symbol = ContainerSymbol("wrong")
     with pytest.raises(InternalError) as err:
         psy_data.generate_symbols(routine.symbol_table)
-    assert ("Cannot add PSyData symbol 'PSyDataType' because it already "
-            "exists but is not imported from" in str(err.value))
+    assert (
+        "Cannot add PSyData symbol 'PSyDataType' because it already "
+        "exists but is not imported from" in str(err.value)
+    )
 
 
 # -----------------------------------------------------------------------------
 def test_psy_data_node_incorrect_container():
-    ''' Check that the PSyDataNode constructor raises the expected error if
+    """Check that the PSyDataNode constructor raises the expected error if
     the symbol table already contains an entry for the PSyDataType that is
-    not associated with the PSyData container. '''
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean", idx=0, dist_mem=False)
+    not associated with the PSyData container."""
+    _, invoke = get_invoke(
+        "test11_different_iterates_over_one_invoke.f90",
+        "gocean",
+        idx=0,
+        dist_mem=False,
+    )
     schedule = invoke.schedule
-    csym = schedule.symbol_table.new_symbol("some_mod",
-                                            symbol_type=ContainerSymbol)
-    schedule.symbol_table.new_symbol("PSyDataType",
-                                     interface=ImportInterface(csym))
+    csym = schedule.symbol_table.new_symbol(
+        "some_mod", symbol_type=ContainerSymbol
+    )
+    schedule.symbol_table.new_symbol(
+        "PSyDataType", interface=ImportInterface(csym)
+    )
     data_trans = PSyDataTrans()
     with pytest.raises(TransformationError) as err:
         data_trans.apply(schedule[0].loop_body)
-    assert ("already a symbol named 'PSyDataType' which clashes with one of "
-            "those used by the PSyclone PSyData API" in str(err.value))
+    assert (
+        "already a symbol named 'PSyDataType' which clashes with one of "
+        "those used by the PSyclone PSyData API" in str(err.value)
+    )
 
 
 # -----------------------------------------------------------------------------
 def test_psy_data_node_invokes_gocean1p0():
-    '''Check that an invoke is instrumented correctly
-    '''
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean", idx=0, dist_mem=False)
+    """Check that an invoke is instrumented correctly"""
+    _, invoke = get_invoke(
+        "test11_different_iterates_over_one_invoke.f90",
+        "gocean",
+        idx=0,
+        dist_mem=False,
+    )
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 
@@ -329,18 +368,20 @@ def test_psy_data_node_invokes_gocean1p0():
     # kernel_ne_offset_mod.
     # Since this is only PSyData, which by default does not supply
     # variable information, the parameters to PreStart are both 0.
-    correct_re = ("subroutine invoke.*"
-                  "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
-                  r"call psy_data%PreStart\(\"psy_single_invoke_different"
-                  r"_iterates_over\", \"invoke_0-compute_cv_code-r0\","
-                  r" 0, 0\).*"
-                  "do j.*"
-                  "do i.*"
-                  "call.*"
-                  "end.*"
-                  "end.*"
-                  r"call psy_data%PostEnd")
+    correct_re = (
+        "subroutine invoke.*"
+        "use psy_data_mod, only: PSyDataType.*"
+        r"TYPE\(PSyDataType\), target, save :: psy_data.*"
+        r"call psy_data%PreStart\(\"psy_single_invoke_different"
+        r"_iterates_over\", \"invoke_0-compute_cv_code-r0\","
+        r" 0, 0\).*"
+        "do j.*"
+        "do i.*"
+        "call.*"
+        "end.*"
+        "end.*"
+        r"call psy_data%PostEnd"
+    )
 
     assert re.search(correct_re, code, re.I) is not None
 
@@ -352,10 +393,13 @@ def test_psy_data_node_invokes_gocean1p0():
 
 # -----------------------------------------------------------------------------
 def test_psy_data_node_options():
-    '''Check that the options for PSyData work as expected.
-    '''
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean", idx=0, dist_mem=False)
+    """Check that the options for PSyData work as expected."""
+    _, invoke = get_invoke(
+        "test11_different_iterates_over_one_invoke.f90",
+        "gocean",
+        idx=0,
+        dist_mem=False,
+    )
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 
@@ -366,32 +410,43 @@ def test_psy_data_node_options():
     # 1) Test that the listed variables will appear in the list
     # ---------------------------------------------------------
     mod = ModuleGen(None, "test")
-    data_node.gen_code(mod, options={"pre_var_list": [("", "a")],
-                                     "post_var_list": [("", "b")]})
+    data_node.gen_code(
+        mod,
+        options={"pre_var_list": [("", "a")], "post_var_list": [("", "b")]},
+    )
 
     out = "\n".join([str(i.root) for i in mod.children])
-    expected = ['CALL psy_data%PreDeclareVariable("a", a)',
-                'CALL psy_data%PreDeclareVariable("b", b)',
-                'CALL psy_data%ProvideVariable("a", a)',
-                'CALL psy_data%PostStart',
-                'CALL psy_data%ProvideVariable("b", b)']
+    expected = [
+        'CALL psy_data%PreDeclareVariable("a", a)',
+        'CALL psy_data%PreDeclareVariable("b", b)',
+        'CALL psy_data%ProvideVariable("a", a)',
+        "CALL psy_data%PostStart",
+        'CALL psy_data%ProvideVariable("b", b)',
+    ]
     for line in expected:
         assert line in out
 
     # 2) Test that variables suffixes are added as expected
     # -----------------------------------------------------
     mod = ModuleGen(None, "test")
-    data_node.gen_code(mod, options={"pre_var_list": [("", "a")],
-                                     "post_var_list": [("", "b")],
-                                     "pre_var_postfix": "_pre",
-                                     "post_var_postfix": "_post"})
+    data_node.gen_code(
+        mod,
+        options={
+            "pre_var_list": [("", "a")],
+            "post_var_list": [("", "b")],
+            "pre_var_postfix": "_pre",
+            "post_var_postfix": "_post",
+        },
+    )
 
     out = "\n".join([str(i.root) for i in mod.children])
-    expected = ['CALL psy_data%PreDeclareVariable("a_pre", a)',
-                'CALL psy_data%PreDeclareVariable("b_post", b)',
-                'CALL psy_data%ProvideVariable("a_pre", a)',
-                'CALL psy_data%PostStart',
-                'CALL psy_data%ProvideVariable("b_post", b)']
+    expected = [
+        'CALL psy_data%PreDeclareVariable("a_pre", a)',
+        'CALL psy_data%PreDeclareVariable("b_post", b)',
+        'CALL psy_data%ProvideVariable("a_pre", a)',
+        "CALL psy_data%PostStart",
+        'CALL psy_data%ProvideVariable("b_post", b)',
+    ]
     for line in expected:
         assert line in out
 
@@ -411,10 +466,10 @@ def test_psy_data_node_options():
 
 
 def test_psy_data_node_children_validation():
-    '''Test that children added to PSyDataNode are validated. PSyDataNode
+    """Test that children added to PSyDataNode are validated. PSyDataNode
     accepts just one Schedule as its child.
 
-    '''
+    """
     psy_node = PSyDataNode.create([], SymbolTable())
     del psy_node.children[0]
 
@@ -422,8 +477,10 @@ def test_psy_data_node_children_validation():
     ret = Return()
     with pytest.raises(GenerationError) as excinfo:
         psy_node.addchild(ret)
-    assert ("Item 'Return' can't be child 0 of 'PSyData'. The valid format"
-            " is: 'Schedule'." in str(excinfo.value))
+    assert (
+        "Item 'Return' can't be child 0 of 'PSyData'. The valid format"
+        " is: 'Schedule'." in str(excinfo.value)
+    )
 
     # Valid children
     psy_node.addchild(Schedule())
@@ -431,20 +488,24 @@ def test_psy_data_node_children_validation():
     # Additional children
     with pytest.raises(GenerationError) as excinfo:
         psy_node.addchild(Schedule())
-    assert ("Item 'Schedule' can't be child 1 of 'PSyData'. The valid format"
-            " is: 'Schedule'." in str(excinfo.value))
+    assert (
+        "Item 'Schedule' can't be child 1 of 'PSyData'. The valid format"
+        " is: 'Schedule'." in str(excinfo.value)
+    )
 
 
 def test_psy_data_node_lower_to_language_level():
-    ''' Test that the generic PSyDataNode is lowered as expected. '''
+    """Test that the generic PSyDataNode is lowered as expected."""
 
     # Try without an ancestor Routine
     psy_node = PSyDataNode.create([], SymbolTable())
     with pytest.raises(GenerationError) as excinfo:
         psy_node.lower_to_language_level()
-    assert ("A PSyDataNode must be inside a Routine context when lowering but"
-            " 'PSyDataStart[var=psy_data]\nPSyDataEnd[var=psy_data]' is not."
-            in str(excinfo.value))
+    assert (
+        "A PSyDataNode must be inside a Routine context when lowering but"
+        " 'PSyDataStart[var=psy_data]\nPSyDataEnd[var=psy_data]' is not."
+        in str(excinfo.value)
+    )
 
     # Add the ancestor Routine and empty body
     routine = Routine.create("my_routine")
@@ -455,11 +516,12 @@ def test_psy_data_node_lower_to_language_level():
     assert not routine.walk(PSyDataNode)
     codeblocks = routine.walk(CodeBlock)
     assert len(codeblocks) == 2
-    assert str(codeblocks[0].ast) == \
-        'CALL psy_data % PreStart("my_routine", "r0", 0, 0)'
+    assert (
+        str(codeblocks[0].ast)
+        == 'CALL psy_data % PreStart("my_routine", "r0", 0, 0)'
+    )
     assert "psy-data-start" in codeblocks[0].annotations
-    assert str(codeblocks[1].ast) == \
-        'CALL psy_data % PostEnd'
+    assert str(codeblocks[1].ast) == "CALL psy_data % PostEnd"
 
     # Now try with a PSyDataNode with specified module and region names
     routine = Routine.create("my_routine")
@@ -471,68 +533,86 @@ def test_psy_data_node_lower_to_language_level():
     assert not routine.walk(PSyDataNode)
     codeblocks = routine.walk(CodeBlock)
     assert len(codeblocks) == 2
-    assert str(codeblocks[0].ast) == \
-        'CALL psy_data % PreStart("my_module", "my_region", 0, 0)'
-    assert str(codeblocks[1].ast) == \
-        'CALL psy_data % PostEnd'
+    assert (
+        str(codeblocks[0].ast)
+        == 'CALL psy_data % PreStart("my_module", "my_region", 0, 0)'
+    )
+    assert str(codeblocks[1].ast) == "CALL psy_data % PostEnd"
 
 
 def test_psy_data_node_lower_to_language_level_with_options():
-    '''Check that the  generic PSyDataNode is lowered as expected when it
-    is provided with an options dictionary. '''
+    """Check that the  generic PSyDataNode is lowered as expected when it
+    is provided with an options dictionary."""
 
     # 1) Test that the listed variables will appear in the list
     # ---------------------------------------------------------
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean", idx=0, dist_mem=False)
+    _, invoke = get_invoke(
+        "test11_different_iterates_over_one_invoke.f90",
+        "gocean",
+        idx=0,
+        dist_mem=False,
+    )
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 
     data_trans.apply(schedule[0].loop_body)
     data_node = schedule[0].loop_body[0]
 
-    data_node.lower_to_language_level(options={"pre_var_list": [("", "a")],
-                                               "post_var_list": [("", "b")]})
+    data_node.lower_to_language_level(
+        options={"pre_var_list": [("", "a")], "post_var_list": [("", "b")]}
+    )
 
     codeblocks = schedule.walk(CodeBlock)
-    expected = ['CALL psy_data % PreStart("psy_single_invoke_different_'
-                'iterates_over", "invoke_0-r0", 1, 1)',
-                'CALL psy_data % PreDeclareVariable("a", a)',
-                'CALL psy_data % PreDeclareVariable("b", b)',
-                'CALL psy_data % PreEndDeclaration',
-                'CALL psy_data % ProvideVariable("a", a)',
-                'CALL psy_data % PreEnd',
-                'CALL psy_data % PostStart',
-                'CALL psy_data % ProvideVariable("b", b)']
+    expected = [
+        'CALL psy_data % PreStart("psy_single_invoke_different_'
+        'iterates_over", "invoke_0-r0", 1, 1)',
+        'CALL psy_data % PreDeclareVariable("a", a)',
+        'CALL psy_data % PreDeclareVariable("b", b)',
+        "CALL psy_data % PreEndDeclaration",
+        'CALL psy_data % ProvideVariable("a", a)',
+        "CALL psy_data % PreEnd",
+        "CALL psy_data % PostStart",
+        'CALL psy_data % ProvideVariable("b", b)',
+    ]
 
     for codeblock, string in zip(codeblocks, expected):
         assert string == str(codeblock.ast)
 
     # 2) Test that variables suffixes are added as expected
     # -----------------------------------------------------
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean", idx=0, dist_mem=False)
+    _, invoke = get_invoke(
+        "test11_different_iterates_over_one_invoke.f90",
+        "gocean",
+        idx=0,
+        dist_mem=False,
+    )
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 
     data_trans.apply(schedule[0].loop_body)
     data_node = schedule[0].loop_body[0]
 
-    data_node.lower_to_language_level(options={"pre_var_list": [("", "a")],
-                                               "post_var_list": [("", "b")],
-                                               "pre_var_postfix": "_pre",
-                                               "post_var_postfix": "_post"})
+    data_node.lower_to_language_level(
+        options={
+            "pre_var_list": [("", "a")],
+            "post_var_list": [("", "b")],
+            "pre_var_postfix": "_pre",
+            "post_var_postfix": "_post",
+        }
+    )
 
     codeblocks = schedule.walk(CodeBlock)
-    expected = ['CALL psy_data % PreStart("psy_single_invoke_different_'
-                'iterates_over", "invoke_0-r0", 1, 1)',
-                'CALL psy_data % PreDeclareVariable("a_pre", a)',
-                'CALL psy_data % PreDeclareVariable("b_post", b)',
-                'CALL psy_data % PreEndDeclaration',
-                'CALL psy_data % ProvideVariable("a_pre", a)',
-                'CALL psy_data % PreEnd',
-                'CALL psy_data % PostStart',
-                'CALL psy_data % ProvideVariable("b_post", b)']
+    expected = [
+        'CALL psy_data % PreStart("psy_single_invoke_different_'
+        'iterates_over", "invoke_0-r0", 1, 1)',
+        'CALL psy_data % PreDeclareVariable("a_pre", a)',
+        'CALL psy_data % PreDeclareVariable("b_post", b)',
+        "CALL psy_data % PreEndDeclaration",
+        'CALL psy_data % ProvideVariable("a_pre", a)',
+        "CALL psy_data % PreEnd",
+        "CALL psy_data % PostStart",
+        'CALL psy_data % ProvideVariable("b_post", b)',
+    ]
 
     for codeblock, string in zip(codeblocks, expected):
         assert string == str(codeblock.ast)
@@ -541,31 +621,41 @@ def test_psy_data_node_lower_to_language_level_with_options():
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
 def test_psy_data_node_name_clash(fortran_writer):
-    '''Test the handling of symbols imported from other modules, or calls to
+    """Test the handling of symbols imported from other modules, or calls to
     external functions that use module variables. In this example the external
     module uses a variable with the same name as the user code, which causes
     a name clash and must be renamed.
 
-    '''
+    """
     api = "lfric"
     infrastructure_path = get_base_path(api)
     # Define the path to the ReadKernelData module (which contains functions
     # to read extracted data from a file) relative to the infrastructure path:
-    psyclone_root = os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.dirname(os.path.dirname(infrastructure_path)))))
+    psyclone_root = os.path.dirname(
+        os.path.dirname(
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(infrastructure_path))
+            )
+        )
+    )
     read_mod_path = os.path.join(psyclone_root, "lib", "extract", "standalone")
 
-    module_manager = ModuleManager.get_singleton()
+    module_manager = ModuleManagerAutoSearch.get_singleton()
     module_manager.add_search_path(infrastructure_path)
     module_manager.add_search_path(read_mod_path)
 
-    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
-                           "symbols.f90", api, dist_mem=False, idx=1)
+    _, invoke = get_invoke(
+        "driver_creation/invoke_kernel_with_imported_" "symbols.f90",
+        api,
+        dist_mem=False,
+        idx=1,
+    )
 
     extract = LFRicExtractTrans()
-    extract.apply(invoke.schedule.children[0],
-                  options={"create_driver": True,
-                           "region_name": ("import", "test")})
+    extract.apply(
+        invoke.schedule.children[0],
+        options={"create_driver": True, "region_name": ("import", "test")},
+    )
 
     # First test, use the old-style gen_code way:
     # -------------------------------------------
@@ -574,18 +664,30 @@ def test_psy_data_node_name_clash(fortran_writer):
     # Make sure the imported, clashing symbols 'f1' and 'f2' are renamed:
     assert "USE module_with_name_clash_mod, ONLY: f1_data_1=>f1_data" in code
     assert "USE module_with_name_clash_mod, ONLY: f2_data_1=>f2_data" in code
-    assert ('CALL extract_psy_data%PreDeclareVariable("f1_data@'
-            'module_with_name_clash_mod", f1_data_1)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("f1_data@'
-            'module_with_name_clash_mod", f1_data_1)' in code)
-    assert ('CALL extract_psy_data%PreDeclareVariable("f2_data@'
-            'module_with_name_clash_mod", f2_data_1)' in code)
-    assert ('CALL extract_psy_data%PreDeclareVariable("f2_data_post@'
-            'module_with_name_clash_mod", f2_data_1)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("f2_data@'
-            'module_with_name_clash_mod", f2_data_1)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("f2_data_post@'
-            'module_with_name_clash_mod", f2_data_1)' in code)
+    assert (
+        'CALL extract_psy_data%PreDeclareVariable("f1_data@'
+        'module_with_name_clash_mod", f1_data_1)' in code
+    )
+    assert (
+        'CALL extract_psy_data%ProvideVariable("f1_data@'
+        'module_with_name_clash_mod", f1_data_1)' in code
+    )
+    assert (
+        'CALL extract_psy_data%PreDeclareVariable("f2_data@'
+        'module_with_name_clash_mod", f2_data_1)' in code
+    )
+    assert (
+        'CALL extract_psy_data%PreDeclareVariable("f2_data_post@'
+        'module_with_name_clash_mod", f2_data_1)' in code
+    )
+    assert (
+        'CALL extract_psy_data%ProvideVariable("f2_data@'
+        'module_with_name_clash_mod", f2_data_1)' in code
+    )
+    assert (
+        'CALL extract_psy_data%ProvideVariable("f2_data_post@'
+        'module_with_name_clash_mod", f2_data_1)' in code
+    )
 
     # Second test, use lower_to_language_level:
     # -----------------------------------------
@@ -595,18 +697,32 @@ def test_psy_data_node_name_clash(fortran_writer):
     # yet fully support this. So we just lower each line individually:
     code = "".join([fortran_writer(i) for i in invoke.schedule.children])
 
-    assert ('CALL extract_psy_data % PreDeclareVariable("f1_data_post", '
-            'f1_data)' in code)
-    assert ('CALL extract_psy_data % PreDeclareVariable("f1_data@'
-            'module_with_name_clash_mod", f1_data_1)' in code)
-    assert ('CALL extract_psy_data % PreDeclareVariable("f2_data@'
-            'module_with_name_clash_mod", f2_data_1)' in code)
-    assert ('CALL extract_psy_data % PreDeclareVariable("f2_data@'
-            'module_with_name_clash_mod_post", f2_data_1)' in code)
+    assert (
+        'CALL extract_psy_data % PreDeclareVariable("f1_data_post", '
+        "f1_data)" in code
+    )
+    assert (
+        'CALL extract_psy_data % PreDeclareVariable("f1_data@'
+        'module_with_name_clash_mod", f1_data_1)' in code
+    )
+    assert (
+        'CALL extract_psy_data % PreDeclareVariable("f2_data@'
+        'module_with_name_clash_mod", f2_data_1)' in code
+    )
+    assert (
+        'CALL extract_psy_data % PreDeclareVariable("f2_data@'
+        'module_with_name_clash_mod_post", f2_data_1)' in code
+    )
 
-    assert ('CALL extract_psy_data % ProvideVariable("f1_data@'
-            'module_with_name_clash_mod", f1_data_1)' in code)
-    assert ('CALL extract_psy_data % ProvideVariable("f2_data@'
-            'module_with_name_clash_mod", f2_data_1)' in code)
-    assert ('CALL extract_psy_data % ProvideVariable("f2_data@'
-            'module_with_name_clash_mod_post", f2_data_1)' in code)
+    assert (
+        'CALL extract_psy_data % ProvideVariable("f1_data@'
+        'module_with_name_clash_mod", f1_data_1)' in code
+    )
+    assert (
+        'CALL extract_psy_data % ProvideVariable("f2_data@'
+        'module_with_name_clash_mod", f2_data_1)' in code
+    )
+    assert (
+        'CALL extract_psy_data % ProvideVariable("f2_data@'
+        'module_with_name_clash_mod_post", f2_data_1)' in code
+    )

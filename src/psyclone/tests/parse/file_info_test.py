@@ -34,7 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Laboratory.
 
 
-'''Module containing tests for the FileInfo class.'''
+"""Module containing tests for the FileInfo class."""
 
 import os
 import pytest
@@ -43,24 +43,24 @@ from psyclone.parse import FileInfo
 
 
 def test_file_info_constructor():
-    '''
+    """
     Check that a FileInfo can be constructed and that its initial
     properties are set correctly.
 
-    '''
+    """
     finfo = FileInfo("missing.txt")
-    assert finfo._filename == "missing.txt"
-    assert finfo._source_code is None
-    assert finfo.filename == "missing.txt"
+    assert finfo._filepath == "missing.txt"
+    assert finfo._source_code_cache is None
+    assert finfo.filepath == "missing.txt"
     assert finfo.basename == "missing"
 
 
 def test_file_info_missing_file():
-    '''
+    """
     Test FileInfo.source() raises the expected exception if the
     file cannot be found.
 
-    '''
+    """
     finfo = FileInfo("missing.txt")
     with pytest.raises(FileNotFoundError) as err:
         _ = finfo.contents
@@ -68,14 +68,14 @@ def test_file_info_missing_file():
 
 
 def test_file_info_content(tmpdir):
-    '''
+    """
     Check that FileInfo.content() successfully reads a file and that
     the results are cached.
 
-    '''
+    """
     fname = os.path.join(tmpdir, "a_file.txt")
     content = "Just\nA\nTest"
-    with open(fname, "w", encoding='utf-8') as fout:
+    with open(fname, "w", encoding="utf-8") as fout:
         fout.write(content)
     finfo = FileInfo(fname)
     input1 = finfo.contents
@@ -86,15 +86,15 @@ def test_file_info_content(tmpdir):
 
 
 def test_file_info_decode_error(tmpdir):
-    '''
+    """
     Check that FileInfo.contents() handles a decoding error when reading
     a file.
 
-    '''
+    """
     fname = os.path.join(tmpdir, "a_file.txt")
     # Test content includes a byte that cannot be decoded as utf-8.
     content = "Ju\xb5st\nA\nTest"
-    with open(fname, "w", encoding='latin') as fout:
+    with open(fname, "w", encoding="latin") as fout:
         fout.write(content)
     finfo = FileInfo(fname)
     # Content of file has been read with problematic byte skipped.

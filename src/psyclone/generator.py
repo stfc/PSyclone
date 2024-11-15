@@ -35,14 +35,14 @@
 # Modified A. J. Voysey, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-'''
+"""
     This module provides the PSyclone 'main' routine which is intended
     to be driven from the bin/psyclone executable script. 'main'
     takes an algorithm file as input and produces modified algorithm
     code and generated PSy code. A function, 'generate', is also provided
     which has the same functionality as 'main' but can be called
     from within another Python program.
-'''
+"""
 
 import argparse
 import os
@@ -55,20 +55,31 @@ from fparser.two import Fortran2003
 
 from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import (
-    Config, ConfigurationError, VALID_KERNEL_NAMING_SCHEMES,
-    LFRIC_API_NAMES, GOCEAN_API_NAMES)
+    Config,
+    ConfigurationError,
+    VALID_KERNEL_NAMING_SCHEMES,
+    LFRIC_API_NAMES,
+    GOCEAN_API_NAMES,
+)
 from psyclone.domain.common.algorithm.psyir import (
-    AlgorithmInvokeCall, KernelFunctor)
+    AlgorithmInvokeCall,
+    KernelFunctor,
+)
 from psyclone.domain.common.transformations import AlgTrans
 from psyclone.domain.gocean.transformations import (
-    RaisePSyIR2GOceanKernTrans, GOceanAlgInvoke2PSyCallTrans)
+    RaisePSyIR2GOceanKernTrans,
+    GOceanAlgInvoke2PSyCallTrans,
+)
 from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
 from psyclone.domain.lfric.transformations import (
-    LFRicAlgTrans, RaisePSyIR2LFRicKernTrans, LFRicAlgInvoke2PSyCallTrans)
+    LFRicAlgTrans,
+    RaisePSyIR2LFRicKernTrans,
+    LFRicAlgInvoke2PSyCallTrans,
+)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
-from psyclone.parse import ModuleManager
+from psyclone.parse import ModuleManagerAutoSearch
 from psyclone.parse.algorithm import parse
 from psyclone.parse.kernel import get_kernel_filepath
 from psyclone.parse.utils import ParseError, parse_fp2
@@ -93,7 +104,7 @@ LFRIC_TESTING = False
 
 
 def load_script(script_name, function_name="trans", is_optional=False):
-    ''' Loads the specified script containing a psyclone recipe. We also
+    """Loads the specified script containing a psyclone recipe. We also
     prepend the script path to the sys.path, so that the script itself and
     any imports that it has from the same directory can be found.
 
@@ -110,22 +121,26 @@ def load_script(script_name, function_name="trans", is_optional=False):
     :raises GenerationError: if the named function does not exist or can not
         be called.
 
-    '''
+    """
     filepath, filename = os.path.split(script_name)
     module_name, fileext = os.path.splitext(filename)
     # the file must either be:
     # a) at the given path or, given no path, in the current directory; or
     # b) given no path, in the system path
-    if not (os.path.isfile(script_name) or
-            not filepath and any(os.path.isfile(os.path.join(p, filename))
-                                 for p in sys.path)):
+    if not (
+        os.path.isfile(script_name)
+        or not filepath
+        and any(os.path.isfile(os.path.join(p, filename)) for p in sys.path)
+    ):
         raise GenerationError(
-            f"generator: script file '{script_name}' not found")
+            f"generator: script file '{script_name}' not found"
+        )
     # the file must have the .py extension
-    if fileext != '.py':
+    if fileext != ".py":
         raise GenerationError(
             f"generator: expected the script file '{filename}' to have "
-            f"the '.py' extension")
+            f"the '.py' extension"
+        )
     # prepend file path - if none, the empty string equates to the current
     # working directory - to the system path to guarantee we find the user
     # provided module instead of a similarly named module that might
@@ -148,17 +163,23 @@ def load_script(script_name, function_name="trans", is_optional=False):
     raise GenerationError(
         f"generator: attempted to use specified PSyclone "
         f"transformation module '{module_name}' but it does not "
-        f"contain a callable '{function_name}' function")
+        f"contain a callable '{function_name}' function"
+    )
 
 
-def generate(filename, api="", kernel_paths=None, script_name=None,
-             line_length=False,
-             distributed_memory=None,
-             kern_out_path="",
-             kern_naming="multiple"):
+def generate(
+    filename,
+    api="",
+    kernel_paths=None,
+    script_name=None,
+    line_length=False,
+    distributed_memory=None,
+    kern_out_path="",
+    kern_naming="multiple",
+):
     # pylint: disable=too-many-arguments, too-many-statements
     # pylint: disable=too-many-branches, too-many-locals
-    '''Takes a PSyclone algorithm specification as input and outputs the
+    """Takes a PSyclone algorithm specification as input and outputs the
     associated generated algorithm and psy-layer codes suitable for
     compiling with the specified kernel(s) and support
     infrastructure.
@@ -208,7 +229,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     >>> alg, psy = generate("algspec.f90", line_length=True)
     >>> alg, psy = generate("algspec.f90", distributed_memory=False)
 
-    '''
+    """
     if kernel_paths is None:
         kernel_paths = []
 
@@ -218,7 +239,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     if api not in Config.get().supported_apis:
         raise GenerationError(
             f"generate: Unsupported API '{api}' specified. Supported "
-            f"types are {Config.get().curated_api_list}.")
+            f"types are {Config.get().curated_api_list}."
+        )
 
     # Store Kernel-output options in our Configuration object
     Config.get().kernel_output_dir = kern_out_path
@@ -226,26 +248,31 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         Config.get().kernel_naming = kern_naming
     except ValueError as verr:
         raise GenerationError(
-            f"Invalid kernel-renaming scheme supplied: {str(verr)}") from verr
+            f"Invalid kernel-renaming scheme supplied: {str(verr)}"
+        ) from verr
 
     if not os.path.isfile(filename):
         raise IOError(f"File '{filename}' not found")
     for kernel_path in kernel_paths:
         if not os.access(kernel_path, os.R_OK):
-            raise IOError(
-                f"Kernel search path '{kernel_path}' not found")
+            raise IOError(f"Kernel search path '{kernel_path}' not found")
 
     # TODO #2011: investigate if kernel search path and module manager
     # can be combined.
-    ModuleManager.get_singleton().add_search_path(kernel_paths)
+    ModuleManagerAutoSearch.get_singleton().add_search_path(kernel_paths)
 
-    ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
-                             kernel_paths=kernel_paths,
-                             line_length=line_length)
+    ast, invoke_info = parse(
+        filename,
+        api=api,
+        invoke_name="invoke",
+        kernel_paths=kernel_paths,
+        line_length=line_length,
+    )
 
     if api in LFRIC_API_NAMES and not LFRIC_TESTING:
-        psy = PSyFactory(api, distributed_memory=distributed_memory)\
-            .create(invoke_info)
+        psy = PSyFactory(api, distributed_memory=distributed_memory).create(
+            invoke_info
+        )
         if script_name is not None:
             # Apply provided recipe to PSyIR
             recipe, _ = load_script(script_name)
@@ -279,12 +306,14 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             alg_trans.apply(psyir)
         except TransformationError as info:
             raise GenerationError(
-                f"In algorithm file '{filename}':\n{info.value}") from info
+                f"In algorithm file '{filename}':\n{info.value}"
+            ) from info
 
         if not psyir.walk(AlgorithmInvokeCall):
             raise NoInvokesError(
                 "Algorithm file contains no invoke() calls: refusing to "
-                "generate empty PSy code")
+                "generate empty PSy code"
+            )
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
@@ -305,34 +334,41 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                     # Find all container symbols that are in scope.
                     st_ref = kern.scope.symbol_table
                     container_symbols = [
-                        symbol.name for symbol in st_ref.containersymbols]
+                        symbol.name for symbol in st_ref.containersymbols
+                    ]
                     while st_ref.parent_symbol_table():
                         st_ref = st_ref.parent_symbol_table()
                         container_symbols += [
-                            symbol.name for symbol in st_ref.containersymbols]
+                            symbol.name for symbol in st_ref.containersymbols
+                        ]
                     message = (
                         f"Kernel functor '{kern.name}' in routine "
                         f"'{kern.ancestor(Routine).name}' from algorithm file "
                         f"'{filename}' must be named in a use statement "
-                        f"(found {container_symbols})")
+                        f"(found {container_symbols})"
+                    )
                     if api in LFRIC_API_NAMES:
                         message += (
                             f" or be a recognised built-in (one of "
-                            f"{list(BUILTIN_MAP.keys())})")
+                            f"{list(BUILTIN_MAP.keys())})"
+                        )
                     message += "."
                     raise GenerationError(message)
                 container_symbol = kern.symbol.interface.container_symbol
 
                 # Find the kernel file containing the container
                 filepath = get_kernel_filepath(
-                    container_symbol.name, kernel_paths, filename)
+                    container_symbol.name, kernel_paths, filename
+                )
 
                 try:
                     # Create language-level PSyIR from the kernel file
                     kernel_psyir = reader.psyir_from_file(filepath)
                 except InternalError as info:
-                    print(f"In kernel file '{filepath}':\n{str(info.value)}",
-                          file=sys.stderr)
+                    print(
+                        f"In kernel file '{filepath}':\n{str(info.value)}",
+                        file=sys.stderr,
+                    )
                     sys.exit(1)
 
                 # Raise to Kernel PSyIR
@@ -343,7 +379,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                     kern_trans = RaisePSyIR2LFRicKernTrans()
                     kern_trans.apply(
                         kernel_psyir,
-                        options={"metadata_name": kern.symbol.name})
+                        options={"metadata_name": kern.symbol.name},
+                    )
 
                 kernels[id(invoke)][id(kern)] = kernel_psyir
 
@@ -354,7 +391,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             invoke_trans = LFRicAlgInvoke2PSyCallTrans()
         for invoke in psyir.walk(AlgorithmInvokeCall):
             invoke_trans.apply(
-                invoke, options={"kernels": kernels[id(invoke)]})
+                invoke, options={"kernels": kernels[id(invoke)]}
+            )
         if api in LFRIC_API_NAMES:
             # Remove any use statements that were temporarily added to
             # avoid the PSyIR complaining about undeclared builtin
@@ -371,8 +409,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
         # Create the PSy-layer
         # TODO: issue #1629 replace invoke_info with alg and kern psyir
-        psy = PSyFactory(api, distributed_memory=distributed_memory)\
-            .create(invoke_info)
+        psy = PSyFactory(api, distributed_memory=distributed_memory).create(
+            invoke_info
+        )
 
         if script_name is not None:
             # Call the optimisation script for psy-layer optimisations
@@ -392,7 +431,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
 
 def main(arguments):
-    '''
+    """
     Parses and checks the command line arguments, calls the generate
     function if all is well, catches any errors and outputs the
     results.
@@ -401,7 +440,7 @@ def main(arguments):
         been invoked with.
     :type arguments: List[str]
 
-    '''
+    """
     # pylint: disable=too-many-statements,too-many-branches
 
     # Make sure we have the supported APIs defined in the Config singleton,
@@ -410,87 +449,142 @@ def main(arguments):
     Config.get(do_not_load_file=True)
 
     parser = argparse.ArgumentParser(
-        description='Transform a file using the PSyclone source-to-source '
-                    'Fortran compiler')
+        description="Transform a file using the PSyclone source-to-source "
+        "Fortran compiler"
+    )
     # Common options
-    parser.add_argument('filename', help='input source code')
+    parser.add_argument("filename", help="input source code")
     parser.add_argument(
-        '--version', '-v', action='version',
-        version=f'PSyclone version: {__VERSION__}',
-        help='display version information')
-    parser.add_argument("--config", "-c", help="config file with "
-                        "PSyclone specific options")
-    parser.add_argument('-s', '--script', help='filename of a PSyclone'
-                        ' optimisation recipe')
+        "--version",
+        "-v",
+        action="version",
+        version=f"PSyclone version: {__VERSION__}",
+        help="display version information",
+    )
     parser.add_argument(
-        '-I', '--include', default=[], action="append",
-        help='path to Fortran INCLUDE or module files')
+        "--config", "-c", help="config file with " "PSyclone specific options"
+    )
     parser.add_argument(
-        '-l', '--limit', dest='limit', default='off',
-        choices=['off', 'all', 'output'],
-        help='limit the Fortran line length to 132 characters (default '
-        '\'%(default)s\'). Use \'all\' to apply limit to both input and '
-        'output Fortran. Use \'output\' to apply line-length limit to output '
-        'Fortran only.')
+        "-s", "--script", help="filename of a PSyclone" " optimisation recipe"
+    )
     parser.add_argument(
-        '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
-        help="add profiling hooks for 'kernels', 'invokes' or 'routines'")
+        "-I",
+        "--include",
+        default=[],
+        action="append",
+        help="path to Fortran INCLUDE or module files",
+    )
     parser.add_argument(
-        '--backend', dest='backend',
-        choices=['enable-validation', 'disable-validation'],
-        help=("options to control the PSyIR backend used for code generation. "
-              "Use 'disable-validation' to disable the validation checks that "
-              "are performed by default."))
+        "-l",
+        "--limit",
+        dest="limit",
+        default="off",
+        choices=["off", "all", "output"],
+        help="limit the Fortran line length to 132 characters (default "
+        "'%(default)s'). Use 'all' to apply limit to both input and "
+        "output Fortran. Use 'output' to apply line-length limit to output "
+        "Fortran only.",
+    )
+    parser.add_argument(
+        "--profile",
+        "-p",
+        action="append",
+        choices=Profiler.SUPPORTED_OPTIONS,
+        help="add profiling hooks for 'kernels', 'invokes' or 'routines'",
+    )
+    parser.add_argument(
+        "--backend",
+        dest="backend",
+        choices=["enable-validation", "disable-validation"],
+        help=(
+            "options to control the PSyIR backend used for code generation. "
+            "Use 'disable-validation' to disable the validation checks that "
+            "are performed by default."
+        ),
+    )
 
     # Code-transformation mode flags
-    parser.add_argument('-o', metavar='OUTPUT_FILE',
-                        help='(code-transformation mode) output file')
+    parser.add_argument(
+        "-o",
+        metavar="OUTPUT_FILE",
+        help="(code-transformation mode) output file",
+    )
 
     # PSyKAl mode flags
-    parser.add_argument('-api', '--psykal-dsl', metavar='DSL',
-                        help=f'whether to use a PSyKAl DSL (one of '
-                        f'{Config.get().curated_api_list})')
-    parser.add_argument('-oalg', metavar='OUTPUT_ALGORITHM_FILE',
-                        help='(psykal mode) filename of transformed '
-                        'algorithm code')
-    parser.add_argument('-opsy', metavar='OUTPUT_PSY_FILE',
-                        help='(psykal mode) filename of generated '
-                        'PSy-layer code')
-    parser.add_argument('-okern', metavar='OUTPUT_KERNEL_PATH',
-                        help='(psykal mode) directory in which to put '
-                        'transformed kernels, default is the current working'
-                        ' directory')
     parser.add_argument(
-        '-d', '--directory', default=[], action="append", help='(psykal mode) '
-        'path to a root directory structure containing kernel source code. '
-        'Multiple roots can be specified by using multiple -d arguments.')
+        "-api",
+        "--psykal-dsl",
+        metavar="DSL",
+        help=f"whether to use a PSyKAl DSL (one of "
+        f"{Config.get().curated_api_list})",
+    )
     parser.add_argument(
-        '-dm', '--dist_mem', dest='dist_mem', action='store_true',
-        help='(psykal mode) generate distributed memory code')
+        "-oalg",
+        metavar="OUTPUT_ALGORITHM_FILE",
+        help="(psykal mode) filename of transformed " "algorithm code",
+    )
     parser.add_argument(
-        '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
-        help='(psykal mode) do not generate distributed memory code')
+        "-opsy",
+        metavar="OUTPUT_PSY_FILE",
+        help="(psykal mode) filename of generated " "PSy-layer code",
+    )
     parser.add_argument(
-        '--kernel-renaming', default="multiple",
+        "-okern",
+        metavar="OUTPUT_KERNEL_PATH",
+        help="(psykal mode) directory in which to put "
+        "transformed kernels, default is the current working"
+        " directory",
+    )
+    parser.add_argument(
+        "-d",
+        "--directory",
+        default=[],
+        action="append",
+        help="(psykal mode) "
+        "path to a root directory structure containing kernel source code. "
+        "Multiple roots can be specified by using multiple -d arguments.",
+    )
+    parser.add_argument(
+        "-dm",
+        "--dist_mem",
+        dest="dist_mem",
+        action="store_true",
+        help="(psykal mode) generate distributed memory code",
+    )
+    parser.add_argument(
+        "-nodm",
+        "--no_dist_mem",
+        dest="dist_mem",
+        action="store_false",
+        help="(psykal mode) do not generate distributed memory code",
+    )
+    parser.add_argument(
+        "--kernel-renaming",
+        default="multiple",
         choices=VALID_KERNEL_NAMING_SCHEMES,
-        help='(psykal mode) naming scheme to use when re-naming transformed'
-             ' kernels')
+        help="(psykal mode) naming scheme to use when re-naming transformed"
+        " kernels",
+    )
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
 
     args = parser.parse_args(arguments)
 
     # Validate that the given arguments are for the right operation mode
     if not args.psykal_dsl:
-        if (args.oalg or args.opsy or args.okern or args.directory):
-            print(f"When using the code-transformation mode (with no -api or "
-                  f"--psykal-dsl flags), the psykal-mode arguments must not be"
-                  f" present in the command, but found {arguments}")
+        if args.oalg or args.opsy or args.okern or args.directory:
+            print(
+                f"When using the code-transformation mode (with no -api or "
+                f"--psykal-dsl flags), the psykal-mode arguments must not be"
+                f" present in the command, but found {arguments}"
+            )
             sys.exit(1)
     else:
         if args.o:
-            print("The '-o' flag is not valid when using the psykal mode "
-                  "(-api/--psykal-dsl flag), use the -oalg, -opsy, -okern to "
-                  "specify the output destination of each psykal layer.")
+            print(
+                "The '-o' flag is not valid when using the psykal mode "
+                "(-api/--psykal-dsl flag), use the -oalg, -opsy, -okern to "
+                "specify the output destination of each psykal layer."
+            )
             sys.exit(1)
 
     # If no config file name is specified, args.config is none
@@ -501,9 +595,11 @@ def main(arguments):
     if args.psykal_dsl is None:
         api = ""
     elif args.psykal_dsl not in Config.get().supported_apis:
-        print(f"Unsupported PSyKAL DSL / API '{args.psykal_dsl}' specified. "
-              f"Supported DSLs are {Config.get().curated_api_list}.",
-              file=sys.stderr)
+        print(
+            f"Unsupported PSyKAL DSL / API '{args.psykal_dsl}' specified. "
+            f"Supported DSLs are {Config.get().curated_api_list}.",
+            file=sys.stderr,
+        )
         sys.exit(1)
     else:
         # There is a valid API specified on the command line. Set it
@@ -522,7 +618,8 @@ def main(arguments):
         # A command-line flag overrides the setting in the Config file (if
         # any).
         Config.get().backend_checks_enabled = (
-            str(args.backend) == "enable-validation")
+            str(args.backend) == "enable-validation"
+        )
 
     # The Configuration manager checks that the supplied path(s) is/are
     # valid so protect with a try
@@ -538,10 +635,12 @@ def main(arguments):
         sys.exit(1)
 
     if not args.psykal_dsl:
-        code_transformation_mode(input_file=args.filename,
-                                 recipe_file=args.script,
-                                 output_file=args.o,
-                                 line_length=args.limit)
+        code_transformation_mode(
+            input_file=args.filename,
+            recipe_file=args.script,
+            output_file=args.o,
+            line_length=args.limit,
+        )
     else:
         # PSyKAl-DSL mode
 
@@ -549,12 +648,18 @@ def main(arguments):
         # then check that it is valid
         if args.okern:
             if not os.path.exists(args.okern):
-                print(f"Specified kernel output directory ({args.okern}) does "
-                      f"not exist.", file=sys.stderr)
+                print(
+                    f"Specified kernel output directory ({args.okern}) does "
+                    f"not exist.",
+                    file=sys.stderr,
+                )
                 sys.exit(1)
             if not os.access(args.okern, os.W_OK):
-                print(f"Cannot write to specified kernel output directory "
-                      f"({args.okern}).", file=sys.stderr)
+                print(
+                    f"Cannot write to specified kernel output directory "
+                    f"({args.okern}).",
+                    file=sys.stderr,
+                )
                 sys.exit(1)
             kern_out_path = args.okern
         else:
@@ -562,13 +667,16 @@ def main(arguments):
             kern_out_path = os.getcwd()
 
         try:
-            alg, psy = generate(args.filename, api=api,
-                                kernel_paths=args.directory,
-                                script_name=args.script,
-                                line_length=(args.limit == 'all'),
-                                distributed_memory=args.dist_mem,
-                                kern_out_path=kern_out_path,
-                                kern_naming=args.kernel_renaming)
+            alg, psy = generate(
+                args.filename,
+                api=api,
+                kernel_paths=args.directory,
+                script_name=args.script,
+                line_length=(args.limit == "all"),
+                distributed_memory=args.dist_mem,
+                kern_out_path=kern_out_path,
+                kern_naming=args.kernel_renaming,
+            )
         except NoInvokesError:
             _, exc_value, _ = sys.exc_info()
             print(f"Warning: {exc_value}")
@@ -579,17 +687,18 @@ def main(arguments):
             with open(args.filename, encoding="utf8") as alg_file:
                 alg = alg_file.read()
             psy = ""
-        except (OSError, IOError, ParseError, GenerationError,
-                RuntimeError):
+        except (OSError, IOError, ParseError, GenerationError, RuntimeError):
             _, exc_value, _ = sys.exc_info()
             print(exc_value, file=sys.stderr)
             sys.exit(1)
         except Exception:  # pylint: disable=broad-except
-            print("Error, unexpected exception, please report to the authors:",
-                  file=sys.stderr)
+            print(
+                "Error, unexpected exception, please report to the authors:",
+                file=sys.stderr,
+            )
             traceback.print_exception(*sys.exc_info(), file=sys.stderr)
             sys.exit(1)
-        if args.limit != 'off':
+        if args.limit != "off":
             # Limit the line length of the output Fortran to ensure it conforms
             # to the 132 characters mandated by the standard.
             fll = FortLineLength()
@@ -599,7 +708,7 @@ def main(arguments):
             psy_str = str(psy)
             alg_str = str(alg)
         if args.oalg is not None:
-            with open(args.oalg, mode='w', encoding="utf8") as alg_file:
+            with open(args.oalg, mode="w", encoding="utf8") as alg_file:
                 alg_file.write(alg_str)
         else:
             print(f"Transformed algorithm code:\n{alg_str}")
@@ -608,14 +717,14 @@ def main(arguments):
             # empty file so do not output anything
             pass
         elif args.opsy is not None:
-            with open(args.opsy, mode='w', encoding="utf8") as psy_file:
+            with open(args.opsy, mode="w", encoding="utf8") as psy_file:
                 psy_file.write(psy_str)
         else:
             print(f"Generated psy layer code:\n{psy_str}")
 
 
 def check_psyir(psyir, filename):
-    '''Check the supplied psyir to make sure that it contains a
+    """Check the supplied psyir to make sure that it contains a
     single program or module.
 
     :param psyir: the psyir to check.
@@ -626,24 +735,26 @@ def check_psyir(psyir, filename):
     :raises GenerationError: if the algorithm file is not a \
         module or a program.
 
-    '''
+    """
     if len(psyir.children) != 1:
         raise GenerationError(
             f"Expecting LFRic algorithm-layer code within file "
             f"'{filename}' to be a single program or module, but "
             f"found '{len(psyir.children)}' of type "
-            f"{[type(node).__name__ for node in psyir.children]}.")
-    if (not isinstance(psyir.children[0], Container) and not
-        (isinstance(psyir.children[0], Routine) and
-         psyir.children[0].is_program)):
+            f"{[type(node).__name__ for node in psyir.children]}."
+        )
+    if not isinstance(psyir.children[0], Container) and not (
+        isinstance(psyir.children[0], Routine) and psyir.children[0].is_program
+    ):
         raise GenerationError(
             f"Expecting LFRic algorithm-layer code within file "
             f"'{filename}' to be a single program or module, but "
-            f"found '{type(psyir.children[0]).__name__}'.")
+            f"found '{type(psyir.children[0]).__name__}'."
+        )
 
 
 def add_builtins_use(fp2_tree, name):
-    '''Modify the fparser2 tree adding a 'use <name>' so that builtin kernel
+    """Modify the fparser2 tree adding a 'use <name>' so that builtin kernel
     functors do not appear to be undeclared.
 
     :param fp2_tree: the fparser2 tree to modify.
@@ -651,12 +762,13 @@ def add_builtins_use(fp2_tree, name):
     :param str name: the name of the module imported by the use
         statement.
 
-    '''
+    """
     for node in fp2_tree.children:
         if isinstance(node, (Fortran2003.Module, Fortran2003.Main_Program)):
             # add "use <name>" to the module or program
             if not isinstance(
-                    node.children[1], Fortran2003.Specification_Part):
+                node.children[1], Fortran2003.Specification_Part
+            ):
                 # Create a valid use statement then modify its name as
                 # the supplied name may be invalid Fortran to avoid
                 # clashes with existing Fortran names.
@@ -677,9 +789,10 @@ def add_builtins_use(fp2_tree, name):
                 spec_part.children.insert(0, use_stmt)
 
 
-def code_transformation_mode(input_file, recipe_file, output_file,
-                             line_length="off"):
-    ''' Process the input_file with the recipe_file instructions and
+def code_transformation_mode(
+    input_file, recipe_file, output_file, line_length="off"
+):
+    """Process the input_file with the recipe_file instructions and
     store it in the output_file.
 
     Note: there is some duplicated logic in the PSyKAl path, we could attempt
@@ -695,7 +808,7 @@ def code_transformation_mode(input_file, recipe_file, output_file,
     :param str line_length: set to "output" to break the output into lines
         of 123 chars, and to "all", to additionally check the input code.
 
-    '''
+    """
     # Load recipe file
     if recipe_file:
         transformation_recipe, files_to_skip = load_script(recipe_file)
@@ -707,13 +820,16 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         # If line_length "all" is provided, check the input source
         fll = FortLineLength()
         if line_length == "all":
-            with open(input_file, "r", encoding='utf8') as myfile:
+            with open(input_file, "r", encoding="utf8") as myfile:
                 code_str = myfile.read()
                 if fll.long_lines(code_str):
-                    print(f"'{filename}' does not conform to the specified "
-                          f"{fll.length} line-length limit. Either fix the "
-                          f"file or change the '-l/--limit' argument on the "
-                          f"PSyclone command line.", file=sys.stderr)
+                    print(
+                        f"'{filename}' does not conform to the specified "
+                        f"{fll.length} line-length limit. Either fix the "
+                        f"file or change the '-l/--limit' argument on the "
+                        f"PSyclone command line.",
+                        file=sys.stderr,
+                    )
                     sys.exit(1)
 
         # Parse file
@@ -736,11 +852,11 @@ def code_transformation_mode(input_file, recipe_file, output_file,
             output = fll.process(output)
     else:
         # Skip parsing and transformation and copy contents of file directly
-        with open(input_file, mode='r', encoding="utf8") as ifile:
+        with open(input_file, mode="r", encoding="utf8") as ifile:
             output = ifile.read()
 
     if output_file:
-        with open(output_file, mode='w', encoding="utf8") as ofile:
+        with open(output_file, mode="w", encoding="utf8") as ofile:
             ofile.write(output)
     else:
         print(output, file=sys.stdout)

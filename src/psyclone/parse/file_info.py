@@ -33,54 +33,61 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory.
 
-'''This module contains the FileInfo class.
+"""This module contains the FileInfo class.
 
-'''
+"""
 
 import os
 
 
-# ============================================================================
 class FileInfo:
-    '''This class stores mostly cached information about files: it stores
+    """This class stores mostly cached information about files: it stores
     the original filename and, if requested, it will read the file and then
     cache the (plain text) contents.
 
     :param str filename: the name of the source file (including path) that this
                          object holds information on.
 
-    '''
-    def __init__(self, filename):
-        self._filename = filename
-        # A cache for the source code:
-        self._source_code = None
+    """
 
-    # ------------------------------------------------------------------------
+    def __init__(self, filepath: str):
+        """Constructor
+
+        :param filepath: Path to the file containing the source code
+        :type filepath: str
+
+        """
+        self._filepath = filepath
+
+        # A cache for the source code:
+        self._source_code_cache = None
+
     @property
-    def basename(self):
-        '''
+    def basename(self) -> str:
+        """
         :returns: the base name (i.e. without path or suffix) of the filename
                   that this FileInfo object represents.
         :rtype: str
-        '''
+
+        """
         # Remove the path from the filename.
-        bname = os.path.basename(self._filename)
+        basename = os.path.basename(self._filepath)
         # splitext returns (root, ext) and it's `root` that we want.
-        return os.path.splitext(bname)[0]
+        return os.path.splitext(basename)[0]
 
-    # ------------------------------------------------------------------------
     @property
-    def filename(self):
-        '''
-        :returns: the full filename that this FileInfo object represents.
+    def filepath(self) -> str:
+        """
+        :returns: the full filename with the path that this FileInfo object
+            represents.
         :rtype: str
-        '''
-        return self._filename
 
-    # ------------------------------------------------------------------------
+        """
+        return self._filepath
+
     @property
-    def contents(self):
-        '''Returns the contents of the file. The first time, it
+    def contents(self) -> str:
+        """Returns the contents of the file. The first time, it
         will be read from the file, but the data is then cached.
 
         If any decoding errors are encountered then the associated character(s)
@@ -91,13 +98,14 @@ class FileInfo:
         :returns: the contents of the file (utf-8 encoding).
         :rtype: str
 
-        '''
-        if self._source_code is None:
+        """
+        if self._source_code_cache is None:
             # Specifying errors='ignore' simply skips any characters that
             # result in decoding errors. (Comments in a code may contain all
             # sorts of weird things.)
-            with open(self._filename, "r", encoding='utf-8',
-                      errors='ignore') as file_in:
-                self._source_code = file_in.read()
+            with open(
+                self._filepath, "r", encoding="utf-8", errors="ignore"
+            ) as file_in:
+                self._source_code_cache = file_in.read()
 
-        return self._source_code
+        return self._source_code_cache

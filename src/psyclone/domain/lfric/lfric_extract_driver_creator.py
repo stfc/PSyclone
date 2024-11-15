@@ -34,11 +34,11 @@
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: I. Kavcic, O. Brunt and L. Turner, Met Office
 
-'''This module provides functionality for the PSyclone kernel extraction
+"""This module provides functionality for the PSyclone kernel extraction
 functionality for LFRic. It contains the class that creates a driver that
 reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
-'''
+"""
 
 # TODO #1382: refactoring common functionality between the various driver
 # creation implementation should make this file much smaller.
@@ -50,23 +50,37 @@ from psyclone.domain.common import BaseDriverCreator
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
-from psyclone.parse import ModuleManager
+from psyclone.parse import ModuleManagerAutoSearch
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
-                                  IntrinsicCall, Literal, Reference,
-                                  Routine, StructureReference)
-from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
-                                    ContainerSymbol, DataSymbol,
-                                    DataTypeSymbol, UnresolvedType,
-                                    ImportInterface, INTEGER_TYPE,
-                                    RoutineSymbol, UnsupportedFortranType)
+from psyclone.psyir.nodes import (
+    Assignment,
+    Call,
+    FileContainer,
+    IntrinsicCall,
+    Literal,
+    Reference,
+    Routine,
+    StructureReference,
+)
+from psyclone.psyir.symbols import (
+    ArrayType,
+    CHARACTER_TYPE,
+    ContainerSymbol,
+    DataSymbol,
+    DataTypeSymbol,
+    UnresolvedType,
+    ImportInterface,
+    INTEGER_TYPE,
+    RoutineSymbol,
+    UnsupportedFortranType,
+)
 from psyclone.psyir.transformations import ExtractTrans
 
 
 class LFRicExtractDriverCreator(BaseDriverCreator):
-    '''This class provides the functionality to create a driver that
+    """This class provides the functionality to create a driver that
     reads in extracted data produced by using the PSyData kernel-extraction
     functionality.
 
@@ -170,20 +184,25 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
     :raises InternalError: if the precision argument is specified but
         is not a dictionary.
 
-    '''
+    """
+
     def __init__(self):
         super().__init__()
         # TODO #2069: check if this list can be taken from LFRicConstants
         # TODO #2018: once r_field is defined in the LFRic infrastructure,
         #             it should be added to this list.
-        self._all_field_types = ["integer_field_type", "field_type",
-                                 "r_bl_field", "r_solver_field_type",
-                                 "r_tran_field_type"]
+        self._all_field_types = [
+            "integer_field_type",
+            "field_type",
+            "r_bl_field",
+            "r_solver_field_type",
+            "r_tran_field_type",
+        ]
 
     # -------------------------------------------------------------------------
     @staticmethod
     def _make_valid_unit_name(name):
-        '''Valid program or routine names are restricted to 63 characters,
+        """Valid program or routine names are restricted to 63 characters,
         and no special characters like '-' (which is used when adding
         invoke and region numbers).
 
@@ -193,12 +212,12 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             removed and restricted to a length of 63 characters.
         :rtype: str
 
-        '''
+        """
         return name.replace("-", "")[:63]
 
     # -------------------------------------------------------------------------
     def _get_proxy_name_mapping(self, schedule):
-        '''This function creates a mapping of each proxy name of an argument
+        """This function creates a mapping of each proxy name of an argument
         to the field map. This mapping is used to convert proxy names used
         in a lowered kernel call back to the original name, which is the name
         used in extraction. For example, a field 'f' will be provided as
@@ -213,7 +232,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         :returns: a mapping of proxy names to field names.
         :rtype: Dict[str,str]
 
-        '''
+        """
         proxy_name_mapping = {}
         for kern in schedule.walk(Kern):
             for arg in kern.args:
@@ -224,7 +243,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
     # -------------------------------------------------------------------------
     @staticmethod
     def _flatten_signature(signature):
-        '''Creates a 'flattened' string for a signature by using ``_`` to
+        """Creates a 'flattened' string for a signature by using ``_`` to
         separate the parts of a signature. For example, in Fortran
         a reference to ``a%b`` would be flattened to be ``a_b``.
 
@@ -234,13 +253,14 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         :returns: a flattened string (all '%' replaced with '_'.)
         :rtype: str
 
-        '''
+        """
         return str(signature).replace("%", "_")
 
     # -------------------------------------------------------------------------
-    def _flatten_reference(self, old_reference, symbol_table,
-                           proxy_name_mapping):
-        '''Replaces ``old_reference``, which is a structure type, with a new
+    def _flatten_reference(
+        self, old_reference, symbol_table, proxy_name_mapping
+    ):
+        """Replaces ``old_reference``, which is a structure type, with a new
         simple Reference and a flattened name (replacing all % with _). It will
         also remove a '_proxy' in the name, so that the program uses the names
         the user is familiar with, and which are also used in the extraction
@@ -260,13 +280,15 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             :py:class:`psyclone.psyir.nodes.StructureReference`
         :raises GenerationError: if an array of structures is used
 
-        '''
+        """
 
         if not isinstance(old_reference, StructureReference):
-            raise InternalError(f"Unexpected type "
-                                f"'{type(old_reference).__name__}'"
-                                f" in _flatten_reference, it must be a "
-                                f"'StructureReference'.")
+            raise InternalError(
+                f"Unexpected type "
+                f"'{type(old_reference).__name__}'"
+                f" in _flatten_reference, it must be a "
+                f"'StructureReference'."
+            )
         # A field access (`fld%data`) will get the `%data` removed, since then
         # this avoids a potential name clash (`fld` is guaranteed to
         # be unique, since it's a variable already, but `fld_data` could clash
@@ -299,9 +321,10 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         old_reference.replace_with(new_ref)
 
     # -------------------------------------------------------------------------
-    def _add_all_kernel_symbols(self, sched, symbol_table, proxy_name_mapping,
-                                read_write_info):
-        '''This function adds all symbols used in ``sched`` to the symbol
+    def _add_all_kernel_symbols(
+        self, sched, symbol_table, proxy_name_mapping, read_write_info
+    ):
+        """This function adds all symbols used in ``sched`` to the symbol
         table. It uses LFRic-specific knowledge to declare fields and flatten
         their name.
 
@@ -317,7 +340,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
-        '''
+        """
         # pylint: disable=too-many-locals, too-many-branches
         all_references = sched.walk(Reference)
 
@@ -326,8 +349,10 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # used in the program.
         for reference in all_references:
             # Skip routine references
-            if (isinstance(reference.parent, Call) and
-                    reference.parent.routine is reference):
+            if (
+                isinstance(reference.parent, Call)
+                and reference.parent.routine is reference
+            ):
                 continue
             # For now ignore structure names, which require flattening (which
             # could introduce duplicated symbols, so they need to be processed
@@ -357,10 +382,12 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                 # type (i.e. not a pointer).
                 datatype = old_symbol.datatype.partial_datatype
 
-            new_symbol = symbol_table.new_symbol(root_name=reference.name,
-                                                 tag=reference.name,
-                                                 symbol_type=DataSymbol,
-                                                 datatype=datatype.copy())
+            new_symbol = symbol_table.new_symbol(
+                root_name=reference.name,
+                tag=reference.name,
+                symbol_type=DataSymbol,
+                datatype=datatype.copy(),
+            )
             new_symbol.replace_symbols_using(symbol_table)
             reference.symbol = new_symbol
 
@@ -371,25 +398,29 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # We use the structured name (with '%') as tag to handle this.
         for reference in all_references:
             # Skip routine references
-            if (isinstance(reference.parent, Call) and
-                    reference.parent.routine is reference):
+            if (
+                isinstance(reference.parent, Call)
+                and reference.parent.routine is reference
+            ):
                 continue
             # Skip references that are not any kind of structure
             if not isinstance(reference, StructureReference):
                 continue
-            self._flatten_reference(reference, symbol_table,
-                                    proxy_name_mapping)
+            self._flatten_reference(
+                reference, symbol_table, proxy_name_mapping
+            )
 
         # Now add all non-local symbols, which need to be
         # imported from the appropriate module:
         # -----------------------------------------------
-        mod_man = ModuleManager.get_singleton()
+        mod_man = ModuleManagerAutoSearch.get_singleton()
         for module_name, signature in read_write_info.set_of_all_used_vars:
             if not module_name:
                 # Ignore local symbols, which will have been added above
                 continue
             container = symbol_table.find_or_create(
-                module_name, symbol_type=ContainerSymbol)
+                module_name, symbol_type=ContainerSymbol
+            )
 
             # Now look up the original symbol. While the variable could
             # be declared Unresolved here (i.e. just imported), we need the
@@ -397,8 +428,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # are created later and which will query the original symbol for
             # its type. And since they are not imported, they need to be
             # explicitly declared.
-            mod_info = mod_man.get_module_info(module_name)
-            container_symbol = mod_info.get_symbol(signature[0])
+            mod_info = mod_man.get_module_info_with_auto_add_files(module_name)
+            container_symbol = mod_info.get_symbol_by_name(signature[0])
             if not container_symbol:
                 # TODO #2120: This typically indicates a problem with parsing
                 # a module: the psyir does not have the full tree structure.
@@ -414,16 +445,26 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                 interface = ImportInterface(container)
 
             symbol_table.find_or_create_tag(
-                tag=f"{signature[0]}@{module_name}", root_name=signature[0],
-                symbol_type=DataSymbol, interface=interface,
-                datatype=container_symbol.datatype)
+                tag=f"{signature[0]}@{module_name}",
+                root_name=signature[0],
+                symbol_type=DataSymbol,
+                interface=interface,
+                datatype=container_symbol.datatype,
+            )
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _create_output_var_code(name, program, is_input, read_var,
-                                postfix, index=None, module_name=None):
+    def _create_output_var_code(
+        name,
+        program,
+        is_input,
+        read_var,
+        postfix,
+        index=None,
+        module_name=None,
+    ):
         # pylint: disable=too-many-arguments
-        '''
+        """
         This function creates all code required for an output variable.
         It creates the '_post' variable which stores the correct result
         from the file, which is read in. If the variable is not also an
@@ -460,7 +501,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         :rtype: Tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
                       :py:class:`psyclone.psyir.symbols.Symbol`]
 
-        '''
+        """
         # For each variable that is written, we need to declare a new variable
         # that stores the expected value which is contained in the kernel data
         # file, which has `_post` appended to the name (so `a` is the variable
@@ -480,9 +521,9 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
         # Declare a 'post' variable of the same type and read in its value.
         post_name = sym.name + postfix
-        post_sym = symbol_table.new_symbol(post_name,
-                                           symbol_type=DataSymbol,
-                                           datatype=sym.datatype)
+        post_sym = symbol_table.new_symbol(
+            post_name, symbol_type=DataSymbol, datatype=sym.datatype
+        )
         if module_name:
             post_tag = f"{name}{postfix}@{module_name}"
         else:
@@ -492,31 +533,40 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                 # If it is not indexed then `name` will already end in "_data"
                 post_tag = f"{name}{postfix}"
         name_lit = Literal(post_tag, CHARACTER_TYPE)
-        BaseDriverCreator.add_call(program, read_var,
-                                   [name_lit, Reference(post_sym)])
+        BaseDriverCreator.add_call(
+            program, read_var, [name_lit, Reference(post_sym)]
+        )
 
         # Now if a variable is written to, but not read, the variable
         # is not allocated. So we need to allocate it and set it to 0.
         if not is_input:
-            if (isinstance(post_sym.datatype, ArrayType) or
-                    (isinstance(post_sym.datatype, UnsupportedFortranType) and
-                     isinstance(post_sym.datatype.partial_datatype,
-                                ArrayType))):
+            if isinstance(post_sym.datatype, ArrayType) or (
+                isinstance(post_sym.datatype, UnsupportedFortranType)
+                and isinstance(post_sym.datatype.partial_datatype, ArrayType)
+            ):
                 alloc = IntrinsicCall.create(
                     IntrinsicCall.Intrinsic.ALLOCATE,
-                    [Reference(sym), ("mold", Reference(post_sym))])
+                    [Reference(sym), ("mold", Reference(post_sym))],
+                )
                 program.addchild(alloc)
-            set_zero = Assignment.create(Reference(sym),
-                                         Literal("0", INTEGER_TYPE))
+            set_zero = Assignment.create(
+                Reference(sym), Literal("0", INTEGER_TYPE)
+            )
             program.addchild(set_zero)
         return (sym, post_sym)
 
     # -------------------------------------------------------------------------
-    def _create_read_in_code(self, program, psy_data, original_symbol_table,
-                             read_write_info, postfix):
+    def _create_read_in_code(
+        self,
+        program,
+        psy_data,
+        original_symbol_table,
+        read_write_info,
+        postfix,
+    ):
         # pylint: disable=too-many-arguments, too-many-branches
         # pylint: disable=too-many-locals, too-many-statements
-        '''This function creates the code that reads in the NetCDF file
+        """This function creates the code that reads in the NetCDF file
         produced during extraction. For each:
 
         - variable that is read-only, it will declare the symbol and add code
@@ -552,9 +602,10 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         :rtype: List[Tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
                            :py:class:`psyclone.psyir.symbols.Symbol`]]
 
-        '''
+        """
+
         def _sym_is_field(sym):
-            '''Utility that determines whether the supplied Symbol represents
+            """Utility that determines whether the supplied Symbol represents
             an LFRic field.
 
             :param sym: the Symbol to check.
@@ -563,7 +614,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             :returns: True if the Symbol represents a field, False otherwise.
             :rtype: bool
 
-            '''
+            """
             if isinstance(orig_sym.datatype, UnsupportedFortranType):
                 intrinsic_name = sym.datatype.partial_datatype.intrinsic.name
             else:
@@ -572,7 +623,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
-        mod_man = ModuleManager.get_singleton()
+        mod_man = ModuleManagerAutoSearch.get_singleton()
 
         # First handle variables that are read:
         # -------------------------------------
@@ -584,23 +635,28 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # in the symbol table (in _add_all_kernel_symbols).
             sig_str = self._flatten_signature(signature)
             if module_name:
-                mod_info = mod_man.get_module_info(module_name)
-                orig_sym = mod_info.get_symbol(signature[0])
+                mod_info = mod_man.get_module_info_with_auto_add_files(
+                    module_name
+                )
+                orig_sym = mod_info.get_symbol_by_name(signature[0])
                 if not orig_sym:
                     # TODO 2120: We likely couldn't parse the module.
-                    print(f"Error finding symbol '{sig_str}' in "
-                          f"'{module_name}'.")
+                    print(
+                        f"Error finding symbol '{sig_str}' in "
+                        f"'{module_name}'."
+                    )
             else:
                 orig_sym = original_symbol_table.lookup(signature[0])
 
             if orig_sym and orig_sym.is_array and _sym_is_field(orig_sym):
                 # This is a field vector, so add all individual fields
                 upper = int(orig_sym.datatype.shape[0].upper.value)
-                for i in range(1, upper+1):
+                for i in range(1, upper + 1):
                     sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}_data")
                     name_lit = Literal(f"{sig_str}%{i}", CHARACTER_TYPE)
-                    self.add_call(program, read_var,
-                                  [name_lit, Reference(sym)])
+                    self.add_call(
+                        program, read_var, [name_lit, Reference(sym)]
+                    )
                 continue
 
             if module_name:
@@ -608,8 +664,10 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                 try:
                     sym = symbol_table.lookup_with_tag(tag)
                 except KeyError:
-                    print(f"Cannot find symbol with tag '{tag}' - likely "
-                          f"a symptom of an earlier parsing problem.")
+                    print(
+                        f"Cannot find symbol with tag '{tag}' - likely "
+                        f"a symptom of an earlier parsing problem."
+                    )
                     # TODO #2120: Better error handling, at this stage
                     # we likely could not find a module variable (e.g.
                     # because we couldn't successfully parse the module)
@@ -619,8 +677,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             else:
                 sym = symbol_table.lookup_with_tag(str(signature))
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
-            self.add_call(program, read_var,
-                          [name_lit, Reference(sym)])
+            self.add_call(program, read_var, [name_lit, Reference(sym)])
 
         # Then handle all variables that are written (note that some
         # variables might be read and written)
@@ -640,12 +697,15 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
             if module_name:
-                orig_sym = mod_man.get_module_info(module_name).get_symbol(
-                    signature[0])
+                orig_sym = mod_man.get_module_info_with_auto_add_files(
+                    module_name
+                ).get_symbol_by_name(signature[0])
                 if not orig_sym:
                     # TODO 2120: We likely couldn't parse the module.
-                    print(f"Error finding symbol '{signature}' in "
-                          f"'{module_name}'.")
+                    print(
+                        f"Error finding symbol '{signature}' in "
+                        f"'{module_name}'."
+                    )
                     continue
             else:
                 orig_sym = original_symbol_table.lookup(signature[0])
@@ -653,21 +713,29 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             if orig_sym.is_array and _sym_is_field(orig_sym):
                 # This is a field vector, so handle each individual field
                 # adding a number
-                flattened = self. _flatten_signature(signature)
+                flattened = self._flatten_signature(signature)
                 upper = int(orig_sym.datatype.shape[0].upper.value)
-                for i in range(1, upper+1):
-                    sym_tuple = \
-                        self._create_output_var_code(flattened, program,
-                                                     is_input, read_var,
-                                                     postfix, index=i,
-                                                     module_name=module_name)
+                for i in range(1, upper + 1):
+                    sym_tuple = self._create_output_var_code(
+                        flattened,
+                        program,
+                        is_input,
+                        read_var,
+                        postfix,
+                        index=i,
+                        module_name=module_name,
+                    )
                     output_symbols.append(sym_tuple)
             else:
                 sig_str = str(signature)
-                sym_tuple = \
-                    self._create_output_var_code(str(signature), program,
-                                                 is_input, read_var, postfix,
-                                                 module_name=module_name)
+                sym_tuple = self._create_output_var_code(
+                    str(signature),
+                    program,
+                    is_input,
+                    read_var,
+                    postfix,
+                    module_name=module_name,
+                )
                 output_symbols.append(sym_tuple)
 
         return output_symbols
@@ -675,7 +743,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
     # -------------------------------------------------------------------------
     @staticmethod
     def _import_modules(symbol_table, sched):
-        '''This function adds all the import statements required for the
+        """This function adds all the import statements required for the
         actual kernel calls. It finds all calls in the schedule and
         checks for calls with an ImportInterface. Any such call will
         add a ContainerSymbol for the module and a RoutineSymbol (pointing
@@ -686,7 +754,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         :param sched: the schedule to analyse for module imports.
         :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
 
-        '''
+        """
         for call in sched.walk(Call):
             routine = call.routine.symbol
             if not isinstance(routine.interface, ImportInterface):
@@ -700,21 +768,24 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # statement).
             module = ContainerSymbol(routine.interface.container_symbol.name)
             symbol_table.add(module)
-            new_routine_sym = RoutineSymbol(routine.name, UnresolvedType(),
-                                            interface=ImportInterface(module))
+            new_routine_sym = RoutineSymbol(
+                routine.name,
+                UnresolvedType(),
+                interface=ImportInterface(module),
+            )
             symbol_table.add(new_routine_sym)
 
     # -------------------------------------------------------------------------
     @staticmethod
     def _add_precision_symbols(symbol_table):
-        '''This function adds an import of the various precision
+        """This function adds an import of the various precision
         symbols used by LFRic from the constants_mod module.
 
         :param symbol_table: the symbol table to which the precision symbols
             must be added.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        '''
+        """
         const = LFRicConstants()
         mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
         constant_mod = ContainerSymbol(mod_name)
@@ -724,19 +795,25 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # does not exist at all in LFRic. So we have to remove them from the
         # lists of precisions to import.  TODO #2018
         api_config = Config.get().api_conf("lfric")
-        all_precisions = [name for name in api_config.precision_map
-                          if name not in ["r_quad", "r_phys"]]
+        all_precisions = [
+            name
+            for name in api_config.precision_map
+            if name not in ["r_quad", "r_phys"]
+        ]
         for prec_name in all_precisions:
-            symbol_table.new_symbol(prec_name,
-                                    tag=f"{prec_name}@{mod_name}",
-                                    symbol_type=DataSymbol,
-                                    datatype=INTEGER_TYPE,
-                                    interface=ImportInterface(constant_mod))
+            symbol_table.new_symbol(
+                prec_name,
+                tag=f"{prec_name}@{mod_name}",
+                symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE,
+                interface=ImportInterface(constant_mod),
+            )
 
     # -------------------------------------------------------------------------
-    def _add_command_line_handler(self, program, psy_data_var, module_name,
-                                  region_name):
-        '''
+    def _add_command_line_handler(
+        self, program, psy_data_var, module_name, region_name
+    ):
+        """
         This function adds code to handle the command line. For now an
         alternative filename (to the default one that is hard-coded by
         the created driver) can be specified, which allows the driver to
@@ -754,7 +831,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         :param str region_name: the name of the region, used to create the
             implicit default kernel dump file name.
 
-        '''
+        """
         # pylint: disable=too-many-locals
         program_symbol_table = program.symbol_table
 
@@ -763,10 +840,12 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # TODO #2137: The UnsupportedFortranType could be reused for all
         #             variables once this is fixed.
         for str_name in ["psydata_filename", "psydata_arg"]:
-            str_unique_name = \
-                program_symbol_table.next_available_name(str_name)
+            str_unique_name = program_symbol_table.next_available_name(
+                str_name
+            )
             str_type = UnsupportedFortranType(
-                f"character(:), allocatable :: {str_unique_name}")
+                f"character(:), allocatable :: {str_unique_name}"
+            )
             sym = DataTypeSymbol(str_unique_name, str_type)
             program_symbol_table.add(sym)
             if str_name == "psydata_filename":
@@ -774,14 +853,12 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             else:
                 psydata_arg = str_unique_name
 
-        psydata_len = \
-            program_symbol_table.find_or_create("psydata_len",
-                                                symbol_type=DataSymbol,
-                                                datatype=INTEGER_TYPE).name
-        psydata_i = \
-            program_symbol_table.find_or_create("psydata_i",
-                                                symbol_type=DataSymbol,
-                                                datatype=INTEGER_TYPE).name
+        psydata_len = program_symbol_table.find_or_create(
+            "psydata_len", symbol_type=DataSymbol, datatype=INTEGER_TYPE
+        ).name
+        psydata_i = program_symbol_table.find_or_create(
+            "psydata_i", symbol_type=DataSymbol, datatype=INTEGER_TYPE
+        ).name
         # We can only parse one statement at a time, so start with the
         # command line handling:
         code = f"""
@@ -799,8 +876,9 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
            deallocate({psydata_arg})
         enddo
         """
-        command_line = \
-            FortranReader().psyir_from_statement(code, program_symbol_table)
+        command_line = FortranReader().psyir_from_statement(
+            code, program_symbol_table
+        )
         program.children.insert(0, command_line)
 
         # Now add the handling of the filename parameter
@@ -812,14 +890,15 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                                          '{region_name}')
         endif
         """
-        filename_test = \
-            FortranReader().psyir_from_statement(code, program_symbol_table)
+        filename_test = FortranReader().psyir_from_statement(
+            code, program_symbol_table
+        )
         program.children.insert(1, filename_test)
 
     # -------------------------------------------------------------------------
     def create(self, nodes, read_write_info, prefix, postfix, region_name):
         # pylint: disable=too-many-arguments
-        '''This function uses the PSyIR to create a stand-alone driver
+        """This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
         output information, and calls the kernels specified in the 'nodes'
         PSyIR tree with the parameters from the file. The `nodes` are
@@ -847,7 +926,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         :returns: the program PSyIR for a stand-alone driver.
         :rtype: :py:class:`psyclone.psyir.psyir.nodes.FileContainer`
 
-        '''
+        """
         # pylint: disable=too-many-locals
 
         # Since this is a 'public' method of an entirely separate class,
@@ -873,8 +952,11 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
         psy_data_mod = ContainerSymbol("read_kernel_data_mod")
         program_symbol_table.add(psy_data_mod)
-        psy_data_type = DataTypeSymbol("ReadKernelDataType", UnresolvedType(),
-                                       interface=ImportInterface(psy_data_mod))
+        psy_data_type = DataTypeSymbol(
+            "ReadKernelDataType",
+            UnresolvedType(),
+            interface=ImportInterface(psy_data_mod),
+        )
         program_symbol_table.add(psy_data_type)
 
         # The validation of the extract transform guarantees that all nodes
@@ -936,19 +1018,24 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # statements.
         self._import_modules(program.scope.symbol_table, schedule_copy)
         self._add_precision_symbols(program.scope.symbol_table)
-        self._add_all_kernel_symbols(schedule_copy, program_symbol_table,
-                                     proxy_name_mapping, read_write_info)
+        self._add_all_kernel_symbols(
+            schedule_copy,
+            program_symbol_table,
+            proxy_name_mapping,
+            read_write_info,
+        )
 
         root_name = prefix + "psy_data"
-        psy_data = program_symbol_table.new_symbol(root_name=root_name,
-                                                   symbol_type=DataSymbol,
-                                                   datatype=psy_data_type)
+        psy_data = program_symbol_table.new_symbol(
+            root_name=root_name, symbol_type=DataSymbol, datatype=psy_data_type
+        )
 
-        self._add_command_line_handler(program, psy_data, module_name,
-                                       local_name)
-        output_symbols = self._create_read_in_code(program, psy_data,
-                                                   original_symbol_table,
-                                                   read_write_info, postfix)
+        self._add_command_line_handler(
+            program, psy_data, module_name, local_name
+        )
+        output_symbols = self._create_read_in_code(
+            program, psy_data, original_symbol_table, read_write_info, postfix
+        )
         # Move the nodes making up the extracted region into the Schedule
         # of the driver program
         all_children = schedule_copy.pop_all_children()
@@ -962,7 +1049,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
     # -------------------------------------------------------------------------
     @staticmethod
     def collect_all_required_modules(file_container):
-        '''Collects recursively all modules used in the file container.
+        """Collects recursively all modules used in the file container.
         It returns a dictionary, with the keys being all the (directly or
         indirectly) used modules.
 
@@ -975,22 +1062,32 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             as value a set of all modules required by the key module.
         :rtype: Dict[str, Set[str]]
 
-        '''
+        """
         all_mods = set()
         for container in file_container.children:
             sym_tab = container.symbol_table
             # Add all imported modules (i.e. all container symbols)
-            all_mods.update(symbol.name for symbol in sym_tab.symbols
-                            if isinstance(symbol, ContainerSymbol))
+            all_mods.update(
+                symbol.name
+                for symbol in sym_tab.symbols
+                if isinstance(symbol, ContainerSymbol)
+            )
 
-        mod_manager = ModuleManager.get_singleton()
+        mod_manager = ModuleManagerAutoSearch.get_singleton()
         return mod_manager.get_all_dependencies_recursively(all_mods)
 
     # -------------------------------------------------------------------------
-    def get_driver_as_string(self, nodes, read_write_info, prefix, postfix,
-                             region_name, writer=FortranWriter()):
+    def get_driver_as_string(
+        self,
+        nodes,
+        read_write_info,
+        prefix,
+        postfix,
+        region_name,
+        writer=FortranWriter(),
+    ):
         # pylint: disable=too-many-arguments, too-many-locals
-        '''This function uses the `create()` function to get the PSyIR of a
+        """This function uses the `create()` function to get the PSyIR of a
         stand-alone driver, and then uses the provided language writer
         to create a string representation in the selected language
         (defaults to Fortran).
@@ -1025,16 +1122,17 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         :returns: the driver in the selected language.
         :rtype: str
 
-        '''
-        file_container = self.create(nodes, read_write_info, prefix,
-                                     postfix, region_name)
+        """
+        file_container = self.create(
+            nodes, read_write_info, prefix, postfix, region_name
+        )
 
         module_dependencies = self.collect_all_required_modules(file_container)
         # Sort the modules by dependencies, i.e. start with modules
         # that have no dependency. This is required for compilation, the
         # compiler must have found any dependent modules before it can
         # compile a module.
-        mod_manager = ModuleManager.get_singleton()
+        mod_manager = ModuleManagerAutoSearch.get_singleton()
         sorted_modules = mod_manager.sort_modules(module_dependencies)
 
         # Inline all required modules into the driver source file so that
@@ -1044,7 +1142,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         for module in sorted_modules:
             # Note that all modules in `sorted_modules` are known to be in
             # the module manager, so we can always get the module info here.
-            mod_info = mod_manager.get_module_info(module)
+            mod_info = mod_manager.get_module_info_with_auto_add_files(module)
             out.append(mod_info.get_source_code())
 
         out.append(writer(file_container))
@@ -1052,10 +1150,17 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         return "\n".join(out)
 
     # -------------------------------------------------------------------------
-    def write_driver(self, nodes, read_write_info, prefix, postfix,
-                     region_name, writer=FortranWriter()):
+    def write_driver(
+        self,
+        nodes,
+        read_write_info,
+        prefix,
+        postfix,
+        region_name,
+        writer=FortranWriter(),
+    ):
         # pylint: disable=too-many-arguments
-        '''This function uses the ``get_driver_as_string()`` function to get a
+        """This function uses the ``get_driver_as_string()`` function to get a
         a stand-alone driver, and then writes this source code to a file. The
         file name is derived from the region name:
         "driver-"+module_name+"_"+region_name+".F90"
@@ -1084,12 +1189,14 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         :type writer:
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
-        '''
-        code = self.get_driver_as_string(nodes, read_write_info, prefix,
-                                         postfix, region_name, writer=writer)
+        """
+        code = self.get_driver_as_string(
+            nodes, read_write_info, prefix, postfix, region_name, writer=writer
+        )
         fll = FortLineLength()
         code = fll.process(code)
         module_name, local_name = region_name
-        with open(f"driver-{module_name}-{local_name}.F90", "w",
-                  encoding='utf-8') as out:
+        with open(
+            f"driver-{module_name}-{local_name}.F90", "w", encoding="utf-8"
+        ) as out:
             out.write(code)
