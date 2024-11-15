@@ -3,8 +3,10 @@
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 cd "$SCRIPTPATH/.."
 
+
 #
 # Hint for vscode:
+# ===========================
 #
 # Install black-formatter
 #
@@ -13,9 +15,15 @@ cd "$SCRIPTPATH/.."
 #  - Set 'Format on Save Mode' to 'modifications'
 #
 
-# An example hook script to verify what is about to be pushed.  Called by "git
-# push" after it has checked the remote status, but before anything has been
-# pushed.  If this script exits with a non-zero status nothing will be pushed.
+#
+# GIT related information:
+# ===========================
+#
+# This script can be also used as a git hook in .git/hooks/pre-push
+# It then ensures that the whole of PSyclone is linted successfully
+# before the push is executed.
+#
+# If this script exits with a non-zero status nothing will be pushed.
 #
 # This hook is called with the following parameters:
 #
@@ -24,13 +32,10 @@ cd "$SCRIPTPATH/.."
 #
 # If pushing without using a named remote those arguments will be equal.
 #
-# Information about the commits which are being pushed is supplied as lines to
-# the standard input in the form:
+# Information about the commits which are being pushed is supplied as lines
+# to the standard input in the form:
 #
 #   <local ref> <local oid> <remote ref> <remote oid>
-#
-# This script ensures that the whole of PSyclone is linted successfully
-# before the push is executed.
 #
 
 remote="$1"
