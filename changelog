@@ -279,6 +279,8 @@
 
 	106) PR #2770 towards #2543. Improve UG introduction.
 
+	107) PR #2776 for #1280. Fixes ref_guide warnings.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data

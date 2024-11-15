@@ -76,7 +76,7 @@ jobs:
     # Now we can check for warnings and broken links
     - run: cd doc/user_guide; make html SPHINXOPTS="-W --keep-going"
     - run: cd doc/developer_guide; make html SPHINXOPTS="-W --keep-going"
-    # TODO #1280: - run: cd doc/reference_guide; make html SPHINXOPTS="-W --keep-going"
+    - run: cd doc/reference_guide; make html SPHINXOPTS="-W --keep-going"
     - run: cd doc/psyad/user_guide; make html SPHINXOPTS="-W --keep-going"
     - run: cd doc/user_guide; make linkcheck
     - run: cd doc/developer_guide; make linkcheck
