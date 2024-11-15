@@ -307,7 +307,7 @@ class Container(ScopingNode, CommentableMixin):
         except KeyError:
             return []
         if isinstance(rsym, GenericInterfaceSymbol):
-            return [rt[0].name.lower() for rt in rsym.routines]
+            return [rt.symbol.name.lower() for rt in rsym.routines]
         if isinstance(rsym, RoutineSymbol):
             return [name]
         if type(rsym) is Symbol and rsym.is_import:
