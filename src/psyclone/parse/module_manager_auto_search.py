@@ -88,6 +88,10 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
                 "to get the singleton instance."
             )
 
+        # Make data structures ready to be used
+        self._module_name_to_modinfo = {}
+        self._filepath_to_module_info = {}
+
         self._visited_files = {}
 
         # The list of all search paths which have not yet all their files
@@ -196,7 +200,7 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
                     self._module_name_to_modinfo[name] = mod_info
                     # A file that has been (or does not require)
                     # preprocessing always takes precendence.
-                    if file_info.filepath.endswith(".f90"):
+                    if file_info.get_filepath.endswith(".f90"):
                         return mod_info
         return mod_info
 
@@ -262,7 +266,7 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
         )
 
     # ------------------------------------------------------------------------
-    def get_modules_in_file_regexp(self, finfo):
+    def get_modules_in_file_regexp(self, finfo: FileInfo):
         """
         Uses a regex search to find all modules defined in the file with the
         supplied name.
@@ -274,7 +278,7 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
         :rtype: list[str]
 
         """
-        mod_names = self._module_pattern.findall(finfo.contents)
+        mod_names = self._module_pattern.findall(finfo.get_source_code())
 
         return [name.lower() for name in mod_names]
 

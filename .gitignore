@@ -28,4 +28,5 @@ src/*.egg-info
 .venv
 .coverage*
 cov.xml
+*.psycache
 

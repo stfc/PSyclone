@@ -50,8 +50,7 @@ def test_file_info_constructor():
     """
     finfo = FileInfo("missing.txt")
     assert finfo._filepath == "missing.txt"
-    assert finfo._source_code_cache is None
-    assert finfo.filepath == "missing.txt"
+    assert finfo._source_code is None
     assert finfo.basename == "missing"
 
 
@@ -63,7 +62,7 @@ def test_file_info_missing_file():
     """
     finfo = FileInfo("missing.txt")
     with pytest.raises(FileNotFoundError) as err:
-        _ = finfo.contents
+        _ = finfo.get_source_code()
     assert "'missing.txt'" in str(err.value)
 
 
@@ -78,10 +77,10 @@ def test_file_info_content(tmpdir):
     with open(fname, "w", encoding="utf-8") as fout:
         fout.write(content)
     finfo = FileInfo(fname)
-    input1 = finfo.contents
+    input1 = finfo.get_source_code()
     assert input1 == content
     # Check that the contents have been cached.
-    input2 = finfo.contents
+    input2 = finfo.get_source_code()
     assert input2 is input1
 
 
@@ -98,4 +97,4 @@ def test_file_info_decode_error(tmpdir):
         fout.write(content)
     finfo = FileInfo(fname)
     # Content of file has been read with problematic byte skipped.
-    assert finfo.contents == "Just\nA\nTest"
+    assert finfo.get_source_code() == "Just\nA\nTest"

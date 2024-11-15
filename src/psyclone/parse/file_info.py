@@ -32,18 +32,43 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory.
+# Modifications: M. Schreiber, Univ. Grenoble Alpes
 
 """This module contains the FileInfo class.
 
 """
 
 import os
+import sys
+import hashlib
+import pickle
+import copy
+from typing import List, Union, Any
+from psyclone.psyir.frontend.fortran import FortranReader, FortranStringReader
+from fparser.two import Fortran2003
+from fparser.two.parser import ParserFactory
+from psyclone.configuration import Config
+from psyclone.psyir.nodes import FileContainer
+
+
+class _CacheFileInfo:
+    def __init__(self):
+        # Hash sum
+        self._source_code_hash_sum: hashlib._Hash = None
+
+        # Fparser node
+        self._fparser_node: Fortran2003 = None
+
+        # Psyir node
+        self._psyir_node: FileContainer = None
 
 
 class FileInfo:
-    """This class stores mostly cached information about files: it stores
-    the original filename and, if requested, it will read the file and then
-    cache the (plain text) contents.
+    """This class stores mostly cached information about files:
+    - it stores the original filename
+    - it will read the source of the file and cache it
+    - it will parse it with fparser and cache it
+    - it will parse it with psyir and cache it
 
     :param str filename: the name of the source file (including path) that this
                          object holds information on.
@@ -57,10 +82,33 @@ class FileInfo:
         :type filepath: str
 
         """
-        self._filepath = filepath
 
-        # A cache for the source code:
-        self._source_code_cache = None
+        # Full path to file
+        self._filepath: str = filepath
+
+        # Source code:
+        self._source_code: str = None
+
+        # Source code hash sum:
+        self._source_code_hash_sum: hashlib._Hash = None
+
+        # Fparser node
+        self._fparser_node: Fortran2003 = None
+
+        # Psyir node
+        self._psyir_node: FileContainer = None
+
+        # List of modules in file
+        # We want to have this ordered to search in the same order
+        # as in the source code, hence, use a list.
+        self._module_name_list: List[str] = None
+
+        # Single cache file
+        (path, ext) = os.path.splitext(self._filepath)
+        self._filepath_cache = path + ".psycache"
+
+        # Cache with data
+        self._cache: _CacheFileInfo = None
 
     @property
     def basename(self) -> str:
@@ -76,7 +124,7 @@ class FileInfo:
         return os.path.splitext(basename)[0]
 
     @property
-    def filepath(self) -> str:
+    def get_filepath(self) -> str:
         """
         :returns: the full filename with the path that this FileInfo object
             represents.
@@ -86,7 +134,15 @@ class FileInfo:
         return self._filepath
 
     @property
-    def contents(self) -> str:
+    def module_name_list(self) -> Union[str, None]:
+        """
+        :returns: a list of all module names
+        :rtype: List[str] | None
+
+        """
+        return self._module_name_list
+
+    def get_source_code(self, verbose: bool = False) -> str:
         """Returns the contents of the file. The first time, it
         will be read from the file, but the data is then cached.
 
@@ -95,17 +151,248 @@ class FileInfo:
         Fortran source and the only way such characters can appear is if they
         are in comments.
 
+        :param verbose: Produce some verbose output
+        :type verbose: str
+
         :returns: the contents of the file (utf-8 encoding).
         :rtype: str
 
         """
-        if self._source_code_cache is None:
+        if self._source_code is None:
             # Specifying errors='ignore' simply skips any characters that
             # result in decoding errors. (Comments in a code may contain all
             # sorts of weird things.)
+
+            if verbose:
+                print(
+                    f"- Source file '{self._filepath}': "
+                    f"Loading source code"
+                )
+
             with open(
                 self._filepath, "r", encoding="utf-8", errors="ignore"
             ) as file_in:
-                self._source_code_cache = file_in.read()
+                self._source_code = file_in.read()
 
-        return self._source_code_cache
+            # Compute hash sum which will be used to check cache of fparser
+            self._source_code_hash_sum = hashlib.md5(
+                self._source_code.encode()
+            ).hexdigest()
+
+        return self._source_code
+
+    def _cache_load(
+        self,
+        verbose: bool = False,
+    ) -> Union[_CacheFileInfo, None]:
+        """Load data from the cache file if possible.
+        This also checks for matching checksums after loading the data
+        from the cache.
+
+        :param verbose: Produce some verbose output
+        :type verbose: str
+
+        :return: Class with cached information, otherwise None
+        :rtype: Union[_CacheFileInfo, None]
+        """
+
+        assert self._source_code_hash_sum is not None, (
+            "Source code needs to be loaded before fparser or psyir"
+            "representation is loaded"
+        )
+
+        # Check whether cache was already loaded
+        if self._cache is not None:
+            return self._cache
+
+        # Load cache file
+        try:
+            filehandler = open(self._filepath_cache, "rb")
+        except FileNotFoundError:
+            if verbose:
+                print(f"  - No cache file '{self._filepath_cache}' found")
+            return None
+
+        # Unpack cache file
+        try:
+            cache: _CacheFileInfo = pickle.load(filehandler)
+        except Exception as ex:
+            print("Error while reading cache file - ignoring: " + str(ex))
+            return None
+
+        # Verify checksums
+        if cache._source_code_hash_sum != self._source_code_hash_sum:
+            if verbose:
+                print(
+                    f"  - Cache hashsum mismatch: "
+                    f"source {self._source_code_hash_sum} "
+                    f"vs. cache {cache._source_code_hash_sum}"
+                )
+            return None
+
+        self._cache = cache
+        self._source_code_hash_sum = self._cache._source_code_hash_sum
+
+        return self._cache
+
+    def _cache_save(
+        self,
+        verbose: bool = False,
+    ) -> None:
+        """Save the following elements to a cache file:
+        - hash sum of code
+        - fparser tree
+        - potentially psyir nodes
+
+        :param verbose: Produce some verbose output
+        :type verbose: str
+
+        :return: Return class with cached data if cache was updated,
+            otherwise None
+        :rtype: Union[_CacheFileInfo, None]
+        """
+
+        if self._source_code_hash_sum is None:
+            # Nothing to cache
+            return None
+
+        cache_updated = False
+        if self._cache is None:
+            # Cache doesn't exist => prepare data to write to file
+            self._cache = _CacheFileInfo()
+            self._cache._source_code_hash_sum = self._source_code_hash_sum
+
+        else:
+            assert (
+                self._cache._source_code_hash_sum == self._source_code_hash_sum
+            )
+
+        if (
+            self._cache._fparser_node is None
+            and self._fparser_node is not None
+        ):
+            # Make copies of it since they could be modified later
+            # With this, we can also figure out potential issues with
+            # the serialization in fparser
+            self._cache._fparser_node = copy.deepcopy(self._fparser_node)
+            cache_updated = True
+
+        if self._cache._psyir_node is None and self._psyir_node is not None:
+            # TODO #2786: Serialization of psyir tree not possible
+            #
+            # E.g., this call fails: copy.deepcopy(self._psyir_node)
+            #
+            # Uncomment this code if serialization of psyir tree is
+            # possible and it will work.
+            # self._cache._psyir_node = copy.deepcopy(self._psyir_node)
+            # cache_updated = True
+            pass
+
+        if not cache_updated:
+            return None
+
+        # Save to cache file
+        try:
+            filehandler = open(self._filepath_cache, "wb")
+        except Exception as err:
+            if verbose:
+                print("  - Unable to write to cache file" + str(err))
+            return None
+
+        # Unpack cache file
+        try:
+            pickle.dump(self._cache, filehandler)
+        except Exception as err:
+            print("Error while storing cache data - ignoring: " + str(err))
+            return None
+
+        if verbose:
+            print(
+                f"  - Cache file updated with "
+                f"hashsum '{self._cache._source_code_hash_sum}"
+            )
+        return self._cache
+
+    def get_fparser_node(self, verbose: bool = False) -> Fortran2003.Program:
+        """Returns the fparser Fortran2008 representation of the source code.
+
+        :param verbose: Produce some verbose output
+        :type verbose: str
+
+        :returns: fparser representation.
+        :rtype: FileContainer
+
+        """
+        if self._fparser_node is not None:
+            return self._fparser_node
+
+        if verbose:
+            print(f"- Source file '{self._filepath}': " f"Running fparser")
+
+        source_code = self.get_source_code()
+        assert self._source_code_hash_sum is not None
+
+        # Check for cache
+        cache = self._cache_load(verbose=verbose)
+
+        if cache is not None:
+            if cache._fparser_node is not None:
+                if verbose:
+                    print(
+                        f"  - Using cache of fparser node "
+                        f"with hashsum {cache._source_code_hash_sum}"
+                    )
+
+                # Use cached version
+                self._fparser_node = self._cache._fparser_node
+                return self._fparser_node
+
+        reader = FortranStringReader(
+            source_code, include_dirs=Config.get().include_paths
+        )
+        parser = ParserFactory().create(std="f2008")
+        self._fparser_node = parser(reader)
+
+        # We directly call the cache saving routine here in case that the
+        # fparser node will be modified later on.
+        self._cache_save(verbose=verbose)
+
+        return self._fparser_node
+
+    def get_psyir_node(self, verbose: bool = False) -> FileContainer:
+        """Returns the psyclone FileContainer of the file.
+
+        :param verbose: Produce some verbose output
+        :type verbose: str
+
+        :returns: psyclone file container node.
+        :rtype: FileContainer
+
+        """
+        if self._psyir_node is not None:
+            return self._psyir_node
+
+        # Check for cache
+        cache = self._cache_load(verbose=verbose)
+
+        if cache is not None:
+            if cache._psyir_node is not None:
+                # Use cached version
+                if verbose:
+                    print(f"  - Using cache of fparser node")
+
+                self._psyir_node = self._cache._psyir_node
+                return self._psyir_node
+
+        if verbose:
+            print(f"  - Running psyir for '{self._filepath}'")
+
+        fortran_reader = FortranReader()
+
+        self._psyir_node = fortran_reader.psyir_from_fparse_tree(
+            self._fparser_node
+        )
+
+        self._cache_save(verbose=verbose)
+
+        return self._psyir_node

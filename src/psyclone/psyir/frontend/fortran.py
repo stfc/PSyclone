@@ -34,7 +34,7 @@
 # Modifications: A. R. Porter, N. Nobre and R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module provides the PSyIR Fortran front-end.'''
+""" This module provides the PSyIR Fortran front-end."""
 
 import os
 
@@ -51,11 +51,12 @@ from psyclone.psyir.nodes import Schedule, Assignment, Routine
 from psyclone.psyir.symbols import SymbolTable
 
 
-class FortranReader():
-    ''' PSyIR Fortran frontend. This frontend translates Fortran from a string
+class FortranReader:
+    """PSyIR Fortran frontend. This frontend translates Fortran from a string
     or a file into PSyIR using the fparser2 utilities.
 
-    '''
+    """
+
     # Save parser object across instances to reduce the initialisation time
     _parser = None
 
@@ -67,7 +68,7 @@ class FortranReader():
 
     @staticmethod
     def validate_name(name: str):
-        '''
+        """
         Utility method that checks that the supplied name is a valid
         Fortran name.
 
@@ -76,17 +77,17 @@ class FortranReader():
         :raises TypeError: if the name is not a string.
         :raises ValueError: if this is not a valid name.
 
-        '''
+        """
         if not isinstance(name, str):
             raise TypeError(
                 f"A name should be a string, but found "
-                f"'{type(name).__name__}'.")
+                f"'{type(name).__name__}'."
+            )
         if not pattern_tools.abs_name.match(name):
-            raise ValueError(
-                f"Invalid Fortran name '{name}' found.")
+            raise ValueError(f"Invalid Fortran name '{name}' found.")
 
     def psyir_from_source(self, source_code: str, free_form: bool = True):
-        ''' Generate the PSyIR tree representing the given Fortran source code.
+        """Generate the PSyIR tree representing the given Fortran source code.
 
         :param source_code: text representation of the code to be parsed.
         :param free_form: If parsing free-form code or not (default True).
@@ -94,19 +95,21 @@ class FortranReader():
         :returns: PSyIR representing the provided Fortran source code.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
-        '''
+        """
         SYMBOL_TABLES.clear()
         string_reader = FortranStringReader(
-            source_code, include_dirs=Config.get().include_paths)
+            source_code, include_dirs=Config.get().include_paths
+        )
         # Set reader to free format.
         string_reader.set_format(FortranFormat(free_form, False))
         parse_tree = self._parser(string_reader)
         psyir = self._processor.generate_psyir(parse_tree)
         return psyir
 
-    def psyir_from_expression(self, source_code: str,
-                              symbol_table: Optional[SymbolTable] = None):
-        '''Generate the PSyIR tree for the supplied Fortran statement. The
+    def psyir_from_expression(
+        self, source_code: str, symbol_table: Optional[SymbolTable] = None
+    ):
+        """Generate the PSyIR tree for the supplied Fortran statement. The
         symbol table is expected to provide all symbols found in the
         expression.
 
@@ -121,19 +124,22 @@ class FortranReader():
         :raises ValueError: if the supplied source does not represent a
             Fortran expression.
 
-        '''
+        """
         if symbol_table is None:
             symbol_table = SymbolTable()
         elif not isinstance(symbol_table, SymbolTable):
-            raise TypeError(f"Must be supplied with a valid SymbolTable but "
-                            f"got '{type(symbol_table).__name__}'")
+            raise TypeError(
+                f"Must be supplied with a valid SymbolTable but "
+                f"got '{type(symbol_table).__name__}'"
+            )
 
         try:
             parse_tree = Fortran2003.Expr(source_code)
         except NoMatchError as err:
             raise ValueError(
                 f"Supplied source does not represent a Fortran "
-                f"expression: '{source_code}'") from err
+                f"expression: '{source_code}'"
+            ) from err
 
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the expression and lookup any symbols that it
@@ -148,9 +154,10 @@ class FortranReader():
         self._processor.process_nodes(fake_parent[0], [parse_tree])
         return fake_parent[0].children[0].detach()
 
-    def psyir_from_statement(self, source_code: str,
-                             symbol_table: Optional[SymbolTable] = None):
-        '''Generate the PSyIR tree for the supplied Fortran statement. The
+    def psyir_from_statement(
+        self, source_code: str, symbol_table: Optional[SymbolTable] = None
+    ):
+        """Generate the PSyIR tree for the supplied Fortran statement. The
         symbolt table is expected to provide all symbols found in the
         statement.
 
@@ -165,27 +172,30 @@ class FortranReader():
         :raises ValueError: if the supplied source does not represent a
             Fortran statement.
 
-        '''
+        """
         if symbol_table is None:
             symbol_table = SymbolTable()
         elif not isinstance(symbol_table, SymbolTable):
-            raise TypeError(f"Must be supplied with a valid SymbolTable but "
-                            f"got '{type(symbol_table).__name__}'")
+            raise TypeError(
+                f"Must be supplied with a valid SymbolTable but "
+                f"got '{type(symbol_table).__name__}'"
+            )
         string_reader = FortranStringReader(source_code)
         # Set reader to free format.
         string_reader.set_format(FortranFormat(True, False))
         try:
             exec_part = Fortran2003.Execution_Part(string_reader)
         except NoMatchError as err:
-            raise ValueError(f"Supplied source does not represent a Fortran "
-                             f"statement: '{source_code}'") from err
+            raise ValueError(
+                f"Supplied source does not represent a Fortran "
+                f"statement: '{source_code}'"
+            ) from err
 
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the statement and lookup any symbols that it
         # references.
         routine_name = "dummy"
-        fake_parent = Routine.create(
-            routine_name, SymbolTable(), [])
+        fake_parent = Routine.create(routine_name, SymbolTable(), [])
         # pylint: disable=protected-access
         fake_parent._symbol_table = symbol_table
 
@@ -194,8 +204,75 @@ class FortranReader():
         self._processor.process_nodes(fake_parent, exec_part.children)
         return fake_parent[0].detach()
 
-    def psyir_from_file(self, file_path, free_form=True):
-        ''' Generate the PSyIR tree representing the given Fortran file.
+    def fparse_tree_from_file(
+        self, file_path: str, free_form: bool = True
+    ) -> Fortran2003.Program:
+        """Generate the fparse tree representing the given Fortran file.
+
+        :param file_path: path of the file to be read and parsed.
+        :type file_path: str or any Python Path format.
+
+        :param free_form: If parsing free-form code or not (default True).
+        :type free_form: bool
+
+        :returns: fparse tree representing the provided Fortran file.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        """
+        SYMBOL_TABLES.clear()
+
+        # Using the FortranFileReader instead of manually open the file allows
+        # fparser to keep the filename information in the tree
+        reader = FortranFileReader(
+            file_path, include_dirs=Config.get().include_paths
+        )
+        reader.set_format(FortranFormat(free_form, False))
+        return self._parser(reader)
+
+    def fparse_tree_from_source(
+        self, source_code: str, free_form: bool = True
+    ) -> Fortran2003.Program:
+        """Generate the fparse tree representing the given Fortran file.
+
+        :param file_path: path of the file to be read and parsed.
+        :type file_path: str or any Python Path format.
+
+        :param free_form: If parsing free-form code or not (default True).
+        :type free_form: bool
+
+        :returns: fparse tree representing the provided Fortran file.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        """
+
+        # Using the FortranFileReader instead of manually open the file allows
+        # fparser to keep the filename information in the tree
+        reader = FortranStringReader(
+            string=source_code, include_dirs=Config.get().include_paths
+        )
+        reader.set_format(FortranFormat(free_form, False))
+        return self._parser(reader)
+
+    def psyir_from_fparse_tree(self, parse_tree, filepath="", free_form=True):
+        """Generate the PSyIR tree representing the given Fortran file.
+
+        :param parse_tree: Parsing tree from fparser.
+        :type parse_tree:
+
+        :param free_form: If parsing free-form code or not (default True).
+        :type free_form: bool
+
+        :returns: PSyIR representing the provided Fortran file.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        """
+
+        _, filename = os.path.split(filepath)
+        psyir = self._processor.generate_psyir(parse_tree, filename)
+        return psyir
+
+    def psyir_from_file(self, file_path: str, free_form: bool = True):
+        """Generate the PSyIR tree representing the given Fortran file.
 
         :param file_path: path of the file to be read and parsed.
         :type file_path: str or any Python Path format.
@@ -206,7 +283,7 @@ class FortranReader():
         :returns: PSyIR representing the provided Fortran file.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
-        '''
+        """
         SYMBOL_TABLES.clear()
 
         # Note that this is the main performance hotspot in PSyclone, taking
@@ -214,16 +291,14 @@ class FortranReader():
         # place to implement caching in order to avoid repeating parsing steps
         # that have already been done before.
 
-        # Using the FortranFileReader instead of manually open the file allows
-        # fparser to keep the filename information in the tree
-        reader = FortranFileReader(file_path,
-                                   include_dirs=Config.get().include_paths)
-        reader.set_format(FortranFormat(free_form, False))
-        parse_tree = self._parser(reader)
-        _, filename = os.path.split(file_path)
-        psyir = self._processor.generate_psyir(parse_tree, filename)
-        return psyir
+        parse_tree = self.fparse_tree_from_file(
+            file_path=file_path, free_form=free_form
+        )
+        psyir_node = self.psyir_from_fparse_tree(
+            parse_tree, filepath=file_path, free_form=free_form
+        )
+        return psyir_node
 
 
 # For Sphinx AutoAPI documentation generation
-__all__ = ['FortranReader']
+__all__ = ["FortranReader"]

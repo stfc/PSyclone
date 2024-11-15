@@ -371,7 +371,7 @@ def test_get_non_local_read_write_info(capsys):
     ) not in rw_info.read_list
 
     # Check that we can ignore a module:
-    mod_man.add_ignore_module("constants_mod")
+    mod_man.add_ignore_modules("constants_mod")
     rw_info = ReadWriteInfo()
     ctu.get_non_local_read_write_info(schedule, rw_info)
     out, _ = capsys.readouterr()
@@ -650,7 +650,6 @@ def test_module_info_generic_interfaces():
     )
 
 
-# -----------------------------------------------------------------------------
 def test_call_tree_utils_inout_parameters_generic(fortran_reader):
     """Test detection of input and output parameters in the generic PSyIR."""
     source = """program test
@@ -708,7 +707,6 @@ def test_call_tree_utils_inout_parameters_generic(fortran_reader):
     )
 
 
-# -----------------------------------------------------------------------------
 def test_call_tree_utils_const_argument():
     """Check that using a const scalar as parameter works, i.e. is not
     listed as input variable."""
@@ -771,7 +769,6 @@ def testcall_tree_utils_non_local_inout_parameters(capsys):
     ) in rw_info.write_list
 
 
-# -----------------------------------------------------------------------------
 def test_call_tree_error_var_not_found(capsys):
     """Tests that trying to import a variable from a module that does not
     contain the variable is handled, i.e. printing a warning and otherwise

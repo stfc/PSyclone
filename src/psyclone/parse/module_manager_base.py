@@ -37,13 +37,9 @@
 which module is contained in which file (including full location). """
 
 
-import copy
-import warnings
 from typing import List, Dict, Set, Union, final
 
-from psyclone.errors import InternalError
-from psyclone.parse.file_info import FileInfo
-from psyclone.parse.module_info import ModuleInfo
+from psyclone.parse.module_info import ModuleInfo, FileInfo
 
 
 class ModuleManagerBase:
@@ -56,12 +52,16 @@ class ModuleManagerBase:
     """
 
     def __init__(self):
+
+        # Dictionary to lookup file info from file path
+        self._filepath_to_file_info: Dict[str, FileInfo] = {}
+
         # Dictionary to lookup modules of all files
         # Note that there can be multiple modules per file
-        self._file_to_modules: Dict[str, List[ModuleInfo]] = {}
+        self._filepath_to_module_info: Dict[str, List[ModuleInfo]] = None
 
         # Dictionary of modules to lookup module info
-        self._module_name_to_modinfo: Dict[str, ModuleInfo] = {}
+        self._module_name_to_modinfo: Dict[str, ModuleInfo] = None
 
         # List of modules to ignore
         # We use a list which can be sorted
@@ -94,7 +94,7 @@ class ModuleManagerBase:
         """
         return self._ignore_modules
 
-    def get_module_info_by_module_name(self, module_name: str) -> ModuleInfo:
+    def get_module_info(self, module_name: str) -> ModuleInfo:
         """This function returns the ModuleInformation for the specified
         module.
 
@@ -120,3 +120,43 @@ class ModuleManagerBase:
         raise FileNotFoundError(
             f"Could not find module info for module named '{module_name}'"
         )
+
+    def add_files(self, filepaths: Union[str, List[str], Set[str]]) -> None:
+        """Add a file to the list of files
+
+        :param filepath: Path to file
+        :type filepath: str
+        """
+
+        if isinstance(filepaths, str):
+            filepaths = [filepaths]
+        elif isinstance(filepaths, set):
+            filepaths = list(filepaths)
+
+        for filepath in filepaths:
+            assert (
+                filepath not in self._filepath_to_file_info.keys()
+            ), "Found duplicate entry in dictionary 'filename to FileInfo'."
+
+            self._filepath_to_file_info[filepath] = FileInfo(filepath)
+
+    def load_source_code(self, verbose: bool = False) -> None:
+        """Routine to load the source of all files"""
+
+        for fileinfo in self._filepath_to_file_info.values():
+            fileinfo: FileInfo
+            fileinfo.get_source_code(verbose=verbose)
+
+    def load_fparser_tree(self, verbose: bool = False) -> None:
+        """Routine to load the source of all files"""
+
+        for fileinfo in self._filepath_to_file_info.values():
+            fileinfo: FileInfo
+            fileinfo.get_fparser_node(verbose=verbose)
+
+    def load_psyir_node(self, verbose: bool = False) -> None:
+        """Routine to load the psyir representation of all files"""
+
+        for fileinfo in self._filepath_to_file_info.values():
+            fileinfo: FileInfo
+            fileinfo.get_psyir_node(verbose=verbose)

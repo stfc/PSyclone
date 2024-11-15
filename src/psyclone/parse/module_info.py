@@ -87,16 +87,18 @@ class ModuleInfo:
 
     def __init__(self, name: str, file_info: FileInfo):
         self._name = name.lower()
+
+        # File handler including fparser and psyir representation
         self._file_info: FileInfo = file_info
 
-        # A cache for the fparser tree
+        # A cache for the fparser tree solely for this module
         self._fparser_tree: Fortran2003 = None
 
         # Whether we've attempted to parse the source.
         self._fparser_attempted = False
 
         # A cache for the PSyIR representation
-        self._psyir_node: FileContainer = None
+        self._psyir_node: Container = None
 
         # A cache for the module dependencies: this is just a set
         # of all modules used by this module. Type: set[str]
@@ -123,7 +125,7 @@ class ModuleInfo:
         :rtype: str
 
         """
-        return self._file_info.filepath
+        return self._file_info.get_filepath
 
     def get_source_code(self):
         """Returns the source code for the module using the associated
@@ -136,10 +138,10 @@ class ModuleInfo:
 
         """
         try:
-            return self._file_info.contents
+            return self._file_info.get_source_code()
         except FileNotFoundError as err:
             raise ModuleInfoError(
-                f"Could not find file '{self._file_info.filepath}' when trying"
+                f"Could not find file '{self._file_info.get_filepath}' when trying"
                 f" to read source code for module '{self._name}'"
             ) from err
 
@@ -157,11 +159,7 @@ class ModuleInfo:
             # parse this file again (in case of parsing errors).
             self._fparser_attempted = True
 
-            reader = FortranStringReader(
-                self.get_source_code(), include_dirs=Config.get().include_paths
-            )
-            parser = ParserFactory().create(std="f2008")
-            self._fparser_tree = parser(reader)
+            self._fparser_tree = self._file_info.get_fparser_node()
 
         return self._fparser_tree
 

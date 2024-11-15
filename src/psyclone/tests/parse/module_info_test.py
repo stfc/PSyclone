@@ -53,7 +53,6 @@ from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.tests.utilities import get_base_path
 
 
-# -----------------------------------------------------------------------------
 @pytest.mark.usefixtures(
     "change_into_tmpdir",
     "clear_module_manager_instance",
@@ -61,16 +60,15 @@ from psyclone.tests.utilities import get_base_path
 )
 def test_module_info():
     """Tests the module info object."""
-    mod_info = ModuleInfo("a_mod", FileInfo("file_for_a"))
-    assert mod_info.filepath == "file_for_a"
+    file_info = FileInfo("file_for_a.f90")
+    mod_info = ModuleInfo("a_mod", file_info)
+
+    assert mod_info.filepath == "file_for_a.f90"
     assert mod_info.name == "a_mod"
 
-    with pytest.raises(ModuleInfoError) as err:
+    with pytest.raises(FileNotFoundError) as err:
         mod_info.get_fparser_tree()
-    assert (
-        "Could not find file 'file_for_a' when trying to read source "
-        "code for module 'a_mod'" in str(err.value)
-    )
+    assert "No such file or directory: 'file_for_a.f90'" in str(err.value)
 
     # Try to read the file a_mod.f90, which is contained in the d1 directory
     mod_man = ModuleManagerAutoSearch.get_singleton()
@@ -144,7 +142,6 @@ end module my_mod"""
     assert mod_info.get_psyir() is None
 
 
-# -----------------------------------------------------------------------------
 def test_mod_info_get_psyir_wrong_file(tmpdir, capsys):
     """
     Test the error handling in the get_psyir() method.
@@ -382,7 +379,6 @@ def test_module_info_extract_import_information_error():
     assert mod_info._used_symbols_from_module_name == {}
 
 
-# -----------------------------------------------------------------------------
 def test_module_info_get_symbol(tmpdir, monkeypatch):
     """Test the get_symbol() method of ModuleInfo."""
     filepath = os.path.join(tmpdir, "my_mod.f90")
