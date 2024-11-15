@@ -52,7 +52,7 @@ from typing import List
 
 
 class CallMatchingArgumentsNotFound(BaseException):
-    """Excepction to signal that matching arguments have not been found
+    """Exception to signal that matching arguments have not been found
     for this routine
     """
 
@@ -342,7 +342,7 @@ class Call(Statement, DataNode):
         return None
 
     @property
-    def arguments(self) -> DataNode:
+    def arguments(self) -> List[DataNode]:
         '''
         :returns: the children of this node that represent its arguments.
         :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
@@ -434,6 +434,7 @@ class Call(Statement, DataNode):
         :returns: a copy of this node and its children.
         :rtype: :py:class:`psyclone.psyir.node.Node`
         '''
+
         # ensure _argument_names is consistent with actual arguments
         # before copying.
         self._reconcile()
@@ -605,27 +606,25 @@ class Call(Statement, DataNode):
         """Return a list of integers giving for each argument of the call
         the index of the argument in argument_list (typically of a routine)
 
-        :param argument_list: List of arguments
-        :type argument_list: Arguments
         :return: None if no match was found, otherwise list of integers
-        referring to matching arguments.
+            referring to matching arguments.
         :rtype: None|List[int]
         """
 
-        # Create a copy of the list
+        # Create a copy of the list of actual arguments to the routine.
         # Once an argument has been successfully matched, set it to 'None'
         routine_argument_list: List[DataNode] = \
             routine.symbol_table.argument_list[:]
 
         if len(self.arguments) > len(routine.symbol_table.argument_list):
             raise CallMatchingArgumentsNotFound(
-                f"More arguments in callee  (call '{self.routine.name}')"
-                f" than caller (routine '{routine.name}')"
+                f"More arguments in call ('{self.debug_string()}')"
+                f" than callee (routine '{routine.name}')"
             )
 
         assert len(self.arguments) == len(self.argument_names)
 
-        # Iterate over all arguments
+        # Iterate over all arguments to the call
         ret_arg_idx_list = []
         for call_arg_idx, call_arg in enumerate(self.arguments):
             call_arg_idx: int
@@ -641,7 +640,8 @@ class Call(Statement, DataNode):
                 #
                 # TODO #759: If optional is used, it's an unsupported Fortran
                 # type and we need to use the following workaround
-                # Once this issue is resolved, simply remove this if branch
+                # Once this issue is resolved, simply remove this if branch.
+                # Optional arguments are processed further down.
                 if not isinstance(
                             routine_arg.datatype,
                             UnsupportedFortranType):
@@ -660,8 +660,8 @@ class Call(Statement, DataNode):
             # Next, we handle all named arguments
             #
             arg_name = self.argument_names[call_arg_idx]
-            named_arg_found = False
             routine_arg_idx = None
+
             for routine_arg_idx, routine_arg in enumerate(
                                 routine_argument_list):
                 routine_arg: DataSymbol
@@ -673,7 +673,9 @@ class Call(Statement, DataNode):
                 if arg_name == routine_arg.name:
                     # TODO #759: If optional is used, it's an unsupported
                     # Fortran type and we need to use the following workaround
-                    # Once this issue is resolved, simply remove this if branch
+                    # Once this issue is resolved, simply remove this if
+                    # branch.
+                    # Optional arguments are processed further down.
                     if not isinstance(
                                 routine_arg.datatype,
                                 UnsupportedFortranType):
@@ -685,10 +687,9 @@ class Call(Statement, DataNode):
                             )
 
                     ret_arg_idx_list.append(routine_arg_idx)
-                    named_arg_found = True
                     break
 
-            if not named_arg_found:
+            else:
                 # It doesn't match => Raise exception
                 raise CallMatchingArgumentsNotFound(
                     f"Named argument '{arg_name}' not found"
@@ -721,19 +722,22 @@ class Call(Statement, DataNode):
                 self,
                 ret_arg_match_list: List[int] = None,
                 check_matching_arguments: bool = True):
-        '''
+        """
         Searches for the implementation(s) of the target routine for this Call
         including argument checks.
 
         :param ret_arg_match_list: List in which the matching argument
             indices will be returned
+        :type ret_arg_match_list: List[int]
+        :param check_matching_arguments: Also check argument types to match.
+        :type ret_arg_match_list: bool
 
-        :returns: the Routine(s) that this call targets.
-        :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
+        :returns: The routine that this call targets.
+        :rtype: psyclone.psyir.nodes.Routine
 
         :raises NotImplementedError: if the routine is not local and not found
             in any containers in scope at the call site.
-        '''
+        """
 
         routine_list = self.get_callees()
 
@@ -749,8 +753,7 @@ class Call(Statement, DataNode):
                 error = err
                 continue
 
-            error = None
-
+            # Provide list of indices of matching arguments if requested
             if ret_arg_match_list is not None:
                 ret_arg_match_list[:] = arg_match_list
 
@@ -764,8 +767,10 @@ class Call(Statement, DataNode):
             return routine_list[0]
 
         if error is not None:
-            raise error
+            raise CallMatchingArgumentsNotFound(
+                f"No matching routine found for '{self.debug_string()}'"
+            ) from error
         else:
             raise NotImplementedError(
-                f"No matching routine for call " f"'{self.routine.name}' found"
+                f"No matching routine found for " f"'{self.routine.name}'"
             )

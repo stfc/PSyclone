@@ -744,7 +744,7 @@ end module some_mod'''
         call_foo.get_callee(ret_arg_match_list=arg_idx_list)
 
     except CallMatchingArgumentsNotFound as err:
-        assert "More arguments in callee" in str(err)
+        assert "No matching routine found for" in str(err)
         print("Success! Exception triggered (as expected)")
         return
 
@@ -1109,7 +1109,7 @@ end module some_mod"""
         call_foo.get_callee()
 
     except CallMatchingArgumentsNotFound as err:
-        assert "Named argument 'd' not found" in str(err)
+        assert "No matching routine found for 'call foo(e, f, d=g)" in str(err)
         print("Success! Exception triggered (as expected)")
         return
 
@@ -1152,7 +1152,7 @@ end module some_mod"""
         call_foo.get_callee()
 
     except CallMatchingArgumentsNotFound as err:
-        assert "Argument 'c' in subroutine 'foo' not handled" in str(err)
+        assert "No matching routine found for 'call foo(e, f)" in str(err)
         print("Success! Exception triggered (as expected)")
         return
 
