@@ -476,20 +476,21 @@ class ArrayType(DataType):
     @dataclass(frozen=True)
     class ArrayBounds:
         '''
-        Class to store lower and upper limits of an array dimension
-
-        TODO - does not enforce that the limits are PSyIR.
+        Class to store lower and upper limits of an array dimension.
 
         :param lower: the lower bound of the array dimension.
+        :type lower: :py:class:`psyclone.psyir.nodes.DataNode`
         :param upper: the upper bound of the array dimension.
+        :type upper: :py:class:`psyclone.psyir.nodes.DataNode`
         '''
+        # Have to use Any here as using DataNode causes a circular dependence.
         lower: Any
         upper: Any
 
     def __init__(self, datatype, shape):
 
         # This import must be placed here to avoid circular dependencies.
-        # pylint: disable=import-outside-toplevel
+        # pylint: disable-next=import-outside-toplevel
         from psyclone.psyir.nodes import Literal, DataNode, Assignment
 
         def _node_from_int(var):
@@ -903,16 +904,13 @@ class StructureType(DataType):
 
         :param name: the name of the member.
         :param datatype: the type of the member.
-        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` |
-                        :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         :param visibility: whether this member is public or private.
-        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
         :param initial_value: the initial value of this member (if any).
         :type initial_value: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         name: str
-        datatype: Any
-        visibility: Any
+        datatype: DataType | DataTypeSymbol
+        visibility: Symbol.Visibility
         initial_value: Any
 
     def __init__(self):

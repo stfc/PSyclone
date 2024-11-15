@@ -37,7 +37,6 @@
 ''' This module contains the GenericInterfaceSymbol.'''
 
 from dataclasses import dataclass
-from typing import Any
 
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 
@@ -65,7 +64,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
         :param from_container: whether or not this routine is from a Container
                                (i.e. a 'module procedure' in Fortran).
         '''
-        symbol: Any
+        symbol: RoutineSymbol
         from_container: bool
 
     def __init__(self, name, routines, **kwargs):
