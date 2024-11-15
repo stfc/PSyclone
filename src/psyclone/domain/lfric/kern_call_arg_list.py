@@ -42,7 +42,7 @@ as a list of PSyIR nodes. TODO #1930: the support for the string format
 should be removed as we migrate to use PSyIR in LFRic.
 '''
 
-from collections import namedtuple
+from dataclasses import dataclass
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
@@ -75,7 +75,16 @@ class KernCallArgList(ArgOrdering):
     :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     '''
-    NdfInfo = namedtuple("NdfInfo", ["position", "function_space"])
+    @dataclass(frozen=True)
+    class NdfInfo:
+        '''
+        Holds information relating to the number-of-dofs kernel argument.
+
+        :param position: the position of this argument in the argument list.
+        :param function_space: the function space that this argument is for.
+        '''
+        position: int = None
+        function_space: str = None
 
     def __init__(self, kern):
         super().__init__(kern)
