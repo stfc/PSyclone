@@ -35,16 +35,47 @@
 .. Modified by I. Kavcic, Met Office
 .. Modified by J. Henrichs, Bureau of Meteorology
 
+
+.. _tutorial:
+
+Tutorial and Examples
+=====================
+
+Tutorial
+--------
+
+PSyclone provides a hands-on tutorial. The easiest way to follow it is reading
+the `Readme files in github <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals>`_.
+The tutorial is divided into two sections, a first section that introduces
+PSyclone and how to
+`use it to transform generic Fortran code  <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals/generic>`_
+(this is the recommended starting point for everybody).
+And a second section about
+`the LFRic DSL <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals/LFRic>`_
+(this is only recommended for people interested in PSyKAL DSLs and LFRic in particular).
+
+To do the proposed hands-on you will need a linux shell with Python installed and to
+download the hands-on directory with:
+
+.. code-block:: bash
+
+    git clone --recursive git@github.com:stfc/PSyclone.git
+    cd PSyclone
+    # If psyclone isn't already installed you can use 'pip' in this folder to
+    # install a version that matches the downloaded tutorials
+    pip install .
+    cd tutorial/practicals
+
+
 .. _examples:
 
 Examples
-========
+--------
 
 Various examples of the use of PSyclone are provided under the
 ``examples`` directory in the Git repository. If you have installed
 PSyclone using ``pip`` then the examples may be found in
-``share/psyclone/examples`` under your Python installation
-(see :ref:`here <getting-going-env-loc>` for possible locations).
+``share/psyclone/examples`` in psyclone  :ref:`getting-going-install-loc`.
 
 Running any of these examples requires that PSyclone be installed on
 the host system, see Section :ref:`Getting Going <getting-going>`.
@@ -79,7 +110,7 @@ target checks the various Jupyter notebooks using ``nbconvert``.
 .. _examples-compilation:
 
 Compilation
------------
+^^^^^^^^^^^
 
 Some of the examples support compilation (and some even execution of
 a compiled binary). Please consult the ``README.md`` to check which ones
@@ -180,8 +211,28 @@ is described in detail in
 `the hands-on practicals documentation
 <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#user-content-netcdf-library-lfric-examples>`_.
 
-GOcean
-------
+
+PSyIR Examples
+--------------
+
+Examples may all be found in the ``examples/psyir`` directory. Read the
+``README.md`` file in this directory for full details.
+
+Example 1: Constructing PSyIR and Generating Code
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``create.py`` is a Python script that demonstrates the use of the various
+``create`` methods to build a PSyIR tree from scratch.
+
+Example 2: Creating PSyIR for Structure Types
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``create_structure_types.py`` demonstrates the representation of
+structure types (i.e. Fortran derived types or C structs) in the PSyIR.
+
+
+GOcean Examples 
+---------------
 
 Example 1: Loop transformations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -372,8 +423,8 @@ code using the PSyIR language backends.
 
 .. _examples_lfric:
 
-LFRic
-------
+LFRic Examples
+--------------
 
 These examples illustrate the functionality of PSyclone for the LFRic
 domain.
@@ -686,8 +737,8 @@ algorithm layer run:
     cd eg20/
     psyclone-kern -gen alg ../code/testkern_mod.F90
 
-NEMO
-----
+NEMO Examples
+-------------
 
 These examples may all be found in the ``examples/nemo`` directory.
 
@@ -714,9 +765,8 @@ Demonstrates the introduction of simple OpenACC parallelisation (using the
 Example 4: Transforming Fortran code to the SIR
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Demonstrates that simple Fortran code examples which conform to the
-NEMO API can be transformed to the Stencil Intermediate Representation
-(SIR). The SIR is the front-end language to DAWN
+Demonstrates that simple Fortran code can be transformed to the Stencil
+Intermediate Representation (SIR). The SIR is the front-end language to DAWN
 (https://github.com/MeteoSwiss-APN/dawn), a tool which generates
 optimised cuda, or gridtools code. Thus various simple Fortran
 examples and the computational part of the tracer-advection benchmark
@@ -727,7 +777,7 @@ Example 5: Kernel Data Extraction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This example shows the use of kernel data extraction in PSyclone for
-the NEMO API. It instruments each kernel in the NEMO tracer-advection
+generic Fortran code. It instruments each kernel in the NEMO tracer-advection
 benchmark with the PSyData-based kernel extraction code. Detailed
 compilation instructions are in the ``README.md`` file, including how
 to switch from using the stand-alone extraction library to the NetCDF-based
@@ -746,24 +796,6 @@ adds the largest possible OpenACC Kernels regions to the code being processed.
 
 For more details see the ``examples/nemo/README.md`` file.
 
-Note that these scripts are here to support the ongoing development of the
-NEMO API in PSyclone. They are *not* intended as 'turn-key' solutions but
-as a starting point.
-
-PSyIR
------
-
-Examples may all be found in the ``examples/psyir`` directory. Read the
-``README.md`` file in this directory for full details.
-
-Example 1: Constructing PSyIR and Generating Code
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-``create.py`` is a Python script that demonstrates the use of the various
-``create`` methods to build a PSyIR tree from scratch.
-
-Example 2: Creating PSyIR for Structure Types
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-``create_structure_types.py`` demonstrates the representation of
-structure types (i.e. Fortran derived types or C structs) in the PSyIR.
+Note that these scripts are here to support the ongoing development of PSyclone
+to transform the NEMO source. They are *not* intended as 'turn-key' solutions
+but as a starting point.
