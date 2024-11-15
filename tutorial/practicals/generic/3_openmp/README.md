@@ -1,7 +1,7 @@
 # Using PSyclone to add OpenMP - Tutorial 3 #
 
-This tutorial follows on from [Tutorial 1](../1_nemo_psyir/README.md) and
-[Tutorial 2](../2_nemo_profiling/README.md) and
+This tutorial follows on from [Tutorial 1](../1_intro_psyir/README.md) and
+[Tutorial 2](../2_profiling/README.md) and
 assumes that you are comfortable with the topics covered there. It
 uses PSyclone to parallelise the tracer-advection mini-app to make
 use of a multi-core CPU by adding appropriate OpenMP directives.
@@ -37,7 +37,7 @@ When parallelising any code, it is always important to validate the
 results on a regular basis to check that no bugs have been introduced.
 Therefore, before doing anything else, we need some 'known good answer'
 with which we can compare. If you have done either of the first two
-parts of the NEMO tutorial then you will have run the mini-app on a
+parts of this tutorial then you will have run the mini-app on a
 single core and it will have produced an `output.dat` file. Copy that
 file to `output.dat.serial` or similar so that we have something to
 compare with. (Note that this 'known good answer' is problem-size
@@ -253,7 +253,8 @@ poor granularity on macOS.)
 ## 4. Improving Performance ##
 
 The next section is optional and so, depending on how much time you
-have, you may want to move on to the [OpenACC part of this tutorial](../4_nemo_openacc). If you are interested but don't have much time
+have, you may want to move on to the [OpenACC part of this tutorial](../4_openacc).
+If you are interested but don't have much time
 then example solutions are provided in the
 `parallel_region_omp_trans.py` and
 `general_parallel_region_omp_trans.py` scripts in the `solutions`
@@ -337,7 +338,7 @@ parallelisation to the tracer-advection mini-app. With the caveats
 noted earlier, you should have been able to measure a performance
 improvement.
 
-In [part 4 of this tutorial](../4_nemo_openacc/README.md), we will
+In [part 4 of this tutorial](../4_openacc/README.md), we will
 look at using PSyclone to add OpenACC directives to the mini-app.
 
 

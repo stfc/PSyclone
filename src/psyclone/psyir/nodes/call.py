@@ -50,10 +50,11 @@ from psyclone.psyir.symbols import (
     RoutineSymbol, Symbol, SymbolError, UnsupportedFortranType, DataSymbol,
     SymbolTable, ContainerSymbol)
 from typing import List
+from psyclone.errors import PSycloneError
 from psyclone.psyir.symbols.datatypes import ArrayType
 
 
-class CallMatchingArgumentsNotFound(BaseException):
+class CallMatchingArgumentsNotFound(PSycloneError):
     """Exception to signal that matching arguments have not been found
     for this routine
     """
@@ -93,6 +94,7 @@ class Call(Statement, DataNode):
 
         :returns: whether other is equal to self.
         :rtype: bool
+
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.argument_names == other.argument_names
@@ -348,6 +350,7 @@ class Call(Statement, DataNode):
         '''
         :returns: the children of this node that represent its arguments.
         :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
+
         '''
         if len(self._children) >= 2:
             return self.children[1:]
@@ -704,8 +707,8 @@ class Call(Statement, DataNode):
             call_arg_idx: int
             call_arg: DataSymbol
 
-            # If None, it's a positional argument => Just return the index if
-            # the types match
+            # If the associated name is None, it's a positional argument
+            # => Just return the index if the types match
             if self.argument_names[call_arg_idx] is None:
                 routine_arg = routine_argument_list[call_arg_idx]
                 routine_arg: DataSymbol
