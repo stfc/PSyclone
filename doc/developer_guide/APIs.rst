@@ -235,7 +235,9 @@ An example for a depth-1 halo implementation with the earlier mesh
 split into 2 partitions is given below, with the halo cells being
 coloured red. An example local indexing scheme is also provided below
 the cells. Notice the local indexing scheme is set up such that owned
-cells have lower indices than halo cells.
+cells have lower indices than halo cells, the first halo cell starts
+immediately after the last owned cell, and the cell indices are
+contiguous.
 
 .. image:: cells_distributed.png
 	   :width: 200
