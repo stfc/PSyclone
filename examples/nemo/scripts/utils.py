@@ -85,7 +85,7 @@ CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
 # These files change the results from baseline when psyclone processes them
 PASSTHROUGH_ISSUES = [
-    "ldfslp.f90",
+    "ldfslp.f90", # It has a '!dir$ NOVECTOR' that gets deleted by fparser
 ]
 
 # These files change the results from the baseline when psyclone adds
