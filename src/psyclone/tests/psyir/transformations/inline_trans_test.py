@@ -1377,10 +1377,14 @@ def test_validate_non_local_import(fortran_reader):
         "end module test_mod\n"
     )
     psyir = fortran_reader.psyir_from_source(code)
-    call = psyir.walk(Call)[0]
+    call: Call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
+        ret_arg_match_list = []
+        routine: Routine = call.get_callee(
+            ret_arg_match_list=ret_arg_match_list
+        )
+        inline_trans.validate(call, routine)
     assert (
         "Routine 'sub' cannot be inlined because it accesses variable "
         "'trouble' from its parent container." in str(err.value)
@@ -1696,7 +1700,7 @@ def test_apply_validate():
     """Test the apply method calls the validate method."""
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as info:
-        inline_trans.apply(None)
+        inline_trans.apply(None, None, [])
     assert (
         "The target of the InlineTrans transformation should be "
         "a Call but found 'NoneType'." in str(info.value)

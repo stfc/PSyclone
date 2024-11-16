@@ -31,13 +31,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: M. Schreiber, Univ. Grenoble Alpes
 
 """This module contains a singleton class that manages information about
 which module is contained in which file (including full location). """
 
 
 from typing import List, Dict, Set, Union, final
+import copy
 
 from psyclone.parse.module_info import ModuleInfo, FileInfo
 
@@ -160,3 +162,86 @@ class ModuleManagerBase:
         for fileinfo in self._filepath_to_file_info.values():
             fileinfo: FileInfo
             fileinfo.get_psyir_node(verbose=verbose)
+
+    def sort_modules(
+        self, module_dependencies: Dict[str, Set[str]]
+    ) -> List[str]:
+        """This function sorts the given dependencies so that all
+        dependencies of a module are before any module that
+        needs it. Input is a dictionary that contains all modules to
+        be sorted as keys, and the value for each module is the set
+        of dependencies that the module depends on.
+
+        :param module_dependencies: the list of modules required as keys, \
+            with all their dependencies as value.
+        :type module_dependencies: dict[str, set[str]]
+
+        :returns: the sorted list of modules.
+        :rtype: list[str]
+
+        """
+        sorted_modules_list = []
+
+        # Create a copy to avoid modifying the callers data structure:
+        todo_modules = copy.deepcopy(module_dependencies)
+
+        # Consistency check: test that all dependencies listed are also
+        # a key in the list, otherwise there will be a dependency that
+        # breaks sorting. If an unknown dependency is detected, print
+        # a warning, and remove it (otherwise no sort order could be
+        # determined).
+        for module, dependencies in todo_modules.items():
+            # Take a copy so we can modify the original set of dependencies:
+            dependencies_copy = dependencies.copy()
+            for mod_dep in dependencies_copy:
+                mod_dep: str
+                if mod_dep in todo_modules:
+                    continue
+
+                # Print a warning if this module is not supposed to be ignored
+                if mod_dep not in self.ignore_modules():
+                    # TODO 2120: allow a choice to abort or ignore.
+                    print(
+                        f"Cannot find module `{mod_dep}` which is used by "
+                        f"module '{module}'."
+                    )
+                dependencies.remove(mod_dep)
+
+        while todo_modules:
+            # Find one module that has no dependencies, which is the
+            # next module to be added to the results.
+            for mod, mod_dep in todo_modules.items():
+                if not mod_dep:
+                    break
+            else:
+                # If there is no module without a dependency, there
+                # is a circular dependency
+                print(
+                    f"Circular dependency - cannot sort "
+                    f"module dependencies: {todo_modules}"
+                )
+                # TODO 2120: allow a choice to abort or ignore.
+                # In this case pick a module with the least number of
+                # dependencies, the best we can do in this case - and
+                # it's better to provide all modules (even if they cannot)
+                # be sorted, than missing some.
+                all_mods_sorted = sorted(
+                    (mod for mod in todo_modules.keys()),
+                    key=lambda x: len(todo_modules[x]),
+                )
+                mod = all_mods_sorted[0]
+
+            # Add the current module to the result and remove it from
+            # the todo list.
+            sorted_modules_list.append(mod)
+            del todo_modules[mod]
+
+            # Then remove this module from the dependencies of all other
+            # modules:
+            for mod_dep in todo_modules.values():
+                mod_dep: List[str]
+
+                if mod in mod_dep:
+                    mod_dep.remove(mod)
+
+        return sorted_modules_list

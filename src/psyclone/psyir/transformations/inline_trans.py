@@ -56,6 +56,7 @@ from psyclone.psyir.nodes import (
     StructureMember,
     StructureReference,
 )
+from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface,
@@ -75,7 +76,7 @@ from psyclone.psyir.transformations.reference2arrayrange_trans import (
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError,
 )
-from typing import Dict
+from typing import Dict, List
 
 
 _ONE = Literal("1", INTEGER_TYPE)
@@ -147,10 +148,17 @@ class InlineTrans(Transformation):
 
     '''
 
+    def __init__(self):
+        # List of call-to-subroutine argument indices
+        self.ret_arg_match_list: List[int] = None
+
+        # Routine to be inlines
+        self.node_routine: Routine = None
+
     def apply(
         self,
-        node,
-        routine: Routine = None,
+        node_call: Call,
+        node_routine: Routine = None,
         options: Dict[str, str] = None,
         check_codeblocks: bool = True,
         check_diff_container_clashes: bool = True,
@@ -173,9 +181,12 @@ class InlineTrans(Transformation):
         :type routine: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         """
+
+        # Validate and return variables which can be reused for
+        # sake of efficiency
         self.validate(
-            node,
-            routine=routine,
+            node_call,
+            node_routine=node_routine,
             options=options,
             check_codeblocks=check_codeblocks,
             check_diff_container_clashes=check_diff_container_clashes,
@@ -185,7 +196,7 @@ class InlineTrans(Transformation):
             check_resolve_imports=check_resolve_imports,
             check_static_interface=check_static_interface,
             check_array_type=check_array_type,
-            check_argument_of_unsupported_type=(
+            check_argument_unsupported_type=(
                 check_argument_of_unsupported_type
             ),
             check_argument_unresolved_symbols=(
@@ -194,31 +205,35 @@ class InlineTrans(Transformation):
             check_named_arguments=check_named_arguments,
         )
         # The table associated with the scoping region holding the Call.
-        table = node.scope.symbol_table
+        table = node_call.scope.symbol_table
 
-        if routine is not None:
-            orig_routine = routine
-        else:
-            # Find the routine to be inlined.
-            orig_routine = node.get_callees()[0]
+        # From Martin: I don't understand why this is all necessary.
+        # Therefore I commented it out.
+        # if node_routine is not None:
+        #     orig_routine = node_routine
+        # else:
+        #     # Find the routine to be inlined.
+        #     orig_routine = node_call.get_callees()[0]
+        #     # orig_routine = node_call.get_callee()
 
-        if not orig_routine.children or isinstance(
-            orig_routine.children[0], Return
+        if not self.node_routine.children or isinstance(
+            self.node_routine.children[0], Return
         ):
             # Called routine is empty so just remove the call.
-            node.detach()
+            node_call.detach()
             return
 
         # Ensure we don't modify the original Routine by working with a
         # copy of it.
-        routine = orig_routine.copy()
-        routine_table = routine.symbol_table
+        self.node_routine = self.node_routine.copy()
+        routine_table = self.node_routine.symbol_table
 
         # Construct lists of the nodes that will be inserted and all of the
         # References that they contain.
         new_stmts = []
         refs = []
-        for child in routine.children:
+        for child in self.node_routine.children:
+            child: Node
             new_stmts.append(child.copy())
             refs.extend(new_stmts[-1].walk(Reference))
 
@@ -237,7 +252,7 @@ class InlineTrans(Transformation):
         # as a Reference.
         ref2arraytrans = Reference2ArrayRangeTrans()
 
-        for child in node.arguments:
+        for child in node_call.arguments:
             try:
                 # TODO #1858, this won't yet work for arrays inside structures.
                 ref2arraytrans.apply(child)
@@ -248,12 +263,12 @@ class InlineTrans(Transformation):
         # actual arguments.
         formal_args = routine_table.argument_list
         for ref in refs[:]:
-            self._replace_formal_arg(ref, node, formal_args)
+            self._replace_formal_arg(ref, node_call, formal_args)
 
         # Store the Routine level symbol table and node's current scope
         # so we can merge symbol tables later if required.
-        ancestor_table = node.ancestor(Routine).scope.symbol_table
-        scope = node.scope
+        ancestor_table = node_call.ancestor(Routine).scope.symbol_table
+        scope = node_call.scope
 
         # Copy the nodes from the Routine into the call site.
         # TODO #924 - while doing this we should ensure that any References
@@ -264,9 +279,9 @@ class InlineTrans(Transformation):
             # remove it from the list.
             del new_stmts[-1]
 
-        if routine.return_symbol:
+        if self.node_routine.return_symbol:
             # This is a function
-            assignment = node.ancestor(Statement)
+            assignment = node_call.ancestor(Statement)
             parent = assignment.parent
             idx = assignment.position - 1
             for child in new_stmts:
@@ -275,17 +290,17 @@ class InlineTrans(Transformation):
             table = parent.scope.symbol_table
             # Avoid a potential name clash with the original function
             table.rename_symbol(
-                routine.return_symbol,
+                self.node_routine.return_symbol,
                 table.next_available_name(
-                    f"inlined_{routine.return_symbol.name}"
+                    f"inlined_{self.node_routine.return_symbol.name}"
                 ),
             )
-            node.replace_with(Reference(routine.return_symbol))
+            node_call.replace_with(Reference(self.node_routine.return_symbol))
         else:
             # This is a call
-            parent = node.parent
-            idx = node.position
-            node.replace_with(new_stmts[0])
+            parent = node_call.parent
+            idx = node_call.position
+            node_call.replace_with(new_stmts[0])
             for child in new_stmts[1:]:
                 idx += 1
                 parent.addchild(child, idx)
@@ -682,8 +697,8 @@ class InlineTrans(Transformation):
 
     def validate(
         self,
-        node: Node,
-        routine: Routine = None,
+        node_call: Node,
+        node_routine: Routine = None,
         options: Dict[str, str] = None,
         check_codeblocks: bool = True,
         check_diff_container_clashes: bool = True,
@@ -691,7 +706,7 @@ class InlineTrans(Transformation):
         check_resolve_imports: bool = True,
         check_static_interface: bool = True,
         check_array_type: bool = True,
-        check_argument_of_unsupported_type: bool = True,
+        check_argument_unsupported_type: bool = True,
         check_argument_unresolved_symbols: bool = True,
         check_named_arguments: bool = True,
     ):
@@ -704,8 +719,6 @@ class InlineTrans(Transformation):
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["force"]: whether or not to ignore any CodeBlocks
-            in the candidate routine. Default is False.
 
         :raises TransformationError: if the supplied node is not a Call or is
             an IntrinsicCall or call to a PSyclone-generated routine.
@@ -734,27 +747,35 @@ class InlineTrans(Transformation):
             does not match that of the corresponding actual argument.
 
         """
-        super().validate(node, options=options)
+        super().validate(node_call, options=options)
+
+        self.node_routine: Routine = node_routine
 
         # The node should be a Call.
-        if not isinstance(node, Call):
+        if not isinstance(node_call, Call):
             raise TransformationError(
                 f"The target of the InlineTrans transformation "
-                f"should be a Call but found '{type(node).__name__}'."
+                f"should be a Call but found '{type(node_call).__name__}'."
             )
 
-        if isinstance(node, IntrinsicCall):
+        if isinstance(node_call, IntrinsicCall):
             raise TransformationError(
-                f"Cannot inline an IntrinsicCall ('{node.routine.name}')"
+                f"Cannot inline an IntrinsicCall ('{node_call.routine.name}')"
             )
-        name = node.routine.name
+        name = node_call.routine.name
 
-        if routine is None:
-            # Check that we can find the source of the routine being inlined.
-            # TODO #924 allow for multiple routines (interfaces).
+        # List of indices relating the call's arguments to the subroutine
+        # arguments. This can be different due to
+        # - optional arguments
+        # - named arguments
+        self.ret_arg_match_list = []
+
+        if self.node_routine is None:
             try:
-                # routine = node.get_callees()[0]
-                routine = node.get_callee(check_strict_array_datatype=False)
+                self.node_routine = node_call.get_callee(
+                    check_strict_array_datatype=False,
+                    ret_arg_match_list=self.ret_arg_match_list,
+                )
             except (
                 NotImplementedError,
                 FileNotFoundError,
@@ -765,14 +786,29 @@ class InlineTrans(Transformation):
                     f"cannot be found: {err}"
                 ) from err
 
-        if not routine.children or isinstance(routine.children[0], Return):
+        else:
+            # A routine has been provided.
+            # We'll now determine the matching argument list
+            try:
+                self.ret_arg_match_list = node_call.get_argument_routine_match(
+                    self.node_routine,
+                    check_strict_array_datatype=False,
+                )
+            except CallMatchingArgumentsNotFound as err:
+                raise CallMatchingArgumentsNotFound(
+                    "Routine's arguments doesn't match subroutine" + str(err)
+                )
+
+        if not self.node_routine.children or isinstance(
+            self.node_routine.children[0], Return
+        ):
             # An empty routine is fine.
             return
 
-        return_stmts = routine.walk(Return)
+        return_stmts = self.node_routine.walk(Return)
         if return_stmts:
             if len(return_stmts) > 1 or not isinstance(
-                routine.children[-1], Return
+                self.node_routine.children[-1], Return
             ):
                 # Either there is more than one Return statement or there is
                 # just one but it isn't the last statement of the Routine.
@@ -782,7 +818,7 @@ class InlineTrans(Transformation):
                 )
 
         if check_codeblocks:
-            if routine.walk(CodeBlock):
+            if self.node_routine.walk(CodeBlock):
                 # N.B. we permit the user to specify the "force" option to
                 # allow CodeBlocks to be included.
                 raise TransformationError(
@@ -795,36 +831,37 @@ class InlineTrans(Transformation):
         # Support for routines with named arguments is not yet implemented.
         # TODO #924.
         if check_named_arguments:
-            for arg in node.argument_names:
+            for arg in node_call.argument_names:
                 if arg:
                     raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
-                        f"it has a named argument '{arg}' (TODO #924)."
+                        f"Routine '{self.node_routine.name}' cannot be "
+                        f"inlined because it has a named argument "
+                        f"'{arg}' (TODO #924)."
                     )
 
-        table = node.scope.symbol_table
-        routine_table = routine.symbol_table
+        table = node_call.scope.symbol_table
+        routine_table = self.node_routine.symbol_table
 
         for sym in routine_table.datasymbols:
             # We don't inline symbols that have an UnsupportedType and are
             # arguments since we don't know if a simple assignment if
             # enough (e.g. pointers)
             if isinstance(sym.interface, ArgumentInterface):
-                if check_argument_of_unsupported_type:
+                if check_argument_unsupported_type:
                     if isinstance(sym.datatype, UnsupportedType):
                         raise TransformationError(
-                            f"Routine '{routine.name}' cannot be inlined "
+                            f"Routine '{self.node_routine.name}' cannot be inlined "
                             f"because it contains a Symbol '{sym.name}' which "
                             f"is an Argument of UnsupportedType: "
                             f"'{sym.datatype.declaration}'"
                         )
             # We don't inline symbols that have an UnknownInterface, as we
             # don't know how they are brought into this scope.
-            if check_argument_of_unsupported_type:
+            if check_argument_unsupported_type:
                 if isinstance(sym.interface, UnknownInterface):
                     raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
-                        f"it contains a Symbol '{sym.name}' with an "
+                        f"Routine '{self.node_routine.name}' cannot be inlined "
+                        f"because it contains a Symbol '{sym.name}' with an "
                         f"UnknownInterface: '{sym.datatype.declaration}'"
                     )
 
@@ -837,9 +874,9 @@ class InlineTrans(Transformation):
                     and not sym.is_constant
                 ):
                     raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
-                        f"it has a static (Fortran SAVE) interface for Symbol "
-                        f"'{sym.name}'."
+                        f"Routine '{self.node_routine.name}' cannot be inlined "
+                        f"because it has a static (Fortran SAVE) interface "
+                        f"for Symbol '{sym.name}'."
                     )
 
         if check_diff_container_clashes:
@@ -855,7 +892,7 @@ class InlineTrans(Transformation):
                 )
             except SymbolError as err:
                 raise TransformationError(
-                    f"One or more symbols from routine '{routine.name}' "
+                    f"One or more symbols from routine '{self.node_routine.name}' "
                     f"cannot be added to the table at the call site."
                 ) from err
 
@@ -867,7 +904,7 @@ class InlineTrans(Transformation):
         # that are used to define the precision of other Symbols in the same
         # table. If a precision symbol is only used within Statements then we
         # don't currently capture the fact that it is a precision symbol.
-        ref_or_lits = routine.walk((Reference, Literal))
+        ref_or_lits = self.node_routine.walk((Reference, Literal))
         # Check for symbols in any initial-value expressions
         # (including Fortran parameters) or array dimensions.
         for sym in routine_table.datasymbols:
@@ -913,7 +950,7 @@ class InlineTrans(Transformation):
                         # table local to the routine.
                         # pylint: disable=raise-missing-from
                         raise TransformationError(
-                            f"Routine '{routine.name}' cannot be inlined "
+                            f"Routine '{self.node_routine.name}' cannot be inlined "
                             f"because it accesses variable '{sym.name}' and "
                             f"this cannot be found in any of the containers "
                             f"directly imported into its symbol table."
@@ -921,26 +958,31 @@ class InlineTrans(Transformation):
                 else:
                     if sym.name not in routine_table:
                         raise TransformationError(
-                            f"Routine '{routine.name}' cannot be inlined "
+                            f"Routine '{self.node_routine.name}' cannot be inlined "
                             f"because it accesses variable '{sym.name}' from "
                             f"its parent container."
                         )
 
         # Check that the shapes of any formal array arguments are the same as
         # those at the call site.
-        if len(routine_table.argument_list) != len(node.arguments):
+        # TODO #2525: OPTIONAL arguments are not yet supported which can relate
+        # to situations where this assertion could be wrong.
+        # Use `ret_arg_match_list` for future work.
+        if len(routine_table.argument_list) != len(node_call.arguments):
             raise TransformationError(
                 LazyString(
-                    lambda: f"Cannot inline '{node.debug_string().strip()}' "
+                    lambda: f"Cannot inline '{node_call.debug_string().strip()}' "
                     f"because the number of arguments supplied to the call "
-                    f"({len(node.arguments)}) does not match the number of "
+                    f"({len(node_call.arguments)}) does not match the number of "
                     f"arguments the routine is declared to have "
-                    f"({len(routine_table.argument_list)})."
+                    f"({len(routine_table.argument_list)}).\n"
+                    f"This is likely related to **OPTIONAL** arguments which "
+                    f"are not yet supported."
                 )
             )
 
         for formal_arg, actual_arg in zip(
-            routine_table.argument_list, node.arguments
+            routine_table.argument_list, node_call.arguments
         ):
             # If the formal argument is an array with non-default bounds then
             # we also need to know the bounds of that array at the call site.
@@ -959,7 +1001,7 @@ class InlineTrans(Transformation):
                 # pylint: disable=cell-var-from-loop
                 raise TransformationError(
                     LazyString(
-                        lambda: f"The call '{node.debug_string()}' cannot be "
+                        lambda: f"The call '{node_call.debug_string()}' cannot be "
                         f"inlined because actual argument "
                         f"'{actual_arg.debug_string()}' corresponds to a "
                         f"formal argument with array type but is not a "
@@ -984,7 +1026,7 @@ class InlineTrans(Transformation):
                     )
                 ):
                     raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
+                        f"Routine '{self.node_routine.name}' cannot be inlined because "
                         f"the type of the actual argument "
                         f"'{actual_arg.symbol.name}' corresponding to an array"
                         f" formal argument ('{formal_arg.name}') is unknown."
@@ -1003,7 +1045,7 @@ class InlineTrans(Transformation):
                     # pylint: disable=cell-var-from-loop
                     raise TransformationError(
                         LazyString(
-                            lambda: f"Cannot inline routine '{routine.name}' "
+                            lambda: f"Cannot inline routine '{self.node_routine.name}' "
                             f"because it reshapes an argument: actual "
                             f"argument '{actual_arg.debug_string()}' has rank "
                             f"{actual_rank} but the corresponding formal "
@@ -1021,7 +1063,7 @@ class InlineTrans(Transformation):
                             raise TransformationError(
                                 LazyString(
                                     lambda: f"Cannot inline routine "
-                                    f"'{routine.name}' because argument "
+                                    f"'{self.node_routine.name}' because argument "
                                     f"'{actual_arg.debug_string()}' "
                                     f"has an array range in an indirect access "
                                     f"#(TODO 924)."
@@ -1035,7 +1077,7 @@ class InlineTrans(Transformation):
                             raise TransformationError(
                                 LazyString(
                                     lambda: f"Cannot inline routine "
-                                    f"'{routine.name}' because one of its "
+                                    f"'{self.node_routine.name}' because one of its "
                                     f"arguments is an array slice "
                                     f"with a non-unit stride: "
                                     f"'{actual_arg.debug_string()}' (TODO #1646)"

@@ -34,7 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the Call node implementation.'''
+""" This module contains the Call node implementation."""
 
 from collections.abc import Iterable
 
@@ -47,8 +47,14 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
-    RoutineSymbol, Symbol, SymbolError, UnsupportedFortranType, DataSymbol,
-    SymbolTable, ContainerSymbol)
+    RoutineSymbol,
+    Symbol,
+    SymbolError,
+    UnsupportedFortranType,
+    DataSymbol,
+    SymbolTable,
+    ContainerSymbol,
+)
 from typing import List
 from psyclone.errors import PSycloneError
 from psyclone.psyir.symbols.datatypes import ArrayType
@@ -61,7 +67,7 @@ class CallMatchingArgumentsNotFound(PSycloneError):
 
 
 class Call(Statement, DataNode):
-    ''' Node representing a Call. This can be found as a standalone statement
+    """Node representing a Call. This can be found as a standalone statement
     or an expression.
 
     TODO #1437: The combined Statement and Expression implementation is simple
@@ -70,7 +76,8 @@ class Call(Statement, DataNode):
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
-    '''
+    """
+
     # Textual description of the node.
     _children_valid_format = "Reference, [DataNode]*"
     _text_name = "Call"
@@ -86,7 +93,7 @@ class Call(Statement, DataNode):
         self._argument_names = []
 
     def __eq__(self, other):
-        '''
+        """
         Checks whether two nodes are equal. Two Call nodes are equal
         if their routine members are equal.
 
@@ -95,7 +102,7 @@ class Call(Statement, DataNode):
         :returns: whether other is equal to self.
         :rtype: bool
 
-        '''
+        """
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.argument_names == other.argument_names
 
@@ -103,7 +110,7 @@ class Call(Statement, DataNode):
 
     @classmethod
     def create(cls, routine, arguments=()):
-        '''Create an instance of class cls given valid instances of a routine
+        """Create an instance of class cls given valid instances of a routine
         symbol, and a list of child nodes (or name and node tuple) for
         its arguments.
 
@@ -122,17 +129,19 @@ class Call(Statement, DataNode):
         :raises TypeError: if the routine argument is not a RoutineSymbol.
         :raises GenerationError: if the arguments argument is not an Iterable.
 
-        '''
+        """
         if not isinstance(routine, (Reference, RoutineSymbol)):
             raise TypeError(
                 f"The Call routine argument should be a Reference to a "
                 f"RoutineSymbol or a RoutineSymbol, but "
-                f"found '{type(routine).__name__}'.")
+                f"found '{type(routine).__name__}'."
+            )
 
         if not isinstance(arguments, Iterable):
             raise GenerationError(
                 f"Call.create 'arguments' argument should be an Iterable but "
-                f"found '{type(arguments).__name__}'.")
+                f"found '{type(arguments).__name__}'."
+            )
 
         call = cls()
         if isinstance(routine, Reference):
@@ -145,7 +154,7 @@ class Call(Statement, DataNode):
 
     @staticmethod
     def _add_args(call, arguments):
-        '''Internal utility method to add arguments to a call node. These are
+        """Internal utility method to add arguments to a call node. These are
         added as child nodes.
 
         :param call: the supplied call node.
@@ -160,7 +169,7 @@ class Call(Statement, DataNode):
             argument are not in the expected form or of the expected
             type.
 
-        '''
+        """
         for arg in arguments:
             name = None
             if isinstance(arg, tuple):
@@ -168,18 +177,20 @@ class Call(Statement, DataNode):
                     raise GenerationError(
                         f"If a child of the children argument in create "
                         f"method of Call class is a tuple, it's "
-                        f"length should be 2, but found {len(arg)}.")
+                        f"length should be 2, but found {len(arg)}."
+                    )
                 if not isinstance(arg[0], str):
                     raise GenerationError(
                         f"If a child of the children argument in create "
                         f"method of Call class is a tuple, its first "
                         f"argument should be a str, but found "
-                        f"{type(arg[0]).__name__}.")
+                        f"{type(arg[0]).__name__}."
+                    )
                 name, arg = arg
             call.append_named_arg(name, arg)
 
     def append_named_arg(self, name, arg):
-        '''Append a named argument to this call.
+        """Append a named argument to this call.
 
            :param name: the argument name.
            :type name: Optional[str]
@@ -189,23 +200,25 @@ class Call(Statement, DataNode):
            :raises ValueError: if the name argument is already used \
                for an existing argument.
 
-        '''
+        """
         if name is not None:
             # Avoid circular import.
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.frontend.fortran import FortranReader
+
             FortranReader.validate_name(name)
             for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
                         f"The value of the name argument ({name}) in "
                         f"'append_named_arg' in the 'Call' node is "
-                        f"already used for a named argument.")
+                        f"already used for a named argument."
+                    )
         self._argument_names.append((id(arg), name))
         self.children.append(arg)
 
     def insert_named_arg(self, name, arg, index):
-        '''Insert a named argument to the call.
+        """Insert a named argument to the call.
 
            :param name: the argument name.
            :type name: Optional[str]
@@ -218,30 +231,33 @@ class Call(Statement, DataNode):
                for an existing argument.
            :raises TypeError: if the index argument is the wrong type.
 
-        '''
+        """
         if name is not None:
             # Avoid circular import.
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.frontend.fortran import FortranReader
+
             FortranReader.validate_name(name)
             for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
                         f"The value of the name argument ({name}) in "
                         f"'insert_named_arg' in the 'Call' node is "
-                        f"already used for a named argument.")
+                        f"already used for a named argument."
+                    )
         if not isinstance(index, int):
             raise TypeError(
                 f"The 'index' argument in 'insert_named_arg' in the "
                 f"'Call' node should be an int but found "
-                f"{type(index).__name__}.")
+                f"{type(index).__name__}."
+            )
         self._argument_names.insert(index, (id(arg), name))
         # The n'th argument is placed at the n'th+1 children position
         # because the 1st child is the routine reference
         self.children.insert(index + 1, arg)
 
     def replace_named_arg(self, existing_name, arg):
-        '''Replace one named argument node with another node keeping the
+        """Replace one named argument node with another node keeping the
         same name.
 
            :param str existing_name: the argument name.
@@ -253,12 +269,13 @@ class Call(Statement, DataNode):
                for an existing argument.
            :raises TypeError: if the index argument is the wrong type.
 
-        '''
+        """
         if not isinstance(existing_name, str):
             raise TypeError(
                 f"The 'name' argument in 'replace_named_arg' in the "
                 f"'Call' node should be a string, but found "
-                f"{type(existing_name).__name__}.")
+                f"{type(existing_name).__name__}."
+            )
         index = 0
         for _, name in self._argument_names:
             if name is not None and name.lower() == existing_name:
@@ -277,7 +294,7 @@ class Call(Statement, DataNode):
 
     @staticmethod
     def _validate_child(position, child):
-        '''
+        """
         :param int position: the position to be validated.
         :param child: a child to be validated.
         :type child: :py:class:`psyclone.psyir.nodes.Node`
@@ -285,13 +302,13 @@ class Call(Statement, DataNode):
         :return: whether the given child and position are valid for this node.
         :rtype: bool
 
-        '''
+        """
         if position == 0:
             return isinstance(child, Reference)
         return isinstance(child, DataNode)
 
     def reference_accesses(self, var_accesses):
-        '''
+        """
         Updates the supplied var_accesses object with information on the
         arguments passed to this call.
 
@@ -304,7 +321,7 @@ class Call(Statement, DataNode):
             information about variable accesses.
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
-        '''
+        """
         if self.is_pure:
             # If the called routine is pure then any arguments are only
             # read.
@@ -337,73 +354,73 @@ class Call(Statement, DataNode):
 
     @property
     def routine(self):
-        '''
+        """
         :returns: the routine reference that this call calls.
         :rtype: Optional[py:class:`psyclone.psyir.nodes.Reference`]
-        '''
+        """
         if len(self._children) >= 1:
             return self.children[0]
         return None
 
     @property
     def arguments(self) -> List[DataNode]:
-        '''
+        """
         :returns: the children of this node that represent its arguments.
         :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
 
-        '''
+        """
         if len(self._children) >= 2:
             return self.children[1:]
         return []
 
     @property
     def is_elemental(self):
-        '''
+        """
         :returns: whether the routine being called is elemental (provided with
             an input array it will apply the operation individually to each of
             the array elements and return an array with the results). If this
             information is not known then it returns None.
         :rtype: NoneType | bool
-        '''
+        """
         if self.routine and self.routine.symbol:
             return self.routine.symbol.is_elemental
         return None
 
     @property
     def is_pure(self):
-        '''
+        """
         :returns: whether the routine being called is pure (guaranteed to \
             return the same result when provided with the same argument \
             values).  If this information is not known then it returns None.
         :rtype: NoneType | bool
-        '''
+        """
         if self.routine and self.routine.symbol:
             return self.routine.symbol.is_pure
         return None
 
     def is_available_on_device(self):
-        '''
+        """
         :returns: whether this call is available on an accelerated device.
         :rtype: bool
 
-        '''
+        """
         return False
 
     @property
     def argument_names(self):
-        '''
+        """
         :returns: a list with the name of each argument. If the entry is \
             None then the argument is a positional argument.
         :rtype: List[Optional[str]]
-        '''
+        """
         self._reconcile()
         return [entry[1] for entry in self._argument_names]
 
     def _reconcile(self):
-        '''Update the _argument_names values in case child arguments have been
+        """Update the _argument_names values in case child arguments have been
         removed, added, or re-ordered.
 
-        '''
+        """
         new_argument_names = []
         for child in self.arguments:
             for arg in self._argument_names:
@@ -415,7 +432,7 @@ class Call(Statement, DataNode):
         self._argument_names = new_argument_names
 
     def node_str(self, colour=True):
-        '''
+        """
         Construct a text representation of this node, optionally containing
         colour control codes.
 
@@ -424,21 +441,23 @@ class Call(Statement, DataNode):
         :returns: description of this PSyIR node.
         :rtype: str
 
-        '''
-        return (f"{self.coloured_name(colour)}"
-                f"[name='{self.routine.debug_string()}']")
+        """
+        return (
+            f"{self.coloured_name(colour)}"
+            f"[name='{self.routine.debug_string()}']"
+        )
 
     def __str__(self):
         return self.node_str(False)
 
     def copy(self):
-        '''Return a copy of this node. This is a bespoke implementation for
+        """Return a copy of this node. This is a bespoke implementation for
         a Call node that ensures that any internal id's are
         consistent before and after copying.
 
         :returns: a copy of this node and its children.
         :rtype: :py:class:`psyclone.psyir.node.Node`
-        '''
+        """
 
         # ensure _argument_names is consistent with actual arguments
         # before copying.
@@ -456,10 +475,11 @@ class Call(Statement, DataNode):
         return new_copy
 
     def _get_container_symbols_rec(
-                            self,
-                            container_symbols_list: List[str],
-                            _stack_container_name_list: List[str] = [],
-                            _depth: int = 0):
+        self,
+        container_symbols_list: List[str],
+        _stack_container_name_list: List[str] = [],
+        _depth: int = 0,
+    ):
         """Return a list of all container symbols that can be found
         recursively
 
@@ -499,9 +519,10 @@ class Call(Statement, DataNode):
                 continue
 
             new_container_symbols = self._get_container_symbols_rec(
-                        container.symbol_table.containersymbols,
-                        _stack_container_name_list+[container.name.lower()],
-                        _depth+1)
+                container.symbol_table.containersymbols,
+                _stack_container_name_list + [container.name.lower()],
+                _depth + 1,
+            )
 
             # Remove duplicates
             for r in new_container_symbols:
@@ -511,7 +532,7 @@ class Call(Statement, DataNode):
         return retlist
 
     def get_callees(self):
-        '''
+        """
         Searches for the implementation(s) of all potential target routines
         for this Call without any arguments check.
 
@@ -520,9 +541,10 @@ class Call(Statement, DataNode):
 
         :raises NotImplementedError: if the routine is not local and not found
             in any containers in scope at the call site.
-        '''
+        """
+
         def _location_txt(node):
-            '''
+            """
             Utility to generate meaningful location text.
 
             :param node: a PSyIR node.
@@ -530,7 +552,7 @@ class Call(Statement, DataNode):
 
             :returns: description of location of node.
             :rtype: str
-            '''
+            """
             if isinstance(node, Container):
                 return f"Container '{node.name}'"
             out_lines = node.debug_string().split("\n")
@@ -549,8 +571,10 @@ class Call(Statement, DataNode):
             # FileContainer). Note, if the PSyIR does contain a
             # FileContainer, it will be the root node of the PSyIR.
             for routine in self.root.children:
-                if (isinstance(routine, Routine) and
-                        routine.name.lower() == rsym.name.lower()):
+                if (
+                    isinstance(routine, Routine)
+                    and routine.name.lower() == rsym.name.lower()
+                ):
                     return [routine]
 
             # Now check for any wildcard imports and see if they can
@@ -560,7 +584,8 @@ class Call(Statement, DataNode):
             current_table: SymbolTable = self.scope.symbol_table
             while current_table:
                 current_containersymbols = self._get_container_symbols_rec(
-                            current_table.containersymbols)
+                    current_table.containersymbols
+                )
 
                 for container_symbol in current_containersymbols:
                     container_symbol: ContainerSymbol
@@ -570,8 +595,10 @@ class Call(Statement, DataNode):
 
                         try:
                             container: Container = (
-                                    container_symbol.find_container_psyir(
-                                        local_node=self))
+                                container_symbol.find_container_psyir(
+                                    local_node=self
+                                )
+                            )
                         except SymbolError:
                             container = None
 
@@ -584,10 +611,10 @@ class Call(Statement, DataNode):
                         for name in container.resolve_routine(rsym.name):
                             # Allow private imports if an 'interface'
                             # has been used
-                            allow_private = (name != rsym.name)
+                            allow_private = name != rsym.name
                             psyir = container.find_routine_psyir(
-                                                name,
-                                                allow_private=allow_private)
+                                name, allow_private=allow_private
+                            )
                             if psyir:
                                 routines.append(psyir)
                         if routines:
@@ -601,14 +628,16 @@ class Call(Statement, DataNode):
                         f"attempted to resolve the wildcard imports from"
                         f" {wildcard_names}. However, failed to find the "
                         f"source for {containers_not_found}. The module search"
-                        f" path is set to {Config.get().include_paths}")
+                        f" path is set to {Config.get().include_paths}"
+                    )
                 else:
-                    wc_text = (f"wildcard imports from {wildcard_names}")
+                    wc_text = f"wildcard imports from {wildcard_names}"
             raise NotImplementedError(
                 f"Failed to find the source code of the unresolved routine "
                 f"'{rsym.name}' - looked at any routines in the same source "
                 f"file and {wc_text}. Searching for external routines "
-                f"that are only resolved at link time is not supported.")
+                f"that are only resolved at link time is not supported."
+            )
 
         root_node = self.ancestor(Container)
         if not root_node:
@@ -630,7 +659,8 @@ class Call(Statement, DataNode):
                         f"RoutineSymbol '{rsym.name}' is imported from "
                         f"Container '{csym.name}' but the source defining "
                         f"that container could not be found. The module search"
-                        f" path is set to {Config.get().include_paths}")
+                        f" path is set to {Config.get().include_paths}"
+                    )
                 imported_sym = container.symbol_table.lookup(cursor.name)
                 if imported_sym.visibility != Symbol.Visibility.PUBLIC:
                     # The required Symbol must be shadowed with a PRIVATE
@@ -643,7 +673,8 @@ class Call(Statement, DataNode):
                         f"Container '{csym.name}' but that Container defines "
                         f"a private Symbol of the same name. Searching for the"
                         f" Container that defines a public Routine with that "
-                        f"name is not yet supported - TODO #924")
+                        f"name is not yet supported - TODO #924"
+                    )
                 if not isinstance(imported_sym, RoutineSymbol):
                     # We now know that this is a RoutineSymbol so specialise it
                     # in place.
@@ -659,13 +690,15 @@ class Call(Statement, DataNode):
                 f"RoutineSymbol '{rsym.name}' exists in "
                 f"{_location_txt(root_node)} but is of "
                 f"UnsupportedFortranType:\n{rsym.datatype.declaration}\n"
-                f"Cannot get the PSyIR of such a routine.")
+                f"Cannot get the PSyIR of such a routine."
+            )
 
         if isinstance(container, Container):
             routines = []
             for name in container.resolve_routine(rsym.name):
                 psyir = container.find_routine_psyir(
-                    name, allow_private=can_be_private)
+                    name, allow_private=can_be_private
+                )
                 if psyir:
                     routines.append(psyir)
             if routines:
@@ -674,24 +707,28 @@ class Call(Statement, DataNode):
         raise SymbolError(
             f"Failed to find a Routine named '{rsym.name}' in "
             f"{_location_txt(root_node)}. This is normally because the routine"
-            f" is within a CodeBlock.")
+            f" is within a CodeBlock."
+        )
 
     def get_argument_routine_match(
-            self,
-            routine: Routine,
-            check_strict_array_datatype: bool = True):
+        self, routine: Routine, check_strict_array_datatype: bool = True
+    ):
         """Return a list of integers giving for each argument of the call
         the index of the argument in argument_list (typically of a routine)
 
         :return: None if no match was found, otherwise list of integers
             referring to matching arguments.
-        :rtype: None|List[int]
+        :rtype: List[int]
+
+        :raises CallMatchingArgumentsNotFound: If there was some problem in
+            finding matching arguments.
         """
 
         # Create a copy of the list of actual arguments to the routine.
         # Once an argument has been successfully matched, set it to 'None'
-        routine_argument_list: List[DataNode] = \
+        routine_argument_list: List[DataNode] = (
             routine.symbol_table.argument_list[:]
+        )
 
         if len(self.arguments) > len(routine.symbol_table.argument_list):
             raise CallMatchingArgumentsNotFound(
@@ -715,8 +752,9 @@ class Call(Statement, DataNode):
 
                 type_matches = False
                 if not check_strict_array_datatype:
-                    if (isinstance(call_arg.datatype, ArrayType) and
-                            isinstance(routine_arg.datatype, ArrayType)):
+                    if isinstance(call_arg.datatype, ArrayType) and isinstance(
+                        routine_arg.datatype, ArrayType
+                    ):
                         type_matches = True
 
                 if not type_matches:
@@ -728,8 +766,8 @@ class Call(Statement, DataNode):
                     # branch.
                     # Optional arguments are processed further down.
                     if not isinstance(
-                                routine_arg.datatype,
-                                UnsupportedFortranType):
+                        routine_arg.datatype, UnsupportedFortranType
+                    ):
                         if call_arg.datatype != routine_arg.datatype:
                             raise CallMatchingArgumentsNotFound(
                                 f"Argument type mismatch of call argument "
@@ -749,7 +787,8 @@ class Call(Statement, DataNode):
             routine_arg_idx = None
 
             for routine_arg_idx, routine_arg in enumerate(
-                                routine_argument_list):
+                routine_argument_list
+            ):
                 routine_arg: DataSymbol
 
                 # Check if argument was already processed
@@ -763,8 +802,8 @@ class Call(Statement, DataNode):
                     # branch.
                     # Optional arguments are processed further down.
                     if not isinstance(
-                                routine_arg.datatype,
-                                UnsupportedFortranType):
+                        routine_arg.datatype, UnsupportedFortranType
+                    ):
                         if call_arg.datatype != routine_arg.datatype:
                             raise CallMatchingArgumentsNotFound(
                                 f"Argument type mismatch of call argument "
@@ -802,14 +841,13 @@ class Call(Statement, DataNode):
                 f" '{routine.name}' not handled"
             )
 
-        print("SUCCESS")
         return ret_arg_idx_list
 
     def get_callee(
-                self,
-                ret_arg_match_list: List[int] = None,
-                check_strict_array_datatype: bool = True
-            ):
+        self,
+        ret_arg_match_list: List[int] = None,
+        check_strict_array_datatype: bool = True,
+    ):
         """
         Searches for the implementation(s) of the target routine for this Call
         including argument checks.
@@ -817,8 +855,9 @@ class Call(Statement, DataNode):
         :param ret_arg_match_list: List in which the matching argument
             indices will be returned
         :type ret_arg_match_list: List[int]
-        :param check_matching_arguments: Also check argument types to match.
-        :type ret_arg_match_list: bool
+
+        :param check_strict_array_datatype: Also check argument types to match.
+        :type check_strict_array_datatype: bool
 
         :returns: The routine that this call targets.
         :rtype: psyclone.psyir.nodes.Routine
@@ -838,7 +877,8 @@ class Call(Statement, DataNode):
             try:
                 arg_match_list = self.get_argument_routine_match(
                     routine,
-                    check_strict_array_datatype=check_strict_array_datatype)
+                    check_strict_array_datatype=check_strict_array_datatype,
+                )
             except CallMatchingArgumentsNotFound:
                 continue
 
