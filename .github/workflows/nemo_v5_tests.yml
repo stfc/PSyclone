@@ -158,7 +158,7 @@ jobs:
         mpirun -np 6 ./nemo
         tail run.stat
         # We don't compare all digits because they are results from a different compiler
-        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.gfrotran.bench.small.100steps run.stat
+        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.100steps run.stat
         
     - name: NEMO 5.0 gfortran OpenMP for CPUs
       run: |
@@ -222,7 +222,7 @@ jobs:
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
           add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
 
-        # Run test
+        # Run test (disabled because it is currently too slow)
         # cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         # cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         # ./nemo
