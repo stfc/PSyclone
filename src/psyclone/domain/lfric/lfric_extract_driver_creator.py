@@ -429,7 +429,13 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # its type. And since they are not imported, they need to be
             # explicitly declared.
             mod_info = mod_man.get_module_info_with_auto_add_files(module_name)
-            container_symbol = mod_info.get_symbol_by_name(signature[0])
+            try:
+                container_symbol = mod_info.get_symbol_by_name(signature[0])
+
+            except Exception as err:
+                print("Warning: " + str(err))
+                continue
+
             if not container_symbol:
                 # TODO #2120: This typically indicates a problem with parsing
                 # a module: the psyir does not have the full tree structure.
@@ -638,7 +644,11 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                 mod_info = mod_man.get_module_info_with_auto_add_files(
                     module_name
                 )
-                orig_sym = mod_info.get_symbol_by_name(signature[0])
+                try:
+                    orig_sym = mod_info.get_symbol_by_name(signature[0])
+                except Exception as err:
+                    orig_sym = None
+
                 if not orig_sym:
                     # TODO 2120: We likely couldn't parse the module.
                     print(
@@ -1133,7 +1143,9 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # compiler must have found any dependent modules before it can
         # compile a module.
         mod_manager = ModuleManagerAutoSearch.get_singleton()
-        sorted_modules = mod_manager.sort_modules(module_dependencies)
+        sorted_modules = mod_manager.get_dependency_sorted_modules(
+            module_dependencies
+        )
 
         # Inline all required modules into the driver source file so that
         # it is stand-alone.

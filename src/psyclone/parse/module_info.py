@@ -39,18 +39,13 @@ and cache information about a module.
 
 """
 
-from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
 from fparser.two.utils import FortranSyntaxError, walk
 
-from typing import Dict
+from typing import Dict, List
 
-import psyclone
-from psyclone.configuration import Config
 from psyclone.errors import InternalError, PSycloneError, GenerationError
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Container, FileContainer
+from psyclone.psyir.nodes import Container, FileContainer, Routine
 from psyclone.psyir.symbols import Symbol, SymbolError
 from psyclone.parse import FileInfo
 
@@ -85,30 +80,34 @@ class ModuleInfo:
     :type finfo: :py:class:`psyclone.parse.FileInfo`
     """
 
-    def __init__(self, name: str, file_info: FileInfo):
-        self._name = name.lower()
+    def __init__(
+        self,
+        module_name: str,
+        file_info: FileInfo,
+        psyir_container_node: Container = None,
+    ):
+        self._name = module_name.lower()
+
+        assert isinstance(file_info, FileInfo)
+        if psyir_container_node is not None:
+            assert isinstance(psyir_container_node, Container)
 
         # File handler including fparser and psyir representation
         self._file_info: FileInfo = file_info
 
-        # A cache for the fparser tree solely for this module
-        self._fparser_tree: Fortran2003 = None
-
-        # Whether we've attempted to parse the source.
-        self._fparser_attempted = False
-
-        # A cache for the PSyIR representation
-        self._psyir_node: Container = None
+        # Direct reference to the respective psyir container node.
+        # This references to `self._file_info._psyir_node`
+        self._psyir_container_node = psyir_container_node
 
         # A cache for the module dependencies: this is just a set
-        # of all modules used by this module. Type: set[str]
-        self._used_module_names: Set[str] = None
+        # of all modules used by this module.
+        # We use an (ordered) list to preserve the order of the
+        # used modules
+        self._used_module_names: List[str] = None
 
         # This is a dictionary containing the sets of symbols imported from
         # each module, indexed by the module names: dict[str, set[str]].
         self._used_symbols_from_module_name: Dict[str, set[str]] = None
-
-        self._processor: Fparser2Reader = Fparser2Reader()
 
     @property
     def name(self) -> str:
@@ -125,7 +124,7 @@ class ModuleInfo:
         :rtype: str
 
         """
-        return self._file_info.get_filepath
+        return self._file_info.get_filepath()
 
     def get_source_code(self):
         """Returns the source code for the module using the associated
@@ -141,8 +140,8 @@ class ModuleInfo:
             return self._file_info.get_source_code()
         except FileNotFoundError as err:
             raise ModuleInfoError(
-                f"Could not find file '{self._file_info.get_filepath}' when trying"
-                f" to read source code for module '{self._name}'"
+                f"Could not find file '{self._file_info.get_filepath()}' "
+                f"when trying to read source code for module '{self._name}'"
             ) from err
 
     def get_fparser_tree(self):
@@ -153,17 +152,9 @@ class ModuleInfo:
         :returns: the fparser AST for this module.
         :rtype: :py:class:`fparser.two.Fortran2003.Program`
         """
+        return self._file_info.get_fparser_tree()
 
-        if not self._fparser_attempted:
-            # This way we avoid that any other function might trigger to
-            # parse this file again (in case of parsing errors).
-            self._fparser_attempted = True
-
-            self._fparser_tree = self._file_info.get_fparser_node()
-
-        return self._fparser_tree
-
-    def _extract_import_information(self):
+    def _extract_used_module_names_from_fparser_tree(self):
         """This internal function analyses a given module source file and
         caches which modules are imported (in self._used_modules), and which
         symbol is imported from each of these modules (in
@@ -174,7 +165,7 @@ class ModuleInfo:
         assert self._used_module_names is None
 
         # Initialise the caches
-        self._used_module_names = set()
+        self._used_module_names = []
         self._used_symbols_from_module_name = {}
 
         try:
@@ -195,7 +186,8 @@ class ModuleInfo:
                 continue
 
             mod_name = str(use.items[2])
-            self._used_module_names.add(mod_name)
+            if mod_name not in self._used_module_names:
+                self._used_module_names.append(mod_name)
             all_symbols = set()
 
             only_list = use.items[4]
@@ -208,7 +200,7 @@ class ModuleInfo:
 
             self._used_symbols_from_module_name[mod_name] = all_symbols
 
-    def get_used_modules(self):
+    def get_used_modules(self) -> List[str]:
         """This function returns a set of all modules `used` in this
         module. Fortran `intrinsic` modules will be ignored. The information
         is based on the fparser parse tree of the module (since fparser can
@@ -220,7 +212,7 @@ class ModuleInfo:
         """
 
         if self._used_module_names is None:
-            self._extract_import_information()
+            self._extract_used_module_names_from_fparser_tree()
 
         return self._used_module_names
 
@@ -236,7 +228,7 @@ class ModuleInfo:
         """
 
         if self._used_symbols_from_module_name is None:
-            self._extract_import_information()
+            self._extract_used_module_names_from_fparser_tree()
 
         return self._used_symbols_from_module_name
 
@@ -280,7 +272,43 @@ class ModuleInfo:
             )
         return psyir_node
 
-    def get_psyir(self):
+    def get_psyir_container_node(self):
+        """Returns the PSyIR representation of this module. This is
+        based on parsing the file with PSyIR.
+
+        Note, that there is also the `get_psyir_node_from_fparser_tree`
+        function which provides additional information by falling
+        back to fparser.
+
+        :returns: PSyIR representing this module.
+        :rtype: :py:class:`psyclone.psyir.nodes.Container` | NoneType
+
+        :raises FileNotFoundError: if the named Container (module) does not
+            exist in the PSyIR.
+        """
+
+        # If container node is not provided, we will load it
+        if self._psyir_container_node is not None:
+            return self._psyir_container_node
+
+        psyir_node: FileContainer = self._file_info.get_psyir_node()
+        container_list: List[Container] = psyir_node.walk(
+            Container, stop_type=Routine
+        )
+        for container in container_list:
+            container: Container
+
+            container_name: str = container.name.lower()
+            if container_name == self._name:
+                self._psyir_container_node = container
+                return self._psyir_container_node
+
+        raise FileNotFoundError(
+            f"Unable to find container '{self._name}' in "
+            f"file '{self._file_info.get_filepath()}'"
+        )
+
+    def get_psyir_container_node_alternative(self):
         """Returns the PSyIR representation of this module. This is based
         on the fparser tree (see get_fparser_tree), and the information is
         cached. If the PSyIR must be modified, it needs to be copied,
@@ -296,21 +324,21 @@ class ModuleInfo:
             exist in the PSyIR.
         """
 
-        if self._psyir_node is None:
+        if self._psyir_container_node is None:
             try:
-                ptree = self.get_fparser_tree()
+                fparser_tree = self.get_fparser_tree()
             except FortranSyntaxError as err:
                 # TODO #11: Add proper logging
                 print(f"Error parsing '{self.filepath}': '{err}'")
                 return None
 
-            if not ptree:
+            if not fparser_tree:
                 # TODO #11: Add proper logging
                 print(f"Empty parse tree returned for '{self.filepath}'")
                 return None
 
             try:
-                self._psyir_node = self._processor.generate_psyir(ptree)
+                self._file_info.get_psyir_node()
             except (
                 KeyError,
                 SymbolError,
@@ -325,10 +353,19 @@ class ModuleInfo:
                 return None
 
         # Return the Container with the correct name.
-        for cntr in self._psyir_node.walk(Container):
-            cntr: Container
-            if cntr.name.lower() == self.name:
-                return cntr
+        # Note, that this could be easily replaced with
+        # self.get_psyir_container_node()
+        # But would lead to a non-reproducible behavior of
+        # test `test_call_tree_error_module_is_codeblock`
+        # for container_node in self._file_info._psyir_node.walk(Container):
+        #     if container_node.name.lower() == self.name:
+        #         return container_node
+        try:
+            container_node = self.get_psyir_container_node()
+            return container_node
+
+        except Exception as err:
+            pass
 
         # We failed to find the Container - double-check the parse tree
         for mod_stmt in walk(self.get_fparser_tree(), Fortran2003.Module_Stmt):
@@ -365,10 +402,16 @@ class ModuleInfo:
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol` | None
         """
 
-        container = self.get_psyir()
+        container = self.get_psyir_container_node()
         if not container:
             return None
         try:
             return container.symbol_table.lookup(symbol_name)
         except KeyError:
             return None
+
+    def view(self, indent=""):
+        retstr = ""
+        retstr += f"{indent}- name: '{self.name}'\n"
+        retstr += f"{indent}- used_module_names: {self.get_used_modules()}\n"
+        return retstr

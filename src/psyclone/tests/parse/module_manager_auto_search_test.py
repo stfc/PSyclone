@@ -318,40 +318,55 @@ def test_mod_man_sort_modules(capsys):
 
     mod_man = ModuleManagerAutoSearch.get_singleton()
     # Empty input:
-    assert mod_man.sort_modules({}) == []
+    assert mod_man.get_dependency_sorted_modules(module_dependencies={}) == []
 
     # A depends on B:
     deps = {"a": {"b"}, "b": set()}
-    assert mod_man.sort_modules(deps) == ["b", "a"]
+    assert mod_man.get_dependency_sorted_modules(module_dependencies=deps) == [
+        "b",
+        "a",
+    ]
 
     deps = {"a": {"b", "c"}, "b": set(), "c": {"b"}}
-    assert mod_man.sort_modules(deps) == ["b", "c", "a"]
+    assert mod_man.get_dependency_sorted_modules(module_dependencies=deps) == [
+        "b",
+        "c",
+        "a",
+    ]
 
     deps = {"a": {"b", "c"}, "b": set(), "c": {"netcdf", "b"}}
-    deps_sorted = mod_man.sort_modules(deps)
+    deps_sorted = mod_man.get_dependency_sorted_modules(
+        module_dependencies=deps, verbose=True
+    )
     assert deps_sorted == ["b", "c", "a"]
     out, _ = capsys.readouterr()
-    assert "Cannot find module `netcdf` which is used by module 'c'." in out
+    assert "Cannot find module 'netcdf' which is used by module 'c'" in out
 
     # Ignore the netcdf dependencies:
     deps = {"a": {"b", "c"}, "b": set(), "c": {"netcdf", "b"}}
     mod_man.add_ignore_modules("netcdf")
-    deps_sorted = mod_man.sort_modules(deps)
+    deps_sorted = mod_man.get_dependency_sorted_modules(
+        module_dependencies=deps
+    )
     assert deps_sorted == ["b", "c", "a"]
     out, _ = capsys.readouterr()
     # There should be no output now:
     assert out == ""
 
     deps = {"a": {"b", "c"}, "b": {"c"}, "c": {"b"}}
-    deps_sorted = mod_man.sort_modules(deps)
+    deps_sorted = mod_man.get_dependency_sorted_modules(
+        module_dependencies=deps, verbose=True
+    )
     out, _ = capsys.readouterr()
     # The dependencies for a can be given in two orders (b,c or c,b),
     # since it is an unsorted set. Only test for the rest of the output
     # message, especially the part that shows the dependencies between
     # b and c:
+    print("<>" * 80)
+    print(out)
     assert (
-        "Circular dependency - cannot sort module dependencies: "
-        "{'a': " in out
+        "Circular dependency - cannot sort module dependencies. "
+        "Remaining modules: {'a': " in out
     )
     assert "'b': {'c'}, 'c': {'b'}}" in out
 
@@ -385,7 +400,7 @@ def test_mod_manager_add_ignore_modules():
     mod_man.add_ignore_modules("a_mod")
     mod_info = mod_man.get_module_info_with_auto_add_files("a_mod")
     assert mod_info is None
-    assert "a_mod" in mod_man.ignore_modules()
+    assert "a_mod" in mod_man.get_ignore_modules()
 
     # Just in case verify that other modules are not affected
     mod_info = mod_man.get_module_info_with_auto_add_files("b_mod")

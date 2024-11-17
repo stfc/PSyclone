@@ -51,7 +51,7 @@ def test_file_info_constructor():
     finfo = FileInfo("missing.txt")
     assert finfo._filepath == "missing.txt"
     assert finfo._source_code is None
-    assert finfo.basename == "missing"
+    assert finfo.get_basename() == "missing"
 
 
 def test_file_info_missing_file():

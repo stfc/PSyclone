@@ -190,7 +190,9 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
         for file_info in fileinfo_list:
             # We only proceed to read a file to check for a module if its
             # name is sufficiently similar to that of the module.
-            score = SequenceMatcher(None, file_info.basename, name).ratio()
+            score = SequenceMatcher(
+                None, file_info.get_basename(), name
+            ).ratio()
             if score > self._threshold_similarity:
                 mod_names = self.get_modules_in_file_regexp(file_info)
                 if name in mod_names:
@@ -200,13 +202,13 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
                     self._module_name_to_modinfo[name] = mod_info
                     # A file that has been (or does not require)
                     # preprocessing always takes precendence.
-                    if file_info.get_filepath.endswith(".f90"):
+                    if file_info.get_filepath().endswith(".f90"):
                         return mod_info
         return mod_info
 
     # ------------------------------------------------------------------------
     def get_module_info_with_auto_add_files(
-        self, module_name: str
+        self, module_name_lower: str
     ) -> ModuleInfo:
         """This function returns the ModuleInformation for the specified
         module and automatically searches all provided directories for the
@@ -222,21 +224,21 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
             either the cached data nor in the search path.
 
         """
-        mod_lower = module_name.lower()
+        module_name_lower = module_name_lower.lower()
 
-        if mod_lower in self._ignore_modules:
+        if module_name_lower in self._ignore_modules:
             return None
 
         # First check if we have already seen this module. We only end the
         # search early if the file we've found does not require pre-processing
         # (i.e. has a .f90 suffix).
-        mod_info = self._module_name_to_modinfo.get(mod_lower, None)
+        mod_info = self._module_name_to_modinfo.get(module_name_lower, None)
         if mod_info and mod_info.filepath.endswith(".f90"):
             return mod_info
         old_mod_info = mod_info
         # Are any of the files that we've already seen a good match?
         mod_info = self._find_module_in_files(
-            mod_lower, self._visited_files.values()
+            module_name_lower, self._visited_files.values()
         )
         if mod_info and mod_info.filepath.endswith(".f90"):
             return mod_info
@@ -250,7 +252,7 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
             # Get the first element from the search path list:
             directory, _ = self._remaining_search_paths.popitem(last=False)
             new_files = self._add_all_files_from_dir(directory)
-            mod_info = self._find_module_in_files(mod_lower, new_files)
+            mod_info = self._find_module_in_files(module_name_lower, new_files)
             if mod_info:
                 return mod_info
 
@@ -259,7 +261,7 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
 
         raise FileNotFoundError(
             f"Could not find source file for module "
-            f"'{module_name}' in any of the directories "
+            f"'{module_name_lower}' in any of the directories "
             f"'{', '.join(self._original_search_paths)}'. "
             f"You can add search paths using the '-d' "
             f"command line option."
@@ -283,7 +285,9 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
         return [name.lower() for name in mod_names]
 
     # ------------------------------------------------------------------------
-    def get_all_dependencies_recursively(self, all_mods):
+    def get_all_dependencies_recursively(
+        self, all_mods
+    ) -> Dict[str, Set[str]]:
         """This function collects recursively all module dependencies
         for any of the modules in the ``all_mods`` set. I.e. it will
         add all modules used by any module listed in ``all_mods``,
@@ -325,12 +329,15 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
             module = todo.pop().lower()
 
             # Ignore any modules that we were asked to ignore
-            if module in self.ignore_modules():
+            if module in self.get_ignore_modules():
                 continue
             try:
                 mod_deps = self.get_module_info_with_auto_add_files(
                     module
                 ).get_used_modules()
+                # Convert to set
+                mod_deps = set(mod_deps)
+
             except FileNotFoundError:
                 if module not in not_found:
                     # We don't have any information about this module,

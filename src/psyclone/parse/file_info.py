@@ -56,8 +56,8 @@ class _CacheFileInfo:
         # Hash sum
         self._source_code_hash_sum: hashlib._Hash = None
 
-        # Fparser node
-        self._fparser_node: Fortran2003 = None
+        # Fparser tree
+        self._fparser_tree: Fortran2003 = None
 
         # Psyir node
         self._psyir_node: FileContainer = None
@@ -93,7 +93,7 @@ class FileInfo:
         self._source_code_hash_sum: hashlib._Hash = None
 
         # Fparser node
-        self._fparser_node: Fortran2003 = None
+        self._fparser_tree: Fortran2003 = None
 
         # Psyir node
         self._psyir_node: FileContainer = None
@@ -110,20 +110,22 @@ class FileInfo:
         # Cache with data
         self._cache: _CacheFileInfo = None
 
-    @property
-    def basename(self) -> str:
+    def get_basename(self) -> str:
         """
         :returns: the base name (i.e. without path or suffix) of the filename
                   that this FileInfo object represents.
         :rtype: str
 
         """
+
+        if self._filepath is None:
+            return None
+
         # Remove the path from the filename.
         basename = os.path.basename(self._filepath)
         # splitext returns (root, ext) and it's `root` that we want.
         return os.path.splitext(basename)[0]
 
-    @property
     def get_filepath(self) -> str:
         """
         :returns: the full filename with the path that this FileInfo object
@@ -133,8 +135,7 @@ class FileInfo:
         """
         return self._filepath
 
-    @property
-    def module_name_list(self) -> Union[str, None]:
+    def get_module_name_list(self) -> Union[str, None]:
         """
         :returns: a list of all module names
         :rtype: List[str] | None
@@ -169,10 +170,15 @@ class FileInfo:
                     f"Loading source code"
                 )
 
-            with open(
-                self._filepath, "r", encoding="utf-8", errors="ignore"
-            ) as file_in:
-                self._source_code = file_in.read()
+            try:
+                with open(
+                    self._filepath, "r", encoding="utf-8", errors="ignore"
+                ) as file_in:
+                    self._source_code = file_in.read()
+            except FileNotFoundError:
+                raise FileNotFoundError(
+                    f"No such file or directory: '{self._filepath}'"
+                )
 
             # Compute hash sum which will be used to check cache of fparser
             self._source_code_hash_sum = hashlib.md5(
@@ -196,9 +202,12 @@ class FileInfo:
         :rtype: Union[_CacheFileInfo, None]
         """
 
+        # Get source code to load it in case it's not yet loaded
+        self.get_source_code()
+
         assert self._source_code_hash_sum is not None, (
-            "Source code needs to be loaded before fparser or psyir"
-            "representation is loaded"
+            "Source code needs to be loaded before fparser or psyir "
+            "representation is loaded."
         )
 
         # Check whether cache was already loaded
@@ -229,6 +238,10 @@ class FileInfo:
                     f"vs. cache {cache._source_code_hash_sum}"
                 )
             return None
+
+        for key in ["_source_code_hash_sum", "_fparser_tree", "_psyir_node"]:
+            if key not in cache.__dict__.keys():
+                return None
 
         self._cache = cache
         self._source_code_hash_sum = self._cache._source_code_hash_sum
@@ -268,13 +281,13 @@ class FileInfo:
             )
 
         if (
-            self._cache._fparser_node is None
-            and self._fparser_node is not None
+            self._cache._fparser_tree is None
+            and self._fparser_tree is not None
         ):
             # Make copies of it since they could be modified later
             # With this, we can also figure out potential issues with
             # the serialization in fparser
-            self._cache._fparser_node = copy.deepcopy(self._fparser_node)
+            self._cache._fparser_tree = copy.deepcopy(self._fparser_tree)
             cache_updated = True
 
         if self._cache._psyir_node is None and self._psyir_node is not None:
@@ -313,7 +326,7 @@ class FileInfo:
             )
         return self._cache
 
-    def get_fparser_node(self, verbose: bool = False) -> Fortran2003.Program:
+    def get_fparser_tree(self, verbose: bool = False) -> Fortran2003.Program:
         """Returns the fparser Fortran2008 representation of the source code.
 
         :param verbose: Produce some verbose output
@@ -323,8 +336,8 @@ class FileInfo:
         :rtype: FileContainer
 
         """
-        if self._fparser_node is not None:
-            return self._fparser_node
+        if self._fparser_tree is not None:
+            return self._fparser_tree
 
         if verbose:
             print(f"- Source file '{self._filepath}': " f"Running fparser")
@@ -336,28 +349,28 @@ class FileInfo:
         cache = self._cache_load(verbose=verbose)
 
         if cache is not None:
-            if cache._fparser_node is not None:
+            if cache._fparser_tree is not None:
                 if verbose:
                     print(
-                        f"  - Using cache of fparser node "
+                        f"  - Using cache of fparser tree "
                         f"with hashsum {cache._source_code_hash_sum}"
                     )
 
                 # Use cached version
-                self._fparser_node = self._cache._fparser_node
-                return self._fparser_node
+                self._fparser_tree = self._cache._fparser_tree
+                return self._fparser_tree
 
         reader = FortranStringReader(
             source_code, include_dirs=Config.get().include_paths
         )
         parser = ParserFactory().create(std="f2008")
-        self._fparser_node = parser(reader)
+        self._fparser_tree = parser(reader)
 
         # We directly call the cache saving routine here in case that the
-        # fparser node will be modified later on.
+        # fparser tree will be modified later on.
         self._cache_save(verbose=verbose)
 
-        return self._fparser_node
+        return self._fparser_tree
 
     def get_psyir_node(self, verbose: bool = False) -> FileContainer:
         """Returns the psyclone FileContainer of the file.
@@ -379,7 +392,7 @@ class FileInfo:
             if cache._psyir_node is not None:
                 # Use cached version
                 if verbose:
-                    print(f"  - Using cache of fparser node")
+                    print("  - Using cache of fparser tree")
 
                 self._psyir_node = self._cache._psyir_node
                 return self._psyir_node
@@ -389,9 +402,8 @@ class FileInfo:
 
         fortran_reader = FortranReader()
 
-        self._psyir_node = fortran_reader.psyir_from_fparse_tree(
-            self._fparser_node
-        )
+        fparse_tree = self.get_fparser_tree()
+        self._psyir_node = fortran_reader.psyir_from_fparse_tree(fparse_tree)
 
         self._cache_save(verbose=verbose)
 

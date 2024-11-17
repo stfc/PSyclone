@@ -3,7 +3,14 @@
 #
 # Hint: For vscode
 #
-# Install the extension `coverage-gutters` and execute the command "Coverage Gutters: Display Coverage"
+# - The .xml file can be also generated with configuration option
+#   `python.testing.pytestArgs`
+#   by adding the two (separate) items
+#   - `--cov-report`
+#   - `xml:cov.xml`
+#
+# - To show the coverage in the code, the extension `coverage-gutters` can be used
+#   In a particular source code file, execute the command "Coverage Gutters: Display Coverage"
 #
 
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"

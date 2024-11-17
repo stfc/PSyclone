@@ -331,14 +331,13 @@ class CallTreeUtils:
                     print(
                         f"[CallTreeUtils.get_non_local_read_write_info] "
                         f"Could not find module '{kernel.module_name}' - "
-                        f"ignored."
+                        f"ignored: " + str(err)
                     )
                     # This includes the currently defined search path:
-                    print(str(err))
                     continue
 
                 # Get the Container for this module.
-                cntr = mod_info.get_psyir()
+                cntr = mod_info.get_psyir_container_node_alternative()
                 if not cntr:
                     print(
                         f"[CallTreeUtils.get_non_local_read_write_info] "
@@ -407,7 +406,7 @@ class CallTreeUtils:
                 continue
             done.add(info)
             external_type, module_name, signature, access_info = info
-            if module_name in mod_manager.ignore_modules():
+            if module_name in mod_manager.get_ignore_modules():
                 continue
             if external_type == "routine":
                 if module_name is None:
@@ -417,7 +416,7 @@ class CallTreeUtils:
                     # TODO #2120: Handle error
                     print(
                         f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                        f"Unknown routine '{signature[0]} - ignored."
+                        f"Unknown routine '{signature[0]}' - ignored."
                     )
                     continue
                 try:
@@ -432,8 +431,9 @@ class CallTreeUtils:
                         f"Cannot find module '{module_name}' - ignored."
                     )
                     continue
-                cntr = mod_info.get_psyir()
-                if not cntr:
+                container = mod_info.get_psyir_container_node_alternative()
+
+                if not container:
                     print(
                         f"[CallTreeUtils._resolve_calls_and_unknowns] "
                         f"Cannot get PSyIR for module '{module_name}' - "
@@ -443,8 +443,8 @@ class CallTreeUtils:
                 # Check that we find at least one valid routine (several
                 # could be found in case of a generic interface):
                 at_least_one_routine_found = False
-                for routine_name in cntr.resolve_routine(signature[0]):
-                    routine = cntr.find_routine_psyir(routine_name)
+                for routine_name in container.resolve_routine(signature[0]):
+                    routine = container.find_routine_psyir(routine_name)
                     if not routine:
                         # TODO #11: Add proper logging
                         # TODO #2120: Handle error
@@ -485,15 +485,15 @@ class CallTreeUtils:
                     )
                     continue
 
-                cntr = mod_info.get_psyir()
-                if not cntr:
+                container = mod_info.get_psyir_container_node_alternative()
+                if not container:
                     print(
                         f"[CallTreeUtils._resolve_calls_and_unknowns] "
                         f"Cannot get PSyIR for module '{module_name}' - "
                         f"ignoring unknown symbol '{signature}'."
                     )
                 else:
-                    psyir = cntr.find_routine_psyir(str(signature))
+                    psyir = container.find_routine_psyir(str(signature))
                     if psyir:
                         # It is a routine, which we need to analyse for the use
                         # of non-local symbols:
@@ -505,22 +505,22 @@ class CallTreeUtils:
                     # Check whether it is a generic function (the symbol
                     # should always be found, but if a module cannot be
                     # parsed then the symbol table won't have been populated)
-                    sym_tab = cntr.symbol_table
+                    sym_tab = container.symbol_table
                     try:
                         sym = sym_tab.lookup(signature[0])
                     except KeyError:
                         print(
-                            f"[CallTreeUtils._resolve_calls_and_unknowns]"
+                            f"[CallTreeUtils._resolve_calls_and_unknowns] "
                             f"Cannot find symbol '{signature[0]}'."
                         )
                         continue
                     # Check if we have a generic interface (of a function):
                     if isinstance(sym, GenericInterfaceSymbol):
-                        all_possible_routines = cntr.resolve_routine(
+                        all_possible_routines = container.resolve_routine(
                             signature[0]
                         )
                         for function_name in all_possible_routines:
-                            psyir = cntr.find_routine_psyir(function_name)
+                            psyir = container.find_routine_psyir(function_name)
                             if not psyir:
                                 print(
                                     f"[CallTreeUtils._resolve_calls_and_"

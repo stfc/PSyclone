@@ -50,41 +50,14 @@ class ModuleManagerFiles(ModuleManagerBase):
 
         self._module_name_to_modinfo
 
-        self._filepaths_list: List[str] = []
-
     def load_from_files(self, filepaths: Union[str, List[str], Set[str]]):
 
         # Add files - this automatically creates file info
         self.add_files(filepaths)
 
-        self.load_files()
-
-    def process_files(self):
-        assert self._module_name_to_modinfo == None
-        assert self._filepath_to_module_info == None
-
-        # iterate over all file infos and load psyir
-        for filepath, file_info in self._filepath_to_file_info:
-            file_info: FileInfo
-
-            psyir_node: Node = file_info.get_psyir_node()
-
-            # Walk over containers and add respective module information
-            for container in psyir_node.walk(Container):
-                container: Container
-
-                container_name: str = container.name
-
-                if container_name in self._module_name_to_modinfo.keys():
-                    raise KeyError(
-                        f"Module '{container_name}' already processed"
-                    )
-
-                self._module_name_to_modinfo[container_name] = ModuleInfo(
-                    container_name, file_info
-                )
+        self.load_module_info()
 
     def load_psyir_node(self, verbose: bool = False):
-        for filepath, fileinfo in self._filepath_to_file_info.items():
+        for fileinfo in self._filepath_to_file_info.values():
             fileinfo: FileInfo
             fileinfo.get_psyir_node(verbose=verbose)

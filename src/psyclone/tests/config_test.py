@@ -763,7 +763,7 @@ def test_ignore_modules(tmpdir, monkeypatch):
     config_file = tmpdir.join("config")
     get_config(config_file, _CONFIG_CONTENT)
 
-    assert mod_manager.ignore_modules() == {"mpi", "netcdf"}
+    assert mod_manager.get_ignore_modules() == {"mpi", "netcdf"}
 
     # Make sure it works if IGNORE_MODULES is not specified at all by checking
     # that the module manager list of modules to ignore stays empty.
@@ -772,7 +772,7 @@ def test_ignore_modules(tmpdir, monkeypatch):
     )
     monkeypatch.setattr(mod_manager, "_ignore_modules", set())
     get_config(config_file, content)
-    assert mod_manager.ignore_modules() == set()
+    assert mod_manager.get_ignore_modules() == set()
 
     # Make sure an empty entry works as expected (i.e. it does not get
     # added as an empty string to the module manager):
@@ -784,7 +784,7 @@ def test_ignore_modules(tmpdir, monkeypatch):
     )
     monkeypatch.setattr(mod_manager, "_ignore_modules", set())
     get_config(config_file, content)
-    assert mod_manager.ignore_modules() == set()
+    assert mod_manager.get_ignore_modules() == set()
 
 
 def test_aliased_api_names(tmpdir):
