@@ -568,7 +568,7 @@ class SymbolTable():
         if not isinstance(new_symbol, Symbol):
             raise InternalError(f"Symbol '{new_symbol}' is not a symbol, but "
                                 f"'{type(new_symbol).__name__}'.'")
-        # if new_symbol.name in ("f2_data", ):
+        # if new_symbol.name in ("colour", "colour_1" ):
         #      import pdb; pdb.set_trace()
         # if tag == "cma_op1:alpha:cma_matrix":
         #     import pdb; pdb.set_trace()
@@ -964,7 +964,7 @@ class SymbolTable():
             raise TypeError(
                 f"Expected the name argument to the lookup() method to be "
                 f"a str but found '{type(name).__name__}'.")
-        # if name in ("map_w1", ):
+        # if name in ("colour", ):
         #      import pdb; pdb.set_trace()
 
         try:
@@ -1022,6 +1022,8 @@ class SymbolTable():
             raise TypeError(
                 f"Expected the tag argument to the lookup_with_tag() method "
                 f"to be a str but found '{type(tag).__name__}'.")
+        # if tag == "colours_loop_idx":
+        #     import pdb; pdb.set_trace()
 
         try:
             return self.get_tags(scope_limit)[tag]

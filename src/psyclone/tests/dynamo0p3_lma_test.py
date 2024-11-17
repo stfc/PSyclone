@@ -728,7 +728,7 @@ def test_operator_read_level1_halo(tmpdir):
     loop = schedule.children[0]
     # Modify the loop bound so that we attempt to read from the L2 halo
     # (of the operator)
-    loop.set_upper_bound("cell_halo", index=2)
+    loop.set_upper_bound("cell_halo", halo_depth=2)
     # Attempt to generate the code
     with pytest.raises(VisitorError) as excinfo:
         _ = psy.gen

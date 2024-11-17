@@ -79,7 +79,7 @@ class LFRicCellIterators(LFRicCollection):
         # Each kernel that operates on either the domain or cell-columns needs
         # an 'nlayers' obtained from the first written field/operator argument.
         for kern in self._invoke.schedule.walk(LFRicKern):
-            if kern.iterates_over in ["cell_column", "domain"]:
+            if kern.iterates_over != "dof":
                 arg = kern.arguments.iteration_space_arg()
                 self._nlayers_names[self.symtab.find_or_create_tag(
                     f"nlayers_{arg.name}",

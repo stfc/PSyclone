@@ -1095,5 +1095,5 @@ def test_int_real_field_fs(dist_mem, tmpdir):
             "    call f1_proxy%set_dirty()\n"
             "    call f3_proxy%set_dirty()\n"
             "    call f3_proxy%set_clean(1)\n")
-        assert halo1_flags in generated_code
+        assert halo1_flags == generated_code
         assert halo2_flags in generated_code

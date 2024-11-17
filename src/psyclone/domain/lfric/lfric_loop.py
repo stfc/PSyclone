@@ -50,9 +50,10 @@ from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import (
     Loop, Literal, Schedule, Reference, ArrayReference, ACCRegionDirective,
     OMPRegionDirective, Routine, StructureReference, Call, BinaryOperation,
-    ArrayOfStructuresReference, Directive)
+    ArrayOfStructuresReference, Directive, DataNode, Node)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, UnresolvedType, UnresolvedInterface)
+from psyclone.psyir.backend.fortran import FortranWriter
 
 
 class LFRicLoop(PSyLoop):
@@ -129,6 +130,14 @@ class LFRicLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        if (not Config.get().distributed_memory and
+            all(kern.iterates_over == "halo_cell_column" for
+                kern in self.kernels())):
+            # No distributed memory and thus no halo cells but all kernels
+            # only operate on halo cells => nothing to do.
+            self.detach()
+            return None
+
         from psyclone.psyGen import zero_reduction_variables
         # Get the list of calls (to kernels) that need reduction variables
         if not self.is_openmp_parallel():
@@ -142,6 +151,7 @@ class LFRicLoop(PSyLoop):
                     self.gen_mark_halos_clean_dirty()
 
         if self._loop_type != "null":
+
             # This is not a 'domain' loop (i.e. there is a real loop). First
             # check that there isn't any validation issues with the node.
             for child in self.loop_body.children:
@@ -262,48 +272,67 @@ class LFRicLoop(PSyLoop):
                 self.set_upper_bound("nannexed")
             else:
                 self.set_upper_bound("ndofs")
-        else:
+            return
+
+        if "halo" in kern.iterates_over:
             if Config.get().distributed_memory:
-                if self._field.is_operator:
-                    # We always compute operators redundantly out to the L1
-                    # halo
-                    self.set_upper_bound("cell_halo", index=1)
-                elif (self.field_space.orig_name in
-                      const.VALID_DISCONTINUOUS_NAMES):
-                    # Iterate to ncells for all discontinuous quantities,
-                    # including any_discontinuous_space
-                    self.set_upper_bound("ncells")
-                elif (self.field_space.orig_name in
-                      const.CONTINUOUS_FUNCTION_SPACES):
-                    # Must iterate out to L1 halo for continuous quantities
-                    # unless the only arguments that are updated all have
-                    # 'GH_WRITE' access. The only time such an access is
-                    # permitted for a field on a continuous space is when the
-                    # kernel is implemented such that any writes to a given
-                    # shared dof are guaranteed to write the same value. There
-                    # is therefore no need to iterate into the L1 halo in order
-                    # to get correct values for annexed dofs.
-                    if not kern.all_updates_are_writes:
-                        self.set_upper_bound("cell_halo", index=1)
-                    else:
-                        self.set_upper_bound("ncells")
-                elif (self.field_space.orig_name in
-                      const.VALID_ANY_SPACE_NAMES):
-                    # We don't know whether any_space is continuous or not
-                    # so we have to err on the side of caution and assume that
-                    # it is. Again, if the only arguments that are updated have
-                    # 'GH_WRITE' access then we can relax this condition.
-                    if not kern.all_updates_are_writes:
-                        self.set_upper_bound("cell_halo", index=1)
-                    else:
-                        self.set_upper_bound("ncells")
-                else:
-                    raise GenerationError(
-                        f"Unexpected function space found. Expecting one of "
-                        f"{const.VALID_FUNCTION_SPACES} but found "
-                        f"'{self.field_space.orig_name}'")
-            else:  # sequential
-                self.set_upper_bound("ncells")
+                if kern.iterates_over == "halo_cell_column":
+                    # In LFRic, the local cell-indexing scheme is set up such
+                    # that owned cells have lower indices than halo cells, the
+                    # first halo cell starts immediately after the last owned
+                    # cell, and the cell indices are contiguous.
+                    self.set_lower_bound("cell_halo_start")
+                self.set_upper_bound("cell_halo", halo_depth=kern.halo_depth)
+                return
+
+        if not Config.get().distributed_memory:
+            # Sequential
+            self.set_upper_bound("ncells")
+            return
+
+        # Otherwise, distributed memory is enabled.
+        if self._field.is_operator:
+            # We always compute operators redundantly out to the L1
+            # halo
+            self.set_upper_bound("cell_halo", halo_depth=1)
+            return
+        if (self.field_space.orig_name in
+                const.VALID_DISCONTINUOUS_NAMES):
+            # Iterate to ncells for all discontinuous quantities,
+            # including any_discontinuous_space
+            self.set_upper_bound("ncells")
+            return
+        if (self.field_space.orig_name in
+                const.CONTINUOUS_FUNCTION_SPACES):
+            # Must iterate out to L1 halo for continuous quantities
+            # unless the only arguments that are updated all have
+            # 'GH_WRITE' access. The only time such an access is
+            # permitted for a field on a continuous space is when the
+            # kernel is implemented such that any writes to a given
+            # shared dof are guaranteed to write the same value. There
+            # is therefore no need to iterate into the L1 halo in order
+            # to get correct values for annexed dofs.
+            if not kern.all_updates_are_writes:
+                self.set_upper_bound("cell_halo", halo_depth=1)
+                return
+            self.set_upper_bound("ncells")
+            return
+        if (self.field_space.orig_name in
+                const.VALID_ANY_SPACE_NAMES):
+            # We don't know whether any_space is continuous or not
+            # so we have to err on the side of caution and assume that
+            # it is. Again, if the only arguments that are updated have
+            # 'GH_WRITE' access then we can relax this condition.
+            if not kern.all_updates_are_writes:
+                self.set_upper_bound("cell_halo", halo_depth=1)
+                return
+            self.set_upper_bound("ncells")
+            return
+
+        raise GenerationError(
+            f"Unexpected function space found. Expecting one of "
+            f"{const.VALID_FUNCTION_SPACES} but found "
+            f"'{self.field_space.orig_name}'")
 
     def set_lower_bound(self, name, index=None):
         ''' Set the lower bounds of this loop '''
@@ -318,14 +347,19 @@ class LFRicLoop(PSyLoop):
         self._lower_bound_name = name
         self._lower_bound_index = index
 
-    def set_upper_bound(self, name, index=None):
-        '''Set the upper bound of this loop
+    def set_upper_bound(self, name, halo_depth=None):
+        '''Set the upper bound of this loop.
 
-        :param name: A loop upper bound name. This should be a supported name.
-        :type name: String
-        :param index: An optional argument indicating the depth of halo
-        :type index: int
+        :param str name: Loop upper-bound name. Must be a supported name.
+        :param halo_depth: An optional argument indicating the depth of halo
+                           that this loop accesses.
+        :type halo_depth: Optional[:py:class:`psyclone.psyir.nodes.DataNode` |
+                                   int]
 
+        :raises GenerationError: if supplied with an invalid upper-bound name.
+        :raises GenerationError: if supplied with a halo depth < 1.
+        :raises TypeError: if the supplied halo_depth value is neither an int
+                           or DataNode.
         '''
         const = LFRicConstants()
         if name not in const.VALID_LOOP_BOUNDS_NAMES:
@@ -338,14 +372,24 @@ class LFRicLoop(PSyLoop):
         # test for index here and assume that index is None for other
         # types of bounds, but checking the type of bound as well is a
         # safer option.
-        if name in (["inner"] + const.HALO_ACCESS_LOOP_BOUNDS) and \
-           index is not None:
-            if index < 1:
+        if (name in (["inner"] + const.HALO_ACCESS_LOOP_BOUNDS) and
+                isinstance(halo_depth, int)):
+            if halo_depth < 1:
                 raise GenerationError(
-                    f"The specified index '{index}' for this upper loop bound "
-                    f"is invalid")
+                    f"The specified halo depth '{halo_depth}' for this loop "
+                    f"upper bound is < 1 which is invalid.")
         self._upper_bound_name = name
-        self._upper_bound_halo_depth = index
+        if halo_depth and isinstance(halo_depth, int):
+            # We support specifying depth as an int as a convenience but we
+            # now convert it to a PSyIR literal.
+            psyir = Literal(f"{halo_depth}", INTEGER_TYPE)
+            self._upper_bound_halo_depth = psyir
+        else:
+            if halo_depth is not None and not isinstance(halo_depth, DataNode):
+                raise TypeError(f"When setting the upper bound of a loop, any "
+                                f"halo depth must be supplied as an int or "
+                                f"PSyIR DataNode but got {type(halo_depth)}")
+            self._upper_bound_halo_depth = halo_depth
 
     @property
     def upper_bound_name(self):
@@ -371,13 +415,13 @@ class LFRicLoop(PSyLoop):
         :returns: the PSyIR for this loop lower bound.
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
-        :raises GenerationError: if self._lower_bound_name is not "start" \
+        :raises GenerationError: if self._lower_bound_name is not "start"
                                  for sequential code.
         :raises GenerationError: if self._lower_bound_name is unrecognised.
 
         '''
-        if not Config.get().distributed_memory and \
-           self._lower_bound_name != "start":
+        if (not Config.get().distributed_memory and
+                self._lower_bound_name != "start"):
             raise GenerationError(
                 f"The lower bound must be 'start' if we are sequential but "
                 f"found '{self._upper_bound_name}'")
@@ -395,6 +439,9 @@ class LFRicLoop(PSyLoop):
               self._lower_bound_index == 1):
             prev_space_name = "ncells"
             prev_space_index_str = ""
+        elif self._lower_bound_name == "cell_halo_start":
+            prev_space_name = "edge"
+            prev_space_index_str = ""
         elif (self._lower_bound_name == "cell_halo" and
               self._lower_bound_index > 1):
             prev_space_name = self._lower_bound_name
@@ -405,10 +452,15 @@ class LFRicLoop(PSyLoop):
                 f"found")
         # Use InvokeSchedule SymbolTable to share the same symbol for all
         # Loops in the Invoke.
-        mesh_obj_name = self.ancestor(InvokeSchedule).symbol_table.\
-            find_or_create_tag("mesh").name
-        return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
-            + prev_space_index_str + ")+1"
+        mesh_obj = self.ancestor(InvokeSchedule).symbol_table.\
+            find_or_create_tag("mesh")
+        call = Call.create(
+                StructureReference.create(
+                    mesh_obj, ["get_last_" + prev_space_name + "_cell"]))
+        if prev_space_index_str:
+            call.addchild(Literal(prev_space_index_str, INTEGER_TYPE))
+        return BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                      call, Literal("1", INTEGER_TYPE))
 
     @property
     def _mesh_name(self):
@@ -445,41 +497,40 @@ class LFRicLoop(PSyLoop):
         inv_sched = self.ancestor(Routine)
         sym_table = inv_sched.symbol_table
 
-        if self._loop_type == "colour":
-            # If this loop is over all cells of a given colour then we must
-            # lookup the loop bound as it depends on the current colour.
-            parent_loop = self.ancestor(Loop)
-            colour_var = parent_loop.variable
+        # if self._loop_type == "colour":
+        #     # If this loop is over all cells of a given colour then we must
+        #     # lookup the loop bound as it depends on the current colour.
+        #     parent_loop = self.ancestor(Loop)
+        #     colour_var = parent_loop.variable
 
-            asym = self.kernel.last_cell_all_colours_symbol
-            const = LFRicConstants()
+        #     asym = self.kernel.last_cell_all_colours_symbol
+        #     const = LFRicConstants()
 
-            if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
-                if self._upper_bound_halo_depth:
-                    # TODO: #696 Add kind (precision) once the
-                    # LFRicInvokeSchedule constructor has been extended to
-                    # create the necessary symbols.
-                    halo_depth = Literal(str(self._upper_bound_halo_depth),
-                                         INTEGER_TYPE)
-                else:
-                    # We need to go to the full depth of the halo.
-                    root_name = "mesh"
-                    if self.kernels()[0].is_intergrid:
-                        root_name += f"_{self._field_name}"
-                    depth_sym = sym_table.lookup_with_tag(
-                        f"max_halo_depth_{root_name}")
-                    halo_depth = Reference(depth_sym)
+        #     if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
+        #         if self._upper_bound_halo_depth:
+        #             # TODO: #696 Add kind (precision) once the
+        #             # LFRicInvokeSchedule constructor has been extended to
+        #             # create the necessary symbols.
+        #             halo_depth = self._upper_bound_halo_depth
+        #         else:
+        #             # We need to go to the full depth of the halo.
+        #             root_name = "mesh"
+        #             if self.kernels()[0].is_intergrid:
+        #                 root_name += f"_{self._field_name}"
+        #             depth_sym = sym_table.lookup_with_tag(
+        #                 f"max_halo_depth_{root_name}")
+        #             halo_depth = Reference(depth_sym)
 
-                return ArrayReference.create(asym, [Reference(colour_var),
-                                                    halo_depth])
-            return ArrayReference.create(asym, [Reference(colour_var)])
+        #         return ArrayReference.create(asym, [Reference(colour_var),
+        #                                             halo_depth])
+        #     return ArrayReference.create(asym, [Reference(colour_var)])
         # pylint: disable=too-many-branches, too-many-return-statements
         # precompute halo_index as a string as we use it in more than
         # one of the if clauses
         sym_tab = self.ancestor(InvokeSchedule).symbol_table
         halo_index = ""
         if self._upper_bound_halo_depth:
-            halo_index = str(self._upper_bound_halo_depth)
+            halo_index = self._upper_bound_halo_depth
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
@@ -504,8 +555,9 @@ class LFRicLoop(PSyLoop):
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
             sym = sym_tab.find_or_create_tag(root_name)
-            colour = sym_tab.find_or_create_tag("colour")
-            return ArrayReference.create(sym, [colour])
+            colour = sym_tab.lookup_with_tag("colours_loop_idx")
+            # FIXME with DM?
+            return ArrayReference.create(sym, [Reference(colour)])
         if self._upper_bound_name == "colour_halo":
             # Loop over cells of a particular colour when DM is enabled. The
             # LFRic API used here allows for colouring with redundant
@@ -522,7 +574,7 @@ class LFRicLoop(PSyLoop):
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
             sym = sym_tab.find_or_create_tag(root_name)
-            colour = Reference(sym_tab.find_or_create_tag("colour"))
+            colour = Reference(sym_tab.lookup_with_tag("colours_loop_idx"))
             return ArrayReference.create(sym, [colour, depth])
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
@@ -559,7 +611,7 @@ class LFRicLoop(PSyLoop):
                     )
                 )
                 if halo_index:
-                    result.addchild(Literal(f"{halo_index}", INTEGER_TYPE))
+                    result.addchild(halo_index.copy())
                 return result
             raise GenerationError(
                 "'cell_halo' is not a valid loop upper bound for "
@@ -573,7 +625,7 @@ class LFRicLoop(PSyLoop):
                     )
                 )
                 if halo_index:
-                    result.addchild(Literal(f"{halo_index}", INTEGER_TYPE))
+                    result.addchild(halo_index.copy())
                 return result
             raise GenerationError(
                 "'dof_halo' is not a valid loop upper bound for "
@@ -586,7 +638,7 @@ class LFRicLoop(PSyLoop):
                         ["get_last_inner_cell"]
                     )
                 )
-                result.addchild(Literal(f"{halo_index}", INTEGER_TYPE))
+                result.addchild(halo_index)
                 return result
             raise GenerationError(
                 "'inner' is not a valid loop upper bound for "
@@ -682,12 +734,11 @@ class LFRicLoop(PSyLoop):
 
         :param halo_field: the argument requiring a halo exchange
         :type halo_field: :py:class:`psyclone.dynamo0p3.DynArgument`
-        :param index: optional argument providing the vector index if
-        there is one and None if not. Defaults to None.
-        :type index: int or None
+        :param index: optional argument providing the vector index.
+        :type index: Optional[int]
 
-        :raises InternalError: if there are two forward write \
-            dependencies and they are both associated with halo \
+        :raises InternalError: if there are two forward write
+            dependencies and they are both associated with halo
             exchanges.
 
         '''
@@ -859,8 +910,8 @@ class LFRicLoop(PSyLoop):
         insert_loc = insert_loc.parent
         init_cursor = cursor
 
-        # First set all of the halo dirty unless we are subsequently going to
-        # set all of the halo clean
+        # First set all of the halo dirty unless we are
+        # subsequently going to set all of the halo clean
         for field in fields:
             try:
                 field_symbol = sym_table.lookup(field.proxy_name)
@@ -874,7 +925,7 @@ class LFRicLoop(PSyLoop):
             from psyclone.dynamo0p3 import HaloWriteAccess
             # The HaloWriteAccess class provides information about how the
             # supplied field is accessed within its parent loop
-            hwa = HaloWriteAccess(field, sym_table)
+            hwa = HaloWriteAccess(field, self)
             if not hwa.max_depth or hwa.dirty_outer:
                 # output set dirty as some of the halo will not be set to clean
                 if field.vector_size > 1:
@@ -892,63 +943,29 @@ class LFRicLoop(PSyLoop):
                     cursor += 1
                     insert_loc.addchild(call, cursor)
 
-            # Now set appropriate parts of the halo clean where
-            # redundant computation has been performed.
-            if hwa.literal_depth:
-                # halo access(es) is/are to a fixed depth
-                halo_depth = hwa.literal_depth
-                if hwa.dirty_outer:
-                    halo_depth -= 1
-                if halo_depth > 0:
-                    if field.vector_size > 1:
-                        # The range function below returns values from 1 to the
-                        # vector size, as required in our Fortran code.
-                        for index in range(1, field.vector_size+1):
-                            set_clean = Call.create(
-                                ArrayOfStructuresReference.create(
-                                    field_symbol,
-                                    [Literal(str(index), INTEGER_TYPE)],
-                                    ["set_clean"]))
-                            set_clean.addchild(Literal(str(halo_depth),
-                                                       INTEGER_TYPE))
-                            cursor += 1
-                            insert_loc.addchild(set_clean, cursor)
-                    else:
-                        set_clean = Call.create(
-                            StructureReference.create(
-                                field_symbol, ["set_clean"]))
-                        set_clean.addchild(Literal(str(halo_depth), INTEGER_TYPE))
-                        cursor += 1
-                        insert_loc.addchild(set_clean, cursor)
-            elif hwa.max_depth:
-                # halo accesses(s) is/are to the full halo
-                # depth (-1 if continuous)
-                hd_symbol = sym_table.lookup_with_tag("max_halo_depth_mesh")
-                halo_depth = Reference(hd_symbol)
-
-                if hwa.dirty_outer:
-                    # a continuous field iterating over cells leaves the
-                    # outermost halo dirty
-                    halo_depth = BinaryOperation.create(
-                        BinaryOperation.Operator.SUB,
-                        halo_depth, Literal("1", INTEGER_TYPE))
+            # Now set appropriate parts of the halo clean where redundant
+            # computation has been performed or a kernel is written to operate
+            # on halo cells.
+            import pdb; pdb.set_trace()
+            clean_depth = hwa.clean_depth
+            if clean_depth:
                 if field.vector_size > 1:
-                    # the range function below returns values from 1 to the
-                    # vector size which is what we require in our Fortran code
+                    # The range function below returns values from 1 to the
+                    # vector size, as required in our Fortran code.
                     for index in range(1, field.vector_size+1):
                         set_clean = Call.create(
                             ArrayOfStructuresReference.create(
                                 field_symbol,
                                 [Literal(str(index), INTEGER_TYPE)],
                                 ["set_clean"]))
-                        set_clean.addchild(halo_depth.copy())
+                        set_clean.addchild(clean_depth)
                         cursor += 1
                         insert_loc.addchild(set_clean, cursor)
                 else:
                     set_clean = Call.create(
                         StructureReference.create(
                             field_symbol, ["set_clean"]))
-                    set_clean.addchild(halo_depth)
+                    set_clean.addchild(clean_depth)
                     cursor += 1
                     insert_loc.addchild(set_clean, cursor)
 

@@ -43,12 +43,12 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicLoop
-from psyclone.dynamo0p3 import (LFRicHaloExchange, HaloDepth,
-                                _create_depth_list)
+from psyclone.dynamo0p3 import LFRicHaloExchange
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (Dynamo0p3RedundantComputationTrans,
                                       Dynamo0p3AsyncHaloExchangeTrans)
 
@@ -116,7 +116,7 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[0], {"depth": 1})
     assert schedule.children[0].upper_bound_name == "dof_halo"
-    assert schedule.children[0].upper_bound_halo_depth == 1
+    assert schedule.children[0].upper_bound_halo_depth.value == "1"
     check_schedule(schedule)
 
     # make 1st loop iterate over dofs to the maximum halo depth and
@@ -176,7 +176,7 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     assert len(schedule.children) == 3
     assert isinstance(loop1, LFRicLoop)
     assert loop1.upper_bound_name == "dof_halo"
-    assert loop1.upper_bound_halo_depth == 1
+    assert loop1.upper_bound_halo_depth.value == "1"
     assert isinstance(haloex, LFRicHaloExchange)
     assert haloex.field.name == "f2"
     assert haloex.required() == (True, False)
@@ -230,7 +230,7 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
     assert isinstance(haloex, LFRicHaloExchange)
     assert haloex.field.name == "f2"
     assert haloex.required() == (True, False)
-    assert haloex._compute_halo_depth() == "1"
+    assert haloex._compute_halo_depth().value == "1"
     assert isinstance(loop1, LFRicLoop)
     assert isinstance(loop2, LFRicLoop)
 
@@ -262,11 +262,11 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
         loop2 = schedule.children[3]
         assert isinstance(haloex1, LFRicHaloExchange)
         assert haloex1.field.name == "f2"
-        assert haloex1._compute_halo_depth() == f2depth
+        assert haloex1._compute_halo_depth().debug_string() == f2depth
         assert haloex1.required() == (True, False)
         assert isinstance(haloex2, LFRicHaloExchange)
         assert haloex2.field.name == "f1"
-        assert haloex2._compute_halo_depth() == f1depth
+        assert haloex2._compute_halo_depth().debug_string() == f1depth
         assert haloex2.required() == (True, False)
         assert isinstance(loop1, LFRicLoop)
         assert isinstance(loop2, LFRicLoop)
@@ -280,7 +280,7 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
     rc_trans.apply(schedule.children[2])
     # we should now have a speculative halo exchange at the start of
     # the schedule for "f1" to depth max halo - 1 and "f2" to max halo
-    check(schedule, f1depth="max_halo_depth_mesh-1",
+    check(schedule, f1depth="max_halo_depth_mesh - 1",
           f2depth="max_halo_depth_mesh")
 
 
@@ -328,11 +328,11 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
         loop2 = schedule.children[3]
         assert isinstance(haloex1, LFRicHaloExchange)
         assert haloex1.field.name == "f1"
-        assert haloex1._compute_halo_depth() == f1depth
+        assert haloex1._compute_halo_depth().debug_string() == f1depth
         assert haloex1.required() == (True, False)
         assert isinstance(haloex2, LFRicHaloExchange)
         assert haloex2.field.name == "f2"
-        assert haloex2._compute_halo_depth() == f2depth
+        assert haloex2._compute_halo_depth().debug_string() == f2depth
         assert haloex2.required() == (True, False)
         assert isinstance(loop1, LFRicLoop)
         assert isinstance(loop2, LFRicLoop)
@@ -357,7 +357,7 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
     rc_trans.apply(schedule.children[2])
     # we should now have a speculative halo exchange at the start of
     # the schedule for "f1" to depth max halo - 1 and "f2" to max halo
-    check(schedule, f1depth="max_halo_depth_mesh-1",
+    check(schedule, f1depth="max_halo_depth_mesh - 1",
           f2depth="max_halo_depth_mesh")
 
 
@@ -394,7 +394,8 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
         assert isinstance(haloex, LFRicHaloExchange)
         assert haloex.field.name == "f1"
         assert haloex.required() == (True, True)
-        assert haloex._compute_halo_depth() == depth
+        text = haloex._compute_halo_depth().debug_string().strip()
+        assert text.endswith(depth)
     if annexed:
         haloidx = 2
         loop1idx = 3
@@ -418,7 +419,7 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     rc_trans.apply(schedule.children[loop2idx])
     # f1 halo exchange should be depth max(1,max-1)
     haloex = schedule.children[haloidx]
-    check(haloex, "max(max_halo_depth_mesh-1,1)")
+    check(haloex, "MAX(1, max_halo_depth_mesh - 1)")
     # just check compilation here as it is the most
     # complicated. (Note, compilation of redundant computation is
     # checked separately)
@@ -608,7 +609,7 @@ def test_gh_readinc(tmpdir):
     _, known = f1_hex.required()
     check_dirty = not known
     assert not check_dirty
-    assert f1_hex._compute_halo_depth() == '1'
+    assert f1_hex._compute_halo_depth().value == '1'
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -622,28 +623,6 @@ def test_stencil_then_w3_read(tmpdir):
     is to owned dofs so does not access the halo (a halo depth of 0).
 
     '''
-    # Check that an instance of the HaloDepth class returns the
-    # expected results for this case.
-    halo_depth = HaloDepth(None)
-    assert str(halo_depth) == "0"
-    halo_depth2 = HaloDepth(None)
-    halo_depth2._var_depth = "extent"
-    assert str(halo_depth2) == "extent"
-    # Quick check when we have both depth and literal depth > 0.
-    halo_depth2.literal_depth = 1
-    assert str(halo_depth2) == "extent+1"
-    # Go back to original 0 depth case.
-    halo_depth2.literal_depth = 0
-
-    # Check that '_create_depth_list' removes depths that are 0 from
-    # its return list. It takes two entries as input and returns one.
-    result = _create_depth_list([halo_depth, halo_depth2], None)
-    assert isinstance(result, list)
-    assert len(result) == 1
-    assert isinstance(result[0], HaloDepth)
-    assert str(result[0]) == "extent"
-
-    # Check that it all works in practice (functional test).
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.16_disc_stencil_then_read.f90"),
                     api=API)
@@ -659,3 +638,33 @@ def test_stencil_then_w3_read(tmpdir):
             "    end if" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_stencil_with_redundant_comp_trans(monkeypatch, tmpdir, annexed):
+    '''
+    Test that applying redundant computation to a kernel which has stencil
+    sizes passed from the algorithm layer results in the correct halo
+    exchanges.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("lfric")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    psy, invoke = get_invoke("14.6_halo_depth_2.f90", API, 0, dist_mem=True)
+    sched = invoke.schedule
+    loop = sched.walk(LFRicLoop)[0]
+    # Transform the loop to perform redundant computation out to depth 2.
+    rtrans = Dynamo0p3RedundantComputationTrans()
+    rtrans.apply(loop, {"depth": 2})
+    result = str(psy.gen).lower()
+    # Updated argument is on w0 and has gh_inc access. If we are not
+    # redundantly computing annexed dofs then this means it needs a halo
+    # exchange to ensure that those dofs are clean.
+    if not annexed:
+        assert "call f1_proxy%halo_exchange(depth=1)" in result
+    # The fields that are read all have stencil accesses and so must be
+    # clean out to the depth of the stencil access *plus* the depth of the
+    # redundant computation.
+    for fidx in range(2, 5):
+        assert f'''if (f{fidx}_proxy%is_dirty(depth=f{fidx}_extent + 2)) then
+        call f{fidx}_proxy%halo_exchange(depth=f{fidx}_extent + 2)''' in result

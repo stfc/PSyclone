@@ -364,6 +364,14 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 f"{data_types_str} for field arguments to '{self.name}'.")
 
     @property
+    def halo_depth(self):
+        '''
+        :returns: None as BuiltIns do not (by default) iterate into halo cells.
+        :rtype: NoneType
+        '''
+        return None
+
+    @property
     def undf_name(self):
         '''
         Dynamically looks up the name of the 'undf' variable for the

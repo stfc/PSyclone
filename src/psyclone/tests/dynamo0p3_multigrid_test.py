@@ -688,16 +688,11 @@ def test_fine_halo_read():
     schedule = psy.invokes.invoke_list[0].schedule
     hexch = schedule.children[5]
     assert isinstance(hexch, LFRicHaloExchange)
-    assert hexch._compute_halo_depth() == '2'
+    assert hexch._compute_halo_depth().value == '2'
     call = schedule.children[6]
     field = call.args[1]
     hra = HaloReadAccess(field, schedule.symbol_table)
-    assert hra._var_depth is None
-    # Change the internal state of the HaloReadAccess to mimic the case
-    # where the field in question has a stencil access with a variable depth
-    hra._var_depth = "my_depth"
-    hra._compute_from_field(field)
-    assert hra._var_depth == "2*my_depth"
+    assert hra._var_depth.debug_string() == "2 * 1"
 
 
 def test_prolong_with_gp_error():
@@ -849,7 +844,7 @@ def test_restrict_prolong_chain_acc(tmpdir):
     const = LFRicConstants()
 
     for loop in schedule.walk(Loop):
-        if (loop.iteration_space == "cell_column" and
+        if (loop.iteration_space.endswith("cell_column") and
                 loop.field_space.orig_name not in
                 const.VALID_DISCONTINUOUS_NAMES):
             ctrans.apply(loop)

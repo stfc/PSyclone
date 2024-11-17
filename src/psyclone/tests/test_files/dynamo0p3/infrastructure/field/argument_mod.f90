@@ -217,9 +217,11 @@ module argument_mod
 
   !> @defgroup operates_on Enumeration of kernel iterator property descriptors.
   !> @{
-  integer, public, parameter :: CELL_COLUMN = 396
-  integer, public, parameter :: DOMAIN      = 945
-  integer, public, parameter :: DOF         = 712
+  integer, public, parameter :: CELL_COLUMN                = 396
+  integer, public, parameter :: HALO_CELL_COLUMN           = 397
+  integer, public, parameter :: OWNED_AND_HALO_CELL_COLUMN = 398
+  integer, public, parameter :: DOMAIN                     = 945
+  integer, public, parameter :: DOF                        = 712
   !> @}
 
   !> Metadata for the argument type description, stored in the `arg_type` type
