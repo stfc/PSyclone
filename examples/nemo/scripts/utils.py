@@ -93,12 +93,9 @@ PASSTHROUGH_ISSUES = [
 PARALLELISATION_ISSUES = [
     "ldfc1d_c2d.f90",
     "tramle.f90",
-]
-
-# These files get the same results when parallelised by PSyclone and using
-# conservative optimsation flags (e.g. nvfortran -O1 -Kieee -nofma -Mnovect)
-# but can be excluded for more stable results when using more aggressive flags
-IMPROVE_REPRODUCIBILITY = [
+    # These files get the same results when parallelised by PSyclone and using
+    # conservative opt flags (e.g. nvfortran -O1 -Kieee -nofma -Mnovect) but
+    # can be excluded for more stable results when using more aggressive flags
     "icedyn_rhg_evp.f90",
     "domqco.f90",
     "dynspg_ts.f90",
