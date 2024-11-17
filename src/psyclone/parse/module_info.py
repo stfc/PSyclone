@@ -47,9 +47,15 @@ from typing import Dict, List
 from psyclone.errors import InternalError, PSycloneError, GenerationError
 from psyclone.psyir.nodes import Container, FileContainer, Routine
 from psyclone.psyir.symbols import Symbol, SymbolError
-from psyclone.parse import FileInfo
+from psyclone.parse import FileInfo, FileInfoFParserError
 
-from typing import Set
+
+class ModuleNotFoundError(PSycloneError):
+    """Triggered when the Fortran module was not found"""
+
+    def __init__(self, value):
+        PSycloneError.__init__(self, value)
+        self.value = "ModuleNotFoundError: " + str(value)
 
 
 class ModuleInfoError(PSycloneError):
@@ -63,7 +69,7 @@ class ModuleInfoError(PSycloneError):
 
     def __init__(self, value):
         PSycloneError.__init__(self, value)
-        self.value = "ModuleInfo error: " + str(value)
+        self.value = "ModuleInfoError: " + str(value)
 
 
 class ModuleInfo:
@@ -168,17 +174,7 @@ class ModuleInfo:
         self._used_module_names = []
         self._used_symbols_from_module_name = {}
 
-        try:
-            parse_tree = self.get_fparser_tree()
-        except FortranSyntaxError:
-            # TODO #11: Add proper logging
-            # TODO #2120: Handle error
-            print(
-                f"[ModuleInfo._extract_import_information] Syntax error "
-                f"parsing '{self.filepath} - ignored"
-            )
-            # Hide syntax errors
-            return
+        parse_tree = self.get_fparser_tree()
 
         for use in walk(parse_tree, Fortran2003.Use_Stmt):
             # Ignore intrinsic modules:
@@ -283,8 +279,12 @@ class ModuleInfo:
         :returns: PSyIR representing this module.
         :rtype: :py:class:`psyclone.psyir.nodes.Container` | NoneType
 
-        :raises FileNotFoundError: if the named Container (module) does not
-            exist in the PSyIR.
+        :raises ModuleNotFoundError: if the named Container (module) was
+            not found.
+        :raises FileNotFound: if the related file doesn't exist.
+        :raises FileInfoFParserError: if the some FileInfoFParserError
+            occured.
+        :raises GenerationError: if the some PSyIR generation failed.
         """
 
         # If container node is not provided, we will load it
@@ -298,12 +298,16 @@ class ModuleInfo:
         for container in container_list:
             container: Container
 
+            # Sort out, e.g., FileContainer
+            if type(container) is not Container:
+                continue
+
             container_name: str = container.name.lower()
             if container_name == self._name:
                 self._psyir_container_node = container
                 return self._psyir_container_node
 
-        raise FileNotFoundError(
+        raise ModuleNotFoundError(
             f"Unable to find container '{self._name}' in "
             f"file '{self._file_info.get_filepath()}'"
         )
@@ -327,7 +331,7 @@ class ModuleInfo:
         if self._psyir_container_node is None:
             try:
                 fparser_tree = self.get_fparser_tree()
-            except FortranSyntaxError as err:
+            except FileInfoFParserError as err:
                 # TODO #11: Add proper logging
                 print(f"Error parsing '{self.filepath}': '{err}'")
                 return None
@@ -364,7 +368,7 @@ class ModuleInfo:
             container_node = self.get_psyir_container_node()
             return container_node
 
-        except Exception as err:
+        except ModuleNotFoundError:
             pass
 
         # We failed to find the Container - double-check the parse tree
@@ -402,13 +406,18 @@ class ModuleInfo:
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol` | None
         """
 
-        container = self.get_psyir_container_node()
-        if not container:
-            return None
         try:
-            return container.symbol_table.lookup(symbol_name)
+            container: Container = self.get_psyir_container_node()
+        except (FileNotFoundError, FileInfoFParserError, GenerationError):
+            return None
+
+        assert type(container) is Container
+
+        try:
+            symbol = container.symbol_table.lookup(symbol_name)
         except KeyError:
             return None
+        return symbol
 
     def view(self, indent=""):
         retstr = ""

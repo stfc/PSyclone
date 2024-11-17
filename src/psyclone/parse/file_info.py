@@ -39,16 +39,24 @@
 """
 
 import os
-import sys
 import hashlib
 import pickle
 import copy
-from typing import List, Union, Any
+from typing import List, Union
 from psyclone.psyir.frontend.fortran import FortranReader, FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import FileContainer
+from psyclone.errors import PSycloneError
+
+
+class FileInfoFParserError(PSycloneError):
+    """Triggered when generation of FParser tree failed"""
+
+    def __init__(self, value: str):
+        super().__init__(value)
+        self.value = "FParser Error: " + str(value)
 
 
 class _CacheFileInfo:
@@ -335,6 +343,7 @@ class FileInfo:
         :returns: fparser representation.
         :rtype: FileContainer
 
+        :raises FileInfoFParserError: if fparser had issues
         """
         if self._fparser_tree is not None:
             return self._fparser_tree
@@ -360,11 +369,17 @@ class FileInfo:
                 self._fparser_tree = self._cache._fparser_tree
                 return self._fparser_tree
 
-        reader = FortranStringReader(
-            source_code, include_dirs=Config.get().include_paths
-        )
-        parser = ParserFactory().create(std="f2008")
-        self._fparser_tree = parser(reader)
+        try:
+            reader = FortranStringReader(
+                source_code, include_dirs=Config.get().include_paths
+            )
+            parser = ParserFactory().create(std="f2008")
+            self._fparser_tree = parser(reader)
+
+        except Exception as err:
+            raise FileInfoFParserError(
+                "Failed to get fparser tree: " + str(err)
+            )
 
         # We directly call the cache saving routine here in case that the
         # fparser tree will be modified later on.

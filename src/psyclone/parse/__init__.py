@@ -37,14 +37,21 @@
 """
 
 from psyclone.parse.file_info import FileInfo
-from psyclone.parse.module_info import ModuleInfo, ModuleInfoError
+from psyclone.parse.file_info import FileInfoFParserError
+from psyclone.parse.module_info import (
+    ModuleInfo,
+    ModuleInfoError,
+    ModuleNotFoundError,
+)
 from psyclone.parse.module_manager_auto_search import ModuleManagerAutoSearch
 
 
 # For AutoAPI documentation generation.
 __all__ = [
     "FileInfo",
+    "FileInfoFParserError",
     "ModuleInfo",
     "ModuleInfoError",
+    "ModuleNotFoundError",
     "ModuleManagerAutoSearch",
 ]

@@ -646,7 +646,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                 )
                 try:
                     orig_sym = mod_info.get_symbol_by_name(signature[0])
-                except Exception as err:
+                except KeyError:
                     orig_sym = None
 
                 if not orig_sym:

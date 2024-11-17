@@ -265,6 +265,7 @@ class FortranReader:
         :returns: PSyIR representing the provided Fortran file.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises GenerationError: if the some PSyIR generation failed.
         """
 
         _, filename = os.path.split(filepath)

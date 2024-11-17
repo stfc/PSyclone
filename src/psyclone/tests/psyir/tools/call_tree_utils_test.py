@@ -52,9 +52,7 @@ from psyclone.psyir.nodes import (
     CodeBlock,
     Reference,
     Schedule,
-    Node,
     Container,
-    FileContainer,
 )
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
@@ -178,9 +176,8 @@ def test_call_tree_generic_functions():
     # First make sure we get indeed all three functions (even though
     # one of the functions does not exist, which is required for testing
     # exceptions):
-    all_names = mod_info_call_tree.get_psyir_container_node_alternative().resolve_routine(
-        "generic_function"
-    )
+    container_node = mod_info_call_tree.get_psyir_container_node_alternative()
+    all_names = container_node.resolve_routine("generic_function")
     assert all_names == ["real_func", "double_func", "integer_func"]
 
     ctu = CallTreeUtils()
@@ -443,8 +440,9 @@ def test_get_non_local_read_write_info_errors(capsys):
     ctu.get_non_local_read_write_info(schedule, rw_info)
     out, _ = capsys.readouterr()
     assert (
-        f"Could not get PSyIR for Routine 'testkern_import_symbols_code' "
-        f"from module 'testkern_import_symbols_mod' -" in out
+        "Could not get PSyIR for Routine "
+        "'testkern_import_symbols_code' "
+        "from module 'testkern_import_symbols_mod' -" in out
     )
 
     # Remove the module Container from the PSyIR.
@@ -452,8 +450,8 @@ def test_get_non_local_read_write_info_errors(capsys):
     ctu.get_non_local_read_write_info(schedule, rw_info)
     out, _ = capsys.readouterr()
     assert (
-        "Could not get PSyIR for Routine 'testkern_import_symbols_code' from module 'testkern_import_symbols_mod' - ignored"
-        in out
+        "Could not get PSyIR for Routine 'testkern_import_symbols_code' "
+        "from module 'testkern_import_symbols_mod' - ignored" in out
     )
 
 
@@ -625,6 +623,10 @@ def test_module_info_generic_interfaces():
         end subroutine myfunc2
     So they both use the module variable module_var, but myfunc1 reads it,
     myfunc2 writes it."""
+
+    # Avoid flake8 complaints about unused 'mod_man_test_setup_directories'
+    assert type(mod_man_test_setup_directories) is not int
+
     mod_man = ModuleManagerAutoSearch.get_singleton()
     mod_man.add_search_path("d2")
     mod_info = mod_man.get_module_info_with_auto_add_files("g_mod")

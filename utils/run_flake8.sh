@@ -48,7 +48,7 @@ if ! command -v flake8; then
 fi
 
 
-flake8 src/psyclone
+flake8 --format pylint src/psyclone
 
 if [[ $? -ne 0 ]]; then
     echo "Linting failed"

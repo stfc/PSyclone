@@ -35,9 +35,7 @@
 from typing import Union, Set, List
 
 from psyclone.parse.file_info import FileInfo
-from psyclone.parse.module_info import ModuleInfo
 from psyclone.parse.module_manager_base import ModuleManagerBase
-from psyclone.psyir.nodes import Node, Container
 
 
 class ModuleManagerFiles(ModuleManagerBase):

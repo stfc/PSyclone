@@ -850,19 +850,20 @@ class InlineTrans(Transformation):
                 if check_argument_unsupported_type:
                     if isinstance(sym.datatype, UnsupportedType):
                         raise TransformationError(
-                            f"Routine '{self.node_routine.name}' cannot be inlined "
-                            f"because it contains a Symbol '{sym.name}' which "
-                            f"is an Argument of UnsupportedType: "
-                            f"'{sym.datatype.declaration}'"
+                            f"Routine '{self.node_routine.name}' cannot be "
+                            f"inlined because it contains a Symbol "
+                            f"'{sym.name}' which is an Argument of "
+                            f"UnsupportedType: '{sym.datatype.declaration}'"
                         )
             # We don't inline symbols that have an UnknownInterface, as we
             # don't know how they are brought into this scope.
             if check_argument_unsupported_type:
                 if isinstance(sym.interface, UnknownInterface):
                     raise TransformationError(
-                        f"Routine '{self.node_routine.name}' cannot be inlined "
-                        f"because it contains a Symbol '{sym.name}' with an "
-                        f"UnknownInterface: '{sym.datatype.declaration}'"
+                        f"Routine '{self.node_routine.name}' cannot be "
+                        f"inlined because it contains a Symbol "
+                        f"'{sym.name}' with an UnknownInterface: "
+                        f"'{sym.datatype.declaration}'"
                     )
 
             if check_static_interface:
@@ -874,9 +875,9 @@ class InlineTrans(Transformation):
                     and not sym.is_constant
                 ):
                     raise TransformationError(
-                        f"Routine '{self.node_routine.name}' cannot be inlined "
-                        f"because it has a static (Fortran SAVE) interface "
-                        f"for Symbol '{sym.name}'."
+                        f"Routine '{self.node_routine.name}' cannot be "
+                        f"inlined because it has a static (Fortran SAVE) "
+                        f"interface for Symbol '{sym.name}'."
                     )
 
         if check_diff_container_clashes:
@@ -892,8 +893,9 @@ class InlineTrans(Transformation):
                 )
             except SymbolError as err:
                 raise TransformationError(
-                    f"One or more symbols from routine '{self.node_routine.name}' "
-                    f"cannot be added to the table at the call site."
+                    f"One or more symbols from routine "
+                    f"'{self.node_routine.name}' cannot be added to the "
+                    f"table at the call site."
                 ) from err
 
         # Check for unresolved symbols or for any accessed from the Container
@@ -950,17 +952,18 @@ class InlineTrans(Transformation):
                         # table local to the routine.
                         # pylint: disable=raise-missing-from
                         raise TransformationError(
-                            f"Routine '{self.node_routine.name}' cannot be inlined "
-                            f"because it accesses variable '{sym.name}' and "
-                            f"this cannot be found in any of the containers "
-                            f"directly imported into its symbol table."
+                            f"Routine '{self.node_routine.name}' cannot be "
+                            f"inlined because it accesses variable "
+                            f"'{sym.name}' and this cannot be found in any "
+                            f"of the containers directly imported into its "
+                            f"symbol table."
                         )
                 else:
                     if sym.name not in routine_table:
                         raise TransformationError(
-                            f"Routine '{self.node_routine.name}' cannot be inlined "
-                            f"because it accesses variable '{sym.name}' from "
-                            f"its parent container."
+                            f"Routine '{self.node_routine.name}' cannot be "
+                            f"inlined because it accesses variable "
+                            f"'{sym.name}' from its parent container."
                         )
 
         # Check that the shapes of any formal array arguments are the same as
@@ -971,10 +974,11 @@ class InlineTrans(Transformation):
         if len(routine_table.argument_list) != len(node_call.arguments):
             raise TransformationError(
                 LazyString(
-                    lambda: f"Cannot inline '{node_call.debug_string().strip()}' "
+                    lambda: f"Cannot inline "
+                    f"'{node_call.debug_string().strip()}' "
                     f"because the number of arguments supplied to the call "
-                    f"({len(node_call.arguments)}) does not match the number of "
-                    f"arguments the routine is declared to have "
+                    f"({len(node_call.arguments)}) does not match the number "
+                    f"of arguments the routine is declared to have "
                     f"({len(routine_table.argument_list)}).\n"
                     f"This is likely related to **OPTIONAL** arguments which "
                     f"are not yet supported."
@@ -1001,8 +1005,8 @@ class InlineTrans(Transformation):
                 # pylint: disable=cell-var-from-loop
                 raise TransformationError(
                     LazyString(
-                        lambda: f"The call '{node_call.debug_string()}' cannot be "
-                        f"inlined because actual argument "
+                        lambda: f"The call '{node_call.debug_string()}' "
+                        f"cannot be inlined because actual argument "
                         f"'{actual_arg.debug_string()}' corresponds to a "
                         f"formal argument with array type but is not a "
                         f"Reference or a Literal."
@@ -1026,8 +1030,8 @@ class InlineTrans(Transformation):
                     )
                 ):
                     raise TransformationError(
-                        f"Routine '{self.node_routine.name}' cannot be inlined because "
-                        f"the type of the actual argument "
+                        f"Routine '{self.node_routine.name}' cannot be "
+                        f"inlined because the type of the actual argument "
                         f"'{actual_arg.symbol.name}' corresponding to an array"
                         f" formal argument ('{formal_arg.name}') is unknown."
                     )
@@ -1045,7 +1049,8 @@ class InlineTrans(Transformation):
                     # pylint: disable=cell-var-from-loop
                     raise TransformationError(
                         LazyString(
-                            lambda: f"Cannot inline routine '{self.node_routine.name}' "
+                            lambda: f"Cannot inline routine "
+                            f"'{self.node_routine.name}' "
                             f"because it reshapes an argument: actual "
                             f"argument '{actual_arg.debug_string()}' has rank "
                             f"{actual_rank} but the corresponding formal "
@@ -1063,10 +1068,10 @@ class InlineTrans(Transformation):
                             raise TransformationError(
                                 LazyString(
                                     lambda: f"Cannot inline routine "
-                                    f"'{self.node_routine.name}' because argument "
-                                    f"'{actual_arg.debug_string()}' "
-                                    f"has an array range in an indirect access "
-                                    f"#(TODO 924)."
+                                    f"'{self.node_routine.name}' because "
+                                    f"argument '{actual_arg.debug_string()}' "
+                                    f"has an array range in an indirect "
+                                    f"access #(TODO 924)."
                                 )
                             )
                         if rge.step != _ONE:
@@ -1077,10 +1082,11 @@ class InlineTrans(Transformation):
                             raise TransformationError(
                                 LazyString(
                                     lambda: f"Cannot inline routine "
-                                    f"'{self.node_routine.name}' because one of its "
-                                    f"arguments is an array slice "
+                                    f"'{self.node_routine.name}' because one "
+                                    f"of its arguments is an array slice "
                                     f"with a non-unit stride: "
-                                    f"'{actual_arg.debug_string()}' (TODO #1646)"
+                                    f"'{actual_arg.debug_string()}' "
+                                    f"(TODO #1646)"
                                 )
                             )
 

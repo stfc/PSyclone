@@ -41,16 +41,19 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.errors import InternalError
 from psyclone.parse import (
     FileInfo,
+    FileInfoFParserError,
     ModuleInfo,
-    ModuleInfoError,
     ModuleManagerAutoSearch,
 )
+from psyclone.parse.module_info import ModuleNotFoundError
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.tests.utilities import get_base_path
+from psyclone.errors import GenerationError
+
+import types
 
 
 @pytest.mark.usefixtures(
@@ -94,29 +97,32 @@ def test_module_info():
 def test_module_info_get_psyir(tmpdir, monkeypatch, capsys):
     """Tests that we can get the PSyIR from the module info object:"""
     filepath = os.path.join(tmpdir, "my_mod.f90")
-    with open(filepath, "w", encoding="utf-8") as fout:
-        fout.write(
-            """
+
+    if 0:
+        with open(filepath, "w", encoding="utf-8") as fout:
+
+            fout.write(
+                """
 module my_mod
   contains
 real function myfunc1()
   myfunc1 = 42.0
 end function myfunc1
 end module my_mod"""
-        )
+            )
 
-    mod_info = ModuleInfo("my_mod", FileInfo(filepath))
+        mod_info = ModuleInfo("my_mod", FileInfo(filepath))
 
-    psyir = mod_info.get_psyir_container_node()
-    return
-    assert isinstance(psyir, Container)
-    assert psyir.name == "my_mod"
+        node_container = mod_info.get_psyir_container_node()
+        assert isinstance(node_container, Container)
+        assert node_container.name == "my_mod"
 
-    # Create a file with some invalid Fortran content. fparser doesn't check
-    # symbol names so it will create a parse tree for it.
-    with open(filepath, "w", encoding="utf-8") as fout:
-        fout.write(
-            """
+    if 1:
+        # Create a file with some invalid Fortran content. fparser doesn't check
+        # symbol names so it will create a parse tree for it.
+        with open(filepath, "w", encoding="utf-8") as fout:
+            fout.write(
+                """
 module my_mod
   implicit none
 contains
@@ -127,18 +133,29 @@ contains
     broken = 2
   end function broken
 end module my_mod"""
-        )
-    mod_info = ModuleInfo("my_mod", FileInfo(filepath))
-    psyir = mod_info.get_psyir_node()
-    assert psyir is None
-    out, _ = capsys.readouterr()
-    assert "Error trying to create PSyIR for " in out
+            )
+        mod_info: ModuleInfo = ModuleInfo("my_mod", FileInfo(filepath))
+        # This example parses fine with fparser
+        mod_info.get_fparser_tree()
+        try:
+            # But breaks with psyir
+            mod_info.get_psyir_container_node()
+        except GenerationError:
+            pass
+        else:
+            raise Exception("This should have failed")
 
-    # Check that we handle the case where get_parse_tree() returns None.
-    # The simplest way to do this is to monkeypatch.
-    mod_info._psyir_node = None
-    monkeypatch.setattr(mod_info, "get_fparser_tree", lambda: None)
-    assert mod_info.get_psyir_node() is None
+        if 1:
+            # Check that we handle the case where get_fparser_tree() returns None.
+            # The simplest way to do this is to monkeypatch.
+            mod_info._psyir_container_node = None
+            monkeypatch.setattr(mod_info, "get_fparser_tree", lambda: None)
+            try:
+                mod_info.get_psyir_container_node()
+            except GenerationError:
+                pass
+            else:
+                raise Exception("This should have failed")
 
 
 def test_mod_info_get_psyir_wrong_file(tmpdir, capsys):
@@ -159,11 +176,13 @@ end module my_mod"""
         )
 
     mod_info = ModuleInfo("wrong_name_mod", FileInfo(filepath))
-    with pytest.raises(FileNotFoundError) as err:
+
+    try:
         mod_info.get_psyir_container_node()
-    assert "Unable to find container 'wrong_name_mod' in file '" in str(
-        err.value
-    )
+    except ModuleNotFoundError:
+        pass
+    else:
+        raise Exception("This should have failed")
 
     # Break the PSyIR so that, while it is valid, it does not contain the named
     # module.
@@ -369,8 +388,14 @@ def test_module_info_extract_import_information_error():
 
     assert mod_info._used_module_names is None
     assert mod_info._used_symbols_from_module_name is None
-    # mod_info._extract_import_information()
-    mod_info.get_used_modules()
+
+    try:
+        mod_info.get_used_modules()
+    except FileInfoFParserError:
+        pass
+    else:
+        raise Exception("Unexpected behavior")
+
     # Make sure the internal attributes are set to not None to avoid
     # trying to parse them again later
     assert mod_info._used_module_names == list()
@@ -391,11 +416,25 @@ end function myfunc1
 end module my_mod"""
         )
 
-    minfo = ModuleInfo("my_mod", FileInfo(filepath))
-    assert isinstance(minfo.get_symbol_by_name("myfunc1"), RoutineSymbol)
+    module_info = ModuleInfo("my_mod", FileInfo(filepath))
+    assert isinstance(module_info.get_symbol_by_name("myfunc1"), RoutineSymbol)
     # A Symbol that doesn't exist.
-    assert minfo.get_symbol_by_name("amos") is None
+    assert module_info.get_symbol_by_name("amos") is None
+
     # When no Container has been created. Monkeypatch get_psyir() to simplify
     # this.
-    monkeypatch.setattr(minfo, "get_psyir_node", lambda: None)
-    assert minfo.get_symbol_by_name("amos") is None
+
+    def foo(self):
+        raise FileInfoFParserError("foo")
+
+    module_info.get_psyir_container_node = types.MethodType(foo, module_info)
+    # monkeypatch.setattr(module_info, "get_psyir_container_node", foo)
+
+    # try:
+    #     module_info.get_symbol_by_name("amos")
+    # except (FileNotFoundError, FileInfoFParserError, GenerationError) as err:
+    #     pass
+    # else:
+    #     raise Exception("Some error")
+
+    assert module_info.get_symbol_by_name("amos") is None

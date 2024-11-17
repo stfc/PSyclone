@@ -841,6 +841,7 @@ def test_lfric_driver_external_symbols_error(capsys):
         invoke.schedule.children[0],
         options={"create_driver": True, "region_name": ("import", "test")},
     )
+
     code = str(invoke.gen())
     # Even though PSyclone cannot find the variable, it should still be
     # extracted:

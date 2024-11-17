@@ -38,15 +38,13 @@ which module is contained in which file (including full location). """
 
 
 from collections import OrderedDict
-import copy
 from difflib import SequenceMatcher
 import os
 import re
-import warnings
 from typing import Dict, Set, List
 
-from psyclone.errors import InternalError
-from psyclone.parse.file_info import FileInfo
+from psyclone.errors import InternalError, GenerationError
+from psyclone.parse.file_info import FileInfo, FileInfoFParserError
 from psyclone.parse.module_info import ModuleInfo
 from psyclone.parse.module_manager_base import ModuleManagerBase
 
@@ -338,7 +336,7 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
                 # Convert to set
                 mod_deps = set(mod_deps)
 
-            except FileNotFoundError:
+            except (FileNotFoundError, FileInfoFParserError, GenerationError):
                 if module not in not_found:
                     # We don't have any information about this module,
                     # ignore it.
