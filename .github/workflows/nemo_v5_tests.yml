@@ -188,8 +188,7 @@ jobs:
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         tail run.stat
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.100steps run.stat
-        export TIME_microsec=$(grep "Mean:" timing.output | head -n 1 | awk '{print $2}')
-        export TIME_sec=$(bc <<< "${TIME_microsec} / 10000")
+        export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
@@ -228,8 +227,7 @@ jobs:
         # ./nemo
         # tail run.stat
         # diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.100steps run.stat
-        # export TIME_microsec=$(grep "Mean:" timing.output | head -n 1 | awk '{print $2}')
-        # export TIME_sec=$(bc <<< "${TIME_microsec} / 10000")
+        # export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         # ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
         #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
         #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
