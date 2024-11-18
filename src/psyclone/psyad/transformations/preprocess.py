@@ -93,14 +93,10 @@ def preprocess_trans(kernel_psyir, active_variable_names):
         if node_is_passive(assignment, active_variable_names):
             # No need to modify passive assignments
             continue
-        try:
+        # Earlier use of Reference2ArrayRangeTrans will ensure LHS has a Range
+        # if it is an array assignment.
+        if assignment.lhs.walk(Range):
             arrayassign2loops_trans.apply(assignment)
-        except TransformationError:
-            # Double-check that the transformation succeeded in
-            # handling any explicit array assignments. If it didn't then
-            # we can't create the adjoint.
-            if assignment.lhs.walk(Range):
-                raise
 
     # Deal with any associativity issues here as AssignmentTrans
     # is not able to.
