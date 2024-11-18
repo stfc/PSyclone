@@ -180,19 +180,3 @@ Verifying the pylint standards is done with::
 
 
 OK, you're all set up.
-
-Installing Tools for PSyData Wrapper Libraries
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-If you intend to compile the PSyData wrapper libraries or develop new libraries,
-you might need to install Jinja2 (most wrapper libraries require Jinja2 though
-some, like the NVIDIA GPU profiling wrapper, do not need it). You can install
-the necessary dependencies to create all PSyData wrapper libraries with::
-
-    > pip install psyclone[psydata]
-
-or when using the git version::
-
-    > pip install .[psydata]
-
-
-Check :ref:`psy_data` and especially the section :ref:`jinja` for more details.

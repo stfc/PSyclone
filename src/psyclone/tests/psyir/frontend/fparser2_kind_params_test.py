@@ -62,7 +62,7 @@ def process_declarations(code):
     :rtype: (:py:class:`psyclone.psyir.nodes.KernelSchedule`, \
              :py:class:`fparser.two.Fortran2003.Specification_Part`)
     '''
-    sched = KernelSchedule("dummy_schedule")
+    sched = KernelSchedule.create("dummy_schedule")
     # Add a wildcard import to allow us to get away with undeclared symbols
     # in the tests.
     sched.symbol_table.add(ContainerSymbol("some_mod", wildcard_import=True))
@@ -112,7 +112,7 @@ def test_process_declarations_kind_param():
     it specifies a previously-declared symbol.
 
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("integer, parameter :: r_def = KIND(1.0D0)\n"
                                  "real(kind=r_def) :: var2")

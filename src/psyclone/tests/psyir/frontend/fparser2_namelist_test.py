@@ -50,7 +50,7 @@ def test_named_namelist():
     ''' Test that namelists are correctly captured. '''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 
@@ -73,7 +73,7 @@ def test_multiple_namelists_in_statement():
     correctly.'''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 
@@ -101,7 +101,7 @@ def test_namelist_with_posterior_declaration():
     namelist statement are handled correctly.'''
 
     # Create a dummy test routine
-    routine = Routine("test_routine")
+    routine = Routine.create("test_routine")
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 

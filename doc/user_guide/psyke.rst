@@ -556,23 +556,23 @@ creation code:
   ``protected`` declarations in any source files, meaning no manual
   modification of files is required anymore (TODO #2536).
 
-Extraction for NEMO
-++++++++++++++++++++
+Extraction for generic Fortran
+++++++++++++++++++++++++++++++
 The libraries in
-`lib/extract/standalone/nemo
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/nemo>`_
+`lib/extract/standalone/generic
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/generic>`_
 and
-`lib/extract/netcdf/nemo
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/nemo>`_
-implement the full PSyData API for use with the
-:ref:`NEMO <nemo-api>` API. When running the
-code, it will create an output file for each instrumented code region.
+`lib/extract/netcdf/generic
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/generic>`_
+implement the full PSyData API for use with generic code transformation.
+When running the code, it will create an output file for each instrumented
+code region.
 The same logic for naming variables used in :ref:`extraction_for_gocean`
 is used here.
 
 .. note::
 
-  Driver creation in NEMO is not yet supported, and is
+  Driver creation for generic Fortran is not yet supported, and is
   tracked in issue #2058.
 
 .. _driver_summary_statistics:

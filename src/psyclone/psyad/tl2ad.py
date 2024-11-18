@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by T. Vockerodt, Met Office
 
 '''The implementation of PSyAD : the PSyclone Adjoint
 support. Transforms an LFRic tangent linear kernel to its adjoint.
@@ -63,7 +64,7 @@ TEST_ARRAY_DIM_SIZE = 20
 
 
 def generate_adjoint_str(tl_fortran_str, active_variables,
-                         api=None, create_test=False,
+                         api=None, create_test=False, test_name="adjoint_test",
                          coord_arg_index=None, panel_id_arg_index=None):
     '''Takes a tangent-linear kernel encoded as a string as input
     and returns its adjoint encoded as a string along with (if requested)
@@ -75,6 +76,8 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     :param Optional[str] api: the PSyclone API in use, if any.
     :param Optional[bool] create_test: whether or not to create test code for
         the adjoint kernel.
+    :param Optional[str] test_name: base name to use for the file containing
+        the created adjoint test.
     :param Optional[int] coord_arg_index: the (1-based) index of the kernel
         argument holding the mesh coordinates (if any). Only applies to the
         LFRic API.
@@ -130,7 +133,8 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
         if create_test:
             test_psyir = generate_lfric_adjoint_harness(tl_psyir,
                                                         coord_arg_index,
-                                                        panel_id_arg_index)
+                                                        panel_id_arg_index,
+                                                        test_name)
     else:
         raise NotImplementedError(
             f"PSyAD only supports generic routines/programs or LFRic "
@@ -238,11 +242,13 @@ def generate_adjoint(tl_psyir, active_variables):
             kernel_sym = container.symbol_table.lookup(routine.name)
             adj_kernel_name = create_adjoint_name(routine.name)
             # A symbol's name is immutable so create a new RoutineSymbol
+            # and add it to the Routine
             adj_kernel_sym = container.symbol_table.new_symbol(
                 adj_kernel_name, symbol_type=RoutineSymbol,
                 visibility=kernel_sym.visibility)
             container.symbol_table.remove(kernel_sym)
-            routine.name = adj_kernel_sym.name
+            routine.symbol = adj_kernel_sym
+
         else:
             routine.name = routine.symbol_table.next_available_name(
                 create_adjoint_name(routine.name))

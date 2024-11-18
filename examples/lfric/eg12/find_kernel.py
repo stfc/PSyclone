@@ -53,7 +53,7 @@ TRANSFORM - Switch for applying transformations to PSy layer before
            searching for the Kernel call,
 TRANS_SCRIPT - Name of the transformation script which applies PSyclone
                transformations to the code. A valid script file must
-               contain a 'trans' function which modifies the PSy object.
+               contain a 'trans' function which modifies the PSyIR.
 '''
 
 import os

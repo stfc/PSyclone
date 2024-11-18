@@ -37,8 +37,8 @@
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Loop, Assignment, Directive, Container, Reference, CodeBlock, Call,
-    Return, IfBlock, Routine, IntrinsicCall)
+    Assignment, Loop, Directive, Container, Reference, CodeBlock,
+    Call, Return, IfBlock, Routine, IntrinsicCall)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ScalarType,
     RoutineSymbol, ImportInterface)
@@ -61,15 +61,6 @@ NOT_PERFORMANT = [
     "tide_mod.f90", "zdfosm.f90",
 ]
 
-# Files that we won't touch at all, either because PSyclone actually fails
-# or because it produces incorrect Fortran.
-NOT_WORKING = [
-    # TODO #717 - array accessed inside WHERE does not use array notation
-    "diurnal_bulk.f90",
-    # TODO #1902: Excluded to avoid HoistLocalArraysTrans bug
-    "mpp_ini.f90",
-]
-
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "macho", "mpp_", "nemo_gcm",
@@ -78,6 +69,21 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     # to create OpenACC regions with calls to them)
                     "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
                     "sum", "sign_", "ddpdd"]
+
+# Currently fparser has no way of distinguishing array accesses from
+# function calls if the symbol is imported from some other module.
+# We therefore work-around this by keeping a list of known NEMO functions.
+NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
+                  "eos_pt_from_ct", "gamma_moist", "l_vap",
+                  "sbc_dcy", "solfrac", "psi_h", "psi_m", "psi_m_coare",
+                  "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf", "q_sat",
+                  "rho_air", "visc_air", "sbc_dcy", "glob_sum",
+                  "glob_sum_full", "ptr_sj", "ptr_sjk", "interp1", "interp2",
+                  "interp3", "integ_spline"]
+
+# Currently fparser has no way of distinguishing array accesses from statement
+# functions, the following subroutines contains known statement functions
+CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
 VERBOSE = False
 
@@ -140,15 +146,19 @@ def enhance_tree_information(schedule):
                         ArrayType.Extent.ATTRIBUTE,
                         ArrayType.Extent.ATTRIBUTE,
                         ArrayType.Extent.ATTRIBUTE]))
-        elif reference.symbol.name == "sbc_dcy":
-            # The parser gets this wrong, it is a Call not an Array access
-            if not isinstance(reference.symbol, RoutineSymbol):
-                # We haven't already specialised this Symbol.
-                reference.symbol.specialise(RoutineSymbol)
-            call = Call.create(reference.symbol)
-            for child in reference.children:
-                call.addchild(child.detach())
-            reference.replace_with(call)
+        elif reference.symbol.name in NEMO_FUNCTIONS:
+            if reference.symbol.is_import or reference.symbol.is_unresolved:
+                # The parser gets these wrong, they are Calls not ArrayRefs
+                if not isinstance(reference.symbol, RoutineSymbol):
+                    # We need to specialise the generic Symbol to a Routine
+                    reference.symbol.specialise(RoutineSymbol)
+                if not (isinstance(reference.parent, Call) and
+                        reference.parent.routine is reference):
+                    # We also need to replace the Reference node with a Call
+                    call = Call.create(reference.symbol)
+                    for child in reference.children[:]:
+                        call.addchild(child.detach())
+                    reference.replace_with(call)
 
 
 def inline_calls(schedule):
@@ -227,8 +237,10 @@ def normalise_loops(
         statements out of the loop nest.
     '''
 
-    if hoist_local_arrays:
-        # Apply the HoistLocalArraysTrans when possible
+    if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
+        # Apply the HoistLocalArraysTrans when possible, it cannot be applied
+        # to files with statement functions because it will attempt to put the
+        # allocate above it, which is not valid Fortran.
         try:
             HoistLocalArraysTrans().apply(schedule)
         except TransformationError:
@@ -236,7 +248,7 @@ def normalise_loops(
 
     if convert_array_notation:
         # Make sure all array dimensions are explicit
-        for reference in schedule.walk(Reference, stop_type=Reference):
+        for reference in schedule.walk(Reference):
             part_of_the_call = reference.ancestor(Call)
             if part_of_the_call:
                 if not part_of_the_call.is_elemental:
