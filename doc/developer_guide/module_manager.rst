@@ -41,10 +41,10 @@
 
 .. _module_manager:
 
-Module Manager
-##############
+Module Manager (Auto Search)
+############################
 
-PSyclone uses a ``ModuleManager`` to handle searching for files containing
+PSyclone uses a ``ModuleManagerAutoSearch`` to handle searching for files containing
 Fortran modules. This object acts as the top-level interface to the
 code making up a program. It may be used to obtain the PSyIR for each
 Container (Fortran module) in a code. It is used by the Container import
@@ -52,21 +52,21 @@ interface and the :ref:`psyke`. For the latter it
 is used
 to discover all of the source files required to make a standalone driver.
 
-The :ref_guide:`ModuleManager psyclone.parse.html#psyclone.parse.ModuleManager`
+The :ref_guide:`ModuleManagerAutoSearch psyclone.parse.html#psyclone.parse.ModuleManagerAutoSearch`
 is a singleton which must be obtained via
-`ModuleManager.get()`. Having obtained the instance, it may be used to
+`ModuleManagerAutoSearch.get()`. Having obtained the instance, it may be used to
 search for a particular module via the `get_module_info` method:
 
-.. automethod:: psyclone.parse.ModuleManager.get_module_info
+.. automethod:: psyclone.parse.ModuleManagerAutoSearch.get_module_info
 
 Any PSyclone command line option ``-d`` (see :ref:`psyclone_command`)
-will be added to the ``ModuleManager`` as recursive search
-paths. Internally, the ``ModuleManager`` uses caching to avoid
+will be added to the ``ModuleManagerAutoSearch`` as recursive search
+paths. Internally, the ``ModuleManagerAutoSearch`` uses caching to avoid
 repeatedly searching directories, and it will only access search paths
 as required. For example, if it should happen that the first search
 path is sufficient to find all modules during the lifetime of the
 module manager, no other search path will ever be accessed.  The
-caching also implies that the ModuleManager will *not* detect any new
+caching also implies that the ModuleManagerAutoSearch will *not* detect any new
 files created during its lifetime.
 
 Rather than rely on any particular naming convention to identify which
@@ -76,7 +76,7 @@ filename stripped of any path and suffix) of any source file is used
 to identify likely candidates. The standard Python
 ``difflib.SequenceMatcher.ratio`` method is used to obtain the
 similarity score. If the score is above a certain threshold (currently
-set to 0.7 in the ``ModuleManager`` class) then the file is read, its
+set to 0.7 in the ``ModuleManagerAutoSearch`` class) then the file is read, its
 contents cached within a :ref_guide:`FileInfo
 psyclone.parse.html#psyclone.parse.FileInfo` object, and a regular
 expression used to determine whether or not it does contain the target
@@ -86,20 +86,20 @@ HPC resources. The use of a ``FileInfo`` object also facilitates the
 decoupling of the concept of a file from that of a module since the
 former can contain more than one of the latter.
 
-The ``ModuleManager`` will return a :ref_guide:`ModuleInfo
+The ``ModuleManagerAutoSearch`` will return a :ref_guide:`ModuleInfo
 psyclone.parse.html#psyclone.parse.ModuleInfo` object to make
 information about a module available.
-Similar to the ``ModuleManager``, a ``ModuleInfo`` object relies heavily on
+Similar to the ``ModuleManagerAutoSearch``, a ``ModuleManagerAutoSearch`` object relies heavily on
 caching to avoid repeatedly reading a source file or parsing it. The side
 effect is that changes to a source file during the lifetime of the
-``ModuleManager`` will not be reflected in its information.
+``ModuleManagerAutoSearch`` will not be reflected in its information.
 
-The ``ModuleManager`` also provides a static function that will sort
+The ``ModuleManagerAutoSearch`` also provides a static function that will sort
 a list of module dependencies, so that compiling the modules in this order
 (or adding them in this order to a file) will allow compilation, i.e. any
 module will only depend on previously defined modules:
 
-.. automethod:: psyclone.parse.ModuleManager.sort_modules
+.. automethod:: psyclone.parse.ModuleManagerAutoSearch.sort_modules
 
 Once a ``ModuleInfo`` has been obtained, its primary role is to provide
 access to the PSyIR of the ``Container`` representing the module:
@@ -110,12 +110,12 @@ However, it also provides methods (``get_used_modules``,
 ``get_used_symbols_from_modules``) for interrogating the parse tree which
 can be useful if it is not possible to represent this in PSyIR.
 
-An example usage of the ``ModuleManager`` and ``ModuleInfo`` objects,
+An example usage of the ``ModuleManagerAutoSearch`` and ``ModuleInfo`` objects,
 which prints the filenames of all modules used in ``tl_testkern_mod``:
 
 .. testcode ::
 
-    mod_manager = ModuleManager.get()
+    mod_manager = ModuleManagerAutoSearch.get()
     # Add the path to the PSyclone LFRic example codes:
     mod_manager.add_search_path("../../src/psyclone/tests/test_files/"
                                 "dynamo0p3")
