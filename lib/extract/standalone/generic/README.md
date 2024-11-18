@@ -1,4 +1,4 @@
-# Stand-alone Kernel Extraction Library for NEMO
+# Stand-alone Kernel Extraction Library for generic Fortran code
 
 This wrapper library is used to [write (extract)](
 https://psyclone.readthedocs.io/en/stable/psyke.html)

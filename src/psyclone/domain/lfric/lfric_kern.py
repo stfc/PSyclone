@@ -39,8 +39,9 @@
 ''' This module implements the PSyclone LFRic API by specialising the required
     base class Kern in psyGen.py '''
 
-# Imports
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict
+from dataclasses import dataclass
+from typing import List
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
@@ -69,16 +70,22 @@ class LFRicKern(CodedKern):
 
     '''
     # pylint: disable=too-many-instance-attributes
-    # An instance of this `namedtuple` is used to store information on each of
-    # the quadrature rules required by a kernel.
-    #
-    # alg_name: The actual argument text specifying the QR object in the
-    #           Alg. layer.
-    # psy_name: The PSy-layer variable name for the QR object.
-    # kernel_args: List of kernel arguments associated with this QR rule.
 
-    QRRule = namedtuple("QRRule",
-                        ["alg_name", "psy_name", "kernel_args"])
+    @dataclass(frozen=True)
+    class QRRule:
+        '''
+        Used to store information on a quadrature rule required by
+        a kernel.
+
+        :param alg_name: The actual argument text specifying the QR object in
+                         the Alg. layer.
+        :param psy_name: The PSy-layer variable name for the QR object.
+        :param kernel_args: Kernel arguments associated with this QR rule.
+
+        '''
+        alg_name: str
+        psy_name: str
+        kernel_args: List[str]
 
     def __init__(self):
         # The super-init is called from the _setup() method which in turn
@@ -635,8 +642,8 @@ class LFRicKern(CodedKern):
         :rtype: :py:class:`fparser.one.block_statements.Module`
 
         :raises GenerationError: if the supplied kernel stub does not operate
-            on a supported subset of the domain (currently only
-            "*cell_column").
+            on a supported subset of the domain (currently only those that
+            end with "cell_column").
 
         '''
         # The operates-on/iterates-over values supported by the stub generator.
