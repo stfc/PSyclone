@@ -79,7 +79,7 @@ from psyclone.domain.lfric.transformations import (
 )
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
-from psyclone.parse import ModuleManagerAutoSearch
+from psyclone.parse import ModuleManagerMultiplexer
 from psyclone.parse.algorithm import parse
 from psyclone.parse.kernel import get_kernel_filepath
 from psyclone.parse.utils import ParseError, parse_fp2
@@ -259,7 +259,7 @@ def generate(
 
     # TODO #2011: investigate if kernel search path and module manager
     # can be combined.
-    ModuleManagerAutoSearch.get_singleton().add_search_path(kernel_paths)
+    ModuleManagerMultiplexer.get_singleton().add_search_path(kernel_paths)
 
     ast, invoke_info = parse(
         filename,

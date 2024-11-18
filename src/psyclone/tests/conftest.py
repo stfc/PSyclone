@@ -46,7 +46,7 @@ import pytest
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
 from psyclone.configuration import Config
-from psyclone.parse import ModuleManagerAutoSearch
+from psyclone.parse import ModuleManagerMultiplexer
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.tests.gocean_build import GOceanBuild
@@ -277,10 +277,10 @@ def clear_module_manager_instance():
     """
 
     # Enforce loading of the default ModuleManager
-    ModuleManagerAutoSearch._instance = None
+    ModuleManagerMultiplexer._singleton_instance = None
 
     # Now execute all tests
     yield
 
     # Enforce loading of the default ModuleManager
-    ModuleManagerAutoSearch._instance = None
+    ModuleManagerMultiplexer._singleton_instance = None

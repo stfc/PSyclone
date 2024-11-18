@@ -38,13 +38,13 @@ from psyclone.parse.file_info import FileInfo
 from psyclone.parse.module_manager_base import ModuleManagerBase
 
 
-class ModuleManagerFiles(ModuleManagerBase):
+class ModuleManagerFilesCached(ModuleManagerBase):
     """This class implements an interface to the ModuleManager
     which is solely based on loading a list of files.
     """
 
     def __init__(self):
-        super().__init__()
+        super().__init__(cache_active=True)
 
         self._module_name_to_modinfo
 

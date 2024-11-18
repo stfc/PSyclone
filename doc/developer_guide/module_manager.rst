@@ -41,23 +41,36 @@
 
 .. _module_manager:
 
-Module Manager (Auto Search)
+Module Manager
 ############################
 
-PSyclone uses a ``ModuleManagerAutoSearch`` to handle searching for files containing
-Fortran modules. This object acts as the top-level interface to the
+PSyclone supports two module managers:
+- ``ModuleManagerAutoSearch``: Supports to  handle searching for
+files containing Fortran modules.
+
+- ``ModuleManagerFilesCached``: This manager takes a list of source
+files and also supports caching of these files.
+
+Both module managers inherit from the class ``ModuleManagerBase``.
+
+This module manager acts as the top-level interface to the
 code making up a program. It may be used to obtain the PSyIR for each
 Container (Fortran module) in a code. It is used by the Container import
 interface and the :ref:`psyke`. For the latter it
-is used
-to discover all of the source files required to make a standalone driver.
+is used to discover all of the source files required to make a standalone driver.
 
-The :ref_guide:`ModuleManagerAutoSearch psyclone.parse.html#psyclone.parse.ModuleManagerAutoSearch`
-is a singleton which must be obtained via
-`ModuleManagerAutoSearch.get()`. Having obtained the instance, it may be used to
-search for a particular module via the `get_module_info` method:
+A module manager can be obtained with the singleton which must be obtained via
+`ModuleManagerMultiplexer.get_singleton()`. Having obtained the instance,
+it may be used to search for a particular module via the `get_module_info`
+method:
 
-.. automethod:: psyclone.parse.ModuleManagerAutoSearch.get_module_info
+.. automethod:: psyclone.parse.ModuleManagerBase.get_module_info
+
+
+
+ModuleManagerAutoSearch
+=======================
+
 
 Any PSyclone command line option ``-d`` (see :ref:`psyclone_command`)
 will be added to the ``ModuleManagerAutoSearch`` as recursive search
@@ -94,28 +107,47 @@ caching to avoid repeatedly reading a source file or parsing it. The side
 effect is that changes to a source file during the lifetime of the
 ``ModuleManagerAutoSearch`` will not be reflected in its information.
 
-The ``ModuleManagerAutoSearch`` also provides a static function that will sort
+
+
+ModuleManagerBase
+=================
+
+
+The ``ModuleManagerBase`` provides a function that will sort
 a list of module dependencies, so that compiling the modules in this order
 (or adding them in this order to a file) will allow compilation, i.e. any
 module will only depend on previously defined modules:
 
-.. automethod:: psyclone.parse.ModuleManagerAutoSearch.sort_modules
+.. automethod:: psyclone.parse.ModuleManagerBase.get_dependency_sorted_modules
+
+
+
+A ``ModuleInfo`` can be obtained which primary role is to provide
+access to more information about the module:
+
+.. automethod:: psyclone.parse.ModuleManagerBase.get_module_info
+
+
+
+ModuleInfo
+==========
 
 Once a ``ModuleInfo`` has been obtained, its primary role is to provide
 access to the PSyIR of the ``Container`` representing the module:
 
-.. automethod:: psyclone.parse.ModuleInfo.get_psyir
+.. automethod:: psyclone.parse.ModuleInfo.get_psyir_container_node
 
-However, it also provides methods (``get_used_modules``,
+
+The class ``ModuleInfo`` also provides methods (``get_used_modules``,
 ``get_used_symbols_from_modules``) for interrogating the parse tree which
 can be useful if it is not possible to represent this in PSyIR.
 
-An example usage of the ``ModuleManagerAutoSearch`` and ``ModuleInfo`` objects,
+An example usage of the ``ModuleManager`` and ``ModuleInfo`` objects,
 which prints the filenames of all modules used in ``tl_testkern_mod``:
 
 .. testcode ::
 
-    mod_manager = ModuleManagerAutoSearch.get()
+    mod_manager = ModuleManagerAutoSearch.get_singleton()
     # Add the path to the PSyclone LFRic example codes:
     mod_manager.add_search_path("../../src/psyclone/tests/test_files/"
                                 "dynamo0p3")

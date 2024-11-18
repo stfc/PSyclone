@@ -41,22 +41,22 @@ import os
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.parse import ModuleManagerAutoSearch
+from psyclone.parse import ModuleManagerMultiplexer
 
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_manager_instance():
     """Tests the singleton functionality."""
-    mod_man1 = ModuleManagerAutoSearch.get_singleton()
-    mod_man2 = ModuleManagerAutoSearch.get_singleton()
+    mod_man1 = ModuleManagerMultiplexer.get_singleton()
+    mod_man2 = ModuleManagerMultiplexer.get_singleton()
     assert mod_man1 is mod_man2
 
     with pytest.raises(InternalError) as err:
-        ModuleManagerAutoSearch()
+        ModuleManagerMultiplexer()
 
     assert (
-        "You need to use 'ModuleManager.get()' to get the singleton "
+        "You need to use 'ModuleManagerMultiplexer.get_singleton()' to get the singleton "
         "instance." in str(err.value)
     )
 
@@ -78,7 +78,7 @@ def test_mod_manager_directory_reading():
     tmp/d2/d4/f_mod.ignore
     """
 
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
 
     # Add a path to the directory recursively (as default):
     mod_man.add_search_path("d1")
@@ -129,9 +129,9 @@ def test_mod_manager_precedence_preprocessed():
     with open(os.path.join("d1", "a_mod.F90"), "w", encoding="utf-8") as f_out:
         f_out.write("module a_mod\nend module a_mod")
 
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path("d1")
-    mod_info = mod_man.get_module_info_with_auto_add_files("a_mod")
+    mod_info = mod_man.get_module_info("a_mod")
     # Make sure we get the lower case filename:
     assert mod_info.filepath == "d1/a_mod.f90"
 
@@ -153,7 +153,7 @@ def test_mod_manager_add_files_from_dir():
     tmp/d2/d4/f_mod.ignore
 
     """
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
 
     # Now check adding files:
     assert mod_man._module_name_to_modinfo == {}
@@ -199,7 +199,7 @@ def test_mod_manager_get_module_info():
     tmp/d2/d4/f_mod.ignore
     """
 
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
     assert list(mod_man._remaining_search_paths) == [
@@ -213,19 +213,19 @@ def test_mod_manager_get_module_info():
     assert len(mod_man._visited_files) == 0
 
     # First find a_mod, which will parse the first directory
-    mod_info = mod_man.get_module_info_with_auto_add_files("a_mod")
+    mod_info = mod_man.get_module_info("a_mod")
     assert mod_info.filepath == "d1/a_mod.f90"
     assert list(mod_man._remaining_search_paths) == ["d1/d3", "d2", "d2/d4"]
     assert set(mod_man._visited_files.keys()) == set(["d1/a_mod.f90"])
 
     # This should be cached now, so no more change:
-    mod_info_cached = mod_man.get_module_info_with_auto_add_files("a_mod")
+    mod_info_cached = mod_man.get_module_info("a_mod")
     assert mod_info == mod_info_cached
     assert list(mod_man._remaining_search_paths) == ["d1/d3", "d2", "d2/d4"]
     assert set(mod_man._visited_files.keys()) == set(["d1/a_mod.f90"])
 
     # Then look for a second module
-    mod_info = mod_man.get_module_info_with_auto_add_files("b_mod")
+    mod_info = mod_man.get_module_info("b_mod")
     assert mod_info.filepath == "d1/d3/b_mod.F90"
     assert list(mod_man._remaining_search_paths) == ["d2", "d2/d4"]
     assert set(mod_man._module_name_to_modinfo.keys()) == set(
@@ -234,7 +234,7 @@ def test_mod_manager_get_module_info():
 
     # Then locate the e_mod, which should remove two paths from
     # the search path:
-    mod_info = mod_man.get_module_info_with_auto_add_files("e_mod")
+    mod_info = mod_man.get_module_info("e_mod")
     assert mod_info.filepath == "d2/d4/e_mod.F90"
     assert list(mod_man._remaining_search_paths) == []
     assert set(mod_man._visited_files.keys()) == set(
@@ -253,7 +253,7 @@ def test_mod_manager_get_module_info():
     )
 
     with pytest.raises(FileNotFoundError) as err:
-        mod_man.get_module_info_with_auto_add_files("does_not_exist")
+        mod_man.get_module_info("does_not_exist")
     assert (
         "Could not find source file for module 'does_not_exist' "
         "in any of the directories 'd1, d1/d3, d2, d2/d4'. You can "
@@ -279,7 +279,7 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
     tmp/d2/d4/f_mod.ignore
 
     """
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
@@ -316,7 +316,7 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
 def test_mod_man_sort_modules(capsys):
     """Tests that sorting of modules works as expected."""
 
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     # Empty input:
     assert mod_man.get_dependency_sorted_modules(module_dependencies={}) == []
 
@@ -393,15 +393,15 @@ def test_mod_manager_add_ignore_modules():
     tmp/d2/d4/f_mod.ignore
 
     """
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path("d1")
 
     # First finds a_mod, which will parse the first directory
     mod_man.add_ignore_modules("a_mod")
-    mod_info = mod_man.get_module_info_with_auto_add_files("a_mod")
+    mod_info = mod_man.get_module_info("a_mod")
     assert mod_info is None
     assert "a_mod" in mod_man.get_ignore_modules()
 
     # Just in case verify that other modules are not affected
-    mod_info = mod_man.get_module_info_with_auto_add_files("b_mod")
+    mod_info = mod_man.get_module_info("b_mod")
     assert mod_info.filepath == "d1/d3/b_mod.F90"

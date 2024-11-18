@@ -38,7 +38,7 @@
 across different subroutines and modules."""
 
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.parse import ModuleManagerAutoSearch
+from psyclone.parse import ModuleManagerMultiplexer
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import Container, Reference
 from psyclone.psyir.symbols import (
@@ -310,7 +310,7 @@ class CallTreeUtils:
         # that is following the corresponding modules will be queried and
         # the right accesses (functions or variables) will be used.
         todo = []
-        mod_manager = ModuleManagerAutoSearch.get_singleton()
+        mod_manager = ModuleManagerMultiplexer.get_singleton()
         for node in node_list:
             # TODO #2494 - we need to support calls in order to work for
             # generic PSyIR.
@@ -322,9 +322,7 @@ class CallTreeUtils:
                 # Get the non-local access information from the kernel
                 # by querying the module that contains the kernel:
                 try:
-                    mod_info = mod_manager.get_module_info_with_auto_add_files(
-                        kernel.module_name
-                    )
+                    mod_info = mod_manager.get_module_info(kernel.module_name)
                 except FileNotFoundError as err:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
@@ -393,7 +391,7 @@ class CallTreeUtils:
         """
         # pylint: disable=too-many-branches, too-many-locals
         # pylint: disable=too-many-statements
-        mod_manager = ModuleManagerAutoSearch.get_singleton()
+        mod_manager = ModuleManagerMultiplexer.get_singleton()
         done = set()
         # Using a set here means that duplicated entries will automatically
         # be filtered out.
@@ -420,9 +418,7 @@ class CallTreeUtils:
                     )
                     continue
                 try:
-                    mod_info = mod_manager.get_module_info_with_auto_add_files(
-                        module_name
-                    )
+                    mod_info = mod_manager.get_module_info(module_name)
                 except FileNotFoundError:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
@@ -472,9 +468,7 @@ class CallTreeUtils:
                 # It could be a function (TODO #1314) or a variable. Check if
                 # there is a routine with that name in the module information:
                 try:
-                    mod_info = mod_manager.get_module_info_with_auto_add_files(
-                        module_name
-                    )
+                    mod_info = mod_manager.get_module_info(module_name)
                 except FileNotFoundError:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error

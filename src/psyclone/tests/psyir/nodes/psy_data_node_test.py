@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import (
     Return,
     Routine,
 )
-from psyclone.parse import ModuleManagerAutoSearch
+from psyclone.parse import ModuleManagerMultiplexer
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyir.symbols import (
@@ -640,7 +640,7 @@ def test_psy_data_node_name_clash(fortran_writer):
     )
     read_mod_path = os.path.join(psyclone_root, "lib", "extract", "standalone")
 
-    module_manager = ModuleManagerAutoSearch.get_singleton()
+    module_manager = ModuleManagerMultiplexer.get_singleton()
     module_manager.add_search_path(infrastructure_path)
     module_manager.add_search_path(read_mod_path)
 

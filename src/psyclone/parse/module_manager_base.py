@@ -32,30 +32,27 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: M. Schreiber, Univ. Grenoble Alpes
+# Modified: M. Schreiber, Univ. Grenoble Alpes, LJK, Inria
 
 """This module contains a singleton class that manages information about
 which module is contained in which file (including full location). """
 
-
+from abc import ABC
 from typing import List, Dict, Set, Union, final
 import copy
 from psyclone.parse.module_info import ModuleInfo, FileInfo
 from psyclone.psyir.nodes import Node, Container, Routine
 
 
-class ModuleManagerBase:
-    """This class implements the basic shared features to manage modules.
+class ModuleManagerBase(ABC):
+    """This class implements the basic shared features to manage modules."""
 
-    There are two implementations available:
-    - One which is based on automatically loading all files depending on each
-      other
-    - Another one where the files are explicitly provided
+    def __init__(self, cache_active: bool = False, cache_path: str = None):
+        """Constructor of ModuleManager
 
-    Resolves TODO #2681
-    """
-
-    def __init__(self):
+        :param cache_active: _description_, defaults to False
+        :type cache_active: bool, optional
+        """
 
         # Dictionary to lookup file info from file path
         self._filepath_to_file_info: Dict[str, FileInfo] = {}
@@ -70,6 +67,12 @@ class ModuleManagerBase:
         # List of modules to ignore
         # We use a list which can be sorted
         self._ignore_modules = set()
+
+        # Is the Cache activated
+        self._cache_active: bool = cache_active
+
+        # Path to cache
+        self._cache_path: str = cache_path
 
     @final
     def add_ignore_modules(self, module_names: Union[str, set, list]):
@@ -115,7 +118,11 @@ class ModuleManagerBase:
                 filepath not in self._filepath_to_file_info.keys()
             ), "Found duplicate entry in dictionary 'filename to FileInfo'."
 
-            self._filepath_to_file_info[filepath] = FileInfo(filepath)
+            self._filepath_to_file_info[filepath] = FileInfo(
+                filepath,
+                cache_active=self._cache_active,
+                cache_path=self._cache_path,
+            )
 
     def load_source_code(self, verbose: bool = False) -> None:
         """Routine to load the source of all files"""
@@ -222,7 +229,7 @@ class ModuleManagerBase:
         if mod_info:
             return mod_info
 
-        raise FileNotFoundError(
+        raise ModuleNotFoundError(
             f"Could not find module info for module named '{module_name}'"
         )
 

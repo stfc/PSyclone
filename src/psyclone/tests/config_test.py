@@ -59,7 +59,7 @@ from psyclone.configuration import (
 from psyclone.core.access_type import AccessType
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.parse import ModuleManagerAutoSearch
+from psyclone.parse import ModuleManagerMultiplexer
 
 
 # constants
@@ -758,7 +758,7 @@ def test_ignore_modules(tmpdir, monkeypatch):
     """Test that the config file ignores modules, i.e. adds them to the
     ModuleManager."""
 
-    mod_manager = ModuleManagerAutoSearch.get_singleton()
+    mod_manager = ModuleManagerMultiplexer.get_singleton()
     monkeypatch.setattr(mod_manager, "_ignore_modules", set())
     config_file = tmpdir.join("config")
     get_config(config_file, _CONFIG_CONTENT)

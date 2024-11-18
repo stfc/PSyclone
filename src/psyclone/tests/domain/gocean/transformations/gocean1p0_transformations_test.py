@@ -45,7 +45,7 @@ from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern
-from psyclone.parse import ModuleManagerAutoSearch
+from psyclone.parse import ModuleManagerMultiplexer
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import (
@@ -1583,7 +1583,7 @@ def test_accroutinetrans_module_use():
     )
     # Tell the ModuleManager where to find the module that is being USED by
     # the kernel.
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path(get_base_path("gocean"))
     # Now that we can resolve the symbols, we know that `rdt` is a parameter
     # (and is not a problem) but that `magic` is a variable.

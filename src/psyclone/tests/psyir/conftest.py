@@ -39,7 +39,7 @@
 
 import pytest
 
-from psyclone.parse import ModuleManagerAutoSearch
+from psyclone.parse import ModuleManagerMultiplexer
 import psyclone.psyir.frontend.fparser2 as fp2
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
@@ -66,4 +66,4 @@ def modmanager_fixture(monkeypatch, request):
     A fixture that ensures every test gets a fresh ModuleManager instance as
     otherwise changes to search paths or file creation/removal is not detected.
     """
-    monkeypatch.setattr(ModuleManagerAutoSearch, "_instance", None)
+    monkeypatch.setattr(ModuleManagerMultiplexer, "_singleton_instance", None)

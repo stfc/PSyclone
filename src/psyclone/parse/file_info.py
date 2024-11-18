@@ -83,16 +83,27 @@ class FileInfo:
 
     """
 
-    def __init__(self, filepath: str):
+    def __init__(
+        self, filepath: str, cache_active: bool = False, cache_path: str = None
+    ):
         """Constructor
 
         :param filepath: Path to the file containing the source code
         :type filepath: str
 
-        """
+        :param cache_active: Cache the fparser tree (TODO: psyir
+            once psyir pickling is supported)
+        :type cache_active: bool
 
+        """
         # Full path to file
         self._filepath: str = filepath
+
+        # Cache active
+        self._cache_active = cache_active
+
+        # Path where to store cache files
+        self._cache_path = cache_path
 
         # Source code:
         self._source_code: str = None
@@ -111,12 +122,36 @@ class FileInfo:
         # as in the source code, hence, use a list.
         self._module_name_list: List[str] = None
 
-        # Single cache file
-        (path, ext) = os.path.splitext(self._filepath)
-        self._filepath_cache = path + ".psycache"
-
         # Cache with data
         self._cache: _CacheFileInfo = None
+
+        # Single cache file
+        self._filepath_cache = None
+
+    def _get_filepath_cache(self):
+        """Return the filepath of the cache.
+
+        This can't be done in the constructor since the hashcode
+        of the source code is required first.
+        """
+
+        assert self._source_code_hash_sum is not None
+
+        if self._cache_active:
+            if self._cache_path is None or self._cache_path == "":
+                # If cache path is not specified, we use the source code path
+                # E.g.,
+                # path/to/file.f90 => path/to/file.psycache
+                (filepath_no_ext, _) = os.path.splitext(self._filepath)
+                self._filepath_cache = filepath_no_ext + ".psycache"
+
+            else:
+                (path, _) = os.path.split(self._filepath)
+                self._filepath_cache = (
+                    path + self._source_code_hash_sum[:55] + ".psycache"
+                )
+        else:
+            raise Exception("Cache file path requested, but caching disabled")
 
     def get_basename(self) -> str:
         """
@@ -210,6 +245,9 @@ class FileInfo:
         :rtype: Union[_CacheFileInfo, None]
         """
 
+        if not self._cache_active:
+            return None
+
         # Get source code to load it in case it's not yet loaded
         self.get_source_code()
 
@@ -224,10 +262,12 @@ class FileInfo:
 
         # Load cache file
         try:
-            filehandler = open(self._filepath_cache, "rb")
+            filehandler = open(self._get_filepath_cache(), "rb")
         except FileNotFoundError:
             if verbose:
-                print(f"  - No cache file '{self._filepath_cache}' found")
+                print(
+                    f"  - No cache file '{self._get_filepath_cache()}' found"
+                )
             return None
 
         # Unpack cache file
@@ -273,6 +313,9 @@ class FileInfo:
         :rtype: Union[_CacheFileInfo, None]
         """
 
+        if not self._cache_active:
+            return None
+
         if self._source_code_hash_sum is None:
             # Nothing to cache
             return None
@@ -314,7 +357,7 @@ class FileInfo:
 
         # Save to cache file
         try:
-            filehandler = open(self._filepath_cache, "wb")
+            filehandler = open(self._get_filepath_cache(), "wb")
         except Exception as err:
             if verbose:
                 print("  - Unable to write to cache file" + str(err))

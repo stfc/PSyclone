@@ -69,8 +69,6 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
         ModuleManager instance.
         """
 
-        # warnings.warn("Using Singletons is not recommended")
-
         if not ModuleManagerAutoSearch._instance:
             ModuleManagerAutoSearch._instance = ModuleManagerAutoSearch()
 
@@ -192,7 +190,7 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
                 None, file_info.get_basename(), name
             ).ratio()
             if score > self._threshold_similarity:
-                mod_names = self.get_modules_in_file_regexp(file_info)
+                mod_names = self._get_modules_in_file_regexp(file_info)
                 if name in mod_names:
                     # We've found the module we want. Create a ModuleInfo
                     # object for it and cache it.
@@ -205,9 +203,7 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
         return mod_info
 
     # ------------------------------------------------------------------------
-    def get_module_info_with_auto_add_files(
-        self, module_name_lower: str
-    ) -> ModuleInfo:
+    def get_module_info(self, module_name_lower: str) -> ModuleInfo:
         """This function returns the ModuleInformation for the specified
         module and automatically searches all provided directories for the
         respective file with the module.
@@ -266,7 +262,7 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
         )
 
     # ------------------------------------------------------------------------
-    def get_modules_in_file_regexp(self, finfo: FileInfo):
+    def _get_modules_in_file_regexp(self, finfo: FileInfo):
         """
         Uses a regex search to find all modules defined in the file with the
         supplied name.
@@ -330,9 +326,7 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
             if module in self.get_ignore_modules():
                 continue
             try:
-                mod_deps = self.get_module_info_with_auto_add_files(
-                    module
-                ).get_used_modules()
+                mod_deps = self.get_module_info(module).get_used_modules()
                 # Convert to set
                 mod_deps = set(mod_deps)
 

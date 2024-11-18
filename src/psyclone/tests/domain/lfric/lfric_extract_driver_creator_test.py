@@ -45,7 +45,7 @@ from psyclone.domain.lfric import LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
-from psyclone.parse import ModuleManagerAutoSearch
+from psyclone.parse import ModuleManagerMultiplexer
 from psyclone.psyir.nodes import Literal, Routine, Schedule
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.tools import CallTreeUtils
@@ -76,9 +76,9 @@ def init_module_manager():
     )
     read_mod_path = os.path.join(psyclone_root, "lib", "extract", "standalone")
     # Enforce loading of the default ModuleManager
-    ModuleManagerAutoSearch._instance = None
+    ModuleManagerMultiplexer._singleton_instance = None
 
-    module_manager = ModuleManagerAutoSearch.get_singleton()
+    module_manager = ModuleManagerMultiplexer.get_singleton()
     module_manager.add_search_path(infrastructure_path)
     module_manager.add_search_path(read_mod_path)
 
@@ -86,7 +86,7 @@ def init_module_manager():
     yield
 
     # Enforce loading of the default ModuleManager
-    ModuleManagerAutoSearch._instance = None
+    ModuleManagerMultiplexer._singleton_instance = None
 
 
 # ----------------------------------------------------------------------------
@@ -120,8 +120,8 @@ def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
         "_create_output_var_code",
         lambda _1, _2, _3, _4, _5, index=None, module_name="": None,
     )
-    mod_man = ModuleManagerAutoSearch.get_singleton()
-    minfo = mod_man.get_module_info_with_auto_add_files("module_with_var_mod")
+    mod_man = ModuleManagerMultiplexer.get_singleton()
+    minfo = mod_man.get_module_info("module_with_var_mod")
     cntr = minfo.get_psyir_container_node()
     # We can't use 'remove()' with a DataSymbol.
     cntr.symbol_table._symbols.pop("module_var_b")

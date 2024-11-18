@@ -12,6 +12,7 @@ set -e
 
 cd "$SCRIPTPATH/.."
 cd doc/developer_guide; make html SPHINXOPTS="-W --keep-going"
+make linkcheck || echo "Ignoring error of link checking"
 
 cd "$SCRIPTPATH/.."
 cd doc/reference_guide; make html SPHINXOPTS="-W --keep-going"

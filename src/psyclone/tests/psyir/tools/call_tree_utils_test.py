@@ -46,7 +46,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import Signature, SingleVariableAccessInfo
 from psyclone.domain.lfric import LFRicKern
-from psyclone.parse import ModuleManagerAutoSearch
+from psyclone.parse import ModuleManagerMultiplexer
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import (
     CodeBlock,
@@ -72,11 +72,9 @@ def test_call_tree_compute_all_non_locals_non_kernel():
     that has no kernels.
     """
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path(test_dir)
-    mod_info = mod_man.get_module_info_with_auto_add_files(
-        "module_call_tree_mod"
-    )
+    mod_info = mod_man.get_module_info("module_call_tree_mod")
 
     ctu = CallTreeUtils()
 
@@ -168,11 +166,9 @@ def test_call_tree_generic_functions():
     information.
     """
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path(test_dir)
-    mod_info_call_tree = mod_man.get_module_info_with_auto_add_files(
-        "module_call_tree_mod"
-    )
+    mod_info_call_tree = mod_man.get_module_info("module_call_tree_mod")
     # First make sure we get indeed all three functions (even though
     # one of the functions does not exist, which is required for testing
     # exceptions):
@@ -181,9 +177,7 @@ def test_call_tree_generic_functions():
     assert all_names == ["real_func", "double_func", "integer_func"]
 
     ctu = CallTreeUtils()
-    mod_info = mod_man.get_module_info_with_auto_add_files(
-        "module_calling_generic_function"
-    )
+    mod_info = mod_man.get_module_info("module_calling_generic_function")
     todo = ctu.get_non_local_symbols(
         mod_info.get_psyir_container_node_alternative()
     )
@@ -236,12 +230,10 @@ def test_call_tree_get_used_symbols_from_modules():
     """Tests that we get the used symbols from a routine reported correctly."""
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
 
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path(test_dir)
 
-    mod_info = mod_man.get_module_info_with_auto_add_files(
-        "testkern_import_symbols_mod"
-    )
+    mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
     psyir = mod_info.get_psyir_container_node().find_routine_psyir(
         "testkern_import_symbols_code"
     )
@@ -289,12 +281,10 @@ def test_call_tree_get_used_symbols_from_modules_renamed():
     """
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
 
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path(test_dir)
 
-    mod_info = mod_man.get_module_info_with_auto_add_files(
-        "module_renaming_external_var_mod"
-    )
+    mod_info = mod_man.get_module_info("module_renaming_external_var_mod")
     psyir = mod_info.get_psyir_container_node().find_routine_psyir(
         "renaming_subroutine"
     )
@@ -329,7 +319,7 @@ def test_get_non_local_read_write_info(capsys):
     kernels_dir = os.path.join(
         get_base_path("lfric"), "kernels", "dead_end", "no_really"
     )
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path(kernels_dir)
 
     # Since the right search path is missing, this will result
@@ -352,7 +342,7 @@ def test_get_non_local_read_write_info(capsys):
     # Now add the correct search path of the driver creation tests to the
     # module manager:
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path(test_dir)
 
     # The example does contain an unknown subroutine (by design), and the
@@ -416,10 +406,10 @@ def test_get_non_local_read_write_info_errors(capsys):
     schedule = psyir.invokes.invoke_list[0].schedule
 
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path(test_dir)
     kernels = schedule.walk(Kern)
-    minfo = mod_man.get_module_info_with_auto_add_files(kernels[0].module_name)
+    minfo = mod_man.get_module_info(kernels[0].module_name)
     cntr = minfo.get_psyir_container_node_alternative()
     routine = cntr.find_routine_psyir("testkern_import_symbols_code")
     # Remove the kernel routine from the PSyIR.
@@ -464,7 +454,7 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
     # Add the search path of the driver creation tests to the
     # module manager:
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path(test_dir)
 
     # Test if the internal todo handling cannot find a subroutine in the
@@ -535,7 +525,7 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
     # Get the associated PSyIR and break it by removing the Routine and
     # associated Symbol.
     info = SingleVariableAccessInfo(Signature("module_subroutine"))
-    minfo = mod_man.get_module_info_with_auto_add_files("module_with_var_mod")
+    minfo = mod_man.get_module_info("module_with_var_mod")
     cntr = minfo.get_psyir_container_node_alternative()
     cntr.find_routine_psyir("module_subroutine").detach()
     # Since the Routine detach removes the routine symbol, we add a
@@ -627,9 +617,9 @@ def test_module_info_generic_interfaces():
     # Avoid flake8 complaints about unused 'mod_man_test_setup_directories'
     assert type(mod_man_test_setup_directories) is not int
 
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path("d2")
-    mod_info = mod_man.get_module_info_with_auto_add_files("g_mod")
+    mod_info = mod_man.get_module_info("g_mod")
     ctu = CallTreeUtils()
 
     cntr = mod_info.get_psyir_container_node()
@@ -764,7 +754,7 @@ def testcall_tree_utils_non_local_inout_parameters(capsys):
     schedule = psyir.invokes.invoke_list[0].schedule
 
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path(test_dir)
 
     # The example does contain an unknown subroutine (by design), and the
@@ -807,7 +797,7 @@ def test_call_tree_error_var_not_found(capsys):
     ignores (TODO #2120)
     """
     dyn_test_dir = get_base_path("lfric")
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path(os.path.join(dyn_test_dir, "infrastructure"))
 
     read_write_info = ReadWriteInfo()
@@ -829,12 +819,10 @@ def test_call_tree_error_module_is_codeblock(capsys):
     is handled correctly.
     """
     dyn_test_dir = get_base_path("lfric")
-    mod_manager = ModuleManagerAutoSearch.get_singleton()
+    mod_manager = ModuleManagerMultiplexer.get_singleton()
     mod_manager.add_search_path(os.path.join(dyn_test_dir, "driver_creation"))
 
-    mod_info = mod_manager.get_module_info_with_auto_add_files(
-        "testkern_import_symbols_mod"
-    )
+    mod_info = mod_manager.get_module_info("testkern_import_symbols_mod")
     # get_psyir returns the module PSyIR, which we need to replace with
     # the codeblock in order to reproduce this error:
     container: Container = mod_info.get_psyir_container_node_alternative()

@@ -379,9 +379,9 @@ class Config:
         ignore_modules = self._config["DEFAULT"].getlist("IGNORE_MODULES", [])
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.parse import ModuleManagerAutoSearch
+        from psyclone.parse import ModuleManagerMultiplexer
 
-        mod_manager = ModuleManagerAutoSearch.get_singleton()
+        mod_manager = ModuleManagerMultiplexer.get_singleton()
         for module_name in ignore_modules:
             mod_manager.add_ignore_modules(module_name)
 

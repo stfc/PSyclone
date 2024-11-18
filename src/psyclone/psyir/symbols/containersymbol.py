@@ -251,9 +251,9 @@ class FortranModuleInterface(ContainerSymbolInterface):
 
         """
         # pylint: disable-next=import-outside-toplevel
-        from psyclone.parse import ModuleManagerAutoSearch
+        from psyclone.parse import ModuleManagerMultiplexer
 
-        mod_manager = ModuleManagerAutoSearch.get_singleton()
+        mod_manager = ModuleManagerMultiplexer.get_singleton()
 
         # TODO #2011 - rationalise how this interacts with the kernel search
         # path set in generate().
@@ -261,7 +261,7 @@ class FortranModuleInterface(ContainerSymbolInterface):
 
         minfo = None
         try:
-            minfo = mod_manager.get_module_info_with_auto_add_files(name)
+            minfo = mod_manager.get_module_info(name)
         except FileNotFoundError:
             pass
         if not minfo:

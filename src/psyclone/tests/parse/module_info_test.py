@@ -45,7 +45,7 @@ from psyclone.parse import (
     FileInfo,
     FileInfoFParserError,
     ModuleInfo,
-    ModuleManagerAutoSearch,
+    ModuleManagerMultiplexer,
 )
 from psyclone.parse.module_info import ModuleNotFoundError
 from psyclone.psyir.nodes import Container
@@ -74,11 +74,11 @@ def test_module_info():
     assert "No such file or directory: 'file_for_a.f90'" in str(err.value)
 
     # Try to read the file a_mod.f90, which is contained in the d1 directory
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path("d1")
     assert len(mod_man._visited_files) == 0
 
-    mod_info: ModuleInfo = mod_man.get_module_info_with_auto_add_files("a_mod")
+    mod_info: ModuleInfo = mod_man.get_module_info("a_mod")
     assert isinstance(mod_info, ModuleInfo)
     # Check that we've only read one file.
     assert len(mod_man._visited_files) == 1
@@ -160,7 +160,7 @@ end module my_mod"""
 
 def test_mod_info_get_psyir_wrong_file(tmpdir, capsys):
     """
-    Test the error handling in the get_psyir() method.
+    Test the error handling in the get_psyir_container_node() method.
 
     """
     filepath = os.path.join(tmpdir, "my_mod.f90")
@@ -210,20 +210,14 @@ def test_mod_info_get_used_modules():
     tmp/d2/d4/f_mod.ignore
     """
 
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
-    assert (
-        mod_man.get_module_info_with_auto_add_files("a_mod").get_used_modules()
-        == list()
-    )
-    assert (
-        mod_man.get_module_info_with_auto_add_files("b_mod").get_used_modules()
-        == list()
-    )
+    assert mod_man.get_module_info("a_mod").get_used_modules() == list()
+    assert mod_man.get_module_info("b_mod").get_used_modules() == list()
 
-    mod_c_info = mod_man.get_module_info_with_auto_add_files("c_mod")
+    mod_c_info = mod_man.get_module_info("c_mod")
     assert mod_c_info.name == "c_mod"
     dep = mod_c_info.get_used_modules()
     assert dep == list(("a_mod", "b_mod"))
@@ -238,17 +232,13 @@ def test_mod_info_get_used_modules():
     mod_man.add_search_path(dyn_path, recursive=True)
     # This module imports the intrinsic module iso_fortran_env,
     # (which should be ignored):
-    deps = mod_man.get_module_info_with_auto_add_files(
-        "field_r64_mod"
-    ).get_used_modules()
+    deps = mod_man.get_module_info("field_r64_mod").get_used_modules()
     assert "iso_fortran_env" not in deps
 
     # This module has a 'use' without 'only'. Make sure that
     # the modules are still added to the dependencies, but that no
     # symbols are added:
-    mod_info = mod_man.get_module_info_with_auto_add_files(
-        "testkern_wtheta_mod"
-    )
+    mod_info = mod_man.get_module_info("testkern_wtheta_mod")
     deps = mod_info.get_used_modules()
     for module in deps:
         assert module in [
@@ -278,11 +268,11 @@ def test_mod_info_get_used_symbols_from_modules():
     tmp/d2/d4/f_mod.ignore
     """
 
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
-    mod_info = mod_man.get_module_info_with_auto_add_files("c_mod")
+    mod_info = mod_man.get_module_info("c_mod")
     assert mod_info._used_symbols_from_module_name is None
     used_symbols = mod_info.get_used_symbols_from_modules()
     assert used_symbols["a_mod"] == {"a_mod_symbol"}
@@ -298,13 +288,11 @@ def test_mod_info_get_used_symbols_from_modules():
 def test_mod_info_get_psyir(capsys, tmpdir):
     """This tests the handling of PSyIR representation of the module."""
 
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     dyn_path = get_base_path("lfric")
     mod_man.add_search_path(f"{dyn_path}/driver_creation", recursive=False)
 
-    mod_info = mod_man.get_module_info_with_auto_add_files(
-        "testkern_import_symbols_mod"
-    )
+    mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
     assert mod_info._psyir_container_node is None
     psyir = mod_info.get_psyir_container_node()
     assert isinstance(psyir, Container)
@@ -324,7 +312,7 @@ def test_mod_info_get_psyir(capsys, tmpdir):
 end module broken_mod"""
         )
     mod_man.add_search_path(str(tmpdir), recursive=False)
-    broken_builtins = mod_man.get_module_info_with_auto_add_files("broken_mod")
+    broken_builtins = mod_man.get_module_info("broken_mod")
     try:
         broken_builtins.get_psyir_container_node()
     except Exception:
@@ -351,11 +339,11 @@ def test_generic_interface():
     `myfunc2`
 
     """
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
-    mod_info = mod_man.get_module_info_with_auto_add_files("g_mod")
+    mod_info = mod_man.get_module_info("g_mod")
 
     # It should contain all two concrete functions
     contr = mod_info.get_psyir_container_node()
@@ -379,11 +367,9 @@ def test_module_info_extract_import_information_error():
     """
     # TODO 2120: Once proper error handling is implemented, this should
     # likely just raise an exception.
-    mod_man = ModuleManagerAutoSearch.get_singleton()
+    mod_man = ModuleManagerMultiplexer.get_singleton()
     mod_man.add_search_path("d2")
-    mod_info: ModuleInfo = mod_man.get_module_info_with_auto_add_files(
-        "error_mod"
-    )
+    mod_info: ModuleInfo = mod_man.get_module_info("error_mod")
     assert mod_info.name == "error_mod"
 
     assert mod_info._used_module_names is None
@@ -421,20 +407,12 @@ end module my_mod"""
     # A Symbol that doesn't exist.
     assert module_info.get_symbol_by_name("amos") is None
 
-    # When no Container has been created. Monkeypatch get_psyir() to simplify
-    # this.
+    # When no Container has been created.
 
     def foo(self):
         raise FileInfoFParserError("foo")
 
     module_info.get_psyir_container_node = types.MethodType(foo, module_info)
-    # monkeypatch.setattr(module_info, "get_psyir_container_node", foo)
 
-    # try:
-    #     module_info.get_symbol_by_name("amos")
-    # except (FileNotFoundError, FileInfoFParserError, GenerationError) as err:
-    #     pass
-    # else:
-    #     raise Exception("Some error")
-
-    assert module_info.get_symbol_by_name("amos") is None
+    retval = module_info.get_symbol_by_name("amos")
+    assert retval is None

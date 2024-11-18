@@ -50,7 +50,7 @@ from psyclone.domain.common import BaseDriverCreator
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
-from psyclone.parse import ModuleManagerAutoSearch
+from psyclone.parse import ModuleManagerMultiplexer
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -413,7 +413,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # Now add all non-local symbols, which need to be
         # imported from the appropriate module:
         # -----------------------------------------------
-        mod_man = ModuleManagerAutoSearch.get_singleton()
+        mod_man = ModuleManagerMultiplexer.get_singleton()
         for module_name, signature in read_write_info.set_of_all_used_vars:
             if not module_name:
                 # Ignore local symbols, which will have been added above
@@ -428,7 +428,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # are created later and which will query the original symbol for
             # its type. And since they are not imported, they need to be
             # explicitly declared.
-            mod_info = mod_man.get_module_info_with_auto_add_files(module_name)
+            mod_info = mod_man.get_module_info(module_name)
             try:
                 container_symbol = mod_info.get_symbol_by_name(signature[0])
 
@@ -629,7 +629,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
-        mod_man = ModuleManagerAutoSearch.get_singleton()
+        mod_man = ModuleManagerMultiplexer.get_singleton()
 
         # First handle variables that are read:
         # -------------------------------------
@@ -641,9 +641,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # in the symbol table (in _add_all_kernel_symbols).
             sig_str = self._flatten_signature(signature)
             if module_name:
-                mod_info = mod_man.get_module_info_with_auto_add_files(
-                    module_name
-                )
+                mod_info = mod_man.get_module_info(module_name)
                 try:
                     orig_sym = mod_info.get_symbol_by_name(signature[0])
                 except KeyError:
@@ -707,7 +705,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
             if module_name:
-                orig_sym = mod_man.get_module_info_with_auto_add_files(
+                orig_sym = mod_man.get_module_info(
                     module_name
                 ).get_symbol_by_name(signature[0])
                 if not orig_sym:
@@ -1083,7 +1081,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                 if isinstance(symbol, ContainerSymbol)
             )
 
-        mod_manager = ModuleManagerAutoSearch.get_singleton()
+        mod_manager = ModuleManagerMultiplexer.get_singleton()
         return mod_manager.get_all_dependencies_recursively(all_mods)
 
     # -------------------------------------------------------------------------
@@ -1142,7 +1140,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # that have no dependency. This is required for compilation, the
         # compiler must have found any dependent modules before it can
         # compile a module.
-        mod_manager = ModuleManagerAutoSearch.get_singleton()
+        mod_manager = ModuleManagerMultiplexer.get_singleton()
         sorted_modules = mod_manager.get_dependency_sorted_modules(
             module_dependencies
         )
@@ -1154,7 +1152,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         for module in sorted_modules:
             # Note that all modules in `sorted_modules` are known to be in
             # the module manager, so we can always get the module info here.
-            mod_info = mod_manager.get_module_info_with_auto_add_files(module)
+            mod_info = mod_manager.get_module_info(module)
             out.append(mod_info.get_source_code())
 
         out.append(writer(file_container))
