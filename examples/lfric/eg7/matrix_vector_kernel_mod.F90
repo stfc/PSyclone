@@ -114,7 +114,7 @@ subroutine matrix_vector_code(cell,              &
   real(kind=r_def), dimension(ncell_3d,ndf1,ndf2), intent(in)    :: matrix
 
   ! Internal variables
-  integer(kind=i_def) :: df, df2, k, ik
+  integer(kind=i_def) :: df, k, ik, df2
 
   do df = 1, ndf1
     do df2 = 1, ndf2
