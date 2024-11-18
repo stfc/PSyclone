@@ -48,10 +48,10 @@ from psyclone.psyir.nodes import (
     Call,
     CodeBlock,
     Literal,
+    Node,
     Reference,
     Routine,
     Schedule,
-    Node,
 )
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
@@ -683,7 +683,12 @@ end module some_mod"""
 
 def test_call_get_callee_1_simple_match(fortran_reader):
     """
-    Check that right routine has been found.
+    <<<<<<< HEAD
+        Check that right routine has been found.
+    =======
+        Check that the right routine has been found for a single routine
+        implementation.
+    >>>>>>> martin_nemo
     """
     code = """
 module some_mod
@@ -792,18 +797,10 @@ end module some_mod"""
 
     arg_idx_list = []
 
-    try:
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
         call_foo.get_callee(ret_arg_match_list=arg_idx_list)
 
-    except CallMatchingArgumentsNotFound as err:
-        assert "No matching routine found for" in str(err)
-        print("Success! Exception triggered (as expected)")
-        return
-
-    assert False, (
-        "This should have triggered an error since there"
-        "are more arguments in the call than in the routine"
-    )
+    assert "No matching routine found for" in str(err.value)
 
 
 def test_call_get_callee_4_named_arguments(fortran_reader):
@@ -852,6 +849,7 @@ end module some_mod"""
 def test_call_get_callee_5_optional_and_named_arguments(fortran_reader):
     """
     Check that optional and named arguments have been correlated correctly
+    when the call is to a generic interface.
     """
     code = """
 module some_mod
@@ -1149,7 +1147,8 @@ contains
 
   subroutine main()
     integer :: e, f, g
-    ! Use name 'd' which doesn't exist
+    ! Use named argument 'd', which doesn't exist
+    ! to trigger an error when searching for the matching routine.
     call foo(e, f, d=g)
   end subroutine
 
@@ -1167,17 +1166,11 @@ end module some_mod"""
 
     call_foo: Call = routine_main.walk(Call)[0]
 
-    try:
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
         call_foo.get_callee()
 
-    except CallMatchingArgumentsNotFound as err:
-        assert "No matching routine found for 'call foo(e, f, d=g)" in str(err)
-        print("Success! Exception triggered (as expected)")
-        return
-
-    assert False, (
-        "This should have triggered an error since there"
-        "are more arguments in the call than in the routine"
+    assert "No matching routine found for 'call foo(e, f, d=g)" in str(
+        err.value
     )
 
 
@@ -1210,18 +1203,10 @@ end module some_mod"""
 
     call_foo: Call = routine_main.walk(Call)[0]
 
-    try:
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
         call_foo.get_callee()
 
-    except CallMatchingArgumentsNotFound as err:
-        assert "No matching routine found for 'call foo(e, f)" in str(err)
-        print("Success! Exception triggered (as expected)")
-        return
-
-    assert False, (
-        "This should have triggered an error since there"
-        "are more arguments in the call than in the routine"
-    )
+    assert "No matching routine found for 'call foo(e, f)" in str(err.value)
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")

@@ -736,8 +736,6 @@ class Call(Statement, DataNode):
                 f" than callee (routine '{routine.name}')"
             )
 
-        assert len(self.arguments) == len(self.argument_names)
-
         # Iterate over all arguments to the call
         ret_arg_idx_list = []
         for call_arg_idx, call_arg in enumerate(self.arguments):

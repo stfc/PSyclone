@@ -64,7 +64,7 @@ Installing Documentation Tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Install Sphinx along with bibtex support for creating PSyclone documentation::
 
-   > pip install sphinx sphinxcontrib.bibtex sphinx-rtd-theme
+   > pip install .[doc]
 
 You can now build html documentation. E.g., for the developer documentation::
 
