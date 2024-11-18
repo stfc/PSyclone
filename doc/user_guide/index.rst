@@ -82,10 +82,8 @@ and the
     getting_going
     psyclone_command
     configuration
-    tutorial
-    examples
+    tutorials_and_examples
     libraries
-    system_specific_setup
 
 .. toctree::
     :maxdepth: 2

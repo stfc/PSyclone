@@ -396,9 +396,9 @@ def _find_or_create_psyclone_internal_cmp(node):
             routine_symbol3 = container.symbol_table.lookup(name_f_char)
             symbol = GenericInterfaceSymbol(
                     sym.name,
-                    [(routine_symbol1, sym.routines[0][1]),
-                     (routine_symbol2, sym.routines[1][1]),
-                     (routine_symbol3, sym.routines[2][1])],
+                    [(routine_symbol1, sym.routines[0].from_container),
+                     (routine_symbol2, sym.routines[1].from_container),
+                     (routine_symbol3, sym.routines[2].from_container)],
                     visibility=sym.visibility
                     )
             container.symbol_table.add(symbol)
@@ -1164,6 +1164,7 @@ class Fparser2Reader():
         shape = []
         # Traverse shape specs in Depth-first-search order
         for dim in walk(dimensions, (Fortran2003.Assumed_Shape_Spec,
+                                     Fortran2003.Deferred_Shape_Spec,
                                      Fortran2003.Explicit_Shape_Spec,
                                      Fortran2003.Assumed_Size_Spec)):
 
@@ -1193,6 +1194,11 @@ class Fparser2Reader():
                     shape.append((lower, upper))
                 else:
                     shape.append(None)
+
+            elif isinstance(dim, Fortran2003.Deferred_Shape_Spec):
+                # Deferred_Shape_Spec has no children (R520). For our purposes
+                # it is equivalent to Assumed_Shape_Spec(None, None).
+                shape.append(None)
 
             elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
                 upper = self._process_array_bound(dim.items[1],
@@ -1680,7 +1686,8 @@ class Fparser2Reader():
         has_save_attr = False
         if attr_specs:
             for attr in attr_specs.items:
-                if isinstance(attr, Fortran2003.Attr_Spec):
+                if isinstance(attr, (Fortran2003.Attr_Spec,
+                                     Fortran2003.Component_Attr_Spec)):
                     normalized_string = str(attr).lower().replace(' ', '')
                     if normalized_string == "save":
                         if interface is not None:

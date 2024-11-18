@@ -39,7 +39,9 @@ needs_sphinx = '1.8'
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
               'sphinx.ext.intersphinx', 'sphinx.ext.coverage',
               'sphinx.ext.imgmath', 'sphinx.ext.viewcode',
-              'sphinxcontrib.bibtex', 'apilinks']
+              'sphinxcontrib.bibtex', 'sphinx_tabs.tabs',
+              'apilinks',
+              ]
 bibtex_bibfiles = ['../bibliography/references.bib']
 
 # GITHUB_PR_NUMBER is set in .github/workflows/python-package.yml when
