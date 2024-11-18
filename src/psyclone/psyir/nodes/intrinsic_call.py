@@ -801,6 +801,7 @@ class IntrinsicCall(Call):
             IntrinsicCall.Intrinsic.PRODUCT, IntrinsicCall.Intrinsic.SIZE,
             IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
             IntrinsicCall.Intrinsic.MATMUL,
+            IntrinsicCall.Intrinsic.RANDOM_NUMBER,
             IntrinsicCall.Intrinsic.UBOUND)
 
     @classmethod
