@@ -61,6 +61,9 @@ class CallMatchingArgumentsNotFound(PSycloneError):
     """Exception to signal that matching arguments have not been found
     for this routine
     """
+    def __init__(self, value):
+        PSycloneError.__init__(self, value)
+        self.value = "CallMatchingArgumentsNotFound: " + str(value)
 
 
 class Call(Statement, DataNode):
@@ -645,7 +648,7 @@ class Call(Statement, DataNode):
 
         # Create a copy of the list of actual arguments to the routine.
         # Once an argument has been successfully matched, set it to 'None'
-        routine_argument_list: List[DataNode] = (
+        routine_argument_list: List[DataSymbol] = (
             routine.symbol_table.argument_list[:]
         )
 
@@ -708,9 +711,19 @@ class Call(Statement, DataNode):
                     # Once this issue is resolved, simply remove this if
                     # branch.
                     # Optional arguments are processed further down.
-                    if not isinstance(
+                    if isinstance(
                         routine_arg.datatype, UnsupportedFortranType
                     ):
+                        if (
+                            call_arg.datatype
+                            != routine_arg.datatype.partial_datatype
+                        ):
+                            raise CallMatchingArgumentsNotFound(
+                                f"Argument partial type mismatch of call "
+                                f"argument '{call_arg}' and routine argument "
+                                f"'{routine_arg}'"
+                            )
+                    else:
                         if call_arg.datatype != routine_arg.datatype:
                             raise CallMatchingArgumentsNotFound(
                                 f"Argument type mismatch of call argument "
@@ -733,11 +746,12 @@ class Call(Statement, DataNode):
         # Finally, we check if all left-over arguments are optional arguments
         #
         for routine_arg in routine_argument_list:
-            routine_arg: DataNode
+            routine_arg: DataSymbol
 
             if routine_arg is None:
                 continue
 
+            routine_arg.is_import
             # TODO #759: Optional keyword is not yet supported in psyir.
             # Hence, we use a simple string match.
             if ", OPTIONAL" in str(routine_arg.datatype):
@@ -763,6 +777,10 @@ class Call(Statement, DataNode):
             indices will be returned
         :type ret_arg_match_list: List[int]
         :param check_matching_arguments: Also check argument types to match.
+            If set to `False` and in case it doesn't find matching arguments,
+            the very first implementation of the matching routine will be
+            returned (even if the argument type check failed). The argument
+            types and number of arguments might therefore mismatch!
         :type ret_arg_match_list: bool
 
         :returns: The routine that this call targets.
