@@ -42,9 +42,8 @@ intermediate representation of the algorithm layer.
 from psyclone.domain.common.algorithm.psyir import AlgorithmInvokeCall
 
 
-def trans(psy):
+def trans(psyir):
     '''The trans function is required for the script to be valid.'''
-    return psy
 
 
 def trans_alg(psyir):

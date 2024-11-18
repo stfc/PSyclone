@@ -1,6 +1,6 @@
 # Using Profiling with PSyclone - Tutorial 2 #
 
-This tutorial follows on from [Tutorial 1](../1_nemo_psyir/README.md) and
+This tutorial follows on from [Tutorial 1](../1_intro_psyir/README.md) and
 assumes that you are comfortable with the topics covered there. It uses
 the same tracer-advection mini-app, although for this tutorial it has
 been refactored so that the mini-app itself is called from a separate
@@ -50,7 +50,7 @@ this session.)
    ```
    At this point, the compiled application can be run (either ensure you have
    the necessary environment variables set first - see
-   [Tutorial 1](../1_nemo_psyir/README.md) - or include them inline
+   [Tutorial 1](../1_intro_psyir/README.md) - or include them inline
    as indicated):
    ```bash
    JPK=30 JPI=100 JPJ=100 IT=10 ./tra_adv.exe
@@ -217,5 +217,5 @@ transformation script to perform finer-grained profiling.
 Congratulations, you have now completed this part of the tutorial. We
 have used a PSyclone transformation to add profiling
 instrumentation to the tracer-advection mini-app. In the
-[next tutorial](../3_nemo_openmp/README.md) we will look at using PSyclone
+[next tutorial](../3_openmp/README.md) we will look at using PSyclone
 transformations to parallelise the code on CPU.

@@ -45,6 +45,7 @@ first before any members.
 from psyclone import psyGen
 from psyclone.domain.lfric import KernCallArgList, LFRicConstants
 from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Container
 
 
 class KernCallAccArgList(KernCallArgList):
@@ -131,8 +132,8 @@ class KernCallAccArgList(KernCallArgList):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        var_name = LFRicStencils.dofmap_symbol(self._kern.root.symbol_table,
-                                               arg).name
+        var_name = LFRicStencils.dofmap_symbol(
+            self._kern.ancestor(Container).symbol_table, arg).name
         self.append(var_name, var_accesses)
 
     def stencil_2d(self, arg, var_accesses=None):
@@ -169,8 +170,8 @@ class KernCallAccArgList(KernCallArgList):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        name = LFRicStencils.dofmap_size_symbol(self._kern.root.symbol_table,
-                                                arg).name
+        name = LFRicStencils.dofmap_size_symbol(
+                    self._kern.ancestor(Container).symbol_table, arg).name
         self.append(name, var_accesses)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
@@ -225,7 +226,7 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
-        if self._kern.iterates_over != "cell_column":
+        if not self._kern.iterates_over.endswith("cell_column"):
             return
         self.append(function_space.undf_name, var_accesses)
         # The base class only adds one dimension to the list, while OpenACC

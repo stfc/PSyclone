@@ -46,7 +46,7 @@ organised. Many are now in the 'proper' location of
 [Reference Guide](https://psyclone-ref.readthedocs.io/en/latest/_static/html/annotated.html).
 
 
-## 1. Processing NEMO Fortran code with PSyclone ##
+## 1. Processing Fortran code with PSyclone ##
 
 By default (i.e. without the additional arguments), the `psyclone` command
 parses the provided input Fortran file:
@@ -283,6 +283,6 @@ file, use a transformation script to access the PSyIR of the code and
 be able to understand the structure of the PSyIR and how it relates to
 the original Fortran.
 
-You may now proceed to the [second section](../2_nemo_profiling/README.md)
+You may now proceed to the [second section](../2_profiling/README.md)
 of the tutorial where you will use PSyclone to add profiling instrumentation
 to the mini-app.

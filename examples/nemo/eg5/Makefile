@@ -62,13 +62,13 @@ GENERATED_FILES += psy.f90 psy.o traadv-$(TYPE).exe output.dat
 # Pick up the right extraction library:
 PSYROOT=../../..
 ifeq ($(TYPE), netcdf)
-	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/nemo
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/generic
 	READ_DIR ?= $(PSYROOT)/lib/extract/netcdf
 	F90FLAGS += $$(nf-config --fflags)
 	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 	GENERATED_FILES += tra_adv-r?.nc
 else
-	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/nemo
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/generic
 	READ_DIR ?= $(PSYROOT)/lib/extract/standalone
 	GENERATED_FILES += tra_adv-r?.binary
 endif
