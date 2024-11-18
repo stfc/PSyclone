@@ -258,7 +258,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    monkeypatch.setattr(kern_call, "_kern_schedule", [routine])
+    monkeypatch.setattr(kern_call, "_kern_schedules", [routine])
 
     # and try to apply the transformation
     inline_trans = KernelModuleInlineTrans()
@@ -281,7 +281,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    monkeypatch.setattr(kern_call, "_kern_schedule", [routine])
+    monkeypatch.setattr(kern_call, "_kern_schedules", [routine])
 
     # and try to apply the transformation
     with pytest.raises(TransformationError) as err:
@@ -303,7 +303,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    monkeypatch.setattr(kern_call, "_kern_schedule", [routine])
+    monkeypatch.setattr(kern_call, "_kern_schedules", [routine])
 
     container = kern_call.ancestor(Container)
     assert "compute_cv_code" not in container.symbol_table

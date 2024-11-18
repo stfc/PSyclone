@@ -137,8 +137,7 @@ class KernelModuleInlineTrans(Transformation):
 
         # Check that the PSyIR  of the routine/kernel can be retrieved.
         try:
-            _, kernels, _ = (
-                KernelModuleInlineTrans._get_psyir_to_inline(node))
+            kernels, _ = KernelModuleInlineTrans._get_psyir_to_inline(node)
         except Exception as error:
             raise TransformationError(
                 f"{self.name} failed to retrieve PSyIR for {kern_or_call} "
@@ -333,21 +332,21 @@ class KernelModuleInlineTrans(Transformation):
     @staticmethod
     def _get_psyir_to_inline(node):
         '''
-        Wrapper that gets the name and PSyIR of the routine or kernel
-        corresponding to the call described by `node`.
+        Wrapper that gets the PSyIR of the routine or kernel
+        corresponding to the call described by `node`. This supports calls to
+        routines or kernels which are polymorphic by returning a list of
+        Routine objects, as well as the associated interface symbol.
 
         :param node: the Call or CodedKern to resolve.
         :type node: :py:class:`psyclone.psyir.nodes.Call` |
                     :py:class:`psyclone.psyGen.CodedKern`
 
-        :returns: the name of the routine as seen by the caller and the
-                  PSyIR of the routine implementation.
-        :rtype: Tuple(str, list[:py:class:`psyclone.psyir.nodes.Routine`],
-                      :py:class:`psyclone.psyir.symbols.Symbol`)
+        :returns: the PSyIR of the routine implementation(s) and the associated
+            interface symbol if it is polymorphic.
+        :rtype: tuple[
+            list[:py:class:`psyclone.psyir.nodes.Routine`],
+            :py:class:`psyclone.psyir.symbols.GenericInterfaceSymbol`)]
 
-        :raises TransformationError: if we have a call to a language-level
-            Routine that maps to an Interface block as this is not yet
-            supported (TODO #924).
         '''
         # TODO #2054 - once CodedKern has been migrated so that it subclasses
         # Call then this if/else (and thus this whole routine) can be removed.
@@ -357,16 +356,16 @@ class KernelModuleInlineTrans(Transformation):
             # call to get_kernel_schedule() will return the one which has an
             # interface matching the arguments in the call.
             interface_sym, routines = node.get_kernel_schedule()
-            caller_name = node.name.lower()
-        else:
-            # We have a generic routine call.
-            routines = node.get_callees()
-            caller_name = node.routine.name.lower()
-            interface_sym = None
-            if len(routines) > 1:
-                interface_sym = routines[0].symbol_table.lookup(caller_name)
+            return (routines, interface_sym)
 
-        return (caller_name, routines, interface_sym)
+        # We have a generic routine call.
+        routines = node.get_callees()
+        caller_name = node.routine.name.lower()
+        interface_sym = None
+        if len(routines) > 1:
+            interface_sym = routines[0].symbol_table.lookup(caller_name)
+
+        return (routines, interface_sym)
 
     @staticmethod
     def _rm_imported_symbol(name, table):
@@ -436,9 +435,7 @@ class KernelModuleInlineTrans(Transformation):
         # may already be in use, but the equality check below guarantees
         # that if it exists it is only valid when it references the exact same
         # implementation.
-        # TODO - get rid of 'caller name' return value from
-        # _get_psyir_to_inline?
-        _, codes_to_inline, interface_sym = (
+        codes_to_inline, interface_sym = (
             KernelModuleInlineTrans._get_psyir_to_inline(node))
 
         container = node.ancestor(Container)
@@ -472,7 +469,7 @@ class KernelModuleInlineTrans(Transformation):
         if isinstance(node, CodedKern):
             # TODO - add setter for these properties to Kern?
             # pylint: disable=protected-access
-            node._kern_schedule = updated_routines
+            node._kern_schedules = updated_routines
             if interface_sym:
                 node._interface_symbol = (
                     updated_routines[0].scope.symbol_table.lookup(

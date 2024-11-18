@@ -1352,13 +1352,13 @@ class CodedKern(Kern):
                                         KernelArguments, check)
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
-        self._fp2_ast = None  # The fparser2 AST for the kernel
-        self._kern_schedule = None  # PSyIR schedules for the kernel
+        self._fp2_ast = None  #: The fparser2 AST for the kernel
+        self._kern_schedules = None  #: PSyIR schedule(s) for the kernel
         self._interface_symbol = None
-        # Whether or not this kernel has been transformed
+        #: Whether or not this kernel has been transformed
         self._modified = False
-        # Whether or not to in-line this kernel into the module containing
-        # the PSy layer
+        #: Whether or not to in-line this kernel into the module containing
+        #: the PSy layer
         self._module_inline = False
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
         self.arg_descriptors = call.ktype.arg_descriptors

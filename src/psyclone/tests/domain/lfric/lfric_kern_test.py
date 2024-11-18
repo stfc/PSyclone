@@ -149,13 +149,13 @@ def test_get_kernel_schedule():
     # matrix vector kernel
     kernel = schedule[2].loop_body[0]
 
-    assert kernel._kern_schedule is None
+    assert kernel._kern_schedules is None
 
     sym, kernel_schedules = kernel.get_kernel_schedule()
     assert sym is None
     assert len(kernel_schedules) == 1
     assert isinstance(kernel_schedules[0], KernelSchedule)
-    assert kernel._kern_schedule[0] is kernel_schedules[0]
+    assert kernel._kern_schedules[0] is kernel_schedules[0]
 
     _, kernel_schedules_2 = kernel.get_kernel_schedule()
     assert kernel_schedules[0] is kernel_schedules_2[0]

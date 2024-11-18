@@ -1248,8 +1248,8 @@ class GOKern(CodedKern):
         :raises GenerationError: if there is a problem raising the language-
                                  level PSyIR of this kernel to GOcean PSyIR.
         '''
-        if self._kern_schedule:
-            return None, self._kern_schedule
+        if self._kern_schedules:
+            return None, self._kern_schedules
 
         # Construct the PSyIR of the Fortran parse tree.
         astp = Fparser2Reader()
@@ -1270,9 +1270,9 @@ class GOKern(CodedKern):
         # We know the above loop will find the named routine because the
         # previous raising transformation would have failed otherwise.
         # pylint: disable=undefined-loop-variable
-        self._kern_schedule = [routine]
+        self._kern_schedules = [routine]
 
-        return None, self._kern_schedule
+        return None, self._kern_schedules
 
 
 class GOKernelArguments(Arguments):

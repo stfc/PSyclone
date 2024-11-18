@@ -99,7 +99,7 @@ def test_gok_get_kernel_schedule():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.walk(GOKern)[0]
-    assert kern._kern_schedule is None
+    assert kern._kern_schedules is None
     sym, scheds = kern.get_kernel_schedule()
     assert sym is None
     assert isinstance(scheds, list)
@@ -111,7 +111,7 @@ def test_gok_get_kernel_schedule():
     assert scheds2[0] is sched
     # Check that the expected error is raised if the subroutine that
     # implements the kernel cannot be found.
-    kern._kern_schedule = None
+    kern._kern_schedules = None
     # Remove the subroutine that implements the kernel from the Fortran
     # parse tree.
     subs = walk(kern.ast, Fortran2003.Subroutine_Subprogram)

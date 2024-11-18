@@ -714,7 +714,7 @@ class LFRicKern(CodedKern):
         PSyIR Schedule using LFRic-specific PSyIR where possible.
 
         :returns: the Symbol defining the interface to this kernel (if it is
-            polymorphic and a list of the Schedule(s) representing the kernel
+            polymorphic) and a list of the Schedule(s) representing the kernel
             code.
         :rtype: tuple[Optional[:py:class:`psyclone.psyir.symbols.Symbol`],
                       list[:py:class:`psyclone.psyGen.KernelSchedule`]]
@@ -723,8 +723,8 @@ class LFRicKern(CodedKern):
             be found in the parse tree of the associated source code.
 
         '''
-        if self._kern_schedule:
-            return self._interface_symbol, self._kern_schedule
+        if self._kern_schedules:
+            return self._interface_symbol, self._kern_schedules
 
         # Check for a local implementation of this kernel first.
         container = self.ancestor(Container)
@@ -782,9 +782,9 @@ class LFRicKern(CodedKern):
             sym = None
 
         self._interface_symbol = sym
-        self._kern_schedule = routines
+        self._kern_schedules = routines
 
-        return self._interface_symbol, self._kern_schedule
+        return self._interface_symbol, self._kern_schedules
 
     def validate_kernel_code_args(self, table):
         '''Check that the arguments in the kernel code match the expected
