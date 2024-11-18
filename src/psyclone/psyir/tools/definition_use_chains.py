@@ -768,3 +768,232 @@ class DefinitionUseChain:
                             self._uses.append(reference)
         if defs_out is not None:
             self._defsout.append(defs_out)
+
+
+    def find_backward_accesses(self):
+        """
+        Find all the backward accesses for the reference defined in this
+        DefinitionUseChain.
+        Backward accesses are all of the prior References or Calls that read
+        or write to the symbol of the reference up to the point that a
+        write to the symbol is guaranteed to occur.
+        PSyclone assumes all control flow may not be taken, so writes
+        that occur inside control flow do not end the backward access
+        chain.
+
+        :returns: the backward accesses of the reference given to this
+                  DefinitionUseChain
+        :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
+        """
+        # Setup the start and stop positions
+        save_start_position = self._start_point
+        save_stop_position = self._stop_point
+        # If there is no set start point, then we look for all
+        # accesses after the Reference.
+        if self._stop_point is None:
+            self._stop_point = self._reference_abs_pos
+        # If there is no set stop point, then any Reference after
+        # the start point can potentially be a forward access.
+        if self._start_point is None:
+            self._start_point = self._scope[0].abs_position
+        if not self.is_basic_block:
+            # If this isn't a basic block, then we find all of the basic
+            # blocks.
+            control_flow_nodes, basic_blocks = self._find_basic_blocks(
+                self._scope
+            )
+            chains = []
+            # If this is the top level access, we need to check if the
+            # reference has an ancestor loop. If it does, we find the
+            # highest ancestor Loop in the tree and add a
+            # DefinitionUseChain block at the start to search for things
+            # before the Reference that can also be looped back to.
+            # We should probably have this be any top level time this is
+            # called but thats hard to otherwise track.
+            if (
+                isinstance(self._scope[0], Routine)
+                or self._scope[0] is self._reference.root
+            ):
+                # Check if there is an ancestor Loop/WhileLoop.
+                ancestor = self._reference.ancestor((Loop, WhileLoop))
+                if ancestor is not None:
+                    next_ancestor = ancestor.ancestor((Loop, WhileLoop))
+                    while next_ancestor is not None:
+                        ancestor = next_ancestor
+                        next_ancestor = ancestor.ancestor((Loop, WhileLoop))
+                    # Create a basic block for the ancestor Loop.
+                    body = ancestor.loop_body.children[:]
+                    control_flow_nodes.insert(0, ancestor)
+                    # Find the stop point - this needs to be the node after
+                    # the ancestor statement.
+                    sub_stop_point = (
+                        self._reference.ancestor(Statement)
+                        .walk(Node)[-1]
+                        .abs_position
+                        + 1
+                    )
+                    # We make a copy of the reference to have a detached
+                    # node to avoid handling the special cases based on
+                    # the parents of the reference.
+                    chain = DefinitionUseChain(
+                        self._reference.copy(),
+                        body,
+                        start_point=reference.abs_position+1,
+                        stop_point=sub_stop_point,
+                    )
+                    chains.insert(0, chain)
+                    # If its a while loop, create a basic block for the while
+                    # condition.
+                    if isinstance(ancestor, WhileLoop):
+                        control_flow_nodes.insert(0, None)
+                        sub_stop_point = ancestor.loop_body.abs_position
+                        chain = DefinitionUseChain(
+                            self._reference.copy(),
+                            [ancestor.condition],
+                            start_point=ancestor.abs_position,
+                            stop_point=sub_stop_point,
+                        )
+                        chains.insert(0, chain)
+
+                # Check if there is an ancestor Assignment.
+                ancestor = self._reference.ancestor(Assignment)
+                if ancestor is not None:
+                    # If the reference is not the lhs then we can ignore the RHS.
+                    if ancestor.lhs is not self._reference:
+                        # Find the last node in the assignment
+                        last_node = ancestor.walk(Node)[-1]
+                        # Modify the start_point to only include the node after
+                        # this assignment.
+                        self._start_point = last_node.abs_position
+                    else:
+                        end = ancestor.rhs.abs_position.children[-1]
+                        while len(end.children) > 0:
+                            end = end.children[-1]
+                        # Add the rhs as a potential basic block with
+                        # different start and stop positions.
+                        chain = DefinitionUseChain(
+                            self._reference,
+                            ancestor.rhs.children[:],
+                            start_point=ancestor.rhs.abs_position,
+                            stop_point=end.abs_position + 1,
+                        )
+                        control_flow_nodes.append(None)
+                        chains.append(chain)
+                        # N.B. For now this assumes that for an expression
+                        # b = a * a, that next_access to the first Reference
+                        # to a should not return the second Reference to a.
+            # Now add all the other standardly handled basic_blocks to the
+            # list of chains.
+            for block in basic_blocks:
+                chain = DefinitionUseChain(
+                    self._reference,
+                    block,
+                    start_point=self._start_point,
+                    stop_point=self._stop_point,
+                )
+                chains.append(chain)
+
+            # For backwards we want to reverse the order.
+            chains.reverse()
+            for i, chain in enumerate(chains):
+                # Compute the defsout, killed and reaches for the block.
+                chain.find_backward_accesses()
+                cfn = control_flow_nodes[i]
+
+                if cfn is None:
+                    # We're outside a control flow region, updating the reaches
+                    # here is to find all the reached nodes.
+                    for ref in chain._reaches:
+                        # Add unique references to reaches. Since we're not
+                        # in a control flow region, we can't have added
+                        # these references into the reaches array yet so
+                        # they're guaranteed to be unique.
+                        self._reaches.append(ref)
+                    # If we have a defsout in the chain then we can stop as we
+                    # will never get past the write as its not conditional.
+                    if len(chain.defsout) > 0:
+                        # Reset the start and stop points before returning
+                        # the result.
+                        self._start_point = save_start_position
+                        self._stop_point = save_stop_position
+                        return self._reaches
+                else:
+                    # We assume that the control flow here could not be taken,
+                    # i.e. that this doesn't kill the chain.
+                    # TODO #2760: In theory we could analyse loop structures
+                    # or if block structures to see if we're guaranteed to
+                    # write to the symbol.
+                    # If the control flow node is a Loop we have to check
+                    # if the variable is the same symbol as the _reference.
+                    if isinstance(cfn, Loop):
+                        if cfn.variable == self._reference.symbol:
+                            # The loop variable is always written to and so
+                            # we're done if its reached.
+                            self._reaches.append(cfn)
+                            self._start_point = save_start_position
+                            self._stop_point = save_stop_position
+                            return self._reaches
+
+                    for ref in chain._reaches:
+                        # We will only ever reach a reference once, so
+                        # we don't need to check uniqueness.
+                        self._reaches.append(ref)
+        else:
+            # Check if there is an ancestor Assignment.
+            ancestor = self._reference.ancestor(Assignment)
+            if ancestor is not None:
+                # If we get here to check the start part of a loop we need
+                # to handle this differently.
+                if self._start_point != self._reference_abs_pos:
+                    pass
+                # If the reference is the lhs then we can ignore the RHS.
+                if ancestor.lhs is not self._reference:
+                    # Find the last node in the assignment
+                    last_node = ancestor.walk(Node)[-1]
+                    # Modify the start_point to only include the node after
+                    # this assignment.
+                    self._start_point = last_node.abs_position
+                elif ancestor.lhs is self._scope[0] and len(self._scope) == 1:
+                    # If the ancestor LHS is the scope of this chain then we
+                    # do nothing.
+                    pass
+                else:
+                    # Add the lhs as a potential basic block with different
+                    # start and stop positions.
+                    chain = DefinitionUseChain(
+                        self._reference,
+                        [ancestor.rhs.children],
+                        start_point=ancestor.rhs.abs_position,
+                        stop_point=ancestor.lhs.abs_position + 1,
+                    )
+                    # Find any forward_accesses in the lhs.
+                    chain.find_backward_accesses()
+                    for ref in chain._reaches:
+                        self._reaches.append(ref)
+                    # If we have a defsout in the chain then we can stop as we
+                    # will never get past the write as its not conditional.
+                    if len(chain.defsout) > 0:
+                        # Reset the start and stop points before returning
+                        # the result.
+                        self._start_point = save_start_position
+                        self._stop_point = save_stop_position
+                        return self._reaches
+            # We can compute the rest of the accesses
+            self._compute_backward_uses(self._scope)
+            for ref in self._uses:
+                self._reaches.append(ref)
+            # If this block doesn't kill any accesses, then we add
+            # the defsout into the reaches array.
+            if len(self.killed) == 0:
+                for ref in self._defsout:
+                    self._reaches.append(ref)
+            else:
+                # If this block killed any accesses, then the first element
+                # of the killed writes is the access access that we're
+                # dependent with.
+                self._reaches.append(self.killed[0])
+
+        # Reset the start and stop points before returning the result.
+        self._start_point = save_start_position
+        self._stop_point = save_stop_position
+        return self._reaches
