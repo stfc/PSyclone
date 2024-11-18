@@ -2,6 +2,7 @@
 *~
 *.a
 *.o
+*.psycache
 gnu_opt_report.txt
 *.mod
 *.MOD
