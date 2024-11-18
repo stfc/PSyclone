@@ -57,7 +57,7 @@
    psy_data
    system_specific_setup
    coding-style
-   Bibliography <zz_bibliography>
+   zz_bibliography
 
 ..   FAQS
 
