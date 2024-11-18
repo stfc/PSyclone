@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2024, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -82,19 +82,19 @@ contains
 
 !> @brief Computes lhs = matrix*x for discontinuous function spaces
 !> @param[in] cell Horizontal cell index
-!! @param[in] nlayers Number of layers
-!! @param[in] ncell_3d Total number of cells
-!! @param[in] ndf1 Number of degrees of freedom per cell for the output field
-!! @param[in] undf1 Unique number of degrees of freedom  for the output field
-!! @param[in] map1 Dofmap for the cell at the base of the column for the
-!!            output field
-!! @param[in] map2 Dofmap for the cell at the base of the column for the
-!!            input field
-!! @param[in] ndf2 Number of degrees of freedom per cell for the input field
-!! @param[in] undf2 Unique number of degrees of freedom for the input field
-!! @param[in] x input data
+!> @param[in] nlayers Number of layers
 !> @param[in,out] lhs Output lhs (A*x)
-!! @param[in] matrix Matrix values in LMA form
+!> @param[in] x Input data
+!> @param[in] ncell_3d Total number of cells
+!> @param[in] matrix Matrix values in LMA form
+!> @param[in] ndf1 Number of degrees of freedom per cell for the output field
+!> @param[in] undf1 Unique number of degrees of freedom  for the output field
+!> @param[in] map1 Dofmap for the cell at the base of the column for the
+!!            output field
+!> @param[in] map2 Dofmap for the cell at the base of the column for the
+!!            input field
+!> @param[in] ndf2 Number of degrees of freedom per cell for the input field
+!> @param[in] undf2 Unique number of degrees of freedom for the input field
 subroutine dg_matrix_vector_kernel_code(cell,              &
                                         nlayers,           &
                                         lhs, x,            &
@@ -114,7 +114,7 @@ subroutine dg_matrix_vector_kernel_code(cell,              &
   integer(kind=i_def), dimension(ndf2), intent(in)    :: map2
   real(kind=r_def), dimension(undf2),              intent(in)    :: x
   real(kind=r_def), dimension(undf1),              intent(inout) :: lhs
-  real(kind=r_def), dimension(ndf1,ndf2,ncell_3d), intent(in)    :: matrix
+  real(kind=r_def), dimension(ncell_3d,ndf1,ndf2), intent(in)    :: matrix
 
   ! Internal variables
   integer(kind=i_def)               :: df, k, ik
@@ -126,7 +126,7 @@ subroutine dg_matrix_vector_kernel_code(cell,              &
       x_e(df) = x(map2(df)+k)
     end do
     ik = (cell-1)*nlayers + k + 1
-    lhs_e = matmul(matrix(:,:,ik),x_e)
+    lhs_e = matmul(matrix(ik,:,:),x_e)
     do df = 1,ndf1
        lhs(map1(df)+k) = lhs_e(df)
     end do

@@ -116,7 +116,7 @@ subroutine scaled_matrix_vector_code(cell,        &
   integer(kind=i_def), dimension(ndf2),  intent(in)    :: map2
   real(kind=r_def), dimension(undf2),              intent(in)    :: x
   real(kind=r_def), dimension(undf1),              intent(inout) :: lhs
-  real(kind=r_def), dimension(ndf1,ndf2,ncell_3d), intent(in)    :: matrix
+  real(kind=r_def), dimension(ncell_3d,ndf1,ndf2), intent(in)    :: matrix
   real(kind=r_def), dimension(undf1),              intent(in)    :: y
 
   ! Internal variables
@@ -129,7 +129,7 @@ subroutine scaled_matrix_vector_code(cell,        &
       x_e(df) = x(map2(df)+k)
     end do
     ik = (cell-1)*nlayers + k + 1
-    lhs_e = matmul(matrix(:,:,ik),x_e)
+    lhs_e = matmul(matrix(ik,:,:),x_e)
     do df = 1,ndf1
        lhs(map1(df)+k) = lhs(map1(df)+k) + lhs_e(df)*y(map1(df)+k)
     end do
