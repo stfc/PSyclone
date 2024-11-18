@@ -1,10 +1,9 @@
-# Kernel Extraction Library Using NetCDF for NEMO
+# Kernel Extraction Library Using NetCDF for generic Fortran code
 
 This wrapper library is used to [write (extract)](
 https://psyclone.readthedocs.io/en/stable/psyke.html)
 input and output parameters of instrumented code regions to a [NetCDF file](
-https://psyclone.readthedocs.io/en/stable/psyke.html#netcdf-extraction-example)
-using the NEMO API.
+https://psyclone.readthedocs.io/en/stable/psyke.html#netcdf-extraction-example).
 A stand-alone driver can then be used to rerun this specific code region and
 verify the results (or compare performance).
 

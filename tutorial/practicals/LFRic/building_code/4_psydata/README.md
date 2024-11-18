@@ -31,8 +31,8 @@ the one that propagates the perturbation. Open the file
 The kernel extraction transformation for LFRic is called
 ``LFRicExtractTrans`` and can be imported from
 ``psyclone.domain.lfric.transformations``. Add the import statement
-and then create an instance of the transformation (see line 59
-and 60 of the script).
+and then create an instance of the transformation (first TODO in the
+script).
 
 ### Step 1.2: Get the invoke object to be transformed
 The easiest way of getting this invoke in the transformation script
@@ -40,14 +40,13 @@ is to use the name that was given to the invoke call. Look at the
 file ``time_evolution_alg_mod.x90`` and find the name given to the
 invoke statement that propagates the perturbation.
 
-PSyclone adds ``invoke_`` as a prefix to the name given to an invoke.
-This name can then be used to get the invoke object from
-``psy.invokes``. Use this name in the script (see line 68).
+PSyclone adds ``invoke_`` as a prefix to the subroutine name that implements
+the invoke body.
 
-### Step 1.3: Apply the transformation to the schedule
-Next you need to apply the transformation to the schedule.
-See lines 76 - call the ``apply`` method of the transformation
-object with the schedule as parameter.
+### Step 1.3: Apply the transformation to the PSyIR
+Next you need to apply the transformation to the PSyIR.
+See third TODO in the script - call the ``apply`` method of the transformation
+object with the subroutine as parameter.
 
 
 ## Step 2: Modify the makefile so that PSyclone invokes the script
@@ -188,8 +187,8 @@ to apply the extraction transformation to all invokes in a file. This script
 actually requires less changes than the``extract_one_transform.py`` template
 (since it works on all invokes):
 
-1. Import the required transformation and create an instance (line 59).
-2. In the loop over all invokes apply the transformation (line 75).
+1. Import the required transformation and create an instance (first TODO).
+2. In the loop over all invokes apply the transformation (second TODO).
 
  Then modify ``Makefile.extract_all`` to supply your
 ``extract_all_transform.py`` script to PSyclone.
