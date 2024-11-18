@@ -637,7 +637,7 @@ class Call(Statement, DataNode):
             f" is within a CodeBlock."
         )
 
-    def get_argument_routine_match(self, routine: Routine):
+    def _get_argument_routine_match(self, routine: Routine):
         """Return a list of integers giving for each argument of the call
         the index of the argument in argument_list (typically of a routine)
 
@@ -766,16 +766,12 @@ class Call(Statement, DataNode):
 
     def get_callee(
         self,
-        ret_arg_match_list: List[int] = None,
         check_matching_arguments: bool = True,
     ):
         """
         Searches for the implementation(s) of the target routine for this Call
         including argument checks.
 
-        :param ret_arg_match_list: List in which the matching argument
-            indices will be returned
-        :type ret_arg_match_list: List[int]
         :param check_matching_arguments: Also check argument types to match.
             If set to `False` and in case it doesn't find matching arguments,
             the very first implementation of the matching routine will be
@@ -783,8 +779,10 @@ class Call(Statement, DataNode):
             types and number of arguments might therefore mismatch!
         :type ret_arg_match_list: bool
 
-        :returns: The routine that this call targets.
-        :rtype: psyclone.psyir.nodes.Routine
+        :returns: A tuple of two elements. The first element is the routine
+            that this call targets. The second one a list of arguments
+            providing the information on matching argument indices.
+        :rtype: Set[psyclone.psyir.nodes.Routine, List[int]]
 
         :raises NotImplementedError: if the routine is not local and not found
             in any containers in scope at the call site.
@@ -799,23 +797,20 @@ class Call(Statement, DataNode):
             routine: Routine
 
             try:
-                arg_match_list = self.get_argument_routine_match(routine)
+                arg_match_list = self._get_argument_routine_match(routine)
             except CallMatchingArgumentsNotFound as err:
                 error = err
                 continue
 
-            # Provide list of indices of matching arguments if requested
-            if ret_arg_match_list is not None:
-                ret_arg_match_list[:] = arg_match_list
-
-            return routine
+            return (routine, arg_match_list)
 
         # If we didn't find any routine, return some routine if no matching
         # arguments have been found.
         # This is handy for the transition phase until optional argument
         # matching is supported.
         if not check_matching_arguments:
-            return routine_list[0]
+            # Also return a list of dummy argument indices
+            return (routine_list[0], [i for i in range(len(self.arguments))])
 
         if error is not None:
             raise CallMatchingArgumentsNotFound(

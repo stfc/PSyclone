@@ -710,7 +710,7 @@ end module some_mod"""
 
     call_foo: Call = routine_main.walk(Call)[0]
 
-    result = call_foo.get_callee()
+    (result, _) = call_foo.get_callee()
 
     routine_match: Routine = psyir.walk(Routine)[1]
     assert result is routine_match
@@ -749,8 +749,8 @@ end module some_mod"""
     call_foo: Call = routine_main.walk(Call)[0]
     assert call_foo.routine.name == "foo"
 
-    arg_idx_list = []
-    result: Routine = call_foo.get_callee(ret_arg_match_list=arg_idx_list)
+    (result, arg_idx_list) = call_foo.get_callee()
+    result: Routine
 
     assert len(arg_idx_list) == 2
     assert arg_idx_list[0] == 0
@@ -791,10 +791,8 @@ end module some_mod"""
     call_foo: Call = routine_main.walk(Call)[0]
     assert call_foo.routine.name == "foo"
 
-    arg_idx_list = []
-
     with pytest.raises(CallMatchingArgumentsNotFound) as err:
-        call_foo.get_callee(ret_arg_match_list=arg_idx_list)
+        call_foo.get_callee()
 
     assert "No matching routine found for" in str(err.value)
 
@@ -831,8 +829,8 @@ end module some_mod"""
     call_foo: Call = routine_main.walk(Call)[0]
     assert call_foo.routine.name == "foo"
 
-    arg_idx_list = []
-    result: Routine = call_foo.get_callee(ret_arg_match_list=arg_idx_list)
+    (result, arg_idx_list) = call_foo.get_callee()
+    result: Routine
 
     assert len(arg_idx_list) == 3
     assert arg_idx_list[0] == 2
@@ -876,8 +874,8 @@ end module some_mod"""
     call_foo: Call = routine_main.walk(Call)[0]
     assert call_foo.routine.name == "foo"
 
-    arg_idx_list = []
-    result: Routine = call_foo.get_callee(ret_arg_match_list=arg_idx_list)
+    (result, arg_idx_list) = call_foo.get_callee()
+    result: Routine
 
     assert len(arg_idx_list) == 2
     assert arg_idx_list[0] == 1
@@ -964,10 +962,8 @@ end module some_mod"""
             call_foo_a: Call = routine_main.walk(Call)[0]
             assert call_foo_a.routine.name == "foo"
 
-            arg_idx_list = []
-            result: Routine = call_foo_a.get_callee(
-                ret_arg_match_list=arg_idx_list
-            )
+            (result, arg_idx_list) = call_foo_a.get_callee()
+            result: Routine
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
@@ -984,10 +980,8 @@ end module some_mod"""
             call_foo_a: Call = routine_main.walk(Call)[1]
             assert call_foo_a.routine.name == "foo"
 
-            arg_idx_list = []
-            result: Routine = call_foo_a.get_callee(
-                ret_arg_match_list=arg_idx_list
-            )
+            (result, arg_idx_list) = call_foo_a.get_callee()
+            result: Routine
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
@@ -1009,10 +1003,8 @@ end module some_mod"""
             call_foo_b: Call = routine_main.walk(Call)[2]
             assert call_foo_b.routine.name == "foo"
 
-            arg_idx_list = []
-            result: Routine = call_foo_b.get_callee(
-                ret_arg_match_list=arg_idx_list
-            )
+            (result, arg_idx_list) = call_foo_b.get_callee()
+            result: Routine
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
@@ -1029,10 +1021,8 @@ end module some_mod"""
             call_foo_b: Call = routine_main.walk(Call)[3]
             assert call_foo_b.routine.name == "foo"
 
-            arg_idx_list = []
-            result: Routine = call_foo_b.get_callee(
-                ret_arg_match_list=arg_idx_list
-            )
+            (result, arg_idx_list) = call_foo_b.get_callee()
+            result: Routine
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
@@ -1050,10 +1040,8 @@ end module some_mod"""
             call_foo_b: Call = routine_main.walk(Call)[4]
             assert call_foo_b.routine.name == "foo"
 
-            arg_idx_list = []
-            result: Routine = call_foo_b.get_callee(
-                ret_arg_match_list=arg_idx_list
-            )
+            (result, arg_idx_list) = call_foo_b.get_callee()
+            result: Routine
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
@@ -1075,10 +1063,8 @@ end module some_mod"""
             call_foo_c: Call = routine_main.walk(Call)[5]
             assert call_foo_c.routine.name == "foo"
 
-            arg_idx_list = []
-            result: Routine = call_foo_c.get_callee(
-                ret_arg_match_list=arg_idx_list
-            )
+            (result, arg_idx_list) = call_foo_c.get_callee()
+            result: Routine
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
@@ -1096,10 +1082,8 @@ end module some_mod"""
             call_foo_c: Call = routine_main.walk(Call)[6]
             assert call_foo_c.routine.name == "foo"
 
-            arg_idx_list = []
-            result: Routine = call_foo_c.get_callee(
-                ret_arg_match_list=arg_idx_list
-            )
+            (result, arg_idx_list) = call_foo_c.get_callee()
+            result: Routine
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
@@ -1116,10 +1100,8 @@ end module some_mod"""
             call_foo_c: Call = routine_main.walk(Call)[7]
             assert call_foo_c.routine.name == "foo"
 
-            arg_idx_list = []
-            result: Routine = call_foo_c.get_callee(
-                ret_arg_match_list=arg_idx_list
-            )
+            (result, arg_idx_list) = call_foo_c.get_callee()
+            result: Routine
 
             print(f" - Found matching argument list: {arg_idx_list}")
 
