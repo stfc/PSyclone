@@ -44,6 +44,7 @@ from psyclone.parse.module_info import (
     ModuleNotFoundError,
 )
 from psyclone.parse.module_manager_auto_search import ModuleManagerAutoSearch
+from psyclone.parse.module_manager_files import ModuleManagerFiles
 
 
 # For AutoAPI documentation generation.
@@ -54,4 +55,5 @@ __all__ = [
     "ModuleInfoError",
     "ModuleNotFoundError",
     "ModuleManagerAutoSearch",
+    "ModuleManagerFiles",
 ]
