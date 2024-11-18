@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
+#          T. Vockerodt, Met Office
 
 '''Module containing tests for the matmul2code transformation.'''
 
@@ -108,7 +109,7 @@ def test_create_matrix_ref_1d():
     array_type = ArrayType(REAL_TYPE, [10])
     array_symbol = DataSymbol("x", array_type)
     i_loop_sym = DataSymbol("i", INTEGER_TYPE)
-    ref1 = _create_matrix_ref(array_symbol, [i_loop_sym], [])
+    ref1 = _create_matrix_ref(array_symbol, [i_loop_sym], [], [])
     assert isinstance(ref1, ArrayReference)
     assert ref1.symbol is array_symbol
     assert len(ref1.indices) == 1
@@ -125,7 +126,7 @@ def test_create_matrix_ref_trailing_indices():
     i_loop_sym = DataSymbol("i", INTEGER_TYPE)
     k_sym = DataSymbol("k", INTEGER_TYPE)
     k_ref = Reference(k_sym)
-    ref1 = _create_matrix_ref(array_symbol, [i_loop_sym], [k_ref])
+    ref1 = _create_matrix_ref(array_symbol, [i_loop_sym], [k_ref], [1])
     assert isinstance(ref1, ArrayReference)
     assert ref1.symbol is array_symbol
     assert len(ref1.indices) == 2
@@ -144,7 +145,7 @@ def test_create_matrix_ref_2d():
     array_symbol = DataSymbol("x", array_type)
     i_loop_sym = DataSymbol("i", INTEGER_TYPE)
     j_loop_sym = DataSymbol("j", INTEGER_TYPE)
-    ref2 = _create_matrix_ref(array_symbol, [i_loop_sym, j_loop_sym], [])
+    ref2 = _create_matrix_ref(array_symbol, [i_loop_sym, j_loop_sym], [], [])
     assert isinstance(ref2, ArrayReference)
     assert ref2.symbol is array_symbol
     assert len(ref2.indices) == 2
@@ -489,8 +490,9 @@ def test_validate10():
     matrix.children[0] = Literal("1", INTEGER_TYPE)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("To use matmul2code_trans on matmul, the first two indices of the "
-            "1st argument 'x' must be full ranges." in str(excinfo.value))
+    assert ("To use matmul2code_trans on matmul, exactly two indices of the "
+            "1st argument 'x' must be full ranges "
+            "but found 1." in str(excinfo.value))
 
 
 def test_validate11():
@@ -507,9 +509,9 @@ def test_validate11():
     matrix.children[2] = my_range
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("To use matmul2code_trans on matmul, only the first two indices "
-            "of the 1st argument are permitted to be Ranges but "
-            "found Range at index 2." in str(excinfo.value))
+    assert ("Transformation Error: To use matmul2code_trans on matmul, "
+            "each Range index of the argument 'x' must be a full range "
+            "but found non full range at position 2." in str(excinfo.value))
 
 
 def test_validate12():
@@ -525,8 +527,9 @@ def test_validate12():
     vector.children[0] = Literal("1", INTEGER_TYPE)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("To use matmul2code_trans on matmul, the first index of the 2nd "
-            "argument 'y' must be a full range." in str(excinfo.value))
+    assert ("Transformation Error: To use matmul2code_trans on matmul, "
+            "one or two indices of the 2nd argument 'y' "
+            "must be full ranges but found 0." in str(excinfo.value))
 
 
 def test_validate_2nd_dim_2nd_arg():
@@ -540,9 +543,9 @@ def test_validate_2nd_dim_2nd_arg():
                                        Literal("2", INTEGER_TYPE))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("To use matmul2code_trans on matmul for a matrix-matrix "
-            "multiplication, the second index of the 2nd argument 'y' must "
-            "be a full range." in str(excinfo.value))
+    assert ("Transformation Error: To use matmul2code_trans on matmul, "
+            "each Range index of the argument 'y' must be a full range "
+            "but found non full range at position 1." in str(excinfo.value))
 
 
 def test_validate13():
@@ -559,9 +562,9 @@ def test_validate13():
     vector.children[2] = my_range
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("To use matmul2code_trans on matmul, only the first two "
-            "indices of the 2nd argument are permitted to be a Range but "
-            "found Range at index 2." in str(excinfo.value))
+    assert ("Transformation Error: To use matmul2code_trans on matmul, "
+            "each Range index of the argument 'y' must be a full range "
+            "but found non full range at position 2." in str(excinfo.value))
 
 
 def test_validate14():
@@ -921,6 +924,45 @@ def test_apply_matmat_name_clashes(tmpdir, fortran_reader, fortran_writer):
         "      do ii_1 = 1, 6, 1\n"
         "        result(i_1,j_1,2) = result(i_1,j_1,2) + "
         "jac(i_1,ii_1,1) * jac_inv(ii_1,j_1,2)\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in out)
+    assert Compile(tmpdir).string_compiles(out)
+
+
+def test_apply_matmat_reordered(tmpdir, fortran_reader, fortran_writer):
+    '''
+    Check the apply method works when the second argument to matmul is a
+    matrix but additional indices are present.
+
+    '''
+
+    #  Extra indices in the inputs
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,4,6) :: jac\n"
+        "  real, dimension(4,6,3) :: jac_inv\n"
+        "  real, dimension(2,3) :: result\n"
+        "  result(:,:) = matmul(jac(:,1,:), jac_inv(2,:,:))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    trans.apply(assign.rhs)
+    out = fortran_writer(psyir)
+    print(out)
+    assert (
+        "  real, dimension(2,4,6) :: jac\n"
+        "  real, dimension(4,6,3) :: jac_inv\n"
+        "  real, dimension(2,3) :: result\n"
+        "  integer :: i\n"
+        "  integer :: j\n"
+        "  integer :: ii\n"
+        "\n"
+        "  do j = 1, 3, 1\n"
+        "    do i = 1, 2, 1\n"
+        "      result(i,j) = 0.0\n"
+        "      do ii = 1, 6, 1\n"
+        "        result(i,j) = result(i,j) + jac(i,1,ii) * jac_inv(2,ii,j)\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n" in out)
