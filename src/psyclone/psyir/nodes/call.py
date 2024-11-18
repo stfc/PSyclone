@@ -713,11 +713,17 @@ class Call(Statement, DataNode):
             f" is within a CodeBlock."
         )
 
-    def get_argument_routine_match(
-        self, routine: Routine, check_strict_array_datatype: bool = True
+    def get_argument_routine_match(            
+        self,
+        routine: Routine,
+        check_strict_array_datatype: bool = True
     ):
         """Return a list of integers giving for each argument of the call
         the index of the argument in argument_list (typically of a routine)
+
+        :param check_strict_array_datatype: Strict datatype check for array
+            types
+        :type check_strict_array_datatype: bool
 
         :return: None if no match was found, otherwise list of integers
             referring to matching arguments.
@@ -797,10 +803,6 @@ class Call(Statement, DataNode):
                     continue
 
                 if arg_name == routine_arg.name:
-                    # TODO #759: If optional is used, it's an unsupported
-                    # Fortran type and we need to use the following workaround
-                    # Once this issue is resolved, simply remove this if
-                    # branch.
                     # Optional arguments are processed further down.
                     if isinstance(
                         routine_arg.datatype, UnsupportedFortranType
@@ -857,25 +859,23 @@ class Call(Statement, DataNode):
 
     def get_callee(
         self,
-        ret_arg_match_list: List[int] = None,
-        check_strict_array_datatype: bool = True,
+        check_matching_arguments: bool = True,
     ):
         """
         Searches for the implementation(s) of the target routine for this Call
         including argument checks.
 
-        :param ret_arg_match_list: List in which the matching argument
-            indices will be returned
-        :type ret_arg_match_list: List[int]
         :param check_matching_arguments: Also check argument types to match.
             If set to `False` and in case it doesn't find matching arguments,
             the very first implementation of the matching routine will be
             returned (even if the argument type check failed). The argument
             types and number of arguments might therefore mismatch!
-        :type ret_arg_match_list: bool
+        :type check_matching_arguments: bool
 
-        :returns: The routine that this call targets.
-        :rtype: psyclone.psyir.nodes.Routine
+        :returns: A tuple of two elements. The first element is the routine
+            that this call targets. The second one a list of arguments
+            providing the information on matching argument indices.
+        :rtype: Set[psyclone.psyir.nodes.Routine, List[int]]
 
         :raises NotImplementedError: if the routine is not local and not found
             in any containers in scope at the call site.
@@ -890,25 +890,20 @@ class Call(Statement, DataNode):
             routine: Routine
 
             try:
-                arg_match_list = self.get_argument_routine_match(
-                    routine,
-                    check_strict_array_datatype=check_strict_array_datatype,
-                )
-            except CallMatchingArgumentsNotFound:
+                arg_match_list = self.get_argument_routine_match(routine)
+            except CallMatchingArgumentsNotFound as err:
+                error = err
                 continue
 
-            # Provide list of indices of matching arguments if requested
-            if ret_arg_match_list is not None:
-                ret_arg_match_list[:] = arg_match_list
-
-            return routine
+            return (routine, arg_match_list)
 
         # If we didn't find any routine, return some routine if no matching
         # arguments have been found.
         # This is handy for the transition phase until optional argument
         # matching is supported.
-        if not check_strict_array_datatype:
-            return routine_list[0]
+        if not check_matching_arguments:
+            # Also return a list of dummy argument indices
+            return (routine_list[0], [i for i in range(len(self.arguments))])
 
         if error is not None:
             raise CallMatchingArgumentsNotFound(

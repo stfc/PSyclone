@@ -697,7 +697,7 @@ class InlineTrans(Transformation):
 
     def validate(
         self,
-        node_call: Node,
+        node_call: Call,
         node_routine: Routine = None,
         options: Dict[str, str] = None,
         check_codeblocks: bool = True,
@@ -768,13 +768,11 @@ class InlineTrans(Transformation):
         # arguments. This can be different due to
         # - optional arguments
         # - named arguments
-        self.ret_arg_match_list = []
 
         if self.node_routine is None:
             try:
-                self.node_routine = node_call.get_callee(
-                    check_strict_array_datatype=False,
-                    ret_arg_match_list=self.ret_arg_match_list,
+                (self.node_routine, self.ret_arg_match_list) = (
+                    node_call.get_callee(check_matching_arguments=False)
                 )
             except (
                 NotImplementedError,
@@ -970,7 +968,7 @@ class InlineTrans(Transformation):
         # those at the call site.
         # TODO #2525: OPTIONAL arguments are not yet supported which can relate
         # to situations where this assertion could be wrong.
-        # Use `ret_arg_match_list` for future work.
+        # Use `self.ret_arg_match_list` for future work.
         if len(routine_table.argument_list) != len(node_call.arguments):
             raise TransformationError(
                 LazyString(

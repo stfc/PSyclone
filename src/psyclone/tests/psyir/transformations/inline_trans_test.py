@@ -1380,10 +1380,8 @@ def test_validate_non_local_import(fortran_reader):
     call: Call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        ret_arg_match_list = []
-        routine: Routine = call.get_callee(
-            ret_arg_match_list=ret_arg_match_list
-        )
+        (routine, ret_arg_match_list) = call.get_callee()
+        routine: Routine
         inline_trans.validate(call, routine)
     assert (
         "Routine 'sub' cannot be inlined because it accesses variable "
