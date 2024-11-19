@@ -82,11 +82,11 @@ def _create_matrix_ref(matrix_symbol, loop_idx_symbols, other_dims,
     else:
         n_indices = len(loop_idx_symbols) + len(other_dims)
         indices = [-1]*n_indices
-        for it, order_idx in enumerate(other_dims_order):
-            indices[order_idx] = other_dims[it].copy()
-        # Fill the remaining indices with loop index symbols
         for it, order_idx in enumerate(loop_idx_order):
             indices[order_idx] = Reference(loop_idx_symbols[it])
+        # Fill the remaining indices with the other dims
+        for it, order_idx in enumerate(other_dims_order):
+            indices[order_idx] = other_dims[it].copy()
     return ArrayReference.create(matrix_symbol, indices)
 
 
@@ -178,13 +178,14 @@ def _get_full_range_split(array):
         else:
             non_full_ranges.append(idx)
             non_full_range_order.append(it)
-        # Early error raising if we go above 2 full ranges
-        if len(full_range_order) > 2:
-            from psyclone.psyir.transformations import TransformationError
-            raise TransformationError(
-                f"To use matmul2code_trans on matmul, no more than "
-                f"two indices of the argument '{array.name}' "
-                f"must be full ranges but found {n_full_ranges}.")
+
+    # Error raising if we go above 2 full ranges
+    if len(full_range_order) > 2:
+        from psyclone.psyir.transformations import TransformationError
+        raise TransformationError(
+            f"To use matmul2code_trans on matmul, no more than "
+            f"two indices of the argument '{array.name}' "
+            f"must be full ranges but found {n_full_ranges}.")
     return (full_range_order, non_full_range_order, non_full_ranges)
 
 
