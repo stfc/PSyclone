@@ -203,7 +203,7 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
         return mod_info
 
     # ------------------------------------------------------------------------
-    def get_module_info(self, module_name_lower: str) -> ModuleInfo:
+    def get_module_info(self, module_name: str) -> ModuleInfo:
         """This function returns the ModuleInformation for the specified
         module and automatically searches all provided directories for the
         respective file with the module.
@@ -218,7 +218,7 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
             either the cached data nor in the search path.
 
         """
-        module_name_lower = module_name_lower.lower()
+        module_name_lower = module_name.lower()
 
         if module_name_lower in self._ignore_modules:
             return None
