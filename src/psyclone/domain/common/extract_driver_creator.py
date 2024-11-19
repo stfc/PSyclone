@@ -310,7 +310,7 @@ class ExtractDriverCreator(BaseDriverCreator):
                 set_zero = Assignment.create(Reference(sym),
                                              Literal("0", INTEGER_TYPE))
                 program.addchild(set_zero)
-            output_symbols.append((sym, post_sym))
+            output_symbols.append((sym, post_sym, signature))
         return output_symbols
 
     # -------------------------------------------------------------------------
@@ -379,7 +379,7 @@ class ExtractDriverCreator(BaseDriverCreator):
         file_container = FileContainer(unit_name)
 
         # Create the program and add it to the file container:
-        program = Routine(unit_name, is_program=True)
+        program = Routine.create(unit_name, is_program=True)
         program_symbol_table = program.symbol_table
         file_container.addchild(program)
 

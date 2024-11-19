@@ -70,6 +70,9 @@ class LFRicKernCallFactory():
             # We still need a loop object though as that is where the logic
             # for handling halo exchanges is currently implemented.
             loop_type = "null"
+        elif call.ktype.iterates_over == "dof":
+            # Loop over dofs within a field.
+            loop_type = "dof"
         else:
             # Loop over cells, indicated by an empty string.
             loop_type = ""

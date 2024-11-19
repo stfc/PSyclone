@@ -57,6 +57,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.psyir import symbols
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -478,8 +479,8 @@ def test_operator(tmpdir):
     assert "TYPE(operator_type), intent(in) :: mm_w0" in generated_code
     assert "TYPE(operator_proxy_type) mm_w0_proxy" in generated_code
     assert "mm_w0_proxy = mm_w0%get_proxy()" in generated_code
-    assert ("CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, "
-            "mm_w0_local_stencil, coord_1_data, "
+    assert ("CALL testkern_operator_code(cell, nlayers_mm_w0, "
+            "mm_w0_proxy%ncell_3d, mm_w0_local_stencil, coord_1_data, "
             "coord_2_data, coord_3_data, a, ndf_w0, undf_w0, "
             "map_w0(:,cell), basis_w0_qr, diff_basis_w0_qr, np_xy_qr, "
             "np_z_qr, weights_xy_qr, weights_z_qr)") in generated_code
@@ -524,7 +525,7 @@ def test_operator_different_spaces(tmpdir):
         "      REAL(KIND=r_def), pointer :: weights_xy_qr(:) => null(), "
         "weights_z_qr(:) => null()\n"
         "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_mapping\n"
         "      REAL(KIND=r_def), pointer, dimension(:,:,:) :: "
         "mapping_local_stencil => null()\n"
         "      TYPE(operator_proxy_type) mapping_proxy\n"
@@ -552,7 +553,7 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = mapping_proxy%fs_from%get_nlayers()\n"
+        "      nlayers_mapping = mapping_proxy%fs_from%get_nlayers()\n"
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
@@ -622,7 +623,7 @@ def test_operator_different_spaces(tmpdir):
         "      END IF\n"
         "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL assemble_weak_derivative_w3_w2_kernel_code(cell, "
-        "nlayers, mapping_proxy%ncell_3d, mapping_local_stencil, "
+        "nlayers_mapping, mapping_proxy%ncell_3d, mapping_local_stencil, "
         "coord_1_data, coord_2_data, coord_3_data, "
         "ndf_w3, basis_w3_qr, ndf_w2, diff_basis_w2_qr, ndf_w0, "
         "undf_w0, map_w0(:,cell), diff_basis_w0_qr, "
@@ -658,7 +659,7 @@ def test_operator_nofield(tmpdir):
     assert "mm_w2_local_stencil => mm_w2_proxy%local_stencil" in gen_code_str
     assert "undf_w2" not in gen_code_str
     assert "map_w2" not in gen_code_str
-    assert ("CALL testkern_operator_nofield_code(cell, nlayers, "
+    assert ("CALL testkern_operator_nofield_code(cell, nlayers_mm_w2, "
             "mm_w2_proxy%ncell_3d, mm_w2_local_stencil, "
             "coord_1_data, coord_2_data, coord_3_data, "
             "ndf_w2, basis_w2_qr, ndf_w0, undf_w0, "
@@ -679,13 +680,13 @@ def test_operator_nofield_different_space(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
-    assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
+    assert "nlayers_my_mapping = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
     # We compute operators redundantly (out to the L1 halo)
     assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
-    assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_"
-            "local_stencil, ndf_w2, ndf_w3)" in gen)
+    assert ("(cell, nlayers_my_mapping, my_mapping_proxy%ncell_3d, "
+            "my_mapping_local_stencil, ndf_w2, ndf_w3)" in gen)
 
 
 def test_operator_nofield_scalar(tmpdir):
@@ -699,10 +700,10 @@ def test_operator_nofield_scalar(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
-    assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
+    assert "nlayers_my_mapping = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
-    assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_"
+    assert ("(cell, nlayers_my_mapping, my_mapping_proxy%ncell_3d, my_mapping_"
             "local_stencil, b, ndf_w2, basis_w2_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr)" in gen)
 
@@ -735,7 +736,7 @@ def test_operator_read_level1_halo(tmpdir):
     loop = schedule.children[0]
     # Modify the loop bound so that we attempt to read from the L2 halo
     # (of the operator)
-    loop.set_upper_bound("cell_halo", index=2)
+    loop.set_upper_bound("cell_halo", halo_depth=2)
     # Attempt to generate the code
     with pytest.raises(VisitorError) as excinfo:
         _ = psy.gen
@@ -762,9 +763,9 @@ def test_operator_bc_kernel(tmpdir):
     output2 = "boundary_dofs_op_a => op_a_proxy%fs_to%get_boundary_dofs()"
     assert output2 in generated_code
     output3 = (
-        "CALL enforce_operator_bc_code(cell, nlayers, op_a_proxy%ncell_3d, "
-        "op_a_local_stencil, ndf_aspc1_op_a, ndf_aspc2_op_a, "
-        "boundary_dofs_op_a)")
+        "CALL enforce_operator_bc_code(cell, nlayers_op_a, "
+        "op_a_proxy%ncell_3d, op_a_local_stencil, ndf_aspc1_op_a, "
+        "ndf_aspc2_op_a, boundary_dofs_op_a)")
     assert output3 in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -824,7 +825,7 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
             "should only have 1 (an LMA operator)") in str(excinfo.value)
 
 
-def test_operator_bc_kernel_wrong_access_err(dist_mem):
+def test_operator_bc_kernel_wrong_access_err(dist_mem, monkeypatch):
     ''' Test that we reject the recognised operator boundary conditions
     kernel if its operator argument has the wrong access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -836,7 +837,11 @@ def test_operator_bc_kernel_wrong_access_err(dist_mem):
     loop = schedule.children[0]
     call = loop.loop_body[0]
     arg = call.arguments.args[0]
-    arg._access = AccessType.READ
+    monkeypatch.setattr(arg, "_access", AccessType.READ)
+    # We have to monkeypatch iteration_space_arg() too to reach the error
+    # we want to exercise.
+    monkeypatch.setattr(call.arguments, "iteration_space_arg",
+                        lambda: symbols.Symbol("var"))
     with pytest.raises(VisitorError) as excinfo:
         _ = psy.gen
     assert ("applies boundary conditions to an operator. However its "

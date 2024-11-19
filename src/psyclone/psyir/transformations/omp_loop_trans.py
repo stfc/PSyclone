@@ -43,12 +43,14 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
 
+#: Mapping from simple string to actual directive class.
 MAP_STR_TO_LOOP_DIRECTIVES = {
     "do": OMPDoDirective,
     "paralleldo": OMPParallelDoDirective,
     "teamsdistributeparalleldo": OMPTeamsDistributeParallelDoDirective,
     "loop": OMPLoopDirective
 }
+#: List containing the valid names for OMP directives.
 VALID_OMP_DIRECTIVES = list(MAP_STR_TO_LOOP_DIRECTIVES.keys())
 
 

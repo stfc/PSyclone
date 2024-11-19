@@ -36,7 +36,7 @@
 # This workflow will use a self-hosted runner to perform the more expensive
 # integrations tests that are not run on GHA systems.
 
-name: NEMO Integration Tests
+name: NEMOv4 Integration Tests
 
 on:
   push
@@ -46,13 +46,13 @@ jobs:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     env:
-      HDF5_VERSION: 1.14.4.3
+      HDF5_VERSION: 1.14.5
       NETCDF_C_VERSION: 4.9.2
       NETCDF_FORTRAN_VERSION: 4.6.1
       NVFORTRAN_VERSION: 23.7
-      ONEAPI_VERSION: 2024.1.0
-      PERL_VERSION: 5.38.2
-      PYTHON_VERSION: 3.12.3
+      ONEAPI_VERSION: 2024.2.1
+      PERL_VERSION: 5.40.0
+      PYTHON_VERSION: 3.13.0
 
     steps:
     - uses: actions/checkout@v3
@@ -81,28 +81,6 @@ jobs:
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         cd lib/profiling/nvidia/
         F90=nvfortran make
-
-    # PSyclone passthrough for 5.0-beta of NEMO.
-    - name: NEMO 5.0 beta passthrough without optimisation
-      run: |
-        . .runner_venv/bin/activate
-        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
-        # PSYCLONE_HOME has `/bin` appended to it by the build system.
-        export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=${HOME}/NEMOv5
-        cd $NEMO_DIR
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
-        module load perl/${PERL_VERSION}
-        # We compile at -O1 to permit comparison of the results. (N.B. this test
-        # passes at -O3 with the Intel ifx compiler.)
-        ./makenemo -r BENCH -m linux_nvidia_O1 -n BENCH_PASSTHROUGH -p passthrough del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" clean -y
-        ./makenemo -r BENCH -m linux_nvidia_O1 -n BENCH_PASSTHROUGH -p passthrough del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" -j 4
-        cd $NEMO_DIR/tests/BENCH_PASSTHROUGH/EXP00
-        mpirun -np 4 ./nemo
-        diff run.stat ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.orca2.4mpi.10steps
-        export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
-        echo "Time-stepping duration = " $VAR_TIME
 
     # PSyclone passthrough for MetOffice NEMO
     - name: NEMO MetOffice Passthrough

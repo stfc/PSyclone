@@ -33,36 +33,30 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified by D. Sergeev, University of Exeter
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone's generate()
 function via the -s option. It adds kernel extraction code to
 the 'invoke_propagate_perturbation' invoke.
 '''
 
-from __future__ import print_function
-
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
 
-def trans(psy):
+def trans(psyir):
     '''
     Take the supplied psy object, and add kernel extraction code.
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     extract = LFRicExtractTrans()
 
-    invoke = psy.invokes.get("invoke_propagate_perturbation")
-    schedule = invoke.schedule
+    name = "invoke_propagate_perturbation"
+    subroutine = [x for x in psyir.children[0].children if x.name == name][0]
 
     # Enclose everything in a extract region
-    extract.apply(schedule, {"region_name": ("time_evolution", "propagate")})
+    extract.apply(subroutine, {"region_name": ("time_evolution", "propagate")})
 
-    print(schedule.view())
-    return psy
+    print(subroutine.view())

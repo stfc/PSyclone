@@ -159,12 +159,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     # pylint: disable=too-many-arguments, too-many-statements
     # pylint: disable=too-many-branches, too-many-locals
     '''Takes a PSyclone algorithm specification as input and outputs the
-    associated generated algorithm and psy codes suitable for
+    associated generated algorithm and psy-layer codes suitable for
     compiling with the specified kernel(s) and support
-    infrastructure. Uses the :func:`parse.algorithm.parse` function to
-    parse the algorithm specification, the :class:`psyGen.PSy` class
-    to generate the PSy code and the :class:`alg_gen.Alg` class to
-    generate the modified algorithm code.
+    infrastructure.
 
     :param str filename: the file containing the algorithm specification.
     :param str api: the name of the API to use. Defaults to empty string.
@@ -252,7 +249,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         if script_name is not None:
             # Apply provided recipe to PSyIR
             recipe, _ = load_script(script_name)
-            recipe(psy)
+            recipe(psy.container.root)
         alg_gen = None
 
     elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
@@ -380,7 +377,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         if script_name is not None:
             # Call the optimisation script for psy-layer optimisations
             recipe, _ = load_script(script_name)
-            recipe(psy)
+            recipe(psy.container.root)
 
     # TODO issue #1618 remove Alg class and tests from PSyclone
     if api in LFRIC_API_NAMES and not LFRIC_TESTING:
@@ -714,7 +711,9 @@ def code_transformation_mode(input_file, recipe_file, output_file,
                 code_str = myfile.read()
                 if fll.long_lines(code_str):
                     print(f"'{filename}' does not conform to the specified "
-                          f"{fll.length} line length limit", file=sys.stderr)
+                          f"{fll.length} line-length limit. Either fix the "
+                          f"file or change the '-l/--limit' argument on the "
+                          f"PSyclone command line.", file=sys.stderr)
                     sys.exit(1)
 
         # Parse file
@@ -728,8 +727,10 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         for routine in psyir.walk(Routine):
             Profiler.add_profile_nodes(routine, Loop)
 
-        # Generate Fortran
-        output = FortranWriter()(psyir)
+        # Generate Fortran (We can disable the backend copy because at this
+        # point we also drop the PSyIR and we don't need to guarantee that
+        # is left unmodified)
+        output = FortranWriter(disable_copy=True)(psyir)
         # Fix line_length if requested
         if line_length in ("output", "all"):
             output = fll.process(output)

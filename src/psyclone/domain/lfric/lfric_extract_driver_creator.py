@@ -279,7 +279,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _create_output_var_code(name, program, is_input, read_var,
+    def _create_output_var_code(signature, program, is_input, read_var,
                                 postfix, index=None, module_name=None):
         # pylint: disable=too-many-arguments
         '''
@@ -328,31 +328,47 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # variable and the one storing the expected results have the same
         # type, look up the 'original' variable and declare the _POST variable
         symbol_table = program.symbol_table
+        tag = signature[0]
+        if index:
+            tag = f"{tag}_{index}_data"
         if module_name:
-            sym = symbol_table.lookup_with_tag(f"{name}@{module_name}")
-        else:
-            if index is not None:
-                sym = symbol_table.lookup_with_tag(f"{name}_{index}_data")
-            else:
-                # If it is not indexed then `name` will already end in "_data"
-                sym = symbol_table.lookup_with_tag(name)
+            tag = f"{tag}@{module_name}"
+        sym = symbol_table.lookup_with_tag(tag)
 
         # Declare a 'post' variable of the same type and read in its value.
-        post_name = sym.name + postfix
-        post_sym = symbol_table.new_symbol(post_name,
-                                           symbol_type=DataSymbol,
-                                           datatype=sym.datatype)
-        if module_name:
-            post_tag = f"{name}{postfix}@{module_name}"
+        if module_name and hasattr(sym.datatype, "interface"):
+            flat_name = LFRicExtractDriverCreator._flatten_signature(signature)
+            post_name = f"{flat_name}_{module_name}{postfix}"
+            mod_man = ModuleManager.get()
+            mod_info = mod_man.get_module_info(module_name)
+            datatype = mod_info.get_symbol(sym.datatype.name)
+
+            if isinstance(datatype, DataTypeSymbol):
+                # This is a structure. We need to create a flattened name
+                # and fine the base type of the member involved
+                datatype = datatype.datatype
+                for member in signature[1:]:
+                    datatype = datatype.components[member].datatype
+            post_sym = symbol_table.new_symbol(post_name,
+                                               symbol_type=DataSymbol,
+                                               datatype=datatype)
         else:
-            if index is not None:
-                post_tag = f"{name}{postfix}%{index}"
-            else:
-                # If it is not indexed then `name` will already end in "_data"
-                post_tag = f"{name}{postfix}"
+            post_name = sym.name + postfix
+            post_sym = symbol_table.new_symbol(post_name,
+                                               symbol_type=DataSymbol,
+                                               datatype=sym.datatype)
+
+        # Now create the read call for the _post variable
+        post_tag = f"{signature}{postfix}"
+        if index:
+            post_tag = f"{post_tag}%{index}"
+        if module_name:
+            post_tag = f"{post_tag}@{module_name}"
+
         name_lit = Literal(post_tag, CHARACTER_TYPE)
+        ref = Reference(post_sym)
         BaseDriverCreator.add_call(program, read_var,
-                                   [name_lit, Reference(post_sym)])
+                                   [name_lit, ref])
 
         # Now if a variable is written to, but not read, the variable
         # is not allocated. So we need to allocate it and set it to 0.
@@ -365,10 +381,10 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                     IntrinsicCall.Intrinsic.ALLOCATE,
                     [Reference(sym), ("mold", Reference(post_sym))])
                 program.addchild(alloc)
-            set_zero = Assignment.create(Reference(sym),
+            set_zero = Assignment.create(signature.create_reference(sym),
                                          Literal("0", INTEGER_TYPE))
             program.addchild(set_zero)
-        return (sym, post_sym)
+        return (sym, post_sym, signature)
 
     # -------------------------------------------------------------------------
     def _create_read_in_code(self, program, psy_data, original_symbol_table,
@@ -474,12 +490,19 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                     # because we couldn't successfully parse the module)
                     # and will have inconsistent/missing declarations.
                     continue
-                name_lit = Literal(tag, CHARACTER_TYPE)
+                name_lit = Literal(f"{signature}@{module_name}",
+                                   CHARACTER_TYPE)
             else:
                 sym = symbol_table.lookup_with_tag(str(signature))
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
+
+            try:
+                ref = signature.create_reference(sym)
+            except TypeError:
+                ref = Reference(sym)
+
             self.add_call(program, read_var,
-                          [name_lit, Reference(sym)])
+                          [name_lit, ref])
 
         # Then handle all variables that are written (note that some
         # variables might be read and written)
@@ -491,7 +514,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # file. The content of these two variables should be identical
         # at the end.
         output_symbols = []
-
         for module_name, signature in read_write_info.write_list:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
@@ -516,15 +538,16 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
                     sym_tuple = \
-                        self._create_output_var_code(flattened, program,
-                                                     is_input, read_var,
-                                                     postfix, index=i,
+                        self._create_output_var_code(Signature(flattened),
+                                                     program, is_input,
+                                                     read_var, postfix,
+                                                     index=i,
                                                      module_name=module_name)
                     output_symbols.append(sym_tuple)
             else:
                 sig_str = str(signature)
                 sym_tuple = \
-                    self._create_output_var_code(str(signature), program,
+                    self._create_output_var_code(signature, program,
                                                  is_input, read_var, postfix,
                                                  module_name=module_name)
                 output_symbols.append(sym_tuple)
@@ -691,7 +714,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         file_container = FileContainer(unit_name)
 
         # Create the program and add it to the file container:
-        program = Routine(unit_name, is_program=True)
+        program = Routine.create(unit_name, is_program=True)
         program_symbol_table = program.symbol_table
         file_container.addchild(program)
 

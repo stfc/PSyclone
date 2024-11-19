@@ -39,14 +39,18 @@ directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT, NOT_WORKING)
+    enhance_tree_information, NOT_PERFORMANT)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
 PROFILING_ENABLED = False
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING
+FILES_TO_SKIP = NOT_PERFORMANT + [
+    "asminc.f90",
+    "trosk.f90",
+    "vremap.f90",
+]
 
 
 def trans(psyir):
@@ -68,17 +72,21 @@ def trans(psyir):
         return
 
     for subroutine in psyir.walk(Routine):
-        print(f"Transforming subroutine: {subroutine.name}")
+        print(f"Adding OpenMP threading to subroutine: {subroutine.name}")
 
         if PROFILING_ENABLED:
             add_profiling(subroutine.children)
 
         enhance_tree_information(subroutine)
 
-        if subroutine.name in ("eos_rprof", ):
-            # TODO #1959: This subroutines make the ECMWF compilation fail
+        if subroutine.name in ("eos_rprof", "load_nml", "prt_ctl_write_sum",
+                               "sbc_blk", "lbc_lnk_pt2pt_sp",
+                               "lbc_lnk_neicoll_sp", "lbc_lnk_iprobe_sp",
+                               "lbc_lnk_waitany_sp"):
+            # TODO #1959: 'eos_rprof' make the ECMWF compilation fail
             # because it moves a statement function outside of the
             # specification part.
+            # The rest are due to Subroutine wrongly parsed as Arrays?
             print("Skipping normalisation for ", subroutine.name)
 
         else:

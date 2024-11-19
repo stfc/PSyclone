@@ -73,19 +73,21 @@ The general requirements for the structure of an Algorithm are explained
 in the :ref:`algorithm-layer` section. This section explains the
 LFRic-API-specific specialisations and extensions.
 
-.. _lfric-example:
-
-Example
-+++++++
-
-An example LFRic API invoke call is given below with various
-different types of objects supported by the API. These different
-objects and their use are discussed in the following sections.
+The LFRic API defines a set of objects, with specific meanings and
+data-structures, that can be provided as arguments to Kernels within
+invoke calls. These are: :ref:`scalar <lfric-scalar>`,
+:ref:`field <lfric-field>`, :ref:`field vector <lfric-field-vector>`,
+:ref:`operator <lfric-operator>`,
+:ref:`column-wise operator <lfric-cma-operator>`,
+:ref:`Quadrature <lfric-quadrature>`,
+:ref:`Halo Depth <lfric-halo-depth>` and
+:ref:`Stencil Extents <lfric-alg-stencil>`. The example below showcases the
+use of each of these arguments:
 
 ::
 
   real(kind=r_def)           :: rscalar
-  integer(kind=i_def)        :: iscalar
+  integer(kind=i_def)        :: iscalar, halo_depth
   logical(kind=l_def)        :: lscalar
   integer(kind=i_def)        :: stencil_extent
   type(field_type)           :: field1, field2, field3
@@ -99,26 +101,25 @@ objects and their use are discussed in the following sections.
                builtin1(rscalar, field2, field3),                &
                int_builtin2(iscalar, field7),                    &
                kernel2(field1, stencil_extent, field3, lscalar), &
+	       kernel3(field1, halo_depth),                      &
                assembly_kernel(cma_op1, operator1),              &
-               name="some_calculation"                           &
-             )
-  call invoke( prolong_kernel_type(field1, field4),              &
-               restrict_kernel_type(field5, field6)
-             )
+               name="some_calculation")
 
-Please see the :ref:`algorithm-layer` section for a description of the
-``name`` argument.
+Each of these argument types is described in more detail in
+the next :ref:`section <lfric-alg-arg-types>`.
 
-Objects in the LFRic API can be categorised by their functionality
-as data structures and information that specifies supported operations on
-a particular data structure. These data structures are represented by the
-five LFRic API argument types: :ref:`scalar <lfric-scalar>`,
-:ref:`field <lfric-field>`, :ref:`field vector <lfric-field-vector>`,
-:ref:`operator <lfric-operator>` and :ref:`column-wise operator
-<lfric-cma-operator>`. All of them except the field vector are
-represented in the above example. ``qr`` represents a quadrature object
-which provides information required by a kernel to operate on fields
-(see section :ref:`lfric-quadrature` for more details).
+The LFRic API has support for inter-grid kernels (those that
+map fields between grids of different resolution). At the Algorithm
+layer, an ``invoke`` of such kernels looks much like an
+``invoke`` containing general-purpose kernels. The only restrictions to be
+aware of are that inter-grid kernels accept only field or field-vectors
+as arguments and that an ``invoke`` may not mix inter-grid kernels with
+any other kernel type.
+
+.. _lfric-alg-arg-types:
+
+Algorithm Argument Types
+------------------------
 
 .. _lfric-scalar:
 
@@ -250,7 +251,9 @@ information (specified using e.g. ``gh_shape = gh_quadrature_XYoZ`` in
 the kernel metadata - see Section :ref:`lfric-gh-shape`). This
 information must be passed to the kernel from the Algorithm layer in
 the form of one or more ``quadrature_type`` objects. These must be the
-last arguments passed to the kernel and must be provided in the same
+last arguments passed to the kernel (with the exception of ``halo_depth``
+- :ref:`lfric-halo-depth` - if the kernel requires it) and must be
+provided in the same
 order that they are specified in the kernel metadata, e.g. if the
 metadata for kernel ``pressure_gradient_kernel_type`` specified
 ``gh_shape = gh_quadrature_XYoZ`` and that for kernel
@@ -268,10 +271,19 @@ invoke would look something like::
 These quadrature objects specify the set(s) of points at which the
 basis/differential-basis functions required by the kernel are to be evaluated.
 
+.. _lfric-halo-depth:
+
+Halo Depth
+++++++++++
+
+If a Kernel is written to iterate into the halo (has an ``OPERATES_ON`` of
+``HALO_CELL_COLUMN`` or ``OWNED_AND_HALO_CELL_COLUMN``) then the halo depth
+must be passed as a final, ``integer`` argument to the Kernel.
+
 .. _lfric-alg-stencil:
 
-Stencils
-++++++++
+Stencil Extent
+++++++++++++++
 
 The metadata for a Kernel which operates on a cell-column may specify
 that a Kernel performs a stencil operation on a field. Any such
@@ -280,8 +292,8 @@ metadata must provide a stencil type. See the
 stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``, ``CROSS2D`` or
 ``REGION``.
 
-If a stencil operation is specified by the Kernel metadata the
-algorithm layer must provide the ``extent`` of the stencil (the
+If a stencil operation is specified by the Kernel metadata, the
+Algorithm layer must provide the ``extent`` of the stencil (the
 maximum distance from the central cell that the stencil extends). The
 LFRic API expects this information to be added as an additional
 ``integer`` argument immediately after the relevant field when specifying
@@ -373,17 +385,6 @@ For example, running test 19.2 from the LFRic API test suite gives:
   psyclone test_files/dynamo0p3/19.2_single_stencil_broken.f90
   "Generation Error: error: expected '5' arguments in the algorithm layer but found '4'.
   Expected '4' standard arguments, '1' stencil arguments and '0' qr_arguments'"
-
-Inter-grid
-++++++++++
-
-From the Algorithm layer, an Invoke for inter-grid kernels (those that
-map fields between grids of different resolution) looks much like an
-Invoke containing general-purpose kernels. The only restrictions to be
-aware of are that inter-grid kernels accept only field or field-vectors
-as arguments and that an Invoke may not mix inter-grid kernels with
-any other kernel type. (Hence the second, separate Invoke in the
-example Algorithm code given at the beginning of this Section.)
 
 .. _lfric-mixed-precision:
 
@@ -796,9 +797,6 @@ support for i-first kernels
 point the looping (and associated parallelisation) will be put
 back into the PSy layer.
 
-.. note:: Support for DoF kernels have not yet been implemented in PSyclone
-          (see PSyclone issue #1351 for progress).
-
 .. _lfric-user-kernel-rules:
 
 Rules for all User-Supplied Kernels that Operate on Cell-Columns
@@ -981,9 +979,6 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
 Rules for all User-Supplied Kernels that Operate on DoFs (DoF Kernels)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-.. note:: Support for DoF kernels have not yet been implemented in PSyclone
-          (see PSyclone issue #1351 for progress).
-
 Kernels that have ``operates_on = DOF`` and
 :ref:`LFRic Built-ins<lfric-built-ins>` overlap significantly in their
 scope, and the conventions that DoF Kernels must follow are influenced
@@ -1015,8 +1010,9 @@ The list of rules for DoF Kernels is as follows:
    to do this.) Any scalar arguments must therefore be declared in the metadata
    as `GH_READ` - see :ref:`below<lfric-kernel-valid-access>`
 
-6) Kernels must be written to operate on a single DoF, such that single DoFs
-   can be provided to the Kernel within a loop over the DoFs of a field.
+6) Kernels must be written to operate on a single DoF, such that field values
+   at the same dof location/index can be provided to the Kernel within a loop
+   over the DoFs of the function space of the field that is being updated.
 
 .. _lfric-api-kernel-metadata:
 
@@ -1889,18 +1885,24 @@ operates_on
 The fourth type of metadata provided is ``OPERATES_ON``. This
 specifies that the Kernel has been written with the assumption that it
 is supplied with the specified data for each field/operator argument.
-For user-supplied kernels this is currently only permitted to be
-``CELL_COLUMN`` or ``DOMAIN``. The possible values for ``OPERATES_ON``
-and their interpretation are summarised in the following table:
+The possible values for ``OPERATES_ON`` and their interpretation are
+summarised in the following table:
 
-===========  =========================================================
-operates_on  Data passed for each field/operator argument
-===========  =========================================================
-cell_column  Single column of cells
-dof          Single DoF (currently :ref:`built-ins` only, but see PSyclone
-             issue #1351)
-domain       All columns of cells
-===========  =========================================================
+============================== =======================================================
+operates_on                    Data passed for each field/operator argument
+============================== =======================================================
+``cell_column``                Single column of cells from the owned region (except
+                               when performing an INC operation on continuous fields
+			       when it will include one level of halo cells).
+``halo_cell_column``           Single column of cells exclusively from halo region.
+``owned_and_halo_cell_column`` Single column of cells but iteration space will include
+                               both owned and halo regions.
+``dof``                        Single DoF .
+``domain``                     All columns of cells in the (sub-)domain.
+============================== =======================================================
+
+(For a description of the concepts of 'owned' and 'halo' cells please see the
+:ref:`dev_guide:lfric-developers`.)
 
 procedure
 #########
@@ -1934,7 +1936,9 @@ conventions, are:
 1) If an LMA operator is passed then include the ``cells`` argument.
    ``cells`` is an ``integer`` of kind ``i_def`` and has intent ``in``.
 2) Include ``nlayers``, the number of layers in a column. ``nlayers``
-   is an ``integer`` of kind ``i_def`` and has intent ``in``.
+   is an ``integer`` of kind ``i_def`` and has intent ``in``. PSyclone
+   will obtain the value of ``nlayers`` to use for a particular kernel
+   from the first field (in the argument list) that is written to.
 3) For each scalar/field/vector_field/operator in the order specified by
    the meta_args metadata:
 
@@ -2475,9 +2479,6 @@ as the second argument to the kernel (after ``nlayers``).
 Rules for DoF Kernels
 #####################
 
-.. note:: Support for DoF kernels have not yet been implemented in PSyclone
-          (see PSyclone issue #1351 for progress).
-
 The rules for kernels that have ``operates_on = DOF`` are similar to those for
 general-purpose kernels but, due to the restriction that only fields and
 scalars can be passed to them, are much fewer. The full set of rules, along
@@ -2501,12 +2502,6 @@ with PSyclone's naming conventions, are:
          <lfric-mixed-precision>` section for more details. This value is
          passed in separately. Again, the intent is determined from the
          metadata (see :ref:`meta_args <lfric-api-meta-args>`).
-
-   3) Include the unique number of degrees of freedom for the function space.
-      This is an ``integer`` of kind ``i_def`` with intent ``in``. The name of
-      this argument is simply ``undf`` without a function space suffix (as for
-      general purpose kernels) since all fields will be on the same function
-      space.
 
 .. _lfric-kernel-arg-intents:
 

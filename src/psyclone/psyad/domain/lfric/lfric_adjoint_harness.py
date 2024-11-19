@@ -34,6 +34,7 @@
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by L. Turner, Met Office
+# Modified by T. Vockerodt, Met Office
 
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
@@ -522,11 +523,13 @@ def _lfric_log_write(sym_table, kernel, var1, var2):
 
 
 def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
-                                   panel_id_arg_idx=None):
+                                   panel_id_arg_idx=None,
+                                   test_name="adjoint_test"):
     '''
     Constructs and returns the PSyIR for a Container and Routine that
     implements a test harness for the adjoint of the supplied tangent-linear
-    kernel.
+    kernel. The base name to use for the Container and Routine is given by
+    the test_name argument.
 
     :param tl_psyir: the PSyIR of an LFRic module defining a \
                      tangent-linear kernel.
@@ -535,6 +538,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         field in the list of arguments in the kernel metadata (if present).
     :param Optional[int] panel_id_arg_idx: 1-indexed position of the panel-id \
         field in the list of arguments in the kernel metadata (if present).
+    :param Optional[str] test_name: Name of the adjoint test algorithm \
+        (if present).
 
     :returns: PSyIR of an Algorithm that tests the adjoint of the supplied \
               LFRic TL kernel.
@@ -555,7 +560,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
             f"does not have a Container node:\n{tl_psyir.view(colour=False)}")
 
     lfalg = LFRicAlg()
-    container = lfalg.create_alg_routine("adjoint_test")
+    # Variable test_name is validated inside create_alg_routine.
+    container = lfalg.create_alg_routine(test_name)
     routine = container.walk(Routine)[0]
     table = routine.symbol_table
 

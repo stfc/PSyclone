@@ -97,7 +97,7 @@ def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
     ctu = CallTreeUtils()
     rw_info = ctu.get_in_out_parameters([invoke.schedule[0]],
                                         collect_non_local_symbols=True)
-    new_routine = Routine("driver_test")
+    new_routine = Routine.create("driver_test")
     for mod_name, sig in rw_info.set_of_all_used_vars:
         if not mod_name:
             new_routine.symbol_table.find_or_create_tag(
@@ -153,7 +153,7 @@ def test_lfric_driver_add_call(fortran_writer):
     '''Tests that adding a call detects errors and adds calls
     with and without parameters as expected.
     '''
-    program = Routine("routine", is_program=True)
+    program = Routine.create("routine", is_program=True)
     program.symbol_table.find_or_create_tag("test")
     driver_creator = LFRicExtractDriverCreator()
     with pytest.raises(TypeError) as err:
@@ -175,7 +175,7 @@ def test_lfric_driver_add_call(fortran_writer):
 def test_lfric_driver_import_modules():
     '''Tests that adding a call detects errors as expected.
     '''
-    program = Routine("routine", is_program=True)
+    program = Routine.create("routine", is_program=True)
     _, invoke = get_invoke("8_vector_field_2.f90", API,
                            dist_mem=False, idx=0)
 
@@ -185,12 +185,13 @@ def test_lfric_driver_import_modules():
 
     driver_creator = LFRicExtractDriverCreator()
 
-    # Initially we should only have one symbol:
-    assert ["routine"] == [sym.name for sym in program.symbol_table.symbols]
+    # Initially we should only have no symbol other than the routine:
+    assert ['routine'] == [sym.name for sym in program.symbol_table.symbols]
 
     driver_creator.import_modules(program.scope.symbol_table, sched)
     # We should now have two more symbols:
-    all_symbols = ["routine", "testkern_coord_w0_2_mod",
+    all_symbols = ["routine",
+                   "testkern_coord_w0_2_mod",
                    "testkern_coord_w0_2_code"]
     assert (all_symbols == [sym.name for sym in program.symbol_table.symbols])
 
@@ -216,11 +217,11 @@ def test_lfric_driver_import_modules_no_import_interface(fortran_reader):
     sched = psyir.walk(Schedule)[0]
     sched.lower_to_language_level()
     driver_creator = LFRicExtractDriverCreator()
-    program = Routine("routine", is_program=True)
+    program = Routine.create("routine", is_program=True)
     driver_creator.import_modules(program.scope.symbol_table, sched)
-    # Only the program routine itself should be in the symbol table after
+    # No symbols other than the routine should be in the symbol table after
     # calling `import_modules`.
-    assert (["routine"] == [sym.name for sym in program.symbol_table.symbols])
+    assert (['routine'] == [sym.name for sym in program.symbol_table.symbols])
 
 
 # ----------------------------------------------------------------------------
@@ -262,7 +263,8 @@ def test_lfric_driver_simple_test():
                  "call extract_psy_data%ReadVariable('ndf_w1', ndf_w1)",
                  "call extract_psy_data%ReadVariable('ndf_w2', ndf_w2)",
                  "call extract_psy_data%ReadVariable('ndf_w3', ndf_w3)",
-                 "call extract_psy_data%ReadVariable('nlayers', nlayers)",
+                 "call extract_psy_data%ReadVariable('nlayers_x_ptr_vector', "
+                 "nlayers_x_ptr_vector)",
                  "call extract_psy_data%ReadVariable('"
                  "self_vec_type_vector_data', self_vec_type_vector_data)",
                  "call extract_psy_data%ReadVariable('undf_w1', undf_w1)",
@@ -593,7 +595,8 @@ def test_lfric_driver_field_array_inc():
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_external_symbols():
     '''Test the handling of symbols imported from other modules, or calls to
-    external functions that use module variables.
+    external functions that use module variables. Also make sure to test
+    access to structure variables:
 
     '''
     _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
@@ -609,6 +612,31 @@ def test_lfric_driver_external_symbols():
     assert ('CALL extract_psy_data%ProvideVariable("'
             'module_var_a_post@module_with_var_mod", module_var_a)' in code)
 
+    # Check the usage of structures: there are three accesses to three members:
+    # read, write, read_write. For the write-only variable, only a post
+    # variable is declared, for the read-write one two:
+    assert ('CALL extract_psy_data%PreDeclareVariable("user_var%member_read@'
+            'module_with_var_mod", user_var%member_read)' in code)
+    assert ('CALL extract_psy_data%PreDeclareVariable("user_var%member_read_'
+            'write@module_with_var_mod", user_var%member_read_write)' in code)
+    assert ('CALL extract_psy_data%PreDeclareVariable("user_var%'
+            'member_read_write_post@module_with_var_mod", '
+            'user_var%member_read_write)' in code)
+    assert ('CALL extract_psy_data%PreDeclareVariable("user_var%member_'
+            'write_post@module_with_var_mod", user_var%member_write)' in code)
+
+    # Check that the variables are all provided as expected. First the read
+    # values:
+    assert ('CALL extract_psy_data%ProvideVariable("user_var%member_read@'
+            'module_with_var_mod", user_var%member_read)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("user_var%member_read_write'
+            '@module_with_var_mod", user_var%member_read_write)' in code)
+    # Then the output values, which all go into _post variables:
+    assert ('CALL extract_psy_data%ProvideVariable("user_var%member_read_write'
+            '_post@module_with_var_mod", user_var%member_read_write)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("user_var%member_write_post'
+            '@module_with_var_mod", user_var%member_write)' in code)
+
     filename = "driver-import-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
@@ -617,6 +645,33 @@ def test_lfric_driver_external_symbols():
             "module_with_var_mod', module_var_a_post)" in driver)
     assert ("call compare('module_var_a', module_var_a, module_var_a_post)"
             in driver)
+
+    # A user-defined variable read:
+    # Test the user defined type: the variable and the type must be imported
+    # because of the written member (since it requires a _post variable to
+    # be declared).
+    assert ("use module_with_var_mod, only : module_var_a, module_var_b, "
+            "user_var" in driver)
+    assert ("integer :: user_var_member_read_write_module_with_var_mod_post"
+            in driver)
+    assert ("  integer :: user_var_member_write_module_with_var_mod_post"
+            in driver)
+    assert ("call extract_psy_data%ReadVariable('user_var%member_read@"
+            "module_with_var_mod', user_var%member_read)" in driver)
+    assert ("call extract_psy_data%ReadVariable('user_var%member_read_write@"
+            "module_with_var_mod', user_var%member_read_write)" in driver)
+    assert ("call extract_psy_data%ReadVariable('user_var%member_read_write_"
+            "post@module_with_var_mod', &\n"
+            "&user_var_member_read_write_module_with_var_mod_post)" in driver)
+    assert ("call extract_psy_data%ReadVariable('user_var%member_write_post@"
+            "module_with_var_mod', &\n"
+            "&user_var_member_write_module_with_var_mod_post" in driver)
+    assert "user_var%member_write = 0" in driver
+    assert ("call compare('user_var%member_read_write', user_var%member_read"
+            "_write, user_var_member_read_write_module_with_var_mod_post)"
+            in driver)
+    assert ("call compare('user_var%member_write', user_var%member_write, "
+            "user_var_member_write_module_with_var_mod_post)" in driver)
 
     # While the actual code is LFRic, the driver is stand-alone, and as such
     # does not need any of the infrastructure files

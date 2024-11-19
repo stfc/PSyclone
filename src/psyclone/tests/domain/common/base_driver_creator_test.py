@@ -73,7 +73,7 @@ def test_basic_driver_add_call(fortran_writer):
     '''Tests that adding a call detects errors and adds calls
     with and without parameters as expected.
     '''
-    program = Routine("routine", is_program=True)
+    program = Routine.create("routine", is_program=True)
     program.symbol_table.find_or_create_tag("test")
     with pytest.raises(TypeError) as err:
         BaseDriverCreator.add_call(program, "test", [])
@@ -95,7 +95,7 @@ def test_basic_driver_add_call(fortran_writer):
 def test_lfric_driver_add_result_tests(fortran_writer):
     '''Tests adding tests that compare results.
     '''
-    program = Routine("routine", is_program=True)
+    program = Routine.create("routine", is_program=True)
     program.symbol_table.find_or_create_tag("test", symbol_type=RoutineSymbol)
     a1 = program.symbol_table.find_or_create(
         "a1", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
@@ -103,7 +103,8 @@ def test_lfric_driver_add_result_tests(fortran_writer):
         "a1_orig", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
     # This will add one test for the variable a1 with the
     # correct values a1_orig.
-    BaseDriverCreator.add_result_tests(program, [(a1, a1_orig)])
+    BaseDriverCreator.add_result_tests(program,
+                                       [(a1, a1_orig, Signature("a"))])
     out = fortran_writer(program)
     expected = """  call compare_init(1)
   call compare('a1', a1, a1_orig)
