@@ -43,8 +43,8 @@ class ModuleManagerFilesCached(ModuleManagerBase):
     which is solely based on loading a list of files.
     """
 
-    def __init__(self):
-        super().__init__(cache_active=True)
+    def __init__(self, cache_active: bool = False):
+        super().__init__(cache_active=cache_active)
 
         self._module_name_to_modinfo
 

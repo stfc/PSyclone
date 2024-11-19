@@ -150,8 +150,10 @@ class FileInfo:
                 self._filepath_cache = (
                     path + self._source_code_hash_sum[:55] + ".psycache"
                 )
-        else:
-            raise Exception("Cache file path requested, but caching disabled")
+
+            return self._filepath_cache
+
+        raise Exception("Cache file path requested, but caching disabled")
 
     def get_basename(self) -> str:
         """
