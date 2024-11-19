@@ -109,7 +109,7 @@ def test_create_matrix_ref_1d():
     array_type = ArrayType(REAL_TYPE, [10])
     array_symbol = DataSymbol("x", array_type)
     i_loop_sym = DataSymbol("i", INTEGER_TYPE)
-    ref1 = _create_matrix_ref(array_symbol, [i_loop_sym], [], [])
+    ref1 = _create_matrix_ref(array_symbol, [i_loop_sym], [], [0], [])
     assert isinstance(ref1, ArrayReference)
     assert ref1.symbol is array_symbol
     assert len(ref1.indices) == 1
@@ -126,7 +126,7 @@ def test_create_matrix_ref_trailing_indices():
     i_loop_sym = DataSymbol("i", INTEGER_TYPE)
     k_sym = DataSymbol("k", INTEGER_TYPE)
     k_ref = Reference(k_sym)
-    ref1 = _create_matrix_ref(array_symbol, [i_loop_sym], [k_ref], [1])
+    ref1 = _create_matrix_ref(array_symbol, [i_loop_sym], [k_ref], [0], [1])
     assert isinstance(ref1, ArrayReference)
     assert ref1.symbol is array_symbol
     assert len(ref1.indices) == 2
@@ -145,7 +145,11 @@ def test_create_matrix_ref_2d():
     array_symbol = DataSymbol("x", array_type)
     i_loop_sym = DataSymbol("i", INTEGER_TYPE)
     j_loop_sym = DataSymbol("j", INTEGER_TYPE)
-    ref2 = _create_matrix_ref(array_symbol, [i_loop_sym, j_loop_sym], [], [])
+    ref2 = _create_matrix_ref(array_symbol,
+                             [i_loop_sym, j_loop_sym],
+                             [],
+                             [0,1],
+                             [])
     assert isinstance(ref2, ArrayReference)
     assert ref2.symbol is array_symbol
     assert len(ref2.indices) == 2
