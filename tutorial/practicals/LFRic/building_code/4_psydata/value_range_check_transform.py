@@ -32,22 +32,19 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Python script passed to the psyclone command via the -s option. It
 adds ValueRangeCheck code to the invokes.
 '''
 
 
-def trans(psy):
+def trans(psyir):
     '''
-    Take the supplied psy object, and add value_range_check code.
+    Add value_range_check verification code.
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the generated PSy-layer
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
 
@@ -57,19 +54,14 @@ def trans(psy):
     # from ... import ...
     # my_transform = ...()
 
-    for invoke_name in psy.invokes.names:
-        print(invoke_name)
-
-        invoke = psy.invokes.get(invoke_name)
-
-        # Now get the schedule, to which we want to apply the transformation
-        schedule = invoke.schedule
+    for subroutine in psyir.children:
 
         # ------------------------------------------------------
         # TODO: Apply the transformation
         # ------------------------------------------------------
-        ....apply(schedule, {"region_name": ("time_evolution", invoke_name)})
+        ....apply(subroutine, {
+                    "region_name": ("time_evolution", subroutine.name)})
 
-        # Just as feedback: show the modified schedule, which should have
+        # Just as feedback: show the modified PSyIR, which should have
         # a new node at the top:
-        print(schedule.view())
+        print(subroutine.view())

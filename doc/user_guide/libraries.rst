@@ -47,9 +47,7 @@ profiling and extraction of argument values.
 
 These wrapper libraries can be found under the ``lib`` directory in the Git
 repository. If you have installed PSyclone using ``pip`` then the libraries
-may be found in ``share/psyclone/lib`` under your Python (or PSyclone,
-depending on the ``pip install`` options) installation (see
-:ref:`here <getting-going-env-loc>` for possible locations).
+may be found in ``share/psyclone/lib`` in PSyclone :ref:`getting-going-install-loc`.
 
 .. note::  If working with wrapper libraries from a PSyclone installation,
            it is advisable to copy the entire ``lib`` directory to some

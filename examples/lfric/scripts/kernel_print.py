@@ -41,26 +41,25 @@ using the FortranWriter class.
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
-def trans(psy):
-    '''Print out Fortran versions of all kernels found in this file.'''
+def trans(psyir):
+    '''Print out Fortran versions of all kernels found in this file.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     fortran_writer = FortranWriter()
 
     already_printed = []
 
-    # Loop over all of the Invokes in the PSy object.
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
-
-        # Loop over all of the Kernels in this Schedule.
-        for kernel in schedule.coded_kernels():
-            try:
-                kernel_schedule = kernel.get_kernel_schedule()
-                if kernel_schedule not in already_printed:
-                    kern = fortran_writer(kernel_schedule)
-                    print(kern)
-                    already_printed.append(kernel_schedule)
-            except Exception as err:  # pylint: disable=broad-except
-                print(f"Code of '{kernel.name}' in '{invoke.name}' "
-                      f"cannot be printed because:\n{err}")
-
-    return psy
+    # Loop over all of the Kernels Calls
+    for kernel in psyir.coded_kernels():
+        try:
+            kernel_schedule = kernel.get_kernel_schedule()
+            if kernel_schedule not in already_printed:
+                kern = fortran_writer(kernel_schedule)
+                print(kern)
+                already_printed.append(kernel_schedule)
+        except Exception as err:  # pylint: disable=broad-except
+            print(f"Code of '{kernel.name}' in "
+                  f"cannot be printed because:\n{err}")
