@@ -45,11 +45,12 @@ Module Manager
 ############################
 
 PSyclone supports two module managers:
-- ``ModuleManagerAutoSearch``: Supports to  handle searching for
-files containing Fortran modules.
 
-- ``ModuleManagerFilesCached``: This manager takes a list of source
-files and also supports caching of these files.
+* ``ModuleManagerAutoSearch``: Supports to  handle searching for
+    files containing Fortran modules.
+
+* ``ModuleManagerFilesCached``: This manager takes a list of source
+    files and also supports caching of these files.
 
 Both module managers inherit from the class ``ModuleManagerBase``.
 
@@ -60,8 +61,8 @@ interface and the :ref:`psyke`. For the latter it
 is used to discover all of the source files required to make a standalone driver.
 
 A module manager can be obtained with the singleton which must be obtained via
-`ModuleManagerMultiplexer.get_singleton()`. Having obtained the instance,
-it may be used to search for a particular module via the `get_module_info`
+``ModuleManagerMultiplexer.get_singleton()``. Having obtained the instance,
+it may be used to search for a particular module via the ``get_module_info``
 method:
 
 .. automethod:: psyclone.parse.ModuleManagerBase.get_module_info
