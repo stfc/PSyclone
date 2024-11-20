@@ -515,7 +515,13 @@ operator_r_def, f1, f2, m1, a, m2, istp, qr)
 
     success = LFRicBuild(tmpdir).code_compiles(psy)
     if not success:
-        pytest.xfail("nvfortran can't build this code")
+        if LFRicBuild.F90 == "nvfortran":
+            pytest.xfail(
+                reason="nvfortran has a bug when a local import of a generic "
+                "interface overrides an interface of the same name in an "
+                "outer scope.")
+        else:
+            assert False
 
     # Module inline kernel in invoke 2
     schedule2 = psy.invokes.invoke_list[1].schedule
