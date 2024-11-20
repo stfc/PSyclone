@@ -146,10 +146,10 @@ def test_create_matrix_ref_2d():
     i_loop_sym = DataSymbol("i", INTEGER_TYPE)
     j_loop_sym = DataSymbol("j", INTEGER_TYPE)
     ref2 = _create_matrix_ref(array_symbol,
-                             [i_loop_sym, j_loop_sym],
-                             [],
-                             [0,1],
-                             [])
+                              [i_loop_sym, j_loop_sym],
+                              [],
+                              [0, 1],
+                              [])
     assert isinstance(ref2, ArrayReference)
     assert ref2.symbol is array_symbol
     assert len(ref2.indices) == 2

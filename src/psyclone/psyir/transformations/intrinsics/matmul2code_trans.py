@@ -345,7 +345,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             # For matrix2, we can have 1 or 2 full ranges.
             full_range_order, _, _ = _get_full_range_split(matrix2)
             n_full_ranges = len(full_range_order)
-            if n_full_ranges not in [1,2]:
+            if n_full_ranges not in [1, 2]:
                 raise TransformationError(
                     f"To use matmul2code_trans on matmul, one or two "
                     f"indices of the 2nd argument '{matrix2.name}' "
