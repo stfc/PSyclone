@@ -70,13 +70,13 @@ module dg_matrix_vector_kernel_mod
 
     integer :: operates_on = CELL_COLUMN
   contains
-    procedure, nopass :: dg_matrix_vector_kernel_code
+    procedure, nopass :: dg_matrix_vector_code
   end type
 
   !----------------------------------------------------------------------------
   ! Contained functions/subroutines
   !----------------------------------------------------------------------------
-  public dg_matrix_vector_kernel_code
+  public dg_matrix_vector_code
 
 contains
 
@@ -95,13 +95,13 @@ contains
 !!            input field
 !> @param[in] ndf2 Number of degrees of freedom per cell for the input field
 !> @param[in] undf2 Unique number of degrees of freedom for the input field
-subroutine dg_matrix_vector_kernel_code(cell,              &
-                                        nlayers,           &
-                                        lhs, x,            &
-                                        ncell_3d,          &
-                                        matrix,            &
-                                        ndf1, undf1, map1, &
-                                        ndf2, undf2, map2)
+subroutine dg_matrix_vector_code(cell,              &
+                                 nlayers,           &
+                                 lhs, x,            &
+                                 ncell_3d,          &
+                                 matrix,            &
+                                 ndf1, undf1, map1, &
+                                 ndf2, undf2, map2)
 
   implicit none
 
@@ -131,6 +131,6 @@ subroutine dg_matrix_vector_kernel_code(cell,              &
        lhs(map1(df)+k) = lhs_e(df)
     end do
   end do
-end subroutine dg_matrix_vector_kernel_code
+end subroutine dg_matrix_vector_code
 
 end module dg_matrix_vector_kernel_mod

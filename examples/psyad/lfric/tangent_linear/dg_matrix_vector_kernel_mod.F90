@@ -48,7 +48,7 @@ contains
 !> @param[in] cell Horizontal cell index
 !> @param[in] nlayers Number of layers
 !> @param[in,out] lhs Output lhs (A*x)
-!> @param[in] x input data
+!> @param[in] x Input data
 !> @param[in] ncell_3d Total number of cells
 !> @param[in] matrix Matrix values in LMA form
 !> @param[in] ndf1 Number of degrees of freedom per cell for the output field
