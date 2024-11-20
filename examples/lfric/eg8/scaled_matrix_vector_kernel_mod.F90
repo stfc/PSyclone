@@ -94,15 +94,15 @@ contains
 !! @param[in] ndf1 Number of degrees of freedom per cell for the output field
 !! @param[in] undf1 Unique number of degrees of freedom  for the output field
 !! @param[in] map1 Dofmap for the cell at the base of the column for the output field
-!! @param[in] map2 Dofmap for the cell at the base of the column for the input field
 !! @param[in] ndf2 Number of degrees of freedom per cell for the input field
 !! @param[in] undf2 Unique number of degrees of freedom for the input field
-subroutine scaled_matrix_vector_code(cell,        &
-                                     nlayers,     &
-                                     lhs, x,      &
-                                     ncell_3d,    &
-                                     matrix,      &
-                                     y,           &
+!! @param[in] map2 Dofmap for the cell at the base of the column for the input field
+subroutine scaled_matrix_vector_code(cell,              &
+                                     nlayers,           &
+                                     lhs, x,            &
+                                     ncell_3d,          &
+                                     matrix,            &
+                                     y,                 &
                                      ndf1, undf1, map1, &
                                      ndf2, undf2, map2)
 
