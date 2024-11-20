@@ -57,7 +57,7 @@ contains
   !> @brief real32 and real64 variants
   !! @param[in] cell Horizontal cell index
   !! @param[in] nlayers Number of layers
-  !! @param[inout] lhs Output lhs (A*x)
+  !! @param[in,out] lhs Output lhs (A*x)
   !! @param[in] x Input data
   !! @param[in] ncell_3d Total number of cells
   !! @param[in] matrix Local matrix assembly form of the operator A
@@ -93,7 +93,7 @@ contains
     real(kind=r_single), dimension(ncell_3d,ndf1,ndf2), intent(in)    :: matrix
 
     ! Internal variables
-    integer(kind=i_def) :: df, k, ik, df2
+    integer(kind=i_def) :: df, df2, k, ik
 
     do df = 1, ndf1
       do df2 = 1, ndf2
@@ -130,7 +130,7 @@ contains
     real(kind=r_double), dimension(ncell_3d,ndf1,ndf2), intent(in)    :: matrix
 
     ! Internal variables
-    integer(kind=i_def) :: df, k, ik, df2
+    integer(kind=i_def) :: df, df2, k, ik
 
     do df = 1, ndf1
       do df2 = 1, ndf2
