@@ -513,21 +513,20 @@ def test_driver_scalars(fortran_writer):
     with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
-    expected_lines = ['use extract_psy_data_mod, only : '
-                      'extract_PSyDataType',
-                      'type(extract_psydatatype) extract_psy_data',
-                      'INTEGER :: xstop',
-                      'REAL(KIND=8) :: a_scalar',
-                      'CALL extract_psy_data%OpenReadModuleRegion("'
-                      'kernel_scalar_float", "bc_ssh_code")',
-                      'CALL extract_psy_data%ReadVariable("a_scalar", '
-                      'a_scalar)']
+    expected_lines = ["use read_kernel_data_mod, only : ReadKernelDataType",
+                      "real*8 :: a_scalar",
+                      "type(ReadKernelDataType) :: extract_psy_data",
+                      ("call extract_psy_data%OpenReadModuleRegion"
+                       "('psy_single_invoke_scalar_float_test', "
+                       "'invoke_0_bc_ssh-bc_ssh_code-r0')"),
+                      ("call extract_psy_data%ReadVariable('a_scalar', "
+                       "a_scalar)"),
+                      ]
 
     # Check that the above lines occur in the same order. There might be
     # other lines between the expected lines, which will be ignored in
     # 'ordered_linex_in_text'.
-    with pytest.raises(ValueError):
-        ordered_lines_in_text(expected_lines, driver_code)
+    ordered_lines_in_text(expected_lines, driver_code)
 
 
 # -----------------------------------------------------------------------------
