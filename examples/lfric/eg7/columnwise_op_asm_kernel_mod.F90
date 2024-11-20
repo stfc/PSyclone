@@ -88,7 +88,7 @@ contains
   !> @param [in] ncell_2d Number of cells in 2D grid
   !> @param [in] ncell_3d Total number of cells
   !> @param [in] local_stencil Locally assembled matrix
-  !> @param [in,out] columnwise_matrix Banded matrix to assemble into
+  !> @param [in,out] Columnwise_matrix Banded matrix to assemble into
   !> @param [in] nrow Number of rows in the banded matrix
   !> @param [in] ncol Number of columns in the banded matrix
   !> @param [in] bandwidth Bandwidth of the banded matrix
@@ -127,7 +127,7 @@ contains
     real(kind=r_solver), dimension(bandwidth,nrow,ncell_2d), intent(inout) :: columnwise_matrix
     integer(kind=i_def), intent(in) :: ndf_to, ndf_from
     integer(kind=i_def), intent(in) :: alpha, beta, gamma_m, gamma_p
-    integer(kind=i_def), dimension(ndf_to,nlayers), intent(in) :: column_banded_dofmap_to
+    integer(kind=i_def), dimension(ndf_to,nlayers), intent(in)   :: column_banded_dofmap_to
     integer(kind=i_def), dimension(ndf_from,nlayers), intent(in) :: column_banded_dofmap_from
 
     ! Internal parameters
