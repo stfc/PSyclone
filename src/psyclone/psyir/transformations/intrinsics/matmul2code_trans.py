@@ -67,9 +67,12 @@ def _create_matrix_ref(matrix_symbol, loop_idx_symbols, other_dims,
                        not being looped over. (If there are none then this \
                        must be an empty list.)
     :type other_dims: List[:py:class:`psyclone.psyir.nodes.ExpressionNode`]
-    :param order:      list of indices in the original matrix where the
-                       other_dims are.
-    :type order:      List[int]
+    :param loop_idx_order: list of indices in the original matrix where the
+                           loop_idx_symbols are.
+    :type loop_idx_order: List[int]
+    :param other_dims_order: list of indices in the original matrix where the
+                             other_dims are.
+    :type other_dims_order: List[int]
 
     :returns: the new reference to a matrix element.
     :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
@@ -154,9 +157,10 @@ def _get_full_range_split(array):
 
     :param array: the reference that we are interested in.
     :type array: :py:class:`psyir.nodes.Reference`
-    :returns: tuple with number of full ranges and
-              the list of non full range indices for this array.
-    :rtype: (int, List[psyclone.psyir.nodes.DataNode])
+    :returns: tuple with list of full range indices,
+              the list of non full range indices, and
+              list of non full range nodes for this array.
+    :rtype: (List[int], List[int], List[psyclone.psyir.nodes.DataNode])
 
    :raises TransformationError: if any Range nodes are not full, or
         if there are more than two full range nodes.
@@ -180,7 +184,8 @@ def _get_full_range_split(array):
             non_full_range_order.append(it)
 
     # Error raising if we go above 2 full ranges
-    if len(full_range_order) > 2:
+    n_full_ranges = len(full_range_order)
+    if n_full_ranges > 2:
         from psyclone.psyir.transformations import TransformationError
         raise TransformationError(
             f"To use matmul2code_trans on matmul, no more than "

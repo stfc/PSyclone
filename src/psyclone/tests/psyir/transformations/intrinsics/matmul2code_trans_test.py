@@ -485,7 +485,7 @@ def test_validate9():
 def test_validate10():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL IntrinsicCall but
-    the first two dimensions of its first argument are not full ranges.
+    less than two indices are full ranges.
 
     '''
     trans = Matmul2CodeTrans()
@@ -502,8 +502,8 @@ def test_validate10():
 def test_validate11():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL IntrinsicCall but
-    the third (or higher) dimension of the first (matrix) argument is
-    indexed via a range.
+    the one of the dimensions of the first (matrix) argument is
+    indexed via a non full range.
 
     '''
     trans = Matmul2CodeTrans()
@@ -569,6 +569,69 @@ def test_validate13():
     assert ("Transformation Error: To use matmul2code_trans on matmul, "
             "each Range index of the argument 'y' must be a full range "
             "but found non full range at position 2." in str(excinfo.value))
+
+def test_validate15():
+    '''
+    '''
+    trans = Matmul2CodeTrans()
+#    matmul = create_matmul()
+    symbol_table = SymbolTable()
+    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
+    three = Literal("3", INTEGER_TYPE)
+    index = DataSymbol("idx", INTEGER_TYPE, is_constant=True, initial_value=3)
+    symbol_table.add(index)
+    array_type = ArrayType(REAL_TYPE, [5, 10, 15])
+    mat_symbol = DataSymbol("x", array_type)
+    symbol_table.add(mat_symbol)
+    lbound1 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(mat_symbol), ("dim", one.copy())])
+    ubound1 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(mat_symbol), ("dim", one.copy())])
+    my_mat_range1 = Range.create(lbound1, ubound1, one.copy())
+    lbound2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(mat_symbol), ("dim", two.copy())])
+    ubound2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(mat_symbol), ("dim", two.copy())])
+    my_mat_range2 = Range.create(lbound2, ubound2, one.copy())
+    lbound3 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(mat_symbol), ("dim", three.copy())])
+    ubound3 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(mat_symbol), ("dim", three.copy())])
+    my_mat_range3 = Range.create(lbound3, ubound3, one.copy())
+    matrix = ArrayReference.create(mat_symbol, [my_mat_range1, my_mat_range2,
+                                                my_mat_range3])
+    array_type = ArrayType(REAL_TYPE, [10, 20, 10])
+    vec_symbol = DataSymbol("y", array_type)
+    symbol_table.add(vec_symbol)
+    lbound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(vec_symbol), ("dim", one.copy())])
+    ubound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(vec_symbol), ("dim", one.copy())])
+    my_vec_range = Range.create(lbound, ubound, one.copy())
+    vector = ArrayReference.create(vec_symbol, [my_vec_range,
+                                                Reference(index), one.copy()])
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [matrix, vector])
+    lhs_type = ArrayType(REAL_TYPE, [10])
+    lhs_symbol = DataSymbol("result", lhs_type)
+    symbol_table.add(lhs_symbol)
+    lhs = Reference(lhs_symbol)
+    assign = Assignment.create(lhs, matmul)
+    KernelSchedule.create("my_kern", symbol_table, [assign])
+    with pytest.raises(TransformationError) as excinfo:
+        trans.validate(matmul)
+    assert ("Transformation Error: To use matmul2code_trans on matmul, "
+            "no more than two indices of the argument 'x' "
+            "must be full ranges but found 3." in str(excinfo.value))
 
 
 def test_validate14():
@@ -937,7 +1000,7 @@ def test_apply_matmat_name_clashes(tmpdir, fortran_reader, fortran_writer):
 def test_apply_matmat_reordered(tmpdir, fortran_reader, fortran_writer):
     '''
     Check the apply method works when the second argument to matmul is a
-    matrix but additional indices are present.
+    matrix but additional indices are present in any order.
 
     '''
 
