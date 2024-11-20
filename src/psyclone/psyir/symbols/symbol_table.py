@@ -1747,7 +1747,7 @@ class SymbolTable:
 
         for c_symbol in container_symbols:
             try:
-                external_container = c_symbol.find_container_psyir(
+                external_container = c_symbol.find_container_psyir_node(
                     local_node=self.node
                 )
             # pylint: disable=broad-except

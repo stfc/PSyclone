@@ -41,7 +41,7 @@ from abc import ABC
 from typing import List, Dict, Set, Union, final
 import copy
 from psyclone.parse.module_info import ModuleInfo, FileInfo
-from psyclone.psyir.nodes import Node, Container, Routine
+from psyclone.psyir.nodes import Container, FileContainer, Node, Routine
 
 
 class ModuleManagerBase(ABC):
@@ -53,6 +53,10 @@ class ModuleManagerBase(ABC):
         :param cache_active: _description_, defaults to False
         :type cache_active: bool, optional
         """
+
+        # Explicitly store filepaths to a list to preserve the right order.
+        # This is required for reproducibility.
+        self._filepath_list: List[str] = []
 
         # Dictionary to lookup file info from file path
         self._filepath_to_file_info: Dict[str, FileInfo] = {}
@@ -101,6 +105,27 @@ class ModuleManagerBase(ABC):
         """
         return self._ignore_modules
 
+    def _XXX_get_psyir_container_all_files(self) -> FileContainer:
+        """
+        TO DISCUSS!!! THIS IS DESTRUCTIVE OF EXISTING PSYIR TREES, E.G. IN FILEINFO
+
+        Iterate over all container nodes of the registered modules
+        and add them to a `FileContainer`.
+
+        :return: FileContainer with all module's containers.
+        :rtype: FileContainer
+        """
+        file_container_node: FileContainer = FileContainer(
+            "module_manager_DUMMY.f90"
+        )
+
+        for module_info in self.get_all_module_infos():
+            module_info: ModuleInfo
+
+            container = module_info.get_psyir_container_node().detach()
+            file_container_node.addchild(container)
+        return file_container_node
+
     def add_files(self, filepaths: Union[str, List[str], Set[str]]) -> None:
         """Add a file to the list of files
 
@@ -114,9 +139,11 @@ class ModuleManagerBase(ABC):
             filepaths = list(filepaths)
 
         for filepath in filepaths:
-            assert (
-                filepath not in self._filepath_to_file_info.keys()
-            ), "Found duplicate entry in dictionary 'filename to FileInfo'."
+            if filepath in self._filepath_list:
+                # Already loaded => skip
+                continue
+
+            self._filepath_list.append(filepath)
 
             self._filepath_to_file_info[filepath] = FileInfo(
                 filepath,
@@ -124,42 +151,35 @@ class ModuleManagerBase(ABC):
                 cache_path=self._cache_path,
             )
 
-    def load_source_code(self, verbose: bool = False) -> None:
+    def load_all_source_codes(self, verbose: bool = False) -> None:
         """Routine to load the source of all files"""
 
         for fileinfo in self._filepath_to_file_info.values():
             fileinfo: FileInfo
             fileinfo.get_source_code(verbose=verbose)
 
-    def load_fparser_tree(self, verbose: bool = False) -> None:
+    def load_all_fparser_trees(self, verbose: bool = False) -> None:
         """Routine to load the source of all files"""
 
         for fileinfo in self._filepath_to_file_info.values():
             fileinfo: FileInfo
             fileinfo.get_fparser_tree(verbose=verbose)
 
-    def load_psyir_node(self, verbose: bool = False) -> None:
+    def load_all_psyir_nodes(self, verbose: bool = False) -> None:
         """Routine to load the psyir representation of all files"""
 
         for fileinfo in self._filepath_to_file_info.values():
             fileinfo: FileInfo
             fileinfo.get_psyir_node(verbose=verbose)
 
-    def load_module_info(self, verbose: bool = False):
+    def load_all_module_infos(self, verbose: bool = False, indent: str = ""):
         """Load the module info using psyir nodes
 
         :raises KeyError: If module was already processed
         """
 
-        if self._module_name_to_modinfo is not None:
-            # Already loaded => simply return
-            return
-
-        # assert self._module_name_to_modinfo is None
-        # assert self._filepath_to_module_info is None
-
-        self._module_name_to_modinfo = {}
-        self._filepath_to_module_info = {}
+        self._module_name_to_modinfo = dict()
+        self._filepath_to_module_info = dict()
 
         # iterate over all file infos and load psyir
         for file_info in self._filepath_to_file_info.values():
@@ -167,11 +187,13 @@ class ModuleManagerBase(ABC):
 
             if verbose:
                 print(
-                    f"  - Loading module information for "
+                    f"{indent}- Loading module information for "
                     f"file '{file_info._filepath}"
                 )
 
-            psyir_node: Node = file_info.get_psyir_node()
+            psyir_node: Node = file_info.get_psyir_node(
+                verbose=verbose, indent=indent + "  "
+            )
 
             # Collect all module infos in this list
             module_info_in_file: List[ModuleInfo] = []
@@ -204,7 +226,11 @@ class ModuleManagerBase(ABC):
             filepath = file_info.get_filepath()
             if filepath in self._filepath_to_module_info.keys():
                 raise KeyError(f"File '{filepath}' already processed")
+
             self._filepath_to_module_info[filepath] = module_info_in_file
+
+    def get_all_module_infos(self) -> List[ModuleInfo]:
+        return self._module_name_to_modinfo.values()
 
     def get_module_info(self, module_name: str) -> ModuleInfo:
         """This function returns the ModuleInformation for the specified
@@ -233,10 +259,27 @@ class ModuleManagerBase(ABC):
             f"Could not find module info for module named '{module_name}'"
         )
 
+    def get_all_file_infos(self):
+        """Return all currently loaded file infos"""
+
+        # We can't use .values() on the dict since this would
+        # just return a dict
+
+        ret_list: List[FileInfo] = list()
+
+        for filepath in self._filepath_list:
+            ret_list.append(self._filepath_to_file_info[filepath])
+
+        return ret_list
+
+    def get_all_filepaths(self):
+        return self._filepath_list
+
     def get_dependency_sorted_modules(
         self,
         module_dependencies: Dict[str, Set[str]] = None,
         verbose: bool = False,
+        indent: str = "",
     ) -> List[str]:
         """This function sorts the given dependencies so that all
         dependencies of a module are before any module that
@@ -256,7 +299,7 @@ class ModuleManagerBase(ABC):
         assert type(verbose) is bool
 
         # Make sure that the module information is loaded
-        self.load_module_info()
+        self.load_all_module_infos(indent=indent)
 
         # Setup lookup dictionary
         if module_dependencies is None:
@@ -271,7 +314,9 @@ class ModuleManagerBase(ABC):
         assert type(module_dependencies) is dict
 
         if verbose:
-            print("- Removing modules from dependencies which were not loaded")
+            print(
+                f"{indent}- Removing modules from dependencies which were not loaded"
+            )
 
         # Consistency check: test that all dependencies listed are also
         # a key in the list, otherwise there will be a dependency that
@@ -291,7 +336,7 @@ class ModuleManagerBase(ABC):
                     # TODO 2120: allow a choice to abort or ignore.
                     if verbose:
                         print(
-                            f"  - Cannot find module '{mod_dep}' which is "
+                            f"{indent}  - Cannot find module '{mod_dep}' which is "
                             f"used by module '{module_name_dep}'."
                         )
                 module_dep_list.remove(mod_dep)
@@ -299,7 +344,7 @@ class ModuleManagerBase(ABC):
         sorted_modules_list = []
 
         if verbose:
-            print("- Computing dependencies")
+            print("{indent}- Computing dependencies")
 
         while module_dependencies:
             # Find one module that has no dependencies, which is the
@@ -313,7 +358,7 @@ class ModuleManagerBase(ABC):
                 # is a circular dependency
                 if verbose:
                     print(
-                        f"  - Circular dependency - cannot sort "
+                        f"{indent}  - Circular dependency - cannot sort "
                         f"module dependencies. Remaining modules: "
                         f"{module_dependencies}"
                     )
@@ -329,7 +374,10 @@ class ModuleManagerBase(ABC):
                 module_name_no_deps = all_mods_sorted[0]
 
             if verbose:
-                print(f"  - Next module in sorted list: {module_name_no_deps}")
+                print(
+                    f"{indent}  - Next module in sorted list: "
+                    f"{module_name_no_deps}"
+                )
             # Add the current module to the result and remove it from
             # the todo list.
             sorted_modules_list.append(module_name_no_deps)
@@ -343,7 +391,7 @@ class ModuleManagerBase(ABC):
                 if module_name_no_deps in module_name_dep:
                     if verbose:
                         print(
-                            f"    - Removing in module '{module_name}' the "
+                            f"{indent}    - Removing in module '{module_name}' the "
                             f"dependency on '{module_name_no_deps}'"
                         )
                     module_name_dep.remove(module_name_no_deps)

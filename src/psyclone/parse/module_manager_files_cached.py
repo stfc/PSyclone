@@ -46,16 +46,38 @@ class ModuleManagerFilesCached(ModuleManagerBase):
     def __init__(self, cache_active: bool = False):
         super().__init__(cache_active=cache_active)
 
-        self._module_name_to_modinfo
-
     def load_from_files(self, filepaths: Union[str, List[str], Set[str]]):
 
         # Add files - this automatically creates file info
         self.add_files(filepaths)
 
-        self.load_module_info()
+        self.load_all_module_infos()
 
-    def load_psyir_node(self, verbose: bool = False):
+    def load_all_psyir_nodes(self, verbose: bool = False):
         for fileinfo in self._filepath_to_file_info.values():
             fileinfo: FileInfo
             fileinfo.get_psyir_node(verbose=verbose)
+
+    def add_search_path(self, directories, recursive=True):
+        """This is just a dummy operation since we don't search for other files
+
+        :param directories: the directory/directories to add.
+        :type directories: str | list[str]
+
+        :param bool recursive: whether recursively all subdirectories should
+            be added to the search path.
+        """
+        pass
+
+    def load_all_module_infos(self, verbose: bool = False, indent: str = ""):
+
+        assert (
+            self._module_name_to_modinfo is None
+        ), "ModuleInfo already loaded"
+        assert (
+            self._filepath_to_module_info is None
+        ), "ModuleInfo already loaded"
+
+        ModuleManagerBase.load_all_module_infos(
+            self, verbose=verbose, indent=indent
+        )

@@ -203,18 +203,10 @@ class InlineTrans(Transformation):
                 check_argument_unresolved_symbols
             ),
             check_named_arguments=check_named_arguments,
+            get_callee_check_matching_arguments=False,
         )
         # The table associated with the scoping region holding the Call.
         table = node_call.scope.symbol_table
-
-        # From Martin: I don't understand why this is all necessary.
-        # Therefore I commented it out.
-        # if node_routine is not None:
-        #     orig_routine = node_routine
-        # else:
-        #     # Find the routine to be inlined.
-        #     orig_routine = node_call.get_callees()[0]
-        #     # orig_routine = node_call.get_callee()
 
         if not self.node_routine.children or isinstance(
             self.node_routine.children[0], Return
@@ -709,6 +701,7 @@ class InlineTrans(Transformation):
         check_argument_unsupported_type: bool = True,
         check_argument_unresolved_symbols: bool = True,
         check_named_arguments: bool = True,
+        get_callee_check_matching_arguments: bool = True,
     ):
         """
         Checks that the supplied node is a valid target for inlining.
@@ -772,7 +765,11 @@ class InlineTrans(Transformation):
         if self.node_routine is None:
             try:
                 (self.node_routine, self.ret_arg_match_list) = (
-                    node_call.get_callee(check_matching_arguments=False)
+                    node_call.get_callee(
+                        check_matching_arguments=(
+                            get_callee_check_matching_arguments
+                        )
+                    )
                 )
             except (
                 NotImplementedError,

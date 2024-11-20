@@ -128,7 +128,9 @@ class ContainerSymbol(Symbol):
         new_symbol.is_intrinsic = self.is_intrinsic
         return new_symbol
 
-    def find_container_psyir(self, local_node=None):
+    def find_container_psyir_node(
+        self, local_node=None, ignore_missing_modules: bool = False
+    ):
         """Searches for the Container that this Symbol refers to. If it is
         not available, use the interface to import the container. If
         `local_node` is supplied then the PSyIR tree below it is searched for
@@ -156,7 +158,11 @@ class ContainerSymbol(Symbol):
                         self._reference = local
                         return self._reference
             # We didn't find it so now attempt to import the container.
-            self._reference = self._interface.get_container(self._name)
+            try:
+                self._reference = self._interface.get_container(self._name)
+            except (ModuleNotFoundError, SymbolError) as err:
+                if not ignore_missing_modules:
+                    raise err
         return self._reference
 
     def __str__(self):
@@ -237,7 +243,7 @@ class FortranModuleInterface(ContainerSymbolInterface):
     """Implementation of ContainerSymbolInterface for Fortran modules"""
 
     @staticmethod
-    def get_container(name):
+    def get_container(module_name):
         """Imports a Fortran module as a PSyIR Container (via the
         ModuleManager) and returns it.
 
@@ -261,12 +267,10 @@ class FortranModuleInterface(ContainerSymbolInterface):
 
         minfo = None
         try:
-            minfo = mod_manager.get_module_info(name)
-        except FileNotFoundError:
-            pass
-        if not minfo:
+            minfo = mod_manager.get_module_info(module_name)
+        except (FileNotFoundError, ModuleNotFoundError):
             raise SymbolError(
-                f"Module '{name}' not found in any of the include_paths "
+                f"Module '{module_name}' not found in any of the include_paths "
                 f"directories {Config.get().include_paths}."
             )
         return minfo.get_psyir_container_node()

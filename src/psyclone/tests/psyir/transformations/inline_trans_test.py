@@ -2104,7 +2104,7 @@ def test_validate_wrong_number_args(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
+        inline_trans.validate(call, get_callee_check_matching_arguments=False)
     assert (
         "Cannot inline 'call sub(i, trouble)' because the number of "
         "arguments supplied to the call (2) does not match the number of "
@@ -2201,7 +2201,7 @@ def test_validate_array_reshape(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
+        inline_trans.validate(call, get_callee_check_matching_arguments=False)
     print("XXXXXXXXX")
     print(err.value)
     assert (
@@ -2238,7 +2238,7 @@ def test_validate_array_arg_expression(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
+        inline_trans.validate(call, get_callee_check_matching_arguments=False)
     assert (
         "The call 'call s(a + b, 10)\n' cannot be inlined because actual "
         "argument 'a + b' corresponds to a formal argument with array "
@@ -2267,7 +2267,7 @@ def test_validate_indirect_range(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
+        inline_trans.validate(call, get_callee_check_matching_arguments=False)
     assert (
         "Cannot inline routine 'sub' because argument 'var(indices(:))' "
         "has an array range in an indirect access" in str(err.value)
@@ -2294,7 +2294,7 @@ def test_validate_non_unit_stride_slice(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
+        inline_trans.validate(call, get_callee_check_matching_arguments=False)
     assert (
         "Cannot inline routine 'sub' because one of its arguments is an "
         "array slice with a non-unit stride: 'var(::2)' (TODO #1646)"

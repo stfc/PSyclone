@@ -226,15 +226,15 @@ class FileInfo:
                 )
 
             # Compute hash sum which will be used to check cache of fparser
-            self._source_code_hash_sum = hashlib.md5(
-                self._source_code.encode()
-            ).hexdigest()
+            self._source_code_hash_sum = self.get_source_code_hash_sum()
 
         return self._source_code
 
+    def get_source_code_hash_sum(self) -> "hashlib._Hash":
+        return hashlib.md5(self.get_source_code().encode()).hexdigest()
+
     def _cache_load(
-        self,
-        verbose: bool = False,
+        self, verbose: bool = False, indent: str = ""
     ) -> Union[_CacheFileInfo, None]:
         """Load data from the cache file if possible.
         This also checks for matching checksums after loading the data
@@ -265,10 +265,16 @@ class FileInfo:
         # Load cache file
         try:
             filehandler = open(self._get_filepath_cache(), "rb")
+            if verbose:
+                print(
+                    f"{indent}- Using cache file "
+                    f"'{self._get_filepath_cache()}'"
+                )
         except FileNotFoundError:
             if verbose:
                 print(
-                    f"  - No cache file '{self._get_filepath_cache()}' found"
+                    f"{indent}- No cache file "
+                    f"'{self._get_filepath_cache()}' found"
                 )
             return None
 
@@ -276,7 +282,10 @@ class FileInfo:
         try:
             cache: _CacheFileInfo = pickle.load(filehandler)
         except Exception as ex:
-            print("Error while reading cache file - ignoring: " + str(ex))
+            print(
+                "{indent}- Error while reading cache file - ignoring: "
+                + str(ex)
+            )
             return None
 
         # Verify checksums
@@ -423,7 +432,8 @@ class FileInfo:
 
         except Exception as err:
             raise FileInfoFParserError(
-                "Failed to get fparser tree: " + str(err)
+                f"Failed to get fparser tree for file '{self._filepath}: "
+                + str(err)
             )
 
         # We directly call the cache saving routine here in case that the
@@ -432,7 +442,9 @@ class FileInfo:
 
         return self._fparser_tree
 
-    def get_psyir_node(self, verbose: bool = False) -> FileContainer:
+    def get_psyir_node(
+        self, verbose: bool = False, indent: str = ""
+    ) -> FileContainer:
         """Returns the psyclone FileContainer of the file.
 
         :param verbose: Produce some verbose output
@@ -446,19 +458,19 @@ class FileInfo:
             return self._psyir_node
 
         # Check for cache
-        cache = self._cache_load(verbose=verbose)
+        cache = self._cache_load(verbose=verbose, indent=indent)
 
         if cache is not None:
             if cache._psyir_node is not None:
                 # Use cached version
                 if verbose:
-                    print("  - Using cache of fparser tree")
+                    print(f"{indent}- Using cache of fparser tree")
 
                 self._psyir_node = self._cache._psyir_node
                 return self._psyir_node
 
         if verbose:
-            print(f"  - Running psyir for '{self._filepath}'")
+            print(f"{indent}- Running psyir for '{self._filepath}'")
 
         fortran_reader = FortranReader()
 

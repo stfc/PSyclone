@@ -313,7 +313,7 @@ def test_get_routine_recurse_wildcard(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call_node = psyir.walk(Call)[0]
     csym = call_node.routine.symbol.interface.container_symbol
-    container = csym.find_container_psyir(local_node=call_node)
+    container = csym.find_container_psyir_node(local_node=call_node)
     # By default we don't follow wildcard imports and thus don't find
     # the routine.
     result = container.find_routine_psyir(call_node.routine.name)
@@ -339,7 +339,7 @@ def test_get_routine_recurse_wildcard(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call_node = psyir.walk(Call)[0]
     csym = call_node.routine.symbol.interface.container_symbol
-    container = csym.find_container_psyir(local_node=call_node)
+    container = csym.find_container_psyir_node(local_node=call_node)
     result = container.find_routine_psyir(call_node.routine.name,
                                           check_wildcard_imports=True)
     assert result is None
@@ -354,7 +354,7 @@ def test_get_routine_recurse_wildcard(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call_node = psyir.walk(Call)[0]
     csym = call_node.routine.symbol.interface.container_symbol
-    container = csym.find_container_psyir(local_node=call_node)
+    container = csym.find_container_psyir_node(local_node=call_node)
     result = container.find_routine_psyir(call_node.routine.name,
                                           check_wildcard_imports=True)
     assert result is None
@@ -374,7 +374,7 @@ def test_find_routine_in_container_private_routine_not_found(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call_node = psyir.walk(Call)[0]
     csym = call_node.routine.symbol.interface.container_symbol
-    container = csym.find_container_psyir(local_node=call_node)
+    container = csym.find_container_psyir_node(local_node=call_node)
     result = container.find_routine_psyir(call_node.routine.name)
     assert result is None
     assert container.find_routine_psyir("doesnotexist") is None

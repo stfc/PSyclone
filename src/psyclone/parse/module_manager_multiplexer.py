@@ -75,21 +75,27 @@ class ModuleManagerMultiplexer:
         :type module_manager_class: ModuleManagerBase
         """
 
-        assert type(module_manager_class) in [
-            ModuleManagerBase,
+        assert module_manager_class in [
+            ModuleManagerAutoSearch,
             ModuleManagerFilesCached,
         ]
         ModuleManagerMultiplexer._module_manager_class = module_manager_class
 
     @staticmethod
-    def get_singleton():
+    def get_singleton(**kwargs):
         """Static function that if necessary creates and returns the singleton
         ModuleManager instance.
         """
 
         if ModuleManagerMultiplexer._singleton_instance is None:
             ModuleManagerMultiplexer._singleton_instance = (
-                ModuleManagerMultiplexer._module_manager_class()
+                ModuleManagerMultiplexer._module_manager_class(**kwargs)
             )
 
         return ModuleManagerMultiplexer._singleton_instance
+
+    @staticmethod
+    def clear_singleton():
+        """Static function to clear the singleton."""
+
+        ModuleManagerMultiplexer._singleton_instance = None

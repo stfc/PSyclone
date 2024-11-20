@@ -493,9 +493,13 @@ class Call(Statement, DataNode):
         :type _stack_container_list: List[Container], optional
         """
         #
-        # TODO: This function seems to be extremely slow
+        # TODO: This function seems to be extremely slow:
+        # It takes considerable time to build this list over and over
+        # for each lookup.
         #
-        # indent = "  "*_depth
+        # An alternative would be to cache it, but then the cache
+        # needs to be invalidated once some symbols are, e.g., deleted.
+        #
         retlist = container_symbols_list[:]
 
         # Cache the container names from symbols
@@ -511,11 +515,6 @@ class Call(Statement, DataNode):
             if container.name.lower() not in container_names:
                 continue
 
-            # Skip if this is our container (which shouldn't be
-            # possible, but who knows...)
-            if container is self.ancestor(Container):
-                continue
-
             # Avoid circular connections (which shouldn't
             # be allowed, but who knows...)
             if container.name.lower() in _stack_container_name_list:
@@ -527,14 +526,14 @@ class Call(Statement, DataNode):
                 _depth + 1,
             )
 
-            # Remove duplicates
+            # Add symbol if it's not yet in the list of symbols
             for r in new_container_symbols:
                 if r not in retlist:
                     retlist.append(r)
 
         return retlist
 
-    def get_callees(self):
+    def get_callees(self, ignore_missing_modules: bool = False):
         """
         Searches for the implementation(s) of all potential target routines
         for this Call without any arguments check.
@@ -598,8 +597,9 @@ class Call(Statement, DataNode):
 
                         try:
                             container: Container = (
-                                container_symbol.find_container_psyir(
-                                    local_node=self
+                                container_symbol.find_container_psyir_node(
+                                    local_node=self,
+                                    ignore_missing_modules=ignore_missing_modules,
                                 )
                             )
                         except SymbolError:
@@ -656,7 +656,7 @@ class Call(Statement, DataNode):
             while cursor.is_import:
                 csym = cursor.interface.container_symbol
                 try:
-                    container = csym.find_container_psyir(local_node=self)
+                    container = csym.find_container_psyir_node(local_node=self)
                 except SymbolError:
                     raise NotImplementedError(
                         f"RoutineSymbol '{rsym.name}' is imported from "
@@ -759,6 +759,7 @@ class Call(Statement, DataNode):
 
                 type_matches = False
                 if not check_strict_array_datatype:
+                    # No strict array checks have to be performed, just accept it
                     if isinstance(call_arg.datatype, ArrayType) and isinstance(
                         routine_arg.datatype, ArrayType
                     ):
@@ -860,6 +861,7 @@ class Call(Statement, DataNode):
     def get_callee(
         self,
         check_matching_arguments: bool = True,
+        ignore_missing_modules: bool = False,
     ):
         """
         Searches for the implementation(s) of the target routine for this Call
@@ -881,7 +883,10 @@ class Call(Statement, DataNode):
             in any containers in scope at the call site.
         """
 
-        routine_list = self.get_callees()
+        # We "simply" start by looking up all potential candidates
+        routine_list = self.get_callees(
+            ignore_missing_modules=ignore_missing_modules
+        )
 
         error: Exception = None
 
