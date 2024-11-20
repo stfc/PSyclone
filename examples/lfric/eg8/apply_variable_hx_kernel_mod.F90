@@ -241,7 +241,7 @@ end subroutine apply_variable_hx_code
 !>        operators as well as the application of the mass matrix M
 !> @param[in] cell Horizontal cell index
 !> @param[in] nlayers Number of layers
-!> @param[inout] lhs Pressure field with helmholtz operator applied to it
+!> @param[in,out] lhs Pressure field with helmholtz operator applied to it
 !> @param[in] x Gradient of the pressure field in the velocity space
 !> @param[in] mt_inv Lumped inverse mass matrix for the temperature space
 !> @param[in] pressure Field that helmholtz operator is being applied to
@@ -317,11 +317,11 @@ subroutine opt_apply_variable_hx_code(cell,        &
   ik = (cell-1)*nlayers + k + 1
   t_e(1:2) = 0.0_r_def
   do df = 1,6
-    t_e(1) = t_e(1) + pt2(ik,df,1)*x(map_w2(df)+k)
-    t_e(2) = t_e(2) + pt2(ik,df,2)*x(map_w2(df)+k) + pt2(ik+1,df,1)*x(map_w2(df)+k+1)
+    t_e(1) = t_e(1) + pt2(ik,1,df)*x(map_w2(df)+k)
+    t_e(2) = t_e(2) + pt2(ik,2,df)*x(map_w2(df)+k) + pt2(ik+1,1,df)*x(map_w2(df)+k+1)
   end do
   t_e(1) = mt_inv(map_wt(1)+k)*p3t(ik,1,1)*t_e(1)
-  t_e(2) = mt_inv(map_wt(2)+k)*p3t(ik,2,1)*t_e(2)
+  t_e(2) = mt_inv(map_wt(2)+k)*p3t(ik,1,2)*t_e(2)
 
   div_u = div(ik,1,1)*x(map_w2(1)+k) + div(ik,1,2)*x(map_w2(2)+k) + div(ik,1,3)*x(map_w2(3)+k) &
         + div(ik,1,4)*x(map_w2(4)+k) + div(ik,1,5)*x(map_w2(5)+k) + div(ik,1,6)*x(map_w2(6)+k)
@@ -332,11 +332,11 @@ subroutine opt_apply_variable_hx_code(cell,        &
     ik = (cell-1)*nlayers + k + 1
     t_e(1:2) = 0.0_r_def
     do df = 1,6
-      t_e(1) = t_e(1) + pt2(ik,df,1)*x(map_w2(df)+k) + pt2(ik-1,df,2)*x(map_w2(df)+k-1)
-      t_e(2) = t_e(2) + pt2(ik,df,2)*x(map_w2(df)+k) + pt2(ik+1,df,1)*x(map_w2(df)+k+1)
+      t_e(1) = t_e(1) + pt2(ik,1,df)*x(map_w2(df)+k) + pt2(ik-1,2,df)*x(map_w2(df)+k-1)
+      t_e(2) = t_e(2) + pt2(ik,2,df)*x(map_w2(df)+k) + pt2(ik+1,1,df)*x(map_w2(df)+k+1)
     end do
     t_e(1) = mt_inv(map_wt(1)+k)*p3t(ik,1,1)*t_e(1)
-    t_e(2) = mt_inv(map_wt(2)+k)*p3t(ik,2,1)*t_e(2)
+    t_e(2) = mt_inv(map_wt(2)+k)*p3t(ik,1,2)*t_e(2)
 
     div_u = div(ik,1,1)*x(map_w2(1)+k) + div(ik,1,2)*x(map_w2(2)+k) + div(ik,1,3)*x(map_w2(3)+k) &
           + div(ik,1,4)*x(map_w2(4)+k) + div(ik,1,5)*x(map_w2(5)+k) + div(ik,1,6)*x(map_w2(6)+k)
@@ -348,11 +348,11 @@ subroutine opt_apply_variable_hx_code(cell,        &
   ik = (cell-1)*nlayers + k + 1
   t_e(1:2) = 0.0_r_def
   do df = 1,6
-    t_e(1) = t_e(1) + pt2(ik,df,1)*x(map_w2(df)+k) + pt2(ik-1,df,2)*x(map_w2(df)+k-1)
-    t_e(2) = t_e(2) + pt2(ik,df,2)*x(map_w2(df)+k)
+    t_e(1) = t_e(1) + pt2(ik,1,df)*x(map_w2(df)+k) + pt2(ik-1,2,df)*x(map_w2(df)+k-1)
+    t_e(2) = t_e(2) + pt2(ik,2,df)*x(map_w2(df)+k)
   end do
   t_e(1) = mt_inv(map_wt(1)+k)*p3t(ik,1,1)*t_e(1)
-  t_e(2) = mt_inv(map_wt(2)+k)*p3t(ik,2,1)*t_e(2)
+  t_e(2) = mt_inv(map_wt(2)+k)*p3t(ik,1,2)*t_e(2)
 
   div_u = div(ik,1,1)*x(map_w2(1)+k) + div(ik,1,2)*x(map_w2(2)+k) + div(ik,1,3)*x(map_w2(3)+k) &
         + div(ik,1,4)*x(map_w2(4)+k) + div(ik,1,5)*x(map_w2(5)+k) + div(ik,1,6)*x(map_w2(6)+k)
