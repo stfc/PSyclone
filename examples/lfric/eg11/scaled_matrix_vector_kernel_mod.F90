@@ -200,7 +200,7 @@ subroutine opt_scaled_matrix_vector_code(cell,              &
   do df = 1, 6
     do k = 0, nlayers-1
       ik = (cell-1)*nlayers + k + 1
-      lhs(map1(df)+k) = lhs(map1(df)+k) + matrix(df,1,ik)*x(map2(1)+k)*y(map1(df)+k)*z(map1(df)+k)
+      lhs(map1(df)+k) = lhs(map1(df)+k) + matrix(ik,df,1)*x(map2(1)+k)*y(map1(df)+k)*z(map1(df)+k)
     end do
   end do
 
