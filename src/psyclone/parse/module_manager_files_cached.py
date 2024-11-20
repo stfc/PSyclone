@@ -71,12 +71,11 @@ class ModuleManagerFilesCached(ModuleManagerBase):
 
     def load_all_module_infos(self, verbose: bool = False, indent: str = ""):
 
-        assert (
-            self._module_name_to_modinfo is None
-        ), "ModuleInfo already loaded"
-        assert (
-            self._filepath_to_module_info is None
-        ), "ModuleInfo already loaded"
+        if self._module_name_to_modinfo is not None:
+            print(
+                f"{indent}- ModuleInfo already loaded - won't load this for a 2nd time"
+            )
+            return
 
         ModuleManagerBase.load_all_module_infos(
             self, verbose=verbose, indent=indent

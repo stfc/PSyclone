@@ -157,10 +157,13 @@ class ContainerSymbol(Symbol):
                     if lowered_name == local.name.lower():
                         self._reference = local
                         return self._reference
+
+            from psyclone.parse.module_info import ContainerNotFoundError
+
             # We didn't find it so now attempt to import the container.
             try:
                 self._reference = self._interface.get_container(self._name)
-            except (ModuleNotFoundError, SymbolError) as err:
+            except (ContainerNotFoundError, SymbolError) as err:
                 if not ignore_missing_modules:
                     raise err
         return self._reference
@@ -265,10 +268,12 @@ class FortranModuleInterface(ContainerSymbolInterface):
         # path set in generate().
         mod_manager.add_search_path(Config.get().include_paths)
 
+        from psyclone.parse.module_info import ContainerNotFoundError
+
         minfo = None
         try:
             minfo = mod_manager.get_module_info(module_name)
-        except (FileNotFoundError, ModuleNotFoundError):
+        except (FileNotFoundError, ContainerNotFoundError):
             raise SymbolError(
                 f"Module '{module_name}' not found in any of the include_paths "
                 f"directories {Config.get().include_paths}."

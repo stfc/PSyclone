@@ -41,10 +41,12 @@ from psyclone.parse.file_info import FileInfoFParserError
 from psyclone.parse.module_info import (
     ModuleInfo,
     ModuleInfoError,
-    ModuleNotFoundError,
+    ContainerNotFoundError,
 )
 from psyclone.parse.module_manager_multiplexer import ModuleManagerMultiplexer
-from psyclone.parse.module_manager_base import ModuleManagerBase
+from psyclone.parse.module_manager_base import (
+    ModuleManagerBase,
+)
 from psyclone.parse.module_manager_auto_search import ModuleManagerAutoSearch
 from psyclone.parse.module_manager_files_cached import ModuleManagerFilesCached
 
@@ -55,7 +57,7 @@ __all__ = [
     "FileInfoFParserError",
     "ModuleInfo",
     "ModuleInfoError",
-    "ModuleNotFoundError",
+    "ContainerNotFoundError",
     "ModuleManagerBase",
     "ModuleManagerAutoSearch",
     "ModuleManagerFilesCached",

@@ -47,7 +47,7 @@ from psyclone.parse import (
     ModuleInfo,
     ModuleManagerMultiplexer,
 )
-from psyclone.parse.module_info import ModuleNotFoundError
+from psyclone.parse.module_info import ContainerNotFoundError
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.tests.utilities import get_base_path
@@ -179,7 +179,7 @@ end module my_mod"""
 
     try:
         mod_info.get_psyir_container_node()
-    except ModuleNotFoundError:
+    except ContainerNotFoundError:
         pass
     else:
         raise Exception("This should have failed")

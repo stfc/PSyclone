@@ -39,23 +39,25 @@ and cache information about a module.
 
 """
 
+from typing import Dict, List
+
 from fparser.two import Fortran2003
 from fparser.two.utils import FortranSyntaxError, walk
 
-from typing import Dict, List
-
 from psyclone.errors import InternalError, PSycloneError, GenerationError
-from psyclone.psyir.nodes import Container, FileContainer, Routine
+from psyclone.psyir.nodes.container import Container
+from psyclone.psyir.nodes.routine import Routine
+from psyclone.psyir.nodes.file_container import FileContainer
 from psyclone.psyir.symbols import Symbol, SymbolError
-from psyclone.parse import FileInfo, FileInfoFParserError
+from psyclone.parse.file_info import FileInfo, FileInfoFParserError
 
 
-class ModuleNotFoundError(PSycloneError):
+class ContainerNotFoundError(PSycloneError):
     """Triggered when the Fortran module was not found"""
 
     def __init__(self, value):
         PSycloneError.__init__(self, value)
-        self.value = "ModuleNotFoundError: " + str(value)
+        self.value = "ContainerNotFoundError: " + str(value)
 
 
 class ModuleInfoError(PSycloneError):
@@ -279,7 +281,7 @@ class ModuleInfo:
         :returns: PSyIR representing this module.
         :rtype: :py:class:`psyclone.psyir.nodes.Container` | NoneType
 
-        :raises ModuleNotFoundError: if the named Container (module) was
+        :raises ContainerNotFoundError: if the named Container (module) was
             not found.
         :raises FileNotFound: if the related file doesn't exist.
         :raises FileInfoFParserError: if the some FileInfoFParserError
@@ -307,7 +309,7 @@ class ModuleInfo:
                 self._psyir_container_node = container
                 return self._psyir_container_node
 
-        raise ModuleNotFoundError(
+        raise ContainerNotFoundError(
             f"Unable to find container '{self._name}' in "
             f"file '{self._file_info.get_filepath()}'"
         )
@@ -368,7 +370,7 @@ class ModuleInfo:
             container_node = self.get_psyir_container_node()
             return container_node
 
-        except ModuleNotFoundError:
+        except ContainerNotFoundError:
             pass
 
         # We failed to find the Container - double-check the parse tree

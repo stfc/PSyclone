@@ -47,7 +47,7 @@ from psyclone.psyir.frontend.fortran import FortranReader, FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import FileContainer
+from psyclone.psyir.nodes.file_container import FileContainer
 from psyclone.errors import PSycloneError
 
 

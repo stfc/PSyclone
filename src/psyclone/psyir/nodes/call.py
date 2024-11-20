@@ -480,6 +480,7 @@ class Call(Statement, DataNode):
     def _get_container_symbols_rec(
         self,
         container_symbols_list: List[str],
+        ignore_missing_modules: bool,
         _stack_container_name_list: List[str] = [],
         _depth: int = 0,
     ):
@@ -500,20 +501,34 @@ class Call(Statement, DataNode):
         # An alternative would be to cache it, but then the cache
         # needs to be invalidated once some symbols are, e.g., deleted.
         #
-        retlist = container_symbols_list[:]
+        ret_container_symbol_list = container_symbols_list[:]
 
         # Cache the container names from symbols
         container_names = [cs.name.lower() for cs in container_symbols_list]
 
-        for container in self.root.walk(Container, stop_type=Routine):
-            container: Container
+        print("<>" * 80)
+        print(f"- name: {self.routine.name}")
+        print(f"- depth: {_depth}")
 
-            if container.name == "":
-                continue
+        from psyclone.parse import (
+            ModuleManagerMultiplexer,
+            ContainerNotFoundError,
+        )
 
-            # Check that we search through the right container
-            if container.name.lower() not in container_names:
-                continue
+        module_manager = ModuleManagerMultiplexer.get_singleton()
+
+        for container_name in container_names:
+            try:
+                module_info = module_manager.get_module_info(
+                    container_name.lower()
+                )
+            except ContainerNotFoundError as err:
+                if ignore_missing_modules:
+                    continue
+
+                raise err
+
+            container: Container = module_info.get_psyir_container_node()
 
             # Avoid circular connections (which shouldn't
             # be allowed, but who knows...)
@@ -521,17 +536,23 @@ class Call(Statement, DataNode):
                 continue
 
             new_container_symbols = self._get_container_symbols_rec(
-                container.symbol_table.containersymbols,
-                _stack_container_name_list + [container.name.lower()],
-                _depth + 1,
+                container_symbols_list=container.symbol_table.containersymbols,
+                ignore_missing_modules=ignore_missing_modules,
+                _stack_container_name_list=_stack_container_name_list
+                + [container.name.lower()],
+                _depth=_depth + 1,
             )
 
             # Add symbol if it's not yet in the list of symbols
-            for r in new_container_symbols:
-                if r not in retlist:
-                    retlist.append(r)
+            for container_symbol in new_container_symbols:
+                if container_symbol not in ret_container_symbol_list:
+                    ret_container_symbol_list.append(container_symbol)
 
-        return retlist
+        print(f"- symbols: {ret_container_symbol_list}")
+
+        print("RET")
+
+        return ret_container_symbol_list
 
     def get_callees(self, ignore_missing_modules: bool = False):
         """
@@ -586,7 +607,8 @@ class Call(Statement, DataNode):
             current_table: SymbolTable = self.scope.symbol_table
             while current_table:
                 current_containersymbols = self._get_container_symbols_rec(
-                    current_table.containersymbols
+                    current_table.containersymbols,
+                    ignore_missing_modules=ignore_missing_modules,
                 )
 
                 for container_symbol in current_containersymbols:

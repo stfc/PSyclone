@@ -42,6 +42,7 @@ from typing import List, Dict, Set, Union, final
 import copy
 from psyclone.parse.module_info import ModuleInfo, FileInfo
 from psyclone.psyir.nodes import Container, FileContainer, Node, Routine
+from psyclone.parse import ContainerNotFoundError
 
 
 class ModuleManagerBase(ABC):
@@ -255,7 +256,7 @@ class ModuleManagerBase(ABC):
         if mod_info:
             return mod_info
 
-        raise ModuleNotFoundError(
+        raise ContainerNotFoundError(
             f"Could not find module info for module named '{module_name}'"
         )
 
