@@ -44,7 +44,7 @@
 
 !> @details Accessor functions for the W2_solver_kernel class are defined in this module.
 
-module matrix_vector_mm_mod
+module matrix_vector_mm_kernel_mod
 
 use argument_mod,            only : arg_type,                 &
                                     GH_FIELD, GH_OPERATOR,    &
@@ -125,4 +125,4 @@ subroutine matrix_vector_mm_code(cell,        &
 
 end subroutine matrix_vector_mm_code
 
-end module matrix_vector_mm_mod
+end module matrix_vector_mm_kernel_mod
