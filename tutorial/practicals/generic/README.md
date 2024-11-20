@@ -2,10 +2,10 @@
  
 This tutorial consists of four parts:
 
-1. [Learn about the `psyclone` command and the PSyclone Intermediate Representation](1_nemo_psyir/README.md);
-2. [Use PSyclone to add profiling calipers, both automatically and through user-supplied transformations](2_nemo_profiling/README.md);
-3. [Use PSyclone to add loop-based OpenMP parallelisation](3_nemo_openmp/README.md);
-4. [Use PSyclone to add OpenACC parallelisation](4_nemo_openacc/README.md).
+1. [Learn about the `psyclone` command and the PSyclone Intermediate Representation](1_intro_psyir/README.md);
+2. [Use PSyclone to add profiling calipers, both automatically and through user-supplied transformations](2_profiling/README.md);
+3. [Use PSyclone to add loop-based OpenMP parallelisation](3_openmp/README.md);
+4. [Use PSyclone to add OpenACC parallelisation](4_openacc/README.md).
 
 It is best to tackle them in the order listed above since each builds
 upon what has gone before. For parts 1-3 it is assumed you have a
