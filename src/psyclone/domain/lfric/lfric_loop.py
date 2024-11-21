@@ -51,7 +51,7 @@ from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (ArrayReference, ACCRegionDirective, DataNode,
                                   Loop, Literal, OMPRegionDirective, Reference,
-                                  Routine, Schedule)
+                                  Routine, Schedule, StructureReference)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
@@ -90,6 +90,12 @@ class LFRicLoop(PSyLoop):
                 tag = "dof_loop_idx"
                 suggested_name = "df"
             elif self.loop_type == "":
+                tag = "cell_loop_idx"
+                suggested_name = "cell"
+            elif self.loop_type == "colourtiles":
+                tag = "tile_loop_idx"
+                suggested_name = "tile"
+            elif self.loop_type == "tile":
                 tag = "cell_loop_idx"
                 suggested_name = "cell"
             else:
@@ -481,6 +487,41 @@ class LFRicLoop(PSyLoop):
                         f"been coloured but kernel '{kern.name}' has not")
             return kernels[0].ncolours_var
 
+        if self._upper_bound_name == "ntilecolours":
+            # Loop over coloured tiles
+            kernels = self.walk(LFRicKern)
+            if not kernels:
+                raise InternalError(
+                    "Failed to find a kernel within a loop over colours.")
+            # Check that all kernels have been tile-coloured. We can't check
+            # the number of colours since that is only known at runtime.
+            for kern in kernels:
+                if not kern.ntilecolours_var:
+                    raise InternalError(
+                        f"All kernels within a loop over colours must have "
+                        f"been coloured but kernel '{kern.name}' has not")
+            return kernels[0].ntilecolours_var
+        if self._upper_bound_name == "last_halo_tile_per_colour":
+            if Config.get().distributed_memory:
+                return (f"{self._mesh_name}%get_last_halo_tile_per_colour("
+                        f"{halo_index})")
+            raise GenerationError(
+                "'last_halo_tile_per_colour' is not a valid loop upper bound "
+                "for non-distributed-memory code")
+        if self._upper_bound_name == "last_halo_cell_per_colour_and_tile":
+            if Config.get().distributed_memory:
+                return (f"{self._mesh_name}%get_last_halo_cell_per_colour_and"
+                        f"_tile({halo_index})")
+            raise GenerationError(
+                "'last_halo_cell_per_colour_and_tile' is not a valid loop "
+                "upper bound for non-distributed-memory code")
+        if self._upper_bound_name == "last_edge_tile_per_colour":
+            raise GenerationError(
+                "FIXME: 'last_egde_tile_per_colour'")
+        if self._upper_bound_name == "last_edge_tile_per_colour":
+            raise GenerationError(
+                "FIXME: 'last_edge_cell_per_coloured_tile")
+
         if self._upper_bound_name == "ncolour":
             # Loop over cells of a particular colour when DM is disabled.
             # We use the same, DM API as that returns sensible values even
@@ -829,16 +870,53 @@ class LFRicLoop(PSyLoop):
         inv_sched = self.ancestor(Routine)
         sym_table = inv_sched.symbol_table
 
-        if self._loop_type == "colour":
-            # If this loop is over all cells of a given colour then we must
-            # lookup the loop bound as it depends on the current colour.
-            parent_loop = self.ancestor(Loop)
-            colour_var = parent_loop.variable
+        if self._loop_type in ("colour", "colourtiles", "tile"):
+            # If this loop uses the colouring infrasctructure, it must lookup
+            # the bound value with the appropriate infrastructure call.
+            if self._loop_type == "tile":
+                loop = self.ancestor(Loop)
+                tile_var = loop.variable
+            else:
+                loop = self
+            colour_var = loop.ancestor(Loop).variable
 
-            asym = self.kernel.last_cell_all_colours_symbol
+            # Create a different array_reference accessor depending on the
+            # loop type
+            # import pdb; pdb.set_trace()
+            sref = None
+            if self._loop_type == "colour":
+                asym = self.kernel.last_cell_all_colours_symbol
+                if not asym:
+                    # TODO #1618: once the symbols are all defined,
+                    # this should not happen anymore.
+                    raise InternalError(f"No symbol for last_cell_all_colours"
+                                        f"defined for kernel "
+                                        f"'{self.kernel.name}'.")
+                aref = ArrayReference.create(asym, [Reference(colour_var)])
+            elif self._loop_type == "colourtiles":
+                mesh_sym = sym_table.lookup(self._mesh_name)
+                sref = StructureReference.create(
+                    mesh_sym,
+                    [("get_last_halo_tile_per_colour",
+                     [Reference(colour_var)])])
+                aref = sref.children[0]
+            else:
+                mesh_sym = sym_table.lookup(self._mesh_name)
+                sref = StructureReference.create(
+                    mesh_sym,
+                    [("get_last_halo_cell_per_colour_and_tile",
+                     [Reference(colour_var)])]
+                )
+                aref = sref.children[0]
+
+                # If its over tiles, add an extra tile argument
+                if self._loop_type == "tile":
+                    aref.addchild(Reference(tile_var))
+
+            # If it has halos, add an extra argument with the halo depth
             const = LFRicConstants()
-
-            if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
+            h_needed = self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS
+            if Config.get().distributed_memory and h_needed:
                 if self._upper_bound_halo_depth:
                     halo_depth = self._upper_bound_halo_depth.copy()
                 else:
@@ -850,9 +928,10 @@ class LFRicLoop(PSyLoop):
                         f"max_halo_depth_{root_name}")
                     halo_depth = Reference(depth_sym)
 
-                return ArrayReference.create(asym, [Reference(colour_var),
-                                                    halo_depth])
-            return ArrayReference.create(asym, [Reference(colour_var)])
+                aref.addchild(halo_depth)
+            if sref:
+                return sref
+            return aref
 
         # This isn't a 'colour' loop so we have already set-up a
         # variable that holds the upper bound.
