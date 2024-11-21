@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2020, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2024, Science and Technology Facilities Council
 ! All rights reserved.
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -104,7 +104,7 @@ subroutine create_si_operators(mesh_id)
   type(function_space_type), pointer     :: w3_fs => null()
   type(function_space_type), pointer     :: wtheta_fs => null()
 
-  call log_event( "Dynamo: creating si_operators", LOG_LEVEL_INFO )
+  call log_event( "LFRic: creating si_operators", LOG_LEVEL_INFO )
 
   w2_fs     => function_space_collection%get_fs( mesh_id, element_order, W2 )
   w3_fs     => function_space_collection%get_fs( mesh_id, element_order, W3 )
