@@ -42,7 +42,7 @@
 !>@brief compute the locally assembled SI operators
 module si_operators_alg_mod
 
-  use constants_mod,             only: i_def, r_def
+  use constants_mod,             only: i_def, r_solver
   use operator_mod,              only: operator_type
   use field_mod,                 only: field_type
   use finite_element_config_mod, only: wtheta_on
@@ -174,6 +174,7 @@ subroutine compute_si_operators(ref_state)
   type(field_type)                     :: ones, w2_multiplicity
   type(function_space_type),   pointer :: u_fs, theta_fs, rho_fs => null()
   type(evaluator_xyz_type)             :: evaluator
+  real(kind=r_solver)                  :: const2 = 1.0_r_solver
 
   qr = quadrature_type(element_order+3, GAUSSIAN)
   theta  => ref_state(2)
@@ -182,7 +183,7 @@ subroutine compute_si_operators(ref_state)
   m3_inv => get_mass_matrix(4)
   div    => get_div()
 
-  call invoke( weighted_proj_theta2_kernel_type(ptheta2, theta, qr) )
+  call invoke( weighted_proj_theta2_kernel_type(ptheta2, theta, const2, qr) )
 
 end subroutine compute_si_operators
 

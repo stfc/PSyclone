@@ -141,7 +141,7 @@ contains
       call ieee_set_halting_mode(IEEE_INVALID, .true.)
     else
       ! Normal operator allocation
-      allocate(self%local_stencil( self%ncell_3d, fs_to%get_ndf(),fs_from%get_ndf(), self%ncell_3d ) )
+      allocate(self%local_stencil( self%ncell_3d, fs_to%get_ndf(),fs_from%get_ndf() ) )
     end if
 
   end subroutine operator_r64_initialiser
