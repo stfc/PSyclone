@@ -146,10 +146,10 @@ def test_create_array_ref_2d():
     i_loop_sym = DataSymbol("i", INTEGER_TYPE)
     j_loop_sym = DataSymbol("j", INTEGER_TYPE)
     ref2 = _create_array_ref(array_symbol,
-                              [i_loop_sym, j_loop_sym],
-                              [],
-                              [0, 1],
-                              [])
+                             [i_loop_sym, j_loop_sym],
+                             [],
+                             [0, 1],
+                             [])
     assert isinstance(ref2, ArrayReference)
     assert ref2.symbol is array_symbol
     assert len(ref2.indices) == 2
@@ -514,8 +514,9 @@ def test_validate_vec_too_few_full_ranges():
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert (f"Transformation Error: To use {trans.name} on matmul, "
-            f"one or two indices of the 2nd argument '{vector.debug_string()}' "
-            f"must be full ranges but found 0." in str(excinfo.value))
+            f"one or two indices of the 2nd argument "
+            f"'{vector.debug_string()}' must be full ranges "
+            f"but found 0." in str(excinfo.value))
 
 
 def test_validate_mat_non_full_range():

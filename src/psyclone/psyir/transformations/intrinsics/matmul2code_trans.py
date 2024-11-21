@@ -53,7 +53,7 @@ from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
 
 
 def _create_array_ref(array_symbol, loop_idx_symbols, other_dims,
-                       loop_idx_order, other_dims_order):
+                      loop_idx_order, other_dims_order):
     '''
     Utility function to create a reference to an array element being
     accessed using one or more loop indices followed by zero or more
@@ -214,7 +214,8 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                 if array.is_full_range(it):
                     full_range_order.append(it)
                 else:
-                    from psyclone.psyir.transformations import TransformationError
+                    from psyclone.psyir.transformations \
+                    import TransformationError
                     raise TransformationError(
                         f"To use {self.name} on matmul, each Range index "
                         f"of the argument '{array.debug_string()}' "
