@@ -206,6 +206,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             if there are more than two full range nodes.
 
         '''
+        from psyclone.psyir.transformations import TransformationError
         non_full_ranges = []
         full_range_order = []
         non_full_range_order = []
@@ -214,8 +215,6 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                 if array.is_full_range(it):
                     full_range_order.append(it)
                 else:
-                    from psyclone.psyir.transformations \
-                    import TransformationError
                     raise TransformationError(
                         f"To use {self.name} on matmul, each Range index "
                         f"of the argument '{array.debug_string()}' "
@@ -228,7 +227,6 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         # Error raising if we go above 2 full ranges
         n_full_ranges = len(full_range_order)
         if n_full_ranges > 2:
-            from psyclone.psyir.transformations import TransformationError
             raise TransformationError(
                 f"To use {self.name} on matmul, no more than "
                 f"two indices of the argument '{array.debug_string()}' "
@@ -390,7 +388,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         full_range_order, _, _ = self._get_full_range_split(arg2)
         n_full_ranges = len(full_range_order)
         if (n_full_ranges > 1 or
-            not arg2.children and len(arg2.symbol.shape) == 2):
+                not arg2.children and len(arg2.symbol.shape) == 2):
             self._apply_matrix_matrix(node)
         else:
             self._apply_matrix_vector(node)
