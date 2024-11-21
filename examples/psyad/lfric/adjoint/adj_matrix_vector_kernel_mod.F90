@@ -32,9 +32,9 @@ END TYPE
     real(kind=r_single), dimension(undf1), intent(in) :: lhs
     real(kind=r_single), dimension(ncell_3d,ndf1,ndf2), intent(in) :: matrix
     integer(kind=i_def) :: df
+    integer(kind=i_def) :: df2
     integer(kind=i_def) :: k
     integer(kind=i_def) :: ik
-    integer(kind=i_def) :: df2
 
     do df = ndf1, 1, -1
       do df2 = ndf2, 1, -1
@@ -60,9 +60,9 @@ END TYPE
     real(kind=r_double), dimension(undf1), intent(in) :: lhs
     real(kind=r_double), dimension(ncell_3d,ndf1,ndf2), intent(in) :: matrix
     integer(kind=i_def) :: df
+    integer(kind=i_def) :: df2
     integer(kind=i_def) :: k
     integer(kind=i_def) :: ik
-    integer(kind=i_def) :: df2
 
     do df = ndf1, 1, -1
       do df2 = ndf2, 1, -1
