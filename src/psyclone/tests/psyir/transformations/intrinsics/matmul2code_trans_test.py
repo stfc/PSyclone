@@ -40,7 +40,7 @@ import pytest
 from psyclone.psyir.transformations import Matmul2CodeTrans, \
     TransformationError
 from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
-    _create_matrix_ref, _get_array_bound
+    _create_array_ref, _get_array_bound
 from psyclone.psyir.nodes import BinaryOperation, Literal, ArrayReference, \
     Assignment, Reference, Range, KernelSchedule, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArrayType, \
@@ -101,23 +101,23 @@ def create_matmul():
     return matmul
 
 
-def test_create_matrix_ref_1d():
-    ''' Test that the _create_matrix_ref() utility works as expected for a
+def test_create_array_ref_1d():
+    ''' Test that the _create_array_ref() utility works as expected for a
     1d array.
 
     '''
     array_type = ArrayType(REAL_TYPE, [10])
     array_symbol = DataSymbol("x", array_type)
     i_loop_sym = DataSymbol("i", INTEGER_TYPE)
-    ref1 = _create_matrix_ref(array_symbol, [i_loop_sym], [], [0], [])
+    ref1 = _create_array_ref(array_symbol, [i_loop_sym], [], [0], [])
     assert isinstance(ref1, ArrayReference)
     assert ref1.symbol is array_symbol
     assert len(ref1.indices) == 1
     assert ref1.indices[0].symbol is i_loop_sym
 
 
-def test_create_matrix_ref_trailing_indices():
-    ''' Test that the _create_matrix_ref() utility works as expected for an
+def test_create_array_ref_trailing_indices():
+    ''' Test that the _create_array_ref() utility works as expected for an
     array that has an additional dimension that is not being looped over.
 
     '''
@@ -126,7 +126,7 @@ def test_create_matrix_ref_trailing_indices():
     i_loop_sym = DataSymbol("i", INTEGER_TYPE)
     k_sym = DataSymbol("k", INTEGER_TYPE)
     k_ref = Reference(k_sym)
-    ref1 = _create_matrix_ref(array_symbol, [i_loop_sym], [k_ref], [0], [1])
+    ref1 = _create_array_ref(array_symbol, [i_loop_sym], [k_ref], [0], [1])
     assert isinstance(ref1, ArrayReference)
     assert ref1.symbol is array_symbol
     assert len(ref1.indices) == 2
@@ -136,8 +136,8 @@ def test_create_matrix_ref_trailing_indices():
     assert ref1.indices[1] is not k_ref
 
 
-def test_create_matrix_ref_2d():
-    ''' Test that the _create_matrix_ref() utility works as expected for a
+def test_create_array_ref_2d():
+    ''' Test that the _create_array_ref() utility works as expected for a
     2d array.
 
     '''
@@ -145,7 +145,7 @@ def test_create_matrix_ref_2d():
     array_symbol = DataSymbol("x", array_type)
     i_loop_sym = DataSymbol("i", INTEGER_TYPE)
     j_loop_sym = DataSymbol("j", INTEGER_TYPE)
-    ref2 = _create_matrix_ref(array_symbol,
+    ref2 = _create_array_ref(array_symbol,
                               [i_loop_sym, j_loop_sym],
                               [],
                               [0, 1],
@@ -290,7 +290,7 @@ def test_initialise():
     assert trans.name == "Matmul2CodeTrans"
 
 
-def test_validate1():
+def test_validate_node_wrong_type():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is the wrong type.
 
@@ -303,7 +303,7 @@ def test_validate1():
             in str(excinfo.value))
 
 
-def test_validate2():
+def test_validate_node_not_matmul():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is an IntrinsicCall but not a MATMUL.
 
@@ -317,7 +317,7 @@ def test_validate2():
             "found: 'SUM'." in str(excinfo.value))
 
 
-def test_validate3():
+def test_validate_no_assignment_ancestor():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL IntrinsicCall but
     doesn't have an assignment as an ancestor.
@@ -338,7 +338,7 @@ def test_validate3():
             in str(excinfo.value))
 
 
-def test_validate4():
+def test_validate_not_solely_matmul():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL IntrinsicCall but
     it is not the only operation on the RHS of an assignment.
@@ -361,7 +361,7 @@ def test_validate4():
             "operation on the rhs of an assignment." in str(excinfo.value))
 
 
-def test_validate5():
+def test_validate_arg_not_ref():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL IntrinsicCall but
     either or both arguments are not references.
@@ -383,7 +383,7 @@ def test_validate5():
             "x(10))\n'." in str(excinfo.value))
 
 
-def test_validate6():
+def test_validate_arg_not_arr():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL IntrinsicCall but
     either or both of its arguments are references to datasymbols that
@@ -422,7 +422,7 @@ def test_validate_structure_accesses(fortran_reader):
             "references to arrays but found" in str(err.value))
 
 
-def test_validate7():
+def test_validate_mat_too_few_dims():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL intrinsic but
     its first (matrix) argument has fewer than 2 dimensions.
@@ -441,7 +441,7 @@ def test_validate7():
             "but found '1'." in str(excinfo.value))
 
 
-def test_validate8():
+def test_validate_mat_too_many_dims():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL intrinsic but
     its first (matrix) argument is a reference to a matrix with
@@ -461,7 +461,7 @@ def test_validate8():
             in str(excinfo.value))
 
 
-def test_validate9():
+def test_validate_vec_too_many_dims():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL intrinsic but its
     second argument is a reference to a matrix with more than 2 dimensions.
@@ -482,7 +482,7 @@ def test_validate9():
             in str(excinfo.value))
 
 
-def test_validate10():
+def test_validate_mat_too_few_full_ranges():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL IntrinsicCall but
     less than two full ranges are specified in the first matrix.
@@ -494,12 +494,12 @@ def test_validate10():
     matrix.children[0] = Literal("1", INTEGER_TYPE)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("To use matmul2code_trans on matmul, exactly two indices of the "
-            "1st argument 'x' must be full ranges "
-            "but found 1." in str(excinfo.value))
+    assert (f"To use {trans.name} on matmul, exactly two indices of the "
+            f"1st argument '{matrix.debug_string()}' must be full ranges "
+            f"but found 1." in str(excinfo.value))
 
 
-def test_validate11():
+def test_validate_vec_too_few_full_ranges():
     '''
     Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL IntrinsicCall but
@@ -513,12 +513,12 @@ def test_validate11():
     vector.children[0] = my_index
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Transformation Error: To use matmul2code_trans on matmul, "
-            "one or two indices of the 2nd argument 'y' "
-            "must be full ranges but found 0." in str(excinfo.value))
+    assert (f"Transformation Error: To use {trans.name} on matmul, "
+            f"one or two indices of the 2nd argument '{vector.debug_string()}' "
+            f"must be full ranges but found 0." in str(excinfo.value))
 
 
-def test_validate12():
+def test_validate_mat_non_full_range():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL IntrinsicCall but
     a dimension of the first (matrix) argument is indexed via a partial range.
@@ -531,12 +531,13 @@ def test_validate12():
     matrix.children[2] = my_range
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Transformation Error: To use matmul2code_trans on matmul, "
-            "each Range index of the argument 'x' must be a full range "
-            "but found non full range at position 2." in str(excinfo.value))
+    assert (f"Transformation Error: To use {trans.name} on matmul, "
+            f"each Range index of the argument '{matrix.debug_string()}' "
+            f"must be a full range but found "
+            f"non full range at position 2." in str(excinfo.value))
 
 
-def test_validate13():
+def test_validate_vec_non_full_range():
     '''Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL IntrinsicCall but
     a dimension of the second (vector) argument is indexed via a partial range.
@@ -549,12 +550,13 @@ def test_validate13():
     vector.children[2] = my_range
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Transformation Error: To use matmul2code_trans on matmul, "
-            "each Range index of the argument 'y' must be a full range "
-            "but found non full range at position 2." in str(excinfo.value))
+    assert (f"Transformation Error: To use {trans.name} on matmul, "
+            f"each Range index of the argument '{vector.debug_string()}' "
+            f"must be a full range but found "
+            f"non full range at position 2." in str(excinfo.value))
 
 
-def test_validate14():
+def test_validate_mat_too_many_full_ranges():
     '''
     Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL IntrinsicCall but
@@ -568,12 +570,13 @@ def test_validate14():
                                       Literal("15", INTEGER_TYPE))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Transformation Error: To use matmul2code_trans on matmul, "
-            "no more than two indices of the argument 'x' "
-            "must be full ranges but found 3." in str(excinfo.value))
+    assert (f"Transformation Error: To use {trans.name} on matmul, "
+            f"no more than two indices of the argument "
+            f"'{matrix.debug_string()}' must be full ranges "
+            f"but found 3." in str(excinfo.value))
 
 
-def test_validate15():
+def test_validate_vec_too_many_full_ranges():
     '''
     Check that the Matmul2Code validate method raises the expected
     exception when the supplied node is a MATMUL IntrinsicCall but
@@ -589,12 +592,13 @@ def test_validate15():
                                       Literal("10", INTEGER_TYPE))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Transformation Error: To use matmul2code_trans on matmul, "
-            "no more than two indices of the argument 'y' "
-            "must be full ranges but found 3." in str(excinfo.value))
+    assert (f"Transformation Error: To use {trans.name} on matmul, "
+            f"no more than two indices of the argument "
+            f"'{vector.debug_string()}' must be full ranges but found 3."
+            in str(excinfo.value))
 
 
-def test_validate16():
+def test_validate_good_input():
     '''Check that the Matmul2Code validate method returns without any
     exceptions when the supplied node is a MATMUL IntrinsicCall
     that obeys the required rules and constraints.
@@ -622,9 +626,9 @@ def test_validate_matmat_with_slices_on_rhs(fortran_reader):
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(assign.rhs)
-    assert ("To use matmul2code_trans on matmul, each range on the result "
-            "variable 'result' must be a full range but found "
-            "result(2:4,2:5)" in str(excinfo.value))
+    assert (f"To use {trans.name} on matmul, each range on the result "
+            f"variable 'result' must be a full range but found "
+            f"result(2:4,2:5)" in str(excinfo.value))
 
 
 def test_validate_matmat_with_same_mem(fortran_reader):
@@ -976,7 +980,6 @@ def test_apply_matmat_reordered(tmpdir, fortran_reader, fortran_writer):
     assign = psyir.walk(Assignment)[0]
     trans.apply(assign.rhs)
     out = fortran_writer(psyir)
-    print(out)
     assert (
         "  real, dimension(2,4,6) :: jac\n"
         "  real, dimension(4,6,3) :: jac_inv\n"
@@ -991,6 +994,44 @@ def test_apply_matmat_reordered(tmpdir, fortran_reader, fortran_writer):
         "      do ii = 1, 6, 1\n"
         "        result(i,j) = result(i,j) + jac(i,1,ii) * jac_inv(2,ii,j)\n"
         "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in out)
+    assert Compile(tmpdir).string_compiles(out)
+
+
+def test_apply_matmat_varexpr_index(tmpdir, fortran_reader, fortran_writer):
+    '''
+    Check the apply method works when the second argument to matmul is a
+    matrix but using a variable expression in an additional index.
+
+    '''
+
+    #  Extra indices in the inputs
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,4,6) :: jac\n"
+        "  real, dimension(4,6,3) :: jac_inv\n"
+        "  real, dimension(2) :: result\n"
+        "  integer, parameter :: arg = 0\n"
+        "  result = matmul(jac(:,1,:), jac_inv(2,:,arg+3))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    trans.apply(assign.rhs)
+    out = fortran_writer(psyir)
+    print(out)
+    assert (
+        "  integer, parameter :: arg = 0\n"
+        "  real, dimension(2,4,6) :: jac\n"
+        "  real, dimension(4,6,3) :: jac_inv\n"
+        "  real, dimension(2) :: result\n"
+        "  integer :: i\n"
+        "  integer :: j\n"
+        "\n"
+        "  do i = 1, 2, 1\n"
+        "    result(i) = 0.0\n"
+        "    do j = 1, 6, 1\n"
+        "      result(i) = result(i) + jac(i,1,j) * jac_inv(2,j,arg + 3)\n"
         "    enddo\n"
         "  enddo\n" in out)
     assert Compile(tmpdir).string_compiles(out)
