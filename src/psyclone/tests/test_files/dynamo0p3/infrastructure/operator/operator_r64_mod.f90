@@ -135,13 +135,13 @@ contains
       ! Temporarily turn off halting mode to safely set invalid value
       call ieee_set_halting_mode(IEEE_INVALID, .false.)
 
-      allocate(self%local_stencil( fs_to%get_ndf(),fs_from%get_ndf(), self%ncell_3d ), &
+      allocate(self%local_stencil( self%ncell_3d, fs_to%get_ndf(),fs_from%get_ndf() ), &
                source=ieee_value(NaN, IEEE_SIGNALING_NAN))
 
       call ieee_set_halting_mode(IEEE_INVALID, .true.)
     else
       ! Normal operator allocation
-      allocate(self%local_stencil( fs_to%get_ndf(),fs_from%get_ndf(), self%ncell_3d ) )
+      allocate(self%local_stencil( self%ncell_3d, fs_to%get_ndf(),fs_from%get_ndf(), self%ncell_3d ) )
     end if
 
   end subroutine operator_r64_initialiser
