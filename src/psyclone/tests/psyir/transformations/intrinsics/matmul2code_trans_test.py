@@ -999,10 +999,10 @@ def test_apply_matmat_reordered(tmpdir, fortran_reader, fortran_writer):
     assert Compile(tmpdir).string_compiles(out)
 
 
-def test_apply_matmat_varexpr_index(tmpdir, fortran_reader, fortran_writer):
+def test_apply_matvec_varexpr_index(tmpdir, fortran_reader, fortran_writer):
     '''
     Check the apply method works when the second argument to matmul is a
-    matrix but using a variable expression in an additional index.
+    1D slice but using a variable expression in an additional index.
 
     '''
 

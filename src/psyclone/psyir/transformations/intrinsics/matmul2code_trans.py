@@ -63,14 +63,13 @@ def _create_array_ref(array_symbol, loop_idx_symbols, other_dims,
     :type array_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
     :param loop_idx_symbols: loop indices which will index into the array.
     :type loop_idx_symbols: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-    :param other_dims: index expressions for any other dimensions that are \
-                       not being looped over. (If there are none then this \
+    :param other_dims: index expressions for any other dimensions that are
+                       not being looped over. (If there are none then this
                        must be an empty list.)
     :type other_dims: List[:py:class:`psyclone.psyir.nodes.ExpressionNode`]
-    :param List[int] loop_idx_order: list of indices in the original array \
+    :param List[int] loop_idx_order: list of indices in the original array
                                      where the loop_idx_symbols are.
-
-    :param List[int] other_dims_order: list of indices in the original array \
+    :param List[int] other_dims_order: list of indices in the original array
                                        where the other_dims are.
 
     :returns: the new reference to an array element.
@@ -242,13 +241,13 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         :param options: options for the transformation.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the node argument is not the \
+        :raises TransformationError: if the node argument is not the
             expected type.
-        :raises TransformationError: if the parent of the MATMUL \
+        :raises TransformationError: if the parent of the MATMUL
             operation is not an assignment.
-        :raises TransformationError: if the matmul arguments are not in \
+        :raises TransformationError: if the matmul arguments are not in
             the required form.
-        :raises TransformationError: if sub-sections of an array are present \
+        :raises TransformationError: if sub-sections of an array are present
             in the arguments.
 
         '''
@@ -417,12 +416,12 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                                              datatype=INTEGER_TYPE)
 
         # Create "result(i)"
-        result_dims = [Reference(i_loop_sym)]
-        if len(result.children) > 1:
-            # Add any additional dimensions (in case of an array slice)
-            for child in result.children[1:]:
-                result_dims.append(child.copy())
-        result_ref = ArrayReference.create(result_symbol, result_dims)
+        r_fr_order, r_nfr_order, r_nfr = self._get_full_range_split(result)
+        result_ref = _create_array_ref(result.symbol,
+                                       [i_loop_sym],
+                                       r_nfr,
+                                       r_fr_order,
+                                       r_nfr_order)
         # Create "vector(j)"
         v_fr_order, v_nfr_order, v_nfr = self._get_full_range_split(vector)
         vector_array_reference = _create_array_ref(vector.symbol,
@@ -497,12 +496,12 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         ii_loop_sym = symbol_table.new_symbol("ii", symbol_type=DataSymbol,
                                               datatype=INTEGER_TYPE)
         # Create "result(i,j)"
-        fr_order, nfr_order, nfr = self._get_full_range_split(result)
+        r_fr_order, r_nfr_order, r_nfr = self._get_full_range_split(result)
         result_ref = _create_array_ref(result.symbol,
                                        [i_loop_sym, j_loop_sym],
-                                       nfr,
-                                       fr_order,
-                                       nfr_order)
+                                       r_nfr,
+                                       r_fr_order,
+                                       r_nfr_order)
         # Create "matrix2(ii,j)"
         m2_fr_order, m2_nfr_order, m2_nfr = self._get_full_range_split(matrix2)
         m2_array_reference = _create_array_ref(matrix2.symbol,
