@@ -349,13 +349,23 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                     f"must be full ranges but found {n_full_ranges}.")
 
         # Make sure the result has as many full range as needed
-        if result.children:
-            for idx, child in enumerate(result.children):
-                if isinstance(child, Range) and not result.is_full_range(idx):
-                    raise TransformationError(
-                        f"To use {self.name} on matmul, each range on "
-                        f"the result variable '{result.name}' must be a full "
-                        f"range but found {result.debug_string()}")
+        if len(result.symbol.shape) in [1, 2] and not result.children:
+            # If the result only has 1 or 2 dimensions and all of its
+            # data is used in the matrix multiply then the reference does
+            # not need to supply any dimension information.
+            pass
+        else:
+            # There should be one index per dimension. This is enforced
+            # by the array create method so is not tested here.
+            # For result, we can have 1 or 2 full ranges.
+            full_range_order, _, _ = self._get_full_range_split(result)
+            n_full_ranges = len(full_range_order)
+            if n_full_ranges not in [1, 2]:
+                raise TransformationError(
+                    f"To use {self.name} on matmul, one or two "
+                    f"indices of the 2nd argument '{matrix2.debug_string()}' "
+                    f"must be full ranges but found {n_full_ranges}.")
+
 
         # Make sure the result is not one of the MATMUL operands
         if result.symbol in (matrix1.symbol, matrix2.symbol):

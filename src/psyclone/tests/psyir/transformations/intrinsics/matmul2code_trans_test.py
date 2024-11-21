@@ -626,9 +626,10 @@ def test_validate_matmat_with_slices_on_rhs(fortran_reader):
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(assign.rhs)
-    assert ("To use Matmul2CodeTrans on matmul, each range on the result "
-            "variable 'result' must be a full range but found "
-            "result(2:4,2:5)" in str(excinfo.value))
+    assert ("Transformation Error: To use Matmul2CodeTrans on matmul, each "
+            "Range index of the argument 'result(2:4,2:5)' must be "
+            "a full range but found non full range "
+            "at position 0." in str(excinfo.value))
 
 
 def test_validate_matmat_with_same_mem(fortran_reader):
