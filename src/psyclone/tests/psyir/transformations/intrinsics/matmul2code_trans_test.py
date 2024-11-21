@@ -972,9 +972,9 @@ def test_apply_matmat_reordered(tmpdir, fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(
         "subroutine my_sub()\n"
         "  real, dimension(2,4,6) :: jac\n"
-        "  real, dimension(4,6,3) :: jac_inv\n"
-        "  real, dimension(2,3) :: result\n"
-        "  result(:,:) = matmul(jac(:,1,:), jac_inv(2,:,:))\n"
+        "  real, dimension(6,3,4) :: jac_inv\n"
+        "  real, dimension(1,2,3) :: result\n"
+        "  result(1,:,:) = matmul(jac(:,2,:), jac_inv(:,:,3))\n"
         "end subroutine my_sub\n")
     trans = Matmul2CodeTrans()
     assign = psyir.walk(Assignment)[0]
@@ -982,17 +982,18 @@ def test_apply_matmat_reordered(tmpdir, fortran_reader, fortran_writer):
     out = fortran_writer(psyir)
     assert (
         "  real, dimension(2,4,6) :: jac\n"
-        "  real, dimension(4,6,3) :: jac_inv\n"
-        "  real, dimension(2,3) :: result\n"
+        "  real, dimension(6,3,4) :: jac_inv\n"
+        "  real, dimension(1,2,3) :: result\n"
         "  integer :: i\n"
         "  integer :: j\n"
         "  integer :: ii\n"
         "\n"
         "  do j = 1, 3, 1\n"
         "    do i = 1, 2, 1\n"
-        "      result(i,j) = 0.0\n"
+        "      result(1,i,j) = 0.0\n"
         "      do ii = 1, 6, 1\n"
-        "        result(i,j) = result(i,j) + jac(i,1,ii) * jac_inv(2,ii,j)\n"
+        "        result(1,i,j) = result(1,i,j) + jac(i,2,ii) * jac_inv(ii,j,3)"
+        "\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n" in out)
