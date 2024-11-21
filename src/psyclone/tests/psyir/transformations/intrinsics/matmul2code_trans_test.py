@@ -494,9 +494,9 @@ def test_validate_mat_too_few_full_ranges():
     matrix.children[0] = Literal("1", INTEGER_TYPE)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert (f"To use {trans.name} on matmul, exactly two indices of the "
-            f"1st argument '{matrix.debug_string()}' must be full ranges "
-            f"but found 1." in str(excinfo.value))
+    assert ("To use Matmul2CodeTrans on matmul, exactly two indices of the "
+            "1st argument 'x(1,:,idx)' must be full ranges "
+            "but found 1." in str(excinfo.value))
 
 
 def test_validate_vec_too_few_full_ranges():
@@ -513,10 +513,9 @@ def test_validate_vec_too_few_full_ranges():
     vector.children[0] = my_index
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert (f"Transformation Error: To use {trans.name} on matmul, "
-            f"one or two indices of the 2nd argument "
-            f"'{vector.debug_string()}' must be full ranges "
-            f"but found 0." in str(excinfo.value))
+    assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
+            "one or two indices of the 2nd argument 'y(1,idx,1)' "
+            "must be full ranges but found 0." in str(excinfo.value))
 
 
 def test_validate_mat_non_full_range():
@@ -528,14 +527,14 @@ def test_validate_mat_non_full_range():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     matrix = matmul.arguments[0]
-    my_range = matrix.children[0].copy()
-    matrix.children[2] = my_range
+    matrix.children[2] = Range.create(Literal("1", INTEGER_TYPE),
+                                      Literal("10", INTEGER_TYPE))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert (f"Transformation Error: To use {trans.name} on matmul, "
-            f"each Range index of the argument '{matrix.debug_string()}' "
-            f"must be a full range but found "
-            f"non full range at position 2." in str(excinfo.value))
+    assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
+            "each Range index of the argument 'x(:,:,:10)' "
+            "must be a full range but found "
+            "non full range at position 2." in str(excinfo.value))
 
 
 def test_validate_vec_non_full_range():
@@ -547,14 +546,14 @@ def test_validate_vec_non_full_range():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     vector = matmul.arguments[1]
-    my_range = vector.children[0].copy()
-    vector.children[2] = my_range
+    vector.children[2] = Range.create(Literal("1", INTEGER_TYPE),
+                                      Literal("5", INTEGER_TYPE))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert (f"Transformation Error: To use {trans.name} on matmul, "
-            f"each Range index of the argument '{vector.debug_string()}' "
-            f"must be a full range but found "
-            f"non full range at position 2." in str(excinfo.value))
+    assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
+            "each Range index of the argument 'y(:,idx,:5)' "
+            "must be a full range but found "
+            "non full range at position 2." in str(excinfo.value))
 
 
 def test_validate_mat_too_many_full_ranges():
@@ -571,10 +570,10 @@ def test_validate_mat_too_many_full_ranges():
                                       Literal("15", INTEGER_TYPE))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert (f"Transformation Error: To use {trans.name} on matmul, "
-            f"no more than two indices of the argument "
-            f"'{matrix.debug_string()}' must be full ranges "
-            f"but found 3." in str(excinfo.value))
+    assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
+            "no more than two indices of the argument "
+            "'x(:,:,:)' must be full ranges "
+            "but found 3." in str(excinfo.value))
 
 
 def test_validate_vec_too_many_full_ranges():
@@ -593,9 +592,9 @@ def test_validate_vec_too_many_full_ranges():
                                       Literal("10", INTEGER_TYPE))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert (f"Transformation Error: To use {trans.name} on matmul, "
-            f"no more than two indices of the argument "
-            f"'{vector.debug_string()}' must be full ranges but found 3."
+    assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
+            "no more than two indices of the argument "
+            "'y(:,:,:)' must be full ranges but found 3."
             in str(excinfo.value))
 
 
@@ -627,9 +626,9 @@ def test_validate_matmat_with_slices_on_rhs(fortran_reader):
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(assign.rhs)
-    assert (f"To use {trans.name} on matmul, each range on the result "
-            f"variable 'result' must be a full range but found "
-            f"result(2:4,2:5)" in str(excinfo.value))
+    assert ("To use Matmul2CodeTrans on matmul, each range on the result "
+            "variable 'result' must be a full range but found "
+            "result(2:4,2:5)" in str(excinfo.value))
 
 
 def test_validate_matmat_with_same_mem(fortran_reader):
