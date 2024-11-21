@@ -284,6 +284,8 @@
 	108) PR #2767 for #2755. Bug fix for psyad failing to transform array
 	assignment
 
+	109) PR #2785 towards #759. Populates partial_datatype for OPTIONAL.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
