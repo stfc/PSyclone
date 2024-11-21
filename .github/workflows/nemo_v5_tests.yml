@@ -157,8 +157,7 @@ jobs:
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         mpirun -np 6 ./nemo
         tail run.stat
-        # We don't compare all digits because they are results from a different compiler
-        python $PSYCLONE_NEMO_DIR/compare_ouput.py $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.100steps run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.oneapi.small.100steps run.stat
         
     - name: NEMO 5.0 gfortran OpenMP for CPUs
       run: |
@@ -178,7 +177,7 @@ jobs:
         
         # Clean up and compile
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
-        export NEMOV5=1  # Enables specific NEMOV5 optimisations
+        export NEMOV5=1  # Enables specific NEMOV5 optimisations in the PSyclone transformation script
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py \
           add_key "key_nosignedzero" -j 4 -v 1
 
