@@ -4545,7 +4545,7 @@ class HaloWriteAccess(HaloDepth):
         call = halo_check_arg(field, AccessType.all_write_accesses())
         # no test required here as all calls exist within a loop
 
-        loop = call.parent.parent
+        loop = call.ancestor(LFRicLoop)
         # The outermost halo level that is written to is dirty if it
         # is a continuous field which writes into the halo in a loop
         # over cells

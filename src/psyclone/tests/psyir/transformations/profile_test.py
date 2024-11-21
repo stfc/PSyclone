@@ -517,6 +517,26 @@ def test_profile_named_dynamo0p3():
 
 
 # -----------------------------------------------------------------------------
+def test_profile_within_lfric_loop():
+    '''
+    Test that adding profiling within an LFRic loop works as expected.
+
+    '''
+    _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
+    schedule = invoke.schedule
+    profile_trans = ProfileTrans()
+    loop = schedule.walk(Loop)[0]
+    profile_trans.apply(loop.loop_body)
+    result = str(invoke.gen()).lower()
+    assert "use profile_psy_data_mod, only: profile_psydatatype" in result
+    assert "type(profile_psydatatype), target :: profile_psy_data" in result
+    assert '''do cell = loop0_start, loop0_stop, 1
+        call profile_psy_data % prestart("single_invoke_psy", \
+"invoke_0_testkern_type-r0", 0, 0)
+        call testkern_code''' in result
+
+
+# -----------------------------------------------------------------------------
 def test_transform():
     '''Tests normal behaviour of profile region transformation.'''
 
