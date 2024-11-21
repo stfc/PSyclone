@@ -1670,8 +1670,8 @@ class SymbolTable():
                                 symbol_table.remove(test_symbol)
                                 if test_symbol.name not in self:
                                     # The visibility given by the inner symbol
-                                    # table does not necessarely match the one
-                                    # from the scope it should have been (it
+                                    # table does not necessarily match the one
+                                    # from the scope it should have been in (it
                                     # doesn't have a non-default visibility,
                                     # otherwise the symbol would already be in
                                     # the ancestor symbol table).

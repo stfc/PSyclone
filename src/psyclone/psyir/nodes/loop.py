@@ -102,6 +102,9 @@ class Loop(Statement):
         self._variable = None
         if variable is not None:
             self.variable = variable
+        # Hold the set of symbols that will be private/local to the interation
+        # if this loop is run concurrently. Alternatively this could be
+        # implemented by moving the symbols to the loop_body symbol table.
         self._explicitly_local_symbols = set()
 
     def __eq__(self, other):
@@ -426,9 +429,10 @@ class Loop(Statement):
 
     def replace_symbols_using(self, table):
         '''
-        Replace the Symbol referred to by this object's `variable` property
-        with that in the supplied SymbolTable with a matching name. If there
-        is no match then it is left unchanged.
+        Replace the Symbol referred to by this object's `variable` and
+        `explicit_local_symbols` properties with those in the supplied
+        SymbolTable with a matching name. If there is no matches then they
+        are left unchanged.
 
         :param table: symbol table in which to look up the replacement symbol.
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`

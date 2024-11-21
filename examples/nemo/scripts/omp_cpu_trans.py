@@ -45,6 +45,9 @@ from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
 PROFILING_ENABLED = False
+
+# A environment variable can inform if this is targeting NEMOv5, in which case
+# array privatisation is enabled.
 NEMOV5 = os.environ.get('NEMOV5', False)
 
 # List of all files that psyclone will skip processing

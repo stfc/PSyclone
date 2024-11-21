@@ -1497,9 +1497,9 @@ def test_following_preceding():
 
     # 2b: Middle node. 'routine' argument is set to False. Additional
     # container and routine2 nodes are returned.
-    assert (multiply1.following(routine_scope=False) ==
+    assert (multiply1.following(same_routine_scope=False) ==
             [c_ref, d_ref, routine2, assign2, e_ref, zero])
-    assert (multiply1.preceding(routine_scope=False) ==
+    assert (multiply1.preceding(same_routine_scope=False) ==
             [container, routine1, assign1, a_ref, multiply2, b_ref])
 
 
@@ -1839,12 +1839,14 @@ def test_following_node(fortran_reader):
     assert loops[0].following_node() is None
     assert assignments[1].following_node() is None
 
-    # With the routine_scope=False, they keep searching outside the routine
-    assert loops[0].following_node(routine_scope=False) is routines[1]
-    assert assignments[1].following_node(routine_scope=False) is routines[1]
+    # With the same_routine_scope=False, they keep searching outside the
+    # routine
+    assert loops[0].following_node(same_routine_scope=False) is routines[1]
+    assert (assignments[1].following_node(same_routine_scope=False)
+            is routines[1])
 
     # If it has no parent, they return None
-    assert loops[0].detach().following_node(routine_scope=False) is None
+    assert loops[0].detach().following_node(same_routine_scope=False) is None
 
 
 def test_following(fortran_reader):
@@ -1884,8 +1886,8 @@ def test_following(fortran_reader):
     assert assignments[2] in loops[1].following()  # after a parent
     assert routines[1] not in loops[1].following()  # outside routine
 
-    # If we set routine_scope to False, it returns nodes from outside
-    assert routines[1] in loops[1].following(routine_scope=False)
+    # If we set same_routine_scope to False, it returns nodes from outside
+    assert routines[1] in loops[1].following(same_routine_scope=False)
 
     # If we set include_children to False, it only return "after" nodes
     assert assignments[0] not in loops[1].following(include_children=False)
@@ -1894,5 +1896,5 @@ def test_following(fortran_reader):
 
     # Both arguments work together
     assert routines[1] not in loops[1].following(include_children=False)
-    assert routines[1] in loops[1].following(routine_scope=False,
+    assert routines[1] in loops[1].following(same_routine_scope=False,
                                              include_children=False)

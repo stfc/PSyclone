@@ -1258,9 +1258,9 @@ class Node():
         from psyclone.psyGen import Kern
         return self.walk(Kern)
 
-    def following_node(self, routine_scope=True):
+    def following_node(self, same_routine_scope=True):
         '''
-        :param bool routine_scope: an optional (default `True`) argument
+        :param bool same_routine_scope: an optional (default `True`) argument
             that enables returing only nodes from the same ancestor routine.
 
         :returns: the next node (the next sibiling, or if it doesn't have one
@@ -1277,30 +1277,31 @@ class Node():
         # Import here to avoid circular dependencies
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Routine
-        if routine_scope and isinstance(self.parent, Routine):
+        if same_routine_scope and isinstance(self.parent, Routine):
             return None
 
-        return self.parent.following_node(routine_scope)
+        return self.parent.following_node(same_routine_scope)
 
-    def following(self, routine_scope=True, include_children=True):
+    def following(self, same_routine_scope=True, include_children=True):
         ''' Return all nodes after itself. Ordering is depth first. If the
-        `routine_scope` argument is set to `True` (default) then only nodes
-        inside the same ancestor routine are returned. If `include_children`
-        is set to `True` (default) children of itself are also returned,
-        otherwise it starts at the next sibiling.
+        `same_routine_scope` argument is set to `True` (default) then only
+        nodes inside the same ancestor routine are returned.
+        If `include_children` is set to `True` (default) children of itself
+        are also returned, otherwise it starts at the next sibiling.
 
-        :param bool routine_scope: an optional (default `True`) argument
-            that enables returing only nodes from the same ancestor routine.
+        :param bool same_routine_scope: an optional (default `True`) argument
+            that restricts the returned nodes to those belonging to the same
+            ancestor routine.
         :param bool include_children: an optional (default `True`) argument
             that enables including own children, instead of starting from
             the next sibiling.
 
-        :returns: a list of nodes.
+        :returns: the list of nodes that follow this one.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         '''
         root = self.root
-        if routine_scope:
+        if same_routine_scope:
             # Import here to avoid circular dependencies
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.nodes import Routine
@@ -1313,7 +1314,7 @@ class Node():
         if include_children:
             starting_node = self
         else:
-            starting_node = self.following_node(routine_scope)
+            starting_node = self.following_node(same_routine_scope)
             if starting_node is None:
                 return []
 
@@ -1329,24 +1330,25 @@ class Node():
 
         return all_nodes[position:]
 
-    def preceding(self, reverse=False, routine_scope=True):
+    def preceding(self, reverse=False, same_routine_scope=True):
         ''' Return all nodes before itself. Ordering is depth first. If the
-        `routine_scope` argument is set to `True` (default) then only nodes
-        inside the same ancestor routine are returned. If the `reverse`
+        `same_routine_scope` argument is set to `True` (default) then only
+        nodes inside the same ancestor routine are returned. If the `reverse`
         argument is set to `True` then the node ordering is reversed i.e.
         returning the nodes closest to this node first.
 
         :param bool reverse: an optional (default `False`) argument that
             reverses the order of any returned nodes (i.e. makes them 'closest
             first').
-        :param bool routine_scope: an optional (default `True`) argument
-            that enables returing only nodes from the same ancestor routine.
+        :param bool same_routine_scope: an optional (default `True`) argument
+            that restricts the returned nodes to those belonging to the same
+            ancestor routine.
 
-        :returns: a list of nodes.
+        :returns: the nodes preceding this one in the PSyIR tree.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         root = self.root
-        if routine_scope:
+        if same_routine_scope:
             # Import here to avoid circular dependencies
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.nodes import Routine

@@ -746,5 +746,5 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         if output_file:
             shutil.copyfile(input_file, output_file)
         else:
-            print(f"File '{input_file}' skiped because it is listed in "
+            print(f"File '{input_file}' skipped because it is listed in "
                   "FILES_TO_SKIP.", file=sys.stdout)

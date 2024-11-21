@@ -234,7 +234,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                             f"The write-write dependency in '{var_name}'"
                             f" cannot be solved by array privatisation "
                             f"because it is not a plain array or it is "
-                            f"used outside the loop.")
+                            f"used after the loop.")
                     continue
                 errors.append(str(message))
 

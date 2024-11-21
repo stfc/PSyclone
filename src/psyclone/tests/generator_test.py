@@ -904,7 +904,7 @@ def trans(psyir):
     outputfile = str(tmpdir.join("output.f90"))
     main([inputfile, "-s", recipefile])
     output, _ = capsys.readouterr()
-    assert ("funny_syntax.f90' skiped because it is listed in FILES_TO_SKIP."
+    assert ("funny_syntax.f90' skipped because it is listed in FILES_TO_SKIP."
             in output)
 
 
