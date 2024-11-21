@@ -1019,7 +1019,6 @@ def test_apply_matmat_varexpr_index(tmpdir, fortran_reader, fortran_writer):
     assign = psyir.walk(Assignment)[0]
     trans.apply(assign.rhs)
     out = fortran_writer(psyir)
-    print(out)
     assert (
         "  integer, parameter :: arg = 0\n"
         "  real, dimension(2,4,6) :: jac\n"
