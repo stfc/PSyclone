@@ -632,6 +632,50 @@ def test_validate_matmat_with_slices_on_rhs(fortran_reader):
             "at position 0." in str(excinfo.value))
 
 
+def test_validate_res_too_many_full_ranges(fortran_reader):
+    '''
+    Check that the validate method refuses matrix-matrix operations with
+    too many full ranges in its lhs.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,6) :: jac\n"
+        "  real, dimension(6,3) :: jac_inv\n"
+        "  real, dimension(10,10,10) :: result\n"
+        "  result(:,:,:) = matmul(jac(:,:), jac_inv(:,:))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as excinfo:
+        trans.validate(assign.rhs)
+    assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
+            "no more than two indices of the argument 'result(:,:,:)' "
+            "must be full ranges but found 3." in str(excinfo.value))
+
+
+def test_validate_res_too_few_full_ranges(fortran_reader):
+    '''
+    Check that the validate method refuses matrix-matrix operations with
+    too few full ranges in its lhs.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,6) :: jac\n"
+        "  real, dimension(6,3) :: jac_inv\n"
+        "  real, dimension(10,10) :: result\n"
+        "  result(10,10) = matmul(jac(:,:), jac_inv(:,:))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as excinfo:
+        trans.validate(assign.rhs)
+    assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
+            "one or two indices of the result 'result(10,10)' "
+            "must be full ranges but found 0." in str(excinfo.value))
+
+
 def test_validate_matmat_with_same_mem(fortran_reader):
     '''
     Check that the validate method refuses cases where one of the operands

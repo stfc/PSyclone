@@ -363,7 +363,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             if n_full_ranges not in [1, 2]:
                 raise TransformationError(
                     f"To use {self.name} on matmul, one or two "
-                    f"indices of the 2nd argument '{matrix2.debug_string()}' "
+                    f"indices of the result '{result.debug_string()}' "
                     f"must be full ranges but found {n_full_ranges}.")
 
         # Make sure the result is not one of the MATMUL operands
