@@ -406,7 +406,6 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         matrix = node.arguments[0]
         vector = node.arguments[1]
         result = node.parent.lhs
-        result_symbol = result.symbol
 
         # Create new i and j loop iterators.
         symbol_table = node.scope.symbol_table
