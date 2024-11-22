@@ -1609,7 +1609,7 @@ class OMPParallelDirective(OMPRegionDirective):
             # firstprivate set
             if (isinstance(symbol, DataSymbol) and
                     isinstance(self.dir_body[0], Loop) and
-                    symbol in self.dir_body[0].explicitly_local_symbols):
+                    symbol in self.dir_body[0].explicitly_private_symbols):
                 if any(ref.symbol is symbol for ref in self.preceding()
                        if isinstance(ref, Reference)):
                     # If it's used before the loop, make it firstprivate

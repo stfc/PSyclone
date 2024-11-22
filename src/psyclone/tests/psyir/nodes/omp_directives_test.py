@@ -691,10 +691,10 @@ def test_directiveinfer_sharing_attributes_lfric():
             "not 'shared'." in str(excinfo.value))
 
 
-def test_infer_sharing_attributes_with_explicitly_local_symbols(
+def test_infer_sharing_attributes_with_explicitly_private_symbols(
         fortran_reader):
     ''' Tests the infer_sharing_attributes() method when some of the loops have
-    explictly declared local symbols.
+    explictly declared private symbols.
     '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
@@ -724,7 +724,7 @@ def test_infer_sharing_attributes_with_explicitly_local_symbols(
 
     # If the loop has some explict locals, this are provided with the
     array_symbol = routine.symbol_table.lookup("array")
-    loop.explicitly_local_symbols.add(array_symbol)
+    loop.explicitly_private_symbols.add(array_symbol)
     pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 3
     assert len(fpvars) == 0
@@ -735,7 +735,7 @@ def test_infer_sharing_attributes_with_explicitly_local_symbols(
 
     # Scalar symbols can also be set as explicitly local
     scalar_symbol = routine.symbol_table.lookup("scalar2")
-    loop.explicitly_local_symbols.add(scalar_symbol)
+    loop.explicitly_private_symbols.add(scalar_symbol)
     pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 4
     assert len(fpvars) == 0
