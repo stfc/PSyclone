@@ -39,6 +39,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 !------------------------------------------------------------------------------
 ! Modified by I. Kavcic, Met Office
+!             J. Dendy, Met Office
 
 module oned_conservative_flux_alg_mod
 
@@ -81,7 +82,8 @@ module oned_conservative_flux_alg_mod
 
     type(function_space_type), pointer :: rho_fs   => null()
 
-    rho_fs => function_space_collection%get_fs( mesh_id, element_order,      &
+    rho_fs => function_space_collection%get_fs( mesh_id, element_order_h, &
+                                                element_order_v,          &
                                               rho_in%which_function_space() )
 
     a0 = field_type( vector_space = rho_fs )

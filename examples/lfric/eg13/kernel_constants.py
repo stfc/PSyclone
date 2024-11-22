@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
+# Modified by: J. Dendy, Met Office
 
 
 '''An example PSyclone transformation script which makes ndofs, nqp*
@@ -62,10 +63,11 @@ from psyclone.transformations import Dynamo0p3KernelConstTrans, \
 # associated kernel value constant (rather than passing it in by
 # argument).
 NUMBER_OF_LAYERS = 20
-# The element order to use when modifying a kernel to make the
+# The element orders to use when modifying a kernel to make the
 # associated degrees of freedom values constant (rather than passing
 # them in by argument).
-ELEMENT_ORDER = 0
+ELEMENT_ORDER_H = 0
+ELEMENT_ORDER_V = 0
 # Whether or not to make the number of quadrature points constant in a
 # kernel (rather than passing them in by argument).
 CONSTANT_QUADRATURE = True
@@ -86,7 +88,8 @@ def trans(psyir):
         try:
             const_trans.apply(kernel,
                               {"number_of_layers": NUMBER_OF_LAYERS,
-                               "element_order": ELEMENT_ORDER,
+                               "element_order_h": ELEMENT_ORDER_H,
+                               "element_order_v": ELEMENT_ORDER_V,
                                "quadrature": CONSTANT_QUADRATURE})
         except TransformationError:
             print(f"    Failed to modify kernel '{kernel.name}'")
