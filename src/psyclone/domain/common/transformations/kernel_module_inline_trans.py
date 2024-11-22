@@ -393,7 +393,8 @@ class KernelModuleInlineTrans(Transformation):
                         symbol.name not in table else table)
         remove_csym = actual_table.symbols_imported_from(csym) == [symbol]
         # We have to force the removal as there will be calls that reference
-        # this Symbol.
+        # this Symbol. (These calls will subsequently be updated to refer to
+        # the Symbol of the inlined routine.)
         # pylint:disable-next=protected-access
         actual_table._symbols.pop(symbol.name)
         if remove_csym:
