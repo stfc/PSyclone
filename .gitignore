@@ -27,3 +27,4 @@ src/*.egg-info
 .idea
 .rtx.toml
 .venv
+cov.xml
