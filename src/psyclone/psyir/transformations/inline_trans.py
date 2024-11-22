@@ -37,16 +37,16 @@
 This module contains the InlineTrans transformation.
 
 '''
-from psyclone.errors import InternalError, LazyString
+from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
-    CodeBlock, Container, IntrinsicCall, Node, Range, Routine, Reference,
-    Return, Literal, Assignment, StructureMember, StructureReference)
+    CodeBlock, IntrinsicCall, Node, Range, Routine, Reference,
+    Return, Literal, Statement, StructureMember, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, UnresolvedType, INTEGER_TYPE,
-    RoutineSymbol, StaticInterface, Symbol, SymbolError, UnknownInterface,
+    StaticInterface, SymbolError, UnknownInterface,
     UnsupportedType, IntrinsicSymbol)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
@@ -138,7 +138,7 @@ class InlineTrans(Transformation):
         # The table associated with the scoping region holding the Call.
         table = node.scope.symbol_table
         # Find the routine to be inlined.
-        orig_routine = self._find_routine(node)
+        orig_routine = node.get_callees()[0]
 
         if not orig_routine.children or isinstance(orig_routine.children[0],
                                                    Return):
@@ -162,7 +162,7 @@ class InlineTrans(Transformation):
         # Shallow copy the symbols from the routine into the table at the
         # call site.
         table.merge(routine_table,
-                    symbols_to_skip=self._symbols_to_skip(routine_table))
+                    symbols_to_skip=routine_table.argument_list[:])
 
         # When constructing new references to replace references to formal
         # args, we need to know whether any of the actual arguments are array
@@ -200,7 +200,7 @@ class InlineTrans(Transformation):
 
         if routine.return_symbol:
             # This is a function
-            assignment = node.ancestor(Assignment)
+            assignment = node.ancestor(Statement)
             parent = assignment.parent
             idx = assignment.position-1
             for child in new_stmts:
@@ -230,38 +230,6 @@ class InlineTrans(Transformation):
             replacement = type(scope.symbol_table)()
             scope.symbol_table.detach()
             replacement.attach(scope)
-
-    def _symbols_to_skip(self, table):
-        '''
-        Constructs a list of those Symbols in the table of the called routine
-        that must be excluded when merging that table with the one at the
-        call site.
-
-        These are:
-         - those Symbols representing routine arguments;
-         - any RoutineSymbol representing the called routine itself.
-
-        :param table: the symbol table of the routine to be inlined.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-        :returns: those Symbols that must be skipped when merging the
-                  supplied table into the one at the call site.
-        :rtype: list[:py:class:`psyclone.psyir.symbols.Symbol`]
-
-        '''
-        # We need to exclude formal arguments and any RoutineSymbol
-        # representing the routine itself.
-        symbols_to_skip = table.argument_list[:]
-        try:
-            # We don't want or need the symbol representing that routine.
-            rsym = table.lookup_with_tag("own_routine_symbol")
-            if isinstance(rsym, RoutineSymbol):
-                # We only want to skip RoutineSymbols, not DataSymbols (which
-                # we may have if we have a Fortran function).
-                symbols_to_skip.append(rsym)
-        except KeyError:
-            pass
-        return symbols_to_skip
 
     def _replace_formal_arg(self, ref, call_node, formal_args):
         '''
@@ -562,7 +530,10 @@ class InlineTrans(Transformation):
                 break
             cursor = cursor.member
 
-        if not actual_arg.walk(Range) and local_indices:
+        # TODO #1858 - once we support converting structure accesses into
+        # explicit array accesses, we can put back the testing in
+        # inline_trans_test.py that covers this code and remove the pragma:
+        if not actual_arg.walk(Range) and local_indices:  # pragma: no cover
             # There are no Ranges in the actual argument but the local
             # reference is an array access.
             # Create updated index expressions for that access.
@@ -620,7 +591,7 @@ class InlineTrans(Transformation):
             in the candidate routine. Default is False.
 
         :raises TransformationError: if the supplied node is not a Call or is
-            an IntrinsicCall.
+            an IntrinsicCall or call to a PSyclone-generated routine.
         :raises TransformationError: if the routine has a return value.
         :raises TransformationError: if the routine body contains a Return
             that is not the first or last statement.
@@ -661,8 +632,15 @@ class InlineTrans(Transformation):
             raise TransformationError(
                 f"Cannot inline an IntrinsicCall ('{node.routine.name}')")
         name = node.routine.name
+
         # Check that we can find the source of the routine being inlined.
-        routine = self._find_routine(node)
+        # TODO #924 allow for multiple routines (interfaces).
+        try:
+            routine = node.get_callees()[0]
+        except (NotImplementedError, FileNotFoundError, SymbolError) as err:
+            raise TransformationError(
+                f"Cannot inline routine '{name}' because its source cannot be "
+                f"found: {err}") from err
 
         if not routine.children or isinstance(routine.children[0], Return):
             # An empty routine is fine.
@@ -730,7 +708,7 @@ class InlineTrans(Transformation):
         try:
             table.check_for_clashes(
                 routine_table,
-                symbols_to_skip=self._symbols_to_skip(routine_table))
+                symbols_to_skip=routine_table.argument_list[:])
         except SymbolError as err:
             raise TransformationError(
                 f"One or more symbols from routine '{routine.name}' cannot be "
@@ -885,142 +863,6 @@ class InlineTrans(Transformation):
                             f"because one of its arguments is an array slice "
                             f"with a non-unit stride: "
                             f"'{actual_arg.debug_string()}' (TODO #1646)"))
-
-    @staticmethod
-    def _find_routine(call_node):
-        '''Searches for the definition of the routine that is being called by
-        the supplied Call.
-
-        :param call_node: the Call that is to be inlined.
-        :type call_node: :py:class:`psyclone.psyir.nodes.Call`
-
-        :returns: the PSyIR for the target routine.
-        :rtype: :py:class:`psyclone.psyir.nodes.Routine`
-
-        :raises InternalError: if the routine symbol is local but the \
-            routine definition is not found.
-        :raises TransformationError: if the routine definition cannot be found.
-
-        '''
-        name = call_node.routine.name
-        routine_sym = call_node.routine.symbol
-
-        if routine_sym.is_modulevar:
-            table = routine_sym.find_symbol_table(call_node)
-            for routine in table.node.walk(Routine):
-                if routine.name.lower() == name.lower():
-                    return routine
-            raise InternalError(
-                f"Failed to find the source code of the local routine "
-                f"'{routine_sym.name}'.")
-
-        if routine_sym.is_unresolved:
-
-            # First check for any wildcard imports and see if they can
-            # be used to resolve the symbol.
-            wildcard_names = []
-            current_table = call_node.scope.symbol_table
-            while current_table:
-                for container_symbol in current_table.containersymbols:
-                    if container_symbol.wildcard_import:
-                        wildcard_names.append(container_symbol.name)
-                        routine = InlineTrans._find_routine_in_container(
-                            call_node, container_symbol)
-                        if routine:
-                            return routine
-                current_table = current_table.parent_symbol_table()
-
-            # Next check for any "raw" Routines, i.e. ones that are not
-            # in a Container.  Such Routines would exist in the PSyIR
-            # as a child of a FileContainer (if the PSyIR contains a
-            # FileContainer). Note, if the PSyIR does contain a
-            # FileContainer, it will be the root node of the PSyIR.
-            for routine in call_node.root.children:
-                if (isinstance(routine, Routine) and
-                        routine.name.lower() == name.lower()):
-                    return routine
-            raise TransformationError(
-                f"Failed to find the source code of the unresolved "
-                f"routine '{name}' after trying wildcard imports from "
-                f"{wildcard_names} and all routines that are not in "
-                f"containers.")
-
-        if routine_sym.is_import:
-            container_symbol = routine_sym.interface.container_symbol
-            routine = InlineTrans._find_routine_in_container(
-                call_node, container_symbol)
-            if routine:
-                return routine
-            raise TransformationError(
-                f"Failed to find the source for routine '{routine_sym.name}' "
-                f"imported from '{container_symbol.name}' and therefore "
-                f"cannot inline it.")
-
-        raise InternalError(
-            f"Routine Symbol '{routine_sym.name}' is not local, "
-            f"unresolved or imported.")
-
-    @staticmethod
-    def _find_routine_in_container(call_node, container_symbol):
-        '''Searches for the definition of a routine that is being called by
-        the supplied Call. If present, this routine must exist within a
-        container specified by the supplied container symbol.
-
-        :param call_node: the Call that is to be inlined.
-        :type call_node: :py:class:`psyclone.psyir.nodes.Call`
-
-        :param container_symbol: the symbol of the container to search.
-        :type container_symbol: \
-            :py:class:`psyclone.psyir.symbols.ContainerSymbol`
-
-        :returns: the PSyIR for the target routine, if found.
-        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Routine`]
-
-        '''
-        # The required Routine will exist within a Container and
-        # that Container could exist in the PSyIR as a child of a
-        # FileContainer (if the PSyIR contains a
-        # FileContainer). If the PSyIR does contain a
-        # FileContainer, it will be the root node of the PSyIR.
-        call_routine_sym = call_node.routine
-        for container in call_node.root.children:
-            if (isinstance(container, Container) and
-                    container.name.lower() == container_symbol.name.lower()):
-                for routine in container.children:
-                    if (isinstance(routine, Routine) and
-                            routine.name.lower() ==
-                            call_routine_sym.name.lower()):
-                        # Check this routine is public
-                        routine_sym = container.symbol_table.lookup(
-                            routine.name)
-                        if routine_sym.visibility == Symbol.Visibility.PUBLIC:
-                            return routine
-                # The Container has been found but it does not contain
-                # the expected Routine or the Routine is not public.
-
-                # Look in the import that names the routine if there is one.
-                table = container.symbol_table
-                try:
-                    routine_sym = table.lookup(call_routine_sym.name)
-                    if routine_sym.is_import:
-                        child_container_symbol = \
-                            routine_sym.interface.container_symbol
-                        return (InlineTrans._find_routine_in_container(
-                            call_node, child_container_symbol))
-                except KeyError:
-                    pass
-
-                # Look in any wildcard imports.
-                for child_container_symbol in table.containersymbols:
-                    if child_container_symbol.wildcard_import:
-                        result = InlineTrans._find_routine_in_container(
-                            call_node, child_container_symbol)
-                        if result:
-                            return result
-                # The required Symbol was not found in the Container.
-                return None
-        # The specified Container was not found in the PSyIR.
-        return None
 
 
 # For AutoAPI auto-documentation generation.

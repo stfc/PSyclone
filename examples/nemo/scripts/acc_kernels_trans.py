@@ -57,12 +57,13 @@ Tested with the NVIDIA HPC SDK version 23.7.
 '''
 
 import logging
-from utils import add_profiling, NOT_PERFORMANT, NOT_WORKING
+from utils import (add_profiling, enhance_tree_information, inline_calls,
+                   NOT_PERFORMANT)
 from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
     IfBlock, ArrayReference, Assignment, BinaryOperation, Loop, Routine,
-    Literal, Call, ACCLoopDirective)
+    Literal, ACCLoopDirective)
 from psyclone.psyir.transformations import (ACCKernelsTrans, ACCUpdateTrans,
                                             TransformationError, ProfileTrans)
 from psyclone.transformations import ACCEnterDataTrans
@@ -85,14 +86,15 @@ ACC_UPDATE_TRANS = ACCUpdateTrans()
 PROFILE_TRANS = ProfileTrans()
 
 # Whether or not to add profiling calls around unaccelerated regions
-PROFILE_NONACC = True
+# N.B. this can inhibit PSyclone's ability to inline!
+PROFILE_NONACC = False
 
 # Whether or not to add OpenACC enter data and update directives to explicitly
 # move data between host and device memory
 ACC_EXPLICIT_MEM_MANAGEMENT = False
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING
+FILES_TO_SKIP = NOT_PERFORMANT
 
 # Routines we do not attempt to add any OpenACC to (because it breaks with
 # the Nvidia compiler or because it just isn't worth it)
@@ -106,18 +108,6 @@ ACC_IGNORE = ["day_mth",  # Just calendar operations
               "trc_bc_ini", "p2z_ini", "p4z_ini", "sto_par_init",
               "bdytide_init", "bdy_init", "bdy_segs", "sbc_cpl_init",
               "asm_inc_init", "dia_obs_init"]  # Str handling, init routine
-
-# Currently fparser has no way of distinguishing array accesses from
-# function calls if the symbol is imported from some other module.
-# We therefore work-around this by keeping a list of known NEMO
-# functions that must be excluded from within KERNELS regions.
-NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
-                  "eos_pt_from_ct", "gamma_moist", "l_vap",
-                  "sbc_dcy", "solfrac", "psi_h", "psi_m", "psi_m_coare",
-                  "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf", "q_sat",
-                  "rho_air", "visc_air", "sbc_dcy", "glob_sum",
-                  "glob_sum_full", "ptr_sj", "ptr_sjk", "interp1", "interp2",
-                  "interp3", "integ_spline"]
 
 
 class ExcludeSettings():
@@ -258,17 +248,6 @@ def valid_acc_kernel(node):
                                     "other loops", enode)
                             return False
 
-    # Finally, check that we haven't got any 'array accesses' that are in
-    # fact function calls.
-    refs = node.walk(ArrayReference)
-    for ref in refs:
-        # Check if this reference has the name of a known function and if that
-        # reference appears outside said known function.
-        if ref.name.lower() in NEMO_FUNCTIONS and \
-           ref.name.lower() != routine_name.lower():
-            log_msg(routine_name,
-                    f"Loop contains function call: {ref.name}", ref)
-            return False
     return True
 
 
@@ -358,12 +337,12 @@ def try_kernels_trans(nodes):
                 # We put a COLLAPSE(2) clause on any perfectly-nested lat-lon
                 # loops that have a Literal value for their step. The latter
                 # condition is necessary to avoid compiler errors.
-                if loop.loop_type == "lat" and \
-                   isinstance(loop.step_expr, Literal) and \
-                   isinstance(loop.loop_body[0], Loop) and \
-                   loop.loop_body[0].loop_type == "lon" and \
-                   isinstance(loop.loop_body[0].step_expr, Literal) and \
-                   len(loop.loop_body.children) == 1:
+                if (loop.variable.name == "jj" and
+                        isinstance(loop.step_expr, Literal) and
+                        isinstance(loop.loop_body[0], Loop) and
+                        loop.loop_body[0].variable.name == "ji" and
+                        isinstance(loop.loop_body[0].step_expr, Literal) and
+                        len(loop.loop_body.children) == 1):
                     try:
                         ACC_LOOP_TRANS.apply(loop, {"collapse": 2})
                     except (TransformationError) as err:
@@ -390,21 +369,18 @@ def trans(psyir):
     for subroutine in psyir.walk(Routine):
         print(f"Transforming subroutine: {subroutine.name}")
 
-        # In the lib_fortran file we annotate each routine that does not
-        # have a Loop or unsupported Calls with the OpenACC Routine Directive
+        # In the lib_fortran file we annotate each routine of the SIGN_*
+        # interface with the OpenACC Routine Directive
         if psyir.name == "lib_fortran.f90":
-            if not subroutine.walk(Loop):
-                calls = subroutine.walk(Call)
-                if all(call.is_available_on_device() for call in calls):
-                    # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
-                    # array notation. (TODO #717)
-                    ACC_ROUTINE_TRANS.apply(subroutine,
-                                            options={"force": True})
-                    continue
+            if subroutine.name.lower().startswith("sign_"):
+                ACC_ROUTINE_TRANS.apply(subroutine)
+                continue
 
         # Attempt to add OpenACC directives unless we are ignoring this routine
         if subroutine.name.lower() not in ACC_IGNORE:
             print(f"Transforming {subroutine.name} with acc kernels")
+            enhance_tree_information(subroutine)
+            inline_calls(subroutine)
             have_kernels = add_kernels(subroutine.children)
             if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
                 print(f"Transforming {subroutine.name} with acc enter data")

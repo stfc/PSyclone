@@ -45,7 +45,7 @@ from fparser.two.parser import ParserFactory
 from fparser.two.utils import FortranSyntaxError, walk
 
 from psyclone.configuration import Config
-from psyclone.errors import InternalError, PSycloneError
+from psyclone.errors import InternalError, PSycloneError, GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import SymbolError
@@ -268,7 +268,8 @@ class ModuleInfo:
                 return None
             try:
                 self._psyir = self._processor.generate_psyir(ptree)
-            except (KeyError, SymbolError, InternalError) as err:
+            except (KeyError, SymbolError, InternalError, GenerationError) \
+                    as err:
                 # TODO #11: Add proper logging
                 print(f"Error trying to create PSyIR for '{self.filename}': "
                       f"'{err}'")

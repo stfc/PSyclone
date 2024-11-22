@@ -44,6 +44,7 @@ ChildrenList - a custom implementation of list.
 
 '''
 import copy
+import graphviz
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolError
@@ -55,40 +56,21 @@ try:
     # pylint disable=import-outside-toplevel
     from termcolor import colored
 except ImportError:
-    # We don't have the termcolor package available so provide
-    # alternative routine
+    # We don't have the termcolor package available (e.g. installing from)
+    # Spack) so provide alternative routine
     def colored(text, _):
         '''
         Returns the supplied text argument unchanged. This is a swap-in
         replacement for when termcolor.colored is not available.
 
         :param str text: text to return.
-        :param _: fake argument, only required to match interface \
+        :param _: fake argument, only required to match interface
                   provided by termcolor.colored.
 
         :returns: the supplied text, unchanged.
         :rtype: str
         '''
         return text
-
-
-def _graphviz_digraph_class():
-    '''
-    Wrapper that returns the graphviz Digraph type if graphviz is installed
-    and None otherwise.
-
-    :returns: the graphviz Digraph type or None.
-    :rtype: :py:class:`graphviz.Digraph` or NoneType.
-
-    '''
-    try:
-        # pylint: disable=import-outside-toplevel
-        import graphviz as gv
-        return gv.Digraph
-    except ImportError:
-        # TODO #11 add a warning to a log file here
-        # silently return if graphviz bindings are not installed
-        return None
 
 
 class ChildrenList(list):
@@ -182,6 +164,7 @@ class ChildrenList(list):
 
         '''
         # pylint: disable=protected-access
+        node.update_parent_symbol_table(self._node_reference)
         node._parent = self._node_reference
         node._has_constructor_parent = False
 
@@ -197,6 +180,7 @@ class ChildrenList(list):
         # This is done from here with protected access because it's the parent
         # which is in charge of maintaining its children connections.
         # pylint: disable=protected-access
+        node.update_parent_symbol_table(None)
         node._parent = None
         node._has_constructor_parent = False
 
@@ -551,27 +535,29 @@ class Node():
         return the graph object.
 
         :param str file_name: name of the file to create.
-        :param str file_format: format of the file to create. (Must be one \
+        :param str file_format: format of the file to create. (Must be one
                                 recognised by Graphviz.)
 
-        :returns: the graph object or None (if the graphviz bindings are not \
-                  installed).
+        :returns: the graph object or None (if 'graphviz' is not found).
         :rtype: :py:class:`graphviz.Digraph` or NoneType
 
-        :raises GenerationError: if the specified file format is not \
+        :raises GenerationError: if the specified file format is not
                                  recognised by Graphviz.
 
         '''
-        digraph = _graphviz_digraph_class()
-        if digraph is None:
-            return None
         try:
-            graph = digraph(format=file_format)
+            graph = graphviz.Digraph(format=file_format)
         except ValueError as err:
             raise GenerationError(f"unsupported graphviz file format "
                                   f"'{file_format}' provided") from err
         self.dag_gen(graph)
-        graph.render(filename=file_name)
+        try:
+            graph.render(filename=file_name)
+        except graphviz.ExecutableNotFound as error:
+            print(error)
+            # TODO #11 add a warning to a log file here
+            # silently return if graphviz bindings are not installed
+            return None
         return graph
 
     def dag_gen(self, graph):
@@ -1746,6 +1732,18 @@ class Node():
         '''
         for child in self.children:
             child.replace_symbols_using(table)
+
+    def update_parent_symbol_table(self, new_parent):
+        '''
+        Specify how this node must update its parent's symbol table (if it has
+        one) when its parent is updated.
+
+        This base implementation does nothing.
+
+        :param new_parent: The new parent of this node.
+        :type new_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
+
+        '''
 
 
 # For automatic documentation generation

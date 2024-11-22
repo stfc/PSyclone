@@ -83,7 +83,7 @@ def test_other_commentable_nodes():
     ''' Check that other nodes with the CommentableMixin have the
     expected functionality.'''
 
-    routine = Routine("my_routine")
+    routine = Routine.create("my_routine")
     container = Container("my_container")
 
     # Check the setters with a proper value

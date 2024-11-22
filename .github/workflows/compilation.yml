@@ -51,14 +51,14 @@ on:
   push
 
 env:
-  CUDA_VERSION: 12.5.0
-  GFORTRAN_VERSION: 14.1.0
-  HDF5_VERSION: 1.14.4.3
+  CUDA_VERSION: 12.6.2
+  GFORTRAN_VERSION: 14.2.0
+  HDF5_VERSION: 1.14.5
   NETCDF_C_VERSION: 4.9.2
   NETCDF_FORTRAN_VERSION: 4.6.1
-  NVFORTRAN_VERSION: 24.5
-  OPENMPI_VERSION: 5.0.3
-  PYTHON_VERSION: 3.12.3
+  NVFORTRAN_VERSION: 24.9
+  OPENMPI_VERSION: 5.0.5
+  PYTHON_VERSION: 3.13.0
 
 jobs:
   run_if_on_mirror:
@@ -130,5 +130,5 @@ jobs:
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/LFRic compile
-        F90=nvfortran F90FLAGS="-acc -Minfo=all -Mnofma -O2" make -C tutorial/practicals/nemo run
-        make -C tutorial/practicals/nemo/4_nemo_openacc acc_test
+        F90=nvfortran F90FLAGS="-acc -Minfo=all -Mnofma -O2" make -C tutorial/practicals/generic run
+        make -C tutorial/practicals/generic/4_openacc acc_test

@@ -44,7 +44,7 @@ from psyclone.psyir.backend.sir import gen_stencil, SIRWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
     Assignment, BinaryOperation, IfBlock, Literal, Routine, Loop,
-    Node, Schedule, UnaryOperation)
+    Schedule, UnaryOperation, ScopingNode)
 from psyclone.psyir.symbols import INTEGER_TYPE
 
 
@@ -225,7 +225,7 @@ def test_sirwriter_node_1():
     '''
     schedule = get_routine(CODE)
 
-    class Unsupported(Node):
+    class Unsupported(ScopingNode):
         '''A PSyIR node that will not be supported by the SIR writer but
         accepts any children inside.'''
         @staticmethod

@@ -64,7 +64,7 @@ from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.extract_node import ExtractNode
 from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
 from psyclone.psyir.nodes.member import Member
-from psyclone.psyir.nodes.nan_test_node import NanTestNode
+from psyclone.psyir.nodes.value_range_check_node import ValueRangeCheckNode
 from psyclone.psyir.nodes.profile_node import ProfileNode
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.read_only_verify_node import ReadOnlyVerifyNode
@@ -142,8 +142,8 @@ __all__ = [
         'PSyDataNode',
         'ExtractNode',
         'ProfileNode',
-        'NanTestNode',
         'ReadOnlyVerifyNode',
+        'ValueRangeCheckNode',
         # Directive Nodes
         'Directive',
         'RegionDirective',

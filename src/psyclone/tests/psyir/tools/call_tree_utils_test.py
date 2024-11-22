@@ -49,6 +49,7 @@ from psyclone.domain.lfric import LFRicKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import CodeBlock, Reference, Schedule
+from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
 from psyclone.tests.utilities import get_base_path, get_invoke
 
@@ -72,58 +73,58 @@ def test_call_tree_compute_all_non_locals_non_kernel():
     ctu = CallTreeUtils()
 
     # Check that using a local variable is not reported:
-    psyir = mod_info.get_psyir().get_routine_psyir("local_var_sub")
+    psyir = mod_info.get_psyir().find_routine_psyir("local_var_sub")
     info = ctu._compute_all_non_locals(psyir)
     assert info == []
 
     # Check using a variable that is used from the current module
-    psyir = mod_info.get_psyir().get_routine_psyir("module_var_sub")
+    psyir = mod_info.get_psyir().find_routine_psyir("module_var_sub")
     info = ctu._compute_all_non_locals(psyir)
     assert info == [('reference', 'module_call_tree_mod',
                      Signature("module_var"))]
 
     # Test that a call of a function in the same module is reported as
     # module routine:
-    psyir = mod_info.get_psyir().get_routine_psyir("call_local_function")
+    psyir = mod_info.get_psyir().find_routine_psyir("call_local_function")
     info = ctu._compute_all_non_locals(psyir)
     assert info == [('routine', 'module_call_tree_mod',
                      Signature("module_function"))]
 
     # Check using a local constant
-    psyir = mod_info.get_psyir().get_routine_psyir("local_const_sub")
+    psyir = mod_info.get_psyir().find_routine_psyir("local_const_sub")
     info = ctu._compute_all_non_locals(psyir)
     assert info == []
 
     # Check using an argument
-    psyir = mod_info.get_psyir().get_routine_psyir("argument_sub")
+    psyir = mod_info.get_psyir().find_routine_psyir("argument_sub")
     info = ctu._compute_all_non_locals(psyir)
     assert info == []
 
     # Check assigning the result to a function
-    psyir = mod_info.get_psyir().get_routine_psyir("module_function")
+    psyir = mod_info.get_psyir().find_routine_psyir("module_function")
     info = ctu._compute_all_non_locals(psyir)
     assert info == []
 
     # Check calling an undeclared function
     psyir = \
-        mod_info.get_psyir().get_routine_psyir("calling_unknown_subroutine")
+        mod_info.get_psyir().find_routine_psyir("calling_unknown_subroutine")
     info = ctu._compute_all_non_locals(psyir)
     assert info == [("routine", None, Signature("unknown_subroutine"))]
 
     # Check calling an imported subroutine
     psyir = \
-        mod_info.get_psyir().get_routine_psyir("calling_imported_subroutine")
+        mod_info.get_psyir().find_routine_psyir("calling_imported_subroutine")
     info = ctu._compute_all_non_locals(psyir)
     assert info == [("routine", "some_module", Signature("module_subroutine"))]
 
     # Check using an imported symbol
-    psyir = mod_info.get_psyir().get_routine_psyir("use_imported_symbol")
+    psyir = mod_info.get_psyir().find_routine_psyir("use_imported_symbol")
     info = ctu._compute_all_non_locals(psyir)
     assert info == [("unknown", "some_module1", Signature("module_var1")),
                     ("unknown", "some_module2", Signature("module_var2"))]
 
     # Check calling an undeclared function
-    psyir = mod_info.get_psyir().get_routine_psyir("intrinsic_call")
+    psyir = mod_info.get_psyir().find_routine_psyir("intrinsic_call")
     info = ctu._compute_all_non_locals(psyir)
     assert info == []
 
@@ -199,7 +200,7 @@ def test_call_tree_get_used_symbols_from_modules():
 
     mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
     psyir = \
-        mod_info.get_psyir().get_routine_psyir("testkern_import_symbols_code")
+        mod_info.get_psyir().find_routine_psyir("testkern_import_symbols_code")
     ctu = CallTreeUtils()
     non_locals = ctu.get_non_local_symbols(psyir)
 
@@ -242,7 +243,7 @@ def test_call_tree_get_used_symbols_from_modules_renamed():
     mod_man.add_search_path(test_dir)
 
     mod_info = mod_man.get_module_info("module_renaming_external_var_mod")
-    psyir = mod_info.get_psyir().get_routine_psyir("renaming_subroutine")
+    psyir = mod_info.get_psyir().find_routine_psyir("renaming_subroutine")
     ctu = CallTreeUtils()
     non_locals = ctu.get_non_local_symbols(psyir)
 
@@ -347,14 +348,25 @@ def test_get_non_local_read_write_info_errors(capsys):
     kernels = schedule.walk(Kern)
     minfo = mod_man.get_module_info(kernels[0].module_name)
     cntr = minfo.get_psyir()
-    routine = cntr.get_routine_psyir("testkern_import_symbols_code")
+    routine = cntr.find_routine_psyir("testkern_import_symbols_code")
     # Remove the kernel routine from the PSyIR.
     routine.detach()
+
     rw_info = ReadWriteInfo()
     ctu.get_non_local_read_write_info(schedule, rw_info)
     out, _ = capsys.readouterr()
     assert (f"Could not get PSyIR for Routine 'testkern_import_symbols_code' "
-            f"from module '{kernels[0].module_name}'" in out)
+            f"from module '{kernels[0].module_name}' as no possible" in out)
+
+    # Add a RoutineSymbol back into the symbol table to mimic a CodeBlock
+    # representing the routine.
+    cntr.symbol_table.add(RoutineSymbol("testkern_import_symbols_code"))
+    rw_info = ReadWriteInfo()
+    ctu.get_non_local_read_write_info(schedule, rw_info)
+    out, _ = capsys.readouterr()
+    assert (f"Could not get PSyIR for Routine 'testkern_import_symbols_code' "
+            f"from module '{kernels[0].module_name}' -" in out)
+
     # Remove the module Container from the PSyIR.
     cntr.detach()
     ctu.get_non_local_read_write_info(schedule, rw_info)
@@ -425,7 +437,11 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
     info = SingleVariableAccessInfo(Signature("module_subroutine"))
     minfo = mod_man.get_module_info("module_with_var_mod")
     cntr = minfo.get_psyir()
-    cntr.get_routine_psyir("module_subroutine").detach()
+    cntr.find_routine_psyir("module_subroutine").detach()
+    # Since the Routine detach removes the routine symbol, we add a
+    # Routine symbol back in. This mimics the behaviour of having a
+    # CodeBlock representing this Routine
+    cntr.symbol_table.add(RoutineSymbol("module_subroutine"))
     todo = [('routine', 'module_with_var_mod',
              Signature("module_subroutine"), info)]
     ctu._resolve_calls_and_unknowns(todo, rw_info)
@@ -487,7 +503,7 @@ def test_module_info_generic_interfaces():
     for routine_name in all_routines:
         all_non_locals.extend(
             ctu.get_non_local_symbols(mod_info.get_psyir().
-                                      get_routine_psyir(routine_name)))
+                                      find_routine_psyir(routine_name)))
     # Both functions of the generic interface use 'module_var',
     # and in addition my_func1 uses module_var_1, myfunc2 uses module_var_2
     # So three variables should be reported, i.e. module_var should only

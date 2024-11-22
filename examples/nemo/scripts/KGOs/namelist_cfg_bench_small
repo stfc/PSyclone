@@ -1,0 +1,225 @@
+!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!! NEMO/OPA  BENCH Configuration namelist : overwrite some defaults values defined in SHARED/namelist_ref
+!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!
+!-----------------------------------------------------------------------
+&namrun        !   parameters of the run
+!-----------------------------------------------------------------------
+   cn_exp      =   'BENCH' !  experience name
+   nn_it000    =       1   !  first time step
+   nn_itend    =    100   !  last time step 
+   nn_stock    =      -1   !  frequency of creation of a restart file (modulo referenced to 1)
+   nn_write    =      -1   !  frequency of write in the output file   (modulo referenced to nn_it000)
+/
+!-----------------------------------------------------------------------
+&namusr_def    !   User defined :   BENCH configuration: Flat bottom, beta-plane
+!-----------------------------------------------------------------------
+   nn_isize   =   64      ! number of point in i-direction of global(local) domain if >0 (<0)  
+   nn_jsize   =   64      ! number of point in j-direction of global(local) domain if >0 (<0)  
+   nn_ksize   =   30       ! total number of point in k-direction
+   ln_Iperio  =   .true.   ! i-periodicity
+   ln_Jperio  =  .false.   ! j-periodicity
+   ln_NFold   =   .true.   ! North pole folding
+      cn_NFtype   =   'F'  ! Folding type: T or F
+/
+!-----------------------------------------------------------------------
+&nammpp        !   Massively Parallel Processing
+!-----------------------------------------------------------------------
+   ln_nnogather=  .true.   !  activate code to avoid mpi_allgather use at the northfold
+   jpni        =   0       !  jpni   number of processors following i (set automatically if < 1)
+   jpnj        =   0       !  jpnj   number of processors following j (set automatically if < 1)
+/
+!-----------------------------------------------------------------------
+&namctl        !   Control prints                                       (default: OFF)
+!-----------------------------------------------------------------------
+   ln_timing   = .true.   !  timing by routine write out in timing.output file
+   sn_cfctl%l_runstat = .TRUE.
+/
+!-----------------------------------------------------------------------
+&namdom        !   time and space domain
+!-----------------------------------------------------------------------
+   rn_Dt      =    360.    !  time step for the dynamics (and tracer if nn_acc=0)
+   ln_meshmask = .false.   !  =T create a mesh file
+/
+
+!!======================================================================
+!!            ***  Surface Boundary Condition namelists  ***          !!
+!!                                                                    !!
+!!   namsbc          surface boundary condition manager                 (default: NO selection)
+!!======================================================================
+!
+!-----------------------------------------------------------------------
+&namsbc        !   Surface Boundary Condition (surface module)
+!-----------------------------------------------------------------------
+  ln_usr      = .true.    !  user defined formulation                  (T => check usrdef_sbc)
+  nn_ice      = 2         !  =0 no ice boundary condition
+     !                    !  =1 use observed ice-cover                 (  => fill namsbc_iif )
+     !                    !  =2 or 3 for SI3 and CICE, respectively
+  ln_traqsr   = .true.    !  Light penetration in the ocean            (T => fill namtra_qsr)
+/
+
+!
+!!======================================================================
+!!               ***  Lateral boundary condition  ***                 !!
+!!                                                                    !!
+!!   namlbc        lateral momentum boundary condition                  (default: NO selection)
+!!   namagrif      agrif nested grid   (read by child model only)       ("key_agrif")
+!!   nam_tide      Tidal forcing                                        (default: OFF)
+!!   nambdy        Unstructured open boundaries                         (default: OFF)
+!!   nambdy_dta    Unstructured open boundaries - external data         (see  nambdy)
+!!   nambdy_tide   tidal forcing at open boundaries                     (default: OFF)
+!!======================================================================
+!
+!-----------------------------------------------------------------------
+&namlbc        !   lateral momentum boundary condition                  (default: NO selection)
+!-----------------------------------------------------------------------
+   rn_shlat    =    0.     !  free slip
+/
+
+!!======================================================================
+!!                ***  Top/Bottom boundary condition  ***             !!
+!!                                                                    !!
+!!   namdrg        top/bottom drag coefficient                          (default: NO selection)
+!!   namdrg_top    top    friction                                      (ln_drg_OFF =F & ln_isfcav=T)
+!!   namdrg_bot    bottom friction                                      (ln_drg_OFF =F)
+!!   nambbc        bottom temperature boundary condition                (default: OFF)
+!!   nambbl        bottom boundary layer scheme                         (default: OFF)
+!!======================================================================
+!
+!-----------------------------------------------------------------------
+&namtra_qsr    !   penetrative solar radiation                          (ln_traqsr =T)
+!-----------------------------------------------------------------------
+   !                       !  type of penetration                        (default: NO selection)
+   ln_qsr_rgb  = .true.      !  RGB light penetration (Red-Green-Blue)
+   nn_chldta   =      0      !  RGB : Chl data (=1) or cst value (=0)
+/
+!-----------------------------------------------------------------------
+&namdrg        !   top/bottom drag coefficient                          (default: NO selection)
+!-----------------------------------------------------------------------
+   ln_non_lin  = .true.   !  non-linear  drag: Cd = Cd0 |U|
+/
+!-----------------------------------------------------------------------
+&nambbc        !   bottom temperature boundary condition                (default: OFF)
+!-----------------------------------------------------------------------
+   ln_trabbc   = .true.   !  Apply a geothermal heating at the ocean bottom
+      nn_geoflx     = 1       !  geothermal heat flux: = 1 constant flux
+/
+!-----------------------------------------------------------------------
+&nambbl        !   bottom boundary layer scheme                         (default: OFF)
+!-----------------------------------------------------------------------
+   ln_trabbl   = .true.   !  Bottom Boundary Layer parameterisation flag
+/
+
+!!======================================================================
+!!                        Tracer (T & S) namelists                    !!
+!!                                                                    !!
+!!   nameos        equation of state                                    (default: NO selection)
+!!   namtra_adv    advection scheme                                     (default: NO selection)
+!!   namtra_ldf    lateral diffusion scheme                             (default: NO selection)
+!!   namtra_mle    mixed layer eddy param. (Fox-Kemper param.)          (default: OFF)
+!!   namtra_eiv    eddy induced velocity param.                         (default: OFF)
+!!   namtra_dmp    T & S newtonian damping                              (default: OFF)
+!!======================================================================
+!
+!-----------------------------------------------------------------------
+&nameos        !   ocean Equation Of Seawater                           (default: NO selection)
+!-----------------------------------------------------------------------
+   ln_teos10   = .true.         !  = Use TEOS-10
+/
+!-----------------------------------------------------------------------
+&namtra_adv    !   advection scheme for tracer                          (default: NO selection)
+!-----------------------------------------------------------------------
+   ln_traadv_fct = .true.  !  FCT scheme
+      nn_fct_h   =  2            !  =2/4, horizontal 2nd / 4th order
+      nn_fct_v   =  2            !  =2/4, vertical   2nd / COMPACT 4th order
+/
+!-----------------------------------------------------------------------
+&namtra_ldf    !   lateral diffusion scheme for tracers                 (default: NO selection)
+!-----------------------------------------------------------------------
+   ln_traldf_lap   = .true.   !    laplacian operator
+   ln_traldf_iso   = .true.   !  iso-neutral (standard operator)
+   !
+   nn_aht_ijk_t    = 20       !  space/time variation of eddy coefficient:
+/
+!-----------------------------------------------------------------------
+&namtra_mle    !   mixed layer eddy parametrisation (Fox-Kemper)       (default: OFF)
+!-----------------------------------------------------------------------
+   ln_mle      = .true.   ! (T) use the Mixed Layer Eddy (MLE) parameterisation
+/
+!-----------------------------------------------------------------------
+&namtra_eiv    !   eddy induced velocity param.                         (default: OFF)
+!-----------------------------------------------------------------------
+   ln_ldfeiv   = .true.   ! use eddy induced velocity parameterization
+   !
+   nn_aei_ijk_t    = 20          !  space/time variation of eddy coefficient:
+/
+
+!!======================================================================
+!!                      ***  Dynamics namelists  ***                  !!
+!!                                                                    !!
+!!   nam_vvl       vertical coordinate options                          (default: z-star)
+!!   namdyn_adv    formulation of the momentum advection                (default: NO selection)
+!!   namdyn_vor    advection scheme                                     (default: NO selection)
+!!   namdyn_hpg    hydrostatic pressure gradient                        (default: NO selection)
+!!   namdyn_spg    surface pressure gradient                            (default: NO selection)
+!!   namdyn_ldf    lateral diffusion scheme                             (default: NO selection)
+!!   namdta_dyn    offline TOP: dynamics read in files                  (OFF_SRC only)
+!!======================================================================
+!
+!-----------------------------------------------------------------------
+&nam_vvl       !   vertical coordinate options                          (default: z-star)
+!-----------------------------------------------------------------------
+   ln_vvl_zstar  = .true.           !  z-star vertical coordinate
+   ln_vvl_dbg    = .false.          !  debug prints    (T/F)
+/
+!-----------------------------------------------------------------------
+&namdyn_adv    !   formulation of the momentum advection                (default: NO selection)
+!-----------------------------------------------------------------------
+   ln_dynadv_vec = .true. !  vector form (T) or flux form (F)
+      nn_dynkeg     = 1       ! scheme for grad(KE): =0   C2  ;  =1   Hollingsworth correction
+/
+!-----------------------------------------------------------------------
+&namdyn_vor    !   Vorticity / Coriolis scheme                          (default: NO selection)
+!-----------------------------------------------------------------------
+   ln_dynvor_een = .true. !  energy & enstrophy scheme
+/
+!-----------------------------------------------------------------------
+&namdyn_hpg    !   Hydrostatic pressure gradient option                 (default: NO selection)
+!-----------------------------------------------------------------------
+   ln_hpg_sco  = .true.   !  s-coordinate (standard jacobian formulation)
+/
+!-----------------------------------------------------------------------
+&namdyn_spg    !   surface pressure gradient                            (default: NO selection)
+!-----------------------------------------------------------------------
+   ln_dynspg_ts   = .true.   ! split-explicit free surface
+      ln_bt_auto    = .false.    ! Number of sub-step defined from:
+         nn_e      =  30         ! =F : the number of sub-step in rn_Dt seconds
+/
+!-----------------------------------------------------------------------
+&namdyn_ldf    !   lateral diffusion on momentum                        (default: NO selection)
+!-----------------------------------------------------------------------
+   ln_dynldf_lap =  .true.    !    laplacian operator
+   ln_dynldf_hor =  .true.    !  horizontal (geopotential)
+   !                       !  Coefficient
+   nn_ahm_ijk_t  = 30           !  space/time variation of eddy coef
+/
+
+!!======================================================================
+!!                     vertical physics namelists                     !!
+!!                                                                    !!
+!!    namzdf        vertical physics manager                            (default: NO selection)
+!!    namzdf_ric    richardson number vertical mixing                   (ln_zdfric=T)
+!!    namzdf_tke    TKE vertical mixing                                 (ln_zdftke=T)
+!!    namzdf_gls    GLS vertical mixing                                 (ln_zdfgls=T)
+!!    namzdf_osm    OSM vertical diffusion                              (ln_zdfosm=T)
+!!    namzdf_iwm    tidal mixing parameterization                       (ln_zdfiwm=T)
+!!======================================================================
+!
+!-----------------------------------------------------------------------
+&namzdf        !   vertical physics                                     (default: NO selection)
+!-----------------------------------------------------------------------
+   ln_zdftke   = .true.       !  Turbulent Kinetic Energy closure       (T =>   fill namzdf_tke)
+   ln_zdfevd   = .true.       !  enhanced vertical diffusion
+   ln_zdfddm   = .true.       ! double diffusive mixing
+   ln_zdfiwm   = .true.       ! internal wave-induced mixing            (T =>   fill namzdf_iwm)
+/
