@@ -36,6 +36,7 @@
 #          C.M. Maynard, Met Office / University of Reading
 # Modified: J. Henrichs, Bureau of Meteorology
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
+#           J. Dendy, Met Office
 
 ''' Tests of transformations with the LFRic (Dynamo 0.3) API '''
 
@@ -7402,7 +7403,7 @@ def test_kern_const_anyspace_anydspace_apply(capsys):
 
     kctrans = Dynamo0p3KernelConstTrans()
 
-    kctrans.apply(kernel, {"element_order": 0})
+    kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     result, _ = capsys.readouterr()
     assert result == (
         "    Skipped dofs, arg position 9, function space any_space_1\n"
@@ -7427,7 +7428,7 @@ def test_kern_const_anyw2_apply(capsys):
 
     kctrans = Dynamo0p3KernelConstTrans()
 
-    kctrans.apply(kernel, {"element_order": 0})
+    kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     result, _ = capsys.readouterr()
     assert result == (
         "    Skipped dofs, arg position 5, function space any_w2\n")
@@ -7454,22 +7455,26 @@ def test_kern_const_ndofs():
                 "w2htrace": [4, 16, 36, 64, 100, 144, 196, 256, 324, 400],
                 "w2vtrace": [2, 8, 18, 32, 50, 72, 98, 128, 162, 200]}
     kct = Dynamo0p3KernelConstTrans()
-    for order in range(10):
+    # Only test equal element orders until lfric #4462 when split element orders
+    # are fully enabled.
+    # Note: formulas in space_to_dofs are general
+    for order_h, order_v in zip(range(10), range(10)):
         for function_space in ["w3", "w2", "w1", "w0", "wtheta", "w2h",
                                "w2v", "w2broken", "wchi", "w2trace",
                                "w2htrace", "w2vtrace"]:
-            assert kct.space_to_dofs[function_space](order) == \
-                expected[function_space][order]
+            assert kct.space_to_dofs[function_space](order_h, order_v) == \
+                expected[function_space][order_h, order_v]
         # wtheta should equal w2v
-        assert kct.space_to_dofs["wtheta"](order) == \
-            kct.space_to_dofs["w2v"](order)
+        assert kct.space_to_dofs["wtheta"](order_h, order_v) == \
+            kct.space_to_dofs["w2v"](order_h, order_v)
         # w2h and w2v should sum up to w2
-        assert kct.space_to_dofs["w2h"](order) + \
-            kct.space_to_dofs["w2v"](order) == kct.space_to_dofs["w2"](order)
+        assert kct.space_to_dofs["w2h"](order_h, order_v) + \
+            kct.space_to_dofs["w2v"](order_h, order_v) == \
+            kct.space_to_dofs["w2"](order_h, order_v)
         # w2htrace and w2vtrace should sum up to w2trace
-        assert kct.space_to_dofs["w2htrace"](order) + \
-            kct.space_to_dofs["w2vtrace"](order) == \
-            kct.space_to_dofs["w2trace"](order)
+        assert kct.space_to_dofs["w2htrace"](order_h, order_v) + \
+            kct.space_to_dofs["w2vtrace"](order_h, order_v) == \
+            kct.space_to_dofs["w2trace"](order_h, order_v)
 
 
 def test_kern_const_invalid():
@@ -7495,7 +7500,7 @@ def test_kern_const_invalid():
 
     # Element order < 0
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": -1})
+        kctrans.apply(kernel, {"element_order_h": -1, "element_order_v": -1})
     assert "The element_order argument must be >= 0 but found '-1'." \
         in str(excinfo.value)
 
@@ -7511,18 +7516,20 @@ def test_kern_const_invalid():
     assert "The quadrature argument must be boolean but found 'hello'." \
         in str(excinfo.value)
 
-    # Not element order and not number of layers
+    # Not element order(s) and not number of layers
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel)
-    assert ("At least one of element_order or number_of_layers must be set "
-            "otherwise this transformation does nothing.") \
+    assert ("At least one of [element_order_h, element_order_v] or "
+            "number_of_layers must be set otherwise this transformation does "
+            "nothing.") \
         in str(excinfo.value)
 
     # Quadrature but not element order
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"number_of_layers": 20,
                                "quadrature": True})
-    assert "If quadrature is set then element_order must also be set" \
+    assert ("If quadrature is set then element_order_h and element_order_v "
+            "must also be set") \
         in str(excinfo.value)
 
 
@@ -7538,7 +7545,7 @@ def test_kern_const_invalid_dofs(monkeypatch):
                         {"wa": [], "wb": []})
 
     with pytest.raises(InternalError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert "Unsupported function space 'w1' found. Expecting one of " \
         in str(excinfo.value)
     assert "'wa'" in str(excinfo.value)
@@ -7559,7 +7566,7 @@ def test_kern_const_invalid_kern(monkeypatch):
         raise NotImplementedError("Monkeypatch error")
     monkeypatch.setattr(kernel, "get_kernel_schedule", dummy)
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert (
         "Failed to parse kernel 'testkern_code'. Error reported was "
         "'Monkeypatch error'.") in str(excinfo.value)
@@ -7576,7 +7583,8 @@ def test_kern_const_invalid_quad(monkeypatch):
     kctrans = Dynamo0p3KernelConstTrans()
     monkeypatch.setattr(kernel, "_eval_shapes", ["gh_quadrature_face"])
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0, "quadrature": True})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
+                               "quadrature": True})
     assert (
         "Support is currently limited to 'xyoz' quadrature but found "
         "['gh_quadrature_face'].") in str(excinfo.value)
@@ -7602,7 +7610,7 @@ def test_kern_const_invalid_make_constant1():
     symbol_table._argument_list = []
     kctrans = Dynamo0p3KernelConstTrans()
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert ("The argument index '7' is greater than the number of "
             "arguments '0'.") in str(excinfo.value)
 
@@ -7624,13 +7632,13 @@ def test_kern_const_invalid_make_constant2():
     # Expecting scalar integer. Set to array.
     symbol._datatype = ArrayType(INTEGER_TYPE, [10])
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert ("Expected entry to be a scalar argument but found "
             "'ArrayType'." in str(excinfo.value))
     # Expecting scalar integer. Set to real.
     symbol._datatype = REAL_TYPE
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert ("Expected entry to be a scalar integer argument but found "
             "'Scalar<REAL, UNDEFINED>'." in str(excinfo.value))
     # Expecting scalar integer. Set to constant.
@@ -7639,7 +7647,7 @@ def test_kern_const_invalid_make_constant2():
     symbol._initial_value = Literal("10", INTEGER_TYPE)
     symbol._is_constant = True
     with pytest.raises(TransformationError) as excinfo:
-        kctrans.apply(kernel, {"element_order": 0})
+        kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert ("Expected entry to be a scalar integer argument but found "
             "a constant." in str(excinfo.value))
 

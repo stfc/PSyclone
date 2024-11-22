@@ -31,6 +31,7 @@
 ! -----------------------------------------------------------------------------
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified: I. Kavcic, Met Office
+!           J. Dendy, Met Office
 
 program operator_example
 
@@ -48,12 +49,17 @@ program operator_example
   type(operator_type)                 :: mm_w0
   type(quadrature_xyoz_type), pointer :: qr => null
   integer(i_def)                      :: mesh_id = 1
-  integer(i_def)                      :: element_order = 0
+  integer(i_def)                      :: element_order_h = 0
+  integer(i_def)                      :: element_order_v = 0
   integer(i_def)                      :: a
 
   a = 1_i_def
-  mm_w0 = operator_type(function_space_collection%get_fs(mesh_id,element_order,W0), &
-                        function_space_collection%get_fs(mesh_id,element_order,W0))
+  mm_w0 = operator_type(function_space_collection%get_fs(mesh_id,         &
+                                                         element_order_h, &
+                                                         element_order_v,W0), &
+                        function_space_collection%get_fs(mesh_id,         &
+                                                         element_order_h, &
+                                                         element_order_v,W0))
 
   call invoke(testkern_operator_type(mm_w0, coord, a, qr))
 
