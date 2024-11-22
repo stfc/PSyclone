@@ -230,7 +230,7 @@ def test_accenterdatadirective_gencode_3_async():
     code = str(psy.gen)
     assert (
         "      !$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,map_w1,"
-        "map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
         "undf_w1,undf_w2,undf_w3) async(3)\n" in code)
 
 
@@ -247,6 +247,7 @@ def test_accenterdatadirective_gencode_3_async_error():
     with pytest.raises(TransformationError) as error:
         acc_enter_trans.apply(sched, options={"async_queue": 3})
     assert 'async_queue different' in str(error.value)
+
 
 # Class ACCLoopDirective start
 
@@ -764,10 +765,9 @@ def test_mixin_constructor_error():
     Check constructor with an unexpected value type (float instead of int)
 
     '''
-    asyncMixin = ACCAsyncMixin(3.5)
-
     with pytest.raises(TypeError) as error:
-        _ = asyncMixin._build_async_string()
+        _ = ACCAsyncMixin(3.5)
+
     assert ("Invalid async_queue value, expect Reference or integer or None "
             "or bool, got : 3.5" in str(error))
 
