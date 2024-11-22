@@ -494,8 +494,8 @@ def test_validate_mat_too_few_full_ranges():
     matrix.children[0] = Literal("1", INTEGER_TYPE)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("To use Matmul2CodeTrans on matmul, exactly two indices of the "
-            "1st argument 'x(1,:,idx)' must be full ranges "
+    assert ("To use Matmul2CodeTrans on matmul, 2 indices of the "
+            "array 'x(1,:,idx)' must be full ranges "
             "but found 1." in str(excinfo.value))
 
 
@@ -514,7 +514,7 @@ def test_validate_vec_too_few_full_ranges():
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
-            "one or two indices of the 2nd argument 'y(1,idx,1)' "
+            "either 1 or 2 indices of the array 'y(1,idx,1)' "
             "must be full ranges but found 0." in str(excinfo.value))
 
 
@@ -532,7 +532,7 @@ def test_validate_mat_non_full_range():
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
-            "each Range index of the argument 'x(:,:,:10)' "
+            "each Range index of the array 'x(:,:,:10)' "
             "must be a full range but found "
             "non full range at position 2." in str(excinfo.value))
 
@@ -551,7 +551,7 @@ def test_validate_vec_non_full_range():
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
-            "each Range index of the argument 'y(:,idx,:5)' "
+            "each Range index of the array 'y(:,idx,:5)' "
             "must be a full range but found "
             "non full range at position 2." in str(excinfo.value))
 
@@ -571,7 +571,7 @@ def test_validate_mat_too_many_full_ranges():
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
-            "no more than two indices of the argument "
+            "no more than two indices of the array "
             "'x(:,:,:)' must be full ranges "
             "but found 3." in str(excinfo.value))
 
@@ -593,7 +593,7 @@ def test_validate_vec_too_many_full_ranges():
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
-            "no more than two indices of the argument "
+            "no more than two indices of the array "
             "'y(:,:,:)' must be full ranges but found 3."
             in str(excinfo.value))
 
@@ -627,7 +627,7 @@ def test_validate_matmat_with_slices_on_rhs(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(assign.rhs)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, each "
-            "Range index of the argument 'result(2:4,2:5)' must be "
+            "Range index of the array 'result(2:4,2:5)' must be "
             "a full range but found non full range "
             "at position 0." in str(excinfo.value))
 
@@ -650,7 +650,7 @@ def test_validate_res_too_many_full_ranges(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(assign.rhs)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
-            "no more than two indices of the argument 'result(:,:,:)' "
+            "no more than two indices of the array 'result(:,:,:)' "
             "must be full ranges but found 3." in str(excinfo.value))
 
 
@@ -672,7 +672,7 @@ def test_validate_res_too_few_full_ranges(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(assign.rhs)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
-            "one or two indices of the result 'result(10,10)' "
+            "either 1 or 2 indices of the array 'result(10,10)' "
             "must be full ranges but found 0." in str(excinfo.value))
 
 

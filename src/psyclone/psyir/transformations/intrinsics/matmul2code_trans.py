@@ -216,7 +216,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                 else:
                     raise TransformationError(
                         f"To use {self.name} on matmul, each Range index "
-                        f"of the argument '{array.debug_string()}' "
+                        f"of the array '{array.debug_string()}' "
                         f"must be a full range but found "
                         f"non full range at position {it}.")
             else:
@@ -228,9 +228,51 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         if n_full_ranges > 2:
             raise TransformationError(
                 f"To use {self.name} on matmul, no more than "
-                f"two indices of the argument '{array.debug_string()}' "
+                f"two indices of the array '{array.debug_string()}' "
                 f"must be full ranges but found {n_full_ranges}.")
         return (full_range_order, non_full_range_order, non_full_ranges)
+
+    def _validate_array_full_ranges(self, array, permitted_full_ranges):
+        '''A utility function that checks if the number of full ranges
+           of an array is allowed.
+
+        :param array: the reference that we are interested in.
+        :type array: :py:class:`psyir.nodes.Reference`
+        :param List[int] permitted_full_ranges: the permitted number
+                                                of full ranges for array
+
+       :raises TransformationError: if the number of full ranges
+                                    is not permitted.
+
+        '''
+        from psyclone.psyir.transformations import TransformationError
+        # Make sure the array has as many full ranges as needed
+        if (len(array.symbol.shape) in permitted_full_ranges
+           and not array.children):
+            # If the array only has 1 or 2 dimensions and all of its
+            # data is used in the matrix multiply then the reference does
+            # not need to supply any dimension information.
+            pass
+        else:
+            # There should be one index per dimension. This is enforced
+            # by the array create method so is not tested here.
+            full_range_order, _, _ = self._get_full_range_split(array)
+            n_full_ranges = len(full_range_order)
+            if n_full_ranges not in permitted_full_ranges:
+                # Formatting error message nicely.
+                if len(permitted_full_ranges) == 1:
+                    permit_str = f"{permitted_full_ranges[0]}"
+                else:
+                    permit_str = f"either {permitted_full_ranges[0]}"
+                    for i in range(1, len(permitted_full_ranges)):
+                        if i == len(permitted_full_ranges) - 1:
+                            permit_str += f" or {permitted_full_ranges[i]}"
+                        else:
+                            permit_str += f", {permitted_full_ranges[i]}"
+                raise TransformationError(
+                    f"To use {self.name} on matmul, {permit_str} "
+                    f"indices of the array '{array.debug_string()}' "
+                    f"must be full ranges but found {n_full_ranges}.")
 
     def validate(self, node, options=None):
         '''Perform checks to ensure that it is valid to apply the
@@ -307,22 +349,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             raise TransformationError(
                 f"Expected 1st child of a MATMUL IntrinsicCall to have 2 "
                 f"dimensions, but found '{len(matrix1.symbol.shape)}'.")
-        if len(matrix1.symbol.shape) == 2 and not matrix1.children:
-            # If matrix1 only has 2 dimensions and all of its data is
-            # used in the matrix multiply then the reference does
-            # not need to supply any dimension information.
-            pass
-        else:
-            # There should be one index per dimension. This is enforced
-            # by the array create method so is not tested here.
-            # For matrix1, we must have exactly 2 full ranges.
-            full_range_order, _, _ = self._get_full_range_split(matrix1)
-            n_full_ranges = len(full_range_order)
-            if n_full_ranges != 2:
-                raise TransformationError(
-                    f"To use {self.name} on matmul, exactly two "
-                    f"indices of the 1st argument '{matrix1.debug_string()}' "
-                    f"must be full ranges but found {n_full_ranges}.")
+        self._validate_array_full_ranges(matrix1, [2])
 
         if len(matrix2.symbol.shape) > 2 and not matrix2.children:
             # If matrix2 has no children then it is a reference. If
@@ -331,40 +358,10 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             raise TransformationError(
                 f"Expected 2nd child of a MATMUL IntrinsicCall to have 1 "
                 f"or 2 dimensions, but found '{len(matrix2.symbol.shape)}'.")
-        if len(matrix2.symbol.shape) in [1, 2] and not matrix2.children:
-            # If the 2nd argument only has 1 or 2 dimensions and all of its
-            # data is used in the matrix multiply then the reference does
-            # not need to supply any dimension information.
-            pass
-        else:
-            # There should be one index per dimension. This is enforced
-            # by the array create method so is not tested here.
-            # For matrix2, we can have 1 or 2 full ranges.
-            full_range_order, _, _ = self._get_full_range_split(matrix2)
-            n_full_ranges = len(full_range_order)
-            if n_full_ranges not in [1, 2]:
-                raise TransformationError(
-                    f"To use {self.name} on matmul, one or two "
-                    f"indices of the 2nd argument '{matrix2.debug_string()}' "
-                    f"must be full ranges but found {n_full_ranges}.")
+        self._validate_array_full_ranges(matrix2, [1, 2])
 
-        # Make sure the result has as many full range as needed
-        if len(result.symbol.shape) in [1, 2] and not result.children:
-            # If the result only has 1 or 2 dimensions and all of its
-            # data is used in the matrix multiply then the reference does
-            # not need to supply any dimension information.
-            pass
-        else:
-            # There should be one index per dimension. This is enforced
-            # by the array create method so is not tested here.
-            # For result, we can have 1 or 2 full ranges.
-            full_range_order, _, _ = self._get_full_range_split(result)
-            n_full_ranges = len(full_range_order)
-            if n_full_ranges not in [1, 2]:
-                raise TransformationError(
-                    f"To use {self.name} on matmul, one or two "
-                    f"indices of the result '{result.debug_string()}' "
-                    f"must be full ranges but found {n_full_ranges}.")
+        # Make sure the result has as many full ranges as needed
+        self._validate_array_full_ranges(result, [1, 2])
 
         # Make sure the result is not one of the MATMUL operands
         if result.symbol in (matrix1.symbol, matrix2.symbol):
