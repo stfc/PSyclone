@@ -2167,18 +2167,18 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
     space_to_dofs = {"w3":       (lambda k_h, k_v: (k_h+1)*(k_h+1)*(k_v+1)),
                      "w2":       (lambda k_h, k_v: 2*(k_h+2)*(k_h+1)*(k_v+1)
-                                                   +(k_h+1)*(k_h+1)*(k_v+2)),
+                                  + (k_h+1)*(k_h+1)*(k_v+2)),
                      "w1":       (lambda k_h, k_v: 2*(k_h+1)*(k_h+2)*(k_v+2)
-                                                   +(k_h+2)*( k_h+2)*(k_v+1)),
+                                  + (k_h+2)*(k_h+2)*(k_v+1)),
                      "w0":       (lambda k_h, k_v: (k_h+2)*(k_h+2)*(k_v+2)),
                      "wtheta":   (lambda k_h, k_v: (k_h+1)*(k_h+1)*(k_v+2)),
                      "w2h":      (lambda k_h, k_v: 2*(k_h+1)*(k_h+2)*(k_v+1)),
                      "w2v":      (lambda k_h, k_v: (k_h+1)*(k_h+1)*(k_v+2)),
                      "w2broken": (lambda k_h, k_v: 2*(k_h+1)*(k_h+2)*(k_v+1)
-                                                   +(k_h+1)*(k_h+1)*(k_v+2)),
+                                  + (k_h+1)*(k_h+1)*(k_v+2)),
                      "wchi":     (lambda k_h, k_v: (k_h+1)*(k_h+1)*(k_v+1)),
                      "w2trace":  (lambda k_h, k_v: 4*(k_h+1)*(k_v+1)
-                                                   +2*(k_h+1)**2),
+                                  + 2*(k_h+1)**2),
                      "w2htrace": (lambda k_h, k_v: 4*(k_h+1)*(k_v+1)),
                      "w2vtrace": (lambda k_h, k_v: 2*(k_h+1)**2)}
 
@@ -2211,8 +2211,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
         Quadrature support is currently limited to XYoZ in ths
         transformation. In the case of XYoZ the number of quadrature
         points (for horizontal and vertical) are set to the
-        MAX(element_order_h, element_order_v) + 3 in the LFRic infrastructure so
-        their value is derived.
+        MAX(element_order_h, element_order_v) + 3 in the LFRic infrastructure
+        so their value is derived.
 
         :param node: a kernel node.
         :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
@@ -2222,18 +2222,18 @@ class Dynamo0p3KernelConstTrans(Transformation):
             provided as it helps determine the number of dofs a field has\
             for a particular function space. Currently only "quadrilateral"\
             is supported which is also the default value.
-        :param int options["element_order_h"]: the polynomial order of the cell\
-            in the horizontal. In combination with cellshape and\
-            element_order_v, this determines the number of dofs a field has for\
-            a particular function space. If it is set to None (the default),\
-            then the dofs values are not set as constants in the kernel,\
-            otherwise they are.
-        :param int options["element_order_v"]: the polynomial order of the cell\
-            in the vertical. In combination with cellshape and\
-            element_order_h, this determines the number of dofs a field has for\
-            a particular function space. If it is set to None (the default),\
-            then the dofs values are not set as constants in the kernel,\
-            otherwise they are.
+        :param int options["element_order_h"]: the polynomial order of the\
+            cell in the horizontal. In combination with cellshape and\
+            element_order_v, this determines the number of dofs a field has\
+            for a particular function space. If it is set to None (the\
+            default), then the dofs values are not set as constants in the\
+            kernel, otherwise they are.
+        :param int options["element_order_v"]: the polynomial order of the\
+            cell in the vertical. In combination with cellshape and\
+            element_order_h, this determines the number of dofs a field has\
+            for a particular function space. If it is set to None (the\
+            default), then the dofs values are not set as constants in the\
+            kernel, otherwise they are.
         :param int options["number_of_layers"]: the number of vertical \
             layers in the LFRic model mesh used for this particular run. If \
             this is set to None (the default) then the nlayers value is not \
@@ -2422,10 +2422,10 @@ class Dynamo0p3KernelConstTrans(Transformation):
                 f"'{cellshape}'.")
 
         if (element_order_h is not None and element_order_v is not None) and \
-           (not isinstance(element_order_h, int) or \
-            not isinstance(element_order_v, int) or \
-            element_order_h < 0                  or \
-            element_order_v < 0):
+            (not isinstance(element_order_h, int) or
+             not isinstance(element_order_v, int) or
+             element_order_h < 0 or
+             element_order_v < 0):
             # element order must be 0 or a positive integer
             raise TransformationError(
                 f"Error in Dynamo0p3KernelConstTrans transformation. The "
@@ -2449,20 +2449,22 @@ class Dynamo0p3KernelConstTrans(Transformation):
                 f"'{quadrature}'.")
 
         if (element_order_h is None or element_order_v is None) and \
-            not number_of_layers:
-            # As a minimum, element orders or number of layers must have values.
+                not number_of_layers:
+            # As a minimum, element orders or number of layers must have
+            # values.
             raise TransformationError(
                 "Error in Dynamo0p3KernelConstTrans transformation. At least "
-                "one of [element_order_h, element_order_v] or number_of_layers "
-                "must be set otherwise this transformation does nothing.")
+                "one of [element_order_h, element_order_v] or "
+                "number_of_layers must be set otherwise this transformation"
+                "does nothing.")
 
         if quadrature and (element_order_h is None or element_order_v is None):
             # if quadrature then element order
             raise TransformationError(
                 "Error in Dynamo0p3KernelConstTrans transformation. If "
                 "quadrature is set then both element_order_h and "
-                "element_order_v must also be set (as the values of the former "
-                "are derived from the latter.")
+                "element_order_v must also be set (as the values of the "
+                "former are derived from the latter.")
 
 
 class ACCEnterDataTrans(Transformation):

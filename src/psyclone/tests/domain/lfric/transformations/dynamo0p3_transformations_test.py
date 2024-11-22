@@ -7455,8 +7455,8 @@ def test_kern_const_ndofs():
                 "w2htrace": [4, 16, 36, 64, 100, 144, 196, 256, 324, 400],
                 "w2vtrace": [2, 8, 18, 32, 50, 72, 98, 128, 162, 200]}
     kct = Dynamo0p3KernelConstTrans()
-    # Only test equal element orders until lfric #4462 when split element orders
-    # are fully enabled.
+    # Only test equal element orders until lfric #4462 when split element
+    # orders are fully enabled.
     # Note: formulas in space_to_dofs are general
     for order_h, order_v in zip(range(10), range(10)):
         for function_space in ["w3", "w2", "w1", "w0", "wtheta", "w2h",
