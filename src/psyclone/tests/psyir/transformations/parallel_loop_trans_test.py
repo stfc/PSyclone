@@ -529,8 +529,8 @@ def test_paralooptrans_apply(fortran_reader):
     assert isinstance(loop.parent.parent, OMPParallelDoDirective)
 
 
-def test_paralooptranas_with_array_privatisation(fortran_reader,
-                                                 fortran_writer):
+def test_paralooptrans_with_array_privatisation(fortran_reader,
+                                                fortran_writer):
     '''
     Check that the 'privatise_arrays' transformation option allows to ignore
     write-write dependencies by setting the associated variable as 'private'
@@ -579,7 +579,6 @@ def test_paralooptranas_with_array_privatisation(fortran_reader,
           integer ji, jj
           real :: var1(10,10)
           real, save :: ztmp1(10)
-          real :: ztmp2(10)
           var1 = 1.0
           ztmp = 3.0
 
@@ -613,7 +612,6 @@ def test_paralooptranas_with_array_privatisation(fortran_reader,
             "used after the loop" in str(err.value))
 
     # The privatise_arrays only accepts bools
-
     with pytest.raises(TypeError) as err:
         trans.apply(loop, {"privatise_arrays": 3})
     assert ("The 'privatise_arrays' option must be a bool but got an object "

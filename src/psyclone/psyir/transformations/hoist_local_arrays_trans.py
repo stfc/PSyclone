@@ -254,10 +254,11 @@ then
     @staticmethod
     def _get_local_arrays(node):
         '''
-        Identify all arrays that are local to the target routine, do not
-        represent its return value, are not constant and do not explicitly use
+        Identify all arrays that are local to the target routine, all their
+        bounds/kind/type symbols are also local, do not represent a function's
+        return value, are not constant and do not explicitly use
         dynamic memory allocation. Also excludes any such arrays that are
-        accessed within CodeBlocks.
+        accessed within CodeBlocks or RESHAPE intrinsics.
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
@@ -297,7 +298,7 @@ then
                 del local_arrays[name]
 
         for intrinsic in node.walk(IntrinsicCall):
-            # The SHAPE argument of RESHAPE cannot be an allocatable
+            # Exclude arrays that are used in a RESHAPE expression
             if intrinsic.intrinsic == IntrinsicCall.Intrinsic.RESHAPE:
                 for ref in intrinsic.walk(Reference):
                     if ref.symbol.name in local_arrays:

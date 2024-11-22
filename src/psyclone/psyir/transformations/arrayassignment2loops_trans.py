@@ -288,7 +288,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
             for child in node.walk((Literal, Reference)):
                 try:
                     forbidden = ScalarType.Intrinsic.CHARACTER
-                    if ((child.datatype.intrinsic == forbidden) or
+                    if (child.is_character(unknown_as=False) or
                             (child.symbol.datatype.intrinsic == forbidden)):
                         message = (f"{self.name} does not expand ranges "
                                    f"on character arrays by default (use the"
@@ -306,7 +306,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
         # We don't accept calls that are not guaranteed to be elemental
         for call in node.rhs.walk(Call):
             if isinstance(call, IntrinsicCall):
-                # Intrinsics that return scalars are fine.
+                # Intrinsics that return scalars are also fine.
                 if call.intrinsic in (IntrinsicCall.Intrinsic.LBOUND,
                                       IntrinsicCall.Intrinsic.UBOUND,
                                       IntrinsicCall.Intrinsic.SIZE):

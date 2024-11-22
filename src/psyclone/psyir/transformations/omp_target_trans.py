@@ -102,6 +102,8 @@ class OMPTargetTrans(RegionTrans):
 
         :raises TransformationError: if it contains calls to routines that
             are not available in the accelerator device.
+        :raises TransformationError: if its a function and the target region
+            attempts to enclose the assingment setting the return value.
         '''
         node_list = self.get_node_list(node)
         super().validate(node, options)

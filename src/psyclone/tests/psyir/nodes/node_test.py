@@ -1494,6 +1494,9 @@ def test_following_preceding():
     assert multiply1.following() == [c_ref, d_ref]
     assert (multiply1.preceding() ==
             [routine1, assign1, a_ref, multiply2, b_ref])
+    assert multiply1.following(same_routine_scope=True) == [c_ref, d_ref]
+    assert (multiply1.preceding(same_routine_scope=True) ==
+            [routine1, assign1, a_ref, multiply2, b_ref])
 
     # 2b: Middle node. 'routine' argument is set to False. Additional
     # container and routine2 nodes are returned.
