@@ -583,17 +583,20 @@ def test_process_declarations():
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_process_declarations_unsupportedfortrantype():
+@pytest.mark.parametrize("decln_text",
+                         ["integer, pointer :: l1 => null(), l2 => null()",
+                          "integer, intent(in), optional :: l1, l2",
+                          "integer, target :: l1, l2"])
+def test_process_declarations_unsupportedfortrantype(decln_text):
     '''Test that process_declarations method of Fparser2Reader adds
-    datatype information to an UnsupportedFortranType by calling the
-    get_partial_datatype method, also from Fparser2Reader.
+    datatype information to an UnsupportedFortranType by
+    calling the get_partial_datatype method, also from Fparser2Reader.
 
     '''
     fake_parent = KernelSchedule.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
-    reader = FortranStringReader(
-        "integer, pointer :: l1 => null(), l2 => null()")
+    reader = FortranStringReader(decln_text)
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     for varname in ("l1", "l2"):

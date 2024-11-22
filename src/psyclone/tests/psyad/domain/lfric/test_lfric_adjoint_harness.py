@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified by: J. Dendy, Met Office
+#              T. Vockerodt, Met Office
 
 '''Provides py.test tests of LFRic-specific PSyclone adjoint test-harness
    functionality.'''
