@@ -160,6 +160,7 @@ class InlineTrans(Transformation):
         node_call: Call,
         node_routine: Routine = None,
         options: Dict[str, str] = None,
+        ignore_missing_modules: bool = True,
         check_codeblocks: bool = True,
         check_diff_container_clashes: bool = True,
         check_diff_container_clashes_unresolved_types: bool = True,
@@ -188,6 +189,7 @@ class InlineTrans(Transformation):
             node_call,
             node_routine=node_routine,
             options=options,
+            ignore_missing_modules=ignore_missing_modules,
             check_codeblocks=check_codeblocks,
             check_diff_container_clashes=check_diff_container_clashes,
             check_diff_container_clashes_unresolved_types=(
@@ -702,6 +704,7 @@ class InlineTrans(Transformation):
         check_argument_unresolved_symbols: bool = True,
         check_named_arguments: bool = True,
         get_callee_check_matching_arguments: bool = True,
+        ignore_missing_modules: bool = False,
     ):
         """
         Checks that the supplied node is a valid target for inlining.
@@ -768,7 +771,8 @@ class InlineTrans(Transformation):
                     node_call.get_callee(
                         check_matching_arguments=(
                             get_callee_check_matching_arguments
-                        )
+                        ),
+                        ignore_missing_modules=ignore_missing_modules
                     )
                 )
             except (
@@ -844,12 +848,13 @@ class InlineTrans(Transformation):
             if isinstance(sym.interface, ArgumentInterface):
                 if check_argument_unsupported_type:
                     if isinstance(sym.datatype, UnsupportedType):
-                        raise TransformationError(
-                            f"Routine '{self.node_routine.name}' cannot be "
-                            f"inlined because it contains a Symbol "
-                            f"'{sym.name}' which is an Argument of "
-                            f"UnsupportedType: '{sym.datatype.declaration}'"
-                        )
+                        if ", OPTIONAL" not in sym.datatype.declaration:
+                            raise TransformationError(
+                                f"Routine '{self.node_routine.name}' cannot be "
+                                f"inlined because it contains a Symbol "
+                                f"'{sym.name}' which is an Argument of "
+                                f"UnsupportedType: '{sym.datatype.declaration}'"
+                            )
             # We don't inline symbols that have an UnknownInterface, as we
             # don't know how they are brought into this scope.
             if check_argument_unsupported_type:

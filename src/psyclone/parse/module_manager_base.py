@@ -291,23 +291,22 @@ class ModuleManagerBase(ABC):
         module_manager = ModuleManagerMultiplexer.get_singleton()
 
         # List of module infos which still need to be traversed.
-        # We start with the list of modules used in the current module.
-        todo_module_name_list: List[str] = (
-            module_info.get_used_module_names().copy()
-        )
+        # We start with the current module
+        todo_module_name_list: List[str] = [module_info.name]
 
         # List of modules infos in order of uses.
         # After a module info was processed from the TODO list,
         # it's added to the list of modules returned to the caller.
         ret_module_info_list: List[ModuleInfo] = list()
 
-        # Add this module itself
-        ret_module_info_list.append(module_info)
-
         while len(todo_module_name_list) > 0:
+            #
+            # Step 1) fetch element from the TODO list
+            #
 
             # Get first element
             todo_module_name = todo_module_name_list.pop(0)
+
             try:
                 todo_module_info = module_manager.get_module_info(
                     todo_module_name
@@ -322,6 +321,10 @@ class ModuleManagerBase(ABC):
 
             # Add to return list of modules
             ret_module_info_list.append(todo_module_info)
+
+            #
+            # Step 2) Determine used modules and iterate over them
+            #
 
             # Determine list of module names
             used_module_name_list = todo_module_info.get_used_module_names()
@@ -340,7 +343,7 @@ class ModuleManagerBase(ABC):
 
                 # If module is already in the todo list,
                 # do nothing since it will be processed
-                if used_module_info in todo_module_name_list:
+                if used_module_info.name in todo_module_name_list:
                     continue
 
                 # If module is already in the output list,

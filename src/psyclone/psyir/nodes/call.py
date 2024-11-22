@@ -480,7 +480,7 @@ class Call(Statement, DataNode):
     def _get_container_symbols_rec(
         self,
         container_symbols_list: List[str],
-        ignore_missing_modules: bool,
+        ignore_missing_modules: bool = False,
         _stack_container_name_list: List[str] = [],
         _depth: int = 0,
     ):
@@ -817,9 +817,6 @@ class Call(Statement, DataNode):
             call_arg_idx: int
             call_arg: Reference
 
-            print("---")
-            print(f"- calls_arg: {call_arg}, {call_arg.symbol}")
-            print(call_arg.symbol.is_import)
             call_arg.symbol.resolve_type()
 
             # If the associated name is None, it's a positional argument
@@ -827,8 +824,6 @@ class Call(Statement, DataNode):
             if self.argument_names[call_arg_idx] is None:
                 routine_arg = routine_argument_list[call_arg_idx]
                 routine_arg: DataSymbol
-
-                print(f"  - routine_arg: {routine_arg}")
 
                 type_matches = False
                 if not check_strict_array_datatype:
