@@ -633,7 +633,7 @@ class Call(Statement, DataNode):
             else:
                 if containers_not_found:
                     wc_text = (
-                        f"attempted to resolve the wildcard imports from"
+                        f"Attempted to resolve the wildcard imports from"
                         f" {wildcard_names}. However, failed to find the "
                         f"source for {containers_not_found}. The module search"
                         f" path is set to {Config.get().include_paths}")
@@ -842,8 +842,6 @@ class Call(Statement, DataNode):
         for call_arg_idx, call_arg in enumerate(self.arguments):
             call_arg_idx: int
             call_arg: Reference
-
-            call_arg.symbol.resolve_type()
 
             # If the associated name is None, it's a positional argument
             # => Just return the index if the types match

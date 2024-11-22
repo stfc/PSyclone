@@ -109,7 +109,8 @@ class ModuleManagerBase(ABC):
 
     def _XXX_get_psyir_container_all_files(self) -> FileContainer:
         """
-        TO DISCUSS!!! THIS IS DESTRUCTIVE OF EXISTING PSYIR TREES, E.G. IN FILEINFO
+        TO DISCUSS!!! THIS IS DESTRUCTIVE OF EXISTING PSYIR TREES,
+        E.G. IN FILEINFO
 
         Iterate over all container nodes of the registered modules
         and add them to a `FileContainer`.
@@ -396,7 +397,8 @@ class ModuleManagerBase(ABC):
 
         if verbose:
             print(
-                f"{indent}- Removing modules from dependencies which were not loaded"
+                f"{indent}- Removing modules from dependencies which were "
+                f"not loaded"
             )
 
         # Consistency check: test that all dependencies listed are also
@@ -417,8 +419,8 @@ class ModuleManagerBase(ABC):
                     # TODO 2120: allow a choice to abort or ignore.
                     if verbose:
                         print(
-                            f"{indent}  - Cannot find module '{mod_dep}' which is "
-                            f"used by module '{module_name_dep}'."
+                            f"{indent}  - Cannot find module '{mod_dep}' "
+                            f"which is used by module '{module_name_dep}'."
                         )
                 module_dep_list.remove(mod_dep)
 
@@ -472,8 +474,9 @@ class ModuleManagerBase(ABC):
                 if module_name_no_deps in module_name_dep:
                     if verbose:
                         print(
-                            f"{indent}    - Removing in module '{module_name}' the "
-                            f"dependency on '{module_name_no_deps}'"
+                            f"{indent}    - Removing in module "
+                            f"'{module_name}' "
+                            f"the dependency on '{module_name_no_deps}'"
                         )
                     module_name_dep.remove(module_name_no_deps)
 

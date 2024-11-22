@@ -358,7 +358,8 @@ def test_validate_fail_to_get_psyir(fortran_reader):
     call = psyir.walk(Call)[0]
     with pytest.raises(TransformationError) as err:
         intrans.validate(call)
-    assert ("failed to retrieve PSyIR for routine 'my_sub' due to: Failed to "
+    print(err.value)
+    assert ("Failed to retrieve PSyIR for routine 'my_sub' due to: Failed to "
             "find the source code of the unresolved routine 'my_sub' - looked "
             "at any routines in the same source file and attempted to resolve "
             "the wildcard imports from ['my_mod', 'other_mod']. However, "

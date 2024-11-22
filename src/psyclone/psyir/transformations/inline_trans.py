@@ -776,6 +776,7 @@ class InlineTrans(Transformation):
                     )
                 )
             except (
+                CallMatchingArgumentsNotFound,
                 NotImplementedError,
                 FileNotFoundError,
                 SymbolError,
@@ -794,9 +795,8 @@ class InlineTrans(Transformation):
                     check_strict_array_datatype=False,
                 )
             except CallMatchingArgumentsNotFound as err:
-                raise CallMatchingArgumentsNotFound(
-                    "Routine's arguments doesn't match subroutine" + str(err)
-                )
+                raise TransformationError(
+                    "Routine's arguments doesn't match subroutine") from err
 
         if not self.node_routine.children or isinstance(
             self.node_routine.children[0], Return
@@ -971,22 +971,26 @@ class InlineTrans(Transformation):
         # TODO #2525: OPTIONAL arguments are not yet supported which can relate
         # to situations where this assertion could be wrong.
         # Use `self.ret_arg_match_list` for future work.
-        if len(routine_table.argument_list) != len(node_call.arguments):
-            raise TransformationError(
-                LazyString(
-                    lambda: f"Cannot inline "
-                    f"'{node_call.debug_string().strip()}' "
-                    f"because the number of arguments supplied to the call "
-                    f"({len(node_call.arguments)}) does not match the number "
-                    f"of arguments the routine is declared to have "
-                    f"({len(routine_table.argument_list)}).\n"
-                    f"This is likely related to **OPTIONAL** arguments which "
-                    f"are not yet supported."
-                )
-            )
+        #
+        # if len(routine_table.argument_list) != len(node_call.arguments):
+        #     raise TransformationError(
+        #         LazyString(
+        #             lambda: f"Cannot inline "
+        #             f"'{node_call.debug_string().strip()}' "
+        #             f"because the number of arguments supplied to the call "
+        #             f"({len(node_call.arguments)}) does not match the number "
+        #             f"of arguments the routine is declared to have "
+        #             f"({len(routine_table.argument_list)}).\n"
+        #             f"This is likely related to **OPTIONAL** arguments which "
+        #             f"are not yet supported."
+        #         )
+        #     )
+
+        # Create a list of routine arguments that is actually used
+        routine_arg_list = [routine_table.argument_list[i] for i in self.ret_arg_match_list]
 
         for formal_arg, actual_arg in zip(
-            routine_table.argument_list, node_call.arguments
+            routine_arg_list, node_call.arguments
         ):
             # If the formal argument is an array with non-default bounds then
             # we also need to know the bounds of that array at the call site.

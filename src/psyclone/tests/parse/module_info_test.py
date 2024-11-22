@@ -376,7 +376,7 @@ def test_module_info_extract_import_information_error():
     assert mod_info._used_symbols_from_module_name is None
 
     try:
-        mod_info.get_used_modules()
+        mod_info.get_used_module_names()
     except FileInfoFParserError:
         pass
     else:
@@ -384,7 +384,7 @@ def test_module_info_extract_import_information_error():
 
     # Make sure the internal attributes are set to not None to avoid
     # trying to parse them again later
-    assert mod_info._used_module_names == list()
+    assert mod_info._used_module_name_list == list()
     assert mod_info._used_symbols_from_module_name == {}
 
 

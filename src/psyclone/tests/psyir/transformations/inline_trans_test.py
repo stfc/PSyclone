@@ -1845,9 +1845,7 @@ def test_validate_unsupportedtype_argument(fortran_reader):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(routine)
     assert (
-        "Routine 'sub' cannot be inlined because it contains a Symbol 'x' "
-        "which is an Argument of UnsupportedType: 'REAL, POINTER, "
-        "INTENT(INOUT) :: x'" in str(err.value)
+        "Argument partial type mismatch of call argument 'Reference[name:'ptr']' and routine argument" in str(err.value)
     )
 
 
