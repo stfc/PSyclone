@@ -263,12 +263,8 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                 if len(permitted_full_ranges) == 1:
                     permit_str = f"{permitted_full_ranges[0]}"
                 else:
-                    permit_str = f"either {permitted_full_ranges[0]}"
-                    for i in range(1, len(permitted_full_ranges)):
-                        if i == len(permitted_full_ranges) - 1:
-                            permit_str += f" or {permitted_full_ranges[i]}"
-                        else:
-                            permit_str += f", {permitted_full_ranges[i]}"
+                    permit_str = f"either {permitted_full_ranges[0]} " \
+                                 f"or {permitted_full_ranges[1]}"
                 raise TransformationError(
                     f"To use {self.name} on matmul, {permit_str} "
                     f"indices of the array '{array.debug_string()}' "
