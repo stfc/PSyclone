@@ -127,5 +127,4 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
         '''
         if type(self) is not type(other):
             return False
-        else:
-            return self.async_queue == other.async_queue
+        return self.async_queue == other.async_queue

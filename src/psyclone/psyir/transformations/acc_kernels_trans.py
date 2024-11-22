@@ -41,8 +41,10 @@
 import re
 
 from psyclone import psyGen
+from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes import (
-    ACCDataDirective, ACCKernelsDirective, Assignment, Call, CodeBlock, Loop,
+    ACCEnterDataDirective, ACCKernelsDirective, Assignment,
+    Call, CodeBlock, Loop,
     PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
 from psyclone.psyir.symbols import UnsupportedFortranType
 from psyclone.psyir.transformations.region_trans import RegionTrans
@@ -105,7 +107,7 @@ class ACCKernelsTrans(RegionTrans):
         async_queue = options.get("async_queue", False)
 
         # check
-        self.check_async_queue(node, async_queue)
+        self.check_async_queue(node_list, async_queue)
 
         # Create a directive containing the nodes in node_list and insert it.
         directive = ACCKernelsDirective(
@@ -114,39 +116,45 @@ class ACCKernelsTrans(RegionTrans):
 
         parent.children.insert(start_index, directive)
 
-    def check_async_queue(self, nodes, async_queue):
+    @staticmethod
+    def check_async_queue(nodes, async_queue):
         '''
         Common function to check that all parent data directives have
         the same async queue.
 
-        :param node: a node or list of nodes in the PSyIR to enclose.
-        :type nodes: (a list of) :py:class:`psyclone.psyir.nodes.Node`
+        :param node: the nodes in the PSyIR to enclose.
+        :type nodes: list[:py:class:`psyclone.psyir.nodes.Node`]
 
         :param async_queue: The async queue to expect in parents.
         :type async_queue: \
-            Optional[bool,int,:py:class: psyclone.core.Reference]
+            Optional[bool, int, :py:class:`psyclone.core.Reference`]
+
         '''
+        if async_queue is None:
+            return
 
         # check type
-        if (async_queue is not None and
-           not isinstance(async_queue, (int, Reference))):
+        if not isinstance(async_queue, (int, Reference)):
             raise TypeError(f"Invalid async_queue value, expect Reference or "
                             f"integer or None or False, got : {async_queue}")
 
-        # handle list
-        if not isinstance(nodes, list):
-            nodes = [nodes]
+        parent = nodes[0].ancestor(ACCAsyncMixin)
+        if parent and async_queue != parent.async_queue:
+            raise TransformationError(
+                f"Cannot apply ACCKernelsTrans with asynchronous "
+                f"queue '{async_queue}' because a parent "
+                f"directive specifies queue '{parent.async_queue}'")
 
-        directive_cls = (ACCDataDirective)
-        for node in nodes:
-            parent = node.ancestor(directive_cls)
-            if parent is not None:
-                if async_queue is not None:
-                    if async_queue != parent.async_queue:
-                        raise TransformationError(
-                            'Try to make an ACCKernelTrans with async_queue '
-                            'different than the one in parent data directive '
-                            '!')
+        parent = nodes[0].ancestor(Routine)
+        if parent:
+            edata = parent.walk(ACCEnterDataDirective)
+            if edata:
+                if async_queue != edata[0].async_queue:
+                    raise TransformationError(
+                        f"Cannot apply ACCKernelsTrans with asynchronous queue"
+                        f" '{async_queue}' because the containing routine "
+                        f"has an ENTER DATA directive specifying queue "
+                        f"'{edata[0].async_queue}'")
 
     def validate(self, nodes, options=None):
         # pylint: disable=signature-differs
@@ -228,7 +236,7 @@ class ACCKernelsTrans(RegionTrans):
 
         # extract async option and check validity
         async_queue = options.get('async_queue', False) if options else False
-        self.check_async_queue(node, async_queue)
+        self.check_async_queue(node_list, async_queue)
 
         # Check that we have at least one loop or array range within
         # the proposed region unless this has been disabled.

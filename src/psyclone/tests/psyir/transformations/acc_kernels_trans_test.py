@@ -44,7 +44,7 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Assignment, ACCKernelsDirective, Loop, Routine
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, TransformationError, ProfileTrans)
-from psyclone.transformations import ACCLoopTrans
+from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans
 from psyclone.tests.utilities import get_invoke
 
 EXPLICIT_LOOP = ("program do_loop\n"
@@ -464,3 +464,28 @@ end
     assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
             " region but found 'explicit_size_char = assumed2" in
             str(err.value))
+
+
+def test_check_async_queue_with_enter_data(fortran_reader):
+    '''Tests for the check_async_queue() method.'''
+    acc_trans = ACCKernelsTrans()
+    acc_edata_trans = ACCEnterDataTrans()
+    with pytest.raises(TypeError) as err:
+        acc_trans.check_async_queue(None, 3.5)
+    assert ("Invalid async_queue value, expect Reference or integer or None "
+            "or False, got : 3.5" in str(err.value))
+    psyir = fortran_reader.psyir_from_source(
+                "program two_loops\n"
+                "  integer :: ji\n"
+                "  real :: array(10,10)\n"
+                "  do ji = 1, 5\n"
+                "    array(ji,1) = 2.0*array(ji,2)\n"
+                "  end do\n"
+                "end program two_loops\n")
+    prog = psyir.walk(Routine)[0]
+    acc_edata_trans.apply(prog, {"async_queue": 1})
+    with pytest.raises(TransformationError) as err:
+        acc_trans.check_async_queue(prog.walk(Loop), 2)
+    assert ("Cannot apply ACCKernelsTrans with asynchronous queue '2' because "
+            "the containing routine has an ENTER DATA directive specifying "
+            "queue '1'" in str(err.value))
