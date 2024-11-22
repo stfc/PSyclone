@@ -43,12 +43,12 @@ from psyclone.parse.module_info import (
     ModuleInfoError,
     ContainerNotFoundError,
 )
-from psyclone.parse.module_manager_multiplexer import ModuleManagerMultiplexer
 from psyclone.parse.module_manager_base import (
     ModuleManagerBase,
 )
 from psyclone.parse.module_manager_auto_search import ModuleManagerAutoSearch
 from psyclone.parse.module_manager_files_cached import ModuleManagerFilesCached
+from psyclone.parse.module_manager_multiplexer import ModuleManagerMultiplexer
 
 
 # For AutoAPI documentation generation.

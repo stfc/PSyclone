@@ -214,15 +214,15 @@ def test_mod_info_get_used_modules():
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
-    assert mod_man.get_module_info("a_mod").get_used_modules() == list()
-    assert mod_man.get_module_info("b_mod").get_used_modules() == list()
+    assert mod_man.get_module_info("a_mod").get_used_module_names() == list()
+    assert mod_man.get_module_info("b_mod").get_used_module_names() == list()
 
     mod_c_info = mod_man.get_module_info("c_mod")
     assert mod_c_info.name == "c_mod"
-    dep = mod_c_info.get_used_modules()
+    dep = mod_c_info.get_used_module_names()
     assert dep == list(("a_mod", "b_mod"))
 
-    dep_cached = mod_c_info.get_used_modules()
+    dep_cached = mod_c_info.get_used_module_names()
     # Calling the method a second time should return the same
     # (cached) list object
     assert dep_cached is dep
@@ -232,14 +232,14 @@ def test_mod_info_get_used_modules():
     mod_man.add_search_path(dyn_path, recursive=True)
     # This module imports the intrinsic module iso_fortran_env,
     # (which should be ignored):
-    deps = mod_man.get_module_info("field_r64_mod").get_used_modules()
+    deps = mod_man.get_module_info("field_r64_mod").get_used_module_names()
     assert "iso_fortran_env" not in deps
 
     # This module has a 'use' without 'only'. Make sure that
     # the modules are still added to the dependencies, but that no
     # symbols are added:
     mod_info = mod_man.get_module_info("testkern_wtheta_mod")
-    deps = mod_info.get_used_modules()
+    deps = mod_info.get_used_module_names()
     for module in deps:
         assert module in [
             "constants_mod",
@@ -372,7 +372,7 @@ def test_module_info_extract_import_information_error():
     mod_info: ModuleInfo = mod_man.get_module_info("error_mod")
     assert mod_info.name == "error_mod"
 
-    assert mod_info._used_module_names is None
+    assert mod_info._used_module_name_list is None
     assert mod_info._used_symbols_from_module_name is None
 
     try:

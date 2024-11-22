@@ -506,9 +506,9 @@ class Call(Statement, DataNode):
         # Cache the container names from symbols
         container_names = [cs.name.lower() for cs in container_symbols_list]
 
-        print("<>" * 80)
-        print(f"- name: {self.routine.name}")
-        print(f"- depth: {_depth}")
+        # print("<>" * 80)
+        # print(f"- name: {self.routine.name}")
+        # print(f"- depth: {_depth}")
 
         from psyclone.parse import (
             ModuleManagerMultiplexer,
@@ -522,7 +522,7 @@ class Call(Statement, DataNode):
                 module_info = module_manager.get_module_info(
                     container_name.lower()
                 )
-            except ContainerNotFoundError as err:
+            except (ContainerNotFoundError, FileNotFoundError) as err:
                 if ignore_missing_modules:
                     continue
 
@@ -548,9 +548,8 @@ class Call(Statement, DataNode):
                 if container_symbol not in ret_container_symbol_list:
                     ret_container_symbol_list.append(container_symbol)
 
-        print(f"- symbols: {ret_container_symbol_list}")
-
-        print("RET")
+        # print(f"- symbols: {ret_container_symbol_list}")
+        # print("RET")
 
         return ret_container_symbol_list
 
@@ -621,7 +620,9 @@ class Call(Statement, DataNode):
                             container: Container = (
                                 container_symbol.find_container_psyir_node(
                                     local_node=self,
-                                    ignore_missing_modules=ignore_missing_modules,
+                                    ignore_missing_modules=(
+                                        ignore_missing_modules
+                                    ),
                                 )
                             )
                         except SymbolError:
@@ -735,10 +736,53 @@ class Call(Statement, DataNode):
             f" is within a CodeBlock."
         )
 
-    def get_argument_routine_match(            
+    def _check_matching_types(
+        call_arg: Symbol,
+        routine_arg: Symbol,
+        check_strict_array_datatype: bool = True,
+        check_matching_arguments: bool = True,
+    ) -> bool:
+        routine_arg: DataSymbol
+
+        print(f"  - routine_arg: {routine_arg}")
+
+        type_matches = False
+        if not check_strict_array_datatype:
+            # No strict array checks have to be performed, just accept it
+            if isinstance(call_arg.datatype, ArrayType) and isinstance(
+                routine_arg.datatype, ArrayType
+            ):
+                type_matches = True
+
+        if not type_matches:
+            # Do the types of arguments match?
+            #
+            # TODO #759: If optional is used, it's an unsupported
+            # Fortran type and we need to use the following workaround
+            # Once this issue is resolved, simply remove this if
+            # branch.
+            # Optional arguments are processed further down.
+            if isinstance(routine_arg.datatype, UnsupportedFortranType):
+                if call_arg.datatype != routine_arg.datatype.partial_datatype:
+                    raise CallMatchingArgumentsNotFound(
+                        f"Argument partial type mismatch of call "
+                        f"argument '{call_arg}' and routine argument "
+                        f"'{routine_arg}'"
+                    )
+            else:
+                if call_arg.datatype != routine_arg.datatype:
+                    raise CallMatchingArgumentsNotFound(
+                        f"Argument type mismatch of call argument "
+                        f"'{call_arg.datatype}' and routine argument "
+                        f"'{routine_arg.datatype}'"
+                    )
+                type_matches = True
+
+    def get_argument_routine_match(
         self,
         routine: Routine,
-        check_strict_array_datatype: bool = True
+        check_strict_array_datatype: bool = True,
+        check_matching_arguments: bool = True,
     ):
         """Return a list of integers giving for each argument of the call
         the index of the argument in argument_list (typically of a routine)
@@ -771,13 +815,20 @@ class Call(Statement, DataNode):
         ret_arg_idx_list = []
         for call_arg_idx, call_arg in enumerate(self.arguments):
             call_arg_idx: int
-            call_arg: DataSymbol
+            call_arg: Reference
+
+            print("---")
+            print(f"- calls_arg: {call_arg}, {call_arg.symbol}")
+            print(call_arg.symbol.is_import)
+            call_arg.symbol.resolve_type()
 
             # If the associated name is None, it's a positional argument
             # => Just return the index if the types match
             if self.argument_names[call_arg_idx] is None:
                 routine_arg = routine_argument_list[call_arg_idx]
                 routine_arg: DataSymbol
+
+                print(f"  - routine_arg: {routine_arg}")
 
                 type_matches = False
                 if not check_strict_array_datatype:
@@ -795,14 +846,24 @@ class Call(Statement, DataNode):
                     # Once this issue is resolved, simply remove this if
                     # branch.
                     # Optional arguments are processed further down.
-                    if not isinstance(
+                    if isinstance(
                         routine_arg.datatype, UnsupportedFortranType
                     ):
+                        if (
+                            call_arg.datatype
+                            != routine_arg.datatype.partial_datatype
+                        ):
+                            raise CallMatchingArgumentsNotFound(
+                                f"Argument partial type mismatch of call "
+                                f"argument '{call_arg}' and routine argument "
+                                f"'{routine_arg}'"
+                            )
+                    else:
                         if call_arg.datatype != routine_arg.datatype:
                             raise CallMatchingArgumentsNotFound(
                                 f"Argument type mismatch of call argument "
-                                f"'{call_arg}' and routine argument "
-                                f"'{routine_arg}'"
+                                f"'{call_arg.datatype}' and routine argument "
+                                f"'{routine_arg.datatype}'"
                             )
                         type_matches = True
 
@@ -884,6 +945,7 @@ class Call(Statement, DataNode):
         self,
         check_matching_arguments: bool = True,
         ignore_missing_modules: bool = False,
+        ignore_unresolved_symbol: bool = False,
     ):
         """
         Searches for the implementation(s) of the target routine for this Call
@@ -917,7 +979,11 @@ class Call(Statement, DataNode):
             routine: Routine
 
             try:
-                arg_match_list = self.get_argument_routine_match(routine)
+                arg_match_list = self.get_argument_routine_match(
+                    routine,
+                    check_strict_array_datatype=False,
+                    check_matching_arguments=check_matching_arguments,
+                )
             except CallMatchingArgumentsNotFound as err:
                 error = err
                 continue
@@ -934,7 +1000,8 @@ class Call(Statement, DataNode):
 
         if error is not None:
             raise CallMatchingArgumentsNotFound(
-                f"No matching routine found for '{self.debug_string()}'"
+                f"No matching routine found for '{self.debug_string()}': "
+                + str(error)
             ) from error
         else:
             raise CallMatchingArgumentsNotFound(

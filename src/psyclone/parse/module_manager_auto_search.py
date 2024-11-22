@@ -326,7 +326,7 @@ class ModuleManagerAutoSearch(ModuleManagerBase):
             if module in self.get_ignore_modules():
                 continue
             try:
-                mod_deps = self.get_module_info(module).get_used_modules()
+                mod_deps = self.get_module_info(module).get_used_module_names()
                 # Convert to set
                 mod_deps = set(mod_deps)
 

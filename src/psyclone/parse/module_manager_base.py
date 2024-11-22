@@ -40,8 +40,9 @@ which module is contained in which file (including full location). """
 from abc import ABC
 from typing import List, Dict, Set, Union, final
 import copy
-from psyclone.parse.module_info import ModuleInfo, FileInfo
 from psyclone.psyir.nodes import Container, FileContainer, Node, Routine
+from psyclone.parse.module_info import ModuleInfo
+from psyclone.parse.file_info import FileInfo
 from psyclone.parse import ContainerNotFoundError
 
 
@@ -276,6 +277,82 @@ class ModuleManagerBase(ABC):
     def get_all_filepaths(self):
         return self._filepath_list
 
+    def get_all_recursively_used_module_infos(
+        self,
+        module_info: ModuleInfo,
+        verbose: bool = False,
+        indent: str = "",
+    ) -> List[ModuleInfo]:
+
+        from psyclone.parse.module_manager_multiplexer import (
+            ModuleManagerMultiplexer,
+        )
+
+        module_manager = ModuleManagerMultiplexer.get_singleton()
+
+        # List of module infos which still need to be traversed.
+        # We start with the list of modules used in the current module.
+        todo_module_name_list: List[str] = (
+            module_info.get_used_module_names().copy()
+        )
+
+        # List of modules infos in order of uses.
+        # After a module info was processed from the TODO list,
+        # it's added to the list of modules returned to the caller.
+        ret_module_info_list: List[ModuleInfo] = list()
+
+        # Add this module itself
+        ret_module_info_list.append(module_info)
+
+        while len(todo_module_name_list) > 0:
+
+            # Get first element
+            todo_module_name = todo_module_name_list.pop(0)
+            try:
+                todo_module_info = module_manager.get_module_info(
+                    todo_module_name
+                )
+            except ContainerNotFoundError:
+                if verbose:
+                    print(f"{indent}- Module not found: '{todo_module_name}'")
+                continue
+
+            if verbose:
+                print(f"{indent}- Module found: '{todo_module_name}'")
+
+            # Add to return list of modules
+            ret_module_info_list.append(todo_module_info)
+
+            # Determine list of module names
+            used_module_name_list = todo_module_info.get_used_module_names()
+
+            for used_module_name in used_module_name_list:
+                try:
+                    used_module_info: ModuleInfo = self.get_module_info(
+                        used_module_name
+                    )
+                except ContainerNotFoundError:
+                    if verbose:
+                        print(
+                            f"{indent}- Module not found: '{used_module_name}'"
+                        )
+                    continue
+
+                # If module is already in the todo list,
+                # do nothing since it will be processed
+                if used_module_info in todo_module_name_list:
+                    continue
+
+                # If module is already in the output list,
+                # do nothing since it has been already processed
+                if used_module_info in ret_module_info_list:
+                    continue
+
+                # It's not yet on any list, hence, add it to the todo list
+                todo_module_name_list.append(used_module_info.name)
+
+        return ret_module_info_list
+
     def get_dependency_sorted_modules(
         self,
         module_dependencies: Dict[str, Set[str]] = None,
@@ -307,7 +384,7 @@ class ModuleManagerBase(ABC):
             module_dependencies = {}
             for module_info in self._module_name_to_modinfo.values():
                 module_dependencies[module_info.name] = copy.deepcopy(
-                    module_info.get_used_modules()
+                    module_info.get_used_module_names()
                 )
         else:
             module_dependencies = copy.deepcopy(module_dependencies)

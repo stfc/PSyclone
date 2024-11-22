@@ -50,6 +50,7 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.file_container import FileContainer
 from psyclone.psyir.symbols import Symbol, SymbolError
 from psyclone.parse.file_info import FileInfo, FileInfoFParserError
+from psyclone.psyir import nodes
 
 
 class ContainerNotFoundError(PSycloneError):
@@ -111,7 +112,7 @@ class ModuleInfo:
         # of all modules used by this module.
         # We use an (ordered) list to preserve the order of the
         # used modules
-        self._used_module_names: List[str] = None
+        self._used_module_name_list: List[str] = None
 
         # This is a dictionary containing the sets of symbols imported from
         # each module, indexed by the module names: dict[str, set[str]].
@@ -170,10 +171,10 @@ class ModuleInfo:
         """
 
         # Make sure that this is not called twice
-        assert self._used_module_names is None
+        assert self._used_module_name_list is None
 
         # Initialise the caches
-        self._used_module_names = []
+        self._used_module_name_list = []
         self._used_symbols_from_module_name = {}
 
         parse_tree = self.get_fparser_tree()
@@ -184,8 +185,8 @@ class ModuleInfo:
                 continue
 
             mod_name = str(use.items[2])
-            if mod_name not in self._used_module_names:
-                self._used_module_names.append(mod_name)
+            if mod_name not in self._used_module_name_list:
+                self._used_module_name_list.append(mod_name)
             all_symbols = set()
 
             only_list = use.items[4]
@@ -198,7 +199,7 @@ class ModuleInfo:
 
             self._used_symbols_from_module_name[mod_name] = all_symbols
 
-    def get_used_modules(self) -> List[str]:
+    def get_used_module_names(self) -> List[str]:
         """This function returns a set of all modules `used` in this
         module. Fortran `intrinsic` modules will be ignored. The information
         is based on the fparser parse tree of the module (since fparser can
@@ -209,10 +210,10 @@ class ModuleInfo:
         :rtype: set[str]
         """
 
-        if self._used_module_names is None:
+        if self._used_module_name_list is None:
             self._extract_used_module_names_from_fparser_tree()
 
-        return self._used_module_names
+        return self._used_module_name_list
 
     def get_used_symbols_from_modules(self):
         """This function returns information about which modules are used by
@@ -421,8 +422,26 @@ class ModuleInfo:
             return None
         return symbol
 
+    def get_routine_by_name(
+        self, routine_name: str, trigger_exception: bool = True
+    ) -> nodes.Routine:
+        routine_found: nodes.Routine = None
+
+        for routine in self.get_psyir_container_node().walk(nodes.Routine):
+            routine: nodes.Routine
+            if routine.name.lower() == routine_name.lower():
+                routine_found = routine
+
+        if trigger_exception:
+            if routine_found is None:
+                raise Exception(f"Subroutine '{routine_name}' not found")
+
+        return routine_found
+
     def view(self, indent=""):
         retstr = ""
         retstr += f"{indent}- name: '{self.name}'\n"
-        retstr += f"{indent}- used_module_names: {self.get_used_modules()}\n"
+        retstr += (
+            f"{indent}- used_module_names: {self.get_used_module_names()}\n"
+        )
         return retstr
