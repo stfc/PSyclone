@@ -43,10 +43,11 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
-from psyclone.f2pygen import DeclGen, PSyIRGen, UseGen
+from psyclone.f2pygen import DeclGen, PSyIRGen, UseGen, TypeDeclGen
 
 
 class Loop(Statement):
@@ -578,3 +579,11 @@ class Loop(Statement):
             if not kernel.module_inline:
                 parent.add(UseGen(parent, name=kernel._module_name, only=True,
                                   funcnames=[kernel._name]))
+
+        for psydata_node in self.walk(PSyDataNode):
+            set_private = self.ancestor(Routine) is None
+            var_decl = TypeDeclGen(parent,
+                                   datatype=psydata_node.type_name,
+                                   entity_decls=[psydata_node._var_name],
+                                   save=True, target=True, private=set_private)
+            parent.add(var_decl)
