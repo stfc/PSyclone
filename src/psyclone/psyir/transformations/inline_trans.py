@@ -53,6 +53,12 @@ from psyclone.psyir.transformations.reference2arrayrange_trans import (
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 
+from typing import List
+
+# from typing import Dict, List
+# from psyclone.psyir.symbols import BOOLEAN_TYPE
+# from psyclone.psyir.symbols import ScalarType
+
 
 _ONE = Literal("1", INTEGER_TYPE)
 
@@ -122,6 +128,36 @@ class InlineTrans(Transformation):
         Some of these restrictions will be lifted by #924.
 
     '''
+
+    def __init__(self):
+        # List of call-to-subroutine argument indices
+        self._ret_arg_match_list: List[int] = None
+
+        # Routine to be inlines
+        self.node_routine: Routine = None
+
+        # Make strict checks for matching arguments of array data types.
+        # If disabled, it's sufficient that both arguments are of ArrayType.
+        # Then, no further checks are performed
+        self.option_check_argument_strict_array_datatype: bool = True
+
+        # If searching for modules, don't trigger Exceptions if module
+        # wasn't found.
+        self.ignore_missing_modules: bool = False
+
+    def set_option(
+        self,
+        check_argument_strict_array_datatype: bool = None,
+        ignore_missing_modules: bool = None,
+    ):
+        if check_argument_strict_array_datatype is not None:
+            self.option_check_argument_strict_array_datatype = (
+                check_argument_strict_array_datatype
+            )
+
+        if ignore_missing_modules is not None:
+            self.ignore_missing_modules = ignore_missing_modules
+
     def apply(self, node, options=None):
         '''
         Takes the body of the routine that is the target of the supplied

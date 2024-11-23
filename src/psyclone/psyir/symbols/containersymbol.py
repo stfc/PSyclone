@@ -125,7 +125,9 @@ class ContainerSymbol(Symbol):
         new_symbol.is_intrinsic = self.is_intrinsic
         return new_symbol
 
-    def find_container_psyir(self, local_node=None):
+    def find_container_psyir(
+        self, local_node=None, ignore_missing_modules: bool = False
+    ):
         ''' Searches for the Container that this Symbol refers to. If it is
         not available, use the interface to import the container. If
         `local_node` is supplied then the PSyIR tree below it is searched for
