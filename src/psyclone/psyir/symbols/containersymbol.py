@@ -278,6 +278,10 @@ class FortranModuleInterface(ContainerSymbolInterface):
                 f"Module '{module_name}' not found in any of the include_paths "
                 f"directories {Config.get().include_paths}."
             )
+
+        if minfo is None:
+            return None
+
         return minfo.get_psyir_container_node()
 
 

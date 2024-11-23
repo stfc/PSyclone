@@ -285,6 +285,8 @@ class ModuleManagerBase(ABC):
         indent: str = "",
     ) -> List[ModuleInfo]:
 
+        assert type(module_info) is ModuleInfo
+
         from psyclone.parse.module_manager_multiplexer import (
             ModuleManagerMultiplexer,
         )
@@ -312,6 +314,7 @@ class ModuleManagerBase(ABC):
                 todo_module_info = module_manager.get_module_info(
                     todo_module_name
                 )
+                assert type(todo_module_info) is ModuleInfo
             except ContainerNotFoundError:
                 if verbose:
                     print(f"{indent}- Module not found: '{todo_module_name}'")
@@ -335,6 +338,11 @@ class ModuleManagerBase(ABC):
                     used_module_info: ModuleInfo = self.get_module_info(
                         used_module_name
                     )
+
+                    # Could be also in ignore list which then just returns 'None'
+                    if used_module_info is None:
+                        continue
+
                 except ContainerNotFoundError:
                     if verbose:
                         print(

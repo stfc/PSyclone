@@ -68,6 +68,7 @@ from psyclone.psyir.symbols import (
     SymbolError,
     UnknownInterface,
     UnsupportedType,
+    UnsupportedFortranType,
     IntrinsicSymbol,
 )
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
@@ -77,7 +78,8 @@ from psyclone.psyir.transformations.transformation_error import (
     TransformationError,
 )
 from typing import Dict, List
-
+from psyclone.psyir.symbols import BOOLEAN_TYPE
+from psyclone.psyir.symbols import ScalarType
 
 _ONE = Literal("1", INTEGER_TYPE)
 
@@ -150,7 +152,7 @@ class InlineTrans(Transformation):
 
     def __init__(self):
         # List of call-to-subroutine argument indices
-        self.ret_arg_match_list: List[int] = None
+        self._ret_arg_match_list: List[int] = None
 
         # Routine to be inlines
         self.node_routine: Routine = None
@@ -221,6 +223,8 @@ class InlineTrans(Transformation):
         # copy of it.
         self.node_routine = self.node_routine.copy()
         routine_table = self.node_routine.symbol_table
+
+        self._remove_unused_optional_arguments()
 
         # Construct lists of the nodes that will be inserted and all of the
         # References that they contain.
@@ -309,6 +313,83 @@ class InlineTrans(Transformation):
             scope.symbol_table.detach()
             replacement.attach(scope)
 
+
+    def _remove_ifblock_if_const_args(self, node: Node):
+
+        from psyclone.psyir.nodes import IfBlock
+
+        for if_block in node.walk(IfBlock):
+            if_block: IfBlock
+
+            condition = if_block.condition
+
+            # Check if the condition is a BooleanLiteral
+            if not isinstance(condition, Literal):
+                continue
+
+            # Check for right datatype
+            if condition.datatype.intrinsic is not ScalarType.Intrinsic.BOOLEAN:
+                continue
+
+            if condition.value == "true":
+                # Only keep if_block
+                if_block.if_body.detach()
+                if_block.replace_with(if_block.if_body)
+
+            else:
+                # If there's an else block, replace if-condition with else-block
+                if not if_block.else_body:
+                    if_block.detach()
+                    continue
+
+                if_block.else_body.detach()
+                if_block.replace_with(if_block.else_body)
+
+    def _remove_unused_optional_arguments(self):
+        import sys
+
+        # We first build a lookup table of all optional arguments
+        # to see whether it's present or not.
+        optional_sym_present_dict: Dict[str, bool] = dict()
+        for (optional_arg_idx, datasymbol) in enumerate(self.node_routine.symbol_table.datasymbols):
+
+            if type(datasymbol.datatype) is not UnsupportedFortranType:
+                continue
+
+            assert ", OPTIONAL" in str(datasymbol.datatype)
+
+            sym_name = datasymbol.name.lower()
+
+            if optional_arg_idx not in self._ret_arg_match_list:
+                optional_sym_present_dict[sym_name] = False
+            else:
+                optional_sym_present_dict[sym_name] = True
+
+        # Check if we have any optional arguments at all and if not, return
+        if len(optional_sym_present_dict) == 0:
+            return
+ 
+        # Find all "PRESENT()" calls
+        for intrinsic_call in self.node_routine.walk(IntrinsicCall):
+            intrinsic_call: IntrinsicCall
+            if intrinsic_call.routine.name.lower() == "present":
+
+                # The argument is in the 2nd child
+                present_arg: Reference = intrinsic_call.children[1]
+                present_arg_name = present_arg.name.lower()
+
+                assert present_arg_name in optional_sym_present_dict
+
+                if optional_sym_present_dict[present_arg_name]:
+                    # The argument is present.
+                    intrinsic_call.replace_with(Literal("true", BOOLEAN_TYPE))
+                else:
+                    intrinsic_call.replace_with(Literal("false", BOOLEAN_TYPE))
+
+        # Evaluate all if-blocks with constant booleans
+        self._remove_ifblock_if_const_args(self.node_routine)
+
+
     def _replace_formal_arg(self, ref, call_node, formal_args):
         """
         Recursively combines any References to formal arguments in the supplied
@@ -338,8 +419,15 @@ class InlineTrans(Transformation):
             # The supplied reference is not to a formal argument.
             return ref
 
+        # Lookup index in routine argument
+        routine_arg_idx = formal_args.index(ref.symbol)
+
+        # Lookup index of actual argument
+        # If this is an optional argument, but not used, this index lookup shouldn't fail
+        actual_arg_idx = self._ret_arg_match_list.index(routine_arg_idx)
+
         # Lookup the actual argument that corresponds to this formal argument.
-        actual_arg = call_node.arguments[formal_args.index(ref.symbol)]
+        actual_arg = call_node.arguments[actual_arg_idx]
 
         # If the local reference is a simple Reference then we can just
         # replace it with a copy of the actual argument, e.g.
@@ -767,7 +855,7 @@ class InlineTrans(Transformation):
 
         if self.node_routine is None:
             try:
-                (self.node_routine, self.ret_arg_match_list) = (
+                (self.node_routine, self._ret_arg_match_list) = (
                     node_call.get_callee(
                         check_matching_arguments=(
                             get_callee_check_matching_arguments
@@ -790,7 +878,7 @@ class InlineTrans(Transformation):
             # A routine has been provided.
             # We'll now determine the matching argument list
             try:
-                self.ret_arg_match_list = node_call.get_argument_routine_match(
+                self._ret_arg_match_list = node_call.get_argument_routine_match(
                     self.node_routine,
                     check_strict_array_datatype=False,
                 )
@@ -987,7 +1075,7 @@ class InlineTrans(Transformation):
         #     )
 
         # Create a list of routine arguments that is actually used
-        routine_arg_list = [routine_table.argument_list[i] for i in self.ret_arg_match_list]
+        routine_arg_list = [routine_table.argument_list[i] for i in self._ret_arg_match_list]
 
         for formal_arg, actual_arg in zip(
             routine_arg_list, node_call.arguments

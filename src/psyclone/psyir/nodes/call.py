@@ -490,10 +490,6 @@ class Call(Statement, DataNode):
         # Cache the container names from symbols
         container_names = [cs.name.lower() for cs in container_symbols_list]
 
-        # print("<>" * 80)
-        # print(f"- name: {self.routine.name}")
-        # print(f"- depth: {_depth}")
-
         from psyclone.parse import (
             ModuleManagerMultiplexer,
             ContainerNotFoundError,
@@ -506,6 +502,9 @@ class Call(Statement, DataNode):
                 module_info = module_manager.get_module_info(
                     container_name.lower()
                 )
+                if module_info is None:
+                    continue
+
             except (ContainerNotFoundError, FileNotFoundError) as err:
                 if ignore_missing_modules:
                     continue
@@ -531,9 +530,6 @@ class Call(Statement, DataNode):
             for container_symbol in new_container_symbols:
                 if container_symbol not in ret_container_symbol_list:
                     ret_container_symbol_list.append(container_symbol)
-
-        # print(f"- symbols: {ret_container_symbol_list}")
-        # print("RET")
 
         return ret_container_symbol_list
 
@@ -625,9 +621,11 @@ class Call(Statement, DataNode):
                             )
                             if psyir:
                                 routines.append(psyir)
+
                         if routines:
                             return routines
                 current_table = current_table.parent_symbol_table()
+
             if not wildcard_names:
                 wc_text = "there are no wildcard imports"
             else:
@@ -769,8 +767,6 @@ class Call(Statement, DataNode):
         check_matching_arguments: bool = True,
     ) -> bool:
         routine_arg: DataSymbol
-
-        print(f"  - routine_arg: {routine_arg}")
 
         type_matches = False
         if not check_strict_array_datatype:
@@ -941,12 +937,12 @@ class Call(Statement, DataNode):
         error: Exception = None
 
         # Search for the routine matching the right arguments
-        for routine in routine_list:
-            routine: Routine
+        for routine_node in routine_list:
+            routine_node: Routine
 
             try:
                 arg_match_list = self.get_argument_routine_match(
-                    routine,
+                    routine_node,
                     check_strict_array_datatype=False,
                     check_matching_arguments=check_matching_arguments,
                 )
@@ -954,7 +950,7 @@ class Call(Statement, DataNode):
                 error = err
                 continue
 
-            return (routine, arg_match_list)
+            return (routine_node, arg_match_list)
 
         # If we didn't find any routine, return some routine if no matching
         # arguments have been found.

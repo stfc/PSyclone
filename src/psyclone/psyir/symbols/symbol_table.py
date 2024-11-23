@@ -1000,7 +1000,7 @@ class SymbolTable:
         visibility=None,
         scope_limit=None,
         otherwise=DEFAULT_SENTINEL,
-    ):
+    ) -> Symbol:
         """Look up a symbol in the symbol table. The lookup can be limited
         by visibility (e.g. just show public methods) or by scope_limit (e.g.
         just show symbols up to a certain scope).
