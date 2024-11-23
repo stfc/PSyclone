@@ -35,7 +35,7 @@
 
 ''' Module containing various utilities to aid in the application of
     OpenACC KERNELS directives to NEMO source. Mainly required to
-    workaround the vagaries of the PGI compiler's support for OpenACC.
+    workaround the vagaries of the NVIDIA compiler's support for OpenACC.
 '''
 
 from fparser.two.utils import walk
