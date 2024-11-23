@@ -585,7 +585,9 @@ class SymbolTable():
 
         self._symbols[key] = new_symbol
 
-    def check_for_clashes(self, other_table, symbols_to_skip=()):
+    def check_for_clashes(
+        self, other_table, symbols_to_skip=(), check_unresolved_symbols=True
+    ):
         '''
         Checks the symbols in the supplied table against those in
         this table. If there is a name clash that cannot be resolved by
@@ -646,6 +648,10 @@ class SymbolTable():
                         f"This table has an import of '{this_sym.name}' via "
                         f"interface '{this_sym.interface}' but the supplied "
                         f"table imports it via '{other_sym.interface}'.")
+                continue
+
+            if not check_unresolved_symbols:
+                # Skip if unresolved symbols shouldn't be checked
                 continue
 
             if other_sym.is_unresolved and this_sym.is_unresolved:

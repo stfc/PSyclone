@@ -275,8 +275,8 @@ class Call(Statement, DataNode):
         else:
             raise ValueError(
                 f"The value of the existing_name argument ({existing_name}) "
-                f"in 'replace_named_arg' in the 'Call' node was not found "
-                f"in the existing arguments."
+                "in 'replace_named_arg' in the 'Call' node was not found "
+                "in the existing arguments."
             )
         # The n'th argument is placed at the n'th+1 children position
         # because the 1st child is the routine reference
@@ -759,9 +759,10 @@ class Call(Statement, DataNode):
             else:
                 if call_arg.datatype != routine_arg.datatype:
                     raise CallMatchingArgumentsNotFound(
-                        f"Argument type mismatch of call argument "
-                        f"'{call_arg}' and routine argument "
-                        f"'{routine_arg}'"
+                        "Argument type mismatch of call argument "
+                        f"'{call_arg}' with type '{call_arg.datatype} "
+                        "and routine argument "
+                        f"'{routine_arg}' with type '{routine_arg.datatype}."
                     )
 
         return True
@@ -810,7 +811,6 @@ class Call(Statement, DataNode):
         self,
         routine: Routine,
         check_strict_array_datatype: bool = True,
-        check_matching_arguments: bool = True,
     ) -> Union[None, List[int]]:
         """Return a list of integers giving for each argument of the call
         the index of the argument in argument_list (typically of a routine)
@@ -920,6 +920,7 @@ class Call(Statement, DataNode):
     def get_callee(
         self,
         check_matching_arguments: bool = True,
+        check_strict_array_datatype: bool = True,
         ignore_missing_modules: bool = False,
         ignore_unresolved_symbol: bool = False,
     ):
@@ -947,7 +948,12 @@ class Call(Statement, DataNode):
             ignore_missing_modules=ignore_missing_modules
         )
 
-        error: Exception = None
+        if len(routine_list) == 0:
+            raise NotImplementedError(
+                f"No routine or interface found for name '{self.routine.name}'"
+            )
+
+        err_info = []
 
         # Search for the routine matching the right arguments
         for routine_node in routine_list:
@@ -956,11 +962,10 @@ class Call(Statement, DataNode):
             try:
                 arg_match_list = self._get_argument_routine_match(
                     routine_node,
-                    check_strict_array_datatype=False,
-                    check_matching_arguments=check_matching_arguments,
+                    check_strict_array_datatype=check_strict_array_datatype,
                 )
             except CallMatchingArgumentsNotFound as err:
-                error = err
+                err_info.append(err.value)
                 continue
 
             return (routine_node, arg_match_list)
@@ -973,11 +978,8 @@ class Call(Statement, DataNode):
             # Also return a list of dummy argument indices
             return (routine_list[0], [i for i in range(len(self.arguments))])
 
-        if error is not None:
-            raise CallMatchingArgumentsNotFound(
-                f"No matching routine found for '{self.debug_string()}'"
-            ) from error
-        else:
-            raise NotImplementedError(
-                f"No matching routine found for '{self.routine.name}'"
-            )
+        error_msg = "\n".join(err_info)
+        raise CallMatchingArgumentsNotFound(
+            f"No matching routine found for '{self.debug_string()}'"
+            + error_msg
+        )
