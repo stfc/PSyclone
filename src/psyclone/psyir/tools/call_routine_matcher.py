@@ -40,9 +40,8 @@
 
 from typing import List, Union
 from psyclone.psyir.symbols.datatypes import ArrayType
-from psyclone.psyir.nodes import Call, Routine
 from psyclone.errors import PSycloneError
-from psyclone.configuration import Config
+from psyclone.psyir.nodes import Call, Routine
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.symbols import (
     RoutineSymbol,
@@ -53,6 +52,7 @@ from psyclone.psyir.symbols import (
     SymbolTable,
     ContainerSymbol,
 )
+from psyclone.configuration import Config
 
 
 class CallMatchingArgumentsNotFoundError(PSycloneError):
@@ -109,7 +109,7 @@ class CallRoutineMatcher:
 
     def set_option(self,
                    check_matching_arguments: bool = None,
-                   check_argument_strict_array_datatype: bool = None,
+                   check_strict_array_datatype: bool = None,
                    ignore_missing_modules: bool = None,
                    ignore_unresolved_symbol: bool = None,
                    ):
@@ -117,9 +117,9 @@ class CallRoutineMatcher:
         if check_matching_arguments is not None:
             self._option_check_matching_arguments = check_matching_arguments
 
-        if check_argument_strict_array_datatype is not None:
+        if check_strict_array_datatype is not None:
             self._option_check_strict_array_datatype = (
-                check_argument_strict_array_datatype)
+                check_strict_array_datatype)
 
         if ignore_missing_modules is not None:
             self._option_ignore_missing_modules = ignore_missing_modules
@@ -130,8 +130,7 @@ class CallRoutineMatcher:
     def _check_argument_type_matches(
         self,
         call_arg: DataSymbol,
-        routine_arg: DataSymbol,
-        check_strict_array_datatype: bool = True,
+        routine_arg: DataSymbol
     ) -> bool:
         """Return information whether argument types are matching.
         This also supports 'optional' arguments by using
@@ -151,7 +150,7 @@ class CallRoutineMatcher:
         """
 
         type_matches = False
-        if not check_strict_array_datatype:
+        if not self._option_check_strict_array_datatype:
             # No strict array checks have to be performed, just accept it
             if isinstance(call_arg.datatype, ArrayType) and isinstance(
                 routine_arg.datatype, ArrayType
@@ -219,8 +218,7 @@ class CallRoutineMatcher:
                 routine_arg: DataSymbol
 
                 self._check_argument_type_matches(
-                    call_arg, routine_arg,
-                    self._option_check_strict_array_datatype
+                    call_arg, routine_arg
                 )
 
                 ret_arg_idx_list.append(call_arg_idx)
@@ -245,10 +243,7 @@ class CallRoutineMatcher:
                 if arg_name == routine_arg.name:
                     self._check_argument_type_matches(
                         call_arg,
-                        routine_arg,
-                        check_strict_array_datatype=(
-                            self._option_check_strict_array_datatype
-                        ),
+                        routine_arg
                     )
                     ret_arg_idx_list.append(routine_arg_idx)
                     break
@@ -359,9 +354,6 @@ class CallRoutineMatcher:
                             container: Container = (
                                 container_symbol.find_container_psyir(
                                     local_node=self._call_node,
-                                    ignore_missing_modules=(
-                                        ignore_missing_modules
-                                    ),
                                 )
                             )
                         except SymbolError:
@@ -500,13 +492,7 @@ class CallRoutineMatcher:
         '''
 
         routine_list = self.get_callee_candidates()
-
-        call_name = self._call_node.routine.name
-
-        if len(routine_list) == 0:
-            raise NotImplementedError(
-                f"No routine or interface found for name '{call_name}'"
-            )
+        assert len(routine_list) != 0
 
         err_info_list = []
 

@@ -149,12 +149,6 @@ class InlineTrans(Transformation):
 
         self._call_routine_matcher: CallRoutineMatcher = CallRoutineMatcher()
 
-        # If 'True', make strict checks for matching arguments of
-        # array data types.
-        # If disabled, it's sufficient that both arguments are of ArrayType.
-        # Then, no further checks are performed
-        self._option_check_argument_strict_array_datatype: bool = True
-
         # If 'True', don't inline if a code block is used within the
         # Routine.
         self._option_check_codeblocks: bool = True
@@ -182,14 +176,58 @@ class InlineTrans(Transformation):
         check_argument_of_unsupported_type: bool = None,
         check_argument_unresolved_symbols: bool = None,
     ):
-        if check_argument_strict_array_datatype is not None:
-            self._option_check_argument_strict_array_datatype = (
-                check_argument_strict_array_datatype
-            )
+        """Set special options
+
+        :param ignore_missing_modules: If `True`, raise ModuleNotFound if
+            module is not available, defaults to None
+        :type ignore_missing_modules: bool, optional
+        :param check_argument_strict_array_datatype:
+            If `True`, make strict checks for matching arguments of
+            array data types.
+            If disabled, it's sufficient that both arguments are of ArrayType.
+            Then, no further checks are performed, defaults to None
+        :type check_argument_strict_array_datatype: bool, optional
+        :param check_argument_matching: If `True`, check for all arguments
+            to match. If `False`, if no matching argument was found, take
+            1st one in list. Defaults to None
+        :type check_argument_matching: bool, optional
+        :param check_inline_codeblocks: If `True`, raise Exception
+            if encountering code blocks, defaults to None
+        :type check_inline_codeblocks: bool, optional
+        :param check_diff_container_clashes:
+            If `True` and different symbols share a name but are imported
+            from different containers, raise Exception.
+        If `True`, raise Exception if
+            containers are clashing, defaults to None
+        :type check_diff_container_clashes: bool, optional
+        :param check_diff_container_clashes_unres_types: If `True`,
+            raise Exception if unresolved types are clashing, defaults to None
+        :type check_diff_container_clashes_unres_types: bool, optional
+        :param check_resolve_imports: If `True`, also resolve imports,
+            defaults to None
+        :type check_resolve_imports: bool, optional
+        :param check_static_interface:
+            Check that there are no static variables in the routine
+            (because we don't know whether the routine is called from
+            other places). Defaults to None
+        :type check_static_interface: bool, optional
+        :param check_array_type: If `True` and argument is an array,
+            check that inlining is working for this array type,
+            defaults to None
+        :type check_array_type: bool, optional
+        :param check_argument_of_unsupported_type: If `True`,
+            also perform checks (fail inlining) on arguments of
+            unsupported type, defaults to None
+        :type check_argument_of_unsupported_type: bool, optional
+        :param check_argument_unresolved_symbols: If `True`,
+            stop if encountering an unresolved symbol, defaults to None
+        :type check_argument_unresolved_symbols: bool, optional
+        """
+
         self._call_routine_matcher.set_option(
             ignore_missing_modules=ignore_missing_modules)
         self._call_routine_matcher.set_option(
-            check_argument_strict_array_datatype=(
+            check_strict_array_datatype=(
                 check_argument_strict_array_datatype))
         self._call_routine_matcher.set_option(
             check_matching_arguments=check_argument_matching)
@@ -296,7 +334,8 @@ class InlineTrans(Transformation):
         table.merge(
             routine_table,
             symbols_to_skip=routine_table.argument_list[:],
-            # check_unresolved_symbols=self._option_check_argument_unresolved_symbols,
+            check_unresolved_symbols=(
+                self._option_check_argument_unresolved_symbols),
         )
 
         # When constructing new references to replace references to formal
@@ -364,7 +403,10 @@ class InlineTrans(Transformation):
         # the ancestor Routine. This avoids issues like #2424 when
         # applying ParallelLoopTrans to loops containing inlined calls.
         if ancestor_table is not scope.symbol_table:
-            ancestor_table.merge(scope.symbol_table)
+            ancestor_table.merge(
+                scope.symbol_table,
+                check_unresolved_symbols=(
+                    self._option_check_argument_unresolved_symbols))
             replacement = type(scope.symbol_table)()
             scope.symbol_table.detach()
             replacement.attach(scope)
@@ -1283,13 +1325,13 @@ class InlineTrans(Transformation):
                 rm = self._call_routine_matcher
                 rm.set_routine_node(self._routine_node)
                 rm.set_option(
-                    check_argument_strict_array_datatype=False)
+                    check_strict_array_datatype=False)
                 self._ret_arg_match_list = (
                     rm.get_argument_routine_match_list()
                 )
             except CallMatchingArgumentsNotFoundError as err:
                 raise TransformationError(
-                    "Routine's arguments doesn't match subroutine"
+                    "Routine's argument(s) don't match:\n"+str(err)
                 ) from err
 
         self._validate_inline_of_call_and_routine(

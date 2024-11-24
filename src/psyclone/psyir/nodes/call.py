@@ -586,7 +586,7 @@ class Call(Statement, DataNode):
         call_routine_matcher: CallRoutineMatcher = CallRoutineMatcher(self)
         call_routine_matcher.set_option(
                 check_matching_arguments=check_matching_arguments,
-                check_argument_strict_array_datatype=(
+                check_strict_array_datatype=(
                     check_strict_array_datatype),
                 ignore_missing_modules=ignore_missing_modules,
                 ignore_unresolved_symbol=ignore_unresolved_symbol,

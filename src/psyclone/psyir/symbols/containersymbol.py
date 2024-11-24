@@ -126,7 +126,7 @@ class ContainerSymbol(Symbol):
         return new_symbol
 
     def find_container_psyir(
-        self, local_node=None, ignore_missing_modules: bool = False
+        self, local_node=None
     ):
         """Searches for the Container that this Symbol refers to. If it is
         not available, use the interface to import the container. If
@@ -157,10 +157,7 @@ class ContainerSymbol(Symbol):
                         self._reference = local
                         return self._reference
             # We didn't find it so now attempt to import the container.
-            try:
-                self._reference = self._interface.get_container(self._name)
-            except ModuleNotFoundError:
-                return None
+            self._reference = self._interface.get_container(self._name)
         return self._reference
 
     def __str__(self):
