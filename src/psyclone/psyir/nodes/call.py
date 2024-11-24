@@ -837,8 +837,9 @@ class Call(Statement, DataNode):
         )
 
         if len(self.arguments) > len(routine.symbol_table.argument_list):
+            call_str = self.debug_string().replace("\n", "")
             raise CallMatchingArgumentsNotFound(
-                f"More arguments in call ('{self.debug_string()}')"
+                f"More arguments in call ('{call_str}')"
                 f" than callee (routine '{routine.name}')"
             )
 
@@ -979,7 +980,9 @@ class Call(Statement, DataNode):
             return (routine_list[0], [i for i in range(len(self.arguments))])
 
         error_msg = "\n".join(err_info)
+
         raise CallMatchingArgumentsNotFound(
-            f"No matching routine found for '{self.debug_string()}'"
+            "Found routines, but no routine with matching arguments found "
+            f"for '{self.routine.name}':\n"
             + error_msg
         )

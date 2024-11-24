@@ -58,6 +58,23 @@ class OMPTaskTrans(ParallelLoopTrans):
     implementation.
     '''
 
+    def __init__(self):
+        super().__init__()
+
+        # If 'True', the callee must have matching arguments.
+        # The 'matching' criteria can be weakened by other options.
+        # If 'False', in case no match was found, the first callee is taken.
+        self._option_check_matching_arguments_of_callee: bool = True
+
+    def set_option(
+        self,
+        check_matching_arguments_of_callee: bool = None,
+    ):
+        if check_matching_arguments_of_callee is not None:
+            self._option_check_matching_arguments_of_callee = (
+                check_matching_arguments_of_callee
+            )
+
     def __str__(self):
         return "Adds an 'OMP TASK' directive to a statement"
 
@@ -98,6 +115,11 @@ class OMPTaskTrans(ParallelLoopTrans):
         kintrans = KernelModuleInlineTrans()
         cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()
+        intrans.set_option(
+            check_matching_arguments_of_callee=(
+                self._option_check_matching_arguments_of_callee
+            )
+        )
         for kern in kerns:
             kintrans.validate(kern)
             cond_trans.validate(kern.get_kernel_schedule())
@@ -157,6 +179,11 @@ class OMPTaskTrans(ParallelLoopTrans):
         kintrans = KernelModuleInlineTrans()
         cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()
+        intrans.set_option(
+            check_matching_arguments_of_callee=(
+                self._option_check_matching_arguments_of_callee
+            )
+        )
         for kern in kerns:
             kintrans.apply(kern)
             cond_trans.apply(kern.get_kernel_schedule())
