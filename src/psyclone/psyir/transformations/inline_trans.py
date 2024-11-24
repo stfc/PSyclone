@@ -62,7 +62,7 @@ from psyclone.psyir.transformations.reference2arrayrange_trans import (
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 
-from psyclone.psyir.nodes import CallMatchingArgumentsNotFound
+from psyclone.psyir.nodes import CallMatchingArgumentsNotFoundError
 from typing import Dict, List
 
 from psyclone.psyir.symbols import BOOLEAN_TYPE
@@ -869,7 +869,7 @@ class InlineTrans(Transformation):
                     )
                 )
             except (
-                CallMatchingArgumentsNotFound,
+                CallMatchingArgumentsNotFoundError,
                 NotImplementedError,
                 FileNotFoundError,
                 SymbolError,
@@ -890,7 +890,7 @@ class InlineTrans(Transformation):
                         check_strict_array_datatype=False,
                     )
                 )
-            except CallMatchingArgumentsNotFound as err:
+            except CallMatchingArgumentsNotFoundError as err:
                 raise TransformationError(
                     "Routine's arguments doesn't match subroutine"
                 ) from err

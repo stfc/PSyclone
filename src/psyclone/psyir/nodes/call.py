@@ -60,7 +60,7 @@ from psyclone.errors import PSycloneError
 from psyclone.psyir.symbols.datatypes import ArrayType
 
 
-class CallMatchingArgumentsNotFound(PSycloneError):
+class CallMatchingArgumentsNotFoundError(PSycloneError):
     '''Exception to signal that matching arguments have not been found
     for this routine
     '''
@@ -477,11 +477,15 @@ class Call(Statement, DataNode):
         :param _stack_container_list: Stack with already visited Containers
         to avoid circular searches, defaults to []
         :type _stack_container_list: List[Container], optional
+        :param _depth: Depth of recursive search
+        :type _depth: int
         """
         #
-        # TODO: This function seems to be extremely slow:
-        # It takes considerable time to build this list over and over
-        # for each lookup.
+        # TODO:
+        # - This function seems to be extremely slow:
+        #   It takes considerable time to build this list over and over
+        #   for each lookup.
+        # - This function can also be written in a non-resursive way
         #
         # An alternative would be to cache it, but then the cache
         # needs to be invalidated once some symbols are, e.g., deleted.
@@ -899,14 +903,14 @@ class Call(Statement, DataNode):
                 # This could be an 'optional' argument.
                 # This has at least a partial data type
                 if call_arg.datatype != routine_arg.datatype.partial_datatype:
-                    raise CallMatchingArgumentsNotFound(
-                        f"Argument partial type mismatch of call "
+                    raise CallMatchingArgumentsNotFoundError(
+                        "Argument partial type mismatch of call "
                         f"argument '{call_arg}' and routine argument "
                         f"'{routine_arg}'"
                     )
             else:
                 if call_arg.datatype != routine_arg.datatype:
-                    raise CallMatchingArgumentsNotFound(
+                    raise CallMatchingArgumentsNotFoundError(
                         "Argument type mismatch of call argument "
                         f"'{call_arg}' with type '{call_arg.datatype} "
                         "and routine argument "
@@ -946,7 +950,7 @@ class Call(Statement, DataNode):
 
         if len(self.arguments) > len(routine.symbol_table.argument_list):
             call_str = self.debug_string().replace("\n", "")
-            raise CallMatchingArgumentsNotFound(
+            raise CallMatchingArgumentsNotFoundError(
                 f"More arguments in call ('{call_str}')"
                 f" than callee (routine '{routine.name}')"
             )
@@ -999,7 +1003,7 @@ class Call(Statement, DataNode):
 
             else:
                 # It doesn't match => Raise exception
-                raise CallMatchingArgumentsNotFound(
+                raise CallMatchingArgumentsNotFoundError(
                     f"Named argument '{arg_name}' not found"
                 )
 
@@ -1019,7 +1023,7 @@ class Call(Statement, DataNode):
             if ", OPTIONAL" in str(routine_arg.datatype):
                 continue
 
-            raise CallMatchingArgumentsNotFound(
+            raise CallMatchingArgumentsNotFoundError(
                 f"Argument '{routine_arg.name}' in subroutine"
                 f" '{routine.name}' not handled"
             )
@@ -1073,7 +1077,7 @@ class Call(Statement, DataNode):
                     routine_node,
                     check_strict_array_datatype=check_strict_array_datatype,
                 )
-            except CallMatchingArgumentsNotFound as err:
+            except CallMatchingArgumentsNotFoundError as err:
                 err_info_list.append(err.value)
                 continue
 
@@ -1089,7 +1093,7 @@ class Call(Statement, DataNode):
 
         error_msg = "\n".join(err_info_list)
 
-        raise CallMatchingArgumentsNotFound(
+        raise CallMatchingArgumentsNotFoundError(
             "Found routines, but no routine with matching arguments found "
             f"for '{self.routine.name}':\n"
             + error_msg

@@ -34,7 +34,7 @@
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-"""Performs py.test tests on the Call PSyIR node."""
+''' Performs py.test tests on the Call PSyIR node. '''
 
 import os
 import pytest
@@ -66,18 +66,18 @@ from psyclone.psyir.symbols import (
 )
 from psyclone.errors import GenerationError
 
-from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
+from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFoundError
 
 
 class SpecialCall(Call):
-    """Test Class specialising the Call class"""
+    '''Test Class specialising the Call class'''
 
 
 def test_call_init():
-    """Test that a Call can be created as expected. Also test the routine
+    '''Test that a Call can be created as expected. Also test the routine
     property.
 
-    """
+    '''
     # Initialise without a RoutineSymbol
     call = Call()
     # By default everything is None
@@ -92,15 +92,15 @@ def test_call_init():
     routine = RoutineSymbol("jo", NoType())
     call = Call(parent=parent)
     call.addchild(Reference(routine))
-    call.addchild(Literal("3", INTEGER_TYPE))
+    call.addchild(Literal('3', INTEGER_TYPE))
     assert call.routine.symbol is routine
     assert call.parent is parent
-    assert call.arguments == [Literal("3", INTEGER_TYPE)]
+    assert call.arguments == [Literal('3', INTEGER_TYPE)]
 
 
 def test_call_is_elemental():
-    """Test the is_elemental property of a Call is set correctly and can be
-    queried."""
+    '''Test the is_elemental property of a Call is set correctly and can be
+    queried.'''
     routine = RoutineSymbol("zaphod", NoType())
     call = Call.create(routine)
     assert call.is_elemental is None
@@ -110,8 +110,8 @@ def test_call_is_elemental():
 
 
 def test_call_is_pure():
-    """Test the is_pure property of a Call is set correctly and can be
-    queried."""
+    '''Test the is_pure property of a Call is set correctly and can be
+    queried.'''
     routine = RoutineSymbol("zaphod", NoType())
     call = Call.create(routine)
     assert call.is_pure is None
@@ -121,15 +121,15 @@ def test_call_is_pure():
 
 
 def test_call_is_available_on_device():
-    """Test the is_available_on_device() method of a Call (currently always
-    returns False)."""
+    '''Test the is_available_on_device() method of a Call (currently always
+    returns False). '''
     routine = RoutineSymbol("zaphod", NoType())
     call = Call.create(routine)
     assert call.is_available_on_device() is False
 
 
 def test_call_equality():
-    """Test the __eq__ method of the Call class."""
+    '''Test the __eq__ method of the Call class. '''
     # routine arguments
     routine = RoutineSymbol("j", NoType())
     routine2 = RoutineSymbol("k", NoType())
@@ -154,114 +154,92 @@ def test_call_equality():
     assert call4 != call7
 
     # Check when a Reference (to the same RoutineSymbol) is provided.
-    call8 = Call.create(
-        Reference(routine), [("new_name", Literal("1.0", REAL_TYPE))]
-    )
+    call8 = Call.create(Reference(routine),
+                        [("new_name", Literal("1.0", REAL_TYPE))])
     assert call8 == call7
 
 
 @pytest.mark.parametrize("cls", [Call, SpecialCall])
 def test_call_create(cls):
-    """Test that the create method creates a valid call with arguments,
+    '''Test that the create method creates a valid call with arguments,
     some of which are named. Also checks the routine and argument_names
     properties.
 
-    """
+    '''
     routine = RoutineSymbol("ellie", INTEGER_TYPE)
     array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
-    arguments = [
-        Reference(DataSymbol("arg1", INTEGER_TYPE)),
-        ArrayReference(DataSymbol("arg2", array_type)),
-    ]
+    arguments = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
+                 ArrayReference(DataSymbol("arg2", array_type))]
     call = cls.create(routine, [arguments[0], ("name", arguments[1])])
     # pylint: disable=unidiomatic-typecheck
     assert type(call) is cls
     assert call.routine.symbol is routine
     assert call.argument_names == [None, "name"]
-    for (
-        idx,
-        child,
-    ) in enumerate(call.arguments):
+    for idx, child, in enumerate(call.arguments):
         assert child is arguments[idx]
         assert child.parent is call
 
 
 def test_call_create_error1():
-    """Test that the appropriate exception is raised if the routine
+    '''Test that the appropriate exception is raised if the routine
     argument to the create method is not a RoutineSymbol.
 
-    """
+    '''
     with pytest.raises(TypeError) as info:
         _ = Call.create(None, [])
-    assert (
-        "The Call routine argument should be a Reference to a "
-        "RoutineSymbol or a RoutineSymbol, but found "
-        "'NoneType'."
-        in str(info.value)
-    )
+    assert ("The Call routine argument should be a Reference to a "
+            "RoutineSymbol or a RoutineSymbol, but found "
+            "'NoneType'." in str(info.value))
 
 
 def test_call_create_error2():
-    """Test that the appropriate exception is raised if the arguments
-    argument to the create method is not a list"""
+    '''Test that the appropriate exception is raised if the arguments
+    argument to the create method is not a list'''
     routine = RoutineSymbol("isaac", NoType())
     with pytest.raises(GenerationError) as info:
         _ = Call.create(routine, None)
-    assert (
-        "Call.create 'arguments' argument should be an Iterable but found "
-        "'NoneType'."
-        in str(info.value)
-    )
+    assert ("Call.create 'arguments' argument should be an Iterable but found "
+            "'NoneType'." in str(info.value))
 
 
 def test_call_create_error3():
-    """Test that the appropriate exception is raised if one or more of the
-    argument names is not valid."""
+    '''Test that the appropriate exception is raised if one or more of the
+    argument names is not valid.'''
     routine = RoutineSymbol("roo", INTEGER_TYPE)
     with pytest.raises(ValueError) as info:
         _ = Call.create(
-            routine,
-            [Reference(DataSymbol("arg1", INTEGER_TYPE)), (" a", None)],
-        )
+            routine, [Reference(DataSymbol(
+                "arg1", INTEGER_TYPE)), (" a", None)])
     assert "Invalid Fortran name ' a' found." in str(info.value)
 
 
 def test_call_create_error4():
-    """Test that the appropriate exception is raised if one or more of the
+    '''Test that the appropriate exception is raised if one or more of the
     arguments argument list entries to the create method is not a
     DataNode.
 
-    """
+    '''
     routine = RoutineSymbol("roo", INTEGER_TYPE)
     with pytest.raises(GenerationError) as info:
         _ = Call.create(
-            routine,
-            [Reference(DataSymbol("arg1", INTEGER_TYPE)), ("name", None)],
-        )
-    assert (
-        "Item 'NoneType' can't be child 2 of 'Call'. The valid format "
-        "is: 'Reference, [DataNode]*'."
-        in str(info.value)
-    )
+            routine, [Reference(DataSymbol(
+                "arg1", INTEGER_TYPE)), ("name", None)])
+    assert ("Item 'NoneType' can't be child 2 of 'Call'. The valid format "
+            "is: 'Reference, [DataNode]*'." in str(info.value))
 
 
 def test_call_add_args():
-    """Test the _add_args method in the Call class."""
+    '''Test the _add_args method in the Call class.'''
 
     routine = RoutineSymbol("myeloma", INTEGER_TYPE)
     call = Call.create(routine)
     array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
-    arguments = [
-        Reference(DataSymbol("arg1", INTEGER_TYPE)),
-        ArrayReference(DataSymbol("arg2", array_type)),
-    ]
+    arguments = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
+                 ArrayReference(DataSymbol("arg2", array_type))]
     Call._add_args(call, [arguments[0], ("name", arguments[1])])
     assert call.routine.symbol is routine
     assert call.argument_names == [None, "name"]
-    for (
-        idx,
-        child,
-    ) in enumerate(call.arguments):
+    for idx, child, in enumerate(call.arguments):
         assert child is arguments[idx]
         assert child.parent is call
     # For some reason pylint thinks that call.children[0,1] are of
@@ -273,42 +251,37 @@ def test_call_add_args():
 
 
 def test_call_add_args_error1():
-    """Test that the appropriate exception is raised if an entry in the
+    '''Test that the appropriate exception is raised if an entry in the
     arguments argument to the _add_args method is a tuple that does
     not have two elements.
 
-    """
+    '''
     routine = RoutineSymbol("isaac", NoType())
     with pytest.raises(GenerationError) as info:
         _ = Call._add_args(routine, [(1, 2, 3)])
-    assert (
-        "If a child of the children argument in create method of Call "
-        "class is a tuple, it's length should be 2, but found 3."
-        in str(info.value)
-    )
+    assert ("If a child of the children argument in create method of Call "
+            "class is a tuple, it's length should be 2, but found 3."
+            in str(info.value))
 
 
 def test_call_add_args_error2():
-    """Test that the appropriate exception is raised if an entry in the
+    '''Test that the appropriate exception is raised if an entry in the
     arguments argument to the _add_args method is is a tuple with two
-    elements and the first element is not a string."""
+    elements and the first element is not a string.'''
     routine = RoutineSymbol("isaac", NoType())
     with pytest.raises(GenerationError) as info:
         _ = Call._add_args(routine, [(1, 2)])
-    assert (
-        "If a child of the children argument in create method of Call "
-        "class is a tuple, its first argument should be a str, but "
-        "found int."
-        in str(info.value)
-    )
+    assert ("If a child of the children argument in create method of Call "
+            "class is a tuple, its first argument should be a str, but "
+            "found int." in str(info.value))
 
 
 def test_call_appendnamedarg():
-    """Test the append_named_arg method in the Call class. Check
+    '''Test the append_named_arg method in the Call class. Check
     it raises the expected exceptions if arguments are invalid and
     that it works as expected when the input is valid.
 
-    """
+    '''
     op1 = Literal("1", INTEGER_TYPE)
     op2 = Literal("2", INTEGER_TYPE)
     op3 = Literal("3", INTEGER_TYPE)
@@ -316,7 +289,8 @@ def test_call_appendnamedarg():
     # name arg wrong type
     with pytest.raises(TypeError) as info:
         call.append_named_arg(1, op1)
-    assert "A name should be a string, but found 'int'." in str(info.value)
+    assert ("A name should be a string, but found 'int'."
+            in str(info.value))
     # invalid name
     with pytest.raises(ValueError) as info:
         call.append_named_arg("_", op1)
@@ -325,11 +299,9 @@ def test_call_appendnamedarg():
     call.append_named_arg("name1", op1)
     with pytest.raises(ValueError) as info:
         call.append_named_arg("name1", op2)
-    assert (
-        "The value of the name argument (name1) in 'append_named_arg' in "
-        "the 'Call' node is already used for a named argument."
-        in str(info.value)
-    )
+    assert ("The value of the name argument (name1) in 'append_named_arg' in "
+            "the 'Call' node is already used for a named argument."
+            in str(info.value))
     # ok
     call.append_named_arg("name2", op2)
     call.append_named_arg(None, op3)
@@ -338,11 +310,11 @@ def test_call_appendnamedarg():
 
 
 def test_call_insertnamedarg():
-    """Test the insert_named_arg method in the Call class. Check
+    '''Test the insert_named_arg method in the Call class. Check
     it raises the expected exceptions if arguments are invalid and
     that it works as expected when the input is valid.
 
-    """
+    '''
     op1 = Literal("1", INTEGER_TYPE)
     op2 = Literal("2", INTEGER_TYPE)
     op3 = Literal("3", INTEGER_TYPE)
@@ -350,7 +322,8 @@ def test_call_insertnamedarg():
     # name arg wrong type
     with pytest.raises(TypeError) as info:
         call.insert_named_arg(1, op1, 0)
-    assert "A name should be a string, but found 'int'." in str(info.value)
+    assert ("A name should be a string, but found 'int'."
+            in str(info.value))
     # invalid name
     with pytest.raises(ValueError) as info:
         call.insert_named_arg("1", op1, 0)
@@ -359,19 +332,14 @@ def test_call_insertnamedarg():
     call.insert_named_arg("name1", op1, 0)
     with pytest.raises(ValueError) as info:
         call.insert_named_arg("name1", op2, 0)
-    assert (
-        "The value of the name argument (name1) in 'insert_named_arg' in "
-        "the 'Call' node is already used for a named argument."
-        in str(info.value)
-    )
+    assert ("The value of the name argument (name1) in 'insert_named_arg' in "
+            "the 'Call' node is already used for a named argument."
+            in str(info.value))
     # invalid index type
     with pytest.raises(TypeError) as info:
         call.insert_named_arg("name2", op2, "hello")
-    assert (
-        "The 'index' argument in 'insert_named_arg' in the 'Call' node "
-        "should be an int but found str."
-        in str(info.value)
-    )
+    assert ("The 'index' argument in 'insert_named_arg' in the 'Call' node "
+            "should be an int but found str." in str(info.value))
     # ok
     assert call.arguments == [op1]
     assert call.argument_names == ["name1"]
@@ -384,35 +352,28 @@ def test_call_insertnamedarg():
 
 
 def test_call_replacenamedarg():
-    """Test the replace_named_arg method in the Call class. Check
+    '''Test the replace_named_arg method in the Call class. Check
     it raises the expected exceptions if arguments are invalid and
     that it works as expected when the input is valid.
 
-    """
+    '''
     op1 = Literal("1", INTEGER_TYPE)
     op2 = Literal("2", INTEGER_TYPE)
     op3 = Literal("3", INTEGER_TYPE)
-    call = Call.create(
-        RoutineSymbol("hello"), [("name1", op1), ("name2", op2)]
-    )
+    call = Call.create(RoutineSymbol("hello"),
+                       [("name1", op1), ("name2", op2)])
 
     # name arg wrong type
     with pytest.raises(TypeError) as info:
         call.replace_named_arg(1, op3)
-    assert (
-        "The 'name' argument in 'replace_named_arg' in the 'Call' "
-        "node should be a string, but found int."
-        in str(info.value)
-    )
+    assert ("The 'name' argument in 'replace_named_arg' in the 'Call' "
+            "node should be a string, but found int." in str(info.value))
     # name arg is not found
     with pytest.raises(ValueError) as info:
         call.replace_named_arg("new_name", op3)
-    assert (
-        "The value of the existing_name argument (new_name) in "
-        "'replace_named_arg' in the 'Call' node was not found in the "
-        "existing arguments."
-        in str(info.value)
-    )
+    assert ("The value of the existing_name argument (new_name) in "
+            "'replace_named_arg' in the 'Call' node was not found in the "
+            "existing arguments." in str(info.value))
     # ok
     assert call.arguments == [op1, op2]
     assert call.argument_names == ["name1", "name2"]
@@ -426,7 +387,7 @@ def test_call_replacenamedarg():
 
 
 def test_call_reference_accesses():
-    """Test the reference_accesses() method."""
+    '''Test the reference_accesses() method.'''
     rsym = RoutineSymbol("trillian")
     # A call with an argument passed by value.
     call1 = Call.create(rsym, [Literal("1", INTEGER_TYPE)])
@@ -451,20 +412,16 @@ def test_call_reference_accesses():
     assert var_info.has_read_write(Signature("gamma"))
     assert var_info.is_read(Signature("ji"))
     # Argument is a temporary so any inputs to it are READ only.
-    expr = BinaryOperation.create(
-        BinaryOperation.Operator.MUL,
-        Literal("2", INTEGER_TYPE),
-        Reference(dsym),
-    )
+    expr = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                  Literal("2", INTEGER_TYPE), Reference(dsym))
     call4 = Call.create(rsym, [expr])
     var_info = VariablesAccessInfo()
     call4.reference_accesses(var_info)
     assert var_info.is_read(Signature("beta"))
     # Argument is itself a function call: call trillian(some_func(gamma(ji)))
     fsym = RoutineSymbol("some_func")
-    fcall = Call.create(
-        fsym, [ArrayReference.create(asym, [Reference(idx_sym)])]
-    )
+    fcall = Call.create(fsym,
+                        [ArrayReference.create(asym, [Reference(idx_sym)])])
     call5 = Call.create(rsym, [fcall])
     call5.reference_accesses(var_info)
     assert var_info.has_read_write(Signature("gamma"))
@@ -479,11 +436,11 @@ def test_call_reference_accesses():
 
 
 def test_call_argumentnames_after_removearg():
-    """Test the argument_names property makes things consistent if a child
+    '''Test the argument_names property makes things consistent if a child
     argument is removed. This is used transparently by the class to
     keep things consistent.
 
-    """
+    '''
     op1 = Literal("1", INTEGER_TYPE)
     op2 = Literal("1", INTEGER_TYPE)
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
@@ -499,11 +456,11 @@ def test_call_argumentnames_after_removearg():
 
 
 def test_call_argumentnames_after_addarg():
-    """Test the argument_names property makes things consistent if a child
+    '''Test the argument_names property makes things consistent if a child
     argument is added. This is used transparently by the class to
     keep things consistent.
 
-    """
+    '''
     op1 = Literal("1", INTEGER_TYPE)
     op2 = Literal("1", INTEGER_TYPE)
     op3 = Literal("1", INTEGER_TYPE)
@@ -520,11 +477,11 @@ def test_call_argumentnames_after_addarg():
 
 
 def test_call_argumentnames_after_replacearg():
-    """Test the argument_names property makes things consistent if a child
+    '''Test the argument_names property makes things consistent if a child
     argument is replaced. This is used transparently by the class to
     keep things consistent.
 
-    """
+    '''
     op1 = Literal("1", INTEGER_TYPE)
     op2 = Literal("1", INTEGER_TYPE)
     op3 = Literal("1", INTEGER_TYPE)
@@ -543,11 +500,11 @@ def test_call_argumentnames_after_replacearg():
 
 
 def test_call_argumentnames_after_reorderarg():
-    """Test the argument_names property makes things consistent if a child
+    '''Test the argument_names property makes things consistent if a child
     argument is replaced. This is used transparently by the class to
     keep things consistent.
 
-    """
+    '''
     op1 = Literal("1", INTEGER_TYPE)
     op2 = Literal("1", INTEGER_TYPE)
     op3 = Literal("1", INTEGER_TYPE)
@@ -564,10 +521,10 @@ def test_call_argumentnames_after_reorderarg():
 
 
 def test_call_node_reconcile_add():
-    """Test that the reconcile method behaves as expected. Use an example
+    '''Test that the reconcile method behaves as expected. Use an example
     where we add a new arg.
 
-    """
+    '''
     op1 = Literal("1", INTEGER_TYPE)
     op2 = Literal("1", INTEGER_TYPE)
     op3 = Literal("1", INTEGER_TYPE)
@@ -590,10 +547,10 @@ def test_call_node_reconcile_add():
 
 
 def test_call_node_reconcile_reorder():
-    """Test that the reconcile method behaves as expected. Use an example
+    '''Test that the reconcile method behaves as expected. Use an example
     where we reorder the arguments.
 
-    """
+    '''
     op1 = Literal("1", INTEGER_TYPE)
     op2 = Literal("2", INTEGER_TYPE)
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
@@ -617,22 +574,22 @@ def test_call_node_reconcile_reorder():
 
 
 def test_call_node_str():
-    """Test that the node_str method behaves as expected"""
+    ''' Test that the node_str method behaves as expected '''
     routine = RoutineSymbol("isaac", NoType())
     call = Call.create(routine)
     colouredtext = colored("Call", Call._colour)
-    assert call.node_str() == colouredtext + "[name='isaac']"
+    assert call.node_str() == colouredtext+"[name='isaac']"
 
 
 def test_call_str():
-    """Test that the str method behaves as expected"""
+    ''' Test that the str method behaves as expected '''
     routine = RoutineSymbol("roo", NoType())
     call = Call.create(routine)
     assert str(call) == "Call[name='roo']"
 
 
 def test_copy():
-    """Test that the copy() method behaves as expected."""
+    ''' Test that the copy() method behaves as expected. '''
     op1 = Literal("1", INTEGER_TYPE)
     op2 = Literal("2", INTEGER_TYPE)
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
@@ -665,11 +622,11 @@ def test_copy():
 
 
 def test_call_get_callees_local(fortran_reader):
-    """
+    '''
     Check that get_callees() works as expected when the target of the Call
     exists in the same Container as the call site.
-    """
-    code = """
+    '''
+    code = '''
 module some_mod
   implicit none
   integer :: luggage
@@ -682,7 +639,7 @@ contains
   subroutine bottom()
     luggage = luggage + 1
   end subroutine bottom
-end module some_mod"""
+end module some_mod'''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     result = call.get_callees()
@@ -690,11 +647,11 @@ end module some_mod"""
 
 
 def test_call_get_callee_1_simple_match(fortran_reader):
-    """
+    '''
     Check that the right routine has been found for a single routine
     implementation.
-    """
-    code = """
+    '''
+    code = '''
 module some_mod
   implicit none
 contains
@@ -709,7 +666,7 @@ contains
     integer :: a, b, c
   end subroutine
 
-end module some_mod"""
+end module some_mod'''
 
     psyir = fortran_reader.psyir_from_source(code)
 
@@ -725,10 +682,10 @@ end module some_mod"""
 
 
 def test_call_get_callee_2_optional_args(fortran_reader):
-    """
+    '''
     Check that optional arguments have been correlated correctly.
-    """
-    code = """
+    '''
+    code = '''
 module some_mod
   implicit none
 contains
@@ -744,7 +701,7 @@ contains
     integer, optional :: c
   end subroutine
 
-end module some_mod"""
+end module some_mod'''
 
     root_node: Node = fortran_reader.psyir_from_source(code)
 
@@ -768,10 +725,10 @@ end module some_mod"""
 
 
 def test_call_get_callee_3_trigger_error(fortran_reader):
-    """
+    '''
     Test which is supposed to trigger an error.
-    """
-    code = """
+    '''
+    code = '''
 module some_mod
   implicit none
 contains
@@ -786,7 +743,7 @@ contains
     integer :: a, b
   end subroutine
 
-end module some_mod"""
+end module some_mod'''
 
     root_node: Node = fortran_reader.psyir_from_source(code)
 
@@ -799,7 +756,7 @@ end module some_mod"""
     call_foo: Call = routine_main.walk(Call)[0]
     assert call_foo.routine.name == "foo"
 
-    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+    with pytest.raises(CallMatchingArgumentsNotFoundError) as err:
         call_foo.get_callee()
 
     assert (
@@ -809,10 +766,10 @@ end module some_mod"""
 
 
 def test_call_get_callee_4_named_arguments(fortran_reader):
-    """
+    '''
     Check that named arguments have been correlated correctly
-    """
-    code = """
+    '''
+    code = '''
 module some_mod
   implicit none
 contains
@@ -827,7 +784,7 @@ contains
     integer :: a, b, c
   end subroutine
 
-end module some_mod"""
+end module some_mod'''
 
     root_node: Node = fortran_reader.psyir_from_source(code)
 
@@ -852,11 +809,11 @@ end module some_mod"""
 
 
 def test_call_get_callee_5_optional_and_named_arguments(fortran_reader):
-    """
+    '''
     Check that optional and named arguments have been correlated correctly
     when the call is to a generic interface.
-    """
-    code = """
+    '''
+    code = '''
 module some_mod
   implicit none
 contains
@@ -872,7 +829,7 @@ contains
     integer, optional :: c
   end subroutine
 
-end module some_mod"""
+end module some_mod'''
 
     root_node: Node = fortran_reader.psyir_from_source(code)
 
@@ -895,7 +852,7 @@ end module some_mod"""
     assert result is routine_match
 
 
-_code_test_get_callee_6 = """
+_code_test_get_callee_6 = '''
 module some_mod
   implicit none
 
@@ -952,13 +909,13 @@ contains
     integer, optional :: c
   end subroutine
 
-end module some_mod"""
+end module some_mod'''
 
 
 def test_call_get_callee_6_interfaces_0_0(fortran_reader):
-    """
+    '''
     Check that optional and named arguments have been correlated correctly
-    """
+    '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
 
@@ -982,9 +939,9 @@ def test_call_get_callee_6_interfaces_0_0(fortran_reader):
 
 
 def test_call_get_callee_6_interfaces_0_1(fortran_reader):
-    """
+    '''
     Check that optional and named arguments have been correlated correctly
-    """
+    '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
 
@@ -1009,9 +966,9 @@ def test_call_get_callee_6_interfaces_0_1(fortran_reader):
 
 
 def test_call_get_callee_6_interfaces_1_0(fortran_reader):
-    """
+    '''
     Check that optional and named arguments have been correlated correctly
-    """
+    '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
 
@@ -1035,9 +992,9 @@ def test_call_get_callee_6_interfaces_1_0(fortran_reader):
 
 
 def test_call_get_callee_6_interfaces_1_1(fortran_reader):
-    """
+    '''
     Check that optional and named arguments have been correlated correctly
-    """
+    '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
 
@@ -1062,9 +1019,9 @@ def test_call_get_callee_6_interfaces_1_1(fortran_reader):
 
 
 def test_call_get_callee_6_interfaces_1_2(fortran_reader):
-    """
+    '''
     Check that optional and named arguments have been correlated correctly
-    """
+    '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
 
@@ -1089,9 +1046,9 @@ def test_call_get_callee_6_interfaces_1_2(fortran_reader):
 
 
 def test_call_get_callee_6_interfaces_2_0(fortran_reader):
-    """
+    '''
     Check that optional and named arguments have been correlated correctly
-    """
+    '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
 
@@ -1121,9 +1078,9 @@ def test_call_get_callee_6_interfaces_2_0(fortran_reader):
 
 
 def test_call_get_callee_6_interfaces_2_1(fortran_reader):
-    """
+    '''
     Check that optional and named arguments have been correlated correctly
-    """
+    '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
 
@@ -1147,9 +1104,9 @@ def test_call_get_callee_6_interfaces_2_1(fortran_reader):
 
 
 def test_call_get_callee_6_interfaces_2_2(fortran_reader):
-    """
+    '''
     Check that optional and named arguments have been correlated correctly
-    """
+    '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
 
@@ -1174,10 +1131,10 @@ def test_call_get_callee_6_interfaces_2_2(fortran_reader):
 
 
 def test_call_get_callee_7_matching_arguments_not_found(fortran_reader):
-    """
+    '''
     Trigger error that matching arguments were not found
-    """
-    code = """
+    '''
+    code = '''
 module some_mod
   implicit none
 contains
@@ -1194,7 +1151,7 @@ contains
     integer :: a, b, c
   end subroutine
 
-end module some_mod"""
+end module some_mod'''
 
     psyir = fortran_reader.psyir_from_source(code)
 
@@ -1203,7 +1160,7 @@ end module some_mod"""
 
     call_foo: Call = routine_main.walk(Call)[0]
 
-    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+    with pytest.raises(CallMatchingArgumentsNotFoundError) as err:
         call_foo.get_callee()
 
     assert (
@@ -1213,10 +1170,10 @@ end module some_mod"""
 
 
 def test_call_get_callee_8_arguments_not_handled(fortran_reader):
-    """
+    '''
     Trigger error that matching arguments were not found
-    """
-    code = """
+    '''
+    code = '''
 module some_mod
   implicit none
 contains
@@ -1232,7 +1189,7 @@ contains
     integer :: a, b, c
   end subroutine
 
-end module some_mod"""
+end module some_mod'''
 
     psyir = fortran_reader.psyir_from_source(code)
 
@@ -1241,7 +1198,7 @@ end module some_mod"""
 
     call_foo: Call = routine_main.walk(Call)[0]
 
-    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+    with pytest.raises(CallMatchingArgumentsNotFoundError) as err:
         call_foo.get_callee()
 
     assert (
@@ -1252,90 +1209,75 @@ end module some_mod"""
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_call_get_callees_unresolved(fortran_reader, tmpdir, monkeypatch):
-    """
+    '''
     Test that get_callees() raises the expected error if the called routine
     is unresolved.
-    """
-    code = """
+    '''
+    code = '''
 subroutine top()
   call bottom()
-end subroutine top"""
+end subroutine top'''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
-    assert (
-        "Failed to find the source code of the unresolved routine 'bottom'"
-        " - looked at any routines in the same source file and there are "
-        "no wildcard imports."
-        in str(err.value)
-    )
+    assert ("Failed to find the source code of the unresolved routine 'bottom'"
+            " - looked at any routines in the same source file and there are "
+            "no wildcard imports." in str(err.value))
     # Repeat but in the presence of a wildcard import.
-    code = """
+    code = '''
 subroutine top()
   use some_mod_somewhere
   call bottom()
-end subroutine top"""
+end subroutine top'''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
-    assert (
-        "Failed to find the source code of the unresolved routine 'bottom'"
-        " - looked at any routines in the same source file and attempted "
-        "to resolve the wildcard imports from ['some_mod_somewhere']. "
-        "However, failed to find the source for ['some_mod_somewhere']. "
-        "The module search path is set to []"
-        in str(err.value)
-    )
+    assert ("Failed to find the source code of the unresolved routine 'bottom'"
+            " - looked at any routines in the same source file and attempted "
+            "to resolve the wildcard imports from ['some_mod_somewhere']. "
+            "However, failed to find the source for ['some_mod_somewhere']. "
+            "The module search path is set to []" in str(err.value))
     # Repeat but when some_mod_somewhere *is* resolved but doesn't help us
     # find the routine we're looking for.
     mod_manager = ModuleManager.get()
     monkeypatch.setattr(mod_manager, "_instance", None)
     path = str(tmpdir)
-    monkeypatch.setattr(Config.get(), "_include_paths", [path])
-    with open(
-        os.path.join(path, "some_mod_somewhere.f90"), "w", encoding="utf-8"
-    ) as ofile:
-        ofile.write(
-            """\
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
+    with open(os.path.join(path, "some_mod_somewhere.f90"), "w",
+              encoding="utf-8") as ofile:
+        ofile.write('''\
 module some_mod_somewhere
 end module some_mod_somewhere
-"""
-        )
+''')
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
-    assert (
-        "Failed to find the source code of the unresolved routine 'bottom'"
-        " - looked at any routines in the same source file and wildcard "
-        "imports from ['some_mod_somewhere']."
-        in str(err.value)
-    )
+    assert ("Failed to find the source code of the unresolved routine 'bottom'"
+            " - looked at any routines in the same source file and wildcard "
+            "imports from ['some_mod_somewhere']." in str(err.value))
     mod_manager = ModuleManager.get()
     monkeypatch.setattr(mod_manager, "_instance", None)
-    code = """
+    code = '''
 subroutine top()
   use another_mod, only: this_one
   call this_one()
-end subroutine top"""
+end subroutine top'''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
-    assert (
-        "RoutineSymbol 'this_one' is imported from Container 'another_mod'"
-        " but the source defining that container could not be found. The "
-        "module search path is set to ["
-        in str(err.value)
-    )
+    assert ("RoutineSymbol 'this_one' is imported from Container 'another_mod'"
+            " but the source defining that container could not be found. The "
+            "module search path is set to [" in str(err.value))
 
 
 def test_call_get_callees_interface(fortran_reader):
-    """
+    '''
     Check that get_callees() works correctly when the target of a call is
     actually a generic interface.
-    """
-    code = """
+    '''
+    code = '''
 module my_mod
 
     interface bottom
@@ -1358,7 +1300,7 @@ contains
     luggage = luggage + 1.0
   end subroutine rbottom
 end module my_mod
-"""
+'''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     callees = call.get_callees()
@@ -1370,13 +1312,13 @@ end module my_mod
 
 
 def test_call_get_callees_unsupported_type(fortran_reader):
-    """
+    '''
     Check that get_callees() raises the expected error when the called routine
     is of UnsupportedFortranType. This is hard to achieve so we have to
     manually construct some aspects of the test case.
 
-    """
-    code = """
+    '''
+    code = '''
 module my_mod
   integer, target :: value
 contains
@@ -1389,7 +1331,7 @@ contains
     fval => value
   end function bottom
 end module my_mod
-"""
+'''
     psyir = fortran_reader.psyir_from_source(code)
     container = psyir.children[0]
     routine = container.find_routine_psyir("bottom")
@@ -1406,19 +1348,16 @@ end module my_mod
     call = psyir.walk(Call)[0]
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
-    assert (
-        "RoutineSymbol 'bottom' exists in Container 'my_mod' but is of "
-        "UnsupportedFortranType"
-        in str(err.value)
-    )
+    assert ("RoutineSymbol 'bottom' exists in Container 'my_mod' but is of "
+            "UnsupportedFortranType" in str(err.value))
 
 
 def test_call_get_callees_file_container(fortran_reader):
-    """
+    '''
     Check that get_callees works if the called routine happens to be in file
     scope, even when there's no Container.
-    """
-    code = """
+    '''
+    code = '''
   subroutine top()
     integer :: luggage
     luggage = 0
@@ -1429,7 +1368,7 @@ def test_call_get_callees_file_container(fortran_reader):
     integer :: luggage
     luggage = luggage + 1
   end subroutine bottom
-"""
+'''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     result = call.get_callees()
@@ -1439,13 +1378,13 @@ def test_call_get_callees_file_container(fortran_reader):
 
 
 def test_call_get_callees_no_container(fortran_reader):
-    """
+    '''
     Check that get_callees() raises the expected error when the Call is not
     within a Container and the target routine cannot be found.
-    """
+    '''
     # To avoid having the routine symbol immediately dismissed as
     # unresolved, the code that we initially process *does* have a Container.
-    code = """
+    code = '''
 module my_mod
 
 contains
@@ -1460,7 +1399,7 @@ contains
     luggage = luggage + 1
   end subroutine bottom
 end module my_mod
-"""
+'''
     psyir = fortran_reader.psyir_from_source(code)
     top_routine = psyir.walk(Routine)[0]
     # Deliberately make the Routine node an orphan so there's no Container.
@@ -1468,18 +1407,16 @@ end module my_mod
     call = top_routine.walk(Call)[0]
     with pytest.raises(SymbolError) as err:
         _ = call.get_callees()
-    assert (
-        "Failed to find a Routine named 'bottom' in code:\n'subroutine top()"
-        in str(err.value)
-    )
+    assert ("Failed to find a Routine named 'bottom' in code:\n'subroutine "
+            "top()" in str(err.value))
 
 
 def test_call_get_callees_wildcard_import_local_container(fortran_reader):
-    """
+    '''
     Check that get_callees() works successfully for a routine accessed via
     a wildcard import from another module in the same file.
-    """
-    code = """
+    '''
+    code = '''
 module some_mod
 contains
   subroutine just_do_it()
@@ -1493,7 +1430,7 @@ contains
     call just_do_it()
   end subroutine run_it
 end module other_mod
-"""
+'''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     routines = call.get_callees()
@@ -1503,11 +1440,11 @@ end module other_mod
 
 
 def test_call_get_callees_import_local_container(fortran_reader):
-    """
+    '''
     Check that get_callees() works successfully for a routine accessed via
     a specific import from another module in the same file.
-    """
-    code = """
+    '''
+    code = '''
 module some_mod
 contains
   subroutine just_do_it()
@@ -1521,7 +1458,7 @@ contains
     call just_do_it()
   end subroutine run_it
 end module other_mod
-"""
+'''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     routines = call.get_callees()
@@ -1531,14 +1468,13 @@ end module other_mod
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_call_get_callees_wildcard_import_container(
-    fortran_reader, tmpdir, monkeypatch
-):
-    """
+def test_call_get_callees_wildcard_import_container(fortran_reader,
+                                                    tmpdir, monkeypatch):
+    '''
     Check that get_callees() works successfully for a routine accessed via
     a wildcard import from a module in another file.
-    """
-    code = """
+    '''
+    code = '''
 module other_mod
   use some_mod
 contains
@@ -1546,34 +1482,29 @@ contains
     call just_do_it()
   end subroutine run_it
 end module other_mod
-"""
+'''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     # This should fail as it can't find the module.
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
-    assert (
-        "Failed to find the source code of the unresolved routine "
-        "'just_do_it' - looked at any routines in the same source file"
-        in str(err.value)
-    )
+    assert ("Failed to find the source code of the unresolved routine "
+            "'just_do_it' - looked at any routines in the same source file"
+            in str(err.value))
     # Create the module containing the subroutine definition,
     # write it to file and set the search path so that PSyclone can find it.
     path = str(tmpdir)
-    monkeypatch.setattr(Config.get(), "_include_paths", [path])
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
 
-    with open(
-        os.path.join(path, "some_mod.f90"), "w", encoding="utf-8"
-    ) as mfile:
-        mfile.write(
-            """\
+    with open(os.path.join(path, "some_mod.f90"),
+              "w", encoding="utf-8") as mfile:
+        mfile.write('''\
 module some_mod
 contains
   subroutine just_do_it()
     write(*,*) "hello"
   end subroutine just_do_it
-end module some_mod"""
-        )
+end module some_mod''')
     routines = call.get_callees()
     assert len(routines) == 1
     assert isinstance(routines[0], Routine)
@@ -1581,10 +1512,10 @@ end module some_mod"""
 
 
 def test_fn_call_get_callees(fortran_reader):
-    """
+    '''
     Test that get_callees() works for a function call.
-    """
-    code = """
+    '''
+    code = '''
 module some_mod
   implicit none
   integer :: luggage
@@ -1599,7 +1530,7 @@ contains
     integer :: my_func
     my_func = 1 + val
   end function my_func
-end module some_mod"""
+end module some_mod'''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     result = call.get_callees()
@@ -1607,9 +1538,9 @@ end module some_mod"""
 
 
 def test_get_callees_code_block(fortran_reader):
-    """Test that get_callees() raises the expected error when the called
-    routine is in a CodeBlock."""
-    code = """
+    '''Test that get_callees() raises the expected error when the called
+    routine is in a CodeBlock.'''
+    code = '''
 module some_mod
   implicit none
   integer :: luggage
@@ -1623,24 +1554,22 @@ contains
     integer, intent(in) :: val
     my_func = CMPLX(1 + val, 1.0)
   end function my_func
-end module some_mod"""
+end module some_mod'''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[1]
     with pytest.raises(SymbolError) as err:
         _ = call.get_callees()
-    assert (
-        "Failed to find a Routine named 'my_func' in Container 'some_mod'"
-        in str(err.value)
-    )
+    assert ("Failed to find a Routine named 'my_func' in Container "
+            "'some_mod'" in str(err.value))
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_get_callees_follow_imports(fortran_reader, tmpdir, monkeypatch):
-    """
+    '''
     Test that get_callees() follows imports to find the definition of the
     called routine.
-    """
-    code = """
+    '''
+    code = '''
 module some_mod
   use other_mod, only: pack_it
   implicit none
@@ -1649,29 +1578,24 @@ contains
     integer :: luggage = 0
     call pack_it(luggage)
   end subroutine top
-end module some_mod"""
+end module some_mod'''
     # Create the module containing an import of the subroutine definition,
     # write it to file and set the search path so that PSyclone can find it.
     path = str(tmpdir)
-    monkeypatch.setattr(Config.get(), "_include_paths", [path])
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
 
-    with open(
-        os.path.join(path, "other_mod.f90"), "w", encoding="utf-8"
-    ) as mfile:
-        mfile.write(
-            """\
+    with open(os.path.join(path, "other_mod.f90"),
+              "w", encoding="utf-8") as mfile:
+        mfile.write('''\
     module other_mod
         use another_mod, only: pack_it
     contains
     end module other_mod
-    """
-        )
+    ''')
     # Finally, create the module containing the routine definition.
-    with open(
-        os.path.join(path, "another_mod.f90"), "w", encoding="utf-8"
-    ) as mfile:
-        mfile.write(
-            """\
+    with open(os.path.join(path, "another_mod.f90"),
+              "w", encoding="utf-8") as mfile:
+        mfile.write('''\
     module another_mod
     contains
         subroutine pack_it(arg)
@@ -1679,8 +1603,7 @@ end module some_mod"""
           arg = arg + 2
         end subroutine pack_it
     end module another_mod
-    """
-        )
+    ''')
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     result = call.get_callees()
@@ -1691,12 +1614,12 @@ end module some_mod"""
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_get_callees_import_private_clash(fortran_reader, tmpdir, monkeypatch):
-    """
+    '''
     Test that get_callees() raises the expected error if a module from which
     a routine is imported has a private shadow of that routine (and thus we
     don't know where to look for the target routine).
-    """
-    code = """
+    '''
+    code = '''
 module some_mod
   use other_mod, only: pack_it
   implicit none
@@ -1705,18 +1628,16 @@ contains
     integer :: luggage = 0
     call pack_it(luggage)
   end subroutine top
-end module some_mod"""
+end module some_mod'''
     # Create the module containing a private routine with the name we are
     # searching for, write it to file and set the search path so that PSyclone
     # can find it.
     path = str(tmpdir)
-    monkeypatch.setattr(Config.get(), "_include_paths", [path])
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
 
-    with open(
-        os.path.join(path, "other_mod.f90"), "w", encoding="utf-8"
-    ) as mfile:
-        mfile.write(
-            """\
+    with open(os.path.join(path, "other_mod.f90"),
+              "w", encoding="utf-8") as mfile:
+        mfile.write('''\
     module other_mod
         use another_mod
         private pack_it
@@ -1726,16 +1647,12 @@ end module some_mod"""
           integer :: pack_it
         end function pack_it
     end module other_mod
-    """
-        )
+    ''')
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
-    assert (
-        "RoutineSymbol 'pack_it' is imported from Container 'other_mod' "
-        "but that Container defines a private Symbol of the same name. "
-        "Searching for the Container that defines a public Routine with "
-        "that name is not yet supported - TODO #924"
-        in str(err.value)
-    )
+    assert ("RoutineSymbol 'pack_it' is imported from Container 'other_mod' "
+            "but that Container defines a private Symbol of the same name. "
+            "Searching for the Container that defines a public Routine with "
+            "that name is not yet supported - TODO #924" in str(err.value))

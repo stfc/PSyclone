@@ -128,7 +128,7 @@ class ContainerSymbol(Symbol):
     def find_container_psyir(
         self, local_node=None, ignore_missing_modules: bool = False
     ):
-        ''' Searches for the Container that this Symbol refers to. If it is
+        """Searches for the Container that this Symbol refers to. If it is
         not available, use the interface to import the container. If
         `local_node` is supplied then the PSyIR tree below it is searched for
         the container first.
@@ -137,10 +137,14 @@ class ContainerSymbol(Symbol):
                            the container.
         :type local_node: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
+        :param ignore_missing_modules: If 'True', no ModuleNotFound exception=
+            is raised in case in case the module wasn't found.
+        :type ignore_missing_modules: bool
+
         :returns: referenced container.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
-        '''
+        """
         if not self._reference:
             # First check in the current PSyIR tree (if supplied).
             if local_node:
@@ -153,7 +157,10 @@ class ContainerSymbol(Symbol):
                         self._reference = local
                         return self._reference
             # We didn't find it so now attempt to import the container.
-            self._reference = self._interface.get_container(self._name)
+            try:
+                self._reference = self._interface.get_container(self._name)
+            except ModuleNotFoundError:
+                return None
         return self._reference
 
     def __str__(self):

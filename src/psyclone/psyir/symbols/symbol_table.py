@@ -588,7 +588,7 @@ class SymbolTable():
     def check_for_clashes(
         self, other_table, symbols_to_skip=(), check_unresolved_symbols=True
     ):
-        '''
+        """
         Checks the symbols in the supplied table against those in
         this table. If there is a name clash that cannot be resolved by
         renaming then a SymbolError is raised. Any symbols appearing
@@ -600,13 +600,16 @@ class SymbolTable():
             the check.
         :type symbols_to_skip: Iterable[
             :py:class:`psyclone.psyir.symbols.Symbol`]
+        :param check_unresolved_symbols: If 'True', also check unresolved
+            symbols
+        :type check_unresolved_symbols: bool
 
         :raises TypeError: if symbols_to_skip is supplied but is not an
             instance of Iterable.
         :raises SymbolError: if there would be an unresolvable name clash
             when importing symbols from `other_table` into this table.
 
-        '''
+        """
         # pylint: disable-next=import-outside-toplevel
         from psyclone.psyir.nodes import IntrinsicCall
 
