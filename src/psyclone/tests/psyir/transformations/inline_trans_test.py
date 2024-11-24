@@ -268,7 +268,7 @@ def test_apply_gocean_kern(fortran_reader, fortran_writer, monkeypatch):
     monkeypatch.setattr(Config.get(), '_include_paths', [str(src_dir)])
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(psyir.walk(Call)[0])
     if ("actual argument 'cu_fld' corresponding to an array formal "
@@ -326,7 +326,7 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(routine)
 
@@ -399,7 +399,7 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     calls = psyir.walk(Call)
     # First one should be fine.
     inline_trans.apply(calls[0])
@@ -462,7 +462,7 @@ def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(routine)
     output = fortran_writer(psyir)
@@ -500,7 +500,7 @@ def test_apply_struct_local_limits_caller(fortran_reader, fortran_writer,
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(routine)
     output = fortran_writer(psyir)
@@ -545,7 +545,7 @@ def test_apply_struct_local_limits_caller_decln(fortran_reader, fortran_writer,
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(routine)
     output = fortran_writer(psyir)
@@ -599,7 +599,7 @@ def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(routine)
     output = fortran_writer(psyir)
@@ -654,7 +654,7 @@ end module test_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     acall = psyir.walk(Call, stop_type=Call)[0]
     inline_trans.apply(acall)
     output = fortran_writer(psyir)
@@ -701,7 +701,7 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer):
         )
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         if not isinstance(routine, IntrinsicCall):
             inline_trans.apply(routine)
@@ -762,7 +762,7 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     for call in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(call)
     output = fortran_writer(psyir)
@@ -813,7 +813,7 @@ def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     inline_trans.apply(loops[0].loop_body.children[1])
     inline_trans.apply(loops[1].loop_body.children[1])
     inline_trans.apply(loops[2].loop_body.children[1])
@@ -869,7 +869,7 @@ def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     for call in psyir.walk(Call):
         if not isinstance(call, IntrinsicCall):
             if call.arguments[0].debug_string() == "grid%local%data":
@@ -942,7 +942,7 @@ def test_apply_struct_array(fortran_reader, fortran_writer, tmpdir,
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     if "use some_mod" in type_decln:
         with pytest.raises(TransformationError) as err:
             inline_trans.apply(psyir.walk(Call)[0])
@@ -988,7 +988,7 @@ def test_apply_repeated_module_use(fortran_reader, fortran_writer):
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     for call in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(call)
     output = fortran_writer(psyir)
@@ -1701,7 +1701,7 @@ def test_validate_codeblock(fortran_reader):
         "cannot be inlined. (If you are confident "
         in str(err.value)
     )
-    inline_trans.set_option(check_codeblocks=False)
+    inline_trans.set_option(check_inline_codeblocks=False)
     inline_trans.validate(call)
 
 
@@ -2075,7 +2075,7 @@ def test_validate_array_reshape(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("Cannot inline routine 's' because it reshapes an argument: actual"
@@ -2108,7 +2108,7 @@ def test_validate_array_arg_expression(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("The call 'call s(a + b, 10)\n' cannot be inlined because actual "
@@ -2135,7 +2135,7 @@ def test_validate_indirect_range(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because argument 'var(indices(:))' "
@@ -2160,7 +2160,7 @@ def test_validate_non_unit_stride_slice(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_matching_arguments_of_callee=False)
+    inline_trans.set_option(check_argument_matching=False)
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because one of its arguments is an "

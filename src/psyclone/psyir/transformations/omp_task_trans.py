@@ -116,7 +116,7 @@ class OMPTaskTrans(ParallelLoopTrans):
         cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()
         intrans.set_option(
-            check_matching_arguments_of_callee=(
+            check_argument_matching=(
                 self._option_check_matching_arguments_of_callee
             )
         )
@@ -180,7 +180,7 @@ class OMPTaskTrans(ParallelLoopTrans):
         cond_trans = FoldConditionalReturnExpressionsTrans()
         intrans = InlineTrans()
         intrans.set_option(
-            check_matching_arguments_of_callee=(
+            check_argument_matching=(
                 self._option_check_matching_arguments_of_callee
             )
         )
