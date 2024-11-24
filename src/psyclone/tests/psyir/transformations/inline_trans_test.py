@@ -2168,6 +2168,26 @@ def test_validate_non_unit_stride_slice(fortran_reader):
             str(err.value))
 
 
+def test_set_options(fortran_reader):
+    '''Test that simply sets all options for sake of the coverage test.'''
+
+    inline_trans = InlineTrans()
+    inline_trans.set_option(
+        ignore_missing_modules=False,
+        check_argument_strict_array_datatype=False,
+        check_argument_matching=False,
+
+        check_inline_codeblocks=False,
+        check_diff_container_clashes=False,
+        check_diff_container_clashes_unres_types=False,
+        check_resolve_imports=False,
+        check_static_interface=False,
+        check_array_type=False,
+        check_argument_of_unsupported_type=False,
+        check_argument_unresolved_symbols=False,
+    )
+
+
 def test_apply_named_arg(fortran_reader):
     '''Test that the validate method inlines a routine that has a named
     argument.'''
@@ -2193,7 +2213,7 @@ def test_apply_named_arg(fortran_reader):
     inline_trans.apply(call)
 
 
-def test_validate_optional_arg(fortran_reader):
+def test_apply_optional_arg(fortran_reader):
     '''Test that the validate method inlines a routine
     that has an optional argument.'''
 
@@ -2220,7 +2240,105 @@ def test_validate_optional_arg(fortran_reader):
     inline_trans.apply(call)
 
 
-def test_validate_optional_and_named_arg(fortran_reader):
+def test_apply_optional_arg_with_special_cases(fortran_reader):
+    '''Test that the validate method inlines a routine
+    that has an optional argument.
+    This example has an additional if-branching condition
+    `1.0==1.0` which is not directly of type `Literal`
+    '''
+
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real :: var = 0.0\n"
+        "  call sub(var)\n"
+        "end subroutine main\n"
+        "subroutine sub(x, opt)\n"
+        "  real, intent(inout) :: x\n"
+        "  real, optional :: opt\n"
+        "  if( present(opt) )then\n"
+        "    x = x + opt\n"
+        "  end if\n"
+        "  if( 1.0 == 1.0 )then\n"
+        "    x = x\n"
+        "  end if\n"
+        "  x = x + 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+
+
+def test_apply_optional_arg_error(fortran_reader):
+    '''Test that the validate method can't inline a routine
+    where the optional argument is still used.
+    '''
+
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real :: var = 0.0\n"
+        "  call sub(var)\n"
+        "end subroutine main\n"
+        "subroutine sub(x, opt)\n"
+        "  real, intent(inout) :: x\n"
+        "  real, optional :: opt\n"
+        "  if( present(opt) )then\n"
+        "    x = x + opt\n"
+        "  end if\n"
+        "  x = x + opt\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as einfo:
+        inline_trans.apply(call)
+
+    assert ("Subroutine argument 'opt' is not provided by call,"
+            " but used in the subroutine." in str(einfo.value))
+
+
+def test_apply_unsupported_pointer_error(fortran_reader):
+    '''Test that the validate method can't inline a routine
+    where a pointer argument is used.
+    This covers a special code
+    `if ", OPTIONAL" not in sym.datatype.declaration:`
+    which doesn't work that reliably and should be replaced
+    with something more robust.
+    '''
+
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real :: var = 0.0\n"
+        "  call sub(var)\n"
+        "end subroutine main\n"
+        "subroutine sub(x)\n"
+        "  real, intent(inout), pointer :: x\n"
+        "  x = 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as einfo:
+        inline_trans.apply(call)
+
+    assert ("Routine 'sub' cannot be inlined because it contains a Symbol 'x'"
+            " which is an Argument of UnsupportedType:"
+            " 'REAL, INTENT(INOUT), POINTER :: x'." in str(einfo.value))
+
+
+def test_apply_optional_and_named_arg(fortran_reader):
     '''Test that the validate method inlines a routine
     that has an optional argument.'''
     code = (
@@ -2268,7 +2386,7 @@ def test_validate_optional_and_named_arg(fortran_reader):
     )
 
 
-def test_validate_optional_and_named_arg_2(fortran_reader):
+def test_apply_optional_and_named_arg_2(fortran_reader):
     '''Test that the validate method inlines a routine
     that has an optional argument.'''
     code = (

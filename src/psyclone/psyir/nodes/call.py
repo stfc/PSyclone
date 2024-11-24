@@ -38,24 +38,13 @@
 
 from collections.abc import Iterable
 
-from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.nodes.routine import Routine
-from psyclone.psyir.symbols import (
-    RoutineSymbol,
-    Symbol,
-    SymbolError,
-    UnsupportedFortranType,
-    DataSymbol,
-    SymbolTable,
-    ContainerSymbol,
-)
-from typing import List, Union
+from psyclone.psyir.symbols import RoutineSymbol
+from typing import List
 
 
 class Call(Statement, DataNode):
@@ -463,78 +452,78 @@ class Call(Statement, DataNode):
 
         return new_copy
 
-    def _get_container_symbols_rec(
-        self,
-        container_symbols_list: List[str],
-        ignore_missing_modules: bool = False,
-        _stack_container_name_list: List[str] = [],
-        _depth: int = 0,
-    ):
-        '''Return a list of all container symbols that can be found
-        recursively
+    # def _get_container_symbols_rec(
+    #     self,
+    #     container_symbols_list: List[str],
+    #     ignore_missing_modules: bool = False,
+    #     _stack_container_name_list: List[str] = [],
+    #     _depth: int = 0,
+    # ):
+    #     '''Return a list of all container symbols that can be found
+    #     recursively
 
-        :param container_symbols: List of starting set of container symbols
-        :type container_symbols: List[ContainerSymbol]
-        :param _stack_container_list: Stack with already visited Containers
-            to avoid circular searches, defaults to []
-        :type _stack_container_list: List[Container], optional
-        :param _depth: Depth of recursive search
-        :type _depth: int
-        '''
-        #
-        # TODO:
-        # - This function seems to be extremely slow:
-        #   It takes considerable time to build this list over and over
-        #   for each lookup.
-        # - This function can also be written in a non-resursive way
-        #
-        # An alternative would be to cache it, but then the cache
-        # needs to be invalidated once some symbols are, e.g., deleted.
-        #
-        ret_container_symbol_list = container_symbols_list[:]
+    #     :param container_symbols: List of starting set of container symbols
+    #     :type container_symbols: List[ContainerSymbol]
+    #     :param _stack_container_list: Stack with already visited Containers
+    #         to avoid circular searches, defaults to []
+    #     :type _stack_container_list: List[Container], optional
+    #     :param _depth: Depth of recursive search
+    #     :type _depth: int
+    #     '''
+    #     #
+    #     # TODO:
+    #     # - This function seems to be extremely slow:
+    #     #   It takes considerable time to build this list over and over
+    #     #   for each lookup.
+    #     # - This function can also be written in a non-resursive way
+    #     #
+    #     # An alternative would be to cache it, but then the cache
+    #     # needs to be invalidated once some symbols are, e.g., deleted.
+    #     #
+    #     ret_container_symbol_list = container_symbols_list[:]
 
-        # Cache the container names from symbols
-        container_names = [cs.name.lower() for cs in container_symbols_list]
+    #     # Cache the container names from symbols
+    #     container_names = [cs.name.lower() for cs in container_symbols_list]
 
-        from psyclone.parse import ModuleManager
+    #     from psyclone.parse import ModuleManager
 
-        module_manager = ModuleManager.get()
+    #     module_manager = ModuleManager.get()
 
-        for container_name in container_names:
-            try:
-                module_info = module_manager.get_module_info(
-                    container_name.lower()
-                )
-                if module_info is None:
-                    continue
+    #     for container_name in container_names:
+    #         try:
+    #             module_info = module_manager.get_module_info(
+    #                 container_name.lower()
+    #             )
+    #             if module_info is None:
+    #                 continue
 
-            except (ModuleNotFoundError, FileNotFoundError) as err:
-                if ignore_missing_modules:
-                    continue
+    #         except (ModuleNotFoundError, FileNotFoundError) as err:
+    #             if ignore_missing_modules:
+    #                 continue
 
-                raise err
+    #             raise err
 
-            container: Container = module_info.get_psyir_container_node()
+    #         container: Container = module_info.get_psyir_container_node()
 
-            # Avoid circular connections (which shouldn't
-            # be allowed, but who knows...)
-            if container.name.lower() in _stack_container_name_list:
-                continue
+    #         # Avoid circular connections (which shouldn't
+    #         # be allowed, but who knows...)
+    #         if container.name.lower() in _stack_container_name_list:
+    #             continue
 
-            new_container_symbols = self._get_container_symbols_rec(
-                container_symbols_list=container.symbol_table.containersymbols,
-                ignore_missing_modules=ignore_missing_modules,
-                _stack_container_name_list=_stack_container_name_list
-                + [container.name.lower()],
-                _depth=_depth + 1,
-            )
+    #         new_container_symbols = self._get_container_symbols_rec(
+    #             container_symbols_list=container.symbol_table.containersymbols,
+    #             ignore_missing_modules=ignore_missing_modules,
+    #             _stack_container_name_list=_stack_container_name_list
+    #             + [container.name.lower()],
+    #             _depth=_depth + 1,
+    #         )
 
-            # Add symbol if it's not yet in the list of symbols
-            for container_symbol in new_container_symbols:
-                if container_symbol not in ret_container_symbol_list:
-                    ret_container_symbol_list.append(container_symbol)
+    #         # Add symbol if it's not yet in the list of symbols
+    #         for container_symbol in new_container_symbols:
+    #             if container_symbol not in ret_container_symbol_list:
+    #                 ret_container_symbol_list.append(container_symbol)
 
-        return ret_container_symbol_list
+    #     return ret_container_symbol_list
 
     def get_callees(self, ignore_missing_modules: bool = False):
         '''
@@ -597,10 +586,10 @@ class Call(Statement, DataNode):
         call_routine_matcher: CallRoutineMatcher = CallRoutineMatcher(self)
         call_routine_matcher.set_option(
                 check_matching_arguments=check_matching_arguments,
-                check_argument_strict_array_datatype=check_strict_array_datatype,
+                check_argument_strict_array_datatype=(
+                    check_strict_array_datatype),
                 ignore_missing_modules=ignore_missing_modules,
                 ignore_unresolved_symbol=ignore_unresolved_symbol,
             )
 
         return call_routine_matcher.get_callee()
-

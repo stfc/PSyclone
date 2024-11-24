@@ -40,12 +40,10 @@
 
 from typing import List, Union
 from psyclone.psyir.symbols.datatypes import ArrayType
-from psyclone.psyir.nodes import Call, Reference, Routine
+from psyclone.psyir.nodes import Call, Routine
 from psyclone.errors import PSycloneError
 from psyclone.configuration import Config
 from psyclone.psyir.nodes.container import Container
-from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
     RoutineSymbol,
     Symbol,
@@ -56,9 +54,11 @@ from psyclone.psyir.symbols import (
     ContainerSymbol,
 )
 
+
 class CallMatchingArgumentsNotFoundError(PSycloneError):
     """Exception to signal that matching arguments have not been found
     for this routine
+
     """
 
     def __init__(self, value):
@@ -112,165 +112,20 @@ class CallRoutineMatcher:
                    check_argument_strict_array_datatype: bool = None,
                    ignore_missing_modules: bool = None,
                    ignore_unresolved_symbol: bool = None,
-            ):
+                   ):
 
         if check_matching_arguments is not None:
             self._option_check_matching_arguments = check_matching_arguments
 
         if check_argument_strict_array_datatype is not None:
-            self._option_check_strict_array_datatype = check_argument_strict_array_datatype
+            self._option_check_strict_array_datatype = (
+                check_argument_strict_array_datatype)
 
         if ignore_missing_modules is not None:
             self._option_ignore_missing_modules = ignore_missing_modules
 
         if ignore_unresolved_symbol is not None:
             self._option_ignore_unresolved_symbol = ignore_unresolved_symbol
-
-    def _check_inline_types(
-        self,
-        call_arg: DataSymbol,
-        routine_arg: DataSymbol,
-        check_array_type: bool = True,
-    ):
-        """This function performs tests to see whether the
-        inlining can cope with it.
-
-        :param call_arg: The argument of a call
-        :type call_arg: DataSymbol
-        :param routine_arg: The argument of a routine
-        :type routine_arg: DataSymbol
-        :param check_array_type: Perform strong checks on array types,
-            defaults to `True`
-        :type check_array_type: bool, optional
-
-        :raises TransformationError: Raised if transformation can't be done
-
-        :return: 'True' if checks are successful
-        :rtype: bool
-        """
-        from psyclone.psyir.transformations.transformation_error import (
-            TransformationError,
-        )
-        from psyclone.errors import LazyString
-        from psyclone.psyir.nodes import Literal, Range
-        from psyclone.psyir.symbols import (
-            UnresolvedType,
-            UnsupportedType,
-            INTEGER_TYPE,
-        )
-
-        _ONE = Literal("1", INTEGER_TYPE)
-
-        # If the formal argument is an array with non-default bounds then
-        # we also need to know the bounds of that array at the call site.
-        if not isinstance(routine_arg.datatype, ArrayType):
-            # Formal argument is not an array so we don't need to do any
-            # further checks.
-            return True
-
-        if not isinstance(call_arg, (Reference, Literal)):
-            # TODO #1799 this really needs the `datatype` method to be
-            # extended to support all nodes. For now we have to abort
-            # if we encounter an argument that is not a scalar (according
-            # to the corresponding formal argument) but is not a
-            # Reference or a Literal as we don't know whether the result
-            # of any general expression is or is not an array.
-            # pylint: disable=cell-var-from-loop
-            raise TransformationError(
-                LazyString(
-                    lambda: (
-                        f"The call '{self._call_node.debug_string()}' "
-                        "cannot be inlined because actual argument "
-                        f"'{call_arg.debug_string()}' corresponds to a "
-                        "formal argument with array type but is not a "
-                        "Reference or a Literal."
-                    )
-                )
-            )
-
-        # We have an array argument. We are only able to check that the
-        # argument is not re-shaped in the called routine if we have full
-        # type information on the actual argument.
-        # TODO #924. It would be useful if the `datatype` property was
-        # a method that took an optional 'resolve' argument to indicate
-        # that it should attempt to resolve any UnresolvedTypes.
-        if check_array_type:
-            if isinstance(
-                call_arg.datatype, (UnresolvedType, UnsupportedType)
-            ) or (
-                isinstance(call_arg.datatype, ArrayType)
-                and isinstance(
-                    call_arg.datatype.intrinsic,
-                    (UnresolvedType, UnsupportedType),
-                )
-            ):
-                raise TransformationError(
-                    f"Routine '{self._routine_node.name}' cannot be "
-                    "inlined because the type of the actual argument "
-                    f"'{call_arg.symbol.name}' corresponding to an array"
-                    f" formal argument ('{routine_arg.name}') is unknown."
-                )
-
-            formal_rank = 0
-            actual_rank = 0
-            if isinstance(routine_arg.datatype, ArrayType):
-                formal_rank = len(routine_arg.datatype.shape)
-            if isinstance(call_arg.datatype, ArrayType):
-                actual_rank = len(call_arg.datatype.shape)
-            if formal_rank != actual_rank:
-                # It's OK to use the loop variable in the lambda definition
-                # because if we get to this point then we're going to quit
-                # the loop.
-                # pylint: disable=cell-var-from-loop
-                raise TransformationError(
-                    LazyString(
-                        lambda: (
-                            "Cannot inline routine"
-                            f" '{self._routine_node.name}' because it"
-                            " reshapes an argument: actual argument"
-                            f" '{call_arg.debug_string()}' has rank"
-                            f" {actual_rank} but the corresponding formal"
-                            f" argument, '{routine_arg.name}', has rank"
-                            f" {formal_rank}"
-                        )
-                    )
-                )
-            if actual_rank:
-                ranges = call_arg.walk(Range)
-                for rge in ranges:
-                    ancestor_ref = rge.ancestor(Reference)
-                    if ancestor_ref is not call_arg:
-                        # Have a range in an indirect access.
-                        # pylint: disable=cell-var-from-loop
-                        raise TransformationError(
-                            LazyString(
-                                lambda: (
-                                    "Cannot inline routine"
-                                    f" '{self._routine_node.name}' because"
-                                    " argument"
-                                    f" '{call_arg.debug_string()}' has"
-                                    " an array range in an indirect"
-                                    " access #(TODO 924)."
-                                )
-                            )
-                        )
-                    if rge.step != _ONE:
-                        # TODO #1646. We could resolve this problem by
-                        # making a new array and copying the necessary
-                        # values into it.
-                        # pylint: disable=cell-var-from-loop
-                        raise TransformationError(
-                            LazyString(
-                                lambda: (
-                                    "Cannot inline routine"
-                                    f" '{self._routine_node.name}' because"
-                                    " one of its arguments is an array"
-                                    " slice with a non-unit stride:"
-                                    f" '{call_arg.debug_string()}' (TODO"
-                                    " #1646)"
-                                )
-                            )
-                        )
 
     def _check_argument_type_matches(
         self,
@@ -294,8 +149,6 @@ class CallRoutineMatcher:
         :raises CallMatchingArgumentsNotFound: Raised if no matching arguments
             were found.
         """
-
-        # self._check_inline_types(call_arg, routine_arg)
 
         type_matches = False
         if not check_strict_array_datatype:
@@ -491,7 +344,8 @@ class CallRoutineMatcher:
                 # It would be better using the ModuleManager to resolve
                 # (and cache) all containers to look up for this.
                 #
-                # current_containersymbols = self._call_node._get_container_symbols_rec(
+                # current_containersymbols =
+                #   self._call_node._get_container_symbols_rec(
                 #     current_table.containersymbols,
                 #     ignore_missing_modules=ignore_missing_modules,
                 # )

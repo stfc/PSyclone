@@ -66,7 +66,8 @@ from psyclone.psyir.symbols import (
 )
 from psyclone.errors import GenerationError
 
-from psyclone.psyir.tools.call_routine_matcher import CallMatchingArgumentsNotFoundError
+from psyclone.psyir.tools.call_routine_matcher import (
+    CallMatchingArgumentsNotFoundError)
 
 
 class SpecialCall(Call):
