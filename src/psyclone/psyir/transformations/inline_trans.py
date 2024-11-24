@@ -197,8 +197,6 @@ class InlineTrans(Transformation):
         :param check_diff_container_clashes:
             If `True` and different symbols share a name but are imported
             from different containers, raise Exception.
-        If `True`, raise Exception if
-            containers are clashing, defaults to None
         :type check_diff_container_clashes: bool, optional
         :param check_diff_container_clashes_unres_types: If `True`,
             raise Exception if unresolved types are clashing, defaults to None
@@ -228,9 +226,11 @@ class InlineTrans(Transformation):
             ignore_missing_modules=ignore_missing_modules)
         self._call_routine_matcher.set_option(
             check_strict_array_datatype=(
-                check_argument_strict_array_datatype))
+                check_argument_strict_array_datatype)
+            )
         self._call_routine_matcher.set_option(
-            check_matching_arguments=check_argument_matching)
+                check_matching_arguments=check_argument_matching
+            )
 
         if check_inline_codeblocks is not None:
             self._option_check_codeblocks = check_inline_codeblocks

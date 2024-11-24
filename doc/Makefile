@@ -1,8 +1,14 @@
 
-all:
+all: developer_guide reference_guide user_guide
+.PHONY: developer_guide reference_guide user_guide
+
+developer_guide:
 	make -C developer_guide html SPHINXOPTS="-W --keep-going"
-	make -C developer_guide linkcheck || echo "Ignoring error of link checking"
+
+reference_guide:
 	make -C reference_guide html SPHINXOPTS="-W --keep-going"
+
+user_guide:
 	make -C user_guide html SPHINXOPTS="-W --keep-going"
 
 clean:
