@@ -40,7 +40,14 @@ import os
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine, Loop
+from psyclone.psyir.nodes import (
+    Call,
+    IntrinsicCall,
+    Loop,
+    Node,
+    Reference,
+    Routine,
+)
 from psyclone.psyir.symbols import (
     AutomaticInterface,
     DataSymbol,
@@ -2358,12 +2365,10 @@ def test_validate_non_unit_stride_slice(fortran_reader):
     )
 
 
-def test_validate_named_arg(fortran_reader):
-    """Test that the validate method rejects an attempt to inline a routine
-    that has a named argument."""
-    # In reality, the routine with a named argument would almost certainly
-    # use the 'present' intrinsic but, since that gives a CodeBlock that itself
-    # prevents inlining, our test example omits it.
+def test_apply_named_arg(fortran_reader):
+    """Test that the validate method inlines a routine that has a named
+    argument."""
+
     code = (
         "module test_mod\n"
         "contains\n"
@@ -2373,10 +2378,7 @@ def test_validate_named_arg(fortran_reader):
         "end subroutine main\n"
         "subroutine sub(x, opt)\n"
         "  real, intent(inout) :: x\n"
-        "  real, optional :: opt\n"
-        "  !if( present(opt) )then\n"
-        "  !  x = x + opt\n"
-        "  !end if\n"
+        "  real :: opt\n"
         "  x = x + 1.0\n"
         "end subroutine sub\n"
         "end module test_mod\n"
@@ -2384,7 +2386,145 @@ def test_validate_named_arg(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    inline_trans.validate(call)
+
+    inline_trans.apply(call)
+
+
+def test_validate_optional_arg(fortran_reader):
+    """Test that the validate method inlines a routine
+    that has an optional argument."""
+
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real :: var = 0.0\n"
+        "  call sub(var)\n"
+        "end subroutine main\n"
+        "subroutine sub(x, opt)\n"
+        "  real, intent(inout) :: x\n"
+        "  real, optional :: opt\n"
+        "  if( present(opt) )then\n"
+        "    x = x + opt\n"
+        "  end if\n"
+        "  x = x + 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+
+
+def test_validate_optional_and_named_arg(fortran_reader):
+    """Test that the validate method inlines a routine
+    that has an optional argument."""
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real :: var = 0.0\n"
+        "  call sub(var, named=1.0)\n"
+        "  ! Result:\n"
+        "  ! var = var + 1.0 + 1.0\n"
+        "  call sub(var, 2.0, named=1.0)\n"
+        "  ! Result:\n"
+        "  ! var = var + 2.0\n"
+        "  ! var = var + 1.0 + 1.0\n"
+        "end subroutine main\n"
+        "subroutine sub(x, opt, named)\n"
+        "  real, intent(inout) :: x\n"
+        "  real, optional :: opt\n"
+        "  real :: named\n"
+        "  if( present(opt) )then\n"
+        "    x = x + opt\n"
+        "  end if\n"
+        "  x = x + 1.0 + named\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir: Node = fortran_reader.psyir_from_source(code)
+
+    inline_trans = InlineTrans()
+
+    routine_main: Routine = psyir.walk(Routine)[0]
+    assert routine_main.name == "main"
+    for call in psyir.walk(Call, stop_type=Call):
+        call: Call
+        if call.routine.name != "sub":
+            continue
+
+        inline_trans.apply(call)
+
+    assert (
+        """var = var + 1.0 + 1.0
+  var = var + 2.0
+  var = var + 1.0 + 1.0"""
+        in routine_main.debug_string()
+    )
+
+
+def test_validate_optional_and_named_arg_2(fortran_reader):
+    """Test that the validate method inlines a routine
+    that has an optional argument."""
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real :: var = 0.0\n"
+        "  call sub(var, 1.0)\n"
+        "  ! Result:\n"
+        "  ! var = var + 2.0 + 1.0\n"
+        "  ! var = var + 4.0 + 1.0\n"
+        "  ! var = var + 5.0 + 1.0\n"
+        "  call sub(var)\n"
+        "  ! Result:\n"
+        "  ! var = var + 3.0\n"
+        "  ! var = var + 6.0\n"
+        "  ! var = var + 7.0\n"
+        "end subroutine main\n"
+        "subroutine sub(x, opt)\n"
+        "  real, intent(inout) :: x\n"
+        "  real, optional :: opt\n"
+        "  if( present(opt) )then\n"
+        "    x = x + 2.0 + opt\n"
+        "  else\n"
+        "    x = x + 3.0\n"
+        "  end if\n"
+        "  if( present(opt) )then\n"
+        "    x = x + 4.0 + opt\n"
+        "    x = x + 5.0 + opt\n"
+        "  else\n"
+        "    x = x + 6.0\n"
+        "    x = x + 7.0\n"
+        "  end if\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir: Node = fortran_reader.psyir_from_source(code)
+
+    inline_trans = InlineTrans()
+
+    routine_main: Routine = psyir.walk(Routine)[0]
+    assert routine_main.name == "main"
+    for call in psyir.walk(Call, stop_type=Call):
+        call: Call
+        if call.routine.name != "sub":
+            continue
+
+        inline_trans.apply(call)
+
+    print(routine_main.debug_string())
+    assert (
+        """var = var + 2.0 + 1.0
+  var = var + 4.0 + 1.0
+  var = var + 5.0 + 1.0
+  var = var + 3.0
+  var = var + 6.0
+  var = var + 7.0"""
+        in routine_main.debug_string()
+    )
 
 
 CALL_IN_SUB_USE = (

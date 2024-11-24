@@ -715,6 +715,152 @@ class Call(Statement, DataNode):
             f"{_location_txt(root_node)}. This is normally because the routine"
             f" is within a CodeBlock.")
 
+    def _check_inline_types(
+        self,
+        call_arg: DataSymbol,
+        routine_arg: DataSymbol,
+        check_array_type: bool = True,
+    ):
+        """This function performs tests to see whether the
+        inlining can cope with it.
+
+        :param call_arg: The argument of a call
+        :type call_arg: DataSymbol
+        :param routine_arg: The argument of a routine
+        :type routine_arg: DataSymbol
+        :param check_array_type: Perform strong checks on array types,
+            defaults to `True`
+        :type check_array_type: bool, optional
+
+        :raises TransformationError: Raised if transformation can't be done
+
+        :return: 'True' if checks are successful
+        :rtype: bool
+        """
+        from psyclone.psyir.transformations.transformation_error import (
+            TransformationError,
+        )
+        from psyclone.errors import LazyString
+        from psyclone.psyir.nodes import Literal, Range
+        from psyclone.psyir.symbols import (
+            UnresolvedType,
+            UnsupportedType,
+            INTEGER_TYPE,
+        )
+
+        _ONE = Literal("1", INTEGER_TYPE)
+
+        # If the formal argument is an array with non-default bounds then
+        # we also need to know the bounds of that array at the call site.
+        if not isinstance(routine_arg.datatype, ArrayType):
+            # Formal argument is not an array so we don't need to do any
+            # further checks.
+            return True
+
+        if not isinstance(call_arg, (Reference, Literal)):
+            # TODO #1799 this really needs the `datatype` method to be
+            # extended to support all nodes. For now we have to abort
+            # if we encounter an argument that is not a scalar (according
+            # to the corresponding formal argument) but is not a
+            # Reference or a Literal as we don't know whether the result
+            # of any general expression is or is not an array.
+            # pylint: disable=cell-var-from-loop
+            raise TransformationError(
+                LazyString(
+                    lambda: (
+                        f"The call '{self.debug_string()}' "
+                        "cannot be inlined because actual argument "
+                        f"'{call_arg.debug_string()}' corresponds to a "
+                        "formal argument with array type but is not a "
+                        "Reference or a Literal."
+                    )
+                )
+            )
+
+        # We have an array argument. We are only able to check that the
+        # argument is not re-shaped in the called routine if we have full
+        # type information on the actual argument.
+        # TODO #924. It would be useful if the `datatype` property was
+        # a method that took an optional 'resolve' argument to indicate
+        # that it should attempt to resolve any UnresolvedTypes.
+        if check_array_type:
+            if isinstance(
+                call_arg.datatype, (UnresolvedType, UnsupportedType)
+            ) or (
+                isinstance(call_arg.datatype, ArrayType)
+                and isinstance(
+                    call_arg.datatype.intrinsic,
+                    (UnresolvedType, UnsupportedType),
+                )
+            ):
+                raise TransformationError(
+                    f"Routine '{self.routine.name}' cannot be "
+                    "inlined because the type of the actual argument "
+                    f"'{call_arg.symbol.name}' corresponding to an array"
+                    f" formal argument ('{routine_arg.name}') is unknown."
+                )
+
+            formal_rank = 0
+            actual_rank = 0
+            if isinstance(routine_arg.datatype, ArrayType):
+                formal_rank = len(routine_arg.datatype.shape)
+            if isinstance(call_arg.datatype, ArrayType):
+                actual_rank = len(call_arg.datatype.shape)
+            if formal_rank != actual_rank:
+                # It's OK to use the loop variable in the lambda definition
+                # because if we get to this point then we're going to quit
+                # the loop.
+                # pylint: disable=cell-var-from-loop
+                raise TransformationError(
+                    LazyString(
+                        lambda: (
+                            "Cannot inline routine"
+                            f" '{self.routine.name}' because it"
+                            " reshapes an argument: actual argument"
+                            f" '{call_arg.debug_string()}' has rank"
+                            f" {actual_rank} but the corresponding formal"
+                            f" argument, '{routine_arg.name}', has rank"
+                            f" {formal_rank}"
+                        )
+                    )
+                )
+            if actual_rank:
+                ranges = call_arg.walk(Range)
+                for rge in ranges:
+                    ancestor_ref = rge.ancestor(Reference)
+                    if ancestor_ref is not call_arg:
+                        # Have a range in an indirect access.
+                        # pylint: disable=cell-var-from-loop
+                        raise TransformationError(
+                            LazyString(
+                                lambda: (
+                                    "Cannot inline routine"
+                                    f" '{self.routine.name}' because"
+                                    " argument"
+                                    f" '{call_arg.debug_string()}' has"
+                                    " an array range in an indirect"
+                                    " access #(TODO 924)."
+                                )
+                            )
+                        )
+                    if rge.step != _ONE:
+                        # TODO #1646. We could resolve this problem by
+                        # making a new array and copying the necessary
+                        # values into it.
+                        # pylint: disable=cell-var-from-loop
+                        raise TransformationError(
+                            LazyString(
+                                lambda: (
+                                    "Cannot inline routine"
+                                    f" '{self.routine.name}' because"
+                                    " one of its arguments is an array"
+                                    " slice with a non-unit stride:"
+                                    f" '{call_arg.debug_string()}' (TODO"
+                                    " #1646)"
+                                )
+                            )
+                        )
+
     def _check_argument_type_matches(
         self,
         call_arg: DataSymbol,
@@ -737,6 +883,8 @@ class Call(Statement, DataNode):
         :raises CallMatchingArgumentsNotFound: Raised if no matching arguments
             were found.
         """
+
+        self._check_inline_types(call_arg, routine_arg)
 
         type_matches = False
         if not check_strict_array_datatype:
@@ -766,46 +914,6 @@ class Call(Statement, DataNode):
                     )
 
         return True
-
-    def _check_matching_types(
-        call_arg: Symbol,
-        routine_arg: Symbol,
-        check_strict_array_datatype: bool = True,
-        check_matching_arguments: bool = True,
-    ) -> bool:
-        routine_arg: DataSymbol
-
-        type_matches = False
-        if not check_strict_array_datatype:
-            # No strict array checks have to be performed, just accept it
-            if isinstance(call_arg.datatype, ArrayType) and isinstance(
-                routine_arg.datatype, ArrayType
-            ):
-                type_matches = True
-
-        if not type_matches:
-            # Do the types of arguments match?
-            #
-            # TODO #759: If optional is used, it's an unsupported
-            # Fortran type and we need to use the following workaround
-            # Once this issue is resolved, simply remove this if
-            # branch.
-            # Optional arguments are processed further down.
-            if isinstance(routine_arg.datatype, UnsupportedFortranType):
-                if call_arg.datatype != routine_arg.datatype.partial_datatype:
-                    raise CallMatchingArgumentsNotFound(
-                        f"Argument partial type mismatch of call "
-                        f"argument '{call_arg}' and routine argument "
-                        f"'{routine_arg}'"
-                    )
-            else:
-                if call_arg.datatype != routine_arg.datatype:
-                    raise CallMatchingArgumentsNotFound(
-                        f"Argument type mismatch of call argument "
-                        f"'{call_arg.datatype}' and routine argument "
-                        f"'{routine_arg.datatype}'"
-                    )
-                type_matches = True
 
     def _get_argument_routine_match(
         self,
@@ -954,7 +1062,7 @@ class Call(Statement, DataNode):
                 f"No routine or interface found for name '{self.routine.name}'"
             )
 
-        err_info = []
+        err_info_list = []
 
         # Search for the routine matching the right arguments
         for routine_node in routine_list:
@@ -966,7 +1074,7 @@ class Call(Statement, DataNode):
                     check_strict_array_datatype=check_strict_array_datatype,
                 )
             except CallMatchingArgumentsNotFound as err:
-                err_info.append(err.value)
+                err_info_list.append(err.value)
                 continue
 
             return (routine_node, arg_match_list)
@@ -979,7 +1087,7 @@ class Call(Statement, DataNode):
             # Also return a list of dummy argument indices
             return (routine_list[0], [i for i in range(len(self.arguments))])
 
-        error_msg = "\n".join(err_info)
+        error_msg = "\n".join(err_info_list)
 
         raise CallMatchingArgumentsNotFound(
             "Found routines, but no routine with matching arguments found "
