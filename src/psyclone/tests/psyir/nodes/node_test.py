@@ -1489,17 +1489,20 @@ def test_following_preceding():
     container = Container.create(
         "container", SymbolTable(), [routine1, routine2])
 
-    # 2a: Middle node. Additional container and routine2 nodes are not
-    # returned by default ('routine' argument defaults to True).
+    # 2a: Middle node. When 'same_routine_scope' argument is set to True, or
+    # nothing (True is default), only nodes from the same routine are returned.
     assert multiply1.following() == [c_ref, d_ref]
+    assert multiply1.following(same_routine_scope=True) == [c_ref, d_ref]
     assert (multiply1.preceding() ==
             [routine1, assign1, a_ref, multiply2, b_ref])
-    assert multiply1.following(same_routine_scope=True) == [c_ref, d_ref]
     assert (multiply1.preceding(same_routine_scope=True) ==
             [routine1, assign1, a_ref, multiply2, b_ref])
+    assert multiply1.following(include_children=False) == []
+    assert multiply1.following(same_routine_scope=True,
+                               include_children=False) == []
 
-    # 2b: Middle node. 'routine' argument is set to False. Additional
-    # container and routine2 nodes are returned.
+    # 2b: Middle node. When 'same_routine_scope' argument is set to False,
+    # nodes from other routines are returned.
     assert (multiply1.following(same_routine_scope=False) ==
             [c_ref, d_ref, routine2, assign2, e_ref, zero])
     assert (multiply1.preceding(same_routine_scope=False) ==

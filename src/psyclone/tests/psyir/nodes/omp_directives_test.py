@@ -722,7 +722,8 @@ def test_infer_sharing_attributes_with_explicitly_private_symbols(
     assert "i" in [x.name for x in pvars]
     assert "j" in [x.name for x in pvars]
 
-    # If the loop has some explict locals, this are provided with the
+    # If the loop has some explict locals, these are listed when getting
+    # the infer_sharing_attributes
     array_symbol = routine.symbol_table.lookup("array")
     loop.explicitly_private_symbols.add(array_symbol)
     pvars, fpvars, sync = directive.infer_sharing_attributes()
