@@ -80,6 +80,44 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :rtype: sub-class of :py:class:`psyclone.psyir.nodes.Directive`.
         '''
 
+    @staticmethod
+    def _attempt_privatisation(node, symbol_name, dry_run=False):
+        ''' Check and (if dry_run is False) perform symbol privatisation
+        for the given symbol_name in the given node.
+
+        :param node: the loop that will be parallelised.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param str symbol_name: the symbol that we want to privatise.
+        :param bool dry_run: whether to perform the actual privatisation.
+
+        :returns: whether the symbol_name can be privatised.
+        :rtype: bool
+        '''
+        try:
+            sym = node.scope.symbol_table.lookup(symbol_name)
+        except KeyError:
+            # Structures are reported with the full expression:
+            # "mystruct%myfield" by the DA var_name, we purposely avoid
+            # privatising these
+            return False
+
+        # If it's not a local symbol, we cannot safely analyse its lifetime
+        if not isinstance(sym.interface, AutomaticInterface):
+            return False
+
+        # Check that the symbol is not be referenced after this loop (before
+        # the loop is fine because we can use OpenMP/OpenACC first-private or
+        # Fortran do concurrent local_init())
+        if any(r.symbol is sym
+               for r in node.following(include_children=False)
+               if isinstance(r, Reference)):
+            return False
+
+        if not dry_run:
+            node.explicitly_private_symbols.add(sym)
+
+        return True
+
     def validate(self, node, options=None):
         '''
         Perform validation checks before applying the transformation
@@ -204,31 +242,9 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                         message.code == DTCode.ERROR_WRITE_WRITE_RACE):
                     privatisable = True
                     for var_name in message.var_names:
-                        try:
-                            sym = node.scope.symbol_table.lookup(var_name)
-                        except KeyError:
-                            # Structures are reported with the full expression:
-                            # "mystruct%myfield" by the DA var_name, we
-                            # purposely avoid privatising these.
+                        if not self._attempt_privatisation(node, var_name,
+                                                           dry_run=True):
                             privatisable = False
-                            break
-
-                        # If it's not a local symbol, we cannot safely analyse
-                        # its lifetime
-                        if not isinstance(sym.interface, AutomaticInterface):
-                            privatisable = False
-                            break
-
-                        # It must not be referenced after this loop (before the
-                        # loop is fine because we can use OpenMP/OpenACC
-                        # first-private or Fortran do concurrent local_init())
-                        if any(r.symbol is sym
-                               for r in node.following(include_children=False)
-                               if isinstance(r, Reference)):
-                            privatisable = False
-                            break
-
-                        node.explicitly_private_symbols.add(sym)
                     if not privatisable:
                         errors.append(
                             f"The write-write dependency in '{var_name}'"
@@ -305,12 +321,25 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         collapse = options.get("collapse", False)
         ignore_dep_analysis = options.get("force", False)
         list_of_names = options.get("ignore_dependencies_for", [])
+        privatise_arrays = options.get("privatise_arrays", False)
         list_of_signatures = [Signature(name) for name in list_of_names]
+        dtools = DependencyTools()
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
         node_parent = node.parent
         node_position = node.position
+
+        # If 'privatise_arrays' is specified, make the write-write symbols
+        # private (we know this succeeds because the validate did a dry_run)
+        if privatise_arrays and not node.independent_iterations(
+                                   dep_tools=dtools,
+                                   test_all_variables=True,
+                                   signatures_to_ignore=list_of_signatures):
+            for message in dtools.get_all_messages():
+                if message.code == DTCode.ERROR_WRITE_WRITE_RACE:
+                    for var_name in message.var_names:
+                        self._attempt_privatisation(node, var_name)
 
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it
@@ -358,7 +387,6 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     break
 
                 # Check that the next loop has no loop-carried dependencies
-                dtools = DependencyTools()
                 if not ignore_dep_analysis:
                     if not next_loop.independent_iterations(
                                dep_tools=dtools,
