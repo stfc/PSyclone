@@ -31,7 +31,7 @@ around the loops in the psy-layer.
 The acc_parallel.py script is already set up to do this so just run it
 
 ```bash
-    $ psyclone -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
+    $ psyclone --psykal-dsl lfric -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
 ```
 
 In the psy-layer PSyIR that is output to the terminal you should see
@@ -68,14 +68,14 @@ Add the following code after the for loop containing the
 `kernels_trans.apply([loop])`
 
 ```python
-        for kernel in schedule.coded_kernels():
+        for kernel in psyir.coded_kernels():
             routine_trans.apply(kernel)
 ```
 
 Now rerun psyclone
 
 ```bash
-    $ psyclone -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
+    $ psyclone --psykal-dsl lfric -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
 ```
 
 The PSyIR output to the screen looks the same, but take a look in the
@@ -123,26 +123,24 @@ section of the tutorial)
 
 ```python
         const = LFRicConstants()
-        for loop in schedule.loops():
+        for loop in psyir.loops():
             if loop.field_space.orig_name \
                not in const.VALID_DISCONTINUOUS_NAMES \
                and loop.iteration_space == "cell_column":
                 ctrans.apply(loop)
 ```
 
-This should appear immediately after the `schedule = invoke.schedule` line.
-
 Change the kernels_trans loop from
 
 ```python
-        for loop in schedule.loops():
+        for loop in psyir.loops():
             kernels_trans.apply([loop])
 ```
 
 to
 
 ```python
-        for loop in schedule.loops():
+        for loop in psyir.loops():
             if loop.loop_type != "colours":
                 kernels_trans.apply([loop])
                 loop_trans.apply(loop)
@@ -156,27 +154,25 @@ In case you're having problems, this is what your script should now look like:
     ctrans = Dynamo0p3ColourTrans()
     loop_trans = ACCLoopTrans()
     const = LFRicConstants()
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
-        for loop in schedule.loops():
+    for subroutine in psyir.walk(Routine):
+        for loop in subroutine.loops():
             if loop.field_space.orig_name \
                not in const.VALID_DISCONTINUOUS_NAMES \
                and loop.iteration_space == "cell_column":
                 ctrans.apply(loop)
-        for loop in schedule.loops():
+        for loop in subroutine.loops():
             if loop.loop_type != "colours":
                 kernels_trans.apply([loop])
                 loop_trans.apply(loop)
-        for kernel in schedule.coded_kernels():
+        for kernel in subroutine.coded_kernels():
             routine_trans.apply(kernel)
-    print(schedule.view())
-    return psy
+    print(psyir.view())
 ```
 
 Rerun psyclone
 
 ```bash
-    $ psyclone -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
+    $ psyclone --psykal-dsl lfric -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
 ```
 
 Take a look at the generated psy-layer code and its PSyIR. You should
@@ -208,7 +204,7 @@ in an invoke within an `ENTER DATA` directive and it will only copy
 accross data that is not already on the GPU.
 
 Let's add one of these directives. As it is required for the whole
-invoke we provide it with the (top level) schedule node.
+invoke we provide it with the (top level) subroutine node.
 
 Create the transformation by adding the following line of code after
 the other lines that create transformations:
@@ -220,7 +216,7 @@ the other lines that create transformations:
 Next add the following line
 
 ```python
-        enter_trans.apply(schedule)
+        enter_trans.apply(subroutine)
 ```
 
 after the loop that modifies kernels, i.e. at the end of the loop over

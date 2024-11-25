@@ -64,8 +64,8 @@ TL_KERNEL_TYPE = ${TL_KERNEL_NAME}_type
 ADJ_KERNEL_TYPE = $(subst tl_,adj_,${TL_KERNEL_TYPE})
 
 # The name of the file that will contain the generated test harness.
-HARNESS_X90_FILE = adjoint_test_mod.x90
-HARNESS_F90_FILE = adjoint_test_mod.F90
+HARNESS_X90_FILE = adjt_hydrostatic_alg_mod.x90
+HARNESS_F90_FILE = adjt_hydrostatic_alg_mod.F90
 
 GENERATED_FILES += adj_*.[fF]90 test_harness.exe \
                    *.x90 ${HARNESS_F90_FILE} psy.f90 *.mod *.o
@@ -74,12 +74,12 @@ transform: psy.f90
 
 # Process the generated test-harness algorithm with PSyclone.
 psy.f90 ${HARNESS_F90_FILE}: ${HARNESS_X90_FILE} ${ADJ_KERNEL_F90_FILE}
-	${PSYCLONE} -l all -api dynamo0.3 -nodm -opsy psy.f90 -oalg ${HARNESS_F90_FILE} ${HARNESS_X90_FILE}
+	${PSYCLONE} -l all -api lfric -nodm -opsy psy.f90 -oalg ${HARNESS_F90_FILE} ${HARNESS_X90_FILE}
 
 # Create the adjoint kernel and the corresponding test
 # harness in separate files.
 ${ADJ_KERNEL_X90_FILE} ${HARNESS_X90_FILE}: ${TL_KERNEL_FILE}
-	$(PSYAD) -api dynamo0.3 $< -otest ${HARNESS_X90_FILE} -oad ${ADJ_KERNEL_X90_FILE} ${GEOMETRY_VAR_LIST} -a ${ACTIVE_VAR_LIST}
+	$(PSYAD) -api lfric $< -otest ${HARNESS_X90_FILE} -oad ${ADJ_KERNEL_X90_FILE} ${GEOMETRY_VAR_LIST} -a ${ACTIVE_VAR_LIST}
 
 # Currently PSyAD does not update the kernel metadata (issue #1453)
 # so we do that manually here. We have to allow for the case where

@@ -247,7 +247,7 @@ contains
         class(ReadOnlyBaseType), intent(inout), target :: this
 
         call this%PSyDataBaseType%PostStart()
-        ! The pointer mst be reset to 1 to make sure we compare
+        ! The pointer must be reset to 1 to make sure we compare
         ! with the previously computed checksums
         this%next_var_index = 1
         this%verify_checksums = .true.

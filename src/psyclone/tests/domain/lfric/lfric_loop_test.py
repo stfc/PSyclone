@@ -65,7 +65,7 @@ BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 def test_constructor_invalid_loop_type(monkeypatch):
@@ -128,9 +128,14 @@ def test_set_upper_bound_functions(monkeypatch):
         my_loop.set_upper_bound("start")
     assert "'start' is not a valid upper bound" in str(excinfo.value)
     with pytest.raises(GenerationError) as excinfo:
-        my_loop.set_upper_bound("inner", index=0)
-    assert "specified index" in str(excinfo.value)
-    assert "upper loop bound is invalid" in str(excinfo.value)
+        my_loop.set_upper_bound("inner", halo_depth=0)
+    assert ("specified halo depth '0' for this loop upper bound is < 1 which "
+            "is invalid" in str(excinfo.value))
+    with pytest.raises(TypeError) as excinfo:
+        my_loop.set_upper_bound("inner", halo_depth="wrong")
+    assert ("When setting the upper bound of a loop, any halo depth must be "
+            "supplied as an int or PSyIR DataNode but got "
+            in str(excinfo.value))
 
 
 def test_lower_bound_fortran_1():
@@ -303,7 +308,7 @@ def test_upper_bound_fortran_1():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     my_loop = psy.invokes.invoke_list[0].schedule.children[0]
     for option in ["cell_halo", "dof_halo", "inner"]:
-        my_loop.set_upper_bound(option, index=1)
+        my_loop.set_upper_bound(option, halo_depth=1)
         with pytest.raises(GenerationError) as excinfo:
             _ = my_loop._upper_bound_fortran()
             assert (
@@ -960,6 +965,7 @@ def test_lfricloop_halo_read_access_error2(monkeypatch):
             "found 'unsupported'." in str(info.value))
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_null_loop():
     ''' Check that we can create a 'null'-type loop and that the validation
     check in the 'load()' method behaves as expected.

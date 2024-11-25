@@ -47,9 +47,7 @@ profiling and extraction of argument values.
 
 These wrapper libraries can be found under the ``lib`` directory in the Git
 repository. If you have installed PSyclone using ``pip`` then the libraries
-may be found in ``share/psyclone/lib`` under your Python (or PSyclone,
-depending on the ``pip install`` options) installation (see
-:ref:`here <getting-going-env-loc>` for possible locations).
+may be found in ``share/psyclone/lib`` in PSyclone :ref:`getting-going-install-loc`.
 
 .. note::  If working with wrapper libraries from a PSyclone installation,
            it is advisable to copy the entire ``lib`` directory to some
@@ -87,8 +85,8 @@ invocation. More information can be found in the
 :ref:`PSy Kernel Extractor (PSyKE) <psyke>` section.
 
 Example libraries that extract input and output data into a NetCDF file
-for :ref:`LFRic (Dynamo0.3) <dynamo0.3-api>` and
-:ref:`GOcean1.0 <gocean1.0-api>` APIs are included with PSyclone in the
+for :ref:`LFRic <lfric-api>` and
+:ref:`GOcean <gocean-api>` APIs are included with PSyclone in the
 ``lib/extract/netcdf`` `directory
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf>`__.
 For detailed instructions on how to build and use these libraries
@@ -101,24 +99,25 @@ Read-only libraries check that a field declared as read-only is not
 modified during a kernel call. More information can be found in the
 :ref:`Read-Only Verification <psydata_read_verification>` section.
 
-The libraries for :ref:`LFRic (Dynamo0.3) <dynamo0.3-api>` and
-:ref:`GOcean1.0 <gocean1.0-api>` APIs are included with PSyclone in
+The libraries for :ref:`LFRic <lfric-api>` and
+:ref:`GOcean <gocean-api>` APIs are included with PSyclone in
 the ``lib/read_only`` `directory
 <https://github.com/stfc/PSyclone/tree/master/lib/read_only>`__.
 For detailed instructions on how to build and use these libraries
 please refer to their specific ``README.md`` documentation.
 
-NAN Test
-^^^^^^^^
+Value Range Check
+^^^^^^^^^^^^^^^^^
 
-These libraries test all input and output parameters of a kernel to
-make sure they are not ``NaN`` or infinite.  More information can be
-found in the :ref:`NAN Test <psydata_nan_test>` section.
+These libraries can test if user-defined variables are within a
+specified range. Additionally, they also verify that they are
+not ``NaN`` or infinite.  More information can be
+found in the :ref:`Value Range Check <psydata_value_range_check>` section.
 
-The libraries for :ref:`LFRic (Dynamo0.3) <dynamo0.3-api>` and
-:ref:`GOcean1.0 <gocean1.0-api>` APIs are included with PSyclone in
-the ``lib/nan_test`` `directory
-<https://github.com/stfc/PSyclone/tree/master/lib/nan_test>`__.
+The libraries for :ref:`LFRic <lfric-api>` and
+:ref:`GOcean <gocean-api>` APIs are included with PSyclone in
+the ``lib/value_range_check`` `directory
+<https://github.com/stfc/PSyclone/tree/master/lib/value_range_check>`__.
 For detailed instructions on how to build and use these libraries
 please refer to their specific ``README.md`` documentation.
 
@@ -137,10 +136,10 @@ The majority of wrapper libraries use `Jinja
 classes (please refer to :ref:`dev_guide:psy_data` and :ref:`dev_guide:jinja`
 for full details about the PSyData API).
 
-Compilation of ``extract``, ``nan_test``, ``read_only`` and some of the
+Compilation of ``extract``, ``value_range_check``, ``read_only`` and some of the
 profiling wrapper libraries depends on infrastructure libraries relevant
-to the API they are used for. :ref:`LFRic API <dynamo0.3-api>` uses the
-LFRic infrastructure and :ref:`GOcean1.0 <gocean1.0-api>` uses the
+to the API they are used for. The :ref:`LFRic API <lfric-api>` uses the
+LFRic infrastructure and :ref:`GOcean <gocean-api>` uses the
 dl_esm_inf library. The LFRic infrastructure can be obtained from the
 LFRic `code repository <https://code.metoffice.gov.uk/trac/lfric/browser>`_,
 however this requires access to the `Met Office Science Repository Service
@@ -174,7 +173,7 @@ are specified with the ``PSYDATA_LIB_DIR`` and ``LIB_TMPLT_DIR`` variables.
 For testing purposes their default values are set to relative paths to the
 respective directories in the PSyclone repository.
 
-The locations of the infrastructure libraries for LFRic and GOcean1.0
+The locations of the infrastructure libraries for LFRic and GOcean
 applications can be configured with the variables ``LFRIC_INF_DIR`` and
 ``GOCEAN_INF_DIR``, respectively. Their default values are set to relative
 paths to the locations of these libraries in the PSyclone repository. The

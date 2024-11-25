@@ -65,7 +65,7 @@ def make_loop():
     start = Literal("0", INTEGER_SINGLE_TYPE)
     stop = Literal("1", INTEGER_SINGLE_TYPE)
     step = Literal("1", INTEGER_SINGLE_TYPE)
-    sched = Routine("loop_test_sub")
+    sched = Routine.create("loop_test_sub")
     tmp = sched.symbol_table.new_symbol("tmp", symbol_type=DataSymbol,
                                         datatype=REAL_SINGLE_TYPE)
     isym = sched.symbol_table.new_symbol("i", symbol_type=DataSymbol,
@@ -194,6 +194,36 @@ def test_loop_node_str(monkeypatch):
     assert loop.node_str(colour=True) == "yes[variable='i']"
     assert loop.node_str(colour=False) == "no[variable='i']"
 
+    # And with loop_type rules
+    Loop.set_loop_type_inference_rules({"i-loop": {"variable": "i"}})
+    out = loop.node_str()
+    assert "yes[variable='i', loop_type='i-loop']" in out
+    Loop.set_loop_type_inference_rules({})
+
+
+def test_loop_replace_symbols_using():
+    '''Test the replace_symbols_using() method of Loop.'''
+    loop = make_loop()
+    assert loop.variable.name == "i"
+    # Create a symbol table containing a replacement symbol.
+    table = SymbolTable()
+    new_i = table.new_symbol("i", symbol_type=DataSymbol,
+                             datatype=INTEGER_TYPE)
+    assert loop.variable is not new_i
+    loop.replace_symbols_using(table)
+    # Loop variable should have been updated.
+    assert loop.variable is new_i
+    # Check that the method has recursed to the children too.
+    assert loop.loop_body[0].rhs.symbol is new_i
+    # Test when the Loop doesn't have the _variable property set.
+    loop = Loop()
+    loop.addchild(Literal("0", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("2", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("1", INTEGER_SINGLE_TYPE))
+    loop.addchild(Schedule(parent=loop))
+    assert not loop._variable
+    loop.replace_symbols_using(table)
+
 
 def test_loop_str():
     '''Test the __str__ property of Loop.'''
@@ -201,6 +231,12 @@ def test_loop_str():
     out = str(loop)
     assert "Loop[variable:'i']\n" in out
     assert "End Loop" in out
+
+    # And with loop_type rules
+    Loop.set_loop_type_inference_rules({"i-loop": {"variable": "i"}})
+    out = str(loop)
+    assert "Loop[variable:'i', loop_type:'i-loop']\n" in out
+    Loop.set_loop_type_inference_rules({})
 
 
 def test_loop_independent_iterations():
@@ -222,8 +258,8 @@ def test_loop_gen_code():
         os.path.abspath(__file__)))), "test_files", "dynamo0p3")
     _, invoke_info = parse(os.path.join(base_path,
                                         "1.0.1_single_named_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
 
     # By default LFRicLoop has step = 1 and it is not printed in the Fortran DO
     gen = str(psy.gen)

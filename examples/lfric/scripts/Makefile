@@ -45,7 +45,7 @@ transform: ${SCRIPTS}
 .PHONY: ${SCRIPTS}
 
 ${SCRIPTS}:
-	${PSYCLONE} -s ./$@ ../eg3/solver_mod.x90 -oalg /dev/null -opsy /dev/null
+	LFRIC_OFFLOAD_DIRECTIVES=acc ${PSYCLONE} -api lfric -s ./$@ ../eg3/solver_mod.x90 -oalg /dev/null -opsy /dev/null
 
 compile: transform
 	@echo "No compilation supported for lfric/scripts examples"

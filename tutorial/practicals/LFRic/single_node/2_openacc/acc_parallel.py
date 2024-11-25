@@ -31,42 +31,35 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-'''File containing a PSyclone transformation script for the Dynamo0p3
+'''File containing a PSyclone transformation script for the LFRic
 API to apply the Kernels directive to all loops generically. This can
 be applied via the -s option in the psyclone command, it is not
 designed to be directly run from python.
 
 '''
-from __future__ import print_function
-from psyclone.transformations import ACCEnterDataTrans, \
-    ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans, ACCKernelsTrans
+from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.transformations import (
+    ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans)
 from psyclone.domain.lfric.function_space import FunctionSpace
 
 
-def trans(psy):
-    '''PSyclone transformation script for the dynamo0p3 api to apply
+def trans(psyir):
+    '''PSyclone transformation script for the LFRic api to apply
     OpenACC Kernels directives to all loops generically. It also
     outputs a textual representation of the transformated PSyIR.
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
-        kernel information required by PSyclone.
-    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
 
     '''
     kernels_trans = ACCKernelsTrans()
 
-    # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
+    # Apply kernels directives to any loop nodes that are
+    # children of the schedule node.
+    for loop in psyir.loops():
+        kernels_trans.apply([loop])
 
-        schedule = invoke.schedule
-
-        # Apply kernels directives to any loop nodes that are
-        # children of the schedule node.
-        for loop in schedule.loops():
-            kernels_trans.apply([loop])
-
-        print(schedule.view())
-
-    return psy
+    print(psyir.view())

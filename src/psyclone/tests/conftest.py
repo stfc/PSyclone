@@ -78,13 +78,14 @@ def pytest_addoption(parser):
 
 @pytest.fixture
 def have_graphviz():
-    ''' Whether or not the system has graphviz installed. Note that this
-    only checks for the Python bindings. The underlying library must
-    also have been installed for dag generation to work correctly. '''
+    ''' Whether or not the system has graphviz installed. This refers to
+    the underlying system library, not the python bindings that are provided
+    by 'import graphviz'. '''
+    # pylint: disable=import-outside-toplevel
+    import graphviz
     try:
-        # pylint: disable=import-outside-toplevel, unused-import
-        import graphviz  # noqa: F401
-    except ImportError:
+        graphviz.version()
+    except graphviz.ExecutableNotFound:
         return False
     return True
 
@@ -234,6 +235,20 @@ def fixture_fortran_reader():
 def fixture_fortran_writer():
     '''Create and return a FortranWriter object with default settings.'''
     return FortranWriter()
+
+
+@pytest.fixture(scope="function", name="lfric_config")
+def fixture_lfric_config():
+    '''Test should use the lfric API config.'''
+    Config.get().api = "lfric"
+
+
+@pytest.fixture(scope="function", autouse=True)
+def fixture_tear_down_config():
+    ''' Whatever API we use (by using the previous fixtures or by the test
+    itself setting a certain API/Configuration), clean it up.'''
+    yield
+    Config._instance = None
 
 
 @pytest.fixture(scope='function')

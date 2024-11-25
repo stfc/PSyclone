@@ -48,7 +48,7 @@ from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.backend.fortran import FortranWriter
 
-API = "gocean1.0"
+API = "gocean"
 
 
 def test_description():

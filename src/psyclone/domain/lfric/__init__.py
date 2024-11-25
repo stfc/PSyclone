@@ -45,12 +45,14 @@
 from psyclone.domain.lfric.function_space import FunctionSpace
 from psyclone.domain.lfric.lfric_arg_descriptor import LFRicArgDescriptor
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_halo_depths import LFRicHaloDepths
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.kern_call_acc_arg_list import KernCallAccArgList
 from psyclone.domain.lfric.kern_call_invoke_arg_list import \
     KernCallInvokeArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
+from psyclone.domain.lfric.lfric_cell_iterators import LFRicCellIterators
 from psyclone.domain.lfric.lfric_extract_driver_creator import \
     LFRicExtractDriverCreator
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
@@ -85,11 +87,13 @@ __all__ = [
     'KernelInterface',
     'KernStubArgList',
     'LFRicArgDescriptor',
+    'LFRicCellIterators',
     'LFRicCollection',
     'LFRicConstants',
     'LFRicDofmaps',
     'LFRicExtractDriverCreator',
     'LFRicFields',
+    'LFRicHaloDepths',
     'LFRicInvoke',
     'LFRicInvokes',
     'LFRicInvokeSchedule',

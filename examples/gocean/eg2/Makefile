@@ -105,11 +105,11 @@ single_prof.exe: ${INF_LIB} ${PROFILE_LIB} psy_prof.f90 kernels psy_prof.o alg_p
 ${PROFILE_LIB} ${NVTX_LINK} -o single.exe
 
 psy.f90 alg_gen.f90: alg.f90
-	${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py -opsy psy.f90 \
+	${PSYCLONE} -api "gocean" -s ./acc_transform.py -opsy psy.f90 \
 -oalg alg_gen.f90 alg.f90
 
 psy_prof.f90 alg_prof.f90: alg.f90
-	${PSYCLONE} -l all -api "gocean1.0" -s ./acc_prof_transform.py -opsy psy_prof.f90 \
+	${PSYCLONE} -l all -api "gocean" -s ./acc_prof_transform.py -opsy psy_prof.f90 \
 -oalg alg_prof.f90 alg.f90
 
 %.o: %.f90
@@ -119,5 +119,5 @@ psy_prof.f90 alg_prof.f90: alg.f90
 # start-up. Therefore wildcards do not pick-up any files generated
 # during execution.
 kernels:
-	${MAKE} inc_field_mod.o inc_field_0_mod.o
+	${MAKE} inc_field_mod.o
 

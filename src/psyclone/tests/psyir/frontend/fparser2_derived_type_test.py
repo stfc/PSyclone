@@ -110,7 +110,7 @@ def test_deferred_derived_type(type_name):
     ''' Check that we get a symbol with a type given by a DataTypeSymbol (which
     itself is of UnresolvedType) for a declaration using an unresolved derived
     type. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
     reader = FortranStringReader(f"use my_mod\n"
@@ -131,7 +131,7 @@ def test_missing_derived_type():
     back-end's responsibility.
 
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("type(my_type) :: var")
     fparser2spec = Fortran2003.Specification_Part(reader)
@@ -142,7 +142,7 @@ def test_missing_derived_type():
 def test_name_clash_derived_type(f2008_parser, type_name):
     ''' Check that the frontend raises an error if it encounters a reference
     to a derived type that clashes with another symbol. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     # Add a RoutineSymbol to the symbol table that clashes with the name
     # of the derived type.
@@ -165,7 +165,7 @@ def test_name_clash_derived_type(f2008_parser, type_name):
 def test_name_clash_derived_type_def(f2008_parser):
     ''' Check that the frontend raises an error if it encounters a definition
     of a derived type with a name that clashes with another symbol. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     # Add a RoutineSymbol to the symbol table that will clash with the name
     # of the derived type.
@@ -210,7 +210,7 @@ def test_name_clash_derived_type_def(f2008_parser):
 def test_existing_symbol_derived_type_def(f2008_parser):
     ''' Check that a new DataTypeSymbol is created in place of an existing
     Symbol if it is used in a type declaration. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     csym = symtab.new_symbol("some_mod", symbol_type=ContainerSymbol)
     # Add a generic Symbol to the symbol table for what will be the type
@@ -241,7 +241,7 @@ def test_existing_symbol_derived_type_def(f2008_parser):
 def test_parse_derived_type(use_stmt, type_name):
     ''' Check that the fronted correctly creates a DataTypeSymbol of type
     StructureType from the declaration of a derived type. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
     reader = FortranStringReader(f"{use_stmt}\n"
@@ -273,7 +273,7 @@ def test_parse_derived_type(use_stmt, type_name):
 def test_derived_type_contains():
     ''' Check that we get a DataTypeSymbol of UnsupportedFortranType if a
     derived-type definition has a CONTAINS section. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
     reader = FortranStringReader("type my_type\n"
@@ -304,7 +304,7 @@ def test_derived_type_self_ref(type_name):
     ''' Test that we can parse a derived type that contains a pointer
     reference of that same type. The 'pointer' attribute is not supported
     so we get a DataTypeSymbol of UnsupportedFortranType. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
     reader = FortranStringReader(f"type :: my_type\n"
@@ -327,7 +327,7 @@ def test_derived_type_accessibility():
     Check that accessibility statements/attributes within a derived type
     are handled correctly.
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
     reader = FortranStringReader("type :: my_type\n"
@@ -553,3 +553,27 @@ def test_derived_type_codeblocks(f2008_parser):
     cblocks = sched.walk(CodeBlock)
     assert len(cblocks) == 1
     assert isinstance(cblocks[0].parent, Assignment)
+
+
+def test_array_of_derived_type_pointer(f2008_parser):
+    ''' Test that the frontend handles structure accesses to pointers.
+    Note that expressions which end with array accessor syntax are
+    not currently supported.
+    '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader("subroutine my_sub()\n"
+                                 "  use some_mod\n"
+                                 "  var%myptr => ptr\n"
+                                 "  var2(1)%myptr => ptr\n"
+                                 "  ptab_ptr(kfld)%pt4d(1:1,1:1) => ptab\n"
+                                 "end subroutine my_sub\n")
+    fparser2spec = f2008_parser(reader)
+    sched = processor.generate_psyir(fparser2spec)
+
+    # The LHS expression type depend on its content (if supported)
+    assignments = sched.children[0].children
+    assert assignments[0].is_pointer
+    assert isinstance(assignments[0].lhs, StructureReference)
+    assert assignments[1].is_pointer
+    assert isinstance(assignments[1].lhs, ArrayOfStructuresReference)
+    assert isinstance(assignments[2], CodeBlock)

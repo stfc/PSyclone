@@ -31,27 +31,27 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-'''File containing a PSyclone transformation script for the Dynamo0p3
+'''File containing a PSyclone transformation script for the LFRic
 API to apply OpenACC Loop, Parallel and Enter Data directives
 generically. This can be applied via the -s option in the psyclone
 command, it is not designed to be directly run from python.
 
 '''
-from __future__ import print_function
-from psyclone.transformations import ACCEnterDataTrans, \
-    ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans, ACCKernelsTrans
+from psyclone.psyir.nodes import Routine
+from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.transformations import (
+    ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans)
 from psyclone.domain.lfric import LFRicConstants
 
 
-def trans(psy):
-    '''PSyclone transformation script for the dynamo0p3 api to apply
+def trans(psyir):
+    '''PSyclone transformation script for the LFRic api to apply
     OpenACC loop, parallel and enter data directives generically.
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
-        kernel information required by PSyclone.
-    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     kernels_trans = ACCKernelsTrans()
@@ -61,31 +61,26 @@ def trans(psy):
     enter_trans = ACCEnterDataTrans()
     const = LFRicConstants()
 
-    # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
-
-        schedule = invoke.schedule
+    for subroutine in psyir.walk(Routine):
 
         # Colour loops as required
-        for loop in schedule.loops():
+        for loop in subroutine.loops():
             if loop.field_space.orig_name \
                not in const.VALID_DISCONTINUOUS_NAMES \
                and loop.iteration_space == "cell_column":
                 ctrans.apply(loop)
 
         # Add Kernels and Loop directives
-        for loop in schedule.loops():
+        for loop in subroutine.loops():
             if loop.loop_type != "colours":
                 kernels_trans.apply([loop])
                 loop_trans.apply(loop)
 
         # Add Routine directive to kernels
-        for kernel in schedule.coded_kernels():
+        for kernel in subroutine.coded_kernels():
             routine_trans.apply(kernel)
 
         # Add Enter Data directive covering all of the PSy layer.
-        enter_trans.apply(schedule)
+        enter_trans.apply(subroutine)
 
-        print(schedule.view())
-
-    return psy
+        print(subroutine.view())

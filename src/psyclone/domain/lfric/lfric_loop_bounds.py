@@ -79,7 +79,7 @@ class LFRicLoopBounds(LFRicCollection):
 
         sym_table = self._invoke.schedule.symbol_table
         config = Config.get()
-        api_config = config.api_conf("dynamo0.3")
+        api_config = config.api_conf("lfric")
 
         for idx, loop in enumerate(loops):
 

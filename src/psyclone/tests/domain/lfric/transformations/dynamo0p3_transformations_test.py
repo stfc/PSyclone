@@ -56,32 +56,27 @@ from psyclone.psyir.nodes import (colored, Loop, Schedule, Literal, Directive,
                                   OMPDoDirective, ACCEnterDataDirective)
 from psyclone.psyir.symbols import (AutomaticInterface, ScalarType, ArrayType,
                                     REAL_TYPE, INTEGER_TYPE)
-from psyclone.psyir.transformations import (LoopFuseTrans, LoopTrans,
-                                            TransformationError)
+from psyclone.psyir.transformations import (
+    ACCKernelsTrans, LoopFuseTrans, LoopTrans, OMPLoopTrans,
+    TransformationError)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import OMPParallelTrans, \
-    Dynamo0p3ColourTrans, \
-    Dynamo0p3OMPLoopTrans, \
-    DynamoOMPParallelLoopTrans, \
-    MoveTrans, \
-    Dynamo0p3RedundantComputationTrans, \
-    Dynamo0p3AsyncHaloExchangeTrans, \
-    Dynamo0p3KernelConstTrans, \
-    ACCLoopTrans, ACCParallelTrans, ACCKernelsTrans, ACCEnterDataTrans
+from psyclone.transformations import (
+    OMPParallelTrans, Dynamo0p3ColourTrans, Dynamo0p3OMPLoopTrans,
+    DynamoOMPParallelLoopTrans, MoveTrans, Dynamo0p3RedundantComputationTrans,
+    Dynamo0p3AsyncHaloExchangeTrans, Dynamo0p3KernelConstTrans,
+    ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans)
 
 
 # The version of the API that the tests in this file
 # exercise.
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
 
 
 def test_colour_trans_create_colours_loop(dist_mem):
@@ -231,7 +226,7 @@ def test_colour_trans(tmpdir, dist_mem):
 
     # Check that we're using the colour map when getting the cell dof maps
     assert (
-        "call testkern_code(nlayers, a, f1_data, f2_data, "
+        "call testkern_code(nlayers_f1, a, f1_data, f2_data, "
         "m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cmap(colour,cell)), ndf_w2, undf_w2, "
         "map_w2(:,cmap(colour,cell)), ndf_w3, undf_w3, "
@@ -317,8 +312,9 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
 
     assert (
         "          CALL columnwise_op_asm_field_kernel_code(cmap(colour,"
-        "cell), nlayers, ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
-        "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
+        "cell), nlayers_cma_op1, ncell_2d, afield_data, "
+        "lma_op1_proxy%ncell_3d, lma_op1_local_stencil, "
+        "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, "
         "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
         "ndf_aspc1_afield, undf_aspc1_afield, "
@@ -350,7 +346,7 @@ def test_colour_trans_stencil(dist_mem, tmpdir):
 
     # Check that we index the stencil dofmap appropriately
     assert (
-        "          CALL testkern_stencil_code(nlayers, f1_data, "
+        "          CALL testkern_stencil_code(nlayers_f1, f1_data, "
         "f2_data, f2_stencil_size(cmap(colour,cell)), "
         "f2_stencil_dofmap(:,:,cmap(colour,cell)), f3_data, "
         "f4_data, ndf_w1, undf_w1, map_w1(:,cmap(colour,cell)), "
@@ -386,7 +382,7 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
 
     # Check that we index the adjacent face dofmap appropriately
     assert (
-        "CALL testkern_mesh_prop_code(nlayers, a, f1_data, ndf_w1, "
+        "CALL testkern_mesh_prop_code(nlayers_f1, a, f1_data, ndf_w1, "
         "undf_w1, map_w1(:,cmap(colour,cell)), nfaces_re_h, "
         "adjacent_face(:,cmap(colour,cell))" in gen)
 
@@ -579,7 +575,7 @@ def test_omp_parallel_colouring_needed(monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("11_any_space.f90", TEST_API,
                            name="invoke_0_testkern_any_space_1_type",
@@ -610,7 +606,7 @@ def test_omp_colouring_needed(monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("11_any_space.f90", TEST_API,
                            name="invoke_0_testkern_any_space_1_type",
@@ -642,7 +638,7 @@ def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("1.1.0_single_invoke_xyoz_qr.f90", TEST_API,
                              name="invoke_0_testkern_qr_type",
@@ -725,7 +721,7 @@ def test_colouring_multi_kernel(monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", TEST_API,
                              name="invoke_0",
@@ -948,7 +944,7 @@ def test_multi_different_kernel_omp(
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("4.7_multikernel_invokes.f90", TEST_API,
                              name="invoke_0",
@@ -1250,7 +1246,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", TEST_API,
                              name="invoke_0", dist_mem=dist_mem)
@@ -1301,7 +1297,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         f"        !$omp parallel default(shared), private(cell)\n"
         f"        !$omp do schedule(static)\n"
         f"        DO cell = loop1_start, {lookup}, 1\n"
-        f"          CALL ru_code(nlayers, a_data, b_data, "
+        f"          CALL ru_code(nlayers_a, a_data, b_data, "
         f"istp, rdt, d_data, e_1_data, e_2_data, "
         f"e_3_data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
@@ -1312,7 +1308,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         f"        !$omp end do\n"
         f"        !$omp do schedule(static)\n"
         f"        DO cell = loop2_start, {lookup}, 1\n"
-        f"          CALL ru_code(nlayers, f_data, b_data, "
+        f"          CALL ru_code(nlayers_f, f_data, b_data, "
         f"istp, rdt, d_data, e_1_data, e_2_data, "
         f"e_3_data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
@@ -1384,7 +1380,7 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "      cma_op1_gamma_p = cma_op1_proxy%gamma_p\n"
     ) in code
     assert (
-        "CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
+        "CALL columnwise_op_asm_field_kernel_code(cell, nlayers_cma_op1, "
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
@@ -1392,7 +1388,7 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "undf_aspc1_afield, map_aspc1_afield(:,cell), "
         "cbanded_map_aspc1_afield, ndf_aspc2_lma_op1, "
         "cbanded_map_aspc2_lma_op1)\n"
-        "        CALL testkern_two_real_scalars_code(nlayers, scalar1, "
+        "        CALL testkern_two_real_scalars_code(nlayers_afield, scalar1, "
         "afield_data, bfield_data, cfield_data, "
         "dfield_data, scalar2, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
@@ -1422,7 +1418,7 @@ def test_omp_par_and_halo_exchange_error():
     # Enclose the invoke code within a single region
     with pytest.raises(TransformationError) as excinfo:
         rtrans.apply(schedule.children)
-    assert ("type 'LFRicHaloExchange' cannot be enclosed by a "
+    assert ("cannot be enclosed by a "
             "OMPParallelTrans transformation" in str(excinfo.value))
 
 
@@ -3940,7 +3936,7 @@ def test_list_multiple_reductions(dist_mem):
     ''' Test that we produce correct reduction lists when there is more
     than one reduction in a OpenMP parallel directive. As only one
     reduction per OpenMP parallel region is currently supported we
-    need to modify the internal representation after the
+    need to modify the intermediate representation after the
     transformations have been performed to enable this test.
 
     '''
@@ -4150,6 +4146,23 @@ def test_rc_nodm():
             "distributed memory must be switched on") in str(excinfo.value)
 
 
+def test_rc_no_halo_kernels():
+    '''
+    Test that Dynamo0p3RedundantComputationTrans refuses to transform a kernel
+    that operates on halo cells.
+
+    '''
+    _, invoke = get_invoke("1.4.1_into_halos_plus_domain_invoke.f90",
+                           TEST_API, idx=0, dist_mem=True)
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = invoke.schedule.walk(LFRicLoop)[0]
+    with pytest.raises(TransformationError) as err:
+        rc_trans.validate(loop)
+    assert ("Dynamo0p3RedundantComputationTrans transformation to kernels that"
+            " operate on halo cells but kernel 'testkern_halo_only_code' "
+            "operates on 'halo_cell_column'" in str(err.value))
+
+
 def test_rc_invalid_depth():
     ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied depth is less than 1. '''
@@ -4232,7 +4245,7 @@ def test_rc_continuous_no_depth():
     assert "loop0_stop = mesh%get_last_halo_cell()" in result
     assert "DO cell = loop0_start, loop0_stop" in result
     assert ("      CALL f1_proxy%set_dirty()\n"
-            "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)") in result
+            "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)") in result
 
 
 def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
@@ -4763,7 +4776,7 @@ def test_rc_vector_no_depth(tmpdir):
     for idx in range(1, 4):
         assert f"CALL chi_proxy({idx})%set_dirty()" in result
     for idx in range(1, 4):
-        assert (f"CALL chi_proxy({idx})%set_clean(max_halo_depth_mesh-1)"
+        assert (f"CALL chi_proxy({idx})%set_clean(max_halo_depth_mesh - 1)"
                 in result)
 
 
@@ -4995,8 +5008,8 @@ def test_rc_continuous_halo_remove():
     rc_trans.apply(f3_inc_loop, {"depth": 3})
     result = str(psy.gen)
     assert result.count("CALL f3_proxy%halo_exchange(depth=") == 2
-    assert f3_inc_hex._compute_halo_depth() == "2"
-    assert f3_read_hex._compute_halo_depth() == "3"
+    assert f3_inc_hex._compute_halo_depth().value == "2"
+    assert f3_read_hex._compute_halo_depth().value == "3"
     assert "IF (f3_proxy%is_dirty(depth=2)) THEN" in result
     assert "IF (f3_proxy%is_dirty(depth=3)) THEN" not in result
     #
@@ -5007,7 +5020,7 @@ def test_rc_continuous_halo_remove():
     rc_trans.apply(f3_inc_loop, {"depth": 4})
     result = str(psy.gen)
     assert result.count("CALL f3_proxy%halo_exchange(depth=") == 1
-    assert f3_inc_hex._compute_halo_depth() == "3"
+    assert f3_inc_hex._compute_halo_depth().value == "3"
     # Position 7 is now halo exchange on f4 instead of f3
     assert schedule.children[7].field != "f3"
     assert "IF (f3_proxy%is_dirty(depth=4)" not in result
@@ -5218,7 +5231,7 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("4.6_multikernel_invokes.f90",
                            TEST_API, idx=0, dist_mem=True)
@@ -5308,7 +5321,7 @@ def test_rc_max_w_to_r_continuous_known_halo(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("14.10_halo_continuous_cell_w_to_r.f90",
                            TEST_API, idx=0, dist_mem=True)
@@ -5334,7 +5347,7 @@ def test_rc_max_w_to_r_continuous_known_halo(monkeypatch, annexed):
         w_to_r_halo_exchange = schedule.children[4]
 
     # sanity check that the halo exchange goes to the full halo depth
-    assert (w_to_r_halo_exchange._compute_halo_depth() ==
+    assert (w_to_r_halo_exchange._compute_halo_depth().symbol.name ==
             "max_halo_depth_mesh")
 
     # the halo exchange should be both required to be added and known
@@ -5688,7 +5701,7 @@ def test_rc_max_colour(tmpdir):
 
     assert (
         "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5757,7 +5770,7 @@ def test_rc_then_colour(tmpdir):
         "      DO colour = loop0_start, loop0_stop, 1\n"
         "        DO cell = loop1_start, last_halo_cell_all_colours(colour,3),"
         " 1\n"
-        "          CALL testkern_code(nlayers, a, f1_data,"
+        "          CALL testkern_code(nlayers_f1, a, f1_data,"
         " f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cmap(colour,cell)), ndf_w2, undf_w2, "
         "map_w2(:,cmap(colour,cell)), ndf_w3, undf_w3, "
@@ -5816,7 +5829,7 @@ def test_rc_then_colour2(tmpdir):
 
     assert (
         "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5873,7 +5886,7 @@ def test_loop_fuse_then_rc(tmpdir):
         "max_halo_depth_mesh), 1\n" in result)
     assert (
         "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5894,15 +5907,14 @@ def test_haloex_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "1"
+        assert halo_exchange._compute_halo_depth().value == "1"
         assert halo_exchange.required() == (True, True)
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
         write_access = halo_exchange._compute_halo_write_info()
         assert write_access.set_by_value
-        assert not write_access.var_depth
+        assert write_access.var_depth.value == "1"
         assert not write_access.max_depth
-        assert write_access.literal_depth == 1
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -5910,12 +5922,11 @@ def test_haloex_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert depth_info.literal_depth == 1
+        assert depth_info.var_depth.value == "1"
         assert not depth_info.max_depth
-        assert not depth_info.var_depth
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     if annexed:
         w_loop_idx = 1
@@ -5976,15 +5987,15 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "max_halo_depth_mesh"
+        assert (halo_exchange._compute_halo_depth().symbol.name ==
+                "max_halo_depth_mesh")
         assert halo_exchange.required
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
         write_access = halo_exchange._compute_halo_write_info()
         assert write_access.set_by_value
-        assert not write_access.var_depth
+        assert write_access.var_depth.value == "1"
         assert not write_access.max_depth
-        assert write_access.literal_depth == 1
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -5992,12 +6003,11 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert not depth_info.literal_depth
         assert depth_info.max_depth
         assert not depth_info.var_depth
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     if annexed:
@@ -6042,8 +6052,6 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
-        print("OK for iteration ", idx)
-
 
 def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
@@ -6069,7 +6077,7 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "1"
+        assert halo_exchange._compute_halo_depth().value == "1"
         assert halo_exchange.required() == (True, False)
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
@@ -6077,7 +6085,6 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         assert write_access.set_by_value
         assert not write_access.var_depth
         assert write_access.max_depth
-        assert not write_access.literal_depth
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -6085,12 +6092,11 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert depth_info.literal_depth == 1
         assert not depth_info.max_depth
-        assert not depth_info.var_depth
+        assert depth_info.var_depth.value == "1"
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     w_loop_idx = 2
     if annexed:
@@ -6134,8 +6140,6 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
-        print("OK for iteration ", idx)
-
 
 def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
@@ -6160,7 +6164,8 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "max_halo_depth_mesh"
+        assert (halo_exchange._compute_halo_depth().symbol.name ==
+                "max_halo_depth_mesh")
         assert halo_exchange.required() == (True, True)
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
@@ -6168,7 +6173,6 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         assert write_access.set_by_value
         assert not write_access.var_depth
         assert write_access.max_depth
-        assert not write_access.literal_depth
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -6176,12 +6180,11 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert not depth_info.literal_depth
         assert depth_info.max_depth
         assert not depth_info.var_depth
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     w_loop_idx = 2
     r_loop_idx = 5
@@ -6224,8 +6227,6 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
-        print("OK for iteration ", idx)
-
 
 def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
@@ -6238,7 +6239,7 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     # At the start we have two halo exchange calls for field f1, one
     # before the first loop and one between the two loops when annexed
@@ -6308,10 +6309,12 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
-        print("OK for iteration ", idx)
 
-
-def test_intergrid_colour(dist_mem):
+@pytest.mark.parametrize("trans_class",
+                         [(None, None, ""),
+                          (ACCParallelTrans, ACCLoopTrans, "acc"),
+                          (OMPParallelTrans, OMPLoopTrans, "omp")])
+def test_intergrid_colour(dist_mem, trans_class, tmpdir):
     ''' Check that we can apply colouring to a loop containing
     an inter-grid kernel. '''
     # Use an example that contains both prolongation and restriction
@@ -6322,10 +6325,17 @@ def test_intergrid_colour(dist_mem):
     # First two kernels are prolongation, last two are restriction
     loops = schedule.walk(Loop)
     ctrans = Dynamo0p3ColourTrans()
+    reg_trans = trans_class[0]() if trans_class[0] else None
+    loop_trans = trans_class[1]() if trans_class[1] else None
     # To a prolong kernel
     ctrans.apply(loops[1])
     # To a restrict kernel
     ctrans.apply(loops[3])
+    if reg_trans and loop_trans:
+        for loop in schedule.walk(Loop):
+            if loop.loop_type == "colour":
+                reg_trans.apply(loop)
+                loop_trans.apply(loop)
     gen = str(psy.gen).lower()
     expected = '''\
       ncolour_fld_m = mesh_fld_m%get_ncolours()
@@ -6337,28 +6347,31 @@ def test_intergrid_colour(dist_mem):
     assert expected in gen
     assert "loop1_stop = ncolour_fld_m" in gen
     assert "loop2_stop" not in gen
+    assert "      do colour = loop1_start, loop1_stop, 1\n" in gen
+    if trans_class[2]:
+        assert f"!${trans_class[2]} " in gen
     if dist_mem:
         assert ("last_halo_cell_all_colours_fld_m = "
                 "mesh_fld_m%get_last_halo_cell_all_colours()" in gen)
         expected = (
-            "      do colour = loop1_start, loop1_stop, 1\n"
             "        do cell = loop2_start, last_halo_cell_all_colours_fld_m"
             "(colour,1), 1\n")
     else:
         assert ("last_edge_cell_all_colours_fld_m = "
                 "mesh_fld_m%get_last_edge_cell_all_colours()" in gen)
         expected = (
-            "      do colour = loop1_start, loop1_stop, 1\n"
             "        do cell = loop2_start, last_edge_cell_all_colours_fld_m"
             "(colour), 1\n")
     assert expected in gen
     expected = (
-        "          call prolong_test_kernel_code(nlayers, cell_map_fld_m"
+        "          call prolong_test_kernel_code(nlayers_fld_m, cell_map_fld_m"
         "(:,:,cmap_fld_m(colour,cell)), ncpc_fld_f_fld_m_x, "
         "ncpc_fld_f_fld_m_y, ncell_fld_f, fld_f_data, fld_m_data, "
         "ndf_w1, undf_w1, map_w1, undf_w2, "
         "map_w2(:,cmap_fld_m(colour,cell)))\n")
     assert expected in gen
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_intergrid_colour_errors(dist_mem, monkeypatch):
@@ -6376,15 +6389,7 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
     ctrans.apply(loop)
     # Update our list of loops
     loops = schedule.walk(Loop)
-    # Trigger the error by calling the internal method to get the upper
-    # bound before the colourmaps have been set-up
-    with pytest.raises(InternalError) as err:
-        _ = loops[1]._upper_bound_fortran()
-    assert ("All kernels within a loop over colours must have been coloured "
-            "but kernel 'prolong_test_kernel_code' has not" in str(err.value))
-    # Set-up the colourmaps
-    psy.invokes.invoke_list[0].meshes._colourmap_init()
-    # Check that the upper bound is now correct
+    # Check that the upper bound is correct
     upperbound = loops[1]._upper_bound_fortran()
     assert upperbound == "ncolour_fld_m"
     # Manually add an un-coloured kernel to the loop that we coloured
@@ -6473,7 +6478,7 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
             f"        !$omp parallel default(shared), private(cell)\n"
             f"        !$omp do schedule(static)\n"
             f"        DO cell = loop1_start, {upper_bound}, 1\n"
-            f"          CALL prolong_test_kernel_code(nlayers, "
+            f"          CALL prolong_test_kernel_code(nlayers_cmap_fld_c, "
             f"cell_map_cmap_fld_c(:,:,cmap_cmap_fld_c(colour,cell)), "
             f"ncpc_fld_m_cmap_fld_c_x, ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, "
             f"fld_m_data, cmap_fld_c_data, ndf_w1, undf_w1, "
@@ -6535,7 +6540,7 @@ def test_intergrid_err(dist_mem):
 # Class ACCEnterDataTrans start
 def test_accenterdatatrans():
     '''Test that an ACCEnterDataTrans transformation can add an OpenACC
-    Enter Data directive to the PSy-layer in the dynamo0.3 API.
+    Enter Data directive to the PSy-layer in the lfric API.
 
     '''
     acc_enter_trans = ACCEnterDataTrans()
@@ -6575,7 +6580,7 @@ def test_accenterdata_builtin(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert ("!$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
-            "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+            "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
             "undf_w1,undf_w2,undf_w3)" in output)
     assert "loop2_stop = undf_aspc1_f1" in output
     assert ("      !$acc loop independent\n"
@@ -6593,7 +6598,7 @@ def test_accenterdata_builtin(tmpdir):
 def test_acckernelstrans():
     '''
     Test that an ACCKernelsTrans transformation can add an OpenACC
-    Kernels directive to the PSy layer in the dynamo0.3 API.
+    Kernels directive to the PSy layer in the lfric API.
 
     '''
     kernels_trans = ACCKernelsTrans()
@@ -6614,7 +6619,7 @@ def test_acckernelstrans():
 def test_acckernelstrans_dm():
     '''
     Test that an ACCKernelsTrans transformation can add an OpenACC
-    Kernels directive to the PSy layer in the LFRic (dynamo0.3) API when
+    Kernels directive to the PSy layer in the LFRic API when
     distributed memory is enabled.
 
     '''
@@ -6624,7 +6629,7 @@ def test_acckernelstrans_dm():
     sched = invoke.schedule
     with pytest.raises(TransformationError) as err:
         kernels_trans.apply(sched.children)
-    assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
+    assert ("cannot be enclosed by a "
             "ACCKernelsTrans transformation" in str(err.value))
     kernels_trans.apply(sched.walk(Loop))
     code = str(psy.gen)
@@ -6648,7 +6653,7 @@ def test_acckernelstrans_dm():
 def test_accparalleltrans(tmpdir):
     '''
     Test that an ACCParallelTrans transformation can add an OpenACC
-    Parallel directive to the PSy layer in the dynamo0.3 API. An
+    Parallel directive to the PSy layer in the lfric API. An
     EnterData directive is also required otherwise the transformation
     raises an exception at code-generation time.
 
@@ -6664,7 +6669,7 @@ def test_accparalleltrans(tmpdir):
     assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
     assert (
         "      !$acc enter data copyin(f1_data,f2_data,m1_data,"
-        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
         "undf_w1,undf_w2,undf_w3)\n"
         "      !\n"
         "      !$acc parallel default(present)\n"
@@ -6692,7 +6697,7 @@ def test_accparalleltrans_dm(tmpdir):
     # Cannot include halo-exchange nodes within an ACC parallel region.
     with pytest.raises(TransformationError) as err:
         acc_par_trans.apply(sched)
-    assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
+    assert ("cannot be enclosed by a "
             "ACCParallelTrans transformation" in str(err.value))
     acc_par_trans.apply(sched.walk(Loop)[0])
     acc_enter_trans.apply(sched)
@@ -6700,7 +6705,7 @@ def test_accparalleltrans_dm(tmpdir):
 
     assert ("      !$acc parallel default(present)\n"
             "      DO cell = loop0_start, loop0_stop, 1\n"
-            "        CALL testkern_code(nlayers, a, f1_data, "
+            "        CALL testkern_code(nlayers_f1, a, f1_data, "
             "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell))\n"
@@ -6721,7 +6726,7 @@ def test_accparalleltrans_dm(tmpdir):
 
 def test_acclooptrans():
     '''Test that an ACCLoopTrans transformation can add an OpenACC Loop
-    directive to the PSy layer in the dynamo0.3 API.
+    directive to the PSy layer in the lfric API.
 
     '''
     acc_par_trans = ACCParallelTrans()
@@ -6739,7 +6744,7 @@ def test_acclooptrans():
     assert "loop0_stop = ncolour" in code
     assert (
         "      !$acc enter data copyin(f1_data,f2_data,m1_data,"
-        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
         "undf_w1,undf_w2,undf_w3)\n"
         "      !\n"
         "      !$acc parallel default(present)\n"
@@ -6914,7 +6919,7 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", TEST_API,
                              idx=0, dist_mem=True)
@@ -6930,7 +6935,7 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
     assert (
         "      CALL f2_proxy%halo_exchange_start(depth=1)\n"
         "      DO cell = loop3_start, loop3_stop, 1\n"
-        "        CALL testkern_any_space_3_code(cell, nlayers, "
+        "        CALL testkern_any_space_3_code(cell, nlayers_op, "
         "op_proxy%ncell_3d, op_local_stencil, ndf_aspc1_op, "
         "ndf_aspc2_op)\n"
         "      END DO\n"

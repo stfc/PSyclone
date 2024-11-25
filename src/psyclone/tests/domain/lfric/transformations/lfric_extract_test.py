@@ -43,7 +43,6 @@ transformations and ExtractNode.
 
 import pytest
 
-from psyclone.configuration import Config
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.nodes import colored, ExtractNode, Loop
@@ -54,7 +53,7 @@ from psyclone.transformations import (Dynamo0p3ColourTrans,
                                       DynamoOMPParallelLoopTrans)
 
 # API names
-DYNAMO_API = "dynamo0.3"
+DYNAMO_API = "lfric"
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -117,45 +116,33 @@ def test_node_list_error(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_distmem_error(monkeypatch):
+def test_distmem_error():
     ''' Test that applying ExtractRegionTrans with distributed memory
-    enabled raises a TransformationError. '''
+    enabled raises a TransformationError if a node is included that
+    is not supported. '''
     etrans = LFRicExtractTrans()
 
     # Test Dynamo0.3 API with distributed memory
     _, invoke = get_invoke("1_single_invoke.f90", DYNAMO_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
-    # Try applying Extract transformation
-    with pytest.raises(TransformationError) as excinfo:
-        etrans.apply(schedule.children[3])
-    assert ("Error in LFRicExtractTrans: Distributed memory is "
-            "not supported.") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing HaloExchange
-    # We have to disable distributed memory, otherwise an earlier test
-    # will be triggered
-    config = Config.get()
-    monkeypatch.setattr(config, "distributed_memory", False)
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(schedule.children[2:4])
-    assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
+    assert ("cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing GlobalSum
-    # This will set config.distributed_mem to True again.
     _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
                            DYNAMO_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     glob_sum = schedule.children[2]
 
-    # We have to disable distributed memory again (get_invoke before
-    # will set it to true), otherwise an earlier test will be triggered
-    monkeypatch.setattr(config, "distributed_memory", False)
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(glob_sum)
 
-    assert ("Nodes of type 'DynGlobalSum' cannot be enclosed by a "
+    assert ("cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
 
 
@@ -173,7 +160,7 @@ def test_repeat_extract():
     # Now try applying it again on the ExtractNode
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(schedule.children[0])
-    assert ("Nodes of type 'ExtractNode' cannot be enclosed by a "
+    assert ("cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
 
 
@@ -319,7 +306,7 @@ def test_single_node_dynamo0p3():
     output = '''      ! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_psy", \
-"invoke_0_testkern_type:testkern_code:r0", 17, 2)
+"invoke_0_testkern_type-testkern_code-r0", 17, 2)
       CALL extract_psy_data%PreDeclareVariable("a", a)
       CALL extract_psy_data%PreDeclareVariable("f1_data", f1_data)
       CALL extract_psy_data%PreDeclareVariable("f2_data", f2_data)
@@ -333,7 +320,7 @@ def test_single_node_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("ndf_w1", ndf_w1)
       CALL extract_psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%PreDeclareVariable("ndf_w3", ndf_w3)
-      CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
+      CALL extract_psy_data%PreDeclareVariable("nlayers_f1", nlayers_f1)
       CALL extract_psy_data%PreDeclareVariable("undf_w1", undf_w1)
       CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreDeclareVariable("undf_w3", undf_w3)
@@ -353,13 +340,13 @@ def test_single_node_dynamo0p3():
       CALL extract_psy_data%ProvideVariable("ndf_w1", ndf_w1)
       CALL extract_psy_data%ProvideVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%ProvideVariable("ndf_w3", ndf_w3)
-      CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
+      CALL extract_psy_data%ProvideVariable("nlayers_f1", nlayers_f1)
       CALL extract_psy_data%ProvideVariable("undf_w1", undf_w1)
       CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
       CALL extract_psy_data%ProvideVariable("undf_w3", undf_w3)
       CALL extract_psy_data%PreEnd
       DO cell = loop0_start, loop0_stop, 1
-        CALL testkern_code(nlayers, a, f1_data, f2_data, ''' + \
+        CALL testkern_code(nlayers_f1, a, f1_data, f2_data, ''' + \
         "m1_data, m2_data, ndf_w1, undf_w1, " + \
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, " + \
         '''undf_w3, map_w3(:,cell))
@@ -388,7 +375,7 @@ def test_node_list_dynamo0p3():
     output = """! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", \
-"invoke_0:r0", 11, 5)
+"invoke_0-r0", 11, 5)
       CALL extract_psy_data%PreDeclareVariable("f3_data", f3_data)
       CALL extract_psy_data%PreDeclareVariable("loop0_start", loop0_start)
       CALL extract_psy_data%PreDeclareVariable("loop0_stop", loop0_stop)
@@ -398,7 +385,7 @@ def test_node_list_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("loop2_stop", loop2_stop)
       CALL extract_psy_data%PreDeclareVariable("map_w2", map_w2)
       CALL extract_psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
-      CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
+      CALL extract_psy_data%PreDeclareVariable("nlayers_f3", nlayers_f3)
       CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
@@ -415,7 +402,7 @@ def test_node_list_dynamo0p3():
       CALL extract_psy_data%ProvideVariable("loop2_stop", loop2_stop)
       CALL extract_psy_data%ProvideVariable("map_w2", map_w2)
       CALL extract_psy_data%ProvideVariable("ndf_w2", ndf_w2)
-      CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
+      CALL extract_psy_data%ProvideVariable("nlayers_f3", nlayers_f3)
       CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreEnd
       DO df = loop0_start, loop0_stop, 1
@@ -427,7 +414,7 @@ def test_node_list_dynamo0p3():
         f2_data(df) = 0.0
       END DO
       DO cell = loop2_start, loop2_stop, 1
-        CALL testkern_w2_only_code(nlayers, f3_data, """ + \
+        CALL testkern_w2_only_code(nlayers_f3, f3_data, """ + \
         """f2_data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       CALL extract_psy_data%PostStart
@@ -462,7 +449,7 @@ def test_dynamo0p3_builtin():
       CALL extract_psy_data%PreDeclareVariable("loop2_stop", loop2_stop)
       CALL extract_psy_data%PreDeclareVariable("map_w2", map_w2)
       CALL extract_psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
-      CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
+      CALL extract_psy_data%PreDeclareVariable("nlayers_f3", nlayers_f3)
       CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
@@ -479,7 +466,7 @@ def test_dynamo0p3_builtin():
       CALL extract_psy_data%ProvideVariable("loop2_stop", loop2_stop)
       CALL extract_psy_data%ProvideVariable("map_w2", map_w2)
       CALL extract_psy_data%ProvideVariable("ndf_w2", ndf_w2)
-      CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
+      CALL extract_psy_data%ProvideVariable("nlayers_f3", nlayers_f3)
       CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreEnd
       DO df = loop0_start, loop0_stop, 1
@@ -491,7 +478,7 @@ def test_dynamo0p3_builtin():
         f2_data(df) = 0.0
       END DO
       DO cell = loop2_start, loop2_stop, 1
-        CALL testkern_w2_only_code(nlayers, f3_data, f2_data, """\
+        CALL testkern_w2_only_code(nlayers_f3, f3_data, f2_data, """\
         """ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       CALL extract_psy_data%PostStart
@@ -524,7 +511,7 @@ def test_extract_single_builtin_dynamo0p3():
     output = """! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
-      """"invoke_0:setval_c:r0", 2, 2)
+      """"invoke_0-setval_c-r0", 2, 2)
       CALL extract_psy_data%PreDeclareVariable("loop1_start", loop1_start)
       CALL extract_psy_data%PreDeclareVariable("loop1_stop", loop1_stop)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
@@ -557,7 +544,7 @@ def test_extract_single_builtin_dynamo0p3():
       ! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_psy", """ \
-      """"invoke_0:inc_ax_plus_y:r0", 4, 2)
+      """"invoke_0-inc_ax_plus_y-r0", 4, 2)
       CALL extract_psy_data%PreDeclareVariable("f1_data", f1_data)
       CALL extract_psy_data%PreDeclareVariable("f2_data", f2_data)
       CALL extract_psy_data%PreDeclareVariable("loop1_start", loop1_start)
@@ -602,7 +589,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       ! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
-      """"invoke_0:r0", 9, 4)
+      """"invoke_0-r0", 9, 4)
       CALL extract_psy_data%PreDeclareVariable("f3_data", f3_data)
       CALL extract_psy_data%PreDeclareVariable("loop1_start", loop1_start)
       CALL extract_psy_data%PreDeclareVariable("loop1_stop", loop1_stop)
@@ -610,7 +597,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("loop2_stop", loop2_stop)
       CALL extract_psy_data%PreDeclareVariable("map_w2", map_w2)
       CALL extract_psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
-      CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
+      CALL extract_psy_data%PreDeclareVariable("nlayers_f3", nlayers_f3)
       CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
@@ -624,7 +611,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       CALL extract_psy_data%ProvideVariable("loop2_stop", loop2_stop)
       CALL extract_psy_data%ProvideVariable("map_w2", map_w2)
       CALL extract_psy_data%ProvideVariable("ndf_w2", ndf_w2)
-      CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
+      CALL extract_psy_data%ProvideVariable("nlayers_f3", nlayers_f3)
       CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreEnd
       DO df = loop1_start, loop1_stop, 1
@@ -632,7 +619,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
         f2_data(df) = 0.0
       END DO
       DO cell = loop2_start, loop2_stop, 1
-        CALL testkern_w2_only_code(nlayers, f3_data, """ + \
+        CALL testkern_w2_only_code(nlayers_f3, f3_data, """ + \
         """f2_data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       CALL extract_psy_data%PostStart
@@ -667,9 +654,9 @@ def test_extract_colouring_omp_dynamo0p3():
     # First colour all of the loops over cells unless they are on
     # discontinuous spaces
     for child in schedule.children:
-        if isinstance(child, Loop) and child.field_space.orig_name \
-           not in const.VALID_DISCONTINUOUS_NAMES \
-           and child.iteration_space == "cell_column":
+        if (isinstance(child, Loop) and child.field_space.orig_name
+            not in const.VALID_DISCONTINUOUS_NAMES and
+                child.iteration_space.endswith("cell_column")):
             ctrans.apply(child)
     # Then apply OpenMP to each of the colour loops
     for child in schedule.children:
@@ -689,7 +676,7 @@ def test_extract_colouring_omp_dynamo0p3():
       ! ExtractStart
       !
       CALL extract_psy_data%PreStart("multikernel_invokes_7_psy", """
-              """"invoke_0:ru_code:r0", 30, 3)
+              """"invoke_0-ru_code-r0", 30, 3)
       CALL extract_psy_data%PreDeclareVariable("a_data", a_data)
       CALL extract_psy_data%PreDeclareVariable("b_data", b_data)
       CALL extract_psy_data%PreDeclareVariable("basis_w0_qr", basis_w0_qr)
@@ -714,7 +701,7 @@ last_edge_cell_all_colours)
       CALL extract_psy_data%PreDeclareVariable("ndf_w0", ndf_w0)
       CALL extract_psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%PreDeclareVariable("ndf_w3", ndf_w3)
-      CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
+      CALL extract_psy_data%PreDeclareVariable("nlayers_b", nlayers_b)
       CALL extract_psy_data%PreDeclareVariable("np_xy_qr", np_xy_qr)
       CALL extract_psy_data%PreDeclareVariable("np_z_qr", np_z_qr)
       CALL extract_psy_data%PreDeclareVariable("rdt", rdt)
@@ -751,7 +738,7 @@ last_edge_cell_all_colours)
       CALL extract_psy_data%ProvideVariable("ndf_w0", ndf_w0)
       CALL extract_psy_data%ProvideVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%ProvideVariable("ndf_w3", ndf_w3)
-      CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
+      CALL extract_psy_data%ProvideVariable("nlayers_b", nlayers_b)
       CALL extract_psy_data%ProvideVariable("np_xy_qr", np_xy_qr)
       CALL extract_psy_data%ProvideVariable("np_z_qr", np_z_qr)
       CALL extract_psy_data%ProvideVariable("rdt", rdt)
@@ -764,7 +751,7 @@ last_edge_cell_all_colours)
       DO colour = loop4_start, loop4_stop, 1
         !$omp parallel do default(shared), private(cell), schedule(static)
         DO cell = loop5_start, last_edge_cell_all_colours(colour), 1
-          CALL ru_code(nlayers, b_data, a_data, istp, rdt, """
+          CALL ru_code(nlayers_b, b_data, a_data, istp, rdt, """
               "c_data, e_1_data, e_2_data, "
               "e_3_data, ndf_w2, undf_w2, "
               "map_w2(:,cmap(colour,cell)), "

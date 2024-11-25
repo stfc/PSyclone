@@ -84,7 +84,7 @@ def test_psyloop_init():
 
 def test_psyloop_invalid_type():
     ''' Tests assigning an invalid type to a PSyLoop object. '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0,
+    _, invoke = get_invoke("single_invoke.f90", "gocean", idx=0,
                            dist_mem=False)
     sched = invoke.schedule
     loop = sched.children[0].loop_body[0]

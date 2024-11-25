@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 
-'''PSyclone Internal Representation module. Contains all nodes for the PSyIR,
-tools and basic transformations (in subdirectories).
+'''PSyclone Intermediate Representation module. Contains all nodes for the
+PSyIR, tools and basic transformations (in subdirectories).
 '''
 
 __all__ = []

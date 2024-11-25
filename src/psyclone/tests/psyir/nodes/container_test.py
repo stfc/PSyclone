@@ -39,10 +39,9 @@
 ''' Performs py.test tests on the Container PSyIR node. '''
 
 import pytest
-
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (colored, Container, FileContainer,
+from psyclone.psyir.nodes import (Call, colored, Container, FileContainer,
                                   KernelSchedule, Return, Routine)
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, SymbolTable
 from psyclone.tests.utilities import check_links
@@ -181,19 +180,254 @@ def test_container_children_validation():
             "" in str(excinfo.value))
 
 
-def test_container_get_routine_psyir():
-    '''Test that get_routine_psyir works
+# find_routine_psyir
+
+CALL_IN_SUB_USE = (
+    "subroutine run_it()\n"
+    "  use inline_mod, only : sub\n"
+    "  real :: a\n"
+    "  call sub(a)\n"
+    "end subroutine run_it\n")
+CALL_IN_SUB = CALL_IN_SUB_USE.replace(
+    "  use inline_mod, only : sub\n", "")
+SUB = (
+    "subroutine sub(x)\n"
+    "  real :: x\n"
+    "  x = 1.0\n"
+    "end subroutine sub\n")
+SUB_IN_MODULE = (
+    f"module inline_mod\n"
+    f"contains\n"
+    f"{SUB}"
+    f"end module inline_mod\n")
+
+
+def test_find_routine_psyir_routine_not_found(fortran_reader):
+    '''Test that None is returned when the required Routine is not found
+    in the Container associated with the supplied container symbol, as
+    it does not exist. Also check that None is returned if the name
+    corresponds to an interface rather than a single routine.
 
     '''
-    symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("tmp", REAL_SINGLE_TYPE))
-    kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
-    kernel2 = KernelSchedule.create("mod_2", SymbolTable(), [])
-    container = Container.create("container_name", symbol_table,
-                                 [kernel1, kernel2])
-    for name in ["mod_1", "mod_2"]:
-        psyir = container.get_routine_psyir(name)
-        assert isinstance(psyir, Routine)
-        assert psyir.name == name
+    code = (
+        "module inline_mod\n"
+        "  interface my_funky_routine\n"
+        "    procedure :: this_one, that_one\n"
+        "  end interface my_funky_routine\n"
+        "end module inline_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.children[0]
+    result = container.find_routine_psyir("missing")
+    assert result is None
+    result = container.find_routine_psyir("my_funky_routine")
+    assert result is None
 
-    assert container.get_routine_psyir("doesnotexist") is None
+
+def test_get_routine_missing_container(fortran_reader):
+    '''Test that None is returned when we cannot find the container from which
+    the required Routine is imported.
+
+    '''
+    code = (
+        "module inline_mod\n"
+        " use some_other_mod, only: my_sub\n"
+        "end module inline_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.children[0]
+    result = container.find_routine_psyir("my_sub")
+    assert result is None
+
+
+def test_get_routine_missing_container_wildcard(fortran_reader):
+    '''Test that None is returned when we cannot find the container from which
+    a wildcard import is performed.
+
+    '''
+    code = (
+        "module inline_mod\n"
+        " use some_other_mod\n"
+        "end module inline_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.children[0]
+    result = container.find_routine_psyir("my_sub")
+    assert result is None
+
+
+def test_get_routine_recurse_named(fortran_reader):
+    '''Test that when a container does not contain the required routine,
+    any imported containers within this container are also
+    searched. In this case the test is for a container within the
+    original container that explicitly names the routine. The PSyIR of
+    the routine is returned when it is found in the second container.
+
+    '''
+    code = (
+        f"{CALL_IN_SUB_USE}"
+        f"module inline_mod\n"
+        f"use inline_mod2, only : sub\n"
+        f"end module inline_mod\n"
+        f"module inline_mod2\n"
+        f"contains\n"
+        f"{SUB}\n"
+        f"end module inline_mod2\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.walk(Container)[1]
+    result = container.find_routine_psyir("sub")
+    assert isinstance(result, Routine)
+    assert result.name == "sub"
+    # Check that if an imported Routine is private then we don't
+    # return it.
+    code = (
+        f"{CALL_IN_SUB_USE}"
+        f"module inline_mod\n"
+        f"use inline_mod2, only : sub\n"
+        f"private\n"
+        f"end module inline_mod\n"
+        f"module inline_mod2\n"
+        f"contains\n"
+        f"{SUB}\n"
+        f"end module inline_mod2\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.walk(Container)[1]
+    result = container.find_routine_psyir("sub")
+    assert result is None
+
+
+def test_get_routine_recurse_wildcard(fortran_reader):
+    '''Test that when a container does not contain the required routine,
+    any imported containers within this container are also
+    searched. In this case, test when the import is from a container that
+    then has a wildcard import. The PSyIR of the routine is returned when
+    it is found in the second container.
+
+    '''
+    code = (
+        f"{CALL_IN_SUB_USE}"
+        f"module inline_mod\n"
+        f"use inline_mod2\n"
+        f"end module inline_mod\n"
+        f"module inline_mod2\n"
+        f"contains\n"
+        f"{SUB}\n"
+        f"end module inline_mod2\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call_node = psyir.walk(Call)[0]
+    csym = call_node.routine.symbol.interface.container_symbol
+    container = csym.find_container_psyir(local_node=call_node)
+    # By default we don't follow wildcard imports and thus don't find
+    # the routine.
+    result = container.find_routine_psyir(call_node.routine.name)
+    assert result is None
+    # Repeat but include wildcard imports.
+    result = container.find_routine_psyir(call_node.routine.name,
+                                          check_wildcard_imports=True)
+    assert isinstance(result, Routine)
+    assert result.name == "sub"
+    # Repeat test but alter intermediate module so that it has a default
+    # visibility of PRIVATE. Consequently, any Symbols imported into
+    # it are not visible outside.
+    code = (
+        f"{CALL_IN_SUB_USE}"
+        f"module inline_mod\n"
+        f"use inline_mod2\n"
+        f"private\n"
+        f"end module inline_mod\n"
+        f"module inline_mod2\n"
+        f"contains\n"
+        f"{SUB}\n"
+        f"end module inline_mod2\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call_node = psyir.walk(Call)[0]
+    csym = call_node.routine.symbol.interface.container_symbol
+    container = csym.find_container_psyir(local_node=call_node)
+    result = container.find_routine_psyir(call_node.routine.name,
+                                          check_wildcard_imports=True)
+    assert result is None
+    # Test when we follow an import chain but ultimately fail to find
+    # a Container along the way. In this case, we have no source for
+    # module 'inline_mod3'.
+    code = (
+        f"{CALL_IN_SUB_USE}"
+        f"module inline_mod\n"
+        f"use inline_mod3\n"
+        f"end module inline_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call_node = psyir.walk(Call)[0]
+    csym = call_node.routine.symbol.interface.container_symbol
+    container = csym.find_container_psyir(local_node=call_node)
+    result = container.find_routine_psyir(call_node.routine.name,
+                                          check_wildcard_imports=True)
+    assert result is None
+
+
+def test_find_routine_in_container_private_routine_not_found(fortran_reader):
+    '''Test that None is returned when the required Routine is not found
+    in the Container associated with the supplied container symbol, as
+    it is private. This situation should not arise as it is invalid to
+    try to import a private routine. However, there are currrently no
+    checks for this when creating PSyIR.
+
+    '''
+    private_sub_in_module = SUB_IN_MODULE.replace(
+        "contains\n", "  private :: sub\ncontains\n")
+    code = f"{private_sub_in_module}{CALL_IN_SUB_USE}"
+    psyir = fortran_reader.psyir_from_source(code)
+    call_node = psyir.walk(Call)[0]
+    csym = call_node.routine.symbol.interface.container_symbol
+    container = csym.find_container_psyir(local_node=call_node)
+    result = container.find_routine_psyir(call_node.routine.name)
+    assert result is None
+    assert container.find_routine_psyir("doesnotexist") is None
+
+
+def test_container_resolve_routine(fortran_reader):
+    '''
+    Test that the resolve_routine() method works as expected for:
+
+      * an individual routine;
+      * a generic interface;
+      * a name that does not correspond to a routine;
+      * a name that does not exist.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+module a_mod
+    use some_mod, only: its_a_routine_really
+    interface a_facade
+      module procedure :: brick_frontage, porticoed
+      procedure :: wattle_and_daub
+    end interface
+    integer :: not_a_routine
+contains
+    subroutine brick_frontage(brick)
+      integer :: brick
+    end subroutine brick_frontage
+    subroutine porticoed(pillar)
+      real(kind=8) :: pillar
+    end subroutine porticoed
+    subroutine wattle_and_daub(gunk)
+      real(kind=4) :: gunk
+    end subroutine wattle_and_daub
+end module a_mod
+    ''')
+    cntr = psyir.children[0]
+    assert isinstance(cntr, Container)
+    # Individual routine.
+    assert cntr.resolve_routine("wattle_and_daub") == ["wattle_and_daub"]
+    # Generic interface.
+    routines = cntr.resolve_routine("a_facade")
+    assert len(routines) == 3
+    assert set(routines) == set(["brick_frontage",
+                                 "porticoed",
+                                 "wattle_and_daub"])
+    # An imported Symbol
+    routines = cntr.resolve_routine("its_a_routine_really")
+    assert routines == ["its_a_routine_really"]
+    # Something that is a DataSymbol.
+    with pytest.raises(TypeError) as err:
+        cntr.resolve_routine("not_a_routine")
+    assert ("Expected 'not_a_routine' to correspond to a RoutineSymbol, a "
+            "GenericInterfaceSymbol or an imported Symbol but found: "
+            "not_a_routine: DataSymbol" in str(err.value))
+    # A name not present in the Container.
+    assert cntr.resolve_routine("missing") == []

@@ -108,7 +108,7 @@ def test_fortran_psyir_from_source_fixed_form():
 def test_fortran_psyir_from_expression(fortran_reader):
     ''' Test that the psyir_from_expression method generates the
     expected PSyIR. '''
-    sched = Routine("malachi")
+    sched = Routine.create("malachi")
     table = sched.symbol_table
     psyir = fortran_reader.psyir_from_expression("3.0", table)
     assert isinstance(psyir, Literal)
@@ -217,7 +217,7 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
         wfile.write("")
     file_container = fortran_reader.psyir_from_file(filename)
     assert isinstance(file_container, FileContainer)
-    assert file_container.name == "None"
+    assert file_container.name == "empty.f90"
 
     # Check with a file that doesn't exist
     filename = str(tmpdir_factory.mktemp('frontend_test').join("Idontexist"))

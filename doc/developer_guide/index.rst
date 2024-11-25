@@ -47,7 +47,8 @@
    psyir
    psyir_symbols
    psyir_backends
-   parsing
+   psykal
+   module_manager
    APIs
    modules
    dependency
@@ -56,7 +57,7 @@
    psy_data
    system_specific_setup
    coding-style
-   zz_bibliography
+   Bibliography <zz_bibliography>
 
 ..   FAQS
 

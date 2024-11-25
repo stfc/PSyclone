@@ -88,9 +88,9 @@ class LFRicDofmaps(LFRicCollection):
         self._unique_indirection_maps = OrderedDict()
 
         for call in self._calls:
-            # We only need a dofmap if the kernel operates on a cell_column
-            # or the domain.
-            if call.iterates_over in ["cell_column", "domain"]:
+            # We only need a dofmap if the kernel operates on cells
+            # rather than dofs.
+            if call.iterates_over != "dof":
                 for unique_fs in call.arguments.unique_fss:
                     # We only need a dofmap if there is a *field* on this
                     # function space. If there is then we use it to look
@@ -205,7 +205,7 @@ class LFRicDofmaps(LFRicCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         # Function space dofmaps
         decl_map_names = \
@@ -240,7 +240,7 @@ class LFRicDofmaps(LFRicCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):

@@ -34,13 +34,13 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         A. B. G. Chalk, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+#          J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenMP PSyIR Directive nodes. '''
 
 import os
 import pytest
-from psyclone.configuration import Config
 from psyclone.errors import UnresolvedDependencyError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -70,7 +70,6 @@ from psyclone.transformations import (
     Dynamo0p3OMPLoopTrans, OMPParallelTrans,
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans)
-from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -172,8 +171,8 @@ def test_ompparallel_gen_code_clauses(monkeypatch):
 
     # Check with an LFRic kernel, the cell variable must be private
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     tree = psy.invokes.invoke_list[0].schedule
     ptrans = OMPParallelTrans()
     tdir = OMPDoDirective()
@@ -230,8 +229,8 @@ def test_omp_paralleldo_clauses_gen_code(monkeypatch):
 
     # Check with an LFRic kernel, the cell variable must be private
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     tree = psy.invokes.invoke_list[0].schedule
     ptrans = OMPParallelLoopTrans()
     loops = tree.walk(Loop)
@@ -283,7 +282,6 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
     appropriate begin_string and clauses for the backend to generate
     the right code'''
 
-    Config.get().api = "nemo"
     code = '''
     subroutine my_subroutine()
         integer, dimension(321, 10) :: A
@@ -382,8 +380,8 @@ def test_ompdo_constructor():
     ''' Check that we can make an OMPDoDirective with and without
     children '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     ompdo = OMPDoDirective(parent=schedule)
     # A Directive always has a Schedule
@@ -525,6 +523,23 @@ def test_omp_do_directive_validate_global_constraints(fortran_reader,
             in str(err.value))
 
 
+def test_omp_parallel_do_create():
+    ''' Test the OMPParallelDoDirective create method. '''
+    loop = Loop.create(DataSymbol("i", INTEGER_SINGLE_TYPE),
+                       Literal("1", INTEGER_SINGLE_TYPE),
+                       Literal("10", INTEGER_SINGLE_TYPE),
+                       Literal("1", INTEGER_SINGLE_TYPE),
+                       [])
+    children = [loop]
+    directive = OMPParallelDoDirective.create(children=children, collapse=2)
+    assert directive.collapse == 2
+    assert directive.omp_schedule == "none"
+    assert str(directive) == "OMPParallelDoDirective[collapse=2]"
+    assert directive.dir_body.children[0] is loop
+    assert (directive.default_clause.clause_type
+            == OMPDefaultClause.DefaultClauseTypes.SHARED)
+
+
 def test_omp_pdo_validate_child():
     ''' Test the _validate_child method for OMPParallelDoDirective'''
     sched = Schedule()
@@ -601,25 +616,30 @@ def test_ompdo_equality():
     assert ompdo1 != ompdo2
 
 
-def test_omp_do_children_err():
+def test_omp_do_children_err(fortran_reader):
     ''' Tests that we raise the expected error when an OpenMP parallel do
     directive has more than one child or the child is not a loop. '''
     otrans = OMPParallelLoopTrans()
-    psy, invoke_info = get_invoke("imperfect_nest.f90", api="nemo", idx=0)
-    schedule = invoke_info.schedule
-    otrans.apply(schedule[0].loop_body[2])
-    directive = schedule[0].loop_body[2]
-    assert isinstance(directive, OMPParallelDoDirective)
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1
+            real, dimension(10) :: array
+            do i = 1, 10
+               array(i) = scalar1
+            enddo
+        end subroutine''')
+    otrans.apply(psyir.walk(Loop)[0])
+    directive = psyir.walk(OMPParallelDoDirective)[0]
     # Make the schedule invalid by adding a second child to the
     # OMPParallelDoDirective
     directive.dir_body.children.append(directive.dir_body[0].copy())
     with pytest.raises(GenerationError) as err:
-        _ = psy.gen
+        directive.validate_global_constraints()
     assert ("An OMPParallelDoDirective can only be applied to a single loop "
             "but this Node has 2 children:" in str(err.value))
     directive.dir_body.children = [Return()]
     with pytest.raises(GenerationError) as err:
-        _ = psy.gen
+        directive.validate_global_constraints()
     assert ("An OMPParallelDoDirective can only be applied to a loop but "
             "this Node has a child of type 'Return'" in str(err.value))
 
@@ -633,8 +653,8 @@ def test_directiveinfer_sharing_attributes_lfric():
 
     '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1_single_invoke_w3.f90"), api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        os.path.join(BASE_PATH, "1_single_invoke_w3.f90"), api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1047,8 +1067,8 @@ def test_omp_forward_dependence():
     schedule or None if none are found. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     otrans = DynamoOMPParallelLoopTrans()
@@ -1072,8 +1092,8 @@ def test_omp_forward_dependence():
     # 3: directive and globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     otrans.apply(schedule.children[0])
@@ -1103,9 +1123,9 @@ def test_omp_single_strings(nowait):
     ''' Test the begin_string and end_string methods of the OMPSingle
         directive '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
+                           api="gocean")
     single = OMPSingleTrans()
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -1132,9 +1152,9 @@ def test_omp_single_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPSingle
         directive '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
+                           api="lfric")
     single = OMPSingleTrans()
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+    psy = PSyFactory("lfric", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -1150,14 +1170,14 @@ def test_omp_single_nested_validate_global_constraints(monkeypatch):
     ''' Test the validate_global_constraints method of the OMPSingle
         directive fails when nested OMPSingles happen'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
+                           api="lfric")
     single = OMPSingleTrans()
     # Alternative excluded node types for monkeypatch
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
                            psyGen.HaloExchange, nodes.OMPParallelDirective)
     monkeypatch.setattr(single, "excluded_node_types", excluded_node_types)
     parallel = OMPParallelTrans()
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+    psy = PSyFactory("lfric", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -1176,7 +1196,7 @@ def test_omp_single_gencode(nowait):
     '''Check that the gen_code method in the OMPSingleDirective class
     generates the expected code.
     '''
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     temporary_module = ModuleGen("test")
     parallel = OMPParallelDirective.create()
     single = OMPSingleDirective(nowait=nowait)
@@ -1205,7 +1225,7 @@ def test_omp_master_gencode():
     '''Check that the gen_code method in the OMPMasterDirective class
     generates the expected code.
     '''
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     temporary_module = ModuleGen("test")
     parallel = OMPParallelDirective.create()
     master = OMPMasterDirective()
@@ -1221,9 +1241,9 @@ def test_omp_master_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPMaster
         directive '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
+                           api="lfric")
     master = OMPMasterTrans()
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+    psy = PSyFactory("lfric", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -1239,14 +1259,14 @@ def test_omp_master_nested_validate_global_constraints(monkeypatch):
     ''' Test the validate_global_constraints method of the OMPMaster
         directive fails when nested OMPSingles happen'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
+                           api="lfric")
     master = OMPMasterTrans()
     # Alternative excluded node types for monkeypatch
     excluded_node_types = (nodes.CodeBlock, nodes.Return, nodes.ACCDirective,
                            psyGen.HaloExchange, nodes.OMPParallelDirective)
     monkeypatch.setattr(master, "excluded_node_types", excluded_node_types)
     parallel = OMPParallelTrans()
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+    psy = PSyFactory("lfric", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -1271,7 +1291,7 @@ def test_omptaskwait_gencode():
     '''Check that the gen_code method in the OMPTaskwaitDirective
     class generates the expected code.
     '''
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     temporary_module = ModuleGen("test")
     parallel = OMPParallelDirective.create()
     directive = OMPTaskwaitDirective()
@@ -1286,8 +1306,8 @@ def test_omp_taskwait_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPTaskwait
         directive '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     taskwait = OMPTaskwaitDirective()
@@ -1337,7 +1357,7 @@ def test_omp_taskloop_gencode(grainsize, num_tasks, nogroup, clauses):
     class generates the expected code.
     '''
     temporary_module = ModuleGen("test")
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     single = OMPSingleDirective()
     directive = OMPTaskloopDirective(grainsize=grainsize, num_tasks=num_tasks,
@@ -1391,9 +1411,9 @@ def test_omp_taskloop_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPTaskloop
         directive '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
-                           api="dynamo0.3")
+                           api="lfric")
     taskloop = OMPTaskloopTrans()
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+    psy = PSyFactory("lfric", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -1452,7 +1472,7 @@ def test_omp_declare_target_directive_validate_global_constraints():
     target.validate_global_constraints()
 
     # If it is the child 0 of a Routine it passes the tests
-    subroutine = Routine("test")
+    subroutine = Routine.create("test")
     subroutine.addchild(target)
     target.validate_global_constraints()
 
@@ -2651,7 +2671,7 @@ def test_omp_serial_validate_task_dependencies_outout():
     '''
 
     # Check outout Array dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -2715,7 +2735,7 @@ def test_omp_serial_validate_task_dependencies_outout():
     sing._validate_task_dependencies()
 
     # Check outout Reference dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -2801,7 +2821,7 @@ def test_omp_serial_validate_task_dependencies_outout():
         ]
     )
     # Check outout StructureReference non-array dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -2876,7 +2896,7 @@ def test_omp_serial_validate_task_dependencies_outout():
     sing._validate_task_dependencies()
 
     # Check outout StructureReference with array access
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -2959,7 +2979,7 @@ def test_omp_serial_validate_task_dependencies_outout():
             ),
         ]
     )
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3045,7 +3065,7 @@ def test_omp_serial_validate_task_dependencies_outout():
             ),
         ]
     )
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3113,7 +3133,7 @@ def test_omp_serial_validate_task_dependencies_outout():
     sing._validate_task_dependencies()
 
     # Check outout accesses to range and literal indexes.
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3190,7 +3210,7 @@ def test_omp_serial_validate_task_dependencies_inout():
     for inout dependency types
     '''
     # Check inout Array dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3256,7 +3276,7 @@ def test_omp_serial_validate_task_dependencies_inout():
     sing._validate_task_dependencies()
 
     # Check inout Reference dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3344,7 +3364,7 @@ def test_omp_serial_validate_task_dependencies_inout():
         ]
     )
     # Check inout StructureReference non-array dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3421,7 +3441,7 @@ def test_omp_serial_validate_task_dependencies_inout():
     sing._validate_task_dependencies()
 
     # Check inout StructureReference with array access
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3506,7 +3526,7 @@ def test_omp_serial_validate_task_dependencies_inout():
             ),
         ]
     )
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3592,7 +3612,7 @@ def test_omp_serial_validate_task_dependencies_inout():
             ),
         ]
     )
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3661,7 +3681,7 @@ def test_omp_serial_validate_task_dependencies_inout():
     sing._validate_task_dependencies()
 
     # Check inout accesses to range and literal indexes.
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3740,7 +3760,7 @@ def test_omp_serial_validate_task_dependencies_outin():
     for outin dependency types
     '''
     # Check outin Array dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3806,7 +3826,7 @@ def test_omp_serial_validate_task_dependencies_outin():
     sing._validate_task_dependencies()
 
     # Check outin Reference dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3894,7 +3914,7 @@ def test_omp_serial_validate_task_dependencies_outin():
         ]
     )
     # Check inout StructureReference non-array dependency
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -3971,7 +3991,7 @@ def test_omp_serial_validate_task_dependencies_outin():
     sing._validate_task_dependencies()
 
     # Check inout StructureReference with array access
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -4056,7 +4076,7 @@ def test_omp_serial_validate_task_dependencies_outin():
             ),
         ]
     )
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -4142,7 +4162,7 @@ def test_omp_serial_validate_task_dependencies_outin():
             ),
         ]
     )
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -4211,7 +4231,7 @@ def test_omp_serial_validate_task_dependencies_outin():
     sing._validate_task_dependencies()
 
     # Check outin accesses to range and literal indexes.
-    subroutine = Routine("testsub")
+    subroutine = Routine.create("testsub")
     parallel = OMPParallelDirective.create()
     subroutine.addchild(parallel)
     sing = OMPSingleDirective()
@@ -4649,3 +4669,34 @@ def test_omp_serial_check_dependency_valid_pairing():
     assert test_dir._check_dependency_pairing_valid(
                array_reference1, array_reference2, None, None
            )
+
+
+def test_omptarget_gen_code():
+    ''' Check that the OMPTarget gen_code produces the right code '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.children[-1]
+
+    # Add an OMPTarget and move the kernel inside it
+    target = OMPTargetDirective()
+    schedule.addchild(target)
+    target.dir_body.addchild(kern.detach())
+
+    # Check that the "omp target" is produced, and that the set_dirty is
+    # generated after it
+    code = str(psy.gen)
+    assert """
+      !$omp target
+      DO cell = loop0_start, loop0_stop, 1
+        CALL testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, \
+m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), \
+ndf_w3, undf_w3, map_w3(:,cell))
+      END DO
+      !$omp end target
+      !
+      ! Set halos dirty/clean for fields modified in the above loop(s)
+      !
+      CALL f1_proxy%set_dirty()
+    """ in code

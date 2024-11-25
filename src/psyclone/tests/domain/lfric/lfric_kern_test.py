@@ -62,7 +62,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
                 os.path.abspath(__file__)))), "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 CODE = '''
 module testkern_qr
@@ -456,3 +456,17 @@ def test_kern_not_coloured_inc(monkeypatch):
     assert ("Kernel 'testkern_code' has an argument with INC access and "
             "therefore must be coloured in order to be parallelised with "
             "OpenMP." in str(err.value))
+
+
+def test_undf_name():
+    '''Tests that the LFRicKern.undf_name property returns the correct
+    result when called.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    kern = sched.walk(LFRicKern)[0]
+
+    assert kern.undf_name == "undf_w1"

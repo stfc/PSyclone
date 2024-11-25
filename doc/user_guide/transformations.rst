@@ -41,9 +41,9 @@ Transformations
 ===============
 
 As discussed in the previous section, transformations can be applied
-to PSyclone's internal representation (PSyIR) to modify it. Typically
-transformations will be used to optimise the Algorithm, PSy and/or
-Kernel layer(s) for a particular architecture, however transformations
+to the PSyIR to modify it. Typically transformations will be used to
+optimise the provided source file, or the PSy and/or Kernel layer(s)
+in the PSyKAl DSLs, for a particular architecture. However, transformations
 could be added for other reasons, such as to aid debugging or for
 performance monitoring.
 
@@ -134,8 +134,9 @@ can be found in the API-specific sections).
 .. note:: PSyclone currently only supports OpenCL and
           KernelImportsToArguments transformations for the GOcean 1.0
           API, the OpenACC Data transformation is limited to
-          the NEMO and GOcean 1.0 APIs and the OpenACC Kernels
-          transformation is limited to the NEMO and LFRic (Dynamo0.3) APIs.
+          the generic code transformation and the GOcean 1.0 API and the
+          OpenACC Kernels transformation is limited to the generic code
+          transformation and the LFRic API.
 
 .. note:: The directory layout of PSyclone is currently being restructured.
           As a result of this some transformations are already in the new
@@ -166,7 +167,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.ACCKernelsTrans
+.. autoclass:: psyclone.psyir.transformations.ACCKernelsTrans
     :noindex:
     :members: apply
 
@@ -196,7 +197,7 @@ can be found in the API-specific sections).
   
 ####
 
-.. autoclass:: psyclone.psyir.transformations.ArrayRange2LoopTrans
+.. autoclass:: psyclone.psyir.transformations.ArrayAssignment2LoopsTrans
     :members: apply
     :noindex:
   
@@ -476,11 +477,9 @@ can be found in the API-specific sections).
 Algorithm-layer
 ---------------
 
-The gocean1.0 API supports the transformation of the algorithm
-layer. In the future the LFRic (dynamo0.3) API will also support
-this. However, this is not relevant to the nemo API as it does not
-have the concept of an algorithm layer (just PSy and Kernel
-layers). The ability to transformation the algorithm layer is new and
+The gocean API supports the transformation of the algorithm
+layer. In the future the LFRic API will also support this.
+The ability to transformation the algorithm layer is new and
 at this time no relevant transformations have been developed.
 
 Kernels
@@ -658,8 +657,8 @@ code. This allows us to generate a "vanilla" PSy layer. For example::
     >>> ast = parser(reader)
     >>> invoke_info = Parser().invoke_info(ast)
 
-    # This example uses the LFRic (dynamo0.3) API
-    >>> api = "dynamo0.3"
+    # This example uses the LFRic API
+    >>> api = "lfric"
 
     # Create the PSy-layer object using the invokeInfo
     >>> psy = PSyFactory(api, distributed_memory=False).create(invoke_info)
@@ -748,7 +747,7 @@ layer code appropriately. By default this script will generate
 example::
 
     > psyclone algspec.f90
-    > psyclone -oalg alg.f90 -opsy psy.f90 -api dynamo0.3 algspec.f90
+    > psyclone -oalg alg.f90 -opsy psy.f90 -api lfric algspec.f90
 
 The **psyclone** script has an optional **-s** flag which allows the
 user to specify a script file to modify the PSy layer as
@@ -773,31 +772,27 @@ the Python search path **PYTHONPATH** as before. For example::
 PSyclone also provides the same functionality via a function (which is
 what the **psyclone** script calls internally).
 
-###.. autofunction:: psyclone.generator.generate
-###          :noindex:
+A valid script file must contain a **trans** function which accepts a
+:ref:`PSyIR node<psyir-ug>` representing the root of the psy-layer
+code (as a FileConatainer)::
 
-A valid script file must contain a **trans** function which accepts a **PSy**
-object as an argument and returns a **PSy** object, i.e.:
-::
-
-    >>> def trans(psy):
+    >>> def trans(psyir):
     ...     # ...
-    ...     return psy
 
-It is up to the script what it does with the PSy object. The example
-below does the same thing as the example in the
+It is up to the script how to modify the PSyIR representation of the code.
+The example below does the same thing as the example in the
 :ref:`sec_transformations_interactive` section.
 ::
 
-    >>> def trans(psy):
+    >>> def trans(psyir):
     ...     from psyclone.transformations import OMPParallelLoopTrans
-    ...     invoke = psy.invokes.get('invoke_0_v3_kernel_type')
-    ...     schedule = invoke.schedule
-    ...     ol = OMPParallelLoopTrans()
-    ...     ol.apply(schedule.children[0])
-    ...     return psy
+    ...     from psyclone.psyir.node import Routine
+    ...     for subroutine in psyir.walk(Routine):
+    ...         if subroutine.name == 'invoke_0_v3_kernel_type':
+    ...             ol = OMPParallelLoopTrans()
+    ...             ol.apply(subroutine.children[0])
 
-In the gocean1.0 API (and in the future the lfric (dynamo0.3) API) an
+In the gocean API (and in the future the lfric API) an
 optional **trans_alg** function may also be supplied. This function
 accepts **PSyIR** (representing the algorithm layer) as an argument and
 returns **PSyIR** i.e.:
@@ -805,7 +800,6 @@ returns **PSyIR** i.e.:
 
    >>> def trans_alg(psyir):
    ...     # ...
-   ...    return psyir
 
 As with the `trans()` function it is up to the script what it does with
 the algorithm PSyIR. Note that the `trans_alg()` script is applied to
@@ -983,7 +977,7 @@ multiple InvokeSchedule and kernel-specific optimization options.
 .. literalinclude:: ../../examples/gocean/eg3/ocl_trans.py
     :language: python
     :linenos:
-    :lines: 39-79
+    :pyobject: trans
 
 
 OpenCL delays the decision of which and where kernels will execute until
@@ -1056,9 +1050,9 @@ As well as ensuring the correct data is copied to and from the remote
 device, OpenACC directives must also be added to a code in order to
 tell the compiler how it should be parallelised. PSyclone provides the
 ``ACCKernelsTrans``, ``ACCParallelTrans`` and ``ACCLoopTrans``
-transformations for this purpose. The simplest of these is
-``ACCKernelsTrans`` (currently only supported for the NEMO and
-Dynamo0.3 APIs) which encloses the code represented by a sub-tree of
+transformations for this purpose. The simplest of these is ``ACCKernelsTrans``
+(currently only supported for the generic code transformation
+and LFRic API) which encloses the code represented by a sub-tree of
 the PSyIR within an OpenACC ``kernels`` region.  This essentially
 gives free-reign to the compiler to automatically parallelise any
 suitable loops within the specified region. An example of the use of
@@ -1092,8 +1086,8 @@ SIR
 
 It is currently not possible for PSyclone to output SIR code without
 using a script. Three examples of such scripts are given in example 4
-for the NEMO API. The first `sir_trans.py` simply outputs SIR. This
-will raise an exception if used with the `tracer advection` example as
+for the NEMO examples directory. The first `sir_trans.py` simply outputs SIR.
+This will raise an exception if used with the `tracer advection` example as
 the example contains array-index notation which is not supported by
 the SIR backend, but will generate code for the other examples. The
 second, `sir_trans_loop.py` includes transformations to hoist code out
