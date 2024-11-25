@@ -708,7 +708,7 @@ end module some_mod'''
     assert result is routine_match
 
 
-def test_call_get_callee_3_trigger_error(fortran_reader):
+def test_call_get_callee_3a_trigger_error(fortran_reader):
     '''
     Test which is supposed to trigger an error when no matching routine
     is found
@@ -742,6 +742,40 @@ end module some_mod'''
         call_foo.get_callee()
 
     assert "No matching routine found for" in str(err.value)
+
+
+def test_call_get_callee_3c_trigger_error(fortran_reader):
+    '''
+    Test which is supposed to trigger an error when no matching routine
+    is found, but we use the special option check_matching_arguments=False
+    to find one.
+    '''
+    code = '''
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f, g
+    call foo(e, f, g)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b)
+    integer :: a, b
+  end subroutine
+
+end module some_mod'''
+
+    root_node: Node = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+    assert call_foo.routine.name == "foo"
+
+    call_foo.get_callee(check_matching_arguments=False)
 
 
 def test_call_get_callee_4_named_arguments(fortran_reader):
@@ -836,7 +870,7 @@ module some_mod
   implicit none
 
   interface foo
-    procedure foo_a, foo_b, foo_c
+    procedure foo_a, foo_b, foo_c, foo_optional
   end interface
 contains
 
@@ -867,6 +901,10 @@ contains
 
     ! Should match foo_c, test_call_get_callee_6_interfaces_2_2
     call foo(b=e_real, a=f_int, g_int)
+
+    ! Should not match foo_optional because of invalid type,
+    ! test_call_get_callee_6_interfaces_3_0_mismatch
+    call foo(f_int, e_real, g_int, g_int)
   end subroutine
 
   subroutine foo_a(a, b, c)
@@ -885,6 +923,14 @@ contains
     real :: b
     integer, optional :: c
   end subroutine
+
+  subroutine foo_optional(a, b, c, d)
+    integer :: a
+    real :: b
+    integer :: c
+    real, optional :: d ! real vs. int
+  end subroutine
+
 
 end module some_mod'''
 
@@ -1126,6 +1172,30 @@ def test_call_get_callee_6_interfaces_2_2(fortran_reader):
     assert arg_idx_list[2] == 2
 
     assert result is routine_foo_c
+
+
+def test_call_get_callee_6_interfaces_3_0_mismatch(fortran_reader):
+    '''
+    Check that matching a partial data type can also go wrong.
+    '''
+
+    root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_foo_optional: Routine = root_node.walk(Routine)[4]
+    print(routine_foo_optional.name)
+    assert routine_foo_optional.name == "foo_optional"
+
+    call_foo_optional: Call = routine_main.walk(Call)[8]
+    assert call_foo_optional.routine.name == "foo"
+
+    with pytest.raises(CallMatchingArgumentsNotFound) as einfo:
+      call_foo_optional.get_callee()
+
+    assert "Argument partial type mismatch of call argument" in (
+      str(einfo.value))
 
 
 def test_call_get_callee_7_matching_arguments_not_found(fortran_reader):

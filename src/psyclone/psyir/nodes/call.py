@@ -768,8 +768,9 @@ class Call(Statement, DataNode):
         '''
 
         routine_list = self.get_callees()
+        assert len(routine_list) != 0
 
-        error: Exception = None
+        err_info_list = []
 
         # Search for the routine matching the right arguments
         for routine in routine_list:
@@ -778,7 +779,7 @@ class Call(Statement, DataNode):
             try:
                 arg_match_list = self._get_argument_routine_match(routine)
             except CallMatchingArgumentsNotFound as err:
-                error = err
+                err_info_list.append(err.value)
                 continue
 
             return (routine, arg_match_list)
@@ -789,13 +790,11 @@ class Call(Statement, DataNode):
         # matching is supported.
         if not check_matching_arguments:
             # Also return a list of dummy argument indices
-            return (routine_list[0], [i for i in range(len(self.arguments))])
+            return list(range(len(self.arguments)))
 
-        if error is not None:
-            raise CallMatchingArgumentsNotFound(
-                f"No matching routine found for '{self.debug_string()}'"
-            ) from error
-        else:
-            raise NotImplementedError(
-                f"No matching routine found for " f"'{self.routine.name}'"
-            )
+        error_msg = "\n".join(err_info_list)
+
+        raise CallMatchingArgumentsNotFound(
+            f"No matching routine found for '{self.debug_string()}':"
+            "\n" + error_msg
+        )
