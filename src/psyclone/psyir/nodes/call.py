@@ -615,16 +615,16 @@ class Call(Statement, DataNode):
                 self,
                 call_arg: DataSymbol,
                 routine_arg: DataSymbol,
-            ) -> bool:
+            ) -> None:
         """Return information whether argument types are matching.
         This also supports 'optional' arguments by using
         partial types.
 
-        :param call_arg: _description_
-        :type call_arg: DataSymbol
-        :param routine_arg: _description_
-        :type routine_arg: DataSymbol
-        :raises CallMatchingArgumentsNotFound: _description_
+        :param call_arg: One argument of the call
+        :param routine_arg: One argument of the routine
+
+        :raises CallMatchingArgumentsNotFound: Raised if no matching argument
+            was found.
         :raises CallMatchingArgumentsNotFound: _description_
         """
         if isinstance(
@@ -649,11 +649,12 @@ class Call(Statement, DataNode):
                     f"'{routine_arg}'"
                 )
 
-        return True
+        return
 
     def _get_argument_routine_match(self, routine: Routine):
         '''Return a list of integers giving for each argument of the call
-        the index of the argument in argument_list (typically of a routine)
+        the index of the corresponding entry in the argument list of the
+        supplied routine.
 
         :return: None if no match was found, otherwise list of integers
             referring to matching arguments.
@@ -729,13 +730,11 @@ class Call(Statement, DataNode):
 
             # TODO #759: Optional keyword is not yet supported in psyir.
             # Hence, we use a simple string match.
-            if ", OPTIONAL" in str(routine_arg.datatype):
-                continue
-
-            raise CallMatchingArgumentsNotFound(
-                f"Argument '{routine_arg.name}' in subroutine"
-                f" '{routine.name}' not handled"
-            )
+            if ", OPTIONAL" not in str(routine_arg.datatype):
+                raise CallMatchingArgumentsNotFound(
+                    f"Argument '{routine_arg.name}' in subroutine"
+                    f" '{routine.name}' not handled"
+                )
 
         return ret_arg_idx_list
 
@@ -746,6 +745,11 @@ class Call(Statement, DataNode):
         '''
         Searches for the implementation(s) of the target routine for this Call
         including argument checks.
+
+        If `check_matching_arguments` is set to `False`, the very first
+        implementation of the matching routine will be returned in case no
+        match was found. Then, the arguments of the call and routine
+        might not match each other.
 
         :param check_matching_arguments: Also check argument types to match.
             If set to `False` and in case it doesn't find matching arguments,
