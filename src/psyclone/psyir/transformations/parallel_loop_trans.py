@@ -108,9 +108,9 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         # Check that the symbol is not be referenced after this loop (before
         # the loop is fine because we can use OpenMP/OpenACC first-private or
         # Fortran do concurrent local_init())
-        if any(r.symbol is sym
-               for r in node.following(include_children=False)
-               if isinstance(r, Reference)):
+        if any(ref.symbol is sym
+               for ref in node.following(include_children=False)
+               if isinstance(ref, Reference)):
             return False
 
         if not dry_run:
@@ -240,17 +240,14 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     continue
                 if (privatise_arrays and
                         message.code == DTCode.ERROR_WRITE_WRITE_RACE):
-                    privatisable = True
                     for var_name in message.var_names:
                         if not self._attempt_privatisation(node, var_name,
                                                            dry_run=True):
-                            privatisable = False
-                    if not privatisable:
-                        errors.append(
-                            f"The write-write dependency in '{var_name}'"
-                            f" cannot be solved by array privatisation "
-                            f"because it is not a plain array or it is "
-                            f"used after the loop.")
+                            errors.append(
+                                f"The write-write dependency in '{var_name}'"
+                                f" cannot be solved by array privatisation "
+                                f"because it is not a plain local array or "
+                                f"it is used after the loop.")
                     continue
                 errors.append(str(message))
 
