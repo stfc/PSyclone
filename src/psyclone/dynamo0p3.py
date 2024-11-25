@@ -69,8 +69,9 @@ from psyclone.psyGen import (InvokeSchedule, Arguments,
                              DataAccess)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Reference, ACCEnterDataDirective, ArrayOfStructuresReference,
-    StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall)
+    Assignment, ACCEnterDataDirective, ArrayOfStructuresReference,
+    Reference, Schedule, StructureReference, Literal, IfBlock, Call,
+    BinaryOperation, IntrinsicCall, Container)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     UnresolvedType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
