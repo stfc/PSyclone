@@ -124,7 +124,7 @@ class ACCKernelsTrans(RegionTrans):
         :type nodes: list[:py:class:`psyclone.psyir.nodes.Node`]
 
         :param async_queue: The async queue to expect in parents.
-        :type async_queue: \
+        :type async_queue:
             Optional[bool, int, :py:class:`psyclone.core.Reference`]
 
         '''

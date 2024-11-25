@@ -2529,10 +2529,6 @@ class ACCEnterDataTrans(Transformation):
                 current = current.parent
             posn = sched.children.index(current)
 
-        # handle default empty options
-        if options is None:
-            options = {}
-
         # extract async. Default to None
         async_queue = options.get('async_queue', None)
 

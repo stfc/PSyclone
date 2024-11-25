@@ -63,6 +63,8 @@ from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.symbols import ScalarType
 
+from typing import Optional, Union
+
 
 class ACCDirective(metaclass=abc.ABCMeta):
     # pylint: disable=too-few-public-methods
@@ -181,7 +183,8 @@ class ACCRoutineDirective(ACCStandaloneDirective):
 
         :raises TypeError: if `value` is not a str.
         :raises ValueError: if `value` is not a recognised level of
-                            parallelism.
+            parallelism.
+
         '''
         if not isinstance(value, str):
             raise TypeError(
@@ -235,10 +238,12 @@ class ACCEnterDataDirective(ACCStandaloneDirective, ACCAsyncMixin):
         stream. Int to attach to the given stream ID or use a
         variable Signature to say at runtime what stream to be
         used.
-    :type async_queue: bool | int | :py:class:psyclone.core.Signature
 
     '''
-    def __init__(self, children=None, parent=None, async_queue=False):
+    def __init__(
+                self, children=None, parent=None,
+                async_queue: Optional[Union[bool, Reference]] = None
+            ):
         super().__init__(children=children, parent=parent)
         ACCAsyncMixin.__init__(self, async_queue)
         self._acc_dirs = None  # List of parallel directives
@@ -353,14 +358,17 @@ class ACCParallelDirective(ACCRegionDirective, ACCAsyncMixin):
 
     :param default_present: whether this directive includes the
         `DEFAULT(PRESENT)` clause or not.
-    :type default_present: bool
-    :param async_queue: Make the directive asynchonous and attached to the
+    :param async_queue: Make the directive asynchronous and attached to the
         given stream identified by an ID or by a variable
         name pointing to an integer.
-    :type async_queue: bool|:py:class:`psyclone.psyir.nodes.Reference`|int
 
     '''
-    def __init__(self, async_queue=False, default_present=True, **kwargs):
+    def __init__(
+                self,
+                async_queue: Union[bool, Reference, int] = False,
+                default_present: bool = True,
+                **kwargs
+            ):
         super().__init__(**kwargs)
         ACCAsyncMixin.__init__(self, async_queue)
         self.default_present = default_present
@@ -740,12 +748,13 @@ class ACCKernelsDirective(ACCRegionDirective, ACCAsyncMixin):
     :param async_queue: Make the directive asynchronous and attached to the
         given stream identified by an ID or by a variable
         name pointing to an integer.
-    :type async_queue: bool|:py:class:`psyclone.psyir.nodes.Reference`|int
 
     '''
 
-    def __init__(self, children=None, parent=None, default_present=True,
-                 async_queue=False):
+    def __init__(
+                self, children=None, parent=None, default_present=True,
+                async_queue: Optional[Union[bool, Reference]] = None
+            ):
         super().__init__(children=children, parent=parent)
         ACCAsyncMixin.__init__(self, async_queue)
         self._default_present = default_present
@@ -942,20 +951,19 @@ class ACCUpdateDirective(ACCStandaloneDirective, ACCAsyncMixin):
         clause on the update directive (this instructs the
         directive to silently ignore any variables that are not
         on the device).
-    :type if_present: Optional[bool]
     :param async_queue: Make the directive asynchronous and attached to the
         given stream identified by an ID or by a variable name
         pointing to an integer.
-    :type async_queue: Optional[
-            bool|:py:class:`psyclone.psyir.nodes.Reference`|int
-        ]
 
     '''
 
     _VALID_DIRECTIONS = ("self", "host", "device")
 
-    def __init__(self, signatures, direction, children=None, parent=None,
-                 if_present=True, async_queue=False):
+    def __init__(
+                self, signatures, direction, children=None, parent=None,
+                if_present: Optional[bool] = True,
+                async_queue: Optional[Union[bool, Reference]] = None
+            ):
         super().__init__(children=children, parent=parent)
         ACCAsyncMixin.__init__(self, async_queue)
         self.sig_set = signatures
