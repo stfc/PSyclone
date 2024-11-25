@@ -66,7 +66,6 @@ module function_space_mod
                                    levels_setup, generate_fs_id
   use linked_list_data_mod, only : linked_list_data_type
   use linked_list_mod,      only : linked_list_type, linked_list_item_type
-  use mesh_collection_mod,  only : mesh_collection
 
   implicit none
 
@@ -466,7 +465,7 @@ contains
   !> @param[in] ndata_first      Flag to set data to be layer first (false) or
   !!                             ndata first (true)
   !> @return    A pointer to the function space held in this module
-  function fs_constructor( mesh_id,                                            &
+  function fs_constructor( mesh,                                            &
                            element_order_h,                                    &
                            element_order_v,                                    &
                            lfric_fs,                                           &
@@ -475,7 +474,7 @@ contains
 
     implicit none
 
-    integer(i_def),           intent(in) :: mesh_id
+    class(mesh_type), target, intent(in) :: mesh
     integer(i_def),           intent(in) :: element_order_h
     integer(i_def),           intent(in) :: element_order_v
     integer(i_def),           intent(in) :: lfric_fs
@@ -498,12 +497,14 @@ contains
       instance%ndata = 1
     end if
 
-    instance%mesh => mesh_collection%get_mesh(mesh_id)
+    instance%mesh => mesh
     instance%fs = lfric_fs
     instance%element_order_h = element_order_h
     instance%element_order_v = element_order_v
 
-    id = generate_fs_id(lfric_fs, element_order_h, element_order_v, mesh_id, &
+    ! Generate unique id with mesh_id=0 since mesh_collection_mod is not used
+    ! in this modified example
+    id = generate_fs_id(lfric_fs, element_order_h, element_order_v, 0, &
                         instance%ndata, instance%ndata_first)
     call instance%set_id(id)
 
