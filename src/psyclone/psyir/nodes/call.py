@@ -649,8 +649,6 @@ class Call(Statement, DataNode):
                     f"'{routine_arg}'"
                 )
 
-        return
-
     def _get_argument_routine_match(self, routine: Routine):
         '''Return a list of integers giving for each argument of the call
         the index of the corresponding entry in the argument list of the

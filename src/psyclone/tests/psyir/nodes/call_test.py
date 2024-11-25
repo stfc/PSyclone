@@ -52,7 +52,6 @@ from psyclone.psyir.symbols import (
     SymbolError, UnsupportedFortranType)
 
 
-
 class SpecialCall(Call):
     '''Test Class specialising the Call class'''
 
@@ -1192,10 +1191,10 @@ def test_call_get_callee_6_interfaces_3_0_mismatch(fortran_reader):
     assert call_foo_optional.routine.name == "foo"
 
     with pytest.raises(CallMatchingArgumentsNotFound) as einfo:
-      call_foo_optional.get_callee()
+        call_foo_optional.get_callee()
 
     assert "Argument partial type mismatch of call argument" in (
-      str(einfo.value))
+        str(einfo.value))
 
 
 def test_call_get_callee_7_matching_arguments_not_found(fortran_reader):
