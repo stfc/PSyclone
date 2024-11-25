@@ -368,6 +368,7 @@ class MeshPropertiesMetaData():
 
 # ---------- Classes -------------------------------------------------------- #
 
+
 class LFRicMeshProperties(LFRicCollection):
     '''
     Holds all information on the the mesh properties required by either an
