@@ -28,3 +28,4 @@ src/*.egg-info
 .rtx.toml
 .venv
 cov.xml
+.coverage.*
