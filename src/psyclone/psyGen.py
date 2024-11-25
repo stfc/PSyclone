@@ -2582,11 +2582,11 @@ class KernelArgument(Argument):
     arguments as specified by the kernel argument metadata and the
     kernel invocation in the Algorithm layer.
 
-    :param arg: information obtained from the metadata for this kernel \
-                argument.
+    :param arg: information obtained from the metadata for this kernel
+        argument.
     :type arg: :py:class:`psyclone.parse.kernel.Descriptor`
-    :param arg_info: information on how this argument is specified in \
-                     the Algorithm layer.
+    :param arg_info: information on how this argument is specified in
+        the Algorithm layer.
     :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
     :param call: the PSyIR kernel node to which this argument pertains.
     :type call: :py:class:`psyclone.psyGen.Kern`

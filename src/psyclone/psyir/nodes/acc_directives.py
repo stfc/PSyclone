@@ -76,6 +76,7 @@ class ACCDirective(metaclass=abc.ABCMeta):
     Note that classes inheriting from it must place the ACCDirective in
     front of the other Directive node sub-class, so that the Python
     MRO gives preference to this class's attributes.
+
     '''
     _PREFIX = "ACC"
 
@@ -150,8 +151,9 @@ class ACCRoutineDirective(ACCStandaloneDirective):
     '''
     Class representing an "ACC routine" OpenACC directive in PSyIR.
 
-    :param str parallelism: the level of parallelism in the routine, one of
+    :param parallelism: the level of parallelism in the routine, one of
         "gang", "worker", "vector", "seq".
+    :type parallelism: str
 
     '''
     SUPPORTED_PARALLELISM = ["seq", "vector", "worker", "gang"]
@@ -225,15 +227,16 @@ class ACCEnterDataDirective(ACCStandaloneDirective, ACCAsyncMixin):
 
     :param children: list of nodes which the directive should have as children.
     :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
-    :param parent: the node in the InvokeSchedule to which to add this \
-                   directive as a child.
+    :param parent: the node in the InvokeSchedule to which to add this
+        directive as a child.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param async_queue: Enable async support and attach it to the given queue.
-                        Can use False to disable, True to enable on default
-                        stream. Int to attach to the given stream ID or use a
-                        variable Signature to say at runtime what stream to be
-                        used.
-    :type async_queue: bool | int | :py:class: psyclone.core.Signature
+        Can use False to disable, True to enable on default
+        stream. Int to attach to the given stream ID or use a
+        variable Signature to say at runtime what stream to be
+        used.
+    :type async_queue: bool | int | :py:class:psyclone.core.Signature
+
     '''
     def __init__(self, children=None, parent=None, async_queue=False):
         super().__init__(children=children, parent=parent)
@@ -344,16 +347,18 @@ class ACCEnterDataDirective(ACCStandaloneDirective, ACCAsyncMixin):
 class ACCParallelDirective(ACCRegionDirective, ACCAsyncMixin):
     '''
     Class representing the !$ACC PARALLEL directive of OpenACC
-    in the PSyIR. By default it includes the 'DEFAULT(PRESENT)' clause which
+    in the PSyIR. By default it includes the `DEFAULT(PRESENT)` clause which
     means this node must either come after an EnterDataDirective or within
     a DataDirective.
 
-    :param bool default_present: whether this directive includes the
-        'DEFAULT(PRESENT)' clause.
+    :param default_present: whether this directive includes the
+        `DEFAULT(PRESENT)` clause or not.
+    :type default_present: bool
     :param async_queue: Make the directive asynchonous and attached to the
-                            given stream identified by an ID or by a variable
-                            name pointing to an integer.
+        given stream identified by an ID or by a variable
+        name pointing to an integer.
     :type async_queue: bool|:py:class:`psyclone.psyir.nodes.Reference`|int
+
     '''
     def __init__(self, async_queue=False, default_present=True, **kwargs):
         super().__init__(**kwargs)
@@ -370,6 +375,7 @@ class ACCParallelDirective(ACCRegionDirective, ACCAsyncMixin):
 
         :returns: whether other is equal to self.
         :rtype: bool
+
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.default_present == other.default_present
@@ -426,6 +432,7 @@ class ACCParallelDirective(ACCRegionDirective, ACCAsyncMixin):
         '''
         :returns: the closing statement for this directive.
         :rtype: str
+
         '''
         return "acc end parallel"
 
@@ -434,6 +441,7 @@ class ACCParallelDirective(ACCRegionDirective, ACCAsyncMixin):
         '''
         :returns: whether the directive includes the 'default(present)' clause.
         :rtype: bool
+
         '''
         return self._default_present
 
@@ -460,6 +468,7 @@ class ACCParallelDirective(ACCRegionDirective, ACCAsyncMixin):
 
         :returns: list of names of field arguments.
         :rtype: List[str]
+
         '''
         # Look-up the kernels that are children of this node
         fld_list = []
@@ -485,7 +494,8 @@ class ACCLoopDirective(ACCRegionDirective):
     :param bool vector: whether or not to add the `vector` clause to the
                         loop directive.
     :param kwargs: additional keyword arguments provided to the super class.
-    :type kwargs: unwrapped dict.
+    :type kwargs: dict.
+
     '''
     def __init__(self, collapse=None, independent=True, sequential=False,
                  gang=False, vector=False, **kwargs):
@@ -507,6 +517,7 @@ class ACCLoopDirective(ACCRegionDirective):
 
         :returns: whether other is equal to self.
         :rtype: bool
+
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.collapse == other.collapse
@@ -535,7 +546,8 @@ class ACCLoopDirective(ACCRegionDirective):
         '''
         :returns: the number of nested loops to collapse into a single \
                   iteration space for this node.
-        :rtype: int or None
+        :rtype: int | None
+
         '''
         return self._collapse
 
@@ -571,6 +583,7 @@ class ACCLoopDirective(ACCRegionDirective):
         :returns: whether the independent clause will be added to this loop \
                   directive.
         :rtype: bool
+
         '''
         return self._independent
 
@@ -580,6 +593,7 @@ class ACCLoopDirective(ACCRegionDirective):
         :returns: whether or not the `seq` clause is added to this loop \
                   directive.
         :rtype: bool
+
         '''
         return self._sequential
 
@@ -589,6 +603,7 @@ class ACCLoopDirective(ACCRegionDirective):
         :returns: whether or not the `gang` clause is added to this loop
                   directive.
         :rtype: bool
+
         '''
         return self._gang
 
@@ -598,6 +613,7 @@ class ACCLoopDirective(ACCRegionDirective):
         :returns: whether or not the `vector` clause is added to this loop
                   directive.
         :rtype: bool
+
         '''
         return self._vector
 
@@ -610,6 +626,7 @@ class ACCLoopDirective(ACCRegionDirective):
 
         :returns: description of this node, possibly coloured.
         :rtype: str
+
         '''
         self._check_clauses_consistent()
         text = self.coloured_name(colour)
@@ -649,10 +666,11 @@ class ACCLoopDirective(ACCRegionDirective):
         loop directive.
 
         :param parent: the parent Node in the Schedule to which to add our
-                       content.
+            content.
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
-        :raises GenerationError: if this "!$acc loop" is not enclosed within \
-                                 an ACC Parallel region.
+        :raises GenerationError: if this "!$acc loop" is not enclosed within
+            an ACC Parallel region.
+
         '''
         self.validate_global_constraints()
 
@@ -711,17 +729,17 @@ class ACCKernelsDirective(ACCRegionDirective, ACCAsyncMixin):
     '''
     Class representing the !$ACC KERNELS directive in the PSyIR.
 
-    :param children: the PSyIR nodes to be enclosed in the Kernels region \
-                     and which are therefore children of this node.
+    :param children: the PSyIR nodes to be enclosed in the Kernels region
+        and which are therefore children of this node.
     :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-    :param bool default_present: whether or not to add the \
-                                "default(present)" clause to the kernels \
-                                directive.
-    :param async_queue: Make the directive asynchonous and attached to the
-                        given stream identified by an ID or by a variable
-                        name pointing to an integer.
+    :param bool default_present: whether or not to add the
+        "default(present)" clause to the kernels
+        directive.
+    :param async_queue: Make the directive asynchronous and attached to the
+        given stream identified by an ID or by a variable
+        name pointing to an integer.
     :type async_queue: bool|:py:class:`psyclone.psyir.nodes.Reference`|int
 
     '''
@@ -741,6 +759,7 @@ class ACCKernelsDirective(ACCRegionDirective, ACCAsyncMixin):
 
         :returns: whether other is equal to self.
         :rtype: bool
+
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.default_present == other.default_present
@@ -751,9 +770,10 @@ class ACCKernelsDirective(ACCRegionDirective, ACCAsyncMixin):
     @property
     def default_present(self):
         '''
-        :returns: whether the "default(present)" clause is added to the \
-                  kernels directive.
+        :returns: whether the "default(present)" clause is added to the
+            kernels directive.
         :rtype: bool
+
         '''
         return self._default_present
 
@@ -762,8 +782,8 @@ class ACCKernelsDirective(ACCRegionDirective, ACCAsyncMixin):
         Generate the f2pygen AST entries in the Schedule for this
         OpenACC Kernels directive.
 
-        :param parent: the parent Node in the Schedule to which to add this \
-                       content.
+        :param parent: the parent Node in the Schedule to which to add this
+            content.
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
@@ -854,6 +874,7 @@ class ACCDataDirective(ACCRegionDirective):
         '''
         :returns: the beginning of the opening statement of this directive.
         :rtype: str
+
         '''
         return "acc data"
 
@@ -904,29 +925,31 @@ class ACCDataDirective(ACCRegionDirective):
 
 class ACCUpdateDirective(ACCStandaloneDirective, ACCAsyncMixin):
     ''' Class representing the OpenACC update directive in the PSyIR. It has
-    a direction attribute that can be set to 'self', 'host' or 'device', the
+    a direction attribute that can be set to `self`, `host` or `device`, the
     set of symbols being updated and an optional if_present clause.
 
-    :param signatures: the access signature(s) that need to be synchronised \
-                       with the device.
+    :param signatures: the access signature(s) that need to be synchronised
+        with the device.
     :type signatures: Set[:py:class:`psyclone.core.Signature`]
-    :param str direction: the direction of the synchronisation.
+    :param direction: the direction of the synchronisation.
+    :type direction: str
     :param children: list of nodes which the directive should have as children.
     :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
-    :param parent: the node in the InvokeSchedule to which to add this \
-                   directive as a child.
+    :param parent: the node in the InvokeSchedule to which to add this
+        directive as a child.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param if_present: whether or not to include the 'if_present'
-                        clause on the update directive (this instructs the
-                        directive to silently ignore any variables that are not
-                        on the device).
-    :param async_queue: Make the directive asynchonous and attached to the \
-                        given stream identified by an ID or by a variable name
-                        pointing to an integer.
-    :type async_queue: Optional[
-        bool|:py:class:`psyclone.psyir.nodes.Reference`|int
-    ]
+    :param if_present: whether or not to include the `if_present`
+        clause on the update directive (this instructs the
+        directive to silently ignore any variables that are not
+        on the device).
     :type if_present: Optional[bool]
+    :param async_queue: Make the directive asynchronous and attached to the
+        given stream identified by an ID or by a variable name
+        pointing to an integer.
+    :type async_queue: Optional[
+            bool|:py:class:`psyclone.psyir.nodes.Reference`|int
+        ]
+
     '''
 
     _VALID_DIRECTIONS = ("self", "host", "device")
@@ -948,6 +971,7 @@ class ACCUpdateDirective(ACCStandaloneDirective, ACCAsyncMixin):
 
         :returns: whether other is equal to self.
         :rtype: bool
+
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.sig_set == other.sig_set
@@ -962,6 +986,7 @@ class ACCUpdateDirective(ACCStandaloneDirective, ACCAsyncMixin):
         '''
         :returns: the set of signatures to synchronise with the device.
         :rtype: Set[:py:class:`psyclone.core.Signature`]
+
         '''
         return self._sig_set
 
@@ -970,6 +995,7 @@ class ACCUpdateDirective(ACCStandaloneDirective, ACCAsyncMixin):
         '''
         :returns: the direction of the synchronisation.
         :rtype: str
+
         '''
         return self._direction
 
@@ -978,6 +1004,7 @@ class ACCUpdateDirective(ACCStandaloneDirective, ACCAsyncMixin):
         '''
         :returns: whether or not to add the 'if_present' clause.
         :rtype: bool
+
         '''
         return self._if_present
 
@@ -1081,6 +1108,7 @@ class ACCWaitDirective(ACCStandaloneDirective):
 
     :param wait_queue: Which ACC async stream to wait. None to wait all.
     :type wait_queue: Optional[:py:class:`psyclone.psyir.nodes.Reference`, int]
+
     '''
     def __init__(self, wait_queue=None):
         # call parent
@@ -1093,6 +1121,7 @@ class ACCWaitDirective(ACCStandaloneDirective):
 
         :returns: If the two directives are equals.
         :rtype: bool
+
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and self._wait_queue == other._wait_queue
@@ -1103,6 +1132,7 @@ class ACCWaitDirective(ACCStandaloneDirective):
         '''
         :returns: The queue to wait on.
         :rtype: Optional[int, :py:class:`psyclone.psyir.nodes.Reference`]
+
         '''
         return self._wait_queue
 
