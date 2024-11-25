@@ -90,7 +90,7 @@ transform:
 	#
 	# $(MAKE) single -e TL_KERNEL_NAME=helmholtz_operator_kernel ACTIVE_VAR_LIST="helm_c f_op helm_dd helm_uu helm_d helm_u helm_s helm_n helm_w helm_e d_op ec_op m3_exner_star p3theta compound_div"
 	$(MAKE) single -e TL_KERNEL_NAME=tracer_viscosity_kernel ACTIVE_VAR_LIST="theta_inc viscosity_mu" OUT_DIR="../adjoint"
-	##$(MAKE) single -e TL_KERNEL_NAME=dg_matrix_vector_kernel ACTIVE_VAR_LIST="lhs lhs_e x x_e" OUT_DIR="../adjoint"
+	$(MAKE) single -e TL_KERNEL_NAME=dg_matrix_vector_kernel ACTIVE_VAR_LIST="lhs lhs_e x x_e" OUT_DIR="../adjoint"
 	$(MAKE) single -e TL_KERNEL_NAME=w2_to_w1_projection_kernel ACTIVE_VAR_LIST="v_w1 u_w2 vu res_dot_product wind" OUT_DIR="../adjoint"
 
 compile:

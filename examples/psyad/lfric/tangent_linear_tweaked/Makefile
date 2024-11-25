@@ -62,7 +62,7 @@ transform:
 	# into the 'adjoint_partial' directory.
 	$(MAKE) single -e TL_KERNEL_NAME=tl_kinetic_energy_gradient_kernel ACTIVE_VAR_LIST="r_u ru_e ke_at_quad res_dot_product mul2 u_at_quad u_e u"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_moist_dyn_gas_kernel ACTIVE_VAR_LIST="moist_dyn_gas mr_v mr_v_at_dof"
-	##$(MAKE) single -e TL_KERNEL_NAME=tl_project_eos_pressure_kernel ACTIVE_VAR_LIST="exner rho exner_e r_exner exner_at_quad rho_at_quad rho_e tmp2 theta theta_vd_e theta_vd_at_quad moist_dyn_gas"
+	$(MAKE) single -e TL_KERNEL_NAME=tl_project_eos_pressure_kernel ACTIVE_VAR_LIST="exner rho exner_e r_exner exner_at_quad rho_at_quad rho_e tmp2 theta theta_vd_e theta_vd_at_quad moist_dyn_gas"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_vorticity_advection_kernel ACTIVE_VAR_LIST="r_u res_dot_product vorticity_term cross_product1 cross_product2 j_vorticity u_at_quad mul2 vorticity_at_quad wind vorticity"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_poly1d_vert_adv_kernel ACTIVE_VAR_LIST="advective wind dpdz tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=poly1d_w3_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction polynomial_tracer tracer"
