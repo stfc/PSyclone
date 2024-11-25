@@ -90,7 +90,7 @@ class LFRicPSy(PSy):
 
         # The infrastructure declares integer types with default
         # precision so always add this.
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
         kind_names.add(api_config.default_kind["integer"])
 
         # Datatypes declare precision information themselves. However,
@@ -140,7 +140,7 @@ class LFRicPSy(PSy):
     @property
     def gen(self):
         '''
-        Generate PSy code for the LFRic (Dynamo0.3) API.
+        Generate PSy code for the LFRic API.
 
         :returns: root node of generated Fortran AST.
         :rtype: :py:class:`psyir.nodes.Node`
