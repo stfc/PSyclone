@@ -76,7 +76,7 @@ class ACCKernelsTrans(RegionTrans):
     excluded_node_types = (CodeBlock, Return, PSyDataNode,
                            psyGen.HaloExchange, WhileLoop)
 
-    def apply(self, node, options=None):
+    def apply(self, node, options={}):
         '''
         Enclose the supplied list of PSyIR nodes within an OpenACC
         Kernels region.
@@ -101,10 +101,8 @@ class ACCKernelsTrans(RegionTrans):
         parent = node_list[0].parent
         start_index = node_list[0].position
 
-        if not options:
-            options = {}
         default_present = options.get("default_present", False)
-        async_queue = options.get("async_queue", False)
+        async_queue = options.get("async_queue", None)
 
         # check
         self.check_async_queue(node_list, async_queue)
@@ -139,11 +137,12 @@ class ACCKernelsTrans(RegionTrans):
                             f"integer or None or False, got : {async_queue}")
 
         parent = nodes[0].ancestor(ACCAsyncMixin)
-        if parent and async_queue != parent.async_queue:
-            raise TransformationError(
-                f"Cannot apply ACCKernelsTrans with asynchronous "
-                f"queue '{async_queue}' because a parent "
-                f"directive specifies queue '{parent.async_queue}'")
+        if parent:
+            if async_queue != parent.async_queue:
+                raise TransformationError(
+                    f"Cannot apply ACCKernelsTrans with asynchronous "
+                    f"queue '{async_queue}' because a parent "
+                    f"directive specifies queue '{parent.async_queue}'")
 
         parent = nodes[0].ancestor(Routine)
         if parent:
@@ -156,7 +155,7 @@ class ACCKernelsTrans(RegionTrans):
                         f"has an ENTER DATA directive specifying queue "
                         f"'{edata[0].async_queue}'")
 
-    def validate(self, nodes, options=None):
+    def validate(self, nodes, options={}):
         # pylint: disable=signature-differs
         '''
         Check that we can safely enclose the supplied node or list of nodes
@@ -235,7 +234,7 @@ class ACCKernelsTrans(RegionTrans):
                         f"OpenACC region because it is not available on GPU.")
 
         # extract async option and check validity
-        async_queue = options.get('async_queue', False) if options else False
+        async_queue = options.get('async_queue', None)
         self.check_async_queue(node_list, async_queue)
 
         # Check that we have at least one loop or array range within

@@ -2486,7 +2486,7 @@ class ACCEnterDataTrans(Transformation):
         '''
         return "ACCEnterDataTrans"
 
-    def apply(self, sched, options=None):
+    def apply(self, sched, options={}):
         # pylint: disable=arguments-renamed
         '''Adds an OpenACC "enter data" directive to the invoke associated
         with the supplied Schedule. Any fields accessed by OpenACC kernels
@@ -2533,8 +2533,8 @@ class ACCEnterDataTrans(Transformation):
         if options is None:
             options = {}
 
-        # extract async
-        async_queue = options.get('async_queue', False)
+        # extract async. Default to None
+        async_queue = options.get('async_queue', None)
 
         # check
         self.check_child_async(sched, async_queue)
@@ -2566,7 +2566,7 @@ class ACCEnterDataTrans(Transformation):
                         'Try to make an ACCEnterDataTrans with async_queue '
                         'different than the one in child kernels !')
 
-    def validate(self, sched, options=None):
+    def validate(self, sched, options={}):
         # pylint: disable=arguments-differ, arguments-renamed
         '''
         Check that we can safely apply the OpenACC enter-data transformation
@@ -2597,7 +2597,7 @@ class ACCEnterDataTrans(Transformation):
         # handle async option
         if options is None:
             options = {}
-        async_queue = options.get('async_queue', False)
+        async_queue = options.get('async_queue', None)
 
         # check consistency with childs about async_queue
         self.check_child_async(sched, async_queue)

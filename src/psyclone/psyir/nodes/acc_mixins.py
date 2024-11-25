@@ -54,7 +54,7 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
                         to be used.
     :type async_queue: bool | int | :py:class:`psyclone.core.Reference`
     '''
-    def __init__(self, async_queue=False):
+    def __init__(self, async_queue=None):
         self.async_queue = async_queue
 
     @property

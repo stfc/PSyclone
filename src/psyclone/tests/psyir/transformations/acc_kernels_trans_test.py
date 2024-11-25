@@ -68,6 +68,30 @@ def test_kernels_single_node(fortran_reader):
     assert isinstance(schedule[0], ACCKernelsDirective)
 
 
+def test_trigger_async_error(fortran_reader):
+    """Check that we can't apply an ACC Kernel Trans with
+    a parent using an async queue IDs that is different."""
+    psyir = fortran_reader.psyir_from_source(EXPLICIT_LOOP)
+    acc_trans = ACCKernelsTrans()
+
+    loop = psyir.walk(Loop)[0]
+    acc_trans.apply(loop,
+                    {"default_present": True,
+                     "async_queue": 2})
+
+    loop = psyir.walk(Loop)[0]
+
+    with pytest.raises(TransformationError) as einfo:
+        acc_trans.apply(loop, {"default_present": True,
+                        "async_queue": 3})
+
+    correct = ("Cannot apply ACCKernelsTrans with asynchronous"
+               " queue '3' because a parent directive specifies"
+               " queue '2'")
+
+    assert correct in str(einfo.value)
+
+
 def test_no_kernels_error(fortran_reader):
     ''' Check that the transformation rejects an attempt to put things
     that aren't kernels inside a kernels region. '''

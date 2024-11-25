@@ -827,9 +827,13 @@ def test_accparalleldirective():
     assert accpar._default_present is True
 
     # Also without default(present)
-    accpar = ACCParallelDirective(default_present=False)
-    assert isinstance(accpar, ACCParallelDirective)
-    assert accpar._default_present is False
+    accpar2 = ACCParallelDirective(default_present=False)
+    assert isinstance(accpar2, ACCParallelDirective)
+    assert accpar2._default_present is False
+
+    # Call __eq__
+    eq_result = accpar == accpar2
+    assert eq_result is False
 
     # But only with boolean values
     with pytest.raises(TypeError) as err:
@@ -838,22 +842,22 @@ def test_accparalleldirective():
             "boolean but value '3' has been given." in str(err.value))
 
     # The default present value has getter and setter
-    accpar.default_present = True
-    assert accpar.default_present is True
+    accpar2.default_present = True
+    assert accpar2.default_present is True
 
     with pytest.raises(TypeError) as err:
-        accpar.default_present = "invalid"
+        accpar2.default_present = "invalid"
     assert ("The ACCParallelDirective default_present property must be a "
             "boolean but value 'invalid' has been given." in str(err.value))
 
     # The begin string depends on the default present value
-    accpar.default_present = True
-    assert accpar.begin_string() == "acc parallel default(present)"
-    accpar.default_present = False
-    assert accpar.begin_string() == "acc parallel"
+    accpar2.default_present = True
+    assert accpar2.begin_string() == "acc parallel default(present)"
+    accpar2.default_present = False
+    assert accpar2.begin_string() == "acc parallel"
 
     # It has an end_string
-    assert accpar.end_string() == "acc end parallel"
+    assert accpar2.end_string() == "acc end parallel"
 
 
 def test_acc_atomics_is_valid_atomic_statement(fortran_reader):
