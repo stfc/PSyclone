@@ -2455,7 +2455,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             raise TransformationError(
                 "Error in Dynamo0p3KernelConstTrans transformation. At least "
                 "one of [element_order_h, element_order_v] or "
-                "number_of_layers must be set otherwise this transformation"
+                "number_of_layers must be set otherwise this transformation "
                 "does nothing.")
 
         if quadrature and (element_order_h is None or element_order_v is None):

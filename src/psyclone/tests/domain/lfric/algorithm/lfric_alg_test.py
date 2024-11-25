@@ -159,8 +159,10 @@ def test_create_function_spaces(prog, fortran_writer):
     # produce consistent ordering in the algorithm.
     LFRicAlg()._create_function_spaces(prog, set(["w3", "w1"]))
     fe_config_mod = prog.symbol_table.lookup("finite_element_config_mod")
-    element_order = prog.symbol_table.lookup("element_order")
-    assert element_order.interface.container_symbol == fe_config_mod
+    element_order_h = prog.symbol_table.lookup("element_order_h")
+    assert element_order_h.interface.container_symbol == fe_config_mod
+    element_order_v = prog.symbol_table.lookup("element_order_v")
+    assert element_order_v.interface.container_symbol == fe_config_mod
     fs_mod_sym = prog.symbol_table.lookup("fs_continuity_mod")
     gen = fortran_writer(prog)
     for space in ["w1", "w3"]:
@@ -335,7 +337,7 @@ def test_construct_kernel_args(prog, lfrickern, fortran_writer):
                 f"get_fs(mesh,element_order_h,element_order_v,{space})" in gen)
     for idx in range(2, 7):
         assert f"call field_{idx}" in gen
-    assert ("qr_xyoz = quadrature_xyoz_type(MAX(element_order_h,"
+    assert ("qr_xyoz = quadrature_xyoz_type(MAX(element_order_h, "
             "element_order_v) + 3,quadrature_rule)" in gen)
     # TODO #240 - test for compilation.
 

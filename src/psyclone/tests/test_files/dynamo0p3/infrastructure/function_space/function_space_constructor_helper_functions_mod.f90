@@ -14,7 +14,6 @@
 module function_space_constructor_helper_functions_mod
 
   use constants_mod,         only: i_def, i_halo_index, r_def, IMDI, l_def
-  use local_mesh_mod,        only: local_mesh_type
   use mesh_mod,              only: mesh_type
   use fs_continuity_mod,     only: W0, W1, W2, W2V, W2H,   &
                                    W2broken, W2trace,      &
@@ -1905,8 +1904,6 @@ contains
     ! Number of cells in all the inner halos added together
     integer(i_def) :: tot_num_inner
 
-    type(local_mesh_type), pointer :: local_mesh => null()
-
     type(select_entity_type), target :: select_entity_all,   &
                                         select_entity_theta, &
                                         select_entity_w2h,   &
@@ -1919,7 +1916,6 @@ contains
 
     !===========================================================================
 
-    local_mesh => mesh%get_local_mesh()
     reference_element => mesh%get_reference_element()
 
     number_faces    = reference_element%get_number_faces()
@@ -2457,55 +2453,6 @@ contains
                                                        + m - 1
       end do
     end do
-
-    ! Calculate a globally unique id for the dofs on the edges of each cell
-    ! in the 2D horizontal part of the local domain - only possible for
-    ! function spaces that (appear to) have 2d edge dofs
-    ! (for the moment, using W2H as an example of such a function space
-    ! - the 2d layer at the half levels appears to have edge dofs).
-    if (element_order_h == 0 .and.                                             &
-        element_order_v == 0 .and.                                             &
-        gungho_fs == W2H) then
-      ! loop over local cells
-      do icell = 1, mesh%get_last_edge_cell()
-        ! loop over 2d edges within a cell
-        do iedge = 1, mesh%get_nedges_per_cell_2d()
-          if(mesh%is_edge_owned(iedge, icell))then
-            do m = 1, ndata
-              global_edge_dof_id_2d(                                           &
-                    ((dofmap(iedge, icell) - 1) / (nlayers * ndata)) + 1 )     &
-                = (local_mesh%get_edge_gid_on_cell(iedge, icell) - 1) * ndata + m - 1
-            end do
-          end if
-        end do
-      end do
-    else
-      global_edge_dof_id_2d(:) = -1
-    end if
-
-    ! Calculate a globally unique id for the dofs on the vertices of each cell
-    ! in the 2D horizontal part of the local domain - only possible for
-    ! function spaces that have vertex dofs.
-    ! (for the moment, using W0 as an example of such a function space).
-    if (element_order_h == 0 .and.                                             &
-        element_order_v == 0 .and.                                             &
-        gungho_fs == W0) then
-      ! loop over local cells
-      do icell = 1, mesh%get_last_edge_cell()
-        ! loop over 2d vertices within a cell
-        do ivert = 1, mesh%get_nverts_per_cell_2d()
-          if(mesh%is_vertex_owned(ivert, icell))then
-            do m = 1, ndata
-              global_vert_dof_id_2d(                                             &
-                    ((dofmap(ivert, icell) - 1) / ((nlayers + 1) * ndata)) + 1 ) &
-                = (local_mesh%get_vert_gid_on_cell(ivert, icell) - 1) * ndata + m - 1
-            end do
-          end if
-        end do
-      end do
-    else
-      global_vert_dof_id_2d(:) = -1
-    end if
 
     if (allocated(dof_column_height)) deallocate(dof_column_height)
     if (allocated(dof_cell_owner))    deallocate(dof_cell_owner)
