@@ -67,6 +67,7 @@ class LFRicPSy(PSy):
         # Make sure the scoping node creates LFRicSymbolTables
         # TODO #1954: Remove the protected access using a factory
         ScopingNode._symbol_table_class = LFRicSymbolTable
+        Config.get().api = "lfric"
         PSy.__init__(self, invoke_info)
         self._invokes = LFRicInvokes(invoke_info.calls, self)
         # Initialise the dictionary that holds the names of the required
