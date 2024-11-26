@@ -84,7 +84,7 @@ from psyclone.psyir.nodes.acc_directives import (
     ACCDirective, ACCLoopDirective, ACCEnterDataDirective,
     ACCParallelDirective, ACCKernelsDirective, ACCDataDirective,
     ACCUpdateDirective, ACCStandaloneDirective, ACCRegionDirective,
-    ACCRoutineDirective, ACCAtomicDirective)
+    ACCRoutineDirective, ACCAtomicDirective, ACCWaitDirective)
 from psyclone.psyir.nodes.omp_directives import (
     OMPDirective, OMPDoDirective, OMPParallelDirective,
     OMPParallelDoDirective, OMPSingleDirective, OMPMasterDirective,
