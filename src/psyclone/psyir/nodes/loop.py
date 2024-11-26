@@ -47,7 +47,7 @@ from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
-from psyclone.f2pygen import DeclGen, PSyIRGen, UseGen, TypeDeclGen
+from psyclone.f2pygen import DeclGen, PSyIRGen, UseGen
 
 
 class Loop(Statement):
@@ -577,13 +577,8 @@ class Loop(Statement):
         # - Add the kernel module import statements
         for kernel in self.walk(CodedKern):
             if not kernel.module_inline:
-                parent.add(UseGen(parent, name=kernel._module_name, only=True,
-                                  funcnames=[kernel._name]))
+                parent.add(UseGen(parent, name=kernel.module_name, only=True,
+                                  funcnames=[kernel.name]))
 
         for psydata_node in self.walk(PSyDataNode):
-            set_private = self.ancestor(Routine) is None
-            var_decl = TypeDeclGen(parent,
-                                   datatype=psydata_node.type_name,
-                                   entity_decls=[psydata_node._var_name],
-                                   save=True, target=True, private=set_private)
-            parent.add(var_decl)
+            psydata_node.fix_gen_code(parent)
