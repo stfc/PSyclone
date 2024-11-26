@@ -143,6 +143,9 @@ def test_cw_literal():
     lit = Literal('1', INTEGER_TYPE)
     assert cwriter(lit) == '1'
 
+    lit = Literal('1', REAL_TYPE)
+    assert cwriter(lit) == '1.0'
+
     # Test that scientific notation is output correctly
     lit = Literal("3e5", REAL_TYPE, None)
     assert cwriter(lit) == '3e5'

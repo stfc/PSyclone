@@ -295,7 +295,10 @@
 	112) PR #2795 for #2774. Generalises MatMul2CodeTrans to cope with
 	non-contiguous array slices.
 
-	113) PR #2461 for #2460. Renames DynamoPSy class to LFRicPSy and moves into a new module lfric_psy.py in domain/lfric.
+	113) PR #2769 for #2768. Generalises Sign2CodeTrans and Abs2CodeTrans
+	to allow non-floating point scalar literals.
+
+  114) PR #2461 for #2460. Renames DynamoPSy class to LFRicPSy and moves into a new module lfric_psy.py in domain/lfric.
 
 release 2.5.0 14th of February 2024
 

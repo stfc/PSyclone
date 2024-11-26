@@ -83,7 +83,7 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
     '''
     table = prog.symbol_table
     idef_sym = table.add_lfric_precision_symbol("i_def")
-    idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
+    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef_sym)
 
     # Initialise the sum to zero: sum = 0.0
     prog.addchild(Assignment.create(Reference(sum_sym),
@@ -157,7 +157,7 @@ def _compute_field_inner_products(routine, field_pairs):
     rdef_sym = table.add_lfric_precision_symbol("r_def")
     rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef_sym)
     idef_sym = table.add_lfric_precision_symbol("i_def")
-    idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
+    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef_sym)
 
     builtin_factory = LFRicBuiltinFunctorFactory.get()
 
