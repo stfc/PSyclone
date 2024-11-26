@@ -33,8 +33,10 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
-# Modified A. B. G. Chalk, STFC Daresbury Lab
-# Modified J. G. Wallwork, Met Office / University of Cambridge
+#          A. B. G. Chalk, STFC Daresbury Lab
+#          J. G. Wallwork, Met Office / University of Cambridge
+#          S. Valat, Inria / Laboratoire Jean Kuntzmann
+#          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenACC PSyIR Directive nodes. '''
@@ -545,14 +547,15 @@ def test_acc_routine_parallelism():
     assert target.parallelism == "seq"
     target.parallelism = "vector"
     assert target.parallelism == "vector"
-    with pytest.raises(TypeError) as err:
+    with pytest.raises(TypeError) as einfo:
         target.parallelism = 1
     assert ("Expected a str to specify the level of parallelism but got 'int'"
-            in str(err.value))
-    with pytest.raises(ValueError) as err:
+            in str(einfo.value))
+    with pytest.raises(ValueError) as einfo:
         target.parallelism = "sequential"
-    assert ("Expected one of ['seq', 'vector', 'worker', 'gang'] for the level"
-            " of parallelism but got 'sequential'" in str(err.value))
+    print(str(einfo.value))
+    assert ("Expected one of ['gang', 'seq', 'vector', 'worker'] for the level"
+            " of parallelism but got 'sequential'" in str(einfo.value))
 
 # Class ACCUpdateDirective
 
@@ -588,7 +591,7 @@ def test_accupdatedirective_init():
 
     directive = ACCUpdateDirective(sig, "host", if_present=False)
     assert directive.if_present is False
-    assert directive.async_queue is False
+    assert directive.async_queue is None
 
     directive = ACCUpdateDirective(sig, "host", async_queue=True)
     assert directive.async_queue is True

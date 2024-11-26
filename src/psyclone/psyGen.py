@@ -35,6 +35,8 @@
 # Modified by I. Kavcic and L. Turner, Met Office
 # Modified by C.M. Maynard, Met Office / University of Reading
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified S. Valat, Inria / Laboratoire Jean Kuntzmann
+# Modified M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
 # -----------------------------------------------------------------------------
 
 ''' This module provides generic support for PSyclone's PSy code optimisation

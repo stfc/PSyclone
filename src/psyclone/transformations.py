@@ -35,6 +35,8 @@
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
+#          S. Valat, Inria / Laboratoire Jean Kuntzmann
+#          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
 
 ''' This module provides the various transformations that can be applied to
     PSyIR nodes. There are both general and API-specific transformation

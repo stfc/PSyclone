@@ -35,6 +35,8 @@
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
+#          S. Valat, Inria / Laboratoire Jean Kuntzmann
+#          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
 
 ''' This module provides the ACCKernelsTrans transformation. '''
 
@@ -44,12 +46,14 @@ from psyclone import psyGen
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes import (
     ACCEnterDataDirective, ACCKernelsDirective, Assignment,
-    Call, CodeBlock, Loop,
+    Call, CodeBlock, Loop, Node,
     PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
 from psyclone.psyir.symbols import UnsupportedFortranType
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
+
+from typing import Any, Dict, List, Union
 
 
 class ACCKernelsTrans(RegionTrans):
@@ -76,17 +80,18 @@ class ACCKernelsTrans(RegionTrans):
     excluded_node_types = (CodeBlock, Return, PSyDataNode,
                            psyGen.HaloExchange, WhileLoop)
 
-    def apply(self, node, options={}):
+    def apply(
+                self,
+                node: Union[Node, List[Node]],
+                options: Dict[str, Any] = {}
+            ):
         '''
         Enclose the supplied list of PSyIR nodes within an OpenACC
         Kernels region.
 
         :param node: a node or list of nodes in the PSyIR to enclose.
-        :type node: :py:class:`psyclone.psyir.nodes.Node` |
-                    list[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["default_present"]: whether or not the kernels
+            "default_present": boolean whether or not the kernels
             region should have the 'default present' attribute (indicating
             that data is already on the accelerator). When using managed
             memory this option should be False.
@@ -115,17 +120,16 @@ class ACCKernelsTrans(RegionTrans):
         parent.children.insert(start_index, directive)
 
     @staticmethod
-    def check_async_queue(nodes, async_queue):
+    def check_async_queue(
+                nodes: List[Node],
+                async_queue: Union[bool, int, Reference, None]
+            ):
         '''
         Common function to check that all parent data directives have
         the same async queue.
 
         :param node: the nodes in the PSyIR to enclose.
-        :type nodes: list[:py:class:`psyclone.psyir.nodes.Node`]
-
         :param async_queue: The async queue to expect in parents.
-        :type async_queue:
-            Optional[bool, int, :py:class:`psyclone.core.Reference`]
 
         '''
         if async_queue is None:
@@ -136,8 +140,10 @@ class ACCKernelsTrans(RegionTrans):
             raise TypeError(f"Invalid async_queue value, expect Reference or "
                             f"integer or None or False, got : {async_queue}")
 
+        # Perform an additional check whether a queue has been used before.
+        # Note this to work only for the current routine.
         parent = nodes[0].ancestor(ACCAsyncMixin)
-        if parent:
+        if parent is not None:
             if async_queue != parent.async_queue:
                 raise TransformationError(
                     f"Cannot apply ACCKernelsTrans with asynchronous "
@@ -155,7 +161,11 @@ class ACCKernelsTrans(RegionTrans):
                         f"has an ENTER DATA directive specifying queue "
                         f"'{edata[0].async_queue}'")
 
-    def validate(self, nodes, options={}):
+    def validate(
+                self,
+                nodes: List[Node],
+                options: Dict[str, Any] = {}
+            ):
         # pylint: disable=signature-differs
         '''
         Check that we can safely enclose the supplied node or list of nodes
@@ -163,13 +173,12 @@ class ACCKernelsTrans(RegionTrans):
 
         :param nodes: the proposed PSyIR node or nodes to enclose in the
                       kernels region.
-        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["disable_loop_check"]: whether to disable the
+            "disable_loop_check": boolean whether to disable the
             check that the supplied region contains 1 or more loops. Default
             is False (i.e. the check is enabled).
-        :param int options["async_queue"]: use the specified async stream.
+
+            "async_queue": the async stream to be used.
 
         :raises NotImplementedError: if the supplied Nodes belong to
             a GOInvokeSchedule.

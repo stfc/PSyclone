@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors S. Valat, INRIA / LJK
+# Authors S. Valat, Inria / Lab. Jean Kuntzmann
+# Modified M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
 # -----------------------------------------------------------------------------
 
 ''' This module contains the mixins to apply some ACC features on many
@@ -40,6 +41,8 @@ classes.'''
 import abc
 
 from psyclone.psyir.nodes.reference import Reference
+
+from typing import Union
 
 
 class ACCAsyncMixin(metaclass=abc.ABCMeta):
@@ -52,32 +55,33 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
                         stream. Use int to attach to the given stream ID or
                         use a variable Reference to say at runtime what stream
                         to be used.
-    :type async_queue: bool | int | :py:class:`psyclone.core.Reference`
     '''
-    def __init__(self, async_queue=None):
+    def __init__(
+                self,
+                async_queue: Union[bool, int, Reference, None] = None
+            ):
         self.async_queue = async_queue
 
     @property
-    def async_queue(self):
+    def async_queue(self) -> Union[bool, int, Reference, None]:
         '''
         :returns: whether or not async is enabled and if so, which queue this
                   node is associated with. (True indicates the default stream.)
                   Can use False to disable, True to enable on default stream.
                   Int to attach to the given stream ID or use a variable
                   Reference to say at runtime what stream to be used.
-        :rtype async_queue: bool | int | :py:class:`psyclone.core.Reference`
         '''
         return self._async_queue
 
     @async_queue.setter
-    def async_queue(self, async_queue):
+    def async_queue(self, async_queue: Union[bool, int, Reference, None]):
         '''
         :param async_queue: Enable async support and attach it to the given
                             queue. Can use False to disable, True to enable on
                             default stream. Int to attach to the given stream
                             ID or use a variable Reference to say at runtime
                             what stream to be used.
-        :type async_queue: bool | int | :py:class:`psyclone.core.Reference`
+
         :raises TypeError: if `wait_queue` is of the wrong type
         '''
         # check
@@ -89,13 +93,12 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
         # assign
         self._async_queue = async_queue
 
-    def _build_async_string(self):
+    def _build_async_string(self) -> str:
         '''
         Build the async arg to concat to the acc directive when generating the
         code.
 
         :returns: The `async()` option to add to the directive.
-        :rtype: str
         '''
         # default
         result = ""
@@ -115,7 +118,7 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
         # ok
         return result
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         '''
         Checks whether two nodes are equal. Two ACCAsyncMixin are
         equal if their async_queue members are equal.
@@ -123,7 +126,6 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
         :param object other: the object to check equality to.
 
         :returns: whether other is equal to self.
-        :rtype: bool
         '''
         if type(self) is not type(other):
             return False
