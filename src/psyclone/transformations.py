@@ -2592,9 +2592,6 @@ class ACCEnterDataTrans(Transformation):
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
 
-        # handle async option
-        if options is None:
-            options = {}
         async_queue = options.get('async_queue', None)
 
         # check consistency with childs about async_queue
