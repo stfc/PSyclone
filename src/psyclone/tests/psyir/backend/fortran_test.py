@@ -1393,6 +1393,7 @@ def test_fw_char_literal(fortran_writer):
     result = fortran_writer(lit)
     assert result == "'hello'"
 
+
 # literal is already checked within previous tests
 
 
@@ -1687,6 +1688,10 @@ def test_fw_literal_node(fortran_writer):
     result = fortran_writer(lit1)
     assert result == '3.14'
 
+    lit1 = Literal('3', REAL_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '3.0'
+
     lit1 = Literal('3.14E0', REAL_TYPE)
     result = fortran_writer(lit1)
     assert result == '3.14e0'
@@ -1694,6 +1699,10 @@ def test_fw_literal_node(fortran_writer):
     lit1 = Literal('3.14E0', REAL_DOUBLE_TYPE)
     result = fortran_writer(lit1)
     assert result == '3.14d0'
+
+    lit1 = Literal('3', REAL_DOUBLE_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '3.0d0'
 
     # Check that BOOLEANS use the FORTRAN formatting
     lit1 = Literal('true', BOOLEAN_TYPE)
