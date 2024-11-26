@@ -105,7 +105,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         if not isinstance(sym.interface, AutomaticInterface):
             return False
 
-        # Check that the symbol is not be referenced after this loop (before
+        # Check that the symbol is not referenced after this loop (before
         # the loop is fine because we can use OpenMP/OpenACC first-private or
         # Fortran do concurrent local_init())
         if any(ref.symbol is sym
