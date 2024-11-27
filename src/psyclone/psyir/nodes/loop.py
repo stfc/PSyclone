@@ -43,7 +43,6 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes import Schedule
-from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
@@ -579,6 +578,3 @@ class Loop(Statement):
             if not kernel.module_inline:
                 parent.add(UseGen(parent, name=kernel.module_name, only=True,
                                   funcnames=[kernel.name]))
-
-        for psydata_node in self.walk(PSyDataNode):
-            psydata_node.fix_gen_code(parent)
