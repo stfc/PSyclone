@@ -298,7 +298,12 @@
 	113) PR #2769 for #2768. Generalises Sign2CodeTrans and Abs2CodeTrans
 	to allow non-floating point scalar literals.
 
-  114) PR #2461 for #2460. Renames DynamoPSy class to LFRicPSy and moves into a new module lfric_psy.py in domain/lfric.
+	114) PR #2461 for #2460. Renames DynamoPSy class to LFRicPSy and moves
+	into a new module lfric_psy.py in domain/lfric.
+
+	115) PR #2697 towards #2671. Fixes various issues relating to incorrect
+	parallelisation of loops in NEMO. Also adds support for array-
+	privatisation option.
 
 release 2.5.0 14th of February 2024
 
