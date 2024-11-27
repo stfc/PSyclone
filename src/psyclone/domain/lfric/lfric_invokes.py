@@ -53,7 +53,7 @@ class LFRicInvokes(Invokes):
                       information.
     :type alg_calls: List[:py:class:`psyclone.parse.algorithm.InvokeCall`]
     :param psy: The PSy object containing this LFRicInvokes object.
-    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+    :type psy: :py:class:`psyclone.domain.lfric.LFRicPSy`
 
     '''
     def __init__(self, alg_calls, psy):

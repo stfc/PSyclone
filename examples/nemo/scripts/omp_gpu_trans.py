@@ -39,17 +39,17 @@ directives into Nemo code. '''
 
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT, NOT_WORKING)
+    enhance_tree_information, NOT_PERFORMANT)
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
     Loop, Routine, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import OMPDeclareTargetTrans, TransformationError
 
-PROFILING_ENABLED = True
+PROFILING_ENABLED = False
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING
+FILES_TO_SKIP = NOT_PERFORMANT
 
 
 def trans(psyir):
@@ -76,15 +76,6 @@ def trans(psyir):
         if PROFILING_ENABLED:
             add_profiling(subroutine.children)
 
-        # This are functions with scalar bodies, we don't want to parallelise
-        # them, but we could:
-        # - Inine them
-        # - Annotate them with 'omp declare target' and allow to call from gpus
-        if subroutine.name in ("q_sat", "sbc_dcy", "gamma_moist",
-                               "cd_neutral_10m", "psi_h", "psi_m"):
-            print("Skipping", subroutine.name)
-            continue
-
         print(f"Transforming subroutine: {subroutine.name}")
 
         enhance_tree_information(subroutine)
@@ -98,17 +89,14 @@ def trans(psyir):
                 hoist_expressions=True
         )
 
-        # For performance in lib_fortran, mark serial routines as GPU-enabled
-        if psyir.name == "lib_fortran.f90":
-            if not subroutine.walk(Loop):
-                try:
-                    # We need the 'force' option.
-                    # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
-                    # array notation. (TODO #717)
-                    OMPDeclareTargetTrans().apply(subroutine,
-                                                  options={"force": True})
-                except TransformationError as err:
-                    print(err)
+        # Thes are functions that are called from inside parallel regions,
+        # annotate them with 'omp declare target'
+        if subroutine.name.lower().startswith("sign_"):
+            OMPDeclareTargetTrans().apply(subroutine)
+            print(f"Marked {subroutine.name} as GPU-enabled")
+            # We continue parallelising inside the routine, but this could
+            # change if the parallelisation directives added below are not
+            # nestable, in that case we could add a 'continue' here
 
         # For now this is a special case for stpctl.f90 because it forces
         # loops to parallelise without many safety checks
@@ -120,7 +108,10 @@ def trans(psyir):
                 # Skip if an outer loop is already parallelised
                 if loop.ancestor(Directive):
                     continue
-                omp_loop_trans.apply(loop, options={"force": True})
+                try:
+                    omp_loop_trans.apply(loop, options={"force": True})
+                except TransformationError:
+                    continue
                 omp_target_trans.apply(loop.parent.parent)
                 assigns = loop.walk(Assignment)
                 if len(assigns) == 1 and assigns[0].lhs.symbol.name == "zmax":

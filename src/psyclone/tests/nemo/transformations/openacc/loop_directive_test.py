@@ -41,7 +41,7 @@
 
 import pytest
 from psyclone.psyGen import TransInfo
-from psyclone.psyir.transformations import TransformationError, ACCKernelsTrans
+from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.psyir.nodes import Loop
 from psyclone.errors import GenerationError
 
@@ -196,16 +196,3 @@ def test_collapse(fortran_reader, fortran_writer):
             "  !$acc loop independent collapse(2)\n"
             "  do jj = 1, jpj, 1\n"
             "    do ji = 1, jpi, 1\n" in code)
-
-
-def test_collapse_err(fortran_reader):
-    ''' Check that attempting to apply the loop transformation with a
-    'collapse' depth creater than the number of nested loops raises an
-    error. '''
-    psyir = fortran_reader.psyir_from_source(DOUBLE_LOOP)
-    schedule = psyir.children[0]
-    acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
-    with pytest.raises(TransformationError) as err:
-        acc_trans.apply(schedule.children[0], {"collapse": 3})
-    assert ("Cannot apply COLLAPSE(3) clause to a loop nest containing "
-            "only 2 loops" in str(err.value))

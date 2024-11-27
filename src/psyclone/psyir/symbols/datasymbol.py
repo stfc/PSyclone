@@ -243,11 +243,10 @@ class DataSymbol(TypedSymbol):
                             f"{node}")
                 new_initial_value = new_value
             else:
-                from psyclone.psyir.symbols.datatypes import TYPE_MAP_TO_PYTHON
                 # No need to check that self.datatype has an intrinsic
                 # attribute as we know it is a ScalarType or ArrayType
                 # due to an earlier test.
-                lookup = TYPE_MAP_TO_PYTHON[self.datatype.intrinsic]
+                lookup = ScalarType.TYPE_MAP_TO_PYTHON[self.datatype.intrinsic]
                 if not isinstance(new_value, lookup):
                     raise ValueError(
                         f"Error setting initial value for symbol "

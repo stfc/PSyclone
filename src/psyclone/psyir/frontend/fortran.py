@@ -96,7 +96,8 @@ class FortranReader():
 
         '''
         SYMBOL_TABLES.clear()
-        string_reader = FortranStringReader(source_code)
+        string_reader = FortranStringReader(
+            source_code, include_dirs=Config.get().include_paths)
         # Set reader to free format.
         string_reader.set_format(FortranFormat(free_form, False))
         parse_tree = self._parser(string_reader)
@@ -182,11 +183,7 @@ class FortranReader():
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the statement and lookup any symbols that it
         # references.
-        try:
-            routine_symbol = symbol_table.lookup_with_tag("own_routine_symbol")
-            routine_name = routine_symbol.name
-        except KeyError:
-            routine_name = "dummy"
+        routine_name = "dummy"
         fake_parent = Routine.create(
             routine_name, SymbolTable(), [])
         # pylint: disable=protected-access

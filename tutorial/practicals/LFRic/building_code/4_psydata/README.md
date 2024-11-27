@@ -31,8 +31,8 @@ the one that propagates the perturbation. Open the file
 The kernel extraction transformation for LFRic is called
 ``LFRicExtractTrans`` and can be imported from
 ``psyclone.domain.lfric.transformations``. Add the import statement
-and then create an instance of the transformation (see line 59
-and 60 of the script).
+and then create an instance of the transformation (first TODO in the
+script).
 
 ### Step 1.2: Get the invoke object to be transformed
 The easiest way of getting this invoke in the transformation script
@@ -40,14 +40,13 @@ is to use the name that was given to the invoke call. Look at the
 file ``time_evolution_alg_mod.x90`` and find the name given to the
 invoke statement that propagates the perturbation.
 
-PSyclone adds ``invoke_`` as a prefix to the name given to an invoke.
-This name can then be used to get the invoke object from
-``psy.invokes``. Use this name in the script (see line 68).
+PSyclone adds ``invoke_`` as a prefix to the subroutine name that implements
+the invoke body.
 
-### Step 1.3: Apply the transformation to the schedule
-Next you need to apply the transformation to the schedule.
-See lines 76 - call the ``apply`` method of the transformation
-object with the schedule as parameter.
+### Step 1.3: Apply the transformation to the PSyIR
+Next you need to apply the transformation to the PSyIR.
+See third TODO in the script - call the ``apply`` method of the transformation
+object with the subroutine as parameter.
 
 
 ## Step 2: Modify the makefile so that PSyclone invokes the script
@@ -67,7 +66,6 @@ Python will not find our file.
 Once this is done, you can then create your application using:
 
     make -f Makefile.extract_one
-
 
 You need the NetCDF development package installed, the makefiles
 will be using ``nf-config`` to get the appropriate compiler and
@@ -189,8 +187,8 @@ to apply the extraction transformation to all invokes in a file. This script
 actually requires less changes than the``extract_one_transform.py`` template
 (since it works on all invokes):
 
-1. Import the required transformation and create an instance (line 59).
-2. In the loop over all invokes apply the transformation (line 75).
+1. Import the required transformation and create an instance (first TODO).
+2. In the loop over all invokes apply the transformation (second TODO).
 
  Then modify ``Makefile.extract_all`` to supply your
 ``extract_all_transform.py`` script to PSyclone.
@@ -257,24 +255,45 @@ Note that this error is only printed in the first time step. After the first mod
 the modified value is not changed again in the application, so no change to the read-only
 field is detected.
 
-### NAN Verification
-This library verifies that all input- and output-parameters of a kernel are
-neither NAN nor an infinite number. If such a value is detected, a message
-like this will be printed:
+### ValueRangeCheck
+The ``ValueRangeCheck`` library allows the user to specify that certain variables should be
+within a specified range. This will be tested if the variables are an input parameter
+to a kernel before the kernel is called, and after the kernel if the variable is an
+output parameter of the kernel. Additionally, this library also verifies that all input- and
+output-parameters of a kernel are neither NAN nor an infinite number. In case of an
+out-of-range error or an invalid value, an error message like the following will be printed:
+
+    PSyData: Variable 'perturbation_data' has the value 0.53116938666871878E-80 at index/indices 74932 in   module 'time_evolution', region 'invoke_initialise_perturbation', which is not between '1.0000000000000000' and '2.0000000000000000'.
+
 
      PSyData: Variable perturbation has the invalid value
                            NaN  at index/indices           11
 
 
-The transformation ``NanTestTrans`` is imported from ``psyclone.psyir.transformations``.
-You can use the template ``nan_all_transform.py`` for your script, and ``Makefile.nan_all``
-for the makefile to use.
+The transformation ``ValueRangeCheckTrans`` is imported from ``psyclone.psyir.transformations``.
+You can use the template ``value_range_check_transform.py`` for your script,
+and ``Makefile.value_range_check`` for the makefile to use.
 
 This example by itself will not print any message (since there is no invalid floating
-point number), so you have to use ``PSYDATA_VERBOSE`` and set it to 1 or 2 to see that
-tests are actually happening. Alternatively, the file
-``prop_perturbation_kernel_mod.f90`` contains code that you can uncomment that will
-introduce a NAN into the result field. Search for the comment
+point number). In order to define a range for a variable (see
+[the documentation](https://psyclone.readthedocs.io/en/stable/psy_data.html#value-range-check)
+for details), set the following environment variable:
+
+    PSYVERIFY__time_evolution__perturbation_data=0:4000 ./time_evolution
+
+This will check that each element of the perturbation variable has a value between 0
+and 4000 in the module ``time_evolution``. If the variable name is unique across
+all program units, you can also just drop the module name and use:
+
+    PSYVERIFY__perturbation_data=0:4000 ./time_evolution
+
+If you compile and run the job with this variable defines, a few elements
+will trigger a message, e.g.:
+
+    PSyData: Variable 'perturbation_data' has the value 4161.8196594729216 at index/indices 49361 in module 'time_evolution', region 'invoke_propagate_perturbation', which is not between '0.0000000000000000' and '4000.0000000000000'.
+
+Alternatively, the file ``prop_perturbation_kernel_mod.f90`` contains code that
+you can uncomment that will introduce a NAN into the result field. Search for the comment
 
     ! FOR NAN VERIFICATION:
 

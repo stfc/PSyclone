@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 
 '''An example PSyclone transformation script to demonstrate
@@ -43,34 +44,30 @@ This script can be applied via the -s option in the psyclone
 command, it is not designed to be directly run from python.
 
 '''
-from __future__ import print_function
-from psyclone.psyir.nodes import BinaryOperation
+
+from psyclone.psyir.nodes import IntrinsicCall
 from psyclone.psyir.transformations import Matmul2CodeTrans
 
 
-def trans(psy):
+def trans(psyir):
     '''PSyclone transformation script for the Dynamo0.3 API to optimise
     the matvec kernel for many-core CPUs. This is currently limited to
     running on the scaled_matrix_vector_code kernel but should work
     more generally. Any matmul calls are replaced with inline matrix
     vector code.
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
-        kernel information required by PSyclone.
-    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     matmul2code_trans = Matmul2CodeTrans()
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
-        for kernel in schedule.coded_kernels():
-            if kernel.name.lower() == "scaled_matrix_vector_code":
-                kernel.modified = True
-                kernel_schedule = kernel.get_kernel_schedule()
-                # Replace matmul with inline code
-                for bin_op in kernel_schedule.walk(BinaryOperation):
-                    if bin_op.operator is BinaryOperation.Operator.MATMUL:
-                        matmul2code_trans.apply(bin_op)
-                print(kernel_schedule.view())
-    return psy
+    for kernel in psyir.coded_kernels():
+        if kernel.name.lower() == "scaled_matrix_vector_code":
+            kernel.modified = True
+            kernel_schedule = kernel.get_kernel_schedule()
+            # Replace matmul with inline code
+            for icall in kernel_schedule.walk(IntrinsicCall):
+                if icall.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
+                    matmul2code_trans.apply(icall)
+            print(kernel_schedule.view())

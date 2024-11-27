@@ -94,7 +94,7 @@
 	34) PR #2574 for #2196. Add support for use-intrinsic imports.
 
 	35) PR #2566 towards #2156. Bug fixes for routines declared as
-	ELEMENTAL or IMPURE. (Alters the Fortran backend and 
+	ELEMENTAL or IMPURE. (Alters the Fortran backend and
 	Routine.copy().)
 
 	36) PR #2572 for #2195. Improves SymbolTable.__str__ such that
@@ -110,7 +110,7 @@
 	40) PR #2598 towards #2543. Refresh the PSyKAl-related documentation
 	in both the User and Developer Guides.
 
-	41) PR #2611. Update Integration tests nvhpc mpi library path. 
+	41) PR #2611. Update Integration tests nvhpc mpi library path.
 
 	42) PR #2614 towards #2604. Fixes broken links to the docs in the
 	various tutorial READMEs.
@@ -176,6 +176,134 @@
 	to guarantee that PSyIR trees after a copy have references to the
 	updated symbols (including in attributes that are not directly in the
 	tree).
+
+	62) PR #2662 for #2082. Fixes HoistTrans so that it checks for
+	possible side-effects. Also now removes the parent Loop if the hoist means
+	it no longer has a body.
+
+	63) PR #2660 for #1370. Adds 'collapse' and 'ignore_dependencies_for'
+	options to ParallelLoopTrans.
+
+	64) PR #2653. Add example using the PSyclone xDSL MLIR backend.
+
+	65) PR #2673 for #2652. Find the symbol name containing a kernel metadata
+	by searching the PSyIR (instead of assuming the name).
+
+	66) PR #2651 for #2617. Fixes PSyKE driver create for LFRic in the
+	event of a call to a generic routine interface.
+
+	67) PR #2650 for #2630. Adds basic support for DATA statements in the
+	fparser2 frontend.
+
+	68) PR #2679 for #2676. Adds check for impure calls to the
+	ParallelLoopTrans.validate method. This fixes a race condition in the
+	sea-ice code in NEMO. Updates the NEMO workflow so that error
+	reporting is improved and timing results no longer uploaded to gist.
+
+	69) PR #2656 for #2634. Fixes and improvements for the 'nemo' tutorials.
+
+	70) PR #2413 towards #924. Add find_container_psyir, find_routine_psyir
+	and get_callees utilities to simplify the inlining transformation.
+
+	71) PR #2523 towards #1719. Add the poly_{1,2}d_reconstruction kernels
+	and tweak the adjoint README files.
+
+	72) PR #2675 towards #1351. Refactors the LFRic metadata checking and
+	adds support for user-supplied kernels that operate on dofs.
+
+	73) PR #2700 for #2699. Fix docstring error for Config class.
+
+	74) PR #2698 for #2629. Fix NEMOv5 issues and extend related
+	integration tests.
+
+	75) PR #2710 for #2665. Improves error messages for line-length and
+	kernel arguments.
+
+	76) PR #2692 for #2691. Increase recursion limit when handling
+	conditional statements with many branches. Disable final tree copy
+	when generating code.
+
+	77) PR #2708 for #2663. Add LFRic OpenACC in the integration tests.
+
+	78) PR #2678 for #2636. Alter LFRic PSy-layer to lookup nlevels for
+	each kernel
+
+	79) PR #2687 for #2684. Add support for WHERE constructs that contain
+	references without range-notation (and prevent some incorrect cases).
+
+	80) PR #2596 for #2592 and #2582. Routine nodes manage their own
+	symbols from their parent scope.
+
+	81) PR #2725 to close #717. Removes some TODOs and associated utility code
+	from the fparser2 frontend that is now unused.
+
+	82) PR #2733 for #2730. Adds OpenMP offloading support for LFRic plus
+	associated integration test.
+
+	83) PR #2743 for #2742. Ensure generated code for function spaces in
+	LFRic is always in a consistent order.
+
+	84) PR #2746. Update minor versions of CUDA, HDF5, nvfortran and
+	Python used in the CI.
+
+	85) PR #2748. Revert Python used on RTD to 3.12 as 3.13 unsupported.
+
+	86) PR #2707 for #257. Fixes bugs in the loop-fusion transformation.
+
+	87) PR #2752 towards #2717. Adds Assignment.is_literal_assignment property.
+
+	88) PR #2753 towards #2717. Adds DataNode.is_character method.
+
+	89) PR #2712 for #2711. Adds support for user-supplied Kernels that
+	operate on dofs (in the LFRic API).
+
+	99) PR #2685 for #2027. Improves datatype and shape inference.
+
+	100) PR #2694 for #2690. Extends the PSyData NaN-checking tooling to
+	perform value verification.
+
+	101) PR #2749 for #2311. Alters test-harness generation for the LFRic
+	API in PSyAD to base the generated test-code filenames on the name of
+	the supplied LFRic Algorithm file.
+
+	102) PR #2763 towards #2717. Upstreams PSyACC functionality: ensures
+	that clauses on an OpenACC directive are consistent.
+
+	103) PR #2734 towards #2704. Implements the forward_dependency part of
+	the new DefinitionUseChain PSyIR tool.
+
+	104) PR #2761 for #2739. Updates the signature of the PSyKAl
+	transformation script to accept a PSyIR node.
+
+	105) PR #2745 for #2661. Add support for kernels that operate on halos.
+
+	106) PR #2770 towards #2543. Improve UG introduction.
+
+	107) PR #2776 for #1280. Fixes ref_guide warnings.
+
+	108) PR #2767 for #2755. Bug fix for psyad failing to transform array
+	assignment
+
+	109) PR #2785 towards #759. Populates partial_datatype for OPTIONAL.
+
+	110) PR #2789 for #2778. Removes some old TODOs now that kernel
+	extraction for GOcean has been improved.
+
+	111) PR #2791 for #2790. Updates the dl_esm_inf git submodule to point
+	to the latest version.
+
+	112) PR #2795 for #2774. Generalises MatMul2CodeTrans to cope with
+	non-contiguous array slices.
+
+	113) PR #2769 for #2768. Generalises Sign2CodeTrans and Abs2CodeTrans
+	to allow non-floating point scalar literals.
+
+	114) PR #2461 for #2460. Renames DynamoPSy class to LFRicPSy and moves
+	into a new module lfric_psy.py in domain/lfric.
+
+	115) PR #2697 towards #2671. Fixes various issues relating to incorrect
+	parallelisation of loops in NEMO. Also adds support for array-
+	privatisation option.
 
 release 2.5.0 14th of February 2024
 
@@ -263,7 +391,7 @@ release 2.5.0 14th of February 2024
 	validating LFRic kernel arguments.
 
 	31) PR #2388 for #2323. Rename the array reduction 2code transformations
-	to use the 2loop postfix and improve their implementation. 
+	to use the 2loop postfix and improve their implementation.
 
 	32) PR #2400 for #1508. Add flag/config option to disable backend checks.
 
@@ -291,7 +419,7 @@ release 2.5.0 14th of February 2024
 
 	41) PR #2393 for #2392. Split and rename DynKernMetadata into
 	into domain/lfric module (LFRicKernMetadata class).
-	
+
 	42) PR #2240 for #2132. Update Integration test software stack.
 
 	43) PR #2454 for #2418. Fix OMPTaskTrans attempts to inline IntrinsicCalls.
@@ -333,7 +461,7 @@ release 2.5.0 14th of February 2024
 	55) PR #2465 towards #2004. Move same_range functionality to
 	ArrayMixin and other improvements.
 
-	56) PR #2372 towards #1960. Fix bugs on Fortran WHERE canonicalisation. 
+	56) PR #2372 towards #1960. Fix bugs on Fortran WHERE canonicalisation.
 
 	57) PR #2489 for #2488. Unify generic LoopFuseTrans and allow renaming
 	the second loop variable for certain cases.
@@ -891,7 +1019,7 @@ release 2.4.0 29th of September 2023
 	script.
 
 	183) PR #2182 for #2179. Fix LFRic eg14 nvfortran compilation and add
-	nvfortran examples and tutorials steps in the Integration tests. 
+	nvfortran examples and tutorials steps in the Integration tests.
 
 	184) PR #2250 for #2248 and #1575. Fixes bug in line-length limiter
 	to prevent it breaking a line before the first non-whitepsace
@@ -1046,7 +1174,7 @@ release 2.3.0 9th June 2022
 	17) PR #1702 for #1695. Correction to LFRic infrastructure ('emdi') to
 	bring up-to-date with current LFRic usage.
 
-	18) PR #1705. Corrections for the NEMO tutorial. 
+	18) PR #1705. Corrections for the NEMO tutorial.
 
 	19) PR #1692 for #1688. Prevents scoping regions from sharing symbol
 	tables. Adds attach() and detach() methods to SymbolTable for
@@ -1062,7 +1190,7 @@ release 2.3.0 9th June 2022
 
 	23) PR #1725. Allows parsing an empty Fortran file.
 
-	24) PR #1716 for #1713. Fix bug in matmul transformation. 
+	24) PR #1716 for #1713. Fix bug in matmul transformation.
 
 	25) PR #1693 for #1661. Improve dependency analysis tools.
 
@@ -1080,10 +1208,10 @@ release 2.3.0 9th June 2022
 	30) PR #1749 for #1748. Updates version of fparser specified in setup.py
 	to 0.0.15.
 
-	31) PR #1740 for #1738. Update the operator implementation in the 
+	31) PR #1740 for #1738. Update the operator implementation in the
 	cut-down LFRic infrastructure and change the USE statements generated
 	for CMA operators.
- 
+
 release 2.2.0 17th March 2022
 
 	1) PR #1439 for #1074. Adds a GOcean example for the use of the NaN-
@@ -2012,7 +2140,7 @@ release 2.0.0 28th April 2021
 	156) PR #1156 for #874. Removes support for old-style LFRic arg_type
 	descriptor. Primitive type of all kernel arguments must now be
 	specified.
-	
+
 	157) PR #1182 for #1181. Add OpenACC directives support to the PSyIR
 	Fortran backend.
 

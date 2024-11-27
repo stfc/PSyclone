@@ -55,7 +55,7 @@ from psyclone.tests.utilities import check_links
 
 def test_array_node_str():
     ''' Check the node_str method of the ArrayReference class.'''
-    kschedule = KernelSchedule("kname")
+    kschedule = KernelSchedule.create("kname")
     array_type = ArrayType(INTEGER_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("aname", array_type)
     kschedule.symbol_table.add(symbol)
@@ -67,7 +67,7 @@ def test_array_node_str():
 def test_array_can_be_printed():
     '''Test that an ArrayReference instance can always be printed (i.e. is
     initialised fully)'''
-    kschedule = KernelSchedule("kname")
+    kschedule = KernelSchedule.create("kname")
     symbol = DataSymbol("aname", ArrayType(INTEGER_SINGLE_TYPE, [10]))
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
@@ -579,6 +579,13 @@ def test_array_datatype():
     aref6.addchild(Reference(index))
     aref6._symbol = test_struc_sym
     assert isinstance(aref6.datatype, UnresolvedType)
+
+    # TODO #2448 - we don't handle an array access to something that we
+    # don't know is an array.
+    aref7 = ArrayReference(generic_sym)
+    aref7.addchild(one.copy())
+    aref7._symbol = DataSymbol("int_test", INTEGER_TYPE)
+    assert isinstance(aref7.datatype, UnresolvedType)
 
 
 def test_array_create_colon(fortran_writer):

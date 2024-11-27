@@ -39,37 +39,30 @@ PSyclone.
 
 '''
 
-from __future__ import print_function
 from psyclone.psyir.nodes import Loop
 from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
 from psyclone.transformations import OMPTaskloopTrans
 from psyclone.psyir.transformations import OMPTaskwaitTrans
 
 
-def trans(psy):
+def trans(psyir):
     '''
     Transformation routine for use with PSyclone. Applies the OpenMP
     taskloop and taskwait transformations to the PSy layer.
 
-    :param psy: the PSy object which this script will transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-
     singletrans = OMPSingleTrans()
     paralleltrans = OMPParallelTrans()
     tasklooptrans = OMPTaskloopTrans(nogroup=False)
     taskwaittrans = OMPTaskwaitTrans()
-    for invoke in psy.invokes.invoke_list:
-        print("Adding OpenMP tasking to invoke: " + invoke.name)
-        schedule = invoke.schedule
+    for schedule in psyir.children[0].children:
+        print("Adding OpenMP tasking to invoke: " + schedule.name)
         for child in schedule.children:
             if isinstance(child, Loop):
                 tasklooptrans.apply(child)
         singletrans.apply(schedule)
         paralleltrans.apply(schedule)
         taskwaittrans.apply(schedule[0])
-
-    return psy
