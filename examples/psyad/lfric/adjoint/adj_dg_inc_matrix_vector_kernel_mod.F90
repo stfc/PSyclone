@@ -66,11 +66,11 @@ END TYPE
     integer(kind=i_def) :: k
     integer(kind=i_def) :: ik
 
+    ik = cell * nlayers - nlayers + 1
     do df = ndf1, 1, -1
       do df2 = ndf2, 1, -1
         do k = nlayers - 1, 0, -1
-          ik = cell * nlayers + k - nlayers + 1
-          x(k + map2(df2)) = x(k + map2(df2)) + matrix(ik,df,df2) * lhs(map1(df) + k)
+          x(k + map2(df2)) = x(k + map2(df2)) + matrix(ik + k,df,df2) * lhs(map1(df) + k)
         enddo
       enddo
     enddo

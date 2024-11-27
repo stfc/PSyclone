@@ -125,11 +125,11 @@ contains
     ! Internal variables
     integer(kind=i_def) :: df, df2, k, ik
 
+    ik = (cell-1)*nlayers + 1
     do df = 1, ndf1
       do df2 = 1, ndf2
         do k = 0, nlayers-1
-          ik = (cell-1)*nlayers + k + 1
-          lhs(map1(df)+k) = lhs(map1(df)+k) + matrix(ik,df,df2)*x(map2(df2)+k)
+          lhs(map1(df)+k) = lhs(map1(df)+k) + matrix(ik+k,df,df2)*x(map2(df2)+k)
         end do
       end do
     end do
