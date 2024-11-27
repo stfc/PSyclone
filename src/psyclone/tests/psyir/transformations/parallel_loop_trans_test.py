@@ -529,8 +529,8 @@ def test_paralooptrans_apply(fortran_reader):
     assert isinstance(loop.parent.parent, OMPParallelDoDirective)
 
 
-def test_paralooptranas_with_array_privatisation(fortran_reader,
-                                                 fortran_writer):
+def test_paralooptrans_with_array_privatisation(fortran_reader,
+                                                fortran_writer):
     '''
     Check that the 'privatise_arrays' transformation option allows to ignore
     write-write dependencies by setting the associated variable as 'private'
@@ -577,23 +577,21 @@ def test_paralooptranas_with_array_privatisation(fortran_reader,
         subroutine my_sub()
           use other, only: mystruct
           integer ji, jj
-          real :: var1(10,10)
-          real, save :: ztmp1(10)
-          real :: ztmp2(10)
+          real :: ztmp(10)  ! This one is fine
+          real :: ztmp_after(10)
+          real, save :: ztmp_nonlocal(10)
           var1 = 1.0
           ztmp = 3.0
 
           do ji = 1, 10
             do jj = 1, 10
-              ztmp2(jj) = 3
+              ztmp(jj) = 3
+              ztmp_nonlocal(jj) = 3
+              ztmp_after(jj) = 3
               mystruct%array(jj) = 3
-              ztmp(jj) = var1(ji, jj) + 1
-            end do
-            do jj = 1, 10
-              var1(ji, jj) = ztmp(jj) * 2
             end do
           end do
-          call something(ztmp2)
+          call something(ztmp_after)
         end subroutine my_sub''')
 
     loop = psyir.walk(Loop)[0]
@@ -601,19 +599,20 @@ def test_paralooptranas_with_array_privatisation(fortran_reader,
         trans.apply(loop, {"privatise_arrays": True})
     # with and updated error messages
     assert "ztmp(jj)\' causes a write-write race " not in str(err.value)
-    assert "ztmp2(jj)\' causes a write-write race " not in str(err.value)
-    assert ("The write-write dependency in 'ztmp' cannot be solved by array "
-            "privatisation because it is not a plain array or it is used "
-            "outside the loop" in str(err.value))
-    assert ("The write-write dependency in 'ztmp2' cannot be solved by array "
-            "privatisation because it is not a plain array or it is used "
-            "outside the loop" in str(err.value))
+    assert "ztmp_after(jj)\' causes a write-write race " not in str(err.value)
+    assert ("ztmp_nonlocal(jj)\' causes a write-write race "
+            not in str(err.value))
+    assert ("The write-write dependency in 'ztmp_after' cannot be solved by "
+            "array privatisation because it is not a plain local array or it "
+            "is used after the loop" in str(err.value))
+    assert ("The write-write dependency in 'ztmp_nonlocal' cannot be solved "
+            "by array privatisation because it is not a plain local array or "
+            "it is used after the loop" in str(err.value))
     assert ("The write-write dependency in 'mystruct%array' cannot be solved "
-            "by array privatisation because it is not a plain array or it is "
-            "used outside the loop" in str(err.value))
+            "by array privatisation because it is not a plain local array or "
+            "it is used after the loop" in str(err.value))
 
     # The privatise_arrays only accepts bools
-
     with pytest.raises(TypeError) as err:
         trans.apply(loop, {"privatise_arrays": 3})
     assert ("The 'privatise_arrays' option must be a bool but got an object "

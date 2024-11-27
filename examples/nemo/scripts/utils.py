@@ -65,7 +65,8 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     # prevents from being in-lined (and then breaks any attempt
                     # to create OpenACC regions with calls to them)
                     "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
-                    "sum", "sign_", "ddpdd"]
+                    "sum", "sign_", "ddpdd", "psyclone_cmp_int",
+                    "psyclone_cmp_char", "psyclone_cmp_logical"]
 
 # Currently fparser has no way of distinguishing array accesses from
 # function calls if the symbol is imported from some other module.
@@ -78,22 +79,27 @@ NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
                   "glob_sum_full", "ptr_sj", "ptr_sjk", "interp1", "interp2",
                   "interp3", "integ_spline", "nf90_put_var"]
 
-# In the files below, psyclone creates different results from the baseline if
-# parallelisation is attempted
-DONT_PARALLELISE = [
-    "domqco.f90",
-    "dynspg_ts.f90",
-    "icedyn_rhg_evp.f90",
-    "ldfc1d_c2d.f90",
-    "tramle.f90",
-]
-
-OTHER_ISSUES = ["ldfslp.f90"]
-
-
 # Currently fparser has no way of distinguishing array accesses from statement
 # functions, the following subroutines contains known statement functions
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
+
+# These files change the results from baseline when psyclone processes them
+PASSTHROUGH_ISSUES = [
+    "ldfslp.f90",  # It has a '!dir$ NOVECTOR' that gets deleted by fparser
+]
+
+# These files change the results from the baseline when psyclone adds
+# parallelisation dirctives
+PARALLELISATION_ISSUES = [
+    "ldfc1d_c2d.f90",
+    "tramle.f90",
+    # These files get the same results when parallelised by: "nvfortran -O1
+    # -Kieee -nofma -Mnovect" but had to be excluded by other compiler/flags
+    # TODO #2787: May solve these issues.
+    "icedyn_rhg_evp.f90",
+    "domqco.f90",
+    "dynspg_ts.f90",
+]
 
 
 def _it_should_be(symbol, of_type, instance):
@@ -255,7 +261,7 @@ def normalise_loops(
 
     if convert_array_notation:
         # Make sure all array dimensions are explicit
-        for reference in schedule.walk(Reference, stop_type=Reference):
+        for reference in schedule.walk(Reference):
             part_of_the_call = reference.ancestor(Call)
             if part_of_the_call:
                 if not part_of_the_call.is_elemental:
@@ -265,15 +271,6 @@ def normalise_loops(
                     Reference2ArrayRangeTrans().apply(reference)
                 except TransformationError:
                     pass
-            if hasattr(reference, "indices"):
-                # Look at array-index expressions too.
-                for exprn in reference.indices:
-                    if (isinstance(exprn, Reference) and
-                            isinstance(exprn.symbol, DataSymbol)):
-                        try:
-                            Reference2ArrayRangeTrans().apply(exprn)
-                        except TransformationError:
-                            pass
 
     if loopify_array_intrinsics:
         for intr in schedule.walk(IntrinsicCall):

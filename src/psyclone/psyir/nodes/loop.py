@@ -102,7 +102,10 @@ class Loop(Statement):
         self._variable = None
         if variable is not None:
             self.variable = variable
-        self._explicitly_local_symbols = set()
+        # Hold the set of symbols that will be private/local to the interation
+        # if this loop is run concurrently. Alternatively this could be
+        # implemented by moving the symbols to the loop_body symbol table.
+        self._explicitly_private_symbols = set()
 
     def __eq__(self, other):
         '''
@@ -124,13 +127,13 @@ class Loop(Statement):
         return is_eq
 
     @property
-    def explicitly_local_symbols(self):
+    def explicitly_private_symbols(self):
         '''
         :returns: the set of symbols inside the loop which are private to each
             iteration of the loop if it is executed concurrently.
         :rtype: Set[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
-        return self._explicitly_local_symbols
+        return self._explicitly_private_symbols
 
     @property
     def loop_type(self):
@@ -426,9 +429,10 @@ class Loop(Statement):
 
     def replace_symbols_using(self, table):
         '''
-        Replace the Symbol referred to by this object's `variable` property
-        with that in the supplied SymbolTable with a matching name. If there
-        is no match then it is left unchanged.
+        Replace the Symbol referred to by this object's `variable` and
+        `explicit_local_symbols` properties with those in the supplied
+        SymbolTable with a matching name. If there is no matches then they
+        are left unchanged.
 
         :param table: symbol table in which to look up the replacement symbol.
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
@@ -441,11 +445,11 @@ class Loop(Statement):
             except KeyError:
                 pass
 
-        for symbol in list(self._explicitly_local_symbols):
+        for symbol in list(self._explicitly_private_symbols):
             try:
                 new_sym = table.lookup(symbol.name)
-                self._explicitly_local_symbols.remove(symbol)
-                self._explicitly_local_symbols.add(new_sym)
+                self._explicitly_private_symbols.remove(symbol)
+                self._explicitly_private_symbols.add(new_sym)
             except KeyError:
                 pass
         super().replace_symbols_using(table)

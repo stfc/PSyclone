@@ -37,16 +37,21 @@
 ''' PSyclone transformation script to insert OpenMP for CPU
 directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 
+import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, OTHER_ISSUES, DONT_PARALLELISE)
+    enhance_tree_information, PASSTHROUGH_ISSUES, PARALLELISATION_ISSUES)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
 PROFILING_ENABLED = False
 
+# A environment variable can inform if this is targeting NEMOv5, in which case
+# array privatisation is enabled.
+NEMOV5 = os.environ.get('NEMOV5', False)
+
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = OTHER_ISSUES
+FILES_TO_SKIP = PASSTHROUGH_ISSUES
 
 
 def trans(psyir):
@@ -77,11 +82,11 @@ def trans(psyir):
                 hoist_expressions=False
         )
 
-        if psyir.name not in DONT_PARALLELISE:
+        if psyir.name not in PARALLELISATION_ISSUES:
             insert_explicit_loop_parallelism(
                     subroutine,
                     region_directive_trans=omp_parallel_trans,
                     loop_directive_trans=omp_loop_trans,
                     collapse=False,
-                    privatise_arrays=psyir.name != "ldftra.f90",
+                    privatise_arrays=NEMOV5 and psyir.name != "ldftra.f90",
             )

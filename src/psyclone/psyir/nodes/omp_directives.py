@@ -1576,8 +1576,9 @@ class OMPParallelDirective(OMPRegionDirective):
 
         # TODO #598: Improve the handling of scalar variables, there are
         # remaining issues when we have accesses after the parallel region
-        # of variables that we currently declare as private. This should be
-        # lastprivate.
+        # of variables that we currently declare as private. We could use
+        # the DefinitionUseChain to prove that there are no more uses after
+        # the loop.
         # e.g:
         # !$omp parallel do <- will set private(ji, my_index)
         # do ji = 1, jpk
@@ -1601,16 +1602,14 @@ class OMPParallelDirective(OMPRegionDirective):
             # only apply to a sub-component, this won't be captured
             # appropriately.
             name = signature.var_name
-            try:
-                symbol = accesses[0].node.scope.symbol_table.lookup(name)
-            except KeyError:
-                symbol = None
+            symbol = accesses[0].node.scope.symbol_table.lookup(
+                name, otherwise=None)
 
             # If it is manually marked as a local symbol, add it to private or
             # firstprivate set
             if (isinstance(symbol, DataSymbol) and
                     isinstance(self.dir_body[0], Loop) and
-                    symbol in self.dir_body[0].explicitly_local_symbols):
+                    symbol in self.dir_body[0].explicitly_private_symbols):
                 if any(ref.symbol is symbol for ref in self.preceding()
                        if isinstance(ref, Reference)):
                     # If it's used before the loop, make it firstprivate

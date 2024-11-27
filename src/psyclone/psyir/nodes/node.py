@@ -44,6 +44,7 @@ ChildrenList - a custom implementation of list.
 
 '''
 import copy
+import graphviz
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolError
@@ -55,40 +56,21 @@ try:
     # pylint disable=import-outside-toplevel
     from termcolor import colored
 except ImportError:
-    # We don't have the termcolor package available so provide
-    # alternative routine
+    # We don't have the termcolor package available (e.g. installing from)
+    # Spack) so provide alternative routine
     def colored(text, _):
         '''
         Returns the supplied text argument unchanged. This is a swap-in
         replacement for when termcolor.colored is not available.
 
         :param str text: text to return.
-        :param _: fake argument, only required to match interface \
+        :param _: fake argument, only required to match interface
                   provided by termcolor.colored.
 
         :returns: the supplied text, unchanged.
         :rtype: str
         '''
         return text
-
-
-def _graphviz_digraph_class():
-    '''
-    Wrapper that returns the graphviz Digraph type if graphviz is installed
-    and None otherwise.
-
-    :returns: the graphviz Digraph type or None.
-    :rtype: :py:class:`graphviz.Digraph` or NoneType.
-
-    '''
-    try:
-        # pylint: disable=import-outside-toplevel
-        import graphviz as gv
-        return gv.Digraph
-    except ImportError:
-        # TODO #11 add a warning to a log file here
-        # silently return if graphviz bindings are not installed
-        return None
 
 
 class ChildrenList(list):
@@ -553,27 +535,29 @@ class Node():
         return the graph object.
 
         :param str file_name: name of the file to create.
-        :param str file_format: format of the file to create. (Must be one \
+        :param str file_format: format of the file to create. (Must be one
                                 recognised by Graphviz.)
 
-        :returns: the graph object or None (if the graphviz bindings are not \
-                  installed).
+        :returns: the graph object or None (if 'graphviz' is not found).
         :rtype: :py:class:`graphviz.Digraph` or NoneType
 
-        :raises GenerationError: if the specified file format is not \
+        :raises GenerationError: if the specified file format is not
                                  recognised by Graphviz.
 
         '''
-        digraph = _graphviz_digraph_class()
-        if digraph is None:
-            return None
         try:
-            graph = digraph(format=file_format)
+            graph = graphviz.Digraph(format=file_format)
         except ValueError as err:
             raise GenerationError(f"unsupported graphviz file format "
                                   f"'{file_format}' provided") from err
         self.dag_gen(graph)
-        graph.render(filename=file_name)
+        try:
+            graph.render(filename=file_name)
+        except graphviz.ExecutableNotFound as error:
+            print(error)
+            # TODO #11 add a warning to a log file here
+            # silently return if graphviz bindings are not installed
+            return None
         return graph
 
     def dag_gen(self, graph):
@@ -1274,9 +1258,9 @@ class Node():
         from psyclone.psyGen import Kern
         return self.walk(Kern)
 
-    def following_node(self, routine_scope=True):
+    def following_node(self, same_routine_scope=True):
         '''
-        :param bool routine_scope: an optional (default `True`) argument
+        :param bool same_routine_scope: an optional (default `True`) argument
             that enables returing only nodes from the same ancestor routine.
 
         :returns: the next node (the next sibiling, or if it doesn't have one
@@ -1293,30 +1277,31 @@ class Node():
         # Import here to avoid circular dependencies
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Routine
-        if routine_scope and isinstance(self.parent, Routine):
+        if same_routine_scope and isinstance(self.parent, Routine):
             return None
 
-        return self.parent.following_node(routine_scope)
+        return self.parent.following_node(same_routine_scope)
 
-    def following(self, routine_scope=True, include_children=True):
+    def following(self, same_routine_scope=True, include_children=True):
         ''' Return all nodes after itself. Ordering is depth first. If the
-        `routine_scope` argument is set to `True` (default) then only nodes
-        inside the same ancestor routine are returned. If `include_children`
-        is set to `True` (default) children of itself are also returned,
-        otherwise it starts at the next sibiling.
+        `same_routine_scope` argument is set to `True` (default) then only
+        nodes inside the same ancestor routine are returned.
+        If `include_children` is set to `True` (default) children of itself
+        are also returned, otherwise it starts at the next sibiling.
 
-        :param bool routine_scope: an optional (default `True`) argument
-            that enables returing only nodes from the same ancestor routine.
+        :param bool same_routine_scope: an optional (default `True`) argument
+            that restricts the returned nodes to those belonging to the same
+            ancestor routine.
         :param bool include_children: an optional (default `True`) argument
             that enables including own children, instead of starting from
             the next sibiling.
 
-        :returns: a list of nodes.
+        :returns: the list of nodes that follow this one.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         '''
         root = self.root
-        if routine_scope:
+        if same_routine_scope:
             # Import here to avoid circular dependencies
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.nodes import Routine
@@ -1329,7 +1314,7 @@ class Node():
         if include_children:
             starting_node = self
         else:
-            starting_node = self.following_node(routine_scope)
+            starting_node = self.following_node(same_routine_scope)
             if starting_node is None:
                 return []
 
@@ -1345,24 +1330,25 @@ class Node():
 
         return all_nodes[position:]
 
-    def preceding(self, reverse=False, routine_scope=True):
+    def preceding(self, reverse=False, same_routine_scope=True):
         ''' Return all nodes before itself. Ordering is depth first. If the
-        `routine_scope` argument is set to `True` (default) then only nodes
-        inside the same ancestor routine are returned. If the `reverse`
+        `same_routine_scope` argument is set to `True` (default) then only
+        nodes inside the same ancestor routine are returned. If the `reverse`
         argument is set to `True` then the node ordering is reversed i.e.
         returning the nodes closest to this node first.
 
         :param bool reverse: an optional (default `False`) argument that
             reverses the order of any returned nodes (i.e. makes them 'closest
             first').
-        :param bool routine_scope: an optional (default `True`) argument
-            that enables returing only nodes from the same ancestor routine.
+        :param bool same_routine_scope: an optional (default `True`) argument
+            that restricts the returned nodes to those belonging to the same
+            ancestor routine.
 
-        :returns: a list of nodes.
+        :returns: the nodes preceding this one in the PSyIR tree.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         root = self.root
-        if routine_scope:
+        if same_routine_scope:
             # Import here to avoid circular dependencies
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.nodes import Routine

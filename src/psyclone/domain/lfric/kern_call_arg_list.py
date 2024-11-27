@@ -42,15 +42,17 @@ as a list of PSyIR nodes. TODO #1930: the support for the string format
 should be removed as we migrate to use PSyIR in LFRic.
 '''
 
-from collections import namedtuple
+from dataclasses import dataclass
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric import ArgOrdering, LFRicConstants
+from psyclone.domain.lfric.arg_ordering import ArgOrdering
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
 # Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import ArrayReference, Reference, StructureReference
+from psyclone.psyir.nodes import (
+    ArrayReference, Reference, StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
     ImportInterface, ScalarType)
@@ -73,7 +75,16 @@ class KernCallArgList(ArgOrdering):
     :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     '''
-    NdfInfo = namedtuple("NdfInfo", ["position", "function_space"])
+    @dataclass(frozen=True)
+    class NdfInfo:
+        '''
+        Holds information relating to the number-of-dofs kernel argument.
+
+        :param position: the position of this argument in the argument list.
+        :param function_space: the function space that this argument is for.
+        '''
+        position: int = None
+        function_space: str = None
 
     def __init__(self, kern):
         super().__init__(kern)
@@ -220,11 +231,10 @@ class KernCallArgList(ArgOrdering):
 
         :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses:
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        if self._kern.iterates_over not in ["cell_column", "domain"]:
+        if self._kern.iterates_over == "dof":
             return
         name = f"nlayers_{self._kern.arguments.iteration_space_arg().name}"
         nlayers_symbol = self.append_integer_reference(name, tag=name)
@@ -341,10 +351,9 @@ class KernCallArgList(ArgOrdering):
 
         :param argvect: the field vector to add.
         :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         suffix = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING[
@@ -380,11 +389,22 @@ class KernCallArgList(ArgOrdering):
         # Look-up the name of the variable that stores the reference to
         # the data in this field.
         sym = self._symtab.lookup_with_tag(f"{arg.name}:{suffix}")
-        # Add the field data array as being read.
-        self.append(sym.name, var_accesses, var_access_name=sym.name,
-                    mode=arg.access, metadata_posn=arg.metadata_index)
 
-        self.psyir_append(Reference(sym))
+        if self._kern.iterates_over == "dof":
+            # If dof kernel, add access to the field by dof ref
+            dof_sym = self._symtab.find_or_create_integer_symbol(
+                "df", tag="dof_loop_idx")
+            self.append_array_reference(sym.name, [Reference(dof_sym)],
+                                        ScalarType.Intrinsic.INTEGER,
+                                        symbol=sym)
+            # Then append our symbol
+            name = f"{sym.name}({dof_sym.name})"
+            self.append(name, var_accesses, var_access_name=sym.name)
+        else:
+            # Add the field data array as being read.
+            self.append(sym.name, var_accesses, var_access_name=sym.name,
+                        mode=arg.access, metadata_posn=arg.metadata_index)
+            self.psyir_append(Reference(sym))
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -585,13 +605,13 @@ class KernCallArgList(ArgOrdering):
         :param function_space: the function space for which the related \
             arguments common to LMA operators and fields are added.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses:
+            Optional[:py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
-        if self._kern.iterates_over not in ["cell_column", "domain"]:
+        if self._kern.iterates_over == "dof":
             return
         super().fs_common(function_space, var_accesses)
         self._ndf_positions.append(
@@ -602,15 +622,19 @@ class KernCallArgList(ArgOrdering):
         '''Add compulsory arguments associated with this function space to
         the list. If supplied it also stores this access in var_accesses.
 
-        :param function_space: the function space for which the compulsory \
+        :param function_space: the function space for which the compulsory
             arguments are added.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
+        :type var_accesses:
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        if self._kern.iterates_over == "dof":
+            # Dofmaps and `undf` are not required for DoF kernels
+            return
+
         sym = self.append_integer_reference(function_space.undf_name)
         self.append(sym.name, var_accesses)
 

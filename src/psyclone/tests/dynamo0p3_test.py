@@ -61,7 +61,7 @@ from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
 from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
-                                  Reference, Routine)
+                                  Reference, Routine, Container)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
 from psyclone.tests.lfric_build import LFRicBuild
@@ -189,7 +189,8 @@ def test_ad_invalid_iteration_space():
     with pytest.raises(InternalError) as excinfo:
         _ = LFRicArgDescriptor(arg_type, "colours", 0)
     assert ("Expected operates_on in the kernel metadata to be one of "
-            "['cell_column', 'domain', 'dof'] but got "
+            "['cell_column', 'domain', 'dof', 'halo_cell_column', "
+            "'owned_and_halo_cell_column'] but got "
             "'colours'." in str(excinfo.value))
 
 
@@ -320,7 +321,8 @@ def test_kernel_call_invalid_iteration_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.validate_global_constraints()
     assert ("The LFRic API supports calls to user-supplied kernels that "
-            "operate on one of ['cell_column', 'domain', 'dof'], but "
+            "operate on one of ['cell_column', 'domain', 'dof', "
+            "'halo_cell_column', 'owned_and_halo_cell_column'], but "
             "kernel 'testkern_dofs_code' operates on 'vampires'."
             in str(excinfo.value))
 
@@ -2724,7 +2726,7 @@ def test_halo_exchange_view():
         sched + "[invoke='invoke_0_testkern_stencil_type', dm=True]\n"
         "    0: " + exch + "[field='f1', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    1: " + exch + "[field='f2', type='region', depth=f2_extent+1, "
+        "    1: " + exch + "[field='f2', type='region', depth=f2_extent + 1, "
         "check_dirty=True]\n"
         "    2: " + exch + "[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
@@ -2900,7 +2902,7 @@ def test_haloexchange_unknown_halo_depth():
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 10
     halo_exchange = schedule.children[1]
-    assert halo_exchange._compute_halo_depth() == '11'
+    assert halo_exchange._compute_halo_depth().value == '11'
 
 
 def test_haloexchange_correct_parent():
@@ -3440,7 +3442,6 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
     halo_access = HaloReadAccess(arg, schedule.symbol_table)
     assert not halo_access.max_depth
     assert halo_access.var_depth is None
-    assert halo_access.literal_depth == 0
     assert halo_access.stencil_type is None
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -3703,9 +3704,12 @@ def test_kerncallarglist_positions_noquad(dist_mem):
     assert create_arg_list.nlayers_positions == [1]
     assert not create_arg_list.nqp_positions
     assert len(create_arg_list.ndf_positions) == 3
-    assert create_arg_list.ndf_positions[0] == (7, "w1")
-    assert create_arg_list.ndf_positions[1] == (10, "w2")
-    assert create_arg_list.ndf_positions[2] == (13, "w3")
+    assert create_arg_list.ndf_positions[0].position == 7
+    assert create_arg_list.ndf_positions[0].function_space == "w1"
+    assert create_arg_list.ndf_positions[1].position == 10
+    assert create_arg_list.ndf_positions[1].function_space == "w2"
+    assert create_arg_list.ndf_positions[2].position == 13
+    assert create_arg_list.ndf_positions[2].function_space == "w3"
 
 
 def test_kerncallarglist_positions_quad(dist_mem):
@@ -3732,9 +3736,12 @@ def test_kerncallarglist_positions_quad(dist_mem):
     assert create_arg_list.nqp_positions[0]["horizontal"] == 21
     assert create_arg_list.nqp_positions[0]["vertical"] == 22
     assert len(create_arg_list.ndf_positions) == 3
-    assert create_arg_list.ndf_positions[0] == (8, "w1")
-    assert create_arg_list.ndf_positions[1] == (12, "w2")
-    assert create_arg_list.ndf_positions[2] == (16, "w3")
+    assert create_arg_list.ndf_positions[0].position == 8
+    assert create_arg_list.ndf_positions[0].function_space == "w1"
+    assert create_arg_list.ndf_positions[1].position == 12
+    assert create_arg_list.ndf_positions[1].function_space == "w2"
+    assert create_arg_list.ndf_positions[2].position == 16
+    assert create_arg_list.ndf_positions[2].function_space == "w3"
 
 # Class DynKernelArguments start
 
@@ -4420,7 +4427,7 @@ def test_dynpsy_gen_container_routines(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
     # Manually add a new top-level routine
-    psy.invokes.invoke_list[0].schedule.root.addchild(
+    psy.invokes.invoke_list[0].schedule.ancestor(Container).addchild(
             Routine.create("new_routine"))
 
     # Search the routine in the code_gen output

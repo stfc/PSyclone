@@ -20,7 +20,7 @@ by supplying the `-l all` flag to PSyclone (as is done in the Makefile).
 
 
 The stand-alone extraction library in
-``../../../lib/extract/standalone/nemo`` is used as default, and
+``../../../lib/extract/standalone/generic`` is used as default, and
 will also be automatically compiled. You can also use the NetCDF based
 extraction library by setting the environment variable `TYPE` to `netcdf`
 when calling `make`, e.g.:
@@ -29,7 +29,7 @@ when calling `make`, e.g.:
 
 This requires NetCDF to be available (including ``nf-config`` to detect
 installation-specific paths). The NetCDF-based extraction library in
-``../../../../lib/extract/netcdf/nemo``
+``../../../../lib/extract/netcdf/generic``
 will also be automatically compiled.
 
 The binary  instrumented for extraction will either be called

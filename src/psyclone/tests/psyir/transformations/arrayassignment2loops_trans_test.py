@@ -501,22 +501,28 @@ def test_character_validation(fortran_reader):
 
 
 def test_unsupported_type_character(fortran_reader):
+    ''' Test that the check for character references inside the assignment
+    being transformed also works with 'unsupported characters arrays' (see
+    issue #2612).
+    '''
     code = '''subroutine test()
         character(LEN=100) :: a
         character(LEN=:) :: b
+        integer, parameter :: max_len = 100
+        character(LEN=max_len) :: c
         a(1:94) = b(1:94)
+        a(1:94) = c(1:94)
     end subroutine test'''
     psyir = fortran_reader.psyir_from_source(code)
-    assign = psyir.walk(Assignment)[0]
 
-    trans = ArrayAssignment2LoopsTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.validate(assign)
-    assert (
-        "ArrayAssignment2LoopsTrans does not expand ranges on character arrays"
-        " by default (use the'allow_string' option to expand them), but found"
-        in str(info.value))
-
+    for assign in psyir.walk(Assignment):
+        trans = ArrayAssignment2LoopsTrans()
+        with pytest.raises(TransformationError) as info:
+            trans.validate(assign)
+        assert (
+            "ArrayAssignment2LoopsTrans does not expand ranges on character "
+            "arrays by default (use the'allow_string' option to expand them), "
+            "but found" in str(info.value))
 
 
 def test_validate_nested_or_invalid_expressions(fortran_reader):

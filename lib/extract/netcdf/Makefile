@@ -72,7 +72,7 @@ process: extract_netcdf_base.F90
 all:
 	$(MAKE) -C dl_esm_inf
 	$(MAKE) -C lfric
-	$(MAKE) -C nemo
+	$(MAKE) -C generic
 
 # The dependencies
 # ----------------
@@ -105,4 +105,4 @@ clean:
 allclean:
 	$(MAKE) -C dl_esm_inf allclean
 	$(MAKE) -C lfric allclean
-	$(MAKE) -C nemo allclean
+	$(MAKE) -C generic allclean
