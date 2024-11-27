@@ -292,6 +292,12 @@
 	111) PR #2791 for #2790. Updates the dl_esm_inf git submodule to point
 	to the latest version.
 
+	112) PR #2795 for #2774. Generalises MatMul2CodeTrans to cope with
+	non-contiguous array slices.
+
+	113) PR #2769 for #2768. Generalises Sign2CodeTrans and Abs2CodeTrans
+	to allow non-floating point scalar literals.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
