@@ -216,6 +216,29 @@ Additionally html output can be created by adding the option ``--cov-report html
 The html output can be viewed with a browser at ``file:///.../tests/htmlcov/index.html``
 and it highlights all source lines in red that are not covered by at least one test.
 
+For convenience, there is also a script in ``<PSYCLONEHOME>/utils/run_pytest_cov.sh``
+running the coverage tests for all relevant files.
+This also creates a ``cov.xml`` file which can be used by, e.g., vscode.
+See the respective comments in this script for further information.
+
+
+.. _flake8:
+
+Flake8
+------------------
+
+Flake8 is a program testing for good coding styles.
+It can be installed with::
+  
+  > pip install flake8
+
+and executed with::
+
+  > flake8 src/psyclone
+
+For convenience, this is also available in ``utils/run_flake8.sh``.
+This script can be also used as a git pre-push hooks by linking this file to ``.git/hooks/pre-push``.
+
 .. _parallel_execution:
 
 Parallel execution

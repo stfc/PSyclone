@@ -35,8 +35,8 @@
 # Modified: S. Siso, STFC Daresbury Lab
 
 
-'''PSyIR backend to create expressions that are handled by SymPy.
-'''
+"""PSyIR backend to create expressions that are handled by SymPy.
+"""
 
 import keyword
 
@@ -47,12 +47,17 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (
-    DataNode, Range, Reference, IntrinsicCall, Call)
-from psyclone.psyir.symbols import (ArrayType, ScalarType, SymbolTable)
+    DataNode,
+    Range,
+    Reference,
+    IntrinsicCall,
+    Call,
+)
+from psyclone.psyir.symbols import ArrayType, ScalarType, SymbolTable
 
 
 class SymPyWriter(FortranWriter):
-    '''Implements a PSyIR-to-SymPy writer, which is used to create a
+    """Implements a PSyIR-to-SymPy writer, which is used to create a
     representation of the PSyIR tree that can be understood by SymPy. Most
     Fortran expressions work as expected without modification. This class
     implements special handling for constants (which can have a precision
@@ -85,7 +90,8 @@ class SymPyWriter(FortranWriter):
     can be found in the manual:
     https://psyclone-dev.readthedocs.io/en/latest/sympy.html#sympy
 
-    '''
+    """
+
     # This option will disable the lowering of abstract nodes into language
     # level nodes, and as a consequence the backend does not need to deep-copy
     # the tree and is much faster to execute.
@@ -136,23 +142,23 @@ class SymPyWriter(FortranWriter):
         self._intrinsic_to_str = {}
 
         # Create the mapping of intrinsics to the name SymPy expects.
-        for intr, intr_str in [(IntrinsicCall.Intrinsic.MAX, "Max"),
-                               (IntrinsicCall.Intrinsic.MIN, "Min"),
-                               (IntrinsicCall.Intrinsic.FLOOR, "floor"),
-                               (IntrinsicCall.Intrinsic.TRANSPOSE,
-                                "transpose"),
-                               (IntrinsicCall.Intrinsic.MOD, "Mod"),
-                               # exp is needed for a test case only, in
-                               # general the maths functions can just be
-                               # handled as unknown sympy functions.
-                               (IntrinsicCall.Intrinsic.EXP, "exp"),
-                               ]:
+        for intr, intr_str in [
+            (IntrinsicCall.Intrinsic.MAX, "Max"),
+            (IntrinsicCall.Intrinsic.MIN, "Min"),
+            (IntrinsicCall.Intrinsic.FLOOR, "floor"),
+            (IntrinsicCall.Intrinsic.TRANSPOSE, "transpose"),
+            (IntrinsicCall.Intrinsic.MOD, "Mod"),
+            # exp is needed for a test case only, in
+            # general the maths functions can just be
+            # handled as unknown sympy functions.
+            (IntrinsicCall.Intrinsic.EXP, "exp"),
+        ]:
             self._intrinsic.add(intr_str)
             self._intrinsic_to_str[intr] = intr_str
 
     # -------------------------------------------------------------------------
     def __new__(cls, *expressions):
-        '''This function allows the SymPy writer to be used in two
+        """This function allows the SymPy writer to be used in two
         different ways: if only the SymPy expression of the PSyIR expressions
         are required, it can be called as::
 
@@ -175,7 +181,7 @@ class SymPyWriter(FortranWriter):
         :rtype: Union[:py:class:`psyclone.psyir.backend.SymPyWriter`,
                       List[:py:class:`sympy.core.basic.Basic`]]
 
-        '''
+        """
         if expressions:
             # If we have parameters, create an instance of the writer
             # and use it to convert the expressions:
@@ -187,18 +193,19 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     def __getitem__(self, _):
-        '''This function is only here to trick pylint into thinking that
+        """This function is only here to trick pylint into thinking that
         the object returned from ``__new__`` is subscriptable, meaning that
         code like:
         ``out = SymPyWriter(exp1, exp2); out[1]`` does not trigger
         a pylint warning about unsubscriptable-object.
-        '''
-        raise NotImplementedError("__getitem__ for a SymPyWriter should "
-                                  "never be called.")
+        """
+        raise NotImplementedError(
+            "__getitem__ for a SymPyWriter should " "never be called."
+        )
 
     # -------------------------------------------------------------------------
     def _create_sympy_array_function(self, name, sig=None, num_dims=None):
-        '''Creates a Function class with the given name to be used for SymPy
+        """Creates a Function class with the given name to be used for SymPy
         parsing. This Function overwrites the conversion to string, and will
         replace the triplicated array indices back to the normal Fortran
         syntax. If the signature Sig and number of dimensions for each
@@ -218,7 +225,7 @@ class SymPyWriter(FortranWriter):
         :returns: a SymPy function, which has a special ``_sympystr`` function
             defined as attribute to print user-defined types..
         :rtype: :py:class:`sympy.Function`
-        '''
+        """
 
         # Now a new Fortran array is used. Create a new function
         # instance, and overwrite how this function is converted back
@@ -246,9 +253,13 @@ class SymPyWriter(FortranWriter):
         return new_func
 
     # -------------------------------------------------------------------------
-    def _create_type_map(self, list_of_expressions, identical_variables=None,
-                         all_variables_positive=None):
-        '''This function creates a dictionary mapping each Reference in any
+    def _create_type_map(
+        self,
+        list_of_expressions,
+        identical_variables=None,
+        all_variables_positive=None,
+    ):
+        """This function creates a dictionary mapping each Reference in any
         of the expressions to either a SymPy Function (if the reference
         is an array reference) or a Symbol (if the reference is not an
         array reference). It defines a new SymPy function for each array,
@@ -290,7 +301,7 @@ class SymPyWriter(FortranWriter):
             default) to assume that all variables are positive definite
             quantities.
 
-        '''
+        """
         # Create a new symbol table, so previous symbol will not affect this
         # new conversion (i.e. this avoids name clashes with a previous
         # conversion). First add all reserved names so that these names will
@@ -312,8 +323,10 @@ class SymPyWriter(FortranWriter):
             # TODO #2542. References should be iterated with the
             # reference_acess method when its issues are fixed.
             for ref in expr.walk(Reference):
-                if (isinstance(ref.parent, Call) and
-                        ref.parent.children[0] is ref):
+                if (
+                    isinstance(ref.parent, Call)
+                    and ref.parent.children[0] is ref
+                ):
                     continue
 
                 name = ref.name
@@ -332,15 +345,17 @@ class SymPyWriter(FortranWriter):
                 # Test if an array or an array expression is used:
                 if not ref.is_array:
                     self._sympy_type_map[unique_sym.name] = sympy.Symbol(
-                        name, **assumptions)
+                        name, **assumptions
+                    )
                     continue
 
                 # A Fortran array is used which has not been seen before.
                 # Declare a new SymPy function for it. This SymPy function
                 # will convert array expressions back into the original
                 # Fortran code.
-                self._sympy_type_map[unique_sym.name] = \
+                self._sympy_type_map[unique_sym.name] = (
                     self._create_sympy_array_function(name)
+                )
 
         if not identical_variables:
             identical_variables = {}
@@ -354,45 +369,49 @@ class SymPyWriter(FortranWriter):
 
         # Now all symbols have been added to the symbol table, create
         # unique names for the lower- and upper-bounds using special tags:
-        self._lower_bound = \
-            self._symbol_table.new_symbol("sympy_lower",
-                                          tag="sympy!lower_bound").name
-        self._upper_bound = \
-            self._symbol_table.new_symbol("sympy_upper",
-                                          tag="sympy!upper_bound").name
+        self._lower_bound = self._symbol_table.new_symbol(
+            "sympy_lower", tag="sympy!lower_bound"
+        ).name
+        self._upper_bound = self._symbol_table.new_symbol(
+            "sympy_upper", tag="sympy!upper_bound"
+        ).name
 
     # -------------------------------------------------------------------------
     @property
     def lower_bound(self):
-        ''':returns: the name to be used for an unspecified lower bound.
+        """:returns: the name to be used for an unspecified lower bound.
         :rtype: str
 
-        '''
+        """
         return self._lower_bound
 
     # -------------------------------------------------------------------------
     @property
     def upper_bound(self):
-        ''':returns: the name to be used for an unspecified upper bound.
+        """:returns: the name to be used for an unspecified upper bound.
         :rtype: str
 
-        '''
+        """
         return self._upper_bound
 
     # -------------------------------------------------------------------------
     @property
     def type_map(self):
-        ''':returns: the mapping of names to SymPy symbols or functions.
+        """:returns: the mapping of names to SymPy symbols or functions.
         :rtype: Dict[str, Union[:py:class:`sympy.core.symbol.Symbol`,
                                 :py:class:`sympy.core.function.Function`]]
 
-        '''
+        """
         return self._sympy_type_map
 
     # -------------------------------------------------------------------------
-    def _to_str(self, list_of_expressions, identical_variables=None,
-                all_variables_positive=False):
-        '''Converts PSyIR expressions to strings. It will replace Fortran-
+    def _to_str(
+        self,
+        list_of_expressions,
+        identical_variables=None,
+        all_variables_positive=False,
+    ):
+        """Converts PSyIR expressions to strings. It will replace Fortran-
         specific expressions with code that can be parsed by SymPy. The
         argument can either be a single element (in which case a single string
         is returned) or a list/tuple, in which case a list is returned.
@@ -416,16 +435,18 @@ class SymPyWriter(FortranWriter):
         :returns: the converted strings(s).
         :rtype: Union[str, List[str]]
 
-        '''
+        """
         is_list = isinstance(list_of_expressions, (tuple, list))
         if not is_list:
             list_of_expressions = [list_of_expressions]
 
         # Create the type map in `self._sympy_type_map`, which is required
         # when converting these strings to SymPy expressions
-        self._create_type_map(list_of_expressions,
-                              identical_variables=identical_variables,
-                              all_variables_positive=all_variables_positive)
+        self._create_type_map(
+            list_of_expressions,
+            identical_variables=identical_variables,
+            all_variables_positive=all_variables_positive,
+        )
 
         expression_str_list = []
         for expr in list_of_expressions:
@@ -438,9 +459,13 @@ class SymPyWriter(FortranWriter):
         return expression_str_list
 
     # -------------------------------------------------------------------------
-    def __call__(self, list_of_expressions, identical_variables=None,
-                 all_variables_positive=False):
-        '''
+    def __call__(
+        self,
+        list_of_expressions,
+        identical_variables=None,
+        all_variables_positive=False,
+    ):
+        """
         This function takes a list of PSyIR expressions, and converts
         them all into Sympy expressions using the SymPy parser.
         It takes care of all Fortran specific conversion required (e.g.
@@ -473,31 +498,40 @@ class SymPyWriter(FortranWriter):
         :raises TypeError: if the identical_variables parameter is not
             a dict, or does contain a key or value that is not a string.
 
-        '''
+        """
         if identical_variables:
             if not isinstance(identical_variables, dict):
-                raise TypeError(f"Expected identical_variables to be "
-                                f"a dictionary, but got "
-                                f"{type(identical_variables)}.")
-            if any(not isinstance(key, str) or not isinstance(value, str)
-                   for key, value in identical_variables.items()):
-                raise TypeError("Dictionary identical_variables "
-                                "contains a non-string key or value.")
+                raise TypeError(
+                    f"Expected identical_variables to be "
+                    f"a dictionary, but got "
+                    f"{type(identical_variables)}."
+                )
+            if any(
+                not isinstance(key, str) or not isinstance(value, str)
+                for key, value in identical_variables.items()
+            ):
+                raise TypeError(
+                    "Dictionary identical_variables "
+                    "contains a non-string key or value."
+                )
 
         is_list = isinstance(list_of_expressions, (tuple, list))
         if not is_list:
             list_of_expressions = [list_of_expressions]
         expression_str_list = self._to_str(
-            list_of_expressions, identical_variables=identical_variables,
-            all_variables_positive=all_variables_positive)
+            list_of_expressions,
+            identical_variables=identical_variables,
+            all_variables_positive=all_variables_positive,
+        )
 
         result = []
         for expr in expression_str_list:
             try:
                 result.append(parse_expr(expr, self.type_map))
             except SyntaxError as err:
-                raise VisitorError(f"Invalid SymPy expression: '{expr}'.") \
-                    from err
+                raise VisitorError(
+                    f"Invalid SymPy expression: '{expr}'."
+                ) from err
 
         if is_list:
             return result
@@ -507,7 +541,7 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     def arrayreference_node(self, node):
-        '''The implementation of the method handling a
+        """The implementation of the method handling a
         ArrayOfStructureReference is generic enough to also handle
         non-structure arrays. So just use it.
 
@@ -517,12 +551,12 @@ class SymPyWriter(FortranWriter):
         :returns: the code as string.
         :rtype: str
 
-        '''
+        """
         return self.arrayofstructuresreference_node(node)
 
     # -------------------------------------------------------------------------
     def structurereference_node(self, node):
-        '''The implementation of the method handling a
+        """The implementation of the method handling a
         ArrayOfStructureReference is generic enough to also handle non-arrays.
         So just use it.
 
@@ -532,12 +566,12 @@ class SymPyWriter(FortranWriter):
         :returns: the code as string.
         :rtype: str
 
-        '''
+        """
         return self.arrayofstructuresreference_node(node)
 
     # -------------------------------------------------------------------------
     def arrayofstructuresreference_node(self, node):
-        '''This handles ArrayOfStructureReferences (and also simple
+        """This handles ArrayOfStructureReferences (and also simple
         StructureReferences). An access like ``a(i)%b(j)`` is converted to
         the string ``a_b(i,i,1,j,j,1)`` (also handling name clashes in case
         that the user code already contains a symbol ``a_b``). The SymPy
@@ -553,7 +587,7 @@ class SymPyWriter(FortranWriter):
         :returns: the code as string.
         :rtype: str
 
-        '''
+        """
         sig, indices = node.get_signature_and_indices()
 
         out = []
@@ -572,15 +606,17 @@ class SymPyWriter(FortranWriter):
         try:
             unique_name = self._symbol_table.lookup_with_tag(str(sig)).name
         except KeyError:
-            unique_name = self._symbol_table.new_symbol(flat_name,
-                                                        tag=str(sig)).name
+            unique_name = self._symbol_table.new_symbol(
+                flat_name, tag=str(sig)
+            ).name
         if is_array:
             indices_str = self.gen_indices(all_dims)
             # Create the corresponding SymPy function, which will store
             # the signature and num_dims, so that the correct Fortran
             # representation can be recreated later.
-            self._sympy_type_map[unique_name] = \
+            self._sympy_type_map[unique_name] = (
                 self._create_sympy_array_function(unique_name, sig, num_dims)
+            )
             return f"{unique_name}({','.join(indices_str)})"
 
         # Not an array access. We use the unique name  for the string,
@@ -592,7 +628,7 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     def literal_node(self, node):
-        '''This method is called when a Literal instance is found in the PSyIR
+        """This method is called when a Literal instance is found in the PSyIR
         tree. For SymPy we need to handle booleans (which are expected to
         be capitalised: True). Real values work by just ignoring any precision
         information (e.g. 2_4, 3.1_wp). Character constants are not supported
@@ -607,14 +643,15 @@ class SymPyWriter(FortranWriter):
         :raises TypeError: if a character constant is found, which
             is not supported with SymPy.
 
-        '''
+        """
         if node.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
             # Booleans need to be converted to SymPy format
             return node.value.capitalize()
 
         if node.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-            raise TypeError(f"SymPy cannot handle strings "
-                            f"like '{node.value}'.")
+            raise TypeError(
+                f"SymPy cannot handle strings " f"like '{node.value}'."
+            )
         # All real (single, double precision) and integer work by just
         # using the node value. Single and double precision both use
         # 'e' as specification, which SymPy accepts, and precision
@@ -622,7 +659,7 @@ class SymPyWriter(FortranWriter):
         return node.value
 
     def intrinsiccall_node(self, node):
-        ''' This method is called when an IntrinsicCall instance is found in
+        """This method is called when an IntrinsicCall instance is found in
         the PSyIR tree. The Sympy backend will use the exact sympy name for
         some math intrinsics (listed in _intrinsic_to_str) and will remove
         named arguments.
@@ -633,7 +670,7 @@ class SymPyWriter(FortranWriter):
         :returns: the SymPy representation for the Intrinsic.
         :rtype: str
 
-        '''
+        """
         # Sympy does not support argument names, remove them for now
         if any(node.argument_names):
             # TODO #2302: This is not totally right without canonical intrinsic
@@ -650,8 +687,10 @@ class SymPyWriter(FortranWriter):
             node = parent.children[node.position]
             for idx in range(len(node.argument_names)):
                 # pylint: disable=protected-access
-                node._argument_names[idx] = (node._argument_names[idx][0],
-                                             None)
+                node._argument_names[idx] = (
+                    node._argument_names[idx][0],
+                    None,
+                )
         try:
             name = self._intrinsic_to_str[node.intrinsic]
             args = self._gen_arguments(node)
@@ -661,7 +700,7 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     def reference_node(self, node):
-        '''This method is called when a Reference instance is found in the
+        """This method is called when a Reference instance is found in the
         PSyIR tree. It handles the case that this normal reference might
         be an array expression, which in the SymPy writer needs to have
         indices added explicitly: it basically converts the array expression
@@ -673,7 +712,7 @@ class SymPyWriter(FortranWriter):
         :returns: the text representation of this reference.
         :rtype: str
 
-        '''
+        """
         # Support renaming a symbol (e.g. if it is a reserved Python name).
         # Look up with the name as tag, which will return the symbol with
         # a unique name (e.g. lambda --> lambda_1):
@@ -691,15 +730,16 @@ class SymPyWriter(FortranWriter):
         # the triple-array indices to represent `lower:upper:1` for each
         # dimension:
         shape = node.symbol.shape
-        result = [f"{self.lower_bound},"
-                  f"{self.upper_bound},1"]*len(shape)
+        result = [f"{self.lower_bound}," f"{self.upper_bound},1"] * len(shape)
 
-        return (f"{name}{self.array_parenthesis[0]}"
-                f"{','.join(result)}{self.array_parenthesis[1]}")
+        return (
+            f"{name}{self.array_parenthesis[0]}"
+            f"{','.join(result)}{self.array_parenthesis[1]}"
+        )
 
     # ------------------------------------------------------------------------
     def gen_indices(self, indices, var_name=None):
-        '''Given a list of PSyIR nodes representing the dimensions of an
+        """Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
         This is used both for array references and array declarations. Note
         that 'indices' can also be a shape in case of Fortran. The
@@ -717,7 +757,7 @@ class SymPyWriter(FortranWriter):
         :raises NotImplementedError: if the format of the dimension is not
             supported.
 
-        '''
+        """
         dims = []
         for index in indices:
             if isinstance(index, DataNode):
@@ -741,12 +781,13 @@ class SymPyWriter(FortranWriter):
                 dims.extend([self.lower_bound, self.upper_bound, "1"])
             else:
                 raise NotImplementedError(
-                    f"unsupported gen_indices index '{index}'")
+                    f"unsupported gen_indices index '{index}'"
+                )
         return dims
 
     # -------------------------------------------------------------------------
     def range_node(self, node):
-        '''This method is called when a Range instance is found in the PSyIR
+        """This method is called when a Range instance is found in the PSyIR
         tree. This implementation converts a range into three parameters
         for the corresponding SymPy function.
 
@@ -756,9 +797,10 @@ class SymPyWriter(FortranWriter):
         :returns: the Fortran code as a string.
         :rtype: str
 
-        '''
+        """
         if node.parent and node.parent.is_lower_bound(
-                node.parent.index_of(node)):
+            node.parent.index_of(node)
+        ):
             # The range starts for the first element in this
             # dimension, so use the generic name for lower bound:
             start = self.lower_bound
@@ -766,7 +808,8 @@ class SymPyWriter(FortranWriter):
             start = self._visit(node.start)
 
         if node.parent and node.parent.is_upper_bound(
-                node.parent.index_of(node)):
+            node.parent.index_of(node)
+        ):
             # The range ends with the last element in this
             # dimension, so use the generic name for the upper bound:
             stop = self.upper_bound

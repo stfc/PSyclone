@@ -50,6 +50,12 @@ cloning this repository and using:
 
     $ pip install .
 
+or in developer (editable) mode using
+
+    $ pip install -e .[test]
+
+where `test` also adds the python modules required for testing.
+
 For more information about the installation process see
 [this section of the User Guide](https://psyclone.readthedocs.io/en/latest/system_specific_setup.html).
 

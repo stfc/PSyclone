@@ -33,18 +33,33 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''This directory contains classes related to parsing Fortran.
-'''
+"""This directory contains classes related to parsing Fortran.
+"""
 
 from psyclone.parse.file_info import FileInfo
-from psyclone.parse.module_info import ModuleInfo, ModuleInfoError
-from psyclone.parse.module_manager import ModuleManager
+from psyclone.parse.file_info import FileInfoFParserError
+from psyclone.parse.module_info import (
+    ModuleInfo,
+    ModuleInfoError,
+    ContainerNotFoundError,
+)
+from psyclone.parse.module_manager_base import (
+    ModuleManagerBase,
+)
+from psyclone.parse.module_manager_auto_search import ModuleManagerAutoSearch
+from psyclone.parse.module_manager_files_cached import ModuleManagerFilesCached
+from psyclone.parse.module_manager_multiplexer import ModuleManagerMultiplexer
 
 
 # For AutoAPI documentation generation.
 __all__ = [
-        'FileInfo',
-        'ModuleInfo',
-        'ModuleInfoError',
-        'ModuleManager'
-        ]
+    "FileInfo",
+    "FileInfoFParserError",
+    "ModuleInfo",
+    "ModuleInfoError",
+    "ContainerNotFoundError",
+    "ModuleManagerBase",
+    "ModuleManagerAutoSearch",
+    "ModuleManagerFilesCached",
+    "ModuleManagerMultiplexer",
+]

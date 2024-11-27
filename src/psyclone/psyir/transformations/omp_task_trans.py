@@ -69,7 +69,12 @@ class OMPTaskTrans(ParallelLoopTrans):
         '''
         return "OMPTaskTrans"
 
-    def validate(self, node, options=None):
+    def validate(
+        self,
+        node,
+        options=None,
+        get_callee_check_matching_arguments: bool = True,
+    ):
         '''
         Validity checks for input arguments.
 
@@ -112,7 +117,10 @@ class OMPTaskTrans(ParallelLoopTrans):
             # Skip over intrinsic calls as we can't inline them
             if isinstance(call, IntrinsicCall):
                 continue
-            intrans.validate(call)
+            intrans.validate(
+                call,
+                get_callee_check_matching_arguments=get_callee_check_matching_arguments,
+            )
 
     def _directive(self, children, collapse=None):
         '''
@@ -197,7 +205,9 @@ class OMPTaskTrans(ParallelLoopTrans):
                         and validation.
         :type options: dictionary of string:values or None
         '''
-        self.validate(node, options=options)
+        self.validate(
+            node, options=options, get_callee_check_matching_arguments=False
+        )
         if not options:
             options = {}
         self._inline_kernels(node)

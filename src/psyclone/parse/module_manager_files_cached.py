@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,39 +31,52 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
-# Modified R. W. Ford, STFC Daresbury Lab
+
+from typing import Union, Set, List
+
+from psyclone.parse.file_info import FileInfo
+from psyclone.parse.module_manager_base import ModuleManagerBase
 
 
-""" Module which performs pytest set-up specific to the PSyIR tests. """
-
-import pytest
-
-from psyclone.parse import ModuleManagerMultiplexer
-import psyclone.psyir.frontend.fparser2 as fp2
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-
-
-@pytest.fixture(scope="function")
-def disable_declaration_check(monkeypatch):
-    """By default a Reference checks that it has a corresponding entry in
-    the Symbol Table. However, this could make constructing tests very
-    long winded so this fixture simply disables the check.
-
-    TODO #754 fix all tests so that this fixture is not required.
-
+class ModuleManagerFilesCached(ModuleManagerBase):
+    """This class implements an interface to the ModuleManager
+    which is solely based on loading a list of files.
     """
-    monkeypatch.setattr(
-        fp2,
-        "_find_or_create_unresolved_symbol",
-        lambda _1, name, _2=None: DataSymbol(name, INTEGER_TYPE),
-    )
 
+    def __init__(self, cache_active: bool = False):
+        super().__init__(cache_active=cache_active)
 
-@pytest.fixture(name="clear_module_manager", scope="function", autouse=True)
-def modmanager_fixture(monkeypatch, request):
-    """
-    A fixture that ensures every test gets a fresh ModuleManager instance as
-    otherwise changes to search paths or file creation/removal is not detected.
-    """
-    monkeypatch.setattr(ModuleManagerMultiplexer, "_singleton_instance", None)
+    def load_from_files(self, filepaths: Union[str, List[str], Set[str]]):
+
+        # Add files - this automatically creates file info
+        self.add_files(filepaths)
+
+        self.load_all_module_infos()
+
+    def load_all_psyir_nodes(self, verbose: bool = False):
+        for fileinfo in self._filepath_to_file_info.values():
+            fileinfo: FileInfo
+            fileinfo.get_psyir_node(verbose=verbose)
+
+    def add_search_path(self, directories, recursive=True):
+        """This is just a dummy operation since we don't search for other files
+
+        :param directories: the directory/directories to add.
+        :type directories: str | list[str]
+
+        :param bool recursive: whether recursively all subdirectories should
+            be added to the search path.
+        """
+        pass
+
+    def load_all_module_infos(self, verbose: bool = False, indent: str = ""):
+
+        if self._module_name_to_modinfo is not None:
+            print(
+                f"{indent}- ModuleInfo already loaded - won't load this for a 2nd time"
+            )
+            return
+
+        ModuleManagerBase.load_all_module_infos(
+            self, verbose=verbose, indent=indent
+        )

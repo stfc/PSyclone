@@ -42,9 +42,16 @@
 from enum import Enum
 from psyclone.errors import PSycloneError, InternalError
 from psyclone.psyir.symbols.interfaces import (
-    AutomaticInterface, SymbolInterface, ArgumentInterface,
-    UnresolvedInterface, ImportInterface, UnknownInterface,
-    CommonBlockInterface, DefaultModuleInterface, StaticInterface)
+    AutomaticInterface,
+    SymbolInterface,
+    ArgumentInterface,
+    UnresolvedInterface,
+    ImportInterface,
+    UnknownInterface,
+    CommonBlockInterface,
+    DefaultModuleInterface,
+    StaticInterface,
+)
 
 
 class SymbolError(PSycloneError):
@@ -214,7 +221,7 @@ class Symbol():
         csym = self.interface.container_symbol
 
         try:
-            container = csym.find_container_psyir()
+            container = csym.find_container_psyir_node()
             if not container:
                 raise SymbolError(
                     f"Error trying to resolve the properties of symbol "

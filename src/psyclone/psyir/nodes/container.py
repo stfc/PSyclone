@@ -243,8 +243,9 @@ class Container(ScopingNode, CommentableMixin):
             # Find the definition of the container.
             container = None
             try:
-                container = child_cntr_sym.find_container_psyir(
-                    local_node=self)
+                container = child_cntr_sym.find_container_psyir_node(
+                    local_node=self
+                )
             except (SymbolError, FileNotFoundError):
                 pass
             if not container:
@@ -269,8 +270,9 @@ class Container(ScopingNode, CommentableMixin):
             if child_cntr_sym.wildcard_import:
                 # Find the definition of the container.
                 try:
-                    container = child_cntr_sym.find_container_psyir(
-                        local_node=self)
+                    container = child_cntr_sym.find_container_psyir_node(
+                        local_node=self
+                    )
                 except (SymbolError, FileNotFoundError):
                     continue
                 # Recurse down to this container (but go no deeper).

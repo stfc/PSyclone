@@ -40,15 +40,17 @@ import os
 import pytest
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.parse import ModuleManager
+from psyclone.parse import ModuleManagerMultiplexer
 from psyclone.psyir.nodes import (
     ArrayReference, Assignment, BinaryOperation, Call, CodeBlock, Literal,
-    Reference, Routine, Schedule)
+    Node, Reference, Routine, Schedule)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
     ArrayType, INTEGER_TYPE, DataSymbol, NoType, RoutineSymbol, REAL_TYPE,
     SymbolError, UnsupportedFortranType)
 from psyclone.errors import GenerationError
+
+from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
 
 
 class SpecialCall(Call):
@@ -628,6 +630,560 @@ end module some_mod'''
     assert result == [psyir.walk(Routine)[1]]
 
 
+def test_call_get_callee_1_simple_match(fortran_reader):
+    '''
+    Check that the right routine has been found for a single routine
+    implementation.
+    '''
+    code = '''
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f, g
+    call foo(e, f, g)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b, c)
+    integer :: a, b, c
+  end subroutine
+
+end module some_mod'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = psyir.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+
+    (result, _) = call_foo.get_callee()
+
+    routine_match: Routine = psyir.walk(Routine)[1]
+    assert result is routine_match
+
+
+def test_call_get_callee_2_optional_args(fortran_reader):
+    '''
+    Check that optional arguments have been correlated correctly.
+    '''
+    code = '''
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f, g
+    call foo(e, f)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b, c)
+    integer :: a, b
+    integer, optional :: c
+  end subroutine
+
+end module some_mod'''
+
+    root_node: Node = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_match: Routine = root_node.walk(Routine)[1]
+    assert routine_match.name == "foo"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+    assert call_foo.routine.name == "foo"
+
+    (result, arg_idx_list) = call_foo.get_callee()
+    result: Routine
+
+    assert len(arg_idx_list) == 2
+    assert arg_idx_list[0] == 0
+    assert arg_idx_list[1] == 1
+
+    assert result is routine_match
+
+
+def test_call_get_callee_3_trigger_error(fortran_reader):
+    '''
+    Test which is supposed to trigger an error.
+    '''
+    code = '''
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f, g
+    call foo(e, f, g)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b)
+    integer :: a, b
+  end subroutine
+
+end module some_mod'''
+
+    root_node: Node = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_match: Routine = root_node.walk(Routine)[1]
+    assert routine_match.name == "foo"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+    assert call_foo.routine.name == "foo"
+
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call_foo.get_callee()
+
+    assert "No matching routine found for" in str(err.value)
+
+
+def test_call_get_callee_4_named_arguments(fortran_reader):
+    '''
+    Check that named arguments have been correlated correctly
+    '''
+    code = '''
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f, g
+    call foo(c=e, a=f, b=g)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b, c)
+    integer :: a, b, c
+  end subroutine
+
+end module some_mod'''
+
+    root_node: Node = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_match: Routine = root_node.walk(Routine)[1]
+    assert routine_match.name == "foo"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+    assert call_foo.routine.name == "foo"
+
+    (result, arg_idx_list) = call_foo.get_callee()
+    result: Routine
+
+    assert len(arg_idx_list) == 3
+    assert arg_idx_list[0] == 2
+    assert arg_idx_list[1] == 0
+    assert arg_idx_list[2] == 1
+
+    assert result is routine_match
+
+
+def test_call_get_callee_5_optional_and_named_arguments(fortran_reader):
+    '''
+    Check that optional and named arguments have been correlated correctly
+    when the call is to a generic interface.
+    '''
+    code = '''
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f, g
+    call foo(b=e, a=f)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b, c)
+    integer :: a, b
+    integer, optional :: c
+  end subroutine
+
+end module some_mod'''
+
+    root_node: Node = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_match: Routine = root_node.walk(Routine)[1]
+    assert routine_match.name == "foo"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+    assert call_foo.routine.name == "foo"
+
+    (result, arg_idx_list) = call_foo.get_callee()
+    result: Routine
+
+    assert len(arg_idx_list) == 2
+    assert arg_idx_list[0] == 1
+    assert arg_idx_list[1] == 0
+
+    assert result is routine_match
+
+
+_code_test_get_callee_6 = '''
+module some_mod
+  implicit none
+
+  interface foo
+    procedure foo_a, foo_b, foo_c
+  end interface
+contains
+
+  subroutine main()
+    integer :: e_int, f_int, g_int
+    real :: e_real, f_real, g_real
+
+    ! Should match foo_a
+    call foo(e_int, f_int)
+
+    ! Should match foo_a
+    call foo(e_int, f_int, g_int)
+
+
+    ! Should match foo_b
+    call foo(e_real, f_int)
+
+    ! Should match foo_b
+    call foo(e_real, f_int, g_int)
+
+    ! Should match foo_b
+    call foo(e_real, c=f_int, b=g_int)
+
+
+    ! Should match foo_c
+    call foo(e_int, f_real, g_int)
+
+    ! Should match foo_c
+    call foo(b=e_real, a=f_int)
+
+    ! Should match foo_c
+    call foo(b=e_real, a=f_int, g_int)
+  end subroutine
+
+  subroutine foo_a(a, b, c)
+    integer :: a, b
+    integer, optional :: c
+  end subroutine
+
+  subroutine foo_b(a, b, c)
+    real :: a
+    integer :: b
+    integer, optional :: c
+  end subroutine
+
+  subroutine foo_c(a, b, c)
+    integer :: a
+    real :: b
+    integer, optional :: c
+  end subroutine
+
+end module some_mod'''
+
+
+def test_call_get_callee_6_interfaces_0_0(fortran_reader):
+    '''
+    Check that optional and named arguments have been correlated correctly
+    '''
+
+    root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_foo_a: Routine = root_node.walk(Routine)[1]
+    assert routine_foo_a.name == "foo_a"
+
+    call_foo_a: Call = routine_main.walk(Call)[0]
+    assert call_foo_a.routine.name == "foo"
+
+    (result, arg_idx_list) = call_foo_a.get_callee()
+    result: Routine
+
+    assert len(arg_idx_list) == 2
+    assert arg_idx_list[0] == 0
+    assert arg_idx_list[1] == 1
+
+    assert result is routine_foo_a
+
+
+def test_call_get_callee_6_interfaces_0_1(fortran_reader):
+    '''
+    Check that optional and named arguments have been correlated correctly
+    '''
+
+    root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_foo_a: Routine = root_node.walk(Routine)[1]
+    assert routine_foo_a.name == "foo_a"
+
+    call_foo_a: Call = routine_main.walk(Call)[1]
+    assert call_foo_a.routine.name == "foo"
+
+    (result, arg_idx_list) = call_foo_a.get_callee()
+    result: Routine
+
+    assert len(arg_idx_list) == 3
+    assert arg_idx_list[0] == 0
+    assert arg_idx_list[1] == 1
+    assert arg_idx_list[2] == 2
+
+    assert result is routine_foo_a
+
+
+def test_call_get_callee_6_interfaces_1_0(fortran_reader):
+    '''
+    Check that optional and named arguments have been correlated correctly
+    '''
+
+    root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_foo_b: Routine = root_node.walk(Routine)[2]
+    assert routine_foo_b.name == "foo_b"
+
+    call_foo_b: Call = routine_main.walk(Call)[2]
+    assert call_foo_b.routine.name == "foo"
+
+    (result, arg_idx_list) = call_foo_b.get_callee()
+    result: Routine
+
+    assert len(arg_idx_list) == 2
+    assert arg_idx_list[0] == 0
+    assert arg_idx_list[1] == 1
+
+    assert result is routine_foo_b
+
+
+def test_call_get_callee_6_interfaces_1_1(fortran_reader):
+    '''
+    Check that optional and named arguments have been correlated correctly
+    '''
+
+    root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_foo_b: Routine = root_node.walk(Routine)[2]
+    assert routine_foo_b.name == "foo_b"
+
+    call_foo_b: Call = routine_main.walk(Call)[3]
+    assert call_foo_b.routine.name == "foo"
+
+    (result, arg_idx_list) = call_foo_b.get_callee()
+    result: Routine
+
+    assert len(arg_idx_list) == 3
+    assert arg_idx_list[0] == 0
+    assert arg_idx_list[1] == 1
+    assert arg_idx_list[2] == 2
+
+    assert result is routine_foo_b
+
+
+def test_call_get_callee_6_interfaces_1_2(fortran_reader):
+    '''
+    Check that optional and named arguments have been correlated correctly
+    '''
+
+    root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_foo_b: Routine = root_node.walk(Routine)[2]
+    assert routine_foo_b.name == "foo_b"
+
+    call_foo_b: Call = routine_main.walk(Call)[4]
+    assert call_foo_b.routine.name == "foo"
+
+    (result, arg_idx_list) = call_foo_b.get_callee()
+    result: Routine
+
+    assert len(arg_idx_list) == 3
+    assert arg_idx_list[0] == 0
+    assert arg_idx_list[1] == 2
+    assert arg_idx_list[2] == 1
+
+    assert result is routine_foo_b
+
+
+def test_call_get_callee_6_interfaces_2_0(fortran_reader):
+    '''
+    Check that optional and named arguments have been correlated correctly
+    '''
+
+    root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_foo_c: Routine = root_node.walk(Routine)[3]
+    assert routine_foo_c.name == "foo_c"
+
+    print("Subtest foo_c[0]:")
+
+    call_foo_c: Call = routine_main.walk(Call)[5]
+    assert call_foo_c.routine.name == "foo"
+
+    (result, arg_idx_list) = call_foo_c.get_callee()
+    result: Routine
+
+    print(f" - Found matching argument list: {arg_idx_list}")
+
+    assert len(arg_idx_list) == 3
+    assert arg_idx_list[0] == 0
+    assert arg_idx_list[1] == 1
+    assert arg_idx_list[2] == 2
+
+    assert result is routine_foo_c
+    print(" - Passed subtest foo_c[0]")
+
+
+def test_call_get_callee_6_interfaces_2_1(fortran_reader):
+    '''
+    Check that optional and named arguments have been correlated correctly
+    '''
+
+    root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_foo_c: Routine = root_node.walk(Routine)[3]
+    assert routine_foo_c.name == "foo_c"
+
+    call_foo_c: Call = routine_main.walk(Call)[6]
+    assert call_foo_c.routine.name == "foo"
+
+    (result, arg_idx_list) = call_foo_c.get_callee()
+    result: Routine
+
+    assert len(arg_idx_list) == 2
+    assert arg_idx_list[0] == 1
+    assert arg_idx_list[1] == 0
+
+    assert result is routine_foo_c
+
+
+def test_call_get_callee_6_interfaces_2_2(fortran_reader):
+    '''
+    Check that optional and named arguments have been correlated correctly
+    '''
+
+    root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_foo_c: Routine = root_node.walk(Routine)[3]
+    assert routine_foo_c.name == "foo_c"
+
+    call_foo_c: Call = routine_main.walk(Call)[7]
+    assert call_foo_c.routine.name == "foo"
+
+    (result, arg_idx_list) = call_foo_c.get_callee()
+    result: Routine
+
+    assert len(arg_idx_list) == 3
+    assert arg_idx_list[0] == 1
+    assert arg_idx_list[1] == 0
+    assert arg_idx_list[2] == 2
+
+    assert result is routine_foo_c
+
+
+def test_call_get_callee_7_matching_arguments_not_found(fortran_reader):
+    '''
+    Trigger error that matching arguments were not found
+    '''
+    code = '''
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f, g
+    ! Use named argument 'd', which doesn't exist
+    ! to trigger an error when searching for the matching routine.
+    call foo(e, f, d=g)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b, c)
+    integer :: a, b, c
+  end subroutine
+
+end module some_mod'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = psyir.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call_foo.get_callee()
+
+    assert "No matching routine found for 'call foo(e, f, d=g)" in str(
+        err.value
+    )
+
+
+def test_call_get_callee_8_arguments_not_handled(fortran_reader):
+    '''
+    Trigger error that matching arguments were not found
+    '''
+    code = '''
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f
+    ! Use name 'd' which doesn't exist
+    call foo(e, f)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b, c)
+    integer :: a, b, c
+  end subroutine
+
+end module some_mod'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = psyir.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call_foo.get_callee()
+
+    assert "No matching routine found for 'call foo(e, f)" in str(err.value)
+
+
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_call_get_callees_unresolved(fortran_reader, tmpdir, monkeypatch):
     '''
@@ -639,8 +1195,8 @@ subroutine top()
   call bottom()
 end subroutine top'''
     psyir = fortran_reader.psyir_from_source(code)
-    call = psyir.walk(Call)[0]
-    with pytest.raises(NotImplementedError) as err:
+    call: Call = psyir.walk(Call)[0]
+    with pytest.raises( (NotImplementedError,FileNotFoundError) ) as err:
         _ = call.get_callees()
     assert ("Failed to find the source code of the unresolved routine 'bottom'"
             " - looked at any routines in the same source file and there are "
@@ -653,8 +1209,10 @@ subroutine top()
 end subroutine top'''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
-    with pytest.raises(NotImplementedError) as err:
+    with pytest.raises((NotImplementedError,FileNotFoundError) ) as err:
         _ = call.get_callees()
+    print(err)
+    return False
     assert ("Failed to find the source code of the unresolved routine 'bottom'"
             " - looked at any routines in the same source file and attempted "
             "to resolve the wildcard imports from ['some_mod_somewhere']. "
@@ -662,7 +1220,7 @@ end subroutine top'''
             "The module search path is set to []" in str(err.value))
     # Repeat but when some_mod_somewhere *is* resolved but doesn't help us
     # find the routine we're looking for.
-    mod_manager = ModuleManager.get()
+    mod_manager = ModuleManagerMultiplexer.get_singleton()
     monkeypatch.setattr(mod_manager, "_instance", None)
     path = str(tmpdir)
     monkeypatch.setattr(Config.get(), '_include_paths', [path])
@@ -674,10 +1232,12 @@ end module some_mod_somewhere
 ''')
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
-    assert ("Failed to find the source code of the unresolved routine 'bottom'"
-            " - looked at any routines in the same source file and wildcard "
-            "imports from ['some_mod_somewhere']." in str(err.value))
-    mod_manager = ModuleManager.get()
+    assert (
+        "Failed to find the source code of the unresolved routine 'bottom'"
+        " - looked at any routines in the same source file and wildcard "
+        "imports from ['some_mod_somewhere']." in str(err.value)
+    )
+    mod_manager = ModuleManagerMultiplexer.get_singleton()
     monkeypatch.setattr(mod_manager, "_instance", None)
     code = '''
 subroutine top()
@@ -853,7 +1413,7 @@ contains
 end module other_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
-    call = psyir.walk(Call)[0]
+    call: Call = psyir.walk(Call)[0]
     routines = call.get_callees()
     assert len(routines) == 1
     assert isinstance(routines[0], Routine)

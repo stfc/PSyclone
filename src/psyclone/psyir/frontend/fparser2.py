@@ -1103,7 +1103,7 @@ class Fparser2Reader():
             # routine with the original name that we were passed.
             actual_names = [lname]
 
-        routines = container.walk(Routine)
+        routines = container.walk(Routine, stop_type=Routine)
         selected_routines = [routine for routine in routines
                              if routine.name.lower() in actual_names]
 
@@ -4247,7 +4247,8 @@ class Fparser2Reader():
             raise NotImplementedError(
                 f"Only WHERE constructs using explicit array notation "
                 f"including ranges (e.g. 'my_array(1,:)') are supported but "
-                f"found '{logical_expr}'")
+                f"found '{logical_expr}'"
+            )
 
         array_ref = first_array.ancestor(Reference, include_self=True)
         if not isinstance(array_ref.datatype, ArrayType):

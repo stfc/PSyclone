@@ -47,7 +47,26 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
-    RoutineSymbol, Symbol, SymbolError, UnsupportedFortranType)
+    RoutineSymbol,
+    Symbol,
+    SymbolError,
+    UnsupportedFortranType,
+    DataSymbol,
+    SymbolTable,
+    ContainerSymbol,
+)
+from typing import List
+from psyclone.errors import PSycloneError
+from psyclone.psyir.symbols.datatypes import ArrayType
+
+
+class CallMatchingArgumentsNotFound(PSycloneError):
+    '''Exception to signal that matching arguments have not been found
+    for this routine
+    '''
+    def __init__(self, value):
+        PSycloneError.__init__(self, value)
+        self.value = "CallMatchingArgumentsNotFound: " + str(value)
 
 
 class Call(Statement, DataNode):
@@ -334,7 +353,7 @@ class Call(Statement, DataNode):
         return None
 
     @property
-    def arguments(self):
+    def arguments(self) -> List[DataNode]:
         '''
         :returns: the children of this node that represent its arguments.
         :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
@@ -442,9 +461,82 @@ class Call(Statement, DataNode):
 
         return new_copy
 
-    def get_callees(self):
+    def _get_container_symbols_rec(
+        self,
+        container_symbols_list: List[str],
+        ignore_missing_modules: bool = False,
+        _stack_container_name_list: List[str] = [],
+        _depth: int = 0,
+    ):
+        """Return a list of all container symbols that can be found
+        recursively
+
+        :param container_symbols: List of starting set of container symbols
+        :type container_symbols: List[ContainerSymbol]
+        :param _stack_container_list: Stack with already visited Containers
+        to avoid circular searches, defaults to []
+        :type _stack_container_list: List[Container], optional
+        """
+        #
+        # TODO: This function seems to be extremely slow:
+        # It takes considerable time to build this list over and over
+        # for each lookup.
+        #
+        # An alternative would be to cache it, but then the cache
+        # needs to be invalidated once some symbols are, e.g., deleted.
+        #
+        ret_container_symbol_list = container_symbols_list[:]
+
+        # Cache the container names from symbols
+        container_names = [cs.name.lower() for cs in container_symbols_list]
+
+        from psyclone.parse import (
+            ModuleManagerMultiplexer,
+            ContainerNotFoundError,
+        )
+
+        module_manager = ModuleManagerMultiplexer.get_singleton()
+
+        for container_name in container_names:
+            try:
+                module_info = module_manager.get_module_info(
+                    container_name.lower()
+                )
+                if module_info is None:
+                    continue
+
+            except (ContainerNotFoundError, FileNotFoundError) as err:
+                if ignore_missing_modules:
+                    continue
+
+                raise err
+
+            container: Container = module_info.get_psyir_container_node()
+
+            # Avoid circular connections (which shouldn't
+            # be allowed, but who knows...)
+            if container.name.lower() in _stack_container_name_list:
+                continue
+
+            new_container_symbols = self._get_container_symbols_rec(
+                container_symbols_list=container.symbol_table.containersymbols,
+                ignore_missing_modules=ignore_missing_modules,
+                _stack_container_name_list=_stack_container_name_list
+                + [container.name.lower()],
+                _depth=_depth + 1,
+            )
+
+            # Add symbol if it's not yet in the list of symbols
+            for container_symbol in new_container_symbols:
+                if container_symbol not in ret_container_symbol_list:
+                    ret_container_symbol_list.append(container_symbol)
+
+        return ret_container_symbol_list
+
+    def get_callees(self, ignore_missing_modules: bool = False):
         '''
-        Searches for the implementation(s) of the target routine for this Call.
+        Searches for the implementation(s) of all potential target routines
+        for this Call without any arguments check.
 
         :returns: the Routine(s) that this call targets.
         :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
@@ -489,34 +581,57 @@ class Call(Statement, DataNode):
             # be used to resolve the symbol.
             wildcard_names = []
             containers_not_found = []
-            current_table = self.scope.symbol_table
+            current_table: SymbolTable = self.scope.symbol_table
             while current_table:
-                for container_symbol in current_table.containersymbols:
+                current_containersymbols = self._get_container_symbols_rec(
+                    current_table.containersymbols,
+                    ignore_missing_modules=ignore_missing_modules,
+                )
+
+                for container_symbol in current_containersymbols:
+                    container_symbol: ContainerSymbol
+
                     if container_symbol.wildcard_import:
                         wildcard_names.append(container_symbol.name)
+
                         try:
-                            container = container_symbol.find_container_psyir(
-                                local_node=self)
+                            container: Container = (
+                                container_symbol.find_container_psyir_node(
+                                    local_node=self,
+                                    ignore_missing_modules=(
+                                        ignore_missing_modules
+                                    ),
+                                )
+                            )
                         except SymbolError:
                             container = None
+
                         if not container:
                             # Failed to find/process this Container.
                             containers_not_found.append(container_symbol.name)
                             continue
+
                         routines = []
                         for name in container.resolve_routine(rsym.name):
-                            psyir = container.find_routine_psyir(name)
+                            # Allow private imports if an 'interface'
+                            # has been used
+                            allow_private = name != rsym.name
+                            psyir = container.find_routine_psyir(
+                                name, allow_private=allow_private
+                            )
                             if psyir:
                                 routines.append(psyir)
+
                         if routines:
                             return routines
                 current_table = current_table.parent_symbol_table()
+
             if not wildcard_names:
                 wc_text = "there are no wildcard imports"
             else:
                 if containers_not_found:
                     wc_text = (
-                        f"attempted to resolve the wildcard imports from"
+                        f"Attempted to resolve the wildcard imports from"
                         f" {wildcard_names}. However, failed to find the "
                         f"source for {containers_not_found}. The module search"
                         f" path is set to {Config.get().include_paths}")
@@ -542,7 +657,7 @@ class Call(Statement, DataNode):
             while cursor.is_import:
                 csym = cursor.interface.container_symbol
                 try:
-                    container = csym.find_container_psyir(local_node=self)
+                    container = csym.find_container_psyir_node(local_node=self)
                 except SymbolError:
                     raise NotImplementedError(
                         f"RoutineSymbol '{rsym.name}' is imported from "
@@ -593,3 +708,264 @@ class Call(Statement, DataNode):
             f"Failed to find a Routine named '{rsym.name}' in "
             f"{_location_txt(root_node)}. This is normally because the routine"
             f" is within a CodeBlock.")
+
+    def _check_argument_type_matches(
+                self,
+                call_arg: DataSymbol,
+                routine_arg: DataSymbol,
+                check_strict_array_datatype: bool = True
+            ) -> bool:
+        """Return information whether argument types are matching.
+        This also supports 'optional' arguments by using
+        partial types.
+
+        :param call_arg: _description_
+        :type call_arg: DataSymbol
+        :param routine_arg: _description_
+        :type routine_arg: DataSymbol
+        :raises CallMatchingArgumentsNotFound: _description_
+        :raises CallMatchingArgumentsNotFound: _description_
+        """
+
+        type_matches = False
+        if not check_strict_array_datatype:
+            # No strict array checks have to be performed, just accept it
+            if isinstance(call_arg.datatype, ArrayType) and isinstance(
+                routine_arg.datatype, ArrayType
+            ):
+                type_matches = True
+
+        if not type_matches:
+            if isinstance(
+                routine_arg.datatype, UnsupportedFortranType
+            ):
+                # This could be an 'optional' argument.
+                # This has at least a partial data type
+                if (
+                    call_arg.datatype
+                    != routine_arg.datatype.partial_datatype
+                ):
+                    raise CallMatchingArgumentsNotFound(
+                        f"Argument partial type mismatch of call "
+                        f"argument '{call_arg}' and routine argument "
+                        f"'{routine_arg}'"
+                    )
+            else:
+                if call_arg.datatype != routine_arg.datatype:
+                    raise CallMatchingArgumentsNotFound(
+                        f"Argument type mismatch of call argument "
+                        f"'{call_arg}' and routine argument "
+                        f"'{routine_arg}'"
+                    )
+
+        return True
+
+    def _check_matching_types(
+        call_arg: Symbol,
+        routine_arg: Symbol,
+        check_strict_array_datatype: bool = True,
+        check_matching_arguments: bool = True,
+    ) -> bool:
+        routine_arg: DataSymbol
+
+        type_matches = False
+        if not check_strict_array_datatype:
+            # No strict array checks have to be performed, just accept it
+            if isinstance(call_arg.datatype, ArrayType) and isinstance(
+                routine_arg.datatype, ArrayType
+            ):
+                type_matches = True
+
+        if not type_matches:
+            # Do the types of arguments match?
+            #
+            # TODO #759: If optional is used, it's an unsupported
+            # Fortran type and we need to use the following workaround
+            # Once this issue is resolved, simply remove this if
+            # branch.
+            # Optional arguments are processed further down.
+            if isinstance(routine_arg.datatype, UnsupportedFortranType):
+                if call_arg.datatype != routine_arg.datatype.partial_datatype:
+                    raise CallMatchingArgumentsNotFound(
+                        f"Argument partial type mismatch of call "
+                        f"argument '{call_arg}' and routine argument "
+                        f"'{routine_arg}'"
+                    )
+            else:
+                if call_arg.datatype != routine_arg.datatype:
+                    raise CallMatchingArgumentsNotFound(
+                        f"Argument type mismatch of call argument "
+                        f"'{call_arg.datatype}' and routine argument "
+                        f"'{routine_arg.datatype}'"
+                    )
+                type_matches = True
+
+    def get_argument_routine_match(
+        self,
+        routine: Routine,
+        check_strict_array_datatype: bool = True,
+        check_matching_arguments: bool = True,
+    ):
+        """Return a list of integers giving for each argument of the call
+        the index of the argument in argument_list (typically of a routine)
+
+        :param check_strict_array_datatype: Strict datatype check for array
+            types
+        :type check_strict_array_datatype: bool
+
+        :return: None if no match was found, otherwise list of integers
+            referring to matching arguments.
+        :rtype: List[int]
+
+        :raises CallMatchingArgumentsNotFound: If there was some problem in
+            finding matching arguments.
+        """
+
+        # Create a copy of the list of actual arguments to the routine.
+        # Once an argument has been successfully matched, set it to 'None'
+        routine_argument_list: List[DataSymbol] = (
+            routine.symbol_table.argument_list[:]
+        )
+
+        if len(self.arguments) > len(routine.symbol_table.argument_list):
+            raise CallMatchingArgumentsNotFound(
+                f"More arguments in call ('{self.debug_string()}')"
+                f" than callee (routine '{routine.name}')"
+            )
+
+        # Iterate over all arguments to the call
+        ret_arg_idx_list = []
+        for call_arg_idx, call_arg in enumerate(self.arguments):
+            call_arg_idx: int
+            call_arg: Reference
+
+            # If the associated name is None, it's a positional argument
+            # => Just return the index if the types match
+            if self.argument_names[call_arg_idx] is None:
+                routine_arg = routine_argument_list[call_arg_idx]
+                routine_arg: DataSymbol
+
+                self._check_argument_type_matches(call_arg, routine_arg,
+                                                  check_strict_array_datatype)
+
+                ret_arg_idx_list.append(call_arg_idx)
+                routine_argument_list[call_arg_idx] = None
+                continue
+
+            #
+            # Next, we handle all named arguments
+            #
+            arg_name = self.argument_names[call_arg_idx]
+            routine_arg_idx = None
+
+            for routine_arg_idx, routine_arg in enumerate(
+                routine_argument_list
+            ):
+                routine_arg: DataSymbol
+
+                # Check if argument was already processed
+                if routine_arg is None:
+                    continue
+
+                if arg_name == routine_arg.name:
+                    self._check_argument_type_matches(
+                        call_arg, routine_arg,
+                        check_strict_array_datatype)
+                    ret_arg_idx_list.append(routine_arg_idx)
+                    break
+
+            else:
+                # It doesn't match => Raise exception
+                raise CallMatchingArgumentsNotFound(
+                    f"Named argument '{arg_name}' not found"
+                )
+
+            routine_argument_list[routine_arg_idx] = None
+
+        #
+        # Finally, we check if all left-over arguments are optional arguments
+        #
+        for routine_arg in routine_argument_list:
+            routine_arg: DataSymbol
+
+            if routine_arg is None:
+                continue
+
+            # TODO #759: Optional keyword is not yet supported in psyir.
+            # Hence, we use a simple string match.
+            if ", OPTIONAL" in str(routine_arg.datatype):
+                continue
+
+            raise CallMatchingArgumentsNotFound(
+                f"Argument '{routine_arg.name}' in subroutine"
+                f" '{routine.name}' not handled"
+            )
+
+        return ret_arg_idx_list
+
+    def get_callee(
+        self,
+        check_matching_arguments: bool = True,
+        ignore_missing_modules: bool = False,
+        ignore_unresolved_symbol: bool = False,
+    ):
+        '''
+        Searches for the implementation(s) of the target routine for this Call
+        including argument checks.
+
+        :param check_matching_arguments: Also check argument types to match.
+            If set to `False` and in case it doesn't find matching arguments,
+            the very first implementation of the matching routine will be
+            returned (even if the argument type check failed). The argument
+            types and number of arguments might therefore mismatch!
+        :type check_matching_arguments: bool
+
+        :returns: A tuple of two elements. The first element is the routine
+            that this call targets. The second one a list of arguments
+            providing the information on matching argument indices.
+        :rtype: Set[psyclone.psyir.nodes.Routine, List[int]]
+
+        :raises NotImplementedError: if the routine is not local and not found
+            in any containers in scope at the call site.
+        '''
+
+        # We "simply" start by looking up all potential candidates
+        routine_list = self.get_callees(
+            ignore_missing_modules=ignore_missing_modules
+        )
+
+        error: Exception = None
+
+        # Search for the routine matching the right arguments
+        for routine_node in routine_list:
+            routine_node: Routine
+
+            try:
+                arg_match_list = self.get_argument_routine_match(
+                    routine_node,
+                    check_strict_array_datatype=False,
+                    check_matching_arguments=check_matching_arguments,
+                )
+            except CallMatchingArgumentsNotFound as err:
+                error = err
+                continue
+
+            return (routine_node, arg_match_list)
+
+        # If we didn't find any routine, return some routine if no matching
+        # arguments have been found.
+        # This is handy for the transition phase until optional argument
+        # matching is supported.
+        if not check_matching_arguments:
+            # Also return a list of dummy argument indices
+            return (routine_list[0], [i for i in range(len(self.arguments))])
+
+        if error is not None:
+            raise CallMatchingArgumentsNotFound(
+                f"No matching routine found for '{self.debug_string()}': "
+                + str(error)
+            ) from error
+        else:
+            raise CallMatchingArgumentsNotFound(
+                f"No matching routine found for '{self.debug_string()}'"
+            )
