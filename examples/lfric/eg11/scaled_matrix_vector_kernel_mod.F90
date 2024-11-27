@@ -194,14 +194,14 @@ subroutine opt_scaled_matrix_vector_code(cell,              &
   real(kind=r_def), dimension(undf1),        intent(in)    :: z
 
   ! Internal variables
-  integer(kind=i_def) :: df, df2, k, ik
+  integer(kind=i_def) :: df, k, ik
 
   ! Hard wired optimisation for desired configuration
-  ik = (cell-1)*nlayers + 1
-  do df = 1, 6
+  do df = 1, ndf1
     do k = 0, nlayers-1
-      lhs(map1(df)+k) = lhs(map1(df)+k) + matrix(ik+k,df,1)*x(map2(1)+k)*y(map1(df)+k)*z(map1(df)+k)
-    end do
+      ik = (cell-1)*nlayers + k + 1
+      lhs(map1(df)+k) = lhs(map1(df)+k) + matrix(ik,df,1)*x(map2(1)+k)*y(map1(df)+k)*z(map1(df)+k)
+      end do
   end do
 
   ! Apply zero flux boundary conditions
