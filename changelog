@@ -247,7 +247,7 @@
 	Python used in the CI.
 
 	85) PR #2748. Revert Python used on RTD to 3.12 as 3.13 unsupported.
-	
+
 	86) PR #2707 for #257. Fixes bugs in the loop-fusion transformation.
 
 	87) PR #2752 towards #2717. Adds Assignment.is_literal_assignment property.
@@ -298,7 +298,10 @@
 	113) PR #2769 for #2768. Generalises Sign2CodeTrans and Abs2CodeTrans
 	to allow non-floating point scalar literals.
 
-	114) PR #2697 towards #2671. Fixes various issues relating to incorrect
+	114) PR #2461 for #2460. Renames DynamoPSy class to LFRicPSy and moves
+	into a new module lfric_psy.py in domain/lfric.
+
+	115) PR #2697 towards #2671. Fixes various issues relating to incorrect
 	parallelisation of loops in NEMO. Also adds support for array-
 	privatisation option.
 
