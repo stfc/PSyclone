@@ -625,7 +625,7 @@ class Call(Statement, DataNode):
 
         :raises CallMatchingArgumentsNotFound: Raised if no matching argument
             was found.
-        :raises CallMatchingArgumentsNotFound: _description_
+
         """
         if isinstance(
             routine_arg.datatype, UnsupportedFortranType
@@ -712,7 +712,8 @@ class Call(Statement, DataNode):
             else:
                 # It doesn't match => Raise exception
                 raise CallMatchingArgumentsNotFound(
-                    f"Named argument '{arg_name}' not found"
+                    f"Named argument '{arg_name}' found for routine"
+                    f" '{routine.name}' in call '{self.debug_string()}'"
                 )
 
             routine_argument_list[routine_arg_idx] = None
@@ -731,7 +732,8 @@ class Call(Statement, DataNode):
             if ", OPTIONAL" not in str(routine_arg.datatype):
                 raise CallMatchingArgumentsNotFound(
                     f"Argument '{routine_arg.name}' in subroutine"
-                    f" '{routine.name}' not handled"
+                    f" '{routine.name}' does not match any in the call"
+                    f" '{self.debug_string()}' and is not OPTIONAL."
                 )
 
         return ret_arg_idx_list

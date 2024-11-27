@@ -1093,15 +1093,11 @@ def test_call_get_callee_6_interfaces_2_0(fortran_reader):
     routine_foo_c: Routine = root_node.walk(Routine)[3]
     assert routine_foo_c.name == "foo_c"
 
-    print("Subtest foo_c[0]:")
-
     call_foo_c: Call = routine_main.walk(Call)[5]
     assert call_foo_c.routine.name == "foo"
 
     (result, arg_idx_list) = call_foo_c.get_callee()
     result: Routine
-
-    print(f" - Found matching argument list: {arg_idx_list}")
 
     assert len(arg_idx_list) == 3
     assert arg_idx_list[0] == 0
@@ -1109,7 +1105,6 @@ def test_call_get_callee_6_interfaces_2_0(fortran_reader):
     assert arg_idx_list[2] == 2
 
     assert result is routine_foo_c
-    print(" - Passed subtest foo_c[0]")
 
 
 def test_call_get_callee_6_interfaces_2_1(fortran_reader):
@@ -1184,7 +1179,6 @@ def test_call_get_callee_6_interfaces_3_0_mismatch(fortran_reader):
     assert routine_main.name == "main"
 
     routine_foo_optional: Routine = root_node.walk(Routine)[4]
-    print(routine_foo_optional.name)
     assert routine_foo_optional.name == "foo_optional"
 
     call_foo_optional: Call = routine_main.walk(Call)[8]
@@ -1238,7 +1232,8 @@ end module some_mod'''
 def test_call_get_callee_8_arguments_not_handled(fortran_reader):
     '''
     Trigger error that matching arguments were not found.
-    In this test, this is caused by the lack of a third (non-optional argument)
+    In this test, this is caused by omitting the required third non-optional
+    argument.
     '''
     code = '''
 module some_mod
@@ -1247,12 +1242,11 @@ contains
 
   subroutine main()
     integer :: e, f
-    ! Use name 'd' which doesn't exist
-    ! to trigger an error when searching for the matching routine.
+    ! Omit the 3rd required argument
     call foo(e, f)
   end subroutine
 
-  ! Matching routine
+  ! Routine matching by 'name', but not by argument matching
   subroutine foo(a, b, c)
     integer :: a, b, c
   end subroutine
