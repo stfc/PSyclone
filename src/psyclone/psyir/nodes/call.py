@@ -452,79 +452,6 @@ class Call(Statement, DataNode):
 
         return new_copy
 
-    # def _get_container_symbols_rec(
-    #     self,
-    #     container_symbols_list: List[str],
-    #     ignore_missing_modules: bool = False,
-    #     _stack_container_name_list: List[str] = [],
-    #     _depth: int = 0,
-    # ):
-    #     '''Return a list of all container symbols that can be found
-    #     recursively
-
-    #     :param container_symbols: List of starting set of container symbols
-    #     :type container_symbols: List[ContainerSymbol]
-    #     :param _stack_container_list: Stack with already visited Containers
-    #         to avoid circular searches, defaults to []
-    #     :type _stack_container_list: List[Container], optional
-    #     :param _depth: Depth of recursive search
-    #     :type _depth: int
-    #     '''
-    #     #
-    #     # TODO:
-    #     # - This function seems to be extremely slow:
-    #     #   It takes considerable time to build this list over and over
-    #     #   for each lookup.
-    #     # - This function can also be written in a non-resursive way
-    #     #
-    #     # An alternative would be to cache it, but then the cache
-    #     # needs to be invalidated once some symbols are, e.g., deleted.
-    #     #
-    #     ret_container_symbol_list = container_symbols_list[:]
-
-    #     # Cache the container names from symbols
-    #     container_names = [cs.name.lower() for cs in container_symbols_list]
-
-    #     from psyclone.parse import ModuleManager
-
-    #     module_manager = ModuleManager.get()
-
-    #     for container_name in container_names:
-    #         try:
-    #             module_info = module_manager.get_module_info(
-    #                 container_name.lower()
-    #             )
-    #             if module_info is None:
-    #                 continue
-
-    #         except (ModuleNotFoundError, FileNotFoundError) as err:
-    #             if ignore_missing_modules:
-    #                 continue
-
-    #             raise err
-
-    #         container: Container = module_info.get_psyir_container_node()
-
-    #         # Avoid circular connections (which shouldn't
-    #         # be allowed, but who knows...)
-    #         if container.name.lower() in _stack_container_name_list:
-    #             continue
-
-    #         new_container_symbols = self._get_container_symbols_rec(
-    #             container_symbols_list=container.symbol_table.containersymbols,
-    #             ignore_missing_modules=ignore_missing_modules,
-    #             _stack_container_name_list=_stack_container_name_list
-    #             + [container.name.lower()],
-    #             _depth=_depth + 1,
-    #         )
-
-    #         # Add symbol if it's not yet in the list of symbols
-    #         for container_symbol in new_container_symbols:
-    #             if container_symbol not in ret_container_symbol_list:
-    #                 ret_container_symbol_list.append(container_symbol)
-
-    #     return ret_container_symbol_list
-
     def get_callees(self, ignore_missing_modules: bool = False):
         '''
         Searches for the implementation(s) of all potential target routines
@@ -563,6 +490,11 @@ class Call(Statement, DataNode):
         Searches for the implementation(s) of the target routine for this Call
         including argument checks.
 
+        If `check_matching_arguments` is set to `False`, the very first
+        implementation of the matching routine will be returned in case no
+        match was found. Then, the arguments of the call and routine
+        might not match each other.
+
         :param check_matching_arguments: Also check argument types to match.
             If set to `False` and in case it doesn't find matching arguments,
             the very first implementation of the matching routine will be
@@ -579,7 +511,7 @@ class Call(Statement, DataNode):
             in any containers in scope at the call site.
         '''
 
-        from psyclone.psyir.tools import (
+        from psyclone.psyir.tools.call_routine_matcher import (
             CallRoutineMatcher
         )
 

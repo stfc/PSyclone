@@ -222,23 +222,6 @@ This also creates a ``cov.xml`` file which can be used by, e.g., vscode.
 See the respective comments in this script for further information.
 
 
-.. _flake8:
-
-Flake8
-------------------
-
-Flake8 is a program testing for good coding styles.
-It can be installed with::
-  
-  > pip install flake8
-
-and executed with::
-
-  > flake8 src/psyclone
-
-For convenience, this is also available in ``utils/run_flake8.sh``.
-This script can be also used as a git pre-push hooks by linking this file to ``.git/hooks/pre-push``.
-
 .. _parallel_execution:
 
 Parallel execution
@@ -465,8 +448,8 @@ computational cost (so that we 'fail fast'):
  1. All examples in the Developer Guide are checked for correctness by
     running ``make doctest``.
 
- 2. The code base, examples and tutorials are lint'ed with flake8.
-    (Configuration of flake8 is performed in ``setup.cfg``.)
+ 2. The code base, examples and tutorials are Lint'ed with flake8, see
+    also :ref:`flake8`.
 
  3. All links within the Sphinx documentation (rst files) are checked (see
     note below);
@@ -620,6 +603,29 @@ psyclone scripts suffered from each change for LFRic and NEMO applications.
 However, one must note that the test runner does not have exclusive access to
 the testing system, and some results may be impacted by other users using the
 system at the same time.
+
+
+.. _flake8:
+
+Flake8
+------------------
+
+All code is linted by flake8 and must be free from errors to be merged with
+master.
+It can be installed with::
+  
+  > pip install flake8
+
+and executed with::
+
+  > flake8 src/psyclone
+
+An existing configuration of flake8 is given in ``setup.cfg``.
+A check with flake8 is performed automatically by the CI and it can be useful
+to setup a git pre-push hook at ``.git/hooks/pre-push`` to do this check before
+pushing to the repository.
+For convenience, such a script where a such a hook can be linked to is available
+in ``utils/run_flake8.sh``.
 
 
 Performance

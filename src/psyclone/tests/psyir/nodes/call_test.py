@@ -40,6 +40,7 @@ import os
 import pytest
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.errors import GenerationError
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import (
     ArrayReference,
@@ -64,7 +65,6 @@ from psyclone.psyir.symbols import (
     SymbolError,
     UnsupportedFortranType,
 )
-from psyclone.errors import GenerationError
 
 from psyclone.psyir.tools.call_routine_matcher import (
     CallMatchingArgumentsNotFoundError)
@@ -725,9 +725,10 @@ end module some_mod'''
     assert result is routine_match
 
 
-def test_call_get_callee_3_trigger_error(fortran_reader):
+def test_call_get_callee_3a_trigger_error(fortran_reader):
     '''
-    Test which is supposed to trigger an error.
+    Test which is supposed to trigger an error when no matching routine
+    is found
     '''
     code = '''
 module some_mod
@@ -751,9 +752,6 @@ end module some_mod'''
     routine_main: Routine = root_node.walk(Routine)[0]
     assert routine_main.name == "main"
 
-    routine_match: Routine = root_node.walk(Routine)[1]
-    assert routine_match.name == "foo"
-
     call_foo: Call = routine_main.walk(Call)[0]
     assert call_foo.routine.name == "foo"
 
@@ -764,6 +762,40 @@ end module some_mod'''
         "Found routines, but no routine with matching arguments found"
         in str(err.value)
     )
+
+
+def test_call_get_callee_3c_trigger_error(fortran_reader):
+    '''
+    Test which is supposed to trigger an error when no matching routine
+    is found, but we use the special option check_matching_arguments=False
+    to find one.
+    '''
+    code = '''
+module some_mod
+  implicit none
+contains
+
+  subroutine main()
+    integer :: e, f, g
+    call foo(e, f, g)
+  end subroutine
+
+  ! Matching routine
+  subroutine foo(a, b)
+    integer :: a, b
+  end subroutine
+
+end module some_mod'''
+
+    root_node: Node = fortran_reader.psyir_from_source(code)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    call_foo: Call = routine_main.walk(Call)[0]
+    assert call_foo.routine.name == "foo"
+
+    call_foo.get_callee(check_matching_arguments=False)
 
 
 def test_call_get_callee_4_named_arguments(fortran_reader):
@@ -858,7 +890,7 @@ module some_mod
   implicit none
 
   interface foo
-    procedure foo_a, foo_b, foo_c
+    procedure foo_a, foo_b, foo_c, foo_optional
   end interface
 contains
 
@@ -866,31 +898,33 @@ contains
     integer :: e_int, f_int, g_int
     real :: e_real, f_real, g_real
 
-    ! Should match foo_a
+    ! Should match foo_a, test_call_get_callee_6_interfaces_0_0
     call foo(e_int, f_int)
 
-    ! Should match foo_a
+    ! Should match foo_a, test_call_get_callee_6_interfaces_0_1
     call foo(e_int, f_int, g_int)
 
-
-    ! Should match foo_b
+    ! Should match foo_b, test_call_get_callee_6_interfaces_1_0
     call foo(e_real, f_int)
 
-    ! Should match foo_b
+    ! Should match foo_b, test_call_get_callee_6_interfaces_1_1
     call foo(e_real, f_int, g_int)
 
-    ! Should match foo_b
+    ! Should match foo_b, test_call_get_callee_6_interfaces_1_2
     call foo(e_real, c=f_int, b=g_int)
 
-
-    ! Should match foo_c
+    ! Should match foo_c, test_call_get_callee_6_interfaces_2_0
     call foo(e_int, f_real, g_int)
 
-    ! Should match foo_c
+    ! Should match foo_c, test_call_get_callee_6_interfaces_2_1
     call foo(b=e_real, a=f_int)
 
-    ! Should match foo_c
+    ! Should match foo_c, test_call_get_callee_6_interfaces_2_2
     call foo(b=e_real, a=f_int, g_int)
+
+    ! Should not match foo_optional because of invalid type,
+    ! test_call_get_callee_6_interfaces_3_0_mismatch
+    call foo(f_int, e_real, g_int, g_int)
   end subroutine
 
   subroutine foo_a(a, b, c)
@@ -910,12 +944,21 @@ contains
     integer, optional :: c
   end subroutine
 
+  subroutine foo_optional(a, b, c, d)
+    integer :: a
+    real :: b
+    integer :: c
+    real, optional :: d ! real vs. int
+  end subroutine
+
+
 end module some_mod'''
 
 
 def test_call_get_callee_6_interfaces_0_0(fortran_reader):
     '''
-    Check that optional and named arguments have been correlated correctly
+    Check that a non-existing optional argument at the end of the list
+    has been correctly determined.
     '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
@@ -941,7 +984,8 @@ def test_call_get_callee_6_interfaces_0_0(fortran_reader):
 
 def test_call_get_callee_6_interfaces_0_1(fortran_reader):
     '''
-    Check that optional and named arguments have been correlated correctly
+    Check that an existing optional argument at the end of the list
+    has been correctly determined.
     '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
@@ -968,7 +1012,10 @@ def test_call_get_callee_6_interfaces_0_1(fortran_reader):
 
 def test_call_get_callee_6_interfaces_1_0(fortran_reader):
     '''
-    Check that optional and named arguments have been correlated correctly
+    Check that
+    - different argument types and
+    - non-existing optional argument at the end of the list
+    have been correctly determined.
     '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
@@ -994,7 +1041,10 @@ def test_call_get_callee_6_interfaces_1_0(fortran_reader):
 
 def test_call_get_callee_6_interfaces_1_1(fortran_reader):
     '''
-    Check that optional and named arguments have been correlated correctly
+    Check that
+    - different argument types and
+    - existing optional argument at the end of the list
+    have been correctly determined.
     '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
@@ -1021,7 +1071,10 @@ def test_call_get_callee_6_interfaces_1_1(fortran_reader):
 
 def test_call_get_callee_6_interfaces_1_2(fortran_reader):
     '''
-    Check that optional and named arguments have been correlated correctly
+    Check that
+    - different argument types and
+    - naming arguments resulting in a different order
+    have been correctly determined.
     '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
@@ -1048,7 +1101,9 @@ def test_call_get_callee_6_interfaces_1_2(fortran_reader):
 
 def test_call_get_callee_6_interfaces_2_0(fortran_reader):
     '''
-    Check that optional and named arguments have been correlated correctly
+    Check that
+    - different argument types (different order than in tests before)
+    have been correctly determined.
     '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
@@ -1059,15 +1114,11 @@ def test_call_get_callee_6_interfaces_2_0(fortran_reader):
     routine_foo_c: Routine = root_node.walk(Routine)[3]
     assert routine_foo_c.name == "foo_c"
 
-    print("Subtest foo_c[0]:")
-
     call_foo_c: Call = routine_main.walk(Call)[5]
     assert call_foo_c.routine.name == "foo"
 
     (result, arg_idx_list) = call_foo_c.get_callee()
     result: Routine
-
-    print(f" - Found matching argument list: {arg_idx_list}")
 
     assert len(arg_idx_list) == 3
     assert arg_idx_list[0] == 0
@@ -1075,12 +1126,15 @@ def test_call_get_callee_6_interfaces_2_0(fortran_reader):
     assert arg_idx_list[2] == 2
 
     assert result is routine_foo_c
-    print(" - Passed subtest foo_c[0]")
 
 
 def test_call_get_callee_6_interfaces_2_1(fortran_reader):
     '''
-    Check that optional and named arguments have been correlated correctly
+    Check that
+    - different argument types (different order than in tests before) and
+    - naming arguments resulting in a different order and
+    - optional argument
+    have been correctly determined.
     '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
@@ -1106,7 +1160,11 @@ def test_call_get_callee_6_interfaces_2_1(fortran_reader):
 
 def test_call_get_callee_6_interfaces_2_2(fortran_reader):
     '''
-    Check that optional and named arguments have been correlated correctly
+    Check that
+    - different argument types (different order than in tests before) and
+    - naming arguments resulting in a different order and
+    - last call argument without naming
+    have been correctly determined.
     '''
 
     root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
@@ -1129,6 +1187,29 @@ def test_call_get_callee_6_interfaces_2_2(fortran_reader):
     assert arg_idx_list[2] == 2
 
     assert result is routine_foo_c
+
+
+def test_call_get_callee_6_interfaces_3_0_mismatch(fortran_reader):
+    '''
+    Check that matching a partial data type can also go wrong.
+    '''
+
+    root_node: Node = fortran_reader.psyir_from_source(_code_test_get_callee_6)
+
+    routine_main: Routine = root_node.walk(Routine)[0]
+    assert routine_main.name == "main"
+
+    routine_foo_optional: Routine = root_node.walk(Routine)[4]
+    assert routine_foo_optional.name == "foo_optional"
+
+    call_foo_optional: Call = routine_main.walk(Call)[8]
+    assert call_foo_optional.routine.name == "foo"
+
+    with pytest.raises(CallMatchingArgumentsNotFoundError) as einfo:
+        call_foo_optional.get_callee()
+
+    assert "Argument partial type mismatch of call argument" in (
+        str(einfo.value))
 
 
 def test_call_get_callee_7_matching_arguments_not_found(fortran_reader):
@@ -1172,7 +1253,9 @@ end module some_mod'''
 
 def test_call_get_callee_8_arguments_not_handled(fortran_reader):
     '''
-    Trigger error that matching arguments were not found
+    Trigger error that matching arguments were not found.
+    In this test, this is caused by omitting the required third non-optional
+    argument.
     '''
     code = '''
 module some_mod
@@ -1181,11 +1264,11 @@ contains
 
   subroutine main()
     integer :: e, f
-    ! Use name 'd' which doesn't exist
+    ! Omit the 3rd required argument
     call foo(e, f)
   end subroutine
 
-  ! Matching routine
+  ! Routine matching by 'name', but not by argument matching
   subroutine foo(a, b, c)
     integer :: a, b, c
   end subroutine
