@@ -39,18 +39,36 @@ directives into Nemo code. '''
 
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT)
-from psyclone.psyGen import TransInfo
+    enhance_tree_information, PASSTHROUGH_ISSUES, PARALLELISATION_ISSUES)
 from psyclone.psyir.nodes import (
     Loop, Routine, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
-from psyclone.transformations import OMPDeclareTargetTrans, TransformationError
+from psyclone.transformations import (
+    OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
 
 PROFILING_ENABLED = False
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT
+FILES_TO_SKIP = PASSTHROUGH_ISSUES + [
+    "lib_mpp.f90",  # Compiler Error: Illegal substring expression
+    "prtctl.f90",   # Compiler Error: Illegal substring expression
+    "sbcblk.f90",   # Compiler Error: Vector expression used where scalar
+                    # expression required
+    "diadct.f90",   # Compiler Error: Wrong number of arguments in reshape
+    "stpctl.f90",
+    "lbcnfd.f90",
+    "flread.f90",
+]
 
+OFFLOADING_ISSUES = [
+    "tranxt.f90", # String comparison not allowed inside omp teams (this worked fine with omp loop)
+    "trazdf.f90", # String comparison not allowed inside omp teams (this worked fine with omp loop)
+    "crsdom.f90", # String comparison not allowed inside omp teams (this worked fine with omp loop)
+]
+
+PRIVATISATION_ISSUES = [
+    "ldftra.f90",  # Wrong runtime results
+]
 
 def trans(psyir):
     ''' Add OpenMP Target and Loop directives to all loops, including the
@@ -62,13 +80,15 @@ def trans(psyir):
 
     '''
     omp_target_trans = OMPTargetTrans()
-    omp_loop_trans = TransInfo().get_trans_name('OMPLoopTrans')
-    omp_loop_trans.omp_directive = "loop"
+    omp_loop_trans = OMPLoopTrans(omp_schedule="none")
+    omp_loop_trans.omp_directive = "teamsdistributeparalleldo"
 
-    # TODO #2317: Has structure accesses that can not be offloaded and has
-    # a problematic range to loop expansion of (1:1)
+    # Many of the obs_ files have problems to be offloaded to the GPU
     if psyir.name.startswith("obs_"):
-        print("Skipping file", psyir.name)
+        return
+
+    # ICE routines do not perform well on GPU, so we skip them
+    if psyir.name.startswith("ice"):
         return
 
     for subroutine in psyir.walk(Routine):
@@ -76,7 +96,7 @@ def trans(psyir):
         if PROFILING_ENABLED:
             add_profiling(subroutine.children)
 
-        print(f"Transforming subroutine: {subroutine.name}")
+        print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
 
         enhance_tree_information(subroutine)
 
@@ -123,10 +143,11 @@ def trans(psyir):
                         parent.addchild(atomic)
             continue
 
-        insert_explicit_loop_parallelism(
-                subroutine,
-                region_directive_trans=omp_target_trans,
-                loop_directive_trans=omp_loop_trans,
-                # Collapse is necessary to give GPUs enough parallel items
-                collapse=True
-        )
+        if psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES:
+            insert_explicit_loop_parallelism(
+                    subroutine,
+                    region_directive_trans=omp_target_trans,
+                    loop_directive_trans=omp_loop_trans,
+                    collapse=True,
+                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
+            )
