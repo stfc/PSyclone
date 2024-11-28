@@ -412,6 +412,9 @@ def test_arraytype_unsupportedtype():
     assert atype.datatype is utype
     assert atype.precision is None
     assert utype.declaration == "integer, pointer :: var"
+    # Since no partial datatype is provided, these return None
+    assert utype.partial_datatype is None
+    assert utype.intrinsic is None
 
 
 def test_arraytype_invalid_shape():

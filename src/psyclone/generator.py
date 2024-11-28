@@ -49,6 +49,7 @@ import os
 import sys
 import traceback
 import importlib
+import shutil
 
 from fparser.api import get_reader
 from fparser.two import Fortran2003
@@ -740,13 +741,16 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         # Fix line_length if requested
         if line_length in ("output", "all"):
             output = fll.process(output)
+
+        if output_file:
+            with open(output_file, mode='w', encoding="utf8") as ofile:
+                ofile.write(output)
+        else:
+            print(output, file=sys.stdout)
     else:
         # Skip parsing and transformation and copy contents of file directly
-        with open(input_file, mode='r', encoding="utf8") as ifile:
-            output = ifile.read()
-
-    if output_file:
-        with open(output_file, mode='w', encoding="utf8") as ofile:
-            ofile.write(output)
-    else:
-        print(output, file=sys.stdout)
+        if output_file:
+            shutil.copyfile(input_file, output_file)
+        else:
+            print(f"File '{input_file}' skipped because it is listed in "
+                  "FILES_TO_SKIP.", file=sys.stdout)
