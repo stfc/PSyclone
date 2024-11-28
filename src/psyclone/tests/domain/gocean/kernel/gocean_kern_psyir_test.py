@@ -210,8 +210,8 @@ def test_goceankernelmetadata_create1(fortran_reader):
     symbol._datatype = REAL_TYPE
     with pytest.raises(InternalError) as info:
         _ = GOceanKernelMetadata.create_from_psyir(symbol)
-    assert ("Expected kernel metadata to be stored in the PSyIR as an "
-            "UnsupportedFortranType, but found ScalarType." in str(info.value))
+    assert ("Expected kernel metadata to be stored in the PSyIR as a "
+            "StructureType, but found ScalarType." in str(info.value))
 
 
 # create_from_fortran_string

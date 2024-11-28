@@ -2028,18 +2028,8 @@ class Fparser2Reader():
             # We support derived-type definitions with a CONTAINS section.
             contains_blocks = walk(decl, Fortran2003.Type_Bound_Procedure_Part)
             if contains_blocks:
-                # First check there is only one CONTAINS section.
-                if len(contains_blocks) > 1:
-                    raise NotImplementedError(
-                        "Derived-type definition contains multiple CONTAINS "
-                        "statements.")
                 # Get it.
                 contains = contains_blocks[0]
-                # Check that it's indeed a CONTAINS statement.
-                if walk(contains, Fortran2003.Contains_Stmt) is None:
-                    raise NotImplementedError(
-                        "Derived-type definition contains a procedure "
-                        "without a CONTAINS statement.")
                 # Get all procedures in the CONTAINS section.
                 procedures = walk(contains, Fortran2003.Specific_Binding)
                 if procedures is None:

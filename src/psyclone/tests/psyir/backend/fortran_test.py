@@ -373,8 +373,8 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
     with pytest.raises(VisitorError) as err:
         fortran_writer.gen_typedecl(tsymbol)
-    assert ("Local Symbol 'my_type' is of UnresolvedType and therefore no "
-            "declaration can be created for it." in str(err.value))
+    assert ("gen_typedecl expects a DataTypeSymbol with a StructureType "
+            "as its datatype but got: 'UnresolvedType'" in str(err.value))
 
 
 def test_gen_typedecl_unsupported_fortran_type(fortran_writer):
@@ -758,6 +758,10 @@ def test_fw_gen_vardecl_visibility(fortran_writer):
                       "  integer, private :: id\n"
                       "  integer, public :: flag\n"
                       "end type var\n")
+
+
+def test_fw_gen_proceduredecl(fortran_writer):
+    pass
 
 
 def test_gen_default_access_stmt(fortran_writer):

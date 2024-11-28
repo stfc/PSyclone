@@ -505,7 +505,8 @@ class FortranWriter(LanguageWriter):
         :returns: the Fortran procedure declaration as a string.
         :rtype: str
 
-        :raises VisitorError: if the symbol is not a RoutineSymbol.
+        :raises VisitorError: if the symbol is not a RoutineSymbol or a
+                              StructureType.ComponentType.
         :raises InternalError: if the visibility is to be included but is
                                neither PUBLIC nor PRIVATE.
         '''
@@ -746,12 +747,6 @@ class FortranWriter(LanguageWriter):
             raise VisitorError(
                 f"Fortran backend cannot generate code for symbol "
                 f"'{symbol.name}' of type '{type(symbol.datatype).__name__}'")
-
-        if isinstance(symbol.datatype, UnresolvedType):
-            raise VisitorError(
-                f"Local Symbol '{symbol.name}' is of UnresolvedType and "
-                f"therefore no declaration can be created for it. Should it "
-                f"have an ImportInterface?")
 
         if not isinstance(symbol.datatype, StructureType):
             raise VisitorError(
