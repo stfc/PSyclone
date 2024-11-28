@@ -412,7 +412,7 @@ class Symbol():
         # This import has to be local to this method to avoid circular
         # dependencies.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Node
+        from psyclone.psyir.nodes.node import Node
         if not isinstance(node, Node):
             raise TypeError(
                 f"find_symbol_table: expected to be passed an instance of "

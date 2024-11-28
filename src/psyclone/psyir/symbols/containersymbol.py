@@ -45,8 +45,9 @@ from psyclone.configuration import Config
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from psyclone.psyir.nodes import Node
-    from psyclone.parse import ModuleManager
+    from psyclone.psyir.nodes.node import Node
+    from psyclone.psyir.nodes.container import Container
+    from psyclone.parse.module_manager import ModuleManager
 
 
 class ContainerSymbol(Symbol):
@@ -134,18 +135,16 @@ class ContainerSymbol(Symbol):
     def find_container_psyir(
                 self,
                 local_node: Node
-            ):
-        ''' Searches for the Container that this Symbol refers to. If it is
+            ) -> Container:
+        '''Searches for the Container that this Symbol refers to. If it is
         not available, use the interface to import the container. If
         `local_node` is supplied then the PSyIR tree below it is searched for
         the container first.
 
         :param local_node: root of PSyIR sub-tree to include in search for
                            the container.
-        :type local_node: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: referenced container.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         '''
 
@@ -155,11 +154,9 @@ class ContainerSymbol(Symbol):
             if local_node:
 
                 lowered_name = self.name.lower()
-                from psyclone.psyir.nodes.container import Container
-                from psyclone.psyir.nodes.routine import Routine
+                from psyclone.psyir.nodes import Container, Routine
                 for local in local_node.root.walk(
-                            Container,
-                            stop_type=Routine):
+                            Container, stop_type=Routine):
                     if lowered_name == local.name.lower():
                         self._reference = local
                         return self._reference
@@ -250,14 +247,13 @@ class FortranModuleInterface(ContainerSymbolInterface):
     ''' Implementation of ContainerSymbolInterface for Fortran modules '''
 
     @staticmethod
-    def get_container(name, module_manager: ModuleManager):
+    def get_container(name: str, module_manager: ModuleManager):
         ''' Imports a Fortran module as a PSyIR Container (via the
         ModuleManager) and returns it.
 
-        :param str name: name of the module to be imported.
+        :param name: name of the module to be imported.
 
         :returns: container associated with the given name.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         :raises SymbolError: the given Fortran module is not found on the
             import path.

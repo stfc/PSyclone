@@ -166,7 +166,7 @@ class SymbolTable():
         # Validate the supplied scope_limit
         if scope_limit is not None:
             # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.nodes import Node
+            from psyclone.psyir.nodes.node import Node
             if not isinstance(scope_limit, Node):
                 raise TypeError(
                     f"The scope_limit argument '{scope_limit}', is not of "

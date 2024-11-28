@@ -38,6 +38,7 @@ needs_sphinx = '1.8'
 # The definition of 'apilinks' is in PSyclone/doc/_ext/apilinks.py.
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
               'sphinx.ext.intersphinx', 'sphinx.ext.coverage',
+              'sphinx_autodoc_typehints',
               'sphinx.ext.imgmath', 'sphinx.ext.viewcode',
               'sphinxcontrib.bibtex', 'sphinx_tabs.tabs',
               'apilinks',

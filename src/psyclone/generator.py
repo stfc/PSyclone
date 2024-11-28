@@ -251,6 +251,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     if api in LFRIC_API_NAMES and not LFRIC_TESTING:
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
+        psy.container.set_module_manager(module_manager)
+
         if script_name is not None:
             # Apply provided recipe to PSyIR
             recipe, _ = load_script(script_name)
@@ -384,6 +386,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         # TODO: issue #1629 replace invoke_info with alg and kern psyir
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
+        psy.container.set_module_manager(module_manager)
 
         if script_name is not None:
             # Call the optimisation script for psy-layer optimisations

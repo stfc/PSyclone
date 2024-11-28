@@ -47,7 +47,6 @@ from psyclone.psyir.nodes import (
     Node, Reference, Routine, Schedule)
 from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
 from psyclone.psyir.nodes.node import colored
-from psyclone.psyir.nodes import Node
 from psyclone.psyir.symbols import (
     ArrayType, INTEGER_TYPE, DataSymbol, NoType, RoutineSymbol, REAL_TYPE,
     SymbolError, UnsupportedFortranType)

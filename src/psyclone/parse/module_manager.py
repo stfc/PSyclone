@@ -116,7 +116,9 @@ class ModuleManager:
 
         if ModuleManager._usage_counter > 1:
             raise InternalError("You need to use 'ModuleManager.get()'"
-                                " to get the singleton instance.")
+                                " to get the singleton instance."
+                                " NOTE: This error will be soon"
+                                " deprecated")
 
         # In case this is directly initialized with the constructor
         # for the first time, use this as the default instance.
