@@ -55,11 +55,15 @@ class FortranReader():
     ''' PSyIR Fortran frontend. This frontend translates Fortran from a string
     or a file into PSyIR using the fparser2 utilities.
 
+    :param modules_to_resolve: Optional list of modules names that when found
+        the frontend will attempt to resolve their symbol information.
+    :rtype: list[str] | None
+
     '''
     # Save parser object across instances to reduce the initialisation time
     _parser = None
 
-    def __init__(self, modules_to_resolve: list[str] | None = None):
+    def __init__(self, modules_to_resolve=None):
         if not self._parser:
             self._parser = ParserFactory().create(std="f2008")
         self._processor = Fparser2Reader(modules_to_resolve)
