@@ -39,16 +39,22 @@ and cache information about a module.
 
 '''
 
+from __future__ import annotations
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import FortranSyntaxError, walk
 
-from psyclone.configuration import Config
 from psyclone.errors import InternalError, PSycloneError, GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Container
+from psyclone.psyir.nodes import Container, Node
 from psyclone.psyir.symbols import SymbolError
+from psyclone.parse.file_info import FileInfo
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from psyclone.parse.module_manager import ModuleManager
+    from psyclone.configuration import Config
 
 
 # ============================================================================
@@ -81,9 +87,10 @@ class ModuleInfo:
     :type finfo: :py:class:`psyclone.parse.FileInfo`
 
     '''
-    def __init__(self, name, finfo):
-        self._name = name.lower()
-        self._file_info = finfo
+    def __init__(self, name, finfo, module_manager: ModuleManager):
+        self._name: str = name.lower()
+        self._file_info: FileInfo = finfo
+        self._module_manager: ModuleManager = module_manager
 
         # A cache for the fparser tree
         self._parse_tree = None
@@ -156,6 +163,7 @@ class ModuleInfo:
             # parse this file again (in case of parsing errors).
             self._parse_attempted = True
 
+            from psyclone.configuration import Config
             reader = FortranStringReader(
                 self.get_source_code(),
                 include_dirs=Config.get().include_paths)
@@ -267,13 +275,16 @@ class ModuleInfo:
                 print(f"Empty parse tree returned for '{self.filename}'")
                 return None
             try:
-                self._psyir = self._processor.generate_psyir(ptree)
+                self._psyir: Node = self._processor.generate_psyir(ptree)
             except (KeyError, SymbolError, InternalError, GenerationError) \
                     as err:
                 # TODO #11: Add proper logging
                 print(f"Error trying to create PSyIR for '{self.filename}': "
                       f"'{err}'")
                 return None
+
+            # Attach module manager to it after being loaded
+            self._psyir.set_module_manager(self._module_manager)
 
         # Return the Container with the correct name.
         for cntr in self._psyir.walk(Container):

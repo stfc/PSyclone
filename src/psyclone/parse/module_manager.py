@@ -36,7 +36,7 @@
 '''This module contains a singleton class that manages information about
 which module is contained in which file (including full location). '''
 
-
+from __future__ import annotations
 from collections import OrderedDict
 import copy
 from difflib import SequenceMatcher
@@ -46,6 +46,10 @@ import re
 from psyclone.errors import InternalError
 from psyclone.parse.file_info import FileInfo
 from psyclone.parse.module_info import ModuleInfo
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from psyclone.configuration import Config
 
 
 class ModuleManager:
@@ -60,6 +64,9 @@ class ModuleManager:
     # of the file.
     _threshold_similarity = 0.7
 
+    # Count how many module managers are currently used
+    _usage_counter = 0
+
     # ------------------------------------------------------------------------
     @staticmethod
     def get():
@@ -73,11 +80,7 @@ class ModuleManager:
         return ModuleManager._instance
 
     # ------------------------------------------------------------------------
-    def __init__(self):
-
-        if ModuleManager._instance is not None:
-            raise InternalError("You need to use 'ModuleManager.get()' "
-                                "to get the singleton instance.")
+    def __init__(self, config: Config = None):
 
         self._modules = {}
         self._visited_files = {}
@@ -94,6 +97,32 @@ class ModuleManager:
         # to match e.g. "module procedure :: some_sub".
         self._module_pattern = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
                                           flags=(re.IGNORECASE | re.MULTILINE))
+
+        self._usage_counter += 1
+
+        if self._usage_counter > 1:
+            raise InternalError("You need to use 'ModuleManager.get()' "
+                                "to get the singleton instance.")
+
+        self._instance = self
+
+        # Load information from configuration
+        if config is None:
+            from psyclone.configuration import Config
+
+            config = Config.get()
+            self.load_from_config(config)
+
+    def load_from_config(self, config: Config):
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        for module_name in config._ignore_modules:
+            self.add_ignore_module(module_name)
+
+    def __del__(self):
+        """Deconstructor
+        """
+        self._usage_counter -= 1
 
     # ------------------------------------------------------------------------
     def add_search_path(self, directories, recursive=True):
@@ -179,7 +208,7 @@ class ModuleManager:
                 if name in mod_names:
                     # We've found the module we want. Create a ModuleInfo
                     # object for it and cache it.
-                    mod_info = ModuleInfo(name, finfo)
+                    mod_info = ModuleInfo(name, finfo, self)
                     self._modules[name] = mod_info
                     # A file that has been (or does not require)
                     # preprocessing always takes precendence.

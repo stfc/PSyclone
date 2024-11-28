@@ -43,11 +43,18 @@ This module contains the abstract Node implementation as well as
 ChildrenList - a custom implementation of list.
 
 '''
+from __future__ import annotations
 import copy
 import graphviz
 
+import warnings
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolError
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from psyclone.parse.module_manager import ModuleManager
+    from psyclone.psyir.nodes import Container
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -339,6 +346,7 @@ class Node():
     :raises InternalError: if an invalid annotation tag is supplied.
 
     '''
+
     # pylint: disable=too-many-public-methods
     # Define two class constants: START_DEPTH and START_POSITION
     # START_DEPTH is used to calculate depth of all Nodes in the tree
@@ -389,6 +397,8 @@ class Node():
                         f"annotation '{annotation}', valid "
                         f"annotations are: {self.valid_annotations}.")
         self._disable_tree_update = False
+
+        self._module_manager: ModuleManager = None
         self.update_signal()
 
     def __eq__(self, other):
@@ -433,6 +443,55 @@ class Node():
         # Position and child argument names are kept for better documentation,
         # but the generic method always returns False.
         return False
+
+    def get_module_manager(self) -> ModuleManager:
+        """Return existing module manager or, in case no module manager exists
+        for this Container, create a new one.
+
+        :return: Module manager managing this file
+        """
+
+        # Module manager should only exist for root note
+        root = self.root
+
+        # Create new ModuleManager if no one is associated to this tree
+        if root._module_manager is None:
+
+            assert isinstance(root, Container), (
+                "Only containers can belong to a module manager, but node"
+                f" is of type '{type(root)}'"
+            )
+
+            # from psyclone.parse.module_manager import ModuleManager
+            root._module_manager = ModuleManager()
+
+            warnings.warn("TODO: add self._module_manager.add_container()")
+
+        return root._module_manager
+
+    def set_module_manager(self, module_manager: ModuleManager):
+        """Set the module manager being responsible for this psyir tree
+
+        :param module_manager: Reference to an instance of a module manager
+
+        """
+
+        # Attach module manager only to root node
+        root = self.root
+
+        # There are some tests which are not based on Containers.
+        # assert isinstance(root, Container), (
+        #         "Only containers can belong to a module manager, but node"
+        #         f" is of type '{type(self)}'")
+
+        if root._module_manager is not None:
+            if root._module_manager is module_manager:
+                return
+
+            assert root._module_manager is module_manager, (
+                "Tried to assign a psyir tree to two different module managers")
+
+        self._module_manager = module_manager
 
     def coloured_name(self, colour=True):
         '''

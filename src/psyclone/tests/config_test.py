@@ -712,7 +712,8 @@ def test_ignore_modules(tmpdir, monkeypatch):
     mod_manager = ModuleManager.get()
     monkeypatch.setattr(mod_manager, "_ignore_modules", set())
     config_file = tmpdir.join("config")
-    get_config(config_file, _CONFIG_CONTENT)
+    config = get_config(config_file, _CONFIG_CONTENT)
+    mod_manager.load_from_config(config)
 
     assert mod_manager.ignores() == {'mpi', 'netcdf'}
 

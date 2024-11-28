@@ -46,7 +46,7 @@ import pytest
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
 from psyclone.configuration import Config
-from psyclone.parse import ModuleManager
+from psyclone.parse.module_manager import ModuleManager
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.tests.gocean_build import GOceanBuild

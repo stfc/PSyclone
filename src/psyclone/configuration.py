@@ -212,6 +212,9 @@ class Config:
         # The naming scheme to use for transformed kernels.
         self._kernel_naming = None
 
+        # List of modules to ignore
+        self._ignore_modules = None
+
         # The list of directories to search for Fortran include files.
         self._include_paths = []
 
@@ -362,6 +365,11 @@ class Config:
         self._kernel_naming = Config._default_kernel_naming
 
         ignore_modules = self._config['DEFAULT'].getlist("IGNORE_MODULES", [])
+
+        self._ignore_modules = []
+        for module_name in ignore_modules:
+            self._ignore_modules.append(module_name)
+
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.parse import ModuleManager
