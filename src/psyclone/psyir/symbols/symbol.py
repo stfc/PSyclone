@@ -194,7 +194,7 @@ class Symbol():
         self._process_arguments(**kwargs)
 
     # pylint: disable=inconsistent-return-statements
-    def get_external_symbol(self):
+    def get_external_symbol(self, local_node):
         '''
         Looks-up and returns the Symbol referred to by this Symbol's
         Import Interface.
@@ -214,7 +214,7 @@ class Symbol():
         csym = self.interface.container_symbol
 
         try:
-            container = csym.find_container_psyir()
+            container = csym.find_container_psyir(local_node=local_node)
             if not container:
                 raise SymbolError(
                     f"Error trying to resolve the properties of symbol "
@@ -233,7 +233,7 @@ class Symbol():
               f"Error trying to resolve the properties of symbol "
               f"'{self.name}' in module '{csym.name}': {err.value}") from err
 
-    def resolve_type(self):
+    def resolve_type(self, local_node):
         '''
         Update the properties of this Symbol by using the definition imported
         from the external Container. If this symbol does not have an
@@ -246,7 +246,7 @@ class Symbol():
 
         '''
         if self.is_import:
-            extern_symbol = self.get_external_symbol()
+            extern_symbol = self.get_external_symbol(local_node)
             from psyclone.psyir.symbols import RoutineSymbol
             if isinstance(extern_symbol, RoutineSymbol):
                 # Specialise the existing Symbol in-place so that all

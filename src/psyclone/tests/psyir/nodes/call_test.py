@@ -45,6 +45,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, Assignment, BinaryOperation, Call, CodeBlock, Literal,
     Reference, Routine, Schedule)
 from psyclone.psyir.nodes.node import colored
+from psyclone.psyir.nodes import Node
 from psyclone.psyir.symbols import (
     ArrayType, INTEGER_TYPE, DataSymbol, NoType, RoutineSymbol, REAL_TYPE,
     SymbolError, UnsupportedFortranType)
@@ -686,7 +687,8 @@ subroutine top()
   use another_mod, only: this_one
   call this_one()
 end subroutine top'''
-    psyir = fortran_reader.psyir_from_source(code)
+    psyir: Node = fortran_reader.psyir_from_source(code)
+    psyir.set_module_manager(mod_manager)
     call = psyir.walk(Call)[0]
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()

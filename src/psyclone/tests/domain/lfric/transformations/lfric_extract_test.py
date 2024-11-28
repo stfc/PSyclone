@@ -79,7 +79,7 @@ def test_node_list_error(tmpdir):
     transformation errors when the Nodes do not have the same parent
     if they are incorrectly ordered. '''
 
-    module_manager = ModuleManager._instance
+    module_manager = ModuleManager()
     etrans = LFRicExtractTrans()
 
     # First test for f1 readwrite to read dependency
@@ -124,8 +124,9 @@ def test_distmem_error():
     ''' Test that applying ExtractRegionTrans with distributed memory
     enabled raises a TransformationError if a node is included that
     is not supported. '''
+
+    module_manager = ModuleManager()
     etrans = LFRicExtractTrans()
-    module_manager = ModuleManager._instance
 
     # Test Dynamo0.3 API with distributed memory
     _, invoke = get_invoke("1_single_invoke.f90", DYNAMO_API,
@@ -177,7 +178,10 @@ def test_kern_builtin_no_loop():
     ''' Test that applying Extract Transformation on a Kernel or Built-in
     call without its parent Loop raises a TransformationError. '''
 
-    module_manager = ModuleManager._instance
+    module_manager = ModuleManager()
+    from psyclone.configuration import Config
+    module_manager.load_from_config(Config.get())
+
     # Test Dynamo0.3 API for Built-in call error
     dynetrans = LFRicExtractTrans()
     _, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
@@ -198,7 +202,9 @@ def test_loop_no_directive_dynamo0p3():
     parent Directive when optimisations are applied in Dynamo0.3 API
     raises a TransformationError. '''
 
-    module_manager = ModuleManager._instance
+    module_manager = ModuleManager()
+    from psyclone.configuration import Config
+    module_manager.load_from_config(Config.get())
     etrans = LFRicExtractTrans()
 
     # Test a Loop nested within the OMP Parallel DO Directive
@@ -222,7 +228,9 @@ def test_no_colours_loop_dynamo0p3():
     in a colour without its parent Loop over colours in Dynamo0.3 API
     raises a TransformationError. '''
 
-    module_manager = ModuleManager._instance
+    module_manager = ModuleManager()
+    from psyclone.configuration import Config
+    module_manager.load_from_config(Config.get())
 
     etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
@@ -258,7 +266,9 @@ def test_extract_node_position():
     at the position of the first Node a Schedule in the Node list
     marked for extraction. '''
 
-    module_manager = ModuleManager._instance
+    module_manager = ModuleManager()
+    from psyclone.configuration import Config
+    module_manager.load_from_config(Config.get())
 
     # Test Dynamo0.3 API for extraction of a list of Nodes
     dynetrans = LFRicExtractTrans()
@@ -316,8 +326,12 @@ def test_extract_node_representation():
 
 def test_single_node_dynamo0p3():
     ''' Test that Extract Transformation on a single Node in a Schedule
-    produces the correct result in Dynamo0.3 API. '''
-    module_manager = ModuleManager._instance
+    produces the correct result in Dynamo0.3 API.
+    '''
+
+    module_manager = ModuleManager()
+    from psyclone.configuration import Config
+    module_manager.load_from_config(Config.get())
     etrans = LFRicExtractTrans()
 
     psy, invoke = get_invoke("1_single_invoke.f90", DYNAMO_API,
@@ -389,7 +403,9 @@ def test_node_list_dynamo0p3():
     produces the correct result in the Dynamo0.3 API.
 
     '''
-    module_manager = ModuleManager._instance
+    module_manager = ModuleManager()
+    from psyclone.configuration import Config
+    module_manager.load_from_config(Config.get())
     etrans = LFRicExtractTrans()
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              DYNAMO_API, idx=0, dist_mem=False,
@@ -460,7 +476,9 @@ def test_dynamo0p3_builtin():
     ''' Tests the handling of builtins.
 
     '''
-    module_manager = ModuleManager._instance
+    module_manager = ModuleManager()
+    from psyclone.configuration import Config
+    module_manager.load_from_config(Config.get())
     etrans = LFRicExtractTrans()
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
                              DYNAMO_API, idx=0, dist_mem=False,
@@ -526,7 +544,9 @@ def test_extract_single_builtin_dynamo0p3():
     correct result in Dynamo0.3 API without and with optimisations.
 
     '''
-    module_manager = ModuleManager._instance
+    module_manager = ModuleManager()
+    from psyclone.configuration import Config
+    module_manager.load_from_config(Config.get())
     etrans = LFRicExtractTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
@@ -678,7 +698,10 @@ def test_extract_colouring_omp_dynamo0p3():
     etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
-    module_manager = ModuleManager._instance
+    
+    module_manager = ModuleManager()
+    from psyclone.configuration import Config
+    module_manager.load_from_config(Config.get())
 
     psy, invoke = get_invoke("4.8_multikernel_invokes.f90",
                              DYNAMO_API, idx=0, dist_mem=False,

@@ -306,9 +306,11 @@ def test_symbol_specialise_instance_error(test_class):
 
 def test_get_external_symbol(monkeypatch):
     ''' Test the get_external_symbol() method. '''
+    container = Container("dummy")
+    container.get_module_manager()
     asym = Symbol("a")
     with pytest.raises(NotImplementedError) as err:
-        asym.get_external_symbol()
+        asym.get_external_symbol(local_node=container)
     assert ("trying to resolve symbol 'a' properties, the lazy evaluation "
             "of 'Automatic' interfaces is not supported" in str(err.value))
     other_container = ContainerSymbol("some_mod")
@@ -321,19 +323,20 @@ def test_get_external_symbol(monkeypatch):
     # Monkeypatch the container's FortranModuleInterface so that it always
     # appears to be unable to find the "some_mod" module
 
-    def fake_import(name):
+    def fake_import(name, module_manager):
         raise SymbolError("Oh dear")
     monkeypatch.setattr(other_container._interface, "get_container",
                         fake_import)
     with pytest.raises(SymbolError) as err:
-        bsym.get_external_symbol()
+        bsym.get_external_symbol(container)
     assert ("trying to resolve the properties of symbol 'b' in module "
             "'some_mod': PSyclone SymbolTable error: Oh dear" in
             str(err.value))
     # Monkeypatch to pretend that we fail to get a Container object.
-    monkeypatch.setattr(other_container, "find_container_psyir", lambda: None)
+    def fun_named_arg(local_node): return None
+    monkeypatch.setattr(other_container, "find_container_psyir", fun_named_arg)
     with pytest.raises(SymbolError) as err:
-        bsym.get_external_symbol()
+        bsym.get_external_symbol(container)
     assert ("trying to resolve the properties of symbol 'b' in module "
             "'some_mod': PSyclone SymbolTable error: Error trying to resolve "
             "the properties of symbol 'b'. The interface points to module "
@@ -358,13 +361,13 @@ def test_get_external_symbol_missing(monkeypatch):
     bsym = Symbol("b", interface=ImportInterface(other_container))
     # Currently the Container does not contain an entry for 'b'
     with pytest.raises(SymbolError) as err:
-        bsym.get_external_symbol()
+        bsym.get_external_symbol(local_node=some_mod)
     assert ("trying to resolve the properties of symbol 'b'. The interface "
             "points to module 'some_mod' but could not find the definition of "
             "'b' in that module." in str(err.value))
     # Add an entry for 'b' to the Container's symbol table
     ctable2.add(DataSymbol("b", INTEGER_SINGLE_TYPE))
-    new_sym = bsym.resolve_type()
+    new_sym = bsym.resolve_type(local_node=some_mod)
     assert isinstance(new_sym, DataSymbol)
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
 
@@ -374,16 +377,16 @@ def test_symbol_resolve_type(monkeypatch):
     # resolve_type() for a local symbol has nothing to do so should
     # just return itself.
     asym = Symbol("a")
-    assert asym.resolve_type() is asym
+    assert asym.resolve_type(None) is asym
     # Now test for a symbol that is imported from another Container
     other_container = ContainerSymbol("some_mod")
     bsym = Symbol("b", visibility=Symbol.Visibility.PRIVATE,
                   interface=ImportInterface(other_container))
     # Monkeypatch the get_external_symbol() method so that it just returns
     # a new DataSymbol
-    monkeypatch.setattr(bsym, "get_external_symbol",
-                        lambda: DataSymbol("b", INTEGER_SINGLE_TYPE))
-    new_sym = bsym.resolve_type()
+    def dummy_fun(local_node): return DataSymbol("b", INTEGER_SINGLE_TYPE)
+    monkeypatch.setattr(bsym, "get_external_symbol", dummy_fun)
+    new_sym = bsym.resolve_type(local_node=other_container)
     # The symbol should be the same instance as before but with properties and
     # type obtained from the other table.
     assert new_sym is bsym
@@ -396,12 +399,14 @@ def test_symbol_resolve_type(monkeypatch):
                   interface=ImportInterface(other_container))
     # Monkeypatch the get_external_symbol() method so that it just returns
     # a new DataSymbol
+
+    def dummy_fun(local_node):
+        return DataSymbol("c", INTEGER_SINGLE_TYPE,
+                          is_constant=True,
+                          initial_value=Literal("1", INTEGER_SINGLE_TYPE))
     monkeypatch.setattr(
-        csym, "get_external_symbol",
-        lambda: DataSymbol("c", INTEGER_SINGLE_TYPE,
-                           is_constant=True,
-                           initial_value=Literal("1", INTEGER_SINGLE_TYPE)))
-    new_sym = csym.resolve_type()
+        csym, "get_external_symbol", dummy_fun)
+    new_sym = csym.resolve_type(local_node=other_container)
     assert new_sym is csym
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
     assert new_sym.is_import
@@ -410,10 +415,12 @@ def test_symbol_resolve_type(monkeypatch):
     # Repeat but test when the import turns out to be a RoutineSymbol.
     dsym = Symbol("d", visibility=Symbol.Visibility.PRIVATE,
                   interface=ImportInterface(other_container))
-    monkeypatch.setattr(
-        dsym, "get_external_symbol",
-        lambda: RoutineSymbol("d", NoType()))
-    new_sym = dsym.resolve_type()
+
+    def dummy_fun2(local_node):
+        return RoutineSymbol("d", NoType())
+
+    monkeypatch.setattr(dsym, "get_external_symbol", dummy_fun2)
+    new_sym = dsym.resolve_type(local_node=other_container)
     assert new_sym is dsym
     assert isinstance(dsym, RoutineSymbol)
 

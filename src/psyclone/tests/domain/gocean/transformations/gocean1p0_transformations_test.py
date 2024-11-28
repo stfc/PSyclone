@@ -1464,9 +1464,11 @@ def test_acc_loop_seq():
 def test_accroutinetrans_module_use():
     ''' Check that ACCRoutineTrans rejects a kernel if it contains a module
     use statement. '''
+
+    module_manager = ModuleManager()
     _, invoke = get_invoke("single_invoke_kern_with_use.f90", api="gocean",
-                           idx=0)
-    mod_man = ModuleManager()
+                           idx=0, module_manager=module_manager)
+    
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     rtrans = ACCRoutineTrans()
@@ -1477,7 +1479,7 @@ def test_accroutinetrans_module_use():
             "represents data then it must first" in str(err.value))
     # Tell the ModuleManager where to find the module that is being USED by
     # the kernel.
-    mod_man.add_search_path(get_base_path("gocean"))
+    module_manager.add_search_path(get_base_path("gocean"))
     # Now that we can resolve the symbols, we know that `rdt` is a parameter
     # (and is not a problem) but that `magic` is a variable.
     with pytest.raises(TransformationError) as err:

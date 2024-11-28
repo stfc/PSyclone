@@ -251,20 +251,38 @@ def fixture_tear_down_config():
     Config._instance = None
 
 
-@pytest.fixture(scope="function")
-def clear_module_manager_instance():
-    '''For tests that assume that there is no pre-existing ModuleManager
-    object, this fixture ensures that the module manager instance is deleted
-    before and after each test function. The latter makes sure that any other
-    test executed next will automatically reload the default ModuleManager
-    file even if this fixture is not used.
-    '''
+# @pytest.fixture(scope="function")
+# def clear_module_manager_instance():
+#     '''For tests that assume that there is no pre-existing ModuleManager
+#     object, this fixture ensures that the module manager instance is deleted
+#     before and after each test function. The latter makes sure that any other
+#     test executed next will automatically reload the default ModuleManager
+#     file even if this fixture is not used.
+#     '''
 
-    # Enforce loading of the default ModuleManager
+#     # Enforce loading of the default ModuleManager
+#     ModuleManager._test_helper_reset()
+
+#     # Now execute all tests
+#     yield
+
+#     # Enforce loading of the default ModuleManager
+#     ModuleManager._test_helper_reset()
+
+
+@pytest.fixture(
+        name="clear_module_manager_instance",
+        scope="function",
+        autouse=True
+    )
+def modmanager_fixture(monkeypatch, request):
+    '''
+    A fixture that ensures every test gets a fresh ModuleManager instance as
+    otherwise changes to search paths or file creation/removal is not detected.
+    '''
     ModuleManager._test_helper_reset()
 
-    # Now execute all tests
     yield
 
-    # Enforce loading of the default ModuleManager
     ModuleManager._test_helper_reset()
+    # monkeypatch.setattr(ModuleManager, '_instance', None)

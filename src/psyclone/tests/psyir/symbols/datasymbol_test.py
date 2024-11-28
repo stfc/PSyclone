@@ -497,7 +497,7 @@ def test_datasymbol_copy_properties():
 def test_datasymbol_resolve_type(monkeypatch):
     ''' Test the datasymbol resolve_type method '''
     symbola = DataSymbol('a', INTEGER_SINGLE_TYPE)
-    new_sym = symbola.resolve_type()
+    new_sym = symbola.resolve_type(None)
     # For a DataSymbol (unlike a Symbol), resolve_type should always
     # return the object on which it was called.
     assert new_sym is symbola
@@ -507,9 +507,9 @@ def test_datasymbol_resolve_type(monkeypatch):
                          interface=ImportInterface(module))
     # Monkeypatch the get_external_symbol() method so that it just returns
     # a new DataSymbol
-    monkeypatch.setattr(symbolb, "get_external_symbol",
-                        lambda: DataSymbol("b", INTEGER_SINGLE_TYPE))
-    new_sym = symbolb.resolve_type()
+    def dummy_fun(local_node): return DataSymbol("b", INTEGER_SINGLE_TYPE)
+    monkeypatch.setattr(symbolb, "get_external_symbol", dummy_fun)
+    new_sym = symbolb.resolve_type(None)
     assert new_sym is symbolb
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
     assert new_sym.visibility == Symbol.Visibility.PRIVATE

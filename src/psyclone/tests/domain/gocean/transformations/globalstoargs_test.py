@@ -45,6 +45,7 @@ from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
     CHARACTER_TYPE, Symbol
 from psyclone.transformations import KernelImportsToArguments, \
     TransformationError
+from psyclone.psyir.nodes import Node
 
 API = "gocean"
 
@@ -206,9 +207,9 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch):
 
     # Monkeypatch resolve_type to avoid module searching and importing
     # in this test. In this case we assume it is a constant INTEGER
-    def create_data_symbol(arg):
-        symbol = DataSymbol(arg.name, INTEGER_TYPE,
-                            interface=arg.interface,
+    def create_data_symbol(self, local_node):
+        symbol = DataSymbol(self.name, INTEGER_TYPE,
+                            interface=self.interface,
                             is_constant=True,
                             initial_value=Literal("1", INTEGER_TYPE))
         return symbol
@@ -243,9 +244,9 @@ def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
 
     # In this case we set it to be of type CHARACTER as that is not supported
     # in the GOcean infrastructure.
-    def create_data_symbol(arg):
-        symbol = DataSymbol(arg.name, CHARACTER_TYPE,
-                            interface=arg.interface)
+    def create_data_symbol(self, local_node):
+        symbol = DataSymbol(self.name, CHARACTER_TYPE,
+                            interface=self.interface)
         return symbol
     monkeypatch.setattr(Symbol, "resolve_type", create_data_symbol)
 
@@ -290,9 +291,9 @@ def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
 
     # Monkeypatch the resolve_type() methods to avoid searching and
     # importing of module during this test.
-    def create_data_symbol(arg):
-        symbol = DataSymbol(arg.name, REAL_TYPE,
-                            interface=arg.interface)
+    def create_data_symbol(self, local_node):
+        symbol = DataSymbol(self.name, REAL_TYPE,
+                            interface=self.interface)
         return symbol
     monkeypatch.setattr(Symbol, "resolve_type", create_data_symbol)
     monkeypatch.setattr(DataSymbol, "resolve_type", create_data_symbol)
@@ -368,9 +369,9 @@ def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch):
     # Monkeypatch Symbol.resolve_type to avoid module searching and
     # importing in this test. In this case we assume the symbol is a
     # DataSymbol of REAL type.
-    def create_real(variable):
-        return DataSymbol(variable.name, REAL_TYPE,
-                          interface=variable.interface)
+    def create_real(self, local_node):
+        return DataSymbol(self.name, REAL_TYPE,
+                          interface=self.interface)
     monkeypatch.setattr(Symbol, "resolve_type", create_real)
 
     # Add 'rdt' into the symbol table
