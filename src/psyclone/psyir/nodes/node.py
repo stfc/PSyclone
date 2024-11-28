@@ -456,13 +456,14 @@ class Node():
 
         # Create new ModuleManager if no one is associated to this tree
         if root._module_manager is None:
+            # TODO: Potentially attach the module manager only to `Containers`
+            #       (but this would break too many things)
+            # assert isinstance(root, Container), (
+            #     "Only containers can belong to a module manager, but node"
+            #     f" is of type '{type(root)}'"
+            # )
 
-            assert isinstance(root, Container), (
-                "Only containers can belong to a module manager, but node"
-                f" is of type '{type(root)}'"
-            )
-
-            # from psyclone.parse.module_manager import ModuleManager
+            from psyclone.parse.module_manager import ModuleManager
             root._module_manager = ModuleManager()
 
             warnings.warn("TODO: add self._module_manager.add_container()")
@@ -492,7 +493,7 @@ class Node():
                 "Tried to assign a psyir tree to two different module"
                 " managers")
 
-        self._module_manager = module_manager
+        root._module_manager = module_manager
 
     def coloured_name(self, colour=True):
         '''

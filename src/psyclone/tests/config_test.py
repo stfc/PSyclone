@@ -709,7 +709,7 @@ def test_ignore_modules(tmpdir, monkeypatch):
     '''Test that the config file ignores modules, i.e. adds them to the
     ModuleManager. '''
 
-    mod_manager = ModuleManager.get()
+    mod_manager = ModuleManager._instance
     monkeypatch.setattr(mod_manager, "_ignore_modules", set())
     config_file = tmpdir.join("config")
     config = get_config(config_file, _CONFIG_CONTENT)

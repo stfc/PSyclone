@@ -560,7 +560,9 @@ def test_psy_data_node_name_clash(fortran_writer):
     module_manager.add_search_path(read_mod_path)
 
     _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
-                           "symbols.f90", api, dist_mem=False, idx=1)
+                           "symbols.f90", api, dist_mem=False, idx=1,
+                           module_manager=module_manager
+                           )
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],

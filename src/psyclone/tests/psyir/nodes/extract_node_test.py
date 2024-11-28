@@ -38,6 +38,7 @@
 
 ''' Performs pytest tests on the ExtractNode PSyIR node. '''
 
+from psyclone.parse.module_manager import ModuleManager
 import pytest
 
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
@@ -213,9 +214,11 @@ def test_extract_node_gen():
     '''
 
     etrans = LFRicExtractTrans()
+    module_manager = ModuleManager._instance
 
     psy, invoke = get_invoke("1_single_invoke.f90", "lfric",
-                             idx=0, dist_mem=False)
+                             idx=0, dist_mem=False,
+                             module_manager=module_manager)
     etrans.apply(invoke.schedule.children[0])
     code = str(psy.gen)
     output = '''      ! ExtractStart

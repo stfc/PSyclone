@@ -263,16 +263,17 @@ def test_get_non_local_read_write_info(capsys):
     '''
     Config.get().api = "lfric"
     ctu = CallTreeUtils()
+    mod_man = ModuleManager()
 
     test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
-    psyir, _ = get_invoke(test_file, "lfric", 0, dist_mem=False)
+    psyir, _ = get_invoke(test_file, "lfric", 0, dist_mem=False,
+                          module_manager=mod_man)
     schedule = psyir.invokes.invoke_list[0].schedule
 
     # Set up the module manager with a search directory that does not
     # contain any files used here:
     kernels_dir = os.path.join(get_base_path("lfric"),
                                "kernels", "dead_end", "no_really")
-    mod_man = ModuleManager()
     mod_man.add_search_path(kernels_dir)
 
     # Since the right search path is missing, this will result
@@ -337,12 +338,13 @@ def test_get_non_local_read_write_info_errors(capsys):
     '''
     Config.get().api = "lfric"
     ctu = CallTreeUtils()
+    mod_man = ModuleManager()
     test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
-    psyir, _ = get_invoke(test_file, "lfric", 0, dist_mem=False)
+    psyir, _ = get_invoke(test_file, "lfric", 0, dist_mem=False,
+                          module_manager=mod_man)
     schedule = psyir.invokes.invoke_list[0].schedule
 
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
-    mod_man = ModuleManager()
     mod_man.add_search_path(test_dir)
     kernels = schedule.walk(Kern)
     minfo = mod_man.get_module_info(kernels[0].module_name)
@@ -597,13 +599,14 @@ def testcall_tree_utils_non_local_inout_parameters(capsys):
     '''Tests the collection of non-local input and output parameters.
     '''
     ctu = CallTreeUtils()
+    mod_man = ModuleManager()
 
     test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
-    psyir, _ = get_invoke(test_file, "lfric", 0, dist_mem=False)
+    psyir, _ = get_invoke(test_file, "lfric", 0, dist_mem=False,
+                          module_manager=mod_man)
     schedule = psyir.invokes.invoke_list[0].schedule
 
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
-    mod_man = ModuleManager()
     mod_man.add_search_path(test_dir)
 
     # The example does contain an unknown subroutine (by design), and the

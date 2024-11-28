@@ -40,7 +40,7 @@ across different subroutines and modules.'''
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
-from psyclone.psyir.nodes import Container, Reference
+from psyclone.psyir.nodes import Container, Node, Reference
 from psyclone.psyir.symbols import (
     ArgumentInterface, DefaultModuleInterface, GenericInterfaceSymbol,
     ImportInterface, IntrinsicSymbol, RoutineSymbol)
@@ -292,8 +292,10 @@ class CallTreeUtils():
         # that is following the corresponding modules will be queried and
         # the right accesses (functions or variables) will be used.
         todo = []
-        mod_manager = ModuleManager.get()
         for node in node_list:
+            node: Node
+            mod_manager = node.get_module_manager()
+
             # TODO #2494 - we need to support calls in order to work for
             # generic PSyIR.
             for kernel in node.walk(Kern):

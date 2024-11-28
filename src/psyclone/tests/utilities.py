@@ -43,6 +43,7 @@ from pprint import pprint
 import subprocess
 import sys
 
+from psyclone.parse.module_manager import ModuleManager
 import pytest
 
 from fparser import api as fpapi
@@ -52,6 +53,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import ScopingNode
+from yaml import Node
 
 # The various file suffixes we recognise as being Fortran
 FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
@@ -524,7 +526,12 @@ def get_base_path(api):
 
 
 # =============================================================================
-def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
+def get_invoke(algfile,
+               api,
+               idx=None,
+               name=None, dist_mem=None,
+               module_manager: ModuleManager = None
+               ):
     '''
     Utility method to get the idx'th or named invoke from the algorithm
     in the specified file.
@@ -537,6 +544,8 @@ def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
                      is supplied.
     :param bool dist_mem: if the psy instance should be created with or \
                           without distributed memory support.
+
+    :param bool module_manager: Module manager to attach the psyir to.
 
     :returns: (psy object, invoke object)
     :rtype: Tuple[:py:class:`psyclone.psyGen.PSy`, \
@@ -559,6 +568,14 @@ def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
         invoke = psy.invokes.get(name)
     else:
         invoke = psy.invokes.invoke_list[idx]
+
+    from psyclone.psyGen import Invoke, InvokeSchedule
+    invoke: Invoke
+
+    for schedule in invoke.schedule:
+        schedule: InvokeSchedule
+        schedule.set_module_manager(module_manager)
+
     return psy, invoke
 
 

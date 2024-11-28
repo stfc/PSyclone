@@ -52,8 +52,11 @@ from psyclone.tests.utilities import get_base_path
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_module_info():
+    mod_man = ModuleManager()
+
     '''Tests the module info object.'''
-    mod_info = ModuleInfo("a_mod", FileInfo("file_for_a"))
+    mod_info = ModuleInfo("a_mod", FileInfo("file_for_a"),
+                          module_manager=mod_man)
     assert mod_info.filename == "file_for_a"
     assert mod_info.name == "a_mod"
 
@@ -63,7 +66,6 @@ def test_module_info():
             "code for module 'a_mod'" in str(err.value))
 
     # Try to read the file a_mod.f90, which is contained in the d1 directory
-    mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
     assert len(mod_man._visited_files) == 0
 
@@ -177,7 +179,7 @@ def test_mod_info_get_used_modules():
     tmp/d2/d4/f_mod.ignore
     '''
 
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
@@ -228,7 +230,7 @@ def test_mod_info_get_used_symbols_from_modules():
     tmp/d2/d4/f_mod.ignore
     '''
 
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
@@ -249,7 +251,7 @@ def test_mod_info_get_psyir(capsys, tmpdir):
     '''This tests the handling of PSyIR representation of the module.
     '''
 
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     dyn_path = get_base_path("lfric")
     mod_man.add_search_path(f"{dyn_path}/driver_creation", recursive=False)
 
@@ -295,7 +297,7 @@ def test_generic_interface():
     `myfunc2`
 
     '''
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
@@ -320,7 +322,7 @@ def test_module_info_extract_import_information_error():
     '''
     # TODO 2120: Once proper error handling is implemented, this should
     # likely just raise an exception.
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     mod_man.add_search_path("d2")
     mod_info = mod_man.get_module_info("error_mod")
     assert mod_info.name == "error_mod"

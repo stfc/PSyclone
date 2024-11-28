@@ -41,6 +41,7 @@
 transformations and ExtractNode.
 '''
 
+from psyclone.parse.module_manager import ModuleManager
 import pytest
 
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
@@ -77,11 +78,14 @@ def test_node_list_error(tmpdir):
     Nodes or a list of Nodes raises a TransformationError. Also raise
     transformation errors when the Nodes do not have the same parent
     if they are incorrectly ordered. '''
+
+    module_manager = ModuleManager._instance
     etrans = LFRicExtractTrans()
 
     # First test for f1 readwrite to read dependency
     psy, _ = get_invoke("3.2_multi_functions_multi_named_invokes.f90",
-                        DYNAMO_API, idx=0, dist_mem=False)
+                        DYNAMO_API, idx=0, dist_mem=False,
+                        module_manager=module_manager)
     invoke0 = psy.invokes.invoke_list[0]
     invoke1 = psy.invokes.invoke_list[1]
     # Supply an object which is not a Node or a list of Nodes
@@ -121,10 +125,12 @@ def test_distmem_error():
     enabled raises a TransformationError if a node is included that
     is not supported. '''
     etrans = LFRicExtractTrans()
+    module_manager = ModuleManager._instance
 
     # Test Dynamo0.3 API with distributed memory
     _, invoke = get_invoke("1_single_invoke.f90", DYNAMO_API,
-                           idx=0, dist_mem=True)
+                           idx=0, dist_mem=True,
+                           module_manager=module_manager)
     schedule = invoke.schedule
 
     # Try applying Extract transformation to Node(s) containing HaloExchange
@@ -135,7 +141,8 @@ def test_distmem_error():
 
     # Try applying Extract transformation to Node(s) containing GlobalSum
     _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
-                           DYNAMO_API, idx=0, dist_mem=True)
+                           DYNAMO_API, idx=0, dist_mem=True,
+                           module_manager=module_manager)
     schedule = invoke.schedule
     glob_sum = schedule.children[2]
 
@@ -150,10 +157,12 @@ def test_repeat_extract():
     ''' Test that applying Extract Transformation on Node(s) already
     containing an ExtractNode raises a TransformationError. '''
     etrans = LFRicExtractTrans()
+    module_manager = ModuleManager._instance
 
     # Test Dynamo0.3 API
     _, invoke = get_invoke("1_single_invoke.f90", DYNAMO_API,
-                           idx=0, dist_mem=False)
+                           idx=0, dist_mem=False,
+                           module_manager=module_manager)
     schedule = invoke.schedule
     # Apply Extract transformation
     etrans.apply(schedule.children[0])
@@ -168,10 +177,12 @@ def test_kern_builtin_no_loop():
     ''' Test that applying Extract Transformation on a Kernel or Built-in
     call without its parent Loop raises a TransformationError. '''
 
+    module_manager = ModuleManager._instance
     # Test Dynamo0.3 API for Built-in call error
     dynetrans = LFRicExtractTrans()
     _, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
-                           DYNAMO_API, idx=0, dist_mem=False)
+                           DYNAMO_API, idx=0, dist_mem=False,
+                           module_manager=module_manager)
     schedule = invoke.schedule
     # Test Built-in call
     builtin_call = schedule.children[1].loop_body[0]
@@ -186,11 +197,14 @@ def test_loop_no_directive_dynamo0p3():
     ''' Test that applying Extract Transformation on a Loop without its
     parent Directive when optimisations are applied in Dynamo0.3 API
     raises a TransformationError. '''
+
+    module_manager = ModuleManager._instance
     etrans = LFRicExtractTrans()
 
     # Test a Loop nested within the OMP Parallel DO Directive
     _, invoke = get_invoke("4.13_multikernel_invokes_w3_anyd.f90",
-                           DYNAMO_API, idx=0, dist_mem=False)
+                           DYNAMO_API, idx=0, dist_mem=False,
+                           module_manager=module_manager)
     schedule = invoke.schedule
     # Apply DynamoOMPParallelLoopTrans to the second Loop
     otrans = DynamoOMPParallelLoopTrans()
@@ -208,12 +222,15 @@ def test_no_colours_loop_dynamo0p3():
     in a colour without its parent Loop over colours in Dynamo0.3 API
     raises a TransformationError. '''
 
+    module_manager = ModuleManager._instance
+
     etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
     _, invoke = get_invoke("1_single_invoke.f90", DYNAMO_API,
-                           idx=0, dist_mem=False)
+                           idx=0, dist_mem=False,
+                           module_manager=module_manager)
     schedule = invoke.schedule
 
     # Colour first loop that calls testkern_code (loop is over cells and
@@ -241,10 +258,13 @@ def test_extract_node_position():
     at the position of the first Node a Schedule in the Node list
     marked for extraction. '''
 
+    module_manager = ModuleManager._instance
+
     # Test Dynamo0.3 API for extraction of a list of Nodes
     dynetrans = LFRicExtractTrans()
     _, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
-                           DYNAMO_API, idx=0, dist_mem=False)
+                           DYNAMO_API, idx=0, dist_mem=False,
+                           module_manager=module_manager)
     schedule = invoke.schedule
     # Apply Extract transformation to the first three Nodes and assert that
     # position and the absolute position of the ExtractNode are the same as
@@ -265,9 +285,11 @@ def test_extract_node_representation():
     ''' Test that representation properties and methods of the ExtractNode
     class: view  and __str__ produce the correct results. '''
 
+    module_manager = ModuleManager._instance
     etrans = LFRicExtractTrans()
     _, invoke = get_invoke("4.8_multikernel_invokes.f90", DYNAMO_API,
-                           idx=0, dist_mem=False)
+                           idx=0, dist_mem=False,
+                           module_manager=module_manager)
     schedule = invoke.schedule
     children = schedule.children[1:3]
     etrans.apply(children)
@@ -295,10 +317,12 @@ def test_extract_node_representation():
 def test_single_node_dynamo0p3():
     ''' Test that Extract Transformation on a single Node in a Schedule
     produces the correct result in Dynamo0.3 API. '''
+    module_manager = ModuleManager._instance
     etrans = LFRicExtractTrans()
 
     psy, invoke = get_invoke("1_single_invoke.f90", DYNAMO_API,
-                             idx=0, dist_mem=False)
+                             idx=0, dist_mem=False,
+                             module_manager=module_manager)
     schedule = invoke.schedule
 
     etrans.apply(schedule.children[0])
@@ -365,9 +389,11 @@ def test_node_list_dynamo0p3():
     produces the correct result in the Dynamo0.3 API.
 
     '''
+    module_manager = ModuleManager._instance
     etrans = LFRicExtractTrans()
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
-                             DYNAMO_API, idx=0, dist_mem=False)
+                             DYNAMO_API, idx=0, dist_mem=False,
+                             module_manager=module_manager)
     schedule = invoke.schedule
 
     etrans.apply(schedule.children[0:3])
@@ -434,9 +460,11 @@ def test_dynamo0p3_builtin():
     ''' Tests the handling of builtins.
 
     '''
+    module_manager = ModuleManager._instance
     etrans = LFRicExtractTrans()
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
-                             DYNAMO_API, idx=0, dist_mem=False)
+                             DYNAMO_API, idx=0, dist_mem=False,
+                             module_manager=module_manager)
     schedule = invoke.schedule
 
     etrans.apply(schedule.children[0:3])
@@ -498,12 +526,13 @@ def test_extract_single_builtin_dynamo0p3():
     correct result in Dynamo0.3 API without and with optimisations.
 
     '''
+    module_manager = ModuleManager._instance
     etrans = LFRicExtractTrans()
-
     otrans = DynamoOMPParallelLoopTrans()
 
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
-                             DYNAMO_API, idx=0, dist_mem=False)
+                             DYNAMO_API, idx=0, dist_mem=False,
+                             module_manager=module_manager)
     schedule = invoke.schedule
 
     etrans.apply(schedule.children[1])
@@ -534,7 +563,8 @@ def test_extract_single_builtin_dynamo0p3():
 
     # Test extract with OMP Parallel optimisation
     psy, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
-                             DYNAMO_API, idx=0, dist_mem=False)
+                             DYNAMO_API, idx=0, dist_mem=False,
+                             module_manager=module_manager)
     schedule = invoke.schedule
 
     otrans.apply(schedule.children[1])
@@ -578,9 +608,11 @@ def test_extract_kernel_and_builtin_dynamo0p3():
 
     '''
     etrans = LFRicExtractTrans()
+    module_manager = ModuleManager._instance
 
     psy, invoke = get_invoke("15.1.2_builtin_and_normal_kernel_invoke.f90",
-                             DYNAMO_API, idx=0, dist_mem=False)
+                             DYNAMO_API, idx=0, dist_mem=False,
+                             module_manager=module_manager)
     schedule = invoke.schedule
 
     etrans.apply(schedule.children[1:3])
@@ -646,9 +678,11 @@ def test_extract_colouring_omp_dynamo0p3():
     etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
+    module_manager = ModuleManager._instance
 
     psy, invoke = get_invoke("4.8_multikernel_invokes.f90",
-                             DYNAMO_API, idx=0, dist_mem=False)
+                             DYNAMO_API, idx=0, dist_mem=False,
+                             module_manager=module_manager)
     schedule = invoke.schedule
 
     # First colour all of the loops over cells unless they are on
