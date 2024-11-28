@@ -38,6 +38,7 @@
 
     import os
     from psyclone.parse import ModuleManager
+    ModuleManager._test_helper_reset()
 
 .. _module_manager:
 
@@ -115,18 +116,18 @@ which prints the filenames of all modules used in ``tl_testkern_mod``:
 
 .. testcode ::
 
-    mod_manager = ModuleManager()
+    module_manager = ModuleManager()
     # Add the path to the PSyclone LFRic example codes:
-    mod_manager.add_search_path("../../src/psyclone/tests/test_files/"
+    module_manager.add_search_path("../../src/psyclone/tests/test_files/"
                                 "dynamo0p3")
 
-    testkern_info = mod_manager.get_module_info("tl_testkern_mod")
+    testkern_info = module_manager.get_module_info("tl_testkern_mod")
 
     used_mods = testkern_info.get_used_modules()
     # Sort the modules so we get a reproducible output ordering
     used_mods_list = sorted(list(used_mods))
     for module_name in used_mods_list:
-        mod_info = mod_manager.get_module_info(module_name)
+        mod_info = module_manager.get_module_info(module_name)
         print("Module:", module_name, os.path.basename(mod_info.filename))
 
 .. testoutput::
