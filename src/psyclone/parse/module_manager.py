@@ -47,6 +47,7 @@ from psyclone.errors import InternalError
 from psyclone.parse.file_info import FileInfo
 from psyclone.parse.module_info import ModuleInfo
 
+from typing import Dict, Set
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from psyclone.configuration import Config
@@ -67,6 +68,13 @@ class ModuleManager:
     # Count how many module managers are currently used
     _usage_counter = 0
 
+    @staticmethod
+    def _test_helper_reset():
+        """This is a helper function to reset the module manager state.
+        """
+        ModuleManager._instance = None
+        ModuleManager._usage_counter = 0
+
     # ------------------------------------------------------------------------
     @staticmethod
     def get():
@@ -75,6 +83,8 @@ class ModuleManager:
 
         '''
         if not ModuleManager._instance:
+            # If ModuleManager is initialized for the first time, it
+            # automatically registers itself to `ModuleManager._instance`
             ModuleManager._instance = ModuleManager()
 
         return ModuleManager._instance
@@ -98,13 +108,17 @@ class ModuleManager:
         self._module_pattern = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
                                           flags=(re.IGNORECASE | re.MULTILINE))
 
-        self._usage_counter += 1
+        ModuleManager._usage_counter += 1
 
-        if self._usage_counter > 1:
-            raise InternalError("You need to use 'ModuleManager.get()' "
-                                "to get the singleton instance.")
+        if ModuleManager._usage_counter > 1:
+            raise InternalError("You need to use 'ModuleManager.get()'"
+                                " to get the singleton instance.")
 
-        self._instance = self
+        # In case this is directly initialized with the constructor
+        # for the first time, use this as the default instance.
+        if ModuleManager._instance is None:
+            assert ModuleManager._usage_counter == 1
+            ModuleManager._instance = self
 
         # Load information from configuration
         if config is None:
@@ -122,7 +136,7 @@ class ModuleManager:
     def __del__(self):
         """Deconstructor
         """
-        self._usage_counter -= 1
+        ModuleManager._usage_counter -= 1
 
     # ------------------------------------------------------------------------
     def add_search_path(self, directories, recursive=True):
@@ -311,7 +325,10 @@ class ModuleManager:
         return [name.lower() for name in mod_names]
 
     # ------------------------------------------------------------------------
-    def get_all_dependencies_recursively(self, all_mods):
+    def get_all_dependencies_recursively(
+                self,
+                all_mods: Set[str]
+            ) -> Dict[str, Set[str]]:
         '''This function collects recursively all module dependencies
         for any of the modules in the ``all_mods`` set. I.e. it will
         add all modules used by any module listed in ``all_mods``,
@@ -328,7 +345,7 @@ class ModuleManager:
         be ignored (i.e. not listed in any dependencies).
         # TODO 2120: allow a choice to abort or ignore.
 
-        :param set[str] all_mods: the set of all modules for which to collect
+        :param all_mods: the set of all modules for which to collect
             module dependencies.
 
         :returns: a dictionary with all modules that are required (directly

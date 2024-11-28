@@ -54,7 +54,6 @@ from psyclone.parse.file_info import FileInfo
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from psyclone.parse.module_manager import ModuleManager
-    from psyclone.configuration import Config
 
 
 # ============================================================================
@@ -87,7 +86,7 @@ class ModuleInfo:
     :type finfo: :py:class:`psyclone.parse.FileInfo`
 
     '''
-    def __init__(self, name, finfo, module_manager: ModuleManager):
+    def __init__(self, name, finfo, module_manager: ModuleManager = None):
         self._name: str = name.lower()
         self._file_info: FileInfo = finfo
         self._module_manager: ModuleManager = module_manager
@@ -164,6 +163,7 @@ class ModuleInfo:
             self._parse_attempted = True
 
             from psyclone.configuration import Config
+
             reader = FortranStringReader(
                 self.get_source_code(),
                 include_dirs=Config.get().include_paths)
@@ -283,8 +283,10 @@ class ModuleInfo:
                       f"'{err}'")
                 return None
 
-            # Attach module manager to it after being loaded
-            self._psyir.set_module_manager(self._module_manager)
+            # If the module manager is already associated to this module,
+            # also update the psyir root note with it.
+            if self._module_manager is not None:
+                self._psyir.set_module_manager(self._module_manager)
 
         # Return the Container with the correct name.
         for cntr in self._psyir.walk(Container):
@@ -303,6 +305,12 @@ class ModuleInfo:
 
         raise InternalError(f"File '{self.filename}' does not contain a "
                             f"module named '{self.name}'")
+
+    def set_module_manager(self, module_manager: ModuleManager):
+
+        assert self._module_manager is None, "Module manager already set"
+
+        self._psyir.set_module_manager(self._module_manager)
 
     # ------------------------------------------------------------------------
     def get_symbol(self, name):

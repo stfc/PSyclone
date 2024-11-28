@@ -489,7 +489,8 @@ class Node():
                 return
 
             assert root._module_manager is module_manager, (
-                "Tried to assign a psyir tree to two different module managers")
+                "Tried to assign a psyir tree to two different module"
+                " managers")
 
         self._module_manager = module_manager
 

@@ -71,7 +71,8 @@ def init_module_manager():
         os.path.dirname(os.path.dirname(infrastructure_path)))))
     read_mod_path = os.path.join(psyclone_root, "lib", "extract", "standalone")
     # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
+
+    ModuleManager._test_helper_reset()
 
     module_manager = ModuleManager.get()
     module_manager.add_search_path(infrastructure_path)
@@ -81,7 +82,7 @@ def init_module_manager():
     yield
 
     # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
+    ModuleManager._test_helper_reset()
 
 
 # ----------------------------------------------------------------------------

@@ -60,6 +60,21 @@ def test_mod_manager_instance():
 
 
 # ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_mod_manager_instance():
+    '''Tests the singleton functionality.'''
+    mod_man1 = ModuleManager.get()
+    mod_man2 = ModuleManager.get()
+    assert mod_man1 is mod_man2
+
+    with pytest.raises(InternalError) as err:
+        ModuleManager()
+
+    assert ("You need to use 'ModuleManager.get()' to get the singleton "
+            "instance." in str(err.value))
+
+
+# ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_directory_reading():

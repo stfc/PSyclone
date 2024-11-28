@@ -261,10 +261,11 @@ def clear_module_manager_instance():
     '''
 
     # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
+    
+    ModuleManager._test_helper_reset()
 
     # Now execute all tests
     yield
 
     # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
+    ModuleManager._test_helper_reset()
