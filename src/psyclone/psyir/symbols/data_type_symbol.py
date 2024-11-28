@@ -77,7 +77,8 @@ class DataTypeSymbol(Symbol):
 
         '''
         return type(self)(self.name, self.datatype, visibility=self.visibility,
-                          interface=self.interface.copy(), is_class=self.is_class)
+                          interface=self.interface.copy(),
+                          is_class=self.is_class)
 
     def __str__(self):
         return f"{self.name}: {type(self).__name__}"

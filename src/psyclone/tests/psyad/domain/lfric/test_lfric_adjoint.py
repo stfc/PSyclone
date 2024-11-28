@@ -52,7 +52,6 @@ from psyclone.psyad.domain.lfric.lfric_adjoint import (
     _update_access_metadata, _check_or_add_access_symbol)
 from psyclone.psyir.symbols import (
     DataSymbol, ArgumentInterface, INTEGER_TYPE, REAL_TYPE, StructureType)
-from psyclone.psyir.transformations import TransformationError
 
 
 def test_generate_lfric_adjoint_no_container_error(fortran_reader):

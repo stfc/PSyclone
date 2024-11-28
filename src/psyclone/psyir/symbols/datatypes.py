@@ -1003,8 +1003,9 @@ class StructureType(DataType):
     @property
     def extends(self):
         '''
-        :returns: the type that this new type extends.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+        :returns: the type that this new type extends, or None.
+        :rtype: Union[:py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
+                      None]
 
         '''
         return self._extends

@@ -2125,8 +2125,8 @@ class Fparser2Reader():
                 else:
                     datatype = symbol.datatype
                     initial_value = symbol.initial_value
-                    dtype.add_component(symbol.name, datatype, symbol.visibility,
-                              initial_value)
+                    dtype.add_component(symbol.name, datatype,
+                                        symbol.visibility, initial_value)
 
             # Update its type with the definition we've found
             tsymbol.datatype = dtype
