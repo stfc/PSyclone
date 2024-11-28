@@ -370,13 +370,6 @@ class Config:
         for module_name in ignore_modules:
             self._ignore_modules.append(module_name)
 
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.parse import ModuleManager
-        mod_manager = ModuleManager.get()
-        for module_name in ignore_modules:
-            mod_manager.add_ignore_module(module_name)
-
         # Set the flag that the config file has been loaded now.
         Config._HAS_CONFIG_BEEN_INITIALISED = True
 

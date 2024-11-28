@@ -153,7 +153,7 @@ def int_entry_fixture(request):
     return request.param
 
 
-def get_config(config_file, content):
+def get_config(config_file, content, config: Config = None):
     ''' A utility function that creates and populates a temporary
     PSyclone configuration file for testing purposes.
 
@@ -168,11 +168,13 @@ def get_config(config_file, content):
     # Create and populate a temporary config file
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
-        new_cfg.close()
+
     # Create and populate a test Config object
-    config_obj = Config()
-    config_obj.load(config_file=str(config_file))
-    return config_obj
+    if config is None:
+        config = Config()
+
+    config.load(config_file=str(config_file))
+    return config
 
 
 def test_get_repo_config_file():
@@ -709,10 +711,12 @@ def test_ignore_modules(tmpdir, monkeypatch):
     '''Test that the config file ignores modules, i.e. adds them to the
     ModuleManager. '''
 
-    mod_manager = ModuleManager._instance
+    config = Config.get()
+    mod_manager = ModuleManager(config=config)
+
     monkeypatch.setattr(mod_manager, "_ignore_modules", set())
     config_file = tmpdir.join("config")
-    config = get_config(config_file, _CONFIG_CONTENT)
+    get_config(config_file, _CONFIG_CONTENT, config)
     mod_manager.load_from_config(config)
 
     assert mod_manager.ignores() == {'mpi', 'netcdf'}
@@ -723,7 +727,7 @@ def test_ignore_modules(tmpdir, monkeypatch):
                      "",
                      _CONFIG_CONTENT, flags=re.MULTILINE)
     monkeypatch.setattr(mod_manager, "_ignore_modules", set())
-    get_config(config_file, content)
+    get_config(config_file, content, config)
     assert mod_manager.ignores() == set()
 
     # Make sure an empty entry works as expected (i.e. it does not get
@@ -732,7 +736,7 @@ def test_ignore_modules(tmpdir, monkeypatch):
                      "IGNORE_MODULES= ",
                      _CONFIG_CONTENT, flags=re.MULTILINE)
     monkeypatch.setattr(mod_manager, "_ignore_modules", set())
-    get_config(config_file, content)
+    get_config(config_file, content, config)
     assert mod_manager.ignores() == set()
 
 

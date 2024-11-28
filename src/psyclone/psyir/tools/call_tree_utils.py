@@ -340,11 +340,13 @@ class CallTreeUtils():
                               f"'{kernel.module_name}' - ignored.")
                         continue
                     todo.extend(self.get_non_local_symbols(psyir))
-        return self._resolve_calls_and_unknowns(todo, read_write_info)
+        return self._resolve_calls_and_unknowns(todo, read_write_info, mod_manager)
 
     # -------------------------------------------------------------------------
     def _resolve_calls_and_unknowns(self, outstanding_nonlocals,
-                                    read_write_info):
+                                    read_write_info,
+                                    module_manager: ModuleManager
+                                ):
         '''This function updates the list of non-local symbols by:
         1. replacing all subroutine calls with the list of their corresponding
             non-local symbols.
@@ -367,7 +369,6 @@ class CallTreeUtils():
         '''
         # pylint: disable=too-many-branches, too-many-locals
         # pylint: disable=too-many-statements
-        mod_manager = ModuleManager.get()
         done = set()
         # Using a set here means that duplicated entries will automatically
         # be filtered out.
@@ -380,7 +381,7 @@ class CallTreeUtils():
                 continue
             done.add(info)
             external_type, module_name, signature, access_info = info
-            if module_name in mod_manager.ignores():
+            if module_name in module_manager.ignores():
                 continue
             if external_type == "routine":
                 if module_name is None:
@@ -392,7 +393,7 @@ class CallTreeUtils():
                           f"Unknown routine '{signature[0]} - ignored.")
                     continue
                 try:
-                    mod_info = mod_manager.get_module_info(module_name)
+                    mod_info = module_manager.get_module_info(module_name)
                 except FileNotFoundError:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
@@ -432,7 +433,7 @@ class CallTreeUtils():
                 # It could be a function (TODO #1314) or a variable. Check if
                 # there is a routine with that name in the module information:
                 try:
-                    mod_info = mod_manager.get_module_info(module_name)
+                    mod_info = module_manager.get_module_info(module_name)
                 except FileNotFoundError:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
