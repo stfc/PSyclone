@@ -43,6 +43,17 @@
 # The dl_esm_inf extract wrapper library:
 #     export EXTRACT_DIR = ../../../../lib/extract/netcdf/dl_esm_inf
 
+MPI?=no
+
+ifeq ($(MPI), yes)
+	# -P suppresses linemarkers
+	FPP?=cpp -P -D_MPI
+	# We need to compile with mpif90 if MPI is enabled
+	F90?=mpif90
+else
+	FPP?=cpp -P
+endif
+
 PSYROOT=../../../..
 include $(PSYROOT)/examples/common.mk
 
@@ -51,7 +62,8 @@ TYPE?=standalone
 
 GENERATED_FILES += *.o *.mod $(NAME)  alg.f90 psy.f90   \
 		  $(DRIVER_INIT).$(TYPE)   $(DRIVER_INIT).f90   \
-		  $(DRIVER_UPDATE).$(TYPE) $(DRIVER_UPDATE).f90
+		  $(DRIVER_UPDATE).$(TYPE) $(DRIVER_UPDATE).f90 \
+		  main.x90
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -110,13 +122,13 @@ $(NAME): $(INF_LIB) $(EXTRACT_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
 #TODO #1757: $(INF_LIB) is required because of the meta-data in the
 #            kernel - once this is fixed, $(INF_LIB) can be removed.
 $(DRIVER_INIT).$(TYPE):	$(KERNELS) $(DRIVER_INIT).o
-	$(F90) $(KERNELS) $(DRIVER_INIT).o -o $(DRIVER_INIT).$(TYPE) \
+	$(F90) $(F90FLAGS) $(KERNELS) $(DRIVER_INIT).o -o $(DRIVER_INIT).$(TYPE) \
 		$(INF_LIB) $(EXTRACT_DIR)/$(LIB_NAME) $(LDFLAGS)
 
 #TODO #1757: $(INF_LIB) is required because of the meta-data in the
 #            kernel - once this is fixed, $(INF_LIB) can be removed.
 $(DRIVER_UPDATE).$(TYPE): $(KERNELS) $(DRIVER_UPDATE).o
-	$(F90) $(KERNELS) $(DRIVER_UPDATE).o -o $(DRIVER_UPDATE).$(TYPE) \
+	$(F90) $(F90FLAGS) $(KERNELS) $(DRIVER_UPDATE).o -o $(DRIVER_UPDATE).$(TYPE) \
 		$(INF_LIB) $(EXTRACT_DIR)/$(LIB_NAME) $(LDFLAGS)
 
 # The dl_esm_inf library
@@ -141,6 +153,9 @@ $(KERNELS):  $(INF_LIB)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
+
+%.x90: %.X90
+	$(FPP) $< >$@
 
 # This target requires that the netcdf (Fortran) development package be
 # installed

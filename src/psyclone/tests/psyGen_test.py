@@ -412,8 +412,9 @@ def test_invokeschedule_node_str():
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="lfric")
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
+    symbol = RoutineSymbol("name")
     # Create a plain InvokeSchedule
-    sched = InvokeSchedule('name', None, None)
+    sched = InvokeSchedule(symbol, None, None)
     # Manually supply it with an Invoke object created with the Dynamo API.
     sched._invoke = psy.invokes.invoke_list[0]
     output = sched.node_str()
@@ -1141,7 +1142,6 @@ def test_named_invoke_name_clash(tmpdir):
                            api="lfric")
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-
     assert ("SUBROUTINE invoke_a(invoke_a_1, b, istp, rdt, d, e, ascalar, "
             "f, c, g, qr)") in gen
     assert "TYPE(field_type), intent(in) :: invoke_a_1" in gen
@@ -2212,24 +2212,44 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
         assert "map_w2, &\n&ndf_w3" in testfile.read()
 
 
-def test_walk():
+def test_walk(fortran_reader):
     '''Tests the walk functionality.'''
 
     # This function contains only umask(ji,jj,jk) = ji*jj*jk/r
-    _, invoke = get_invoke("explicit_do.f90", "nemo", 0)
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        program explicit_do
+          implicit none
+          integer :: ji, jj, jk
+          integer, parameter :: jpi=2, jpj=4, jpk=6
+          real :: r
+          real, dimension(jpi,jpj,jpk) :: umask
+
+          ! Test code with explicit NEMO-style do loop
+          DO jk = 1, jpk
+             DO jj = 1, jpj
+                DO ji = 1, jpi
+                   umask(ji,jj,jk) = ji*jj*jk/r
+                END DO
+             END DO
+          END DO
+
+        end program explicit_do
+        '''
+    )
 
     # Test without stop type: one assignment
-    assignment_list = invoke.schedule.walk(Assignment)
+    assignment_list = psyir.walk(Assignment)
     assert len(assignment_list) == 1
 
     # Three binary operators: *, *, /
-    binary_op_list = invoke.schedule.walk(BinaryOperation)
+    binary_op_list = psyir.walk(BinaryOperation)
     assert len(binary_op_list) == 3
 
     # Now the same tests, but stop at any Loop --> no assignment
     # or binary operation should be found"
-    assignment_list = invoke.schedule.walk(Assignment, Loop)
+    assignment_list = psyir.walk(Assignment, Loop)
     assert not assignment_list
 
-    binary_op_list = invoke.schedule.walk(BinaryOperation, Loop)
+    binary_op_list = psyir.walk(BinaryOperation, Loop)
     assert not binary_op_list

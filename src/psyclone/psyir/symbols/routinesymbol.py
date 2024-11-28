@@ -164,8 +164,10 @@ class RoutineSymbol(TypedSymbol):
         '''
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
-        return type(self)(self.name, self.datatype, visibility=self.visibility,
-                          interface=self.interface, is_pure=self.is_pure,
+        return type(self)(self.name, self.datatype.copy(),
+                          visibility=self.visibility,
+                          interface=self.interface.copy(),
+                          is_pure=self.is_pure,
                           is_elemental=self.is_elemental)
 
 

@@ -37,8 +37,8 @@
 ..          L. Turner, Met Office
 
 
-The PSyclone Internal Representation (PSyIR)
-############################################
+The PSyclone Intermediate Representation (PSyIR)
+################################################
 
 The PSyclone Intermediate Representation (PSyIR) is a language-independent
 Intermediate Representation that PSyclone uses to represent the PSy (Parallel
@@ -256,6 +256,24 @@ relationship.
 
 Methods like ``node.detach()``, ``node.copy()`` and ``node.pop_all_children()``
 can be used to move or replicate existing children into different nodes. 
+
+Tree Copying
+============
+
+The ability to create a deep-copy of a PSyIR tree is used heavily in PSyclone,
+primarily by the PSyIR backends. (This is because those backends often need
+to modify the tree while ensuring that the one provided by the caller remains
+unchanged.) As mentioned in the previous section, the ``node.copy()`` method
+provides this functionality:
+
+.. automethod:: psyclone.psyir.nodes.Node.copy
+
+As part of this copy operation, all Symbols referred to in the new tree must
+also be replaced with their equivalents from the symbol tables in the new tree.
+Since these symbol tables are associated with instances of ``ScopingNode``, it
+is ``ScopingNode._refine_copy`` which handles this:
+
+.. automethod:: psyclone.psyir.nodes.ScopingNode._refine_copy
 
 .. _update_signals_label:
 

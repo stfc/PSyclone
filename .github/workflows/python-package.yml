@@ -52,34 +52,32 @@ on:
   workflow_dispatch:
 
 jobs:
-  markdown-link-check:
-    if: ${{ github.repository != 'stfc/PSyclone-mirror' }}
-    # Check all markdown files for dead links. See the 'mlc_config.json'
-    # file in the project root directory for configuration.
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@master
-    - uses: gaurav-nelson/github-action-markdown-link-check@v1
-      with:
-        use-verbose-mode: 'yes'
-        config-file: '.github/workflows/mlc_config.json'
-  sphinx-link-check:
+  build-documentation:
     if: ${{ github.repository != 'stfc/PSyclone-mirror' }}
     # Check all Sphinx documentation for dead links.
     runs-on: ubuntu-latest
     env:
       GITHUB_PR_NUMBER: ${{ github.event.number }}
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
     - run: sudo apt-get install -y graphviz doxygen
     - run: python -m pip install --upgrade pip
     - run: pip install .[doc]
+    # First we need to build the docs and launch a server, otherwise the
+    # intershpinx links would be broken
     - run: cd doc/user_guide; make html
     - run: cd doc/developer_guide; make html
     - run: cd doc/reference_guide; make html
     - run: cd doc/psyad/user_guide; make html
     - run: cd doc; python -m http.server &
+    # Now we can check for warnings and broken links
+    - run: cd doc/user_guide; make html SPHINXOPTS="-W --keep-going"
+    - run: cd doc/developer_guide; make html SPHINXOPTS="-W --keep-going"
+    - run: cd doc/reference_guide; make html SPHINXOPTS="-W --keep-going"
+    - run: cd doc/psyad/user_guide; make html SPHINXOPTS="-W --keep-going"
     - run: cd doc/user_guide; make linkcheck
     - run: cd doc/developer_guide; make linkcheck
     - run: cd doc/reference_guide; make linkcheck
@@ -89,8 +87,10 @@ jobs:
     # Check doctests of developer's guide
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
     - run: python -m pip install --upgrade pip
     - run: pip install .[doc]
     # Sphinx since version 7.2 (7.2.0/1/2) aborts with
@@ -106,9 +106,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.12]
+        python-version: [3.7, 3.8, 3.13]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
         # This is required to get the commit history for merge commits for
@@ -146,7 +146,8 @@ jobs:
     - name: Run tutorials
       run: |
         ( make -C tutorial/practicals transform > /dev/null )
-        ( make -C tutorial/notebooks notebook )
+        # Jupyter notebooks are out-of-date
+        # ( make -C tutorial/notebooks notebook )
     - name: Test with pytest
       if: ${{ !(matrix.python-version == 3.8) }}
       run: |

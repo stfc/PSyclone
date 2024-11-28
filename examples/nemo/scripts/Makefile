@@ -1,5 +1,5 @@
 # Makefile to Generate PSyclone versions of NEMO, Compile, and Run them.
-# It supports the targets: serial (only compile), openmp-cpu, openmp-gpu, openacc-kernels
+# It supports the targets: serial (only compile and run), openmp-cpu, openmp-gpu, openacc-kernels
 # - To generate the psycloned versions use: `make <target>` 
 # - To compile that version use: `make compile-<target>`
 # - To run that version use: `make run-<target>`
@@ -8,8 +8,6 @@
 
 # - Specify NEMO directory
 # NEMO_DIR ?=
-# - Specify location of PSyclone transformation scripts
-PSYCLONE_NEMO_DIR ?= ${WORKSPACE}/PSyclone/examples/nemo/scripts
 # - Specify location of preprocessed files - you need to call 'make compile-serial' once first)
 # ROOT_SRC ?=
 # Where to find the MPI header files
@@ -21,28 +19,25 @@ TEST_CASE ?= SPITZ12
 # ADD_KEYS ?= 
 # DEL_KEYS ?=
 # - Specify input files
-# MODEL_DIR ?=
-# NAMELISTS_DIR ?=
+# INPUT_DIR ?=
 
 # Example Config for MetOffice - eORCA1_GO8 - nvidia
-NEMO_DIR ?= ${WORKSPACE}/NEMO
+NEMO_DIR ?= ${WORKSPACE}/NEMO_MO
 ROOT_SRC ?= ${NEMO_DIR}/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
 MPI_INC_DIR ?= ${NVHPC_ROOT}/comm_libs/latest/hpcx/latest/ompi/include
 COMPILER_ARCH ?= linux_nvidia_omp_gpu
 ADD_KEYS ?= "IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
 DEL_KEYS ?= "key_iomput key_mpp_mpi key_si3"
-MODEL_DIR ?= /home/aporter/NEMO/orca1_inputs/
-NAMELISTS_DIR ?= ${NEMO_DIR}/
+INPUT_DIR ?= /archive/NEMO_INPUTS/NEMOv4/MO/eORCA1_GO8/
 
 # Example Config for ECMWF - eORCA1_GO8_Z75 (with MPI and SI3) - intel compiler
-# NEMO_DIR ?= ${WORKSPACE}/ecmwf_nemo/nemo/NEMOGCM_V40/
+# NEMO_DIR ?= ${WORKSPACE}/NEMO_ESMWF_V40
 # ROOT_SRC ?= ${NEMO_DIR}/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
 # MPI_INC_DIR ?= ${I_MPI_ROOT}/include
 # COMPILER_ARCH ?= linux_intel
 # ADD_KEYS ?= "IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
 # DEL_KEYS ?= "key_iomput"
-# MODEL_DIR ?= /archive/ssiso/ecmwf_eORCA1_GO8/
-# NAMELISTS_DIR ?= ${WORKSPACE}/ecmwf_nemo/nemo/testscripts_V40/output/openmp_outer_V40_eORCA1_GO8_Z75_20170906_cray_dp_1x1/
+# INPUT_DIR ?= /archive/NEMO_INPUTS/NEMOv4/ECMWF/eORCA1_GO8/
 
 # ---- End of configuration section - do not edit below this point ----
 
@@ -61,24 +56,21 @@ $(OUTPUT_FOLDERS):
 $(TARGETS): % : $(addprefix psycloned-%/, $(notdir $(SRC_FILES)))
 	@echo "Finished generating $@"
 
-# PSyclone instructions for each target type.
-
-# We perform a 'passthrough' test by simply not providing a transformation
-# script.
+# PSyclone instructions for each transformation recipe
 psycloned-passthrough/%.f90: ${ROOT_SRC}%.f90 psycloned-passthrough
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o psycloned-passthrough $<
+	psyclone -s passthrough.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openmp_cpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_cpu
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o psycloned-openmp_cpu $<
+	psyclone -s omp_cpu_trans.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openmp_gpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_gpu
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o psycloned-openmp_gpu $<
+	psyclone -s omp_gpu_trans.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openacc_kernels/%.f90: ${ROOT_SRC}%.f90 psycloned-openacc_kernels
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/acc_kernels_trans.py -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o psycloned-openacc_kernels $<
+	psyclone -s acc_kernels_trans.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openacc_loops/%.f90: ${ROOT_SRC}%.f90 psycloned-openacc_loops
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/acc_loops_trans.py -I ${ROOT_SRC} -o psycloned-openacc_loops $<
+	psyclone -s acc_loops_trans.py -l output -I ${ROOT_SRC} -o $@ $<
 
 # Get the number of Makefile parallel jobs to pass it to the makenemo
 MAKE_PID := $(shell echo $$PPID)
@@ -104,15 +96,17 @@ compile-serial:
 
 # Run NEMO
 run-%:
-	 ln -sf ${MODEL_DIR}/*.nc ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
-	 cp ${NAMELISTS_DIR}namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	 # Symlink nc files as they are big, but cp namelists so they can be modified
+	 ln -sf ${INPUT_DIR}/*.nc ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	 cp ${INPUT_DIR}/namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
 	 cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; ./nemo
 	 cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; cat timing.output; cat run.stat
 
 # Run NEMO with NVPROF
 nvprof-%:
-	 ln -sf ${MODEL_DIR}/*.nc ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
-	 cp ${NAMELISTS_DIR}namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	 # Symlink nc files as they are big, but cp namelists so they can be modified
+	 ln -sf ${INPUT_DIR}/*.nc ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	 cp ${INPUT_DIR}/namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
 	 cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; nsys profile ./nemo
 
 # Clean (only psycloned- folders)

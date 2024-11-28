@@ -34,8 +34,7 @@
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
 
-'''PSyclone Internal Representation intrinsics transformation
-module. Contains all transformations that act on PSyIR intrinsic
-functions.
+'''PSyIR intrinsics transformation module. Contains all transformations that
+act on PSyIR intrinsic functions.
 
 '''

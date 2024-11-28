@@ -80,13 +80,32 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "test_files", "gocean1p0")
 
 
-def delete_module(modname):
-    '''A function to remove a module from Python's internal modules
-    list. This is useful as some tests affect others by importing
-    modules.
+@pytest.fixture(name="script_factory", scope="function")
+def create_script_factor(tmpdir):
+    ''' Fixture that creates a psyclone optimisation script given the string
+    representing the body of the script:
+
+        script_path = script_factory("def trans(psyir):\n  pass")
+
+    It has a 'function' scope and a tear down section because using a script
+    imports the file and this is kept in the python interpreter state, so we
+    delete it for future tests.
 
     '''
-    del modules[modname]
+    tmpfile = os.path.join(tmpdir, "test_script.py")
+
+    def populate_script(string):
+        with open(tmpfile, 'w+', encoding="utf8") as script:
+            script.write(string)
+        return tmpfile
+
+    yield populate_script
+    # Tear down section executed after each test that uses the fixture
+    # If the created script was used, then its module (file) was imported
+    # into the interpreter runtime, we need to make sure it is deleted
+    modname = "test_script"
+    if modname in modules:
+        del modules[modname]
     for mod in modules.values():
         try:
             delattr(mod, modname)
@@ -94,12 +113,10 @@ def delete_module(modname):
             pass
 
 
-# handle_script() tests
-
 def test_script_file_not_found():
-    '''Checks that handle_script() in generator.py raises the expected
+    '''Checks that load_script() in generator.py raises the expected
     exception when a script file is supplied that does not exist. This test
-    uses the generate() function to call handle_script as this is a simple way
+    uses the generate() function to call load_script as this is a simple way
     to create its required arguments.
 
     '''
@@ -111,9 +128,9 @@ def test_script_file_not_found():
 
 
 def test_script_file_no_extension():
-    '''Checks that handle_script() in generator.py raises the expected
+    '''Checks that load_script() in generator.py raises the expected
     exception when a script file does not have an extension. This test
-    uses the generate() function to call handle_script as this is a
+    uses the generate() function to call load_script as this is a
     simple way to create its required arguments.
 
     '''
@@ -128,9 +145,9 @@ def test_script_file_no_extension():
 
 
 def test_script_file_wrong_extension():
-    '''Checks that handle_script() in generator.py raises the expected
+    '''Checks that load_script() in generator.py raises the expected
     exception when a script file does not have the '.py' extension. This test
-    uses the generate() function to call handle_script as this is a simple way
+    uses the generate() function to call load_script as this is a simple way
     to create its required arguments.
 
     '''
@@ -144,87 +161,122 @@ def test_script_file_wrong_extension():
             "extension" in str(error.value))
 
 
-def test_script_invalid_content():
-    '''Checks that handle_script() in generator.py raises the expected
+def test_script_invalid_content(script_factory):
+    '''Checks that load_script() in generator.py raises the expected
     exception when a script file does not contain valid python. This
-    test uses the generate() function to call handle_script as this is
+    test uses the generate() function to call load_script as this is
     a simple way to create its required arguments.
 
     '''
-    with pytest.raises(GenerationError) as error_syntax:
+    error_syntax = script_factory("""
+this is invalid python
+    """)
+    with pytest.raises(Exception) as err:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="lfric", script_name=os.path.join(BASE_PATH, "dynamo0p3",
-                                                  "error_syntax.py"))
-    assert ("attempted to import specified PSyclone transformation module "
-            "'error_syntax' but a problem was found: "
-            in str(error_syntax.value))
+            api="lfric", script_name=error_syntax)
+    assert ("invalid syntax (test_script.py, line 2)" in str(err.value))
 
-    with pytest.raises(GenerationError) as error_import:
+    error_import = script_factory("""
+import non_existent
+    """)
+    with pytest.raises(Exception) as err:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="lfric", script_name=os.path.join(BASE_PATH, "dynamo0p3",
-                                                  "error_import.py"))
-    assert ("attempted to import specified PSyclone transformation module "
-            "'error_import' but a problem was found: "
-            in str(error_import.value))
+            api="lfric", script_name=error_import)
+    assert "No module named 'non_existent'" in str(err.value)
 
 
-def test_script_invalid_content_runtime():
-    '''Checks that handle_script() function in generator.py raises the
+def test_script_invalid_content_runtime(script_factory):
+    '''Checks that load_script() function in generator.py raises the
     expected exception when a script file contains valid python
     syntactically but produces a runtime exception. This test uses the
-    generate() function to call handle_script as this is a simple way
+    generate() function to call load_script as this is a simple way
     to create its required arguments.
 
     '''
-    with pytest.raises(GenerationError) as error:
+    runtime_error = script_factory("""
+def trans(psyir):
+    # this will produce a runtime error as b has not been assigned
+    psyir = b
+    """)
+    with pytest.raises(Exception) as error:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="lfric",
-            script_name=os.path.join(
-                BASE_PATH, "dynamo0p3", "runtime_error.py"))
-    assert ("raised the following exception during execution..."
-            in str(error.value))
-    assert ("line 3, in trans\n"
-            "    psy = b\n" in str(error.value))
-    assert ("    NameError: name 'b' is not defined\n"
-            "}\n"
-            "please check your script" in str(error.value))
+            api="lfric", script_name=runtime_error)
+    assert "name 'b' is not defined" in str(error.value)
 
 
-def test_script_no_trans():
-    '''Checks that handle_script() function in generator.py raises the
+def test_script_no_trans(script_factory):
+    '''Checks that load_script() function in generator.py raises the
     expected exception when a script file does not contain a trans()
     function. This test uses the generate() function to call
-    handle_script as this is a simple way to create its required
+    load_script as this is a simple way to create its required
     arguments.
 
     '''
+    no_trans_script = script_factory("""
+def nottrans(psyir):
+    pass
+
+def tran():
+    pass
+""")
     with pytest.raises(GenerationError) as error:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="lfric",
-            script_name=os.path.join(
-                BASE_PATH, "dynamo0p3", "no_trans.py"))
+            api="lfric", script_name=no_trans_script)
     assert ("attempted to use specified PSyclone transformation module "
-            "'no_trans' but it does not contain a 'trans' function"
+            "'test_script' but it does not contain a callable 'trans' function"
             in str(error.value))
 
 
-def test_script_no_trans_alg():
-    '''Checks that handle_script() function in generator.py does not raise
+def test_script_no_trans_alg(capsys, script_factory):
+    '''Checks that load_script() function in generator.py does not raise
     an exception when a script file does not contain a trans_alg()
     function as these are optional. At the moment this function is
     only supported in the gocean API. This test uses the generate()
-    function to call handle_script as this is a simple way to create
+    function to call load_script as this is a simple way to create
     its required arguments.
 
     '''
+    no_alg_script = script_factory("def trans(psyir):\n  pass")
     _, _ = generate(
         os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
-        api="gocean",
-        script_name=os.path.join(BASE_PATH, "gocean1p0", "script.py"))
+        api="gocean", script_name=no_alg_script)
+
+    # The legacy script deprecation warning is not printed in this case
+    captured = capsys.readouterr()
+    assert "Deprecation warning:" not in captured.err
+
+
+def test_script_with_legacy_trans_signature(capsys, script_factory):
+    '''Checks that load_script() function in generator.py does not raise
+    an exception when a script file uses the legacy trans signature.
+
+    These are scripts that receive a PSy object and use the psy.invokes....
+    to access the PSyIR.
+
+    This will eventually be deprecated.
+
+    '''
+    legacy_script = script_factory("""
+def trans(psy):
+    # The following are backwards-compatible expressions with legacy scripts
+    _ = psy.invokes.invoke_list
+    _ = psy.invokes.names
+    return psy
+""")
+    _, _ = generate(
+        os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
+        api="gocean", script_name=legacy_script)
+
+    # The deprecation warning message was printed
+    captured = capsys.readouterr()
+    assert ("Deprecation warning: PSyclone script uses the legacy "
+            "transformation signature 'def trans(psy)', please update the "
+            "script to receive the root psyir node as argument."
+            in captured.err)
 
 
 # a set of unit tests for the generate function
@@ -235,7 +287,7 @@ def test_non_existent_filename():
 
     '''
     with pytest.raises(IOError):
-        generate("non_existent_file.f90")
+        generate("non_existent_file.f90", api="lfric")
 
 
 def test_invalid_api():
@@ -375,16 +427,23 @@ def test_no_script_gocean():
     assert "MODULE psy_single_invoke_test" in str(psy)
 
 
-def test_script_gocean():
+def test_script_gocean(script_factory):
     '''Test that the generate function in generator.py returns
     successfully if a script (containing both trans_alg() and trans()
     functions) is specified.
 
     '''
+    alg_script = script_factory("""
+def trans_alg(psyir):
+    pass
+
+def trans(psyir):
+    pass
+    """)
+
     _, _ = generate(
         os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
-        api="gocean",
-        script_name=os.path.join(BASE_PATH, "gocean1p0", "alg_script.py"))
+        api="gocean", script_name=alg_script)
 
 
 def test_profile_gocean():
@@ -401,41 +460,42 @@ def test_profile_gocean():
     Profiler._options = []
 
 
-def test_script_attr_error():
+def test_script_attr_error(script_factory):
     '''Checks that generator.py raises an appropriate error when a script
-    file contains a trans() function which raises an attribute
-    error. This is what we previously used to check for a script file
-    not containing a trans() function.
+    file contains a trans() function which raises an attribute error.
 
     '''
-    with pytest.raises(GenerationError) as excinfo:
+    error_script = script_factory("""
+from psyclone.psyGen import Loop
+from psyclone.transformations import ColourTrans
+
+def trans(psyir):
+    ''' A valid trans function which produces an attribute error as
+    we have mistyped apply()'''
+    ctrans = ColourTrans()
+    for child in psyir.walk(Loop):
+        if isinstance(child, Loop) and child.field_space != "w3":
+            ctrans.appy(child)
+""")
+    with pytest.raises(Exception) as excinfo:
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
-                        api="lfric",
-                        script_name=os.path.join(BASE_PATH,
-                                                 "dynamo0p3",
-                                                 "error_trans.py"))
+                        api="lfric", script_name=error_script)
     assert 'object has no attribute' in str(excinfo.value)
 
 
-def test_script_null_trans():
+def test_script_null_trans(script_factory):
     '''Checks that generator.py works correctly when the trans() function
-    in a valid script file does no transformations (it simply passes
-    input to output). In this case the valid script file has an
-    explicit path and must therefore exist at this location.
+    in a valid script file does no transformations.
 
     '''
+    empty_script = script_factory("def trans(psyir):\n  pass")
     alg1, psy1 = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                        "1_single_invoke.f90"),
                           api="lfric")
     alg2, psy2 = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                        "1_single_invoke.f90"),
-                          api="lfric",
-                          script_name=os.path.join(BASE_PATH,
-                                                   "dynamo0p3",
-                                                   "null_trans.py"))
-    # remove module so we do not affect any following tests
-    delete_module("null_trans")
+                          api="lfric", script_name=empty_script)
     # we need to remove the first line before comparing output as
     # this line is an instance specific header
     assert '\n'.join(str(alg1).split('\n')[1:]) == \
@@ -444,7 +504,7 @@ def test_script_null_trans():
         '\n'.join(str(psy2).split('\n')[1:])
 
 
-def test_script_null_trans_relative():
+def test_script_null_trans_relative(script_factory):
     '''Checks that generator.py works correctly when the trans() function
     in a valid script file does no transformations (it simply passes
     input to output). In this case the valid script file contains no
@@ -454,13 +514,15 @@ def test_script_null_trans_relative():
     alg1, psy1 = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                        "1_single_invoke.f90"),
                           api="lfric")
-    # set up the python path so that null_trans.py can be found
-    os.sys.path.append(os.path.join(BASE_PATH, "dynamo0p3"))
+    empty_script = script_factory("def trans(psyir):\n  pass")
+    basename = os.path.basename(empty_script)
+    path = os.path.dirname(empty_script)
+    # Set the script directory in the PYTHONPATH
+    os.sys.path.append(path)
     alg2, psy2 = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                        "1_single_invoke.f90"),
-                          api="lfric", script_name="null_trans.py")
-    # remove imported module so we do not affect any following tests
-    delete_module("null_trans")
+                          api="lfric", script_name=basename)
+    # Remove the path from PYTHONPATH
     os.sys.path.pop()
     # we need to remove the first line before comparing output as
     # this line is an instance specific header
@@ -469,12 +531,22 @@ def test_script_null_trans_relative():
     assert str(psy1) == str(psy2)
 
 
-def test_script_trans_dynamo0p3():
+def test_script_trans_dynamo0p3(script_factory):
     '''Checks that generator.py works correctly when a transformation is
     provided as a script, i.e. it applies the transformations
-    correctly. We use loop fusion as an example.
+    correctly.
 
     '''
+    fuse_loop_script = script_factory("""
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+def trans(psyir):
+    module = psyir.children[0]
+    schedule = [x for x in module.children if x.name == "invoke_0"][0]
+    loop1 = schedule.children[4]
+    loop2 = schedule.children[5]
+    transform = LFRicLoopFuseTrans()
+    transform.apply(loop1, loop2)
+""")
     root_path = os.path.dirname(os.path.abspath(__file__))
     base_path = os.path.join(root_path, "test_files", "dynamo0p3")
     # First loop fuse explicitly (without using generator.py)
@@ -490,22 +562,9 @@ def test_script_trans_dynamo0p3():
     generated_code_1 = psy.gen
     # Second loop fuse using generator.py and a script
     _, generated_code_2 = generate(parse_file, api="lfric",
-                                   script_name=os.path.join(
-                                       base_path, "loop_fuse_trans.py"))
-    # remove module so we do not affect any following tests
-    delete_module("loop_fuse_trans")
+                                   script_name=fuse_loop_script)
     # third - check that the results are the same ...
     assert str(generated_code_1) == str(generated_code_2)
-
-
-def test_api_no_alg():
-    ''' Checks that generate works OK for an API (NEMO) which doesn't have
-    an Algorithm layer '''
-    alg, psy = generate(os.path.join(NEMO_BASE_PATH, "explicit_do.f90"),
-                        api="nemo")
-    assert alg is None
-    assert isinstance(psy, str)
-    assert psy.startswith("program")
 
 
 def test_alg_lines_too_long_tested():
@@ -518,7 +577,7 @@ def test_alg_lines_too_long_tested():
     alg_filename = os.path.join(DYN03_BASE_PATH, "13_alg_long_line.f90")
     with pytest.raises(ParseError) as excinfo:
         _, _ = generate(alg_filename, api="lfric", line_length=True)
-    assert 'file does not conform' in str(excinfo.value)
+    assert "/13_alg_long_line.f90' does not conform" in str(excinfo.value)
 
 
 def test_alg_lines_too_long_not_tested():
@@ -542,7 +601,7 @@ def test_kern_lines_too_long_tested():
     alg_filename = os.path.join(DYN03_BASE_PATH, "13.1_kern_long_line.f90")
     with pytest.raises(ParseError) as excinfo:
         _, _ = generate(alg_filename, api="lfric", line_length=True)
-    assert 'file does not conform' in str(excinfo.value)
+    assert "/longkern_mod.f90' does not conform" in str(excinfo.value)
 
 
 def test_kern_lines_too_long_not_tested():
@@ -576,13 +635,37 @@ def test_main_version(capsys):
         with pytest.raises(SystemExit):
             main([arg])
         output, _ = capsys.readouterr()
-        assert f"Display version information ({__VERSION__})" in output
+        assert "display version information" in output
 
     for arg in ["-v", "--version"]:
         with pytest.raises(SystemExit) as _:
             main([arg])
         output, _ = capsys.readouterr()
         assert f"PSyclone version: {__VERSION__}" in output
+
+
+def test_wrong_flags_for_mode(capsys):
+    '''Tests that -o is not accepted for psykal and psykal-specific flags
+    are not accepted in code-transformation mode.'''
+
+    # Code-transformation mode
+    filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    for flag in ["-okern", "-opsy", "-oalg", "-d"]:
+        with pytest.raises(SystemExit):
+            main([filename, flag, "FILE"])
+        output, _ = capsys.readouterr()
+        assert ("When using the code-transformation mode (with no -api or"
+                " --psykal-dsl flags), the psykal-mode arguments must not "
+                "be present in the command, but found" in output)
+
+    # PSyKAl-DSL mode
+    filename = os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90")
+    with pytest.raises(SystemExit):
+        main([filename, "--psykal-dsl", "gocean", "-o", "FILE"])
+    output, _ = capsys.readouterr()
+    assert ("The '-o' flag is not valid when using the psykal mode (-api/"
+            "--psykal-dsl flag), use the -oalg, -opsy, -okern to specify the "
+            "output destination of each psykal layer." in output)
 
 
 def test_main_profile(capsys):
@@ -628,13 +711,19 @@ def test_main_profile(capsys):
 
     assert re.search(correct_re, outerr) is not None
 
-    # Check that 'kernels' is rejected for the 'nemo' API.
+    # Check 'kernels' and 'invokes' are rejected when not using a PSyKAl DSL
     Profiler._options = []
     with pytest.raises(SystemExit):
-        main(["-api", "nemo", "--profile", "kernels", filename])
+        main(["--profile", "kernels", filename])
     _, outerr = capsys.readouterr()
-    assert ("The 'kernels' automatic profiling option is not compatible with "
-            "the 'nemo' API." in outerr)
+    assert ("Invalid profiling option: The profiling 'kernels' and 'invokes' "
+            "options are only available when using PSyKAl DSLs." in outerr)
+
+    with pytest.raises(SystemExit):
+        main(["--profile", "invokes", filename])
+    _, outerr = capsys.readouterr()
+    assert ("Invalid profiling option: The profiling 'kernels' and 'invokes' "
+            "options are only available when using PSyKAl DSLs." in outerr)
 
     # Reset profile flags to avoid further failures in other tests
     Profiler._options = []
@@ -653,8 +742,8 @@ def test_main_invalid_api(capsys):
     # The error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
-    expected_output = ("Unsupported API 'madeup' specified. Supported APIs "
-                       "are ['lfric', 'gocean'].\n")
+    expected_output = ("Unsupported PSyKAL DSL / API 'madeup' specified. "
+                       "Supported DSLs are ['lfric', 'gocean'].\n")
     assert output == expected_output
 
 
@@ -668,13 +757,14 @@ def test_main_api():
     main([filename])
     assert Config.get().api == ""
 
-    # We accept nemo for backward compatibility, but it acts as no API
-    main([filename, "-api", "nemo"])
-    assert Config.get().api == ""
-
     filename = os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90")
     # Check that a command line option sets the API value
     main([filename, "-api", "gocean"])
+    assert Config.get().api == "gocean"
+
+    # Reset api and try with "--psykal-dsl" flag
+    Config.get().api = ""
+    main([filename, "--psykal-dsl", "gocean"])
     assert Config.get().api == "gocean"
 
     main([filename, "-api", "gocean1.0"])
@@ -778,6 +868,72 @@ def test_main_expected_fatal_error(capsys):
     assert output == expected_output
 
 
+def test_code_transformation_skip_files_error(tmpdir, capsys):
+    ''' Test that applying recipes in the code-transformation mode skips the
+    files marked as FILES_TO_SKIP '''
+    code = '''
+       ! This is a Fortran file with a funny syntax
+       MoDUle             MYmod
+       enD    Module      MYmod
+    '''
+    recipe = '''
+FILES_TO_SKIP = ["funny_syntax.f90"]
+
+def trans(psyir):
+    assert False
+    '''
+    inputfile = str(tmpdir.join("funny_syntax.f90"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    recipefile = str(tmpdir.join("recipe.py"))
+    with open(recipefile, "w", encoding='utf-8') as my_file:
+        my_file.write(recipe)
+
+    # Execute the recipe with FILES_TO_SKIP (it should not call the
+    # recipe assert because the file is skipped)
+    outputfile = str(tmpdir.join("output.f90"))
+    main([inputfile, "-s", recipefile, "-o", outputfile])
+
+    # We can also check that the output syntax has not been normalised
+    with open(outputfile, "r", encoding='utf-8') as my_file:
+        new_code = my_file.read()
+    assert new_code == code
+
+    # When doing the same but without a '-o' (output file), we just print
+    # in stdout that the file was skipped.
+    outputfile = str(tmpdir.join("output.f90"))
+    main([inputfile, "-s", recipefile])
+    output, _ = capsys.readouterr()
+    assert ("funny_syntax.f90' skipped because it is listed in FILES_TO_SKIP."
+            in output)
+
+
+def test_code_transformation_trans(tmpdir):
+    ''' Test that applying recipes that have a trans, and are not listed
+    in the FILES_TO_SKIP, executes the recipe transformations. '''
+    code = '''
+       ! This is a Fortran file with a funny syntax
+       MoDUle             MYmod
+       enD    Module      MYmod
+    '''
+    recipe = '''
+def trans(psyir):
+    psyir.children[0].name = "newname"
+    '''
+    inputfile = str(tmpdir.join("funny_syntax.f90"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    recipefile = str(tmpdir.join("change_name.py"))
+    with open(recipefile, "w", encoding='utf-8') as my_file:
+        my_file.write(recipe)
+    outputfile = str(tmpdir.join("output.f90"))
+    main([inputfile, "-s", recipefile, "-o", outputfile])
+    # We will get the normalise syntax and the recipe code change
+    with open(outputfile, "r", encoding='utf-8') as my_file:
+        new_code = my_file.read()
+    assert "module newname\n" in new_code
+
+
 def test_generate_trans_error(tmpdir, capsys, monkeypatch):
     '''Test that a TransformationError exception in the generate function
     is caught and output as expected by the main function.  The
@@ -869,25 +1025,7 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     assert "TypeError: argument of type 'int' is not iterable" in output
 
 
-@pytest.mark.parametrize("limit", ['all', 'output'])
-def test_main_fort_line_length(capsys, limit):
-    '''Tests that the Fortran line length object works correctly. Without
-    the -l option one of the generated psy-layer lines would be longer
-    than 132 characters. Since it is in the output code, both the
-    'all' and 'output' options should cause the limit to be
-    applied.
-
-    '''
-    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "dynamo0p3",
-                             "10.3_operator_different_spaces.f90"))
-    main([filename, '-api', 'lfric', '-l', limit])
-    output, _ = capsys.readouterr()
-    assert all(len(line) <= 132 for line in output.split('\n'))
-
-
-@pytest.mark.parametrize("limit", [[], ['-l', 'off']])
-def test_main_fort_line_length_off(capsys, limit):
+def test_main_fort_line_length_off(capsys):
     '''Tests that the Fortran line-length limiting is off by default and
     is also disabled by `-l off`. One of the generated psy-layer lines
     should be longer than 132 characters.
@@ -896,28 +1034,62 @@ def test_main_fort_line_length_off(capsys, limit):
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
                              "10.3_operator_different_spaces.f90"))
-    main([filename, '-api', 'lfric'] + limit)
+    main([filename, '-api', 'lfric'])
+    output, _ = capsys.readouterr()
+    assert not all(len(line) <= 132 for line in output.split('\n'))
+
+    main([filename, '-api', 'lfric', '-l', 'off'])
+    output, _ = capsys.readouterr()
+    assert not all(len(line) <= 132 for line in output.split('\n'))
+
+    alg_filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    main([alg_filename])
+    output, _ = capsys.readouterr()
+    assert not all(len(line) <= 132 for line in output.split('\n'))
+
+    main([alg_filename, '-l', 'off'])
     output, _ = capsys.readouterr()
     assert not all(len(line) <= 132 for line in output.split('\n'))
 
 
 def test_main_fort_line_length_output_only(capsys):
-    '''Check that the '-l output' option disables the line-length check
-    on input files but still limits the line lengths in the
-    output.
+    '''Check that the '-l output' option still processes the long lines but
+    limits the line lengths in the output.
+    '''
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p3",
+                             "10.3_operator_different_spaces.f90"))
+    main([filename, '-api', 'lfric', '-l', 'output'])
+    output, _ = capsys.readouterr()
+    assert all(len(line) <= 132 for line in output.split('\n'))
+
+    alg_filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    main([alg_filename, '-l', 'output'])
+    output, _ = capsys.readouterr()
+    assert all(len(line) <= 132 for line in output.split('\n'))
+
+
+def test_main_fort_line_length_all(capsys):
+    '''Tests that the Fortran line length object works correctly. With
+    the '-l all' option the input Fortran file is checked to verify that
+    it complies with the 132 characters standard limit.
 
     '''
-    alg_filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
-    # If line-length checking is enabled then we should abort
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p3",
+                             "10.3_operator_different_spaces.f90"))
     with pytest.raises(SystemExit):
-        main([alg_filename, '-api', 'nemo', '-l', 'all'])
-    _, error = capsys.readouterr()
-    assert "does not conform to the specified 132 line length limit" in error
-    # If we only mandate that the output be limited then we should be fine
-    main([alg_filename, '-api', 'nemo', '-l', 'output'])
-    output, _ = capsys.readouterr()
-    for line in output.split('\n'):
-        assert len(line) <= 132
+        main([filename, '-api', 'lfric', '-l', 'all'])
+    _, output = capsys.readouterr()
+    assert ("does not conform to the specified 132 line-length limit"
+            in output)
+    # And for code transformations
+    filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    with pytest.raises(SystemExit):
+        main([filename, '-l', 'all'])
+    _, output = capsys.readouterr()
+    assert ("does not conform to the specified 132 line-length limit"
+            in output)
 
 
 def test_main_no_invoke_alg_stdout(capsys):
@@ -1084,7 +1256,7 @@ def test_main_include_invalid(capsys, tmpdir):
                              "nemo", "test_files", "include_stmt.f90"))
     fake_path = tmpdir.join('does_not_exist')
     with pytest.raises(SystemExit) as err:
-        main([alg_file, '-api', 'nemo', '-I', fake_path.strpath])
+        main([alg_file, '-I', fake_path.strpath])
     assert str(err.value) == "1"
     capout = capsys.readouterr()
     assert "does_not_exist' does not exist" in capout.err
@@ -1101,19 +1273,17 @@ def test_main_include_path(capsys):
                              "nemo", "test_files", "include_stmt.f90"))
     # First try without specifying where to find the include file. This
     # is not supported and should raise an error.
-    with pytest.raises(SystemExit):
-        main([alg_file, '-api', 'nemo'])
-    _, err = capsys.readouterr()
+    with pytest.raises(GenerationError) as err:
+        main([alg_file])
     assert ("Found an unresolved Fortran INCLUDE file 'local_mpi.h' while"
-            in err)
+            in str(err.value))
     # Now specify two locations to search with only the second containing
     # the necessary header file
     inc_path1 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files")
     inc_path2 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "nemo", "test_files", "include_files")
-    main([alg_file, '-api', 'nemo', '-I', str(inc_path1),
-          '-I', str(inc_path2)])
+    main([alg_file, '-I', str(inc_path1), '-I', str(inc_path2)])
     stdout, _ = capsys.readouterr()
     assert "some_fake_mpi_handle" in stdout
     # Check that the Config object contains the provided include paths
@@ -1136,10 +1306,10 @@ def test_utf_char(tmpdir):
         alg = afile.read().lower()
         assert "max reachable coeff" in alg
         assert "call invoke_0_kernel_utf" in alg
-    # Check for NEMO API when processing existing Fortran
+    # Check without PSyKAl DSLs
     test_file = os.path.join(NEMO_BASE_PATH, "utf_char.f90")
     tmp_file = os.path.join(str(tmpdir), "test_psy.f90")
-    main(["-api", "nemo", "-opsy", tmp_file, test_file])
+    main(["-o", tmp_file, test_file])
     assert os.path.isfile(tmp_file)
 
 
@@ -1238,7 +1408,7 @@ def test_no_script_lfric_new(monkeypatch):
     assert "use _psyclone_builtins" not in alg
 
 
-def test_script_lfric_new(monkeypatch):
+def test_script_lfric_new(monkeypatch, script_factory):
     '''Test that the generate function in generator.py returns
     successfully if a script (containing both trans_alg() and trans()
     functions) is specified. This test uses the new PSyIR approach to
@@ -1247,11 +1417,17 @@ def test_script_lfric_new(monkeypatch):
     monkeypatching.
 
     '''
+    alg_script = script_factory("""
+def trans_alg(psyir):
+    pass
+
+def trans(psyir):
+    pass
+    """)
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     alg, _ = generate(
         os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-        api="lfric",
-        script_name=os.path.join(BASE_PATH, "dynamo0p3", "alg_script.py"))
+        api="lfric", script_name=alg_script)
     # new call replaces invoke
     assert "use single_invoke_psy, only : invoke_0_testkern_type" in alg
     assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in alg

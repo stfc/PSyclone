@@ -119,5 +119,5 @@ psy_prof.f90 alg_prof.f90: alg.f90
 # start-up. Therefore wildcards do not pick-up any files generated
 # during execution.
 kernels:
-	${MAKE} inc_field_mod.o inc_field_0_mod.o
+	${MAKE} inc_field_mod.o
 

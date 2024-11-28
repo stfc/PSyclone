@@ -43,30 +43,23 @@ beforehand using transformations, as SIR does not support intrinsics.
 2) transforms implicit loops to explicit loops as the SIR does not
 have the concept of implicit loops.
 
-Translation to the SIR is limited to the NEMO API. The NEMO API has no
-algorithm layer so all of the original code is captured in the invoke
-objects. Therefore by translating all of the invoke objects, all of
-the original code is translated.
-
 '''
 from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import IntrinsicCall, Assignment, Loop
+from psyclone.psyir.nodes import IntrinsicCall, Assignment, Loop, Routine
 from psyclone.psyir.transformations import (
     Abs2CodeTrans, Sign2CodeTrans, Min2CodeTrans, Max2CodeTrans, HoistTrans,
     AllArrayAccess2LoopTrans, ArrayAssignment2LoopsTrans, TransformationError)
 
 
-def trans(psy):
+def trans(psyir):
     '''Transformation routine for use with PSyclone. Applies the PSyIR2SIR
-    transform to the supplied invokes after replacing any ABS, SIGN or
+    transform to the supplied code after replacing any ABS, SIGN or
     MIN intrinsics with equivalent code. This is done because the SIR
     does not support intrinsics.
 
-    :param psy: the PSy object which this script will transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     abs_trans = Abs2CodeTrans()
@@ -80,25 +73,20 @@ def trans(psy):
     sir_writer = SIRWriter()
     fortran_writer = FortranWriter()
 
-    # For each Invoke write out the SIR representation of the
-    # schedule. Note, there is no algorithm layer in the NEMO API so
-    # the invokes represent all of the original code.
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
-
+    for subroutine in psyir.walk(Routine):
         # Transform any single index accesses in array assignments
         # (e.g. a(1)) into 1-trip loops.
-        for assignment in schedule.walk(Assignment):
+        for assignment in subroutine.walk(Assignment):
             array_access_trans.apply(assignment)
 
         # Transform any array assignments (Fortran ':' notation) into loops.
-        for assignment in schedule.walk(Assignment):
+        for assignment in subroutine.walk(Assignment):
             try:
                 array_range_trans.apply(assignment)
             except TransformationError:
                 pass
 
-        for icall in schedule.walk(IntrinsicCall):
+        for icall in subroutine.walk(IntrinsicCall):
             if icall.intrinsic == IntrinsicCall.Intrinsic.ABS:
                 # Apply ABS transformation
                 abs_trans.apply(icall)
@@ -119,14 +107,12 @@ def trans(psy):
         # #1387. However, it is known that it is safe do apply this
         # transformation to this particular code
         # (tra_adv_compute.F90).
-        for loop in schedule.walk(Loop, stop_type=Loop):  # outermost only
+        for loop in subroutine.walk(Loop, stop_type=Loop):  # outermost only
             for child in loop.loop_body[:]:
                 if isinstance(child, Assignment):
                     hoist_trans.apply(child)
 
-        kern = fortran_writer(schedule)
+        kern = fortran_writer(subroutine)
         print(kern)
-        kern = sir_writer(schedule)
+        kern = sir_writer(subroutine)
         print(kern)
-
-    return psy

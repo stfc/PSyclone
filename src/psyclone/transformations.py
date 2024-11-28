@@ -58,7 +58,7 @@ from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Directive, Loop, Node,
+    Call, CodeBlock, Directive, Literal, Loop, Node,
     OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
@@ -67,8 +67,8 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DataSymbol, UnresolvedType, INTEGER_TYPE,
-    ScalarType, Symbol, SymbolError)
+    ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
+    SymbolError, UnresolvedType)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import (
@@ -284,21 +284,21 @@ class OMPTaskloopTrans(ParallelLoopTrans):
         Creates the type of directive needed for this sub-class of
         transformation.
 
-        :param children: list of Nodes that will be the children of \
+        :param children: list of Nodes that will be the children of
                          the created directive.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param int collapse: currently un-used but required to keep \
+        :param int collapse: currently un-used but required to keep
                              interface the same as in base class.
         :returns: the new node representing the directive in the AST.
         :rtype: :py:class:`psyclone.psyir.nodes.OMPTaskloopDirective`
 
         :raises NotImplementedError: if a collapse argument is supplied
         '''
-        # TODO 1370: OpenMP loop functions don't support collapse
+        # TODO 2672: OpenMP loop functions don't support collapse
         if collapse:
             raise NotImplementedError(
                 "The COLLAPSE clause is not yet supported for "
-                "'!$omp taskloop' directives.")
+                "'!$omp taskloop' directives (#2672).")
         _directive = OMPTaskloopDirective(children=children,
                                           grainsize=self.omp_grainsize,
                                           num_tasks=self.omp_num_tasks,
@@ -378,8 +378,12 @@ class MarkRoutineForGPUMixin:
         :raises TransformationError: if the target is a built-in kernel.
         :raises TransformationError: if it is a kernel but without an
                                      associated PSyIR.
+        :raises TransformationError: if it is a Kernel that has multiple
+                                     implementations (mixed precision).
         :raises TransformationError: if any of the symbols in the kernel are
-                                     accessed via a module use statement.
+                                     accessed via a module use statement (and
+                                     are not compile-time constants).
+        :raises TransformationError: if the routine contains any CodeBlocks.
         :raises TransformationError: if the kernel contains any calls to other
                                      routines.
         '''
@@ -408,6 +412,17 @@ class MarkRoutineForGPUMixin:
                 raise TransformationError(
                     f"Failed to create PSyIR for kernel '{node.name}'. "
                     f"Cannot transform such a kernel.") from error
+
+            # Check that it's not a mixed-precision kernel (which will have
+            # more than one Routine implementing it). We can't transform
+            # these at the moment because we can't correctly manipulate their
+            # metadata - TODO #1946.
+            routines = kernel_schedule.root.walk(Routine)
+            if len(routines) > 1:
+                raise TransformationError(
+                    f"Cannot apply {self.name} to kernel '{node.name}' as "
+                    f"it has multiple implementations - TODO #1946")
+
             k_or_r = "Kernel"
         else:
             # Supplied node is a PSyIR Routine which *is* a Schedule.
@@ -522,19 +537,35 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
 
     '''
     def apply(self, node, options=None):
-        ''' Insert an OMPDeclareTargetDirective inside the provided routine.
+        ''' Insert an OMPDeclareTargetDirective inside the provided routine or
+        associated PSyKAl kernel.
 
-        :param node: the PSyIR routine to insert the directive into.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine`
+        :param node: the kernel or routine which is the target of this
+            transformation.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine` |
+                    :py:class:`psyclone.psyGen.Kern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["force"]: whether to allow routines with
+            CodeBlocks to run on the GPU.
 
         '''
         self.validate(node, options)
-        for child in node.children:
+
+        if isinstance(node, Kern):
+            # Flag that the kernel has been modified
+            node.modified = True
+
+            # Get the schedule representing the kernel subroutine
+            routine = node.get_kernel_schedule()
+        else:
+            routine = node
+
+        for child in routine.children:
             if isinstance(child, OMPDeclareTargetDirective):
                 return  # The routine is already marked with OMPDeclareTarget
-        node.children.insert(0, OMPDeclareTargetDirective())
+
+        routine.children.insert(0, OMPDeclareTargetDirective())
 
     def validate(self, node, options=None):
         ''' Check that an OMPDeclareTargetDirective can be inserted.
@@ -874,12 +905,10 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
             incorrect code.
 
         '''
-        if not options:
-            options = {}
-
         # Since this function potentially modifies the user's option
         # dictionary, create a copy:
-        options = options.copy()
+        options = options.copy() if options else {}
+
         # Make sure the default is set:
         options["reprod"] = options.get("reprod",
                                         Config.get().reproducible_reductions)
@@ -902,20 +931,17 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
         :param node: the Node in the Schedule to check.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations \
+        :param options: a dictionary with options for transformations
                         and validation.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["reprod"]: \
-                indicating whether reproducible reductions should be used. \
+        :type options: Optional[dict[str, Any]]
+        :param bool options["reprod"]:
+                indicating whether reproducible reductions should be used.
                 By default the value from the config file will be used.
 
         '''
-        if not options:
-            options = {}
-
         # Since this function potentially modifies the user's option
         # dictionary, create a copy:
-        options = options.copy()
+        options = options.copy() if options else {}
         # Make sure the default is set:
         options["reprod"] = options.get("reprod",
                                         Config.get().reproducible_reductions)
@@ -1130,7 +1156,16 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Cannot have a loop over colours "
                                       "within an OpenMP parallel region.")
 
+        # Get the ancestor InvokeSchedule as applying the transformation
+        # creates a new Loop node.
+        sched = node.ancestor(LFRicInvokeSchedule)
+
         super().apply(node, options=options)
+
+        # Finally, update the information on the colourmaps required for
+        # the mesh(es) in this invoke.
+        if sched and sched.invoke:
+            sched.invoke.meshes.colourmap_init()
 
     def _create_colours_loop(self, node):
         '''
@@ -1215,6 +1250,7 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
             children of the same parent (siblings).
 
         '''
+        node_list = self.get_node_list(node_list)
         if isinstance(node_list[0], InvokeSchedule):
             raise TransformationError(
                 f"A {self.name} transformation cannot be applied to an "
@@ -1610,6 +1646,7 @@ class ACCParallelTrans(ParallelRegionTrans):
             inserted directive should include the default_present clause.
 
         '''
+        node_list = self.get_node_list(node_list)
         super().validate(node_list, options)
         if options is not None and "default_present" in options:
             if not isinstance(options["default_present"], bool):
@@ -1617,6 +1654,13 @@ class ACCParallelTrans(ParallelRegionTrans):
                     f"The provided 'default_present' option must be a "
                     f"boolean, but found '{options['default_present']}'."
                 )
+        for node in node_list:
+            for call in node.walk(Call):
+                if not call.is_available_on_device():
+                    raise TransformationError(
+                        f"'{call.routine.name}' is not available on the "
+                        f"accelerator device, and therefore it cannot "
+                        f"be called from within an ACC parallel region.")
 
     def apply(self, target_nodes, options=None):
         '''
@@ -1818,6 +1862,8 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             when distributed memory is not switched on.
         :raises TransformationError: if the loop does not iterate over\
             cells, dofs or colour.
+        :raises TransformationError: if the loop contains a kernel that
+            operates on halo cells.
         :raises TransformationError: if the transformation is setting the\
             loop to the maximum halo depth but the loop already computes\
             to the maximum halo depth.
@@ -1897,6 +1943,13 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                 f"method the loop type must be one of '' (cell-columns), 'dof'"
                 f" or 'colour', but found '{node.loop_type}'")
 
+        for kern in node.kernels():
+            if "halo" in kern.iterates_over:
+                raise TransformationError(
+                    f"Cannot apply the {self.name} transformation to kernels "
+                    f"that operate on halo cells but kernel '{kern.name}' "
+                    f"operates on '{kern.iterates_over}'.")
+
         # We don't currently support the application of transformations to
         # loops containing inter-grid kernels
         check_intergrid(node)
@@ -1935,12 +1988,14 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
 
             if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if node.upper_bound_halo_depth:
-                    if node.upper_bound_halo_depth >= depth:
-                        raise TransformationError(
-                            f"In the Dynamo0p3RedundantComputation "
-                            f"transformation apply method the supplied depth "
-                            f"({depth}) must be greater than the existing halo"
-                            f" depth ({node.upper_bound_halo_depth})")
+                    if isinstance(node.upper_bound_halo_depth, Literal):
+                        upper_bound = int(node.upper_bound_halo_depth.value)
+                        if upper_bound >= depth:
+                            raise TransformationError(
+                                f"In the Dynamo0p3RedundantComputation "
+                                f"transformation apply method the supplied "
+                                f"depth ({depth}) must be greater than the "
+                                f"existing halo depth ({upper_bound})")
                 else:
                     raise TransformationError(
                         "In the Dynamo0p3RedundantComputation transformation "
@@ -2526,14 +2581,6 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
     >>> rtrans.apply(kern)
 
     '''
-    @property
-    def name(self):
-        '''
-        :returns: the name of this transformation class.
-        :rtype: str
-        '''
-        return "ACCRoutineTrans"
-
     def apply(self, node, options=None):
         '''
         Add the '!$acc routine' OpenACC directive into the code of the
@@ -2541,10 +2588,15 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         in the supplied Routine.
 
         :param node: the kernel call or routine implementation to transform.
-        :type node: :py:class:`psyclone.psyGen.Kern` or \
+        :type node: :py:class:`psyclone.psyGen.Kern` |
                     :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["force"]: whether to allow routines with
+            CodeBlocks to run on the GPU.
+        :param str options["parallelism"]: the level of parallelism that the
+            target routine (or a callee) exposes. One of "seq" (the default),
+            "vector", "worker" or "gang".
 
         '''
         # Check that we can safely apply this transformation
@@ -2563,7 +2615,10 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         for child in routine.children:
             if isinstance(child, ACCRoutineDirective):
                 return  # The routine is already marked with ACCRoutine
-        routine.children.insert(0, ACCRoutineDirective())
+
+        para = options.get("parallelism", "seq") if options else "seq"
+
+        routine.children.insert(0, ACCRoutineDirective(parallelism=para))
 
     def validate(self, node, options=None):
         '''
@@ -2581,15 +2636,26 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
         :raises TransformationError: if it is a kernel but without an
-                                     associated PSyIR.
+            associated PSyIR.
         :raises TransformationError: if any of the symbols in the kernel are
-                                     accessed via a module use statement.
+            accessed via a module use statement.
         :raises TransformationError: if the kernel contains any calls to other
-                                     routines.
+            routines.
+        :raises TransformationError: if the 'parallelism' option is supplied
+            but is not a recognised level of parallelism.
+
         '''
         super().validate(node, options)
 
         self.validate_it_can_run_on_gpu(node, options)
+
+        if options and "parallelism" in options:
+            para = options["parallelism"]
+            if para not in ACCRoutineDirective.SUPPORTED_PARALLELISM:
+                raise TransformationError(
+                    f"{self.name}: '{para}' is not a supported level of "
+                    f"parallelism. Should be one of "
+                    f"{ACCRoutineDirective.SUPPORTED_PARALLELISM}")
 
 
 class ACCDataTrans(RegionTrans):
@@ -2599,18 +2665,15 @@ class ACCDataTrans(RegionTrans):
 
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "nemo"
-    >>> ast, invokeInfo = parse(NEMO_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.psyir.frontend import FortranReader
+    >>> psyir = FortranReader().psyir_from_source(NEMO_SOURCE_FILE)
     >>>
     >>> from psyclone.transformations import ACCDataTrans
     >>> from psyclone.psyir.transformations import ACCKernelsTrans
     >>> ktrans = ACCKernelsTrans()
     >>> dtrans = ACCDataTrans()
     >>>
-    >>> schedule = psy.invokes.get('tra_adv').schedule
+    >>> schedule = psyir.children[0]
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
     >>>
@@ -2908,7 +2971,6 @@ __all__ = [
    "GOceanOMPParallelLoopTrans",
    "KernelImportsToArguments",
    "MoveTrans",
-   "OMPLoopTrans",
    "OMPMasterTrans",
    "OMPParallelLoopTrans",
    "OMPParallelTrans",

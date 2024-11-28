@@ -32,20 +32,23 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author I. Kavcic, Met Office
+! Modified O. Brunt, Met Office
 
 program single_invoke_dofs
 
   ! Description: single user-defined kernel specified in an invoke call that
-  ! iterates over DoFs (currently not supported)
+  ! iterates over DoFs
+  use constants_mod,      only: r_def
   use field_mod,          only: field_type
   use testkern_dofs_mod,  only: testkern_dofs_type
 
   implicit none
 
   type(field_type) :: f1, f2, f3, f4
+  real(kind=r_def) :: scalar_arg
 
   call invoke(                            &
-       testkern_dofs_type(f1, f2, f3, f4) &
+       testkern_dofs_type(f1, f2, f3, f4, scalar_arg) &
           )
 
 end program single_invoke_dofs

@@ -50,8 +50,8 @@ from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Routine, FileContainer, IntrinsicCall, Call
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import (ACCRoutineTrans,
-                                      Dynamo0p3KernelConstTrans)
+from psyclone.transformations import (
+    ACCRoutineTrans, OMPDeclareTargetTrans, Dynamo0p3KernelConstTrans)
 
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -270,10 +270,10 @@ def test_new_same_kern_single(kernel_outputdir, monkeypatch):
 # The following tests test the MarkRoutineForGPUMixin validation, for this
 # it uses the ACCRoutineTrans as instance of this Mixin.
 
-def test_accroutine_validate_wrong_node_type():
+def test_gpumixin_validate_wrong_node_type():
     '''
-    Test that the validate() method of ACCRoutineTrans rejects a node of the
-    wrong type.
+    Test that the MarkRoutineForGPUMixin.validate_it_can_run_on_gpu() method
+    rejects a node of the wrong type.
 
     '''
     rtrans = ACCRoutineTrans()
@@ -283,10 +283,34 @@ def test_accroutine_validate_wrong_node_type():
             "Routine but got 'FileContainer'" in str(err.value))
 
 
-def test_accroutine_validate_no_schedule(monkeypatch):
+def test_gpumixin_kernel_interface(kernel_outputdir, monkeypatch,
+                                   fortran_reader, fortran_writer):
     '''
-    Test that the validate() method of ACCRoutineTrans catches any errors
-    generated when attempting to get the PSyIR of a kernel.
+    Test that the MarkRoutineForGPUMixin.validate() rejects a kernel that has
+    multiple implementations (i.e. for different precisions).
+
+    TODO this limitation is the subject of #1946.
+
+    '''
+    # Ensure kernel-output directory is uninitialised
+    config = Config.get()
+    monkeypatch.setattr(config, "_kernel_naming", "multiple")
+    psy, invoke = get_invoke("26.8_mixed_precision_args.f90",
+                             api="lfric", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    rtrans = ACCRoutineTrans()
+    # Use force because the kernel contains a WRITE statement.
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(kernels[0], options={"force": True})
+    assert ("Cannot apply ACCRoutineTrans to kernel 'mixed_code' as it has "
+            "multiple implementations - TODO #1946" in str(err.value))
+
+
+def test_gpumixin_validate_no_schedule(monkeypatch):
+    '''
+    Test that the MarkRoutineForGPUMixin.validate_it_can_run_on_gpu() method
+    catches any errors generated when attempting to get the PSyIR of a kernel.
 
     '''
     _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
@@ -307,11 +331,11 @@ def test_accroutine_validate_no_schedule(monkeypatch):
             "transform such a kernel." in str(err.value))
 
 
-def test_accroutinetrans_validate_no_import(fortran_reader):
+def test_gpumixin_validate_no_import(fortran_reader):
     '''
-    Test the validate() method of ACCRoutineTrans rejects a kernel that
-    accesses imported data unless that data is known to be a compile-
-    time constant.
+    Test the MarkRoutineForGPUMixin.validate_it_can_run_on_gpu() method
+    rejects a kernel that accesses imported data unless that data is known to
+    be a compile-time constant.
 
     '''
     code = '''\
@@ -340,10 +364,10 @@ end module my_mod'''
     rtrans.validate(routine)
 
 
-def test_accroutinetrans_validate_no_cblock(fortran_reader):
+def test_gpumixin_validate_no_cblock(fortran_reader):
     '''
-    Test the validate() method of ACCRoutineTrans rejects a kernel that
-    contains a CodeBlock.
+    Test the MarkRoutineForGPUMixin.validate_it_can_run_on_gpu() method rejects
+    a kernel that contains a CodeBlock.
 
     '''
     code = '''\
@@ -375,10 +399,10 @@ end module my_mod'''
             in str(err.value))
 
 
-def test_accroutinetrans_validate_no_call():
+def test_gpumixin_validate_no_call():
     '''
-    Test the validate() method of ACCRoutineTrans rejects a kernel that calls
-    another routine.
+    Test the MarkRoutineForGPUMixin.validate_it_can_run_on_gpu() method rejects
+    a kernel that calls another routine.
 
     '''
     psy, invoke = get_invoke("1.15_invoke_kern_with_call.f90", api="lfric",
@@ -405,6 +429,24 @@ def test_accroutinetrans_validate_no_call():
             "and therefore cannot have ACCRoutineTrans applied to it "
             "(TODO #342)."
             in str(err.value))
+
+
+@pytest.mark.parametrize(
+    "rtrans, expected_directive",
+    [(ACCRoutineTrans(), "!$acc routine"),
+     (OMPDeclareTargetTrans(), "!$omp declare target")])
+def test_kernel_gpu_annotation_trans(rtrans, expected_directive,
+                                     fortran_writer):
+    ''' Check that the GPU annotation transformations insert the
+    proper directive inside PSyKAl kernel code '''
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
+    sched = invoke.schedule
+    kern = sched.coded_kernels()[0]
+    rtrans.apply(kern)
+
+    # Check that the directive has been added to the kernel code
+    code = fortran_writer(kern.get_kernel_schedule())
+    assert expected_directive in code
 
 
 def test_1kern_trans(kernel_outputdir):
@@ -462,7 +504,7 @@ def test_2kern_trans(kernel_outputdir):
     assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_builtin_no_trans():
+def test_gpumixin_builtin_no_trans():
     ''' Check that we reject attempts to transform built-in kernels. '''
     _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90",
                            api="lfric", idx=0)

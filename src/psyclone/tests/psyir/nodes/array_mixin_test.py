@@ -153,17 +153,34 @@ def test_is_upper_lower_bound(fortran_reader):
     class.
 
     '''
-    code = (
-        "subroutine test()\n"
-        "real a(n)\n"
-        "a(1:n) = 0.0\n"
-        "end subroutine\n")
-
-    # Return True as the symbolic values of the declaration and array
-    # reference match.
+    code = '''
+    subroutine test(kttrd, ptrd)
+      use some_mod
+      real a(n-1)
+      integer, dimension(2), intent(in) :: kttrd
+      real, dimension(kttrd(1):,kttrd(2):,:), intent(in) ::   ptrd
+      trdt(ntsi-(0):,ntsj-(0):ntej+(0),:) =    &
+         ptrd(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),:)
+      a(1:n-1) = 0.0
+    end subroutine
+    '''
     psyir = fortran_reader.psyir_from_source(code)
     assigns = psyir.walk(Assignment)
-    array_ref = assigns[0].lhs
+    trdt_ref = assigns[0].lhs
+    assert not trdt_ref.is_lower_bound(0)
+    assert trdt_ref.is_upper_bound(0)
+    assert not trdt_ref.is_upper_bound(1)
+    assert not trdt_ref.is_lower_bound(1)
+    assert trdt_ref.is_upper_bound(2)
+    assert trdt_ref.is_lower_bound(2)
+    ptrd_ref = assigns[0].rhs
+    assert not ptrd_ref.is_lower_bound(0)
+    assert not ptrd_ref.is_upper_bound(0)
+    assert ptrd_ref.is_lower_bound(2)
+    assert ptrd_ref.is_upper_bound(2)
+    # Return True as the symbolic values of the declaration and array
+    # reference match.
+    array_ref = assigns[1].lhs
     assert array_ref.is_lower_bound(0)
     assert array_ref.is_upper_bound(0)
 
@@ -302,13 +319,11 @@ def test_is_bound_extent(fortran_reader):
     ("10", "1", True, False), ("10", "10", False, True),
     ("10", "5", False, False), ("n", "1", True, False),
     ("n", "n", False, True), ("n", "n-4", False, False),
-    ("10", "5+5", False, True)])
+    ("10", "5+5", False, True), ("n+8", "n+8", False, True),
+    ("n-5:n+5", "n-5", True, False)])
 def test_is_bound_access(fortran_reader, bounds, access, lower, upper):
     '''Test the _is_bound method returns True when the array access
-    matches the array declaration and False if not. Note, the method
-    supports array declarations that are expressions, however,
-    currently the PSyIR does not recognise these so they can't be
-    tested (TODO issue #949).
+    matches the array declaration and False if not.
 
     '''
     code = (
@@ -341,6 +356,8 @@ def test_is_same_array(fortran_reader):
     """)
 
     assignments = psyir.walk(Assignment)
+    # Argument must be a Member or Reference
+    assert not assignments[0].lhs.is_same_array(Literal("1", INTEGER_TYPE))
     # Check that the array itself is the same, not the accessed index
     assert assignments[0].lhs.is_same_array(assignments[1].lhs)
     # Also works when comparing with a plain reference of the array
@@ -591,6 +608,7 @@ def test_get_effective_shape(fortran_reader):
     code = (
         "subroutine test()\n"
         "  use some_mod\n"
+        "  integer :: idx = 2\n"
         "  integer :: indices(8,3)\n"
         "  real a(10), b(10,10)\n"
         "  a(1:10) = 0.0\n"
@@ -604,36 +622,45 @@ def test_get_effective_shape(fortran_reader):
         "  b(indices(2:3,1:2), 2:5) = 2.0\n"
         "  a(f()) = 2.0\n"
         "  a(2+3) = 1.0\n"
+        "  b(idx, 1+indices(1,1):) = 1\n"
+        "  b(idx, a) = -1.0\n"
+        "  b(scalarval, arrayval) = 1\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     # Direct array slice.
+    #   a(1:10) = 0.0
     child_idx = 0
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert isinstance(shape[0], Literal)
     assert shape[0].value == "10"
     # Array slice with non-unit step.
+    #   a(1:10:3) = 0.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert shape[0].debug_string() == "(10 - 1) / 3 + 1"
     # Full array slice without bounds.
+    #   a(:) = 0.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert "SIZE(a, dim=1)" in shape[0].debug_string()
     # Array slice with only lower-bound specified.
+    #   a(2:) = 0.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert shape[0].debug_string() == "UBOUND(a, dim=1) - 2 + 1"
     # Array slice with only upper-bound specified.
+    #   a(:5) = 0.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert shape[0].debug_string() == "5 - LBOUND(a, dim=1) + 1"
     # Array slice with only step specified.
+    #   a(::4) = 0.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
@@ -643,11 +670,13 @@ def test_get_effective_shape(fortran_reader):
             "(UBOUND(a, dim=1) - LBOUND(a, dim=1)) / 4 + 1")
     # Array slice defined using LBOUND and UBOUND intrinsics but for a
     # different array altogether.
+    #   a(lbound(b,1):ubound(b,2)) = 0.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
     assert shape[0].debug_string() == "UBOUND(b, 2) - LBOUND(b, 1) + 1"
     # Indirect array slice.
+    #   b(indices(2:3,1), 2:5) = 2.0
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 2
@@ -659,21 +688,75 @@ def test_get_effective_shape(fortran_reader):
     assert shape[1].debug_string() == "5 - 2 + 1"
     # An indirect array slice can only be 1D.
     child_idx += 1
+    #   b(indices(2:3,1:2), 2:5) = 2.0
     with pytest.raises(NotImplementedError) as err:
         _ = routine.children[child_idx].lhs._get_effective_shape()
     assert ("array defining a slice of a dimension of another array must be "
             "1D but 'indices' used to index into 'b' has 2 dimensions" in
             str(err.value))
     # Indirect array access using function call.
+    #   a(f()) = 2.0
     child_idx += 1
     with pytest.raises(NotImplementedError) as err:
         _ = routine.children[child_idx].lhs._get_effective_shape()
-    assert "include a function call or expression" in str(err.value)
-    # Array access with expression in indices.
+    assert "include a function call or unsupported feature" in str(err.value)
+    # Array access with simple expression in indices.
+    #   a(2+3) = 1.0
+    child_idx += 1
+    shape = routine.children[child_idx].lhs._get_effective_shape()
+    assert shape == []
+    # Array access with expression involving indirect access in indices.
+    #   b(idx, 1+indices(1,1):) = 1
+    child_idx += 1
+    shape = routine.children[child_idx].lhs._get_effective_shape()
+    assert len(shape) == 1
+    assert (shape[0].debug_string().lower() ==
+            "ubound(b, dim=2) - (1 + indices(1,1)) + 1")
+    # Array access with indices given by another array that is not explicitly
+    # indexed.
+    #   b(idx, a) = -1.0
+    child_idx += 1
+    shape = routine.children[child_idx].lhs._get_effective_shape()
+    assert len(shape) == 1
+    assert "SIZE(a)" in shape[0].debug_string()
+    # Array-index expressions are symbols of unknown type so we don't know
+    # whether we have an array slice or just a scalar.
+    #   b(scalarval, arrayval) = 1
     child_idx += 1
     with pytest.raises(NotImplementedError) as err:
         _ = routine.children[child_idx].lhs._get_effective_shape()
-    assert "include a function call or expression" in str(err.value)
+    assert ("index expression 'scalarval' in access 'b(scalarval,arrayval)' is"
+            " of 'UnresolvedType' type and therefore whether it is an array "
+            "slice (i.e. an indirect access) cannot be determined."
+            in str(err.value))
+
+
+def test_struct_get_effective_shape(fortran_reader):
+    '''Tests for the _get_effective_shape() method for ArrayMember and
+    ArrayOfStructuresMixin (since they inherit it from ArrayMixin).'''
+    code = (
+        "subroutine test()\n"
+        "  type :: my_type\n"
+        "    real, dimension(21,12) :: data\n"
+        "  end type my_type\n"
+        "  type(my_type) :: grid\n"
+        "  type(my_type), dimension(5) :: grid_list\n"
+        "  grid%data(:,:) = 0.0\n"
+        "  grid_list(:)%data(1) = 0.0\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    # Slice of ArrayMember
+    child_idx = 0
+    shape = routine.children[child_idx].lhs.member._get_effective_shape()
+    assert len(shape) == 2
+    assert "SIZE(grid%data, dim=1)" in shape[0].debug_string()
+    assert "SIZE(grid%data, dim=2)" in shape[1].debug_string()
+    # Slice of ArrayOfStructuresMixin
+    child_idx += 1
+    shape = routine.children[child_idx].lhs._get_effective_shape()
+    assert len(shape) == 1
+    assert isinstance(shape[0], IntrinsicCall)
 
 
 # get_outer_range_index
@@ -823,28 +906,25 @@ def test_same_range(fortran_reader):
 
     # If the values are implicit, but we know the declaration we can also
     # compare them.
-    # TODO #949: Currently expressions inside shape (e.g. dimension(5-1)),
-    # produce an UnsupportedFortranType but when this is resolved, shape
-    # comparisons should also work symbolically
     code = '''
     subroutine test()
-        real, dimension(1:4, 1:4, 2:5) :: A, C
+        real, dimension(1+0:4, 1:4, 2:4+1) :: A, C
         real, dimension(4,   4,   4) :: B
         A(:,:,:) = B(:,:,:)
         C(:,:4,:4) = 0
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
-    array1, array2 = psyir.walk(Assignment)[0].children
-    array3, _ = psyir.walk(Assignment)[1].children
-    assert array1.same_range(0, array2, 0) is True
-    assert array1.same_range(1, array2, 1) is True
-    assert array1.same_range(2, array2, 2) is False
+    aref, bref = psyir.walk(Assignment)[0].children
+    cref, _ = psyir.walk(Assignment)[1].children
+    assert aref.same_range(0, bref, 0) is True
+    assert aref.same_range(1, bref, 1) is True
+    assert aref.same_range(2, bref, 2) is False
     # If the type in known, ranges in different assignments can also be
     # compared
-    assert array1.same_range(0, array3, 0) is True
-    assert array1.same_range(1, array3, 1) is True
-    assert array1.same_range(2, array3, 2) is False
+    assert aref.same_range(0, cref, 0) is True
+    assert aref.same_range(1, cref, 1) is True
+    assert aref.same_range(2, cref, 2) is False
 
     # If the values are implicit, and the declaration uses ATTRIBUTE or
     # DEFERRED shape, we return the appropriate results
@@ -867,6 +947,28 @@ def test_same_range(fortran_reader):
     assert array1.same_range(0, array2, 0) is True
     assert array3.same_range(0, array4, 0) is False
     assert array5.same_range(0, array6, 0) is False
+
+    # A mixture of expressions and assumed-size dimensions.
+    code = '''
+    module test_mod
+      use some_mod
+      real, allocatable, dimension(:,:,:) ::   trdt
+    contains
+    subroutine test(kttrd, ptrd)
+      integer, dimension(2), intent(in) :: kttrd
+      real, dimension(kttrd(1):,kttrd(2):,:), intent(in) ::   ptrd
+      trdt(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),:) =    &
+         ptrd(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),:) * &
+         tmask(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),:)
+    end subroutine
+    end module
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+    lhs = assign.lhs
+    ptrd = assign.rhs.children[0]
+    assert lhs.same_range(0, ptrd, 0) is True
+    assert lhs.same_range(2, ptrd, 2) is False
 
     # This functionality also works with SoA and SoAoS
     code = '''
