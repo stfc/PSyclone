@@ -37,7 +37,7 @@
 .. only:: html
 
     .. image:: ../logo/psyclone_v1.0.png
-        :width: 100%
+        :width: 70%
         :align: center
         :alt: PSyclone
 
@@ -82,10 +82,8 @@ and the
     getting_going
     psyclone_command
     configuration
-    tutorial
-    examples
+    tutorials_and_examples
     libraries
-    system_specific_setup
 
 .. toctree::
     :maxdepth: 2

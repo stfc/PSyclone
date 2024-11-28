@@ -42,8 +42,8 @@ from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import Container, Reference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DefaultModuleInterface, ImportInterface,
-    IntrinsicSymbol, RoutineSymbol)
+    ArgumentInterface, DefaultModuleInterface, GenericInterfaceSymbol,
+    ImportInterface, IntrinsicSymbol, RoutineSymbol)
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 
@@ -323,8 +323,14 @@ class CallTreeUtils():
                           f"'{kernel.module_name}' - ignored.")
                     continue
                 all_possible_routines = cntr.resolve_routine(kernel.name)
+                if not all_possible_routines:
+                    print(f"[CallTreeUtils.get_non_local_read_write_info] "
+                          f"Could not get PSyIR for Routine "
+                          f"'{kernel.name}' from module "
+                          f"'{kernel.module_name}' as no possible routines "
+                          f" were found - ignored.")
                 for routine_name in all_possible_routines:
-                    psyir = cntr.get_routine_psyir(routine_name)
+                    psyir = cntr.find_routine_psyir(routine_name)
                     if not psyir:
                         print(f"[CallTreeUtils.get_non_local_read_write_info] "
                               f"Could not get PSyIR for Routine "
@@ -365,6 +371,7 @@ class CallTreeUtils():
         # be filtered out.
         in_vars = set()
         out_vars = set()
+        # pylint: disable=too-many-nested-blocks
         while outstanding_nonlocals:
             info = outstanding_nonlocals.pop()
             if info in done:
@@ -400,7 +407,7 @@ class CallTreeUtils():
                 # could be found in case of a generic interface):
                 at_least_one_routine_found = False
                 for routine_name in cntr.resolve_routine(signature[0]):
-                    routine = cntr.get_routine_psyir(routine_name)
+                    routine = cntr.find_routine_psyir(routine_name)
                     if not routine:
                         # TODO #11: Add proper logging
                         # TODO #2120: Handle error
@@ -438,7 +445,7 @@ class CallTreeUtils():
                           f"Cannot get PSyIR for module '{module_name}' - "
                           f"ignoring unknown symbol '{signature}'.")
                 else:
-                    psyir = cntr.get_routine_psyir(str(signature))
+                    psyir = cntr.find_routine_psyir(str(signature))
                     if psyir:
                         # It is a routine, which we need to analyse for the use
                         # of non-local symbols:
@@ -446,16 +453,41 @@ class CallTreeUtils():
                                                       signature, access_info))
                         continue
 
-                    # Check whether it is a constant (the symbol should always
-                    # be found, but if a module cannot be parsed then the
-                    # symbol table won't have been populated)
+                    # Check whether it is a generic function (the symbol
+                    # should always be found, but if a module cannot be
+                    # parsed then the symbol table won't have been populated)
                     sym_tab = cntr.symbol_table
                     try:
                         sym = sym_tab.lookup(signature[0])
-                        if sym.is_constant:
-                            continue
                     except KeyError:
-                        print(f"Cannot find symbol '{signature}'.")
+                        print(f"[CallTreeUtils._resolve_calls_and_unknowns]"
+                              f"Cannot find symbol '{signature[0]}'.")
+                        continue
+                    # Check if we have a generic interface (of a function):
+                    if isinstance(sym, GenericInterfaceSymbol):
+                        all_possible_routines = \
+                            cntr.resolve_routine(signature[0])
+                        for function_name in all_possible_routines:
+                            psyir = cntr.find_routine_psyir(function_name)
+                            if not psyir:
+                                print(f"[CallTreeUtils._resolve_calls_and_"
+                                      f"unknowns] Could not get PSyIR for "
+                                      f"Function '{function_name}' from "
+                                      f"module '{module_name}' - "
+                                      f"ignored.")
+                                continue
+                            outstanding_nonlocals.append(
+                                ("routine", module_name,
+                                 Signature(function_name),
+                                 access_info))
+                        # It was a generic interface. All possible functions
+                        # have been added, so this entry is done.
+                        continue
+
+                    # Check whether the unknown symbol is a constant, which
+                    # can be ignored
+                    if sym.is_constant:
+                        continue
                 # Otherwise fall through to the code that adds a reference:
 
             # Now it must be a reference, so add it to the list of input-

@@ -46,11 +46,3 @@ from psyclone.domain.lfric.algorithm.psyir.lfric_kernel_functor import (
     LFRicKernelFunctor)
 from psyclone.domain.lfric.algorithm.psyir.lfric_kernel_functor import (
     LFRicBuiltinFunctorFactory)
-
-
-# For Sphinx AutoAPI
-__all__ = [
-    'LFRicAlgorithmInvokeCall',
-    'LFRicKernelFunctor',
-    'LFRicBuiltinFunctor',
-    'LFRicBuiltinFunctorFactory']

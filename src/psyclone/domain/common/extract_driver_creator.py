@@ -483,7 +483,7 @@ class ExtractDriverCreator(BaseDriverCreator):
         file_container = FileContainer(unit_name)
 
         # Create the program and add it to the file container:
-        program = Routine(unit_name, is_program=True)
+        program = Routine.create(unit_name, is_program=True)
         program_symbol_table = program.symbol_table
         file_container.addchild(program)
 
@@ -512,7 +512,7 @@ class ExtractDriverCreator(BaseDriverCreator):
 
         module_str = Literal(module_name, CHARACTER_TYPE)
         region_str = Literal(local_name, CHARACTER_TYPE)
-        self.add_call(program, f"{psy_data.name}%OpenRead",
+        self.add_call(program, f"{psy_data.name}%OpenReadModuleRegion",
                       [module_str, region_str])
 
         output_symbols = self.create_read_in_code(program, psy_data,

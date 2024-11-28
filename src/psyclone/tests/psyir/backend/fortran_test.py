@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified by A. R. Porter and S. Siso, STFC Daresbury Lab,
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 # Modified by J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
@@ -41,7 +42,6 @@
 
 from collections import OrderedDict
 import pytest
-from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
     FortranWriter, precedence
@@ -60,8 +60,6 @@ from psyclone.psyir.symbols import (
     UnsupportedType, UnsupportedFortranType, DataTypeSymbol, StructureType)
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
-from psyclone.psyGen import PSyFactory
-from psyclone.nemo import NemoInvokeSchedule
 
 
 def test_gen_intent():
@@ -821,17 +819,34 @@ def test_gen_access_stmts(fortran_writer):
     symbol_table.default_visibility = Symbol.Visibility.PRIVATE
     code = fortran_writer.gen_access_stmts(symbol_table)
     assert code.strip() == "public :: my_sub1, some_var"
-    # Check that we don't generate an accessibility statement for a
-    # RoutineSymbol tagged with 'own_routine_symbol'
-    symbol_table.add(RoutineSymbol("my_routine",
-                                   visibility=Symbol.Visibility.PUBLIC),
-                     tag='own_routine_symbol')
-    code = fortran_writer.gen_access_stmts(symbol_table)
-    assert "my_routine" not in code
     # Accessibility should also be generated for a GenericInterfaceSymbol.
     symbol_table.add(GenericInterfaceSymbol("overloaded", [(sub2, True)]))
     code = fortran_writer.gen_access_stmts(symbol_table)
     assert code.strip() == "public :: my_sub1, some_var, overloaded"
+
+
+def test_gen_access_stmts_avoids_internal(fortran_reader, fortran_writer):
+    '''
+    Tests for the gen_access_stmts does not list the psyclone internal symbols
+    '''
+    test_module = '''
+    module test_mod
+      private
+      interface test
+        module procedure test, test_code
+      end interface test
+      public test
+    contains
+      subroutine test_code()
+      end subroutine test_code
+      subroutine test()
+      end subroutine test
+    end module test_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(test_module)
+    # Check that the internal symbol exists but is not listed
+    assert psyir.children[0].symbol_table.lookup("_PSYCLONE_INTERNAL_test")
+    assert "_psyclone_internal_test" not in fortran_writer(psyir).lower()
 
 
 def test_fw_exception(fortran_writer):
@@ -866,7 +881,7 @@ def test_fw_filecontainer_2(fortran_writer):
 
     '''
     container = Container("mod_name")
-    routine = Routine("sub_name")
+    routine = Routine.create("sub_name")
     file_container = FileContainer.create(
         "None", SymbolTable(), [container, routine])
     result = fortran_writer(file_container)
@@ -894,7 +909,16 @@ def test_fw_filecontainer_error1(fortran_writer):
         _ = fortran_writer(file_container)
     assert (
         "In the Fortran backend, a file container should not have any "
-        "symbols associated with it, but found 1." in str(info.value))
+        "symbols associated with it other than RoutineSymbols, but found "
+        "x: Symbol<Automatic>." in str(info.value))
+
+    # Check that a routine symbol is fine.
+    symbol_table = SymbolTable()
+    routine_symbol = RoutineSymbol("mysub")
+    symbol_table.add(routine_symbol)
+    file_container = FileContainer.create("None", symbol_table, [])
+    output = fortran_writer(file_container)
+    assert "mysub" not in output
 
 
 def test_fw_filecontainer_error2(fortran_writer):
@@ -1369,6 +1393,7 @@ def test_fw_char_literal(fortran_writer):
     result = fortran_writer(lit)
     assert result == "'hello'"
 
+
 # literal is already checked within previous tests
 
 
@@ -1599,42 +1624,6 @@ def test_fw_codeblock_3(fortran_writer):
             in str(excinfo.value))
 
 
-def get_nemo_schedule(parser, code):
-    '''Utility function that returns the first schedule for a code with
-    the nemo api.
-
-    :param parser: the parser class.
-    :type parser: :py:class:`fparser.two.Fortran2003.Program`
-    :param str code: the code as a string.
-
-    :returns: the first schedule in the supplied code.
-    :rtype: :py:class:`psyclone.nemo.NemoInvokeSchedule`
-
-    '''
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    return psy.invokes.invoke_list[0].schedule
-
-
-def test_fw_nemoinvokeschedule(fortran_writer, parser):
-    '''Check that the FortranWriter class nemoinvokeschedule accepts the
-    NemoInvokeSchedule node and prints the expected code (from any
-    children of the node as the node itself simply calls its
-    children).
-
-    '''
-    code = (
-        "program test\n"
-        "  integer :: a\n"
-        "  a=1\n"
-        "end program test\n")
-    schedule = get_nemo_schedule(parser, code)
-    assert isinstance(schedule, NemoInvokeSchedule)
-    result = fortran_writer(schedule)
-    assert "a = 1\n" in result
-
-
 def test_fw_query_intrinsics(fortran_reader, fortran_writer, tmpdir):
     ''' Check that the FortranWriter outputs SIZE/LBOUND/UBOUND
     intrinsic calls. '''
@@ -1699,6 +1688,10 @@ def test_fw_literal_node(fortran_writer):
     result = fortran_writer(lit1)
     assert result == '3.14'
 
+    lit1 = Literal('3', REAL_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '3.0'
+
     lit1 = Literal('3.14E0', REAL_TYPE)
     result = fortran_writer(lit1)
     assert result == '3.14e0'
@@ -1706,6 +1699,10 @@ def test_fw_literal_node(fortran_writer):
     lit1 = Literal('3.14E0', REAL_DOUBLE_TYPE)
     result = fortran_writer(lit1)
     assert result == '3.14d0'
+
+    lit1 = Literal('3', REAL_DOUBLE_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '3.0d0'
 
     # Check that BOOLEANS use the FORTRAN formatting
     lit1 = Literal('true', BOOLEAN_TYPE)
@@ -1868,7 +1865,7 @@ def test_fw_comments(fortran_writer):
     ''' Test the generation of Fortran from PSyIR with comments. '''
 
     container = Container("my_container")
-    routine = Routine("my_routine")
+    routine = Routine.create("my_routine")
     container.addchild(routine)
     statement1 = Return()
     statement2 = Return()
@@ -2014,3 +2011,27 @@ def test_componenttype_initialisation(fortran_reader, fortran_writer):
         "    integer, public :: i = 1\n"
         "    integer, public :: j\n"
         "  end type my_type\n" in result)
+
+
+def test_pointer_assignments(fortran_reader, fortran_writer):
+    ''' That assignments are produced by the Fortran backend, respecting the
+    is_pointer attribute.
+    '''
+    test_module = '''
+    subroutine mysub()
+        use other_symbols
+        integer, target :: a = 1
+        integer, pointer :: b => null()
+
+        a = 4
+        b => a
+        field(3,c)%pointer => b
+    end subroutine
+    '''
+    file_container = fortran_reader.psyir_from_source(test_module)
+    code = fortran_writer(file_container)
+    assert not file_container.walk(CodeBlock)
+    assert len(file_container.walk(Assignment)) == 3
+    assert "a = 4" in code
+    assert "b => a" in code
+    assert "field(3,c)%pointer => b" in code

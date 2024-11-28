@@ -34,7 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified A. B. G. Chalk, STFC Daresbury Lab
-# Modified J. G. Wallwork, Met Office
+# Modified J. G. Wallwork, Met Office / University of Cambridge
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenACC PSyIR Directive nodes. '''
@@ -93,7 +93,7 @@ def test_accregiondir_validate_global(fortran_reader):
 
 def test_accregiondir_signatures():
     '''Test the signatures property of ACCRegionDirective.'''
-    routine = Routine("test_prog")
+    routine = Routine.create("test_prog")
     accnode = MyACCRegion()
     routine.addchild(accnode)
     bob = DataSymbol("bob", INTEGER_TYPE)
@@ -186,7 +186,7 @@ def test_accenterdatadirective_gencode_3(trans):
     code = str(psy.gen)
     assert (
         "      !$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
-        "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers_f1,"
         "undf_w1,undf_w2,undf_w3)\n" in code)
 
 
@@ -218,13 +218,15 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
     assert (
         "      !$acc enter data copyin(f1_data,f2_data,f3_data,m1_data,"
         "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
-        "nlayers,undf_w1,undf_w2,undf_w3)\n" in code)
+        "nlayers_f1,undf_w1,undf_w2,undf_w3)\n" in code)
 
 
 # Class ACCLoopDirective start
 
-def test_accloopdirective_node_str(monkeypatch):
-    ''' Test the node_str() method of ACCLoopDirective node '''
+def test_accloopdirective_node_str_default(monkeypatch):
+    '''
+    Test the node_str() method of ACCLoopDirective node with default arguments.
+    '''
     directive = ACCLoopDirective()
 
     # Mock the coloured name as this is tested elsewhere
@@ -237,16 +239,46 @@ def test_accloopdirective_node_str(monkeypatch):
     assert directive.node_str() == expected
     assert str(directive) == expected
 
+
+def test_accloopdirective_node_str_nondefault(monkeypatch):
+    '''
+    Test the node_str() method of ACCLoopDirective node with non-default
+    arguments.
+    '''
+    directive = ACCLoopDirective(
+        sequential=False, collapse=2, independent=False, gang=True, vector=True
+    )
+
+    # Mock the coloured name as this is tested elsewhere
+    monkeypatch.setattr(directive, "coloured_name",
+                        lambda x: "ACCLoopDirective")
+
     # Non-default value output
-    directive._sequential = True
-    directive._collapse = 2
-    directive._independent = False
-    directive._gang = True
-    directive._vector = True
-    expected = ("ACCLoopDirective[sequential=True,gang=True,vector=True,"
+    expected = ("ACCLoopDirective[sequential=False,gang=True,vector=True,"
                 "collapse=2,independent=False]")
     assert directive.node_str() == expected
     assert str(directive) == expected
+
+    # Non-default value output
+    directive._sequential = True
+    directive._gang = False
+    directive._vector = False
+    expected = ("ACCLoopDirective[sequential=True,gang=False,vector=False,"
+                "collapse=2,independent=False]")
+    assert directive.node_str() == expected
+    assert str(directive) == expected
+
+
+def test_accloopdirective_inconsistent_clause_error():
+    '''
+    Test the ACCLoopDirective constructor raises a ValueError if inconsistent
+    clause arguments are passed.
+    '''
+    for kwargs in ({"gang": True}, {"vector": True}):
+        with pytest.raises(ValueError) as err:
+            _ = ACCLoopDirective(sequential=True, **kwargs)
+        assert ("The OpenACC seq clause cannot be used in conjunction with the"
+                " gang or vector clauses." in str(err.value))
 
 
 def test_accloopdirective_collapse_getter_and_setter():
@@ -417,15 +449,40 @@ def test_acc_routine_directive_constructor_and_strings():
     ''' Test the ACCRoutineDirective constructor and its output
     strings.'''
     target = ACCRoutineDirective()
-    assert target.begin_string() == "acc routine"
+    # Defaults to sequential.
+    assert target.begin_string() == "acc routine seq"
     assert str(target) == "ACCRoutineDirective[]"
 
     temporary_module = ModuleGen("test")
     target.gen_code(temporary_module)
-    assert "!$acc routine\n" in str(temporary_module.root)
+    assert "!$acc routine seq\n" in str(temporary_module.root)
 
+    target2 = ACCRoutineDirective("VECTOR")
+    assert target2.parallelism == "vector"
+    assert target2.begin_string() == "acc routine vector"
+    target3 = ACCRoutineDirective("GANG")
+    assert target3.parallelism == "gang"
+    target4 = ACCRoutineDirective("WORKER")
+    assert target4.parallelism == "worker"
+
+
+def test_acc_routine_parallelism():
+    ''' Test the ACCRoutineDirective parallelism property. '''
+    target = ACCRoutineDirective()
+    assert target.parallelism == "seq"
+    target.parallelism = "vector"
+    assert target.parallelism == "vector"
+    with pytest.raises(TypeError) as err:
+        target.parallelism = 1
+    assert ("Expected a str to specify the level of parallelism but got 'int'"
+            in str(err.value))
+    with pytest.raises(ValueError) as err:
+        target.parallelism = "sequential"
+    assert ("Expected one of ['seq', 'vector', 'worker', 'gang'] for the level"
+            " of parallelism but got 'sequential'" in str(err.value))
 
 # Class ACCUpdateDirective
+
 
 def test_accupdatedirective_init():
     ''' Test the constructor of ACCUpdateDirective node. '''

@@ -35,12 +35,10 @@
 
 ''' Module containing tests for testing RegionTrans'''
 
-from __future__ import absolute_import
-
 import pytest
 
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import Node, Schedule
+from psyclone.psyir.nodes import CodeBlock, Node, Schedule
 from psyclone.psyir.transformations import RegionTrans
 from psyclone.tests.utilities import get_invoke
 from psyclone.gocean1p0 import GOLoop
@@ -112,7 +110,7 @@ def test_get_node_list():
 
 
 # -----------------------------------------------------------------------------
-def test_validate_errors():
+def test_validate_errors(fortran_reader):
     '''Tests error handling of the region transformation.'''
 
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean",
@@ -169,8 +167,22 @@ def test_validate_errors():
                  schedule.children[2]]
     with pytest.raises(TransformationError) as err:
         my_rt.validate(node_list)
-    assert ("Transformation Error: Nodes of type 'GOLoop' cannot be enclosed"
-            in str(err.value))
+    assert "type 'GOLoop' cannot be enclosed" in str(err.value)
+
+    # Check that we get more a informative message if there is a CodeBlock.
+    psyir = fortran_reader.psyir_from_source('''
+    program my_prog
+      integer :: ji
+      do ji = 1, 10
+        write(*,*) ji
+      end do
+    end program my_prog''')
+    my_rt.excluded_node_types = (CodeBlock,)
+    with pytest.raises(TransformationError) as err:
+        my_rt.validate(psyir.children[0].children)
+    assert ("found:\n! PSyclone CodeBlock (unsupported code) reason:\n"
+            "!  - Unsupported statement: Write_Stmt\n"
+            "WRITE(*, *) ji" in str(err.value))
 
 
 # -----------------------------------------------------------------------------

@@ -48,7 +48,6 @@ from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     OMPDoDirective, OMPLoopDirective, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, BOOLEAN_TYPE, \
     ImportInterface, ContainerSymbol
-from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ProfileTrans, RegionTrans, \
     TransformationError
 from psyclone.tests.utilities import get_invoke, Compile
@@ -111,6 +110,48 @@ def test_accparallel():
         _ = ACCParallelTrans(default_present=3)
     assert ("The provided 'default_present' argument must be a boolean, "
             "but found '3'." in str(err.value))
+
+
+def test_accparalleltrans_validate(fortran_reader):
+    ''' Test that ACCParallelTrans validation fails if it contains non-allowed
+    constructs. '''
+
+    omptargettrans = ACCParallelTrans()
+
+    code = '''
+    function myfunc(a)
+        integer :: a
+        integer :: myfunc
+    end function
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A
+        integer :: i
+        integer :: j
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = myfunc(3)
+            end do
+        end do
+        do i = 1, 10
+            do j = 1, 10
+                char = 'a' // 'b'
+            end do
+        end do
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop, stop_type=Loop)
+
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[0])
+    assert ("'myfunc' is not available on the accelerator device, and "
+            "therefore it cannot be called from within an ACC parallel region."
+            in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[1])
+    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a ACCParallel"
+            "Trans transformation" in str(err.value))
 
 
 def test_accenterdata():
@@ -353,77 +394,6 @@ def test_omplooptrans_properties():
         omplooptrans.omp_schedule = "dynamic,"
     assert ("Supplied OpenMP schedule 'dynamic,' has an invalid chunk-size."
             in str(err.value))
-
-
-def test_parallellooptrans_validate_dependencies(fortran_reader):
-    ''' Test that the parallellooptrans validation checks for loop carried
-    dependencies. '''
-
-    def create_loops(body):
-        psyir = fortran_reader.psyir_from_source(f'''
-        subroutine my_subroutine()
-            integer :: ji, jj, jk, jpkm1, jpjm1, jpim1
-            real, dimension(10, 10, 10) :: zwt, zwd, zwi, zws
-            real :: total
-            {body}
-        end subroutine''')
-        return psyir.walk(Loop)
-
-    # Use OMPLoopTrans as a concrete class of ParallelLoopTrans
-    omplooptrans = OMPLoopTrans()
-    # Example with a loop carried dependency in jk dimension
-    loops = create_loops('''
-        do jk = 2, jpkm1, 1
-          do jj = 2, jpjm1, 1
-            do ji = 2, jpim1, 1
-              zwt(ji,jj,jk) = zwd(ji,jj,jk) - zwi(ji,jj,jk) * &
-                              zws(ji,jj,jk - 1) / zwt(ji,jj,jk - 1)
-            enddo
-          enddo
-        enddo''')
-
-    # Check that the loop can not be parallelised due to the loop-carried
-    # dependency.
-    with pytest.raises(TransformationError) as err:
-        omplooptrans.validate(loops[0])
-    assert ("Transformation Error: Dependency analysis failed with the "
-            "following messages:\nError: The write access to 'zwt(ji,jj,jk)' "
-            "and the read access to 'zwt(ji,jj,jk - 1)' are dependent and "
-            "cannot be parallelised. Variable: 'zwt'." in str(err.value))
-
-    # However, the inner loop can be parallelised because the dependency is
-    # just with 'jk' and it is not modified in the inner loops
-    omplooptrans.validate(loops[1])
-
-    # Reductions also indicate a data dependency that needs to be handled, so
-    # we don't permit the parallelisation of the loop (until we support
-    # reduction clauses)
-    loops = create_loops('''
-        do jk = 2, jpkm1, 1
-          do jj = 2, jpjm1, 1
-            do ji = 2, jpim1, 1
-              total = total + zwt(ji,jj,jk)
-            enddo
-          enddo
-        enddo''')
-    with pytest.raises(TransformationError) as err:
-        omplooptrans.validate(loops[0])
-    assert ("Transformation Error: Dependency analysis failed with the "
-            "following messages:\nWarning: Variable 'total' is read first, "
-            "which indicates a reduction." in str(err.value))
-
-    # Shared scalars are race conditions but these are accepted because it
-    # can be manage with the appropriate clause
-    loops = create_loops('''
-        do jk = 2, jpkm1, 1
-          do jj = 2, jpjm1, 1
-            do ji = 2, jpim1, 1
-              total = zwt(ji,jj,jk)
-            enddo
-          enddo
-        enddo''')
-    assert not DependencyTools().can_loop_be_parallelised(loops[0])
-    omplooptrans.validate(loops[0])
 
 
 def test_omplooptrans_apply_firstprivate(fortran_reader, fortran_writer,
@@ -678,9 +648,8 @@ def test_ompsingle_nested():
     single.apply(schedule[0])
     with pytest.raises(TransformationError) as err:
         single.apply(schedule[0])
-    assert ("Transformation Error: Nodes of type 'OMPSingleDirective' cannot"
-            " be enclosed by a OMPSingleTrans transformation"
-            in str(err.value))
+    assert ("Nodes of type 'OMPSingleDirective' cannot be enclosed by a "
+            "OMPSingleTrans transformation" in str(err.value))
 
 
 # Tests for OMPMasterTrans
@@ -709,9 +678,8 @@ def test_ompmaster_nested():
     assert schedule[0].dir_body[0] is node
     with pytest.raises(TransformationError) as err:
         master.apply(schedule[0])
-    assert ("Transformation Error: Nodes of type 'OMPMasterDirective' cannot"
-            " be enclosed by a OMPMasterTrans transformation"
-            in str(err.value))
+    assert ("Nodes of type 'OMPMasterDirective' cannot be enclosed by a "
+            "OMPMasterTrans transformation" in str(err.value))
 
 
 # Tests for ProfileTrans
