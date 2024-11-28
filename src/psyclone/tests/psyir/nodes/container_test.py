@@ -45,7 +45,6 @@ from psyclone.psyir.nodes import (Call, colored, Container, FileContainer,
                                   KernelSchedule, Node, Return, Routine)
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, SymbolTable
 from psyclone.tests.utilities import check_links
-from psyclone.parse import ModuleManager
 
 
 def test_container_init():

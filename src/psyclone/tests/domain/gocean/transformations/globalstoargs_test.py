@@ -45,7 +45,6 @@ from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
     CHARACTER_TYPE, Symbol
 from psyclone.transformations import KernelImportsToArguments, \
     TransformationError
-from psyclone.psyir.nodes import Node
 
 API = "gocean"
 

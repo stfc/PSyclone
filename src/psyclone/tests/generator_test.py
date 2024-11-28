@@ -68,7 +68,7 @@ from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.version import __VERSION__
-
+from psyclone.parse import ModuleManager
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
@@ -168,13 +168,16 @@ def test_script_invalid_content(script_factory):
     a simple way to create its required arguments.
 
     '''
+    module_manager = ModuleManager()
+
     error_syntax = script_factory("""
 this is invalid python
     """)
     with pytest.raises(Exception) as err:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="lfric", script_name=error_syntax)
+            api="lfric", script_name=error_syntax,
+            module_manager=module_manager)
     assert ("invalid syntax (test_script.py, line 2)" in str(err.value))
 
     error_import = script_factory("""
@@ -183,7 +186,8 @@ import non_existent
     with pytest.raises(Exception) as err:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="lfric", script_name=error_import)
+            api="lfric", script_name=error_import,
+            module_manager=module_manager)
     assert "No module named 'non_existent'" in str(err.value)
 
 
@@ -195,6 +199,8 @@ def test_script_invalid_content_runtime(script_factory):
     to create its required arguments.
 
     '''
+    module_manager = ModuleManager()
+
     runtime_error = script_factory("""
 def trans(psyir):
     # this will produce a runtime error as b has not been assigned
@@ -203,7 +209,8 @@ def trans(psyir):
     with pytest.raises(Exception) as error:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="lfric", script_name=runtime_error)
+            api="lfric", script_name=runtime_error,
+            module_manager=module_manager)
     assert "name 'b' is not defined" in str(error.value)
 
 
@@ -489,13 +496,17 @@ def test_script_null_trans(script_factory):
     in a valid script file does no transformations.
 
     '''
+    module_manager = ModuleManager()
+
     empty_script = script_factory("def trans(psyir):\n  pass")
     alg1, psy1 = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                        "1_single_invoke.f90"),
-                          api="lfric")
+                          api="lfric",
+                          module_manager=module_manager)
     alg2, psy2 = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                        "1_single_invoke.f90"),
-                          api="lfric", script_name=empty_script)
+                          api="lfric", script_name=empty_script,
+                          module_manager=module_manager)
     # we need to remove the first line before comparing output as
     # this line is an instance specific header
     assert '\n'.join(str(alg1).split('\n')[1:]) == \
@@ -511,9 +522,12 @@ def test_script_null_trans_relative(script_factory):
     path and must therefore be found via the PYTHOPATH path list.
 
     '''
+    module_manager = ModuleManager()
+
     alg1, psy1 = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                        "1_single_invoke.f90"),
-                          api="lfric")
+                          api="lfric",
+                          module_manager=module_manager)
     empty_script = script_factory("def trans(psyir):\n  pass")
     basename = os.path.basename(empty_script)
     path = os.path.dirname(empty_script)
@@ -521,7 +535,8 @@ def test_script_null_trans_relative(script_factory):
     os.sys.path.append(path)
     alg2, psy2 = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                        "1_single_invoke.f90"),
-                          api="lfric", script_name=basename)
+                          api="lfric", script_name=basename,
+                          module_manager=module_manager)
     # Remove the path from PYTHONPATH
     os.sys.path.pop()
     # we need to remove the first line before comparing output as
@@ -673,6 +688,8 @@ def test_main_profile(capsys):
     expected.
 
     '''
+
+    module_manager = ModuleManager()
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "test_files", "gocean1p0",
                             "test27_loop_swap.f90")
@@ -680,25 +697,29 @@ def test_main_profile(capsys):
     options = ["-api", "gocean"]
 
     # Check for invokes only parameter:
-    main(options+["--profile", "invokes", filename])
+    main(options+["--profile", "invokes", filename],
+         module_manager=module_manager)
     assert not Profiler.profile_kernels()
     assert Profiler.profile_invokes()
 
     # Check for kernels only parameter:
-    main(options+["--profile", "kernels", filename])
+    main(options+["--profile", "kernels", filename],
+         module_manager=module_manager)
     assert Profiler.profile_kernels()
     assert not Profiler.profile_invokes()
 
     # Check for routines (aka invokes) + kernels
     main(options+["--profile", "kernels",
-                  '--profile', 'routines', filename])
+                  '--profile', 'routines', filename],
+         module_manager=module_manager)
     assert Profiler.profile_kernels()
     assert Profiler.profile_invokes()
 
     # Check for missing parameter (argparse then
     # takes the filename as parameter for profiler):
     with pytest.raises(SystemExit):
-        main(options+["--profile", filename])
+        main(options+["--profile", filename],
+             module_manager=module_manager)
     _, outerr = capsys.readouterr()
 
     correct_re = "invalid choice.*choose from 'invokes', 'routines', 'kernels'"
@@ -706,7 +727,8 @@ def test_main_profile(capsys):
 
     # Check for invalid parameter
     with pytest.raises(SystemExit):
-        main(options+["--profile", "invalid", filename])
+        main(options+["--profile", "invalid", filename],
+             module_manager=module_manager)
     _, outerr = capsys.readouterr()
 
     assert re.search(correct_re, outerr) is not None
@@ -714,13 +736,15 @@ def test_main_profile(capsys):
     # Check 'kernels' and 'invokes' are rejected when not using a PSyKAl DSL
     Profiler._options = []
     with pytest.raises(SystemExit):
-        main(["--profile", "kernels", filename])
+        main(["--profile", "kernels", filename],
+             module_manager=module_manager)
     _, outerr = capsys.readouterr()
     assert ("Invalid profiling option: The profiling 'kernels' and 'invokes' "
             "options are only available when using PSyKAl DSLs." in outerr)
 
     with pytest.raises(SystemExit):
-        main(["--profile", "invokes", filename])
+        main(["--profile", "invokes", filename],
+             module_manager=module_manager)
     _, outerr = capsys.readouterr()
     assert ("Invalid profiling option: The profiling 'kernels' and 'invokes' "
             "options are only available when using PSyKAl DSLs." in outerr)
@@ -751,30 +775,31 @@ def test_main_api():
     ''' Test that the API can be set by a command line parameter, also using
     the API name aliases. '''
 
+    module_manager = ModuleManager()
     filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
 
     # By default we don't use an API
-    main([filename])
+    main([filename], module_manager=module_manager)
     assert Config.get().api == ""
 
     filename = os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90")
     # Check that a command line option sets the API value
-    main([filename, "-api", "gocean"])
+    main([filename, "-api", "gocean"], module_manager=module_manager)
     assert Config.get().api == "gocean"
 
     # Reset api and try with "--psykal-dsl" flag
     Config.get().api = ""
-    main([filename, "--psykal-dsl", "gocean"])
+    main([filename, "--psykal-dsl", "gocean"], module_manager=module_manager)
     assert Config.get().api == "gocean"
 
-    main([filename, "-api", "gocean1.0"])
+    main([filename, "-api", "gocean1.0"], module_manager=module_manager)
     assert Config.get().api == "gocean"
 
     filename = os.path.join(DYN03_BASE_PATH, "1_single_invoke.f90")
-    main([filename, "-api", "lfric"])
+    main([filename, "-api", "lfric"], module_manager=module_manager)
     assert Config.get().api == "lfric"
 
-    main([filename, "-api", "dynamo0.3"])
+    main([filename, "-api", "dynamo0.3"], module_manager=module_manager)
     assert Config.get().api == "lfric"
 
 
@@ -782,6 +807,9 @@ def test_config_flag():
     ''' Test that -c/--config take precedence over the configuration
         file references in the environment variable.
     '''
+
+    module_manager = ModuleManager()
+
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "test_files", "dynamo0p3",
                             "1_single_invoke.f90")
@@ -791,21 +819,23 @@ def test_config_flag():
 
     # Test with no option
     Config._HAS_CONFIG_BEEN_INITIALISED = False
-    main([filename, "-api", "lfric"])
+    main([filename, "-api", "lfric"], module_manager=module_manager)
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
     assert Config.get().reprod_pad_size == 8
 
     # Test with with --config
     Config._HAS_CONFIG_BEEN_INITIALISED = False
-    main([filename, "--config", config_name, "-api", "lfric"])
+    main([filename, "--config", config_name, "-api", "lfric"],
+         module_manager=module_manager)
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
     assert Config.get().reprod_pad_size == 7
 
     # Test with with -c
     Config._HAS_CONFIG_BEEN_INITIALISED = False
-    main([filename, "-c", config_name, "-api", "lfric"])
+    main([filename, "-c", config_name, "-api", "lfric"],
+         module_manager=module_manager)
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
     assert Config.get().reprod_pad_size == 7
@@ -814,24 +844,34 @@ def test_config_flag():
 def test_main_directory_arg(capsys):
     '''Test the -d option in main().'''
 
+    module_manager = ModuleManager()
+
     # No -d option supplied
     filename = os.path.join(DYN03_BASE_PATH, "1_single_invoke.f90")
-    main([filename, "-api", "lfric"])
+    main([filename, "-api", "lfric"],
+         module_manager=module_manager)
     # Invalid -d path supplied
     with pytest.raises(SystemExit):
-        main([filename, "-api", "lfric", "-d", "invalid"])
+        main([filename, "-api", "lfric", "-d", "invalid"],
+             module_manager=module_manager)
     _, output = capsys.readouterr()
     assert "Kernel search path 'invalid' not found" in output
     # Multiple -d paths supplied
     main([filename, "-api", "lfric", "-d", DYN03_BASE_PATH,
-          "-d", NEMO_BASE_PATH])
+          "-d", NEMO_BASE_PATH],
+         module_manager=module_manager)
 
 
 def test_main_disable_backend_validation_arg(capsys):
     '''Test the --backend option in main().'''
+
+    module_manager = ModuleManager()
+
     filename = os.path.join(DYN03_BASE_PATH, "1_single_invoke.f90")
+
     with pytest.raises(SystemExit):
-        main([filename, "-api", "lfric", "--backend", "invalid"])
+        main([filename, "-api", "lfric", "--backend", "invalid"],
+             module_manager=module_manager)
     _, output = capsys.readouterr()
     assert "--backend: invalid choice: 'invalid'" in output
 
@@ -839,10 +879,12 @@ def test_main_disable_backend_validation_arg(capsys):
     Config._instance = None
     # Default is to have checks enabled.
     assert Config.get().backend_checks_enabled is True
-    main([filename, "-api", "lfric", "--backend", "disable-validation"])
+    main([filename, "-api", "lfric", "--backend", "disable-validation"],
+         module_manager=module_manager)
     assert Config.get().backend_checks_enabled is False
     Config._instance = None
-    main([filename, "-api", "lfric", "--backend", "enable-validation"])
+    main([filename, "-api", "lfric", "--backend", "enable-validation"],
+         module_manager=module_manager)
     assert Config.get().backend_checks_enabled is True
     Config._instance = None
 
@@ -1031,23 +1073,27 @@ def test_main_fort_line_length_off(capsys):
     should be longer than 132 characters.
 
     '''
+
+    module_manager = ModuleManager()
+
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
                              "10.3_operator_different_spaces.f90"))
-    main([filename, '-api', 'lfric'])
+    main([filename, '-api', 'lfric'], module_manager=module_manager)
     output, _ = capsys.readouterr()
     assert not all(len(line) <= 132 for line in output.split('\n'))
 
-    main([filename, '-api', 'lfric', '-l', 'off'])
+    main([filename, '-api', 'lfric', '-l', 'off'],
+         module_manager=module_manager)
     output, _ = capsys.readouterr()
     assert not all(len(line) <= 132 for line in output.split('\n'))
 
     alg_filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
-    main([alg_filename])
+    main([alg_filename], module_manager=module_manager)
     output, _ = capsys.readouterr()
     assert not all(len(line) <= 132 for line in output.split('\n'))
 
-    main([alg_filename, '-l', 'off'])
+    main([alg_filename, '-l', 'off'], module_manager=module_manager)
     output, _ = capsys.readouterr()
     assert not all(len(line) <= 132 for line in output.split('\n'))
 
@@ -1119,13 +1165,16 @@ def test_main_write_psy_file(capsys, tmpdir):
     generated psy output to a specified file.
 
     '''
+    module_manager = ModuleManager()
+
     alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"))
 
     psy_filename = str(tmpdir.join("psy.f90"))
 
-    main([alg_filename, '-api', 'lfric', '-opsy', psy_filename])
+    main([alg_filename, '-api', 'lfric', '-opsy', psy_filename],
+         module_manager=module_manager)
 
     # check psy file is created
     assert os.path.isfile(psy_filename)
@@ -1134,7 +1183,8 @@ def test_main_write_psy_file(capsys, tmpdir):
     with open(psy_filename, encoding="utf8") as psy_file:
         psy_str = psy_file.read()
         # check content of generated psy file by comparing it with stdout
-        main([alg_filename, '-api', 'lfric'])
+        main([alg_filename, '-api', 'lfric'],
+             module_manager=module_manager)
         stdout, _ = capsys.readouterr()
         assert psy_str in stdout
 

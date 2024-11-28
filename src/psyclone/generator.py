@@ -156,7 +156,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
              line_length=False,
              distributed_memory=None,
              kern_out_path="",
-             kern_naming="multiple"):
+             kern_naming="multiple",
+             module_manager: ModuleManager = None):
     # pylint: disable=too-many-arguments, too-many-statements
     # pylint: disable=too-many-branches, too-many-locals
     '''Takes a PSyclone algorithm specification as input and outputs the
@@ -236,11 +237,12 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             raise IOError(
                 f"Kernel search path '{kernel_path}' not found")
 
+    if module_manager is None:
+        module_manager = ModuleManager()
+
     # TODO #2011: investigate if kernel search path and module manager
     # can be combined.
-    ModuleManager.get().add_search_path(kernel_paths)
-    # module_manager = ModuleManager()
-    # module_manager.add_search_path(kernel_paths)
+    module_manager.add_search_path(kernel_paths)
 
     ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                              kernel_paths=kernel_paths,
@@ -254,6 +256,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             recipe, _ = load_script(script_name)
             recipe(psy.container.root)
         alg_gen = None
+
+        # Set the module manager
+        psy.container.set_module_manager(module_manager)
 
     elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
         # Create language-level PSyIR from the Algorithm file
@@ -272,6 +277,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             check_psyir(psyir, filename)
         else:
             psyir = reader.psyir_from_file(filename)
+
+        # Set the module manager
+        psyir.set_module_manager(module_manager)
 
         # Raise to Algorithm PSyIR
         if api in GOCEAN_API_NAMES:
@@ -394,7 +402,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     return alg_gen, psy.gen
 
 
-def main(arguments):
+def main(arguments, module_manager: ModuleManager = None):
     '''
     Parses and checks the command line arguments, calls the generate
     function if all is well, catches any errors and outputs the
@@ -571,7 +579,8 @@ def main(arguments):
                                 line_length=(args.limit == 'all'),
                                 distributed_memory=args.dist_mem,
                                 kern_out_path=kern_out_path,
-                                kern_naming=args.kernel_renaming)
+                                kern_naming=args.kernel_renaming,
+                                module_manager=module_manager)
         except NoInvokesError:
             _, exc_value, _ = sys.exc_info()
             print(f"Warning: {exc_value}")

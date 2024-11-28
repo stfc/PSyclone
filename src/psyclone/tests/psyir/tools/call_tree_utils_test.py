@@ -149,10 +149,12 @@ def test_call_tree_generic_functions():
     assert all_names == ["real_func", "double_func", "integer_func"]
 
     ctu = CallTreeUtils()
-    mod_info = module_manager.get_module_info("module_calling_generic_function")
+    mod_info = module_manager.get_module_info(
+                        "module_calling_generic_function")
     todo = ctu.get_non_local_symbols(mod_info.get_psyir())
     rw_info = ReadWriteInfo()
-    ctu._resolve_calls_and_unknowns(todo, rw_info, module_manager=module_manager)
+    ctu._resolve_calls_and_unknowns(
+                todo, rw_info, module_manager=module_manager)
     assert (set(rw_info.read_list) ==
             set([('module_call_tree_mod', Signature("module_var_real")),
                  ('module_call_tree_mod', Signature("module_var_double"))]))
@@ -662,7 +664,8 @@ def test_call_tree_error_module_is_codeblock(capsys):
     '''
     dyn_test_dir = get_base_path("lfric")
     module_manager = ModuleManager()
-    module_manager.add_search_path(os.path.join(dyn_test_dir, "driver_creation"))
+    module_manager.add_search_path(
+        os.path.join(dyn_test_dir, "driver_creation"))
 
     cblock = CodeBlock([], "dummy")
     mod_info = module_manager.get_module_info("testkern_import_symbols_mod")

@@ -48,8 +48,8 @@ from psyclone.parse import ModuleManager
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_manager_instance():
     '''Tests the singleton functionality.'''
-    mod_man1 = ModuleManager.get()
-    mod_man2 = ModuleManager.get()
+    mod_man1 = ModuleManager.get_singleton()
+    mod_man2 = ModuleManager.get_singleton()
     assert mod_man1 is mod_man2
 
     with pytest.raises(InternalError) as err:

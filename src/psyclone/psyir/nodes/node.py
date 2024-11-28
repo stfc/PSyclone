@@ -47,14 +47,12 @@ from __future__ import annotations
 import copy
 import graphviz
 
-import warnings
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.symbols import SymbolError
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from psyclone.parse.module_manager import ModuleManager
-    from psyclone.psyir.nodes import Container
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not

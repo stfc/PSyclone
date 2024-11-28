@@ -53,7 +53,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import ScopingNode
-from yaml import Node
+
 
 # The various file suffixes we recognise as being Fortran
 FORTRAN_SUFFIXES = ["f90", "F90", "x90"]

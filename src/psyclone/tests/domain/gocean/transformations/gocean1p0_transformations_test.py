@@ -1468,7 +1468,7 @@ def test_accroutinetrans_module_use():
     module_manager = ModuleManager()
     _, invoke = get_invoke("single_invoke_kern_with_use.f90", api="gocean",
                            idx=0, module_manager=module_manager)
-    
+
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     rtrans = ACCRoutineTrans()

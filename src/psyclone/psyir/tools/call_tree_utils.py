@@ -340,13 +340,15 @@ class CallTreeUtils():
                               f"'{kernel.module_name}' - ignored.")
                         continue
                     todo.extend(self.get_non_local_symbols(psyir))
-        return self._resolve_calls_and_unknowns(todo, read_write_info, mod_manager)
+        return self._resolve_calls_and_unknowns(
+                    todo, read_write_info, mod_manager)
 
     # -------------------------------------------------------------------------
-    def _resolve_calls_and_unknowns(self, outstanding_nonlocals,
-                                    read_write_info,
-                                    module_manager: ModuleManager
-                                ):
+    def _resolve_calls_and_unknowns(
+                    self, outstanding_nonlocals,
+                    read_write_info,
+                    module_manager: ModuleManager
+                    ):
         '''This function updates the list of non-local symbols by:
         1. replacing all subroutine calls with the list of their corresponding
             non-local symbols.

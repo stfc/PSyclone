@@ -42,6 +42,7 @@ import copy
 from difflib import SequenceMatcher
 import os
 import re
+import warnings
 
 from psyclone.errors import InternalError
 from psyclone.parse.file_info import FileInfo
@@ -77,11 +78,14 @@ class ModuleManager:
 
     # ------------------------------------------------------------------------
     @staticmethod
-    def get(config: Config = None):
+    def get_singleton(config: Config = None):
         '''Static function that if necessary creates and returns the singleton
         ModuleManager instance.
 
         '''
+
+        warnings.warn(
+            "Using `ModuleManager.get_singleton()` is deprecated")
         if not ModuleManager._instance:
             # If ModuleManager is initialized for the first time, it
             # automatically registers itself to `ModuleManager._instance`

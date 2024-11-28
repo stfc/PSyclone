@@ -52,10 +52,10 @@ interface and the :ref:`psyke`. For the latter it
 is used
 to discover all of the source files required to make a standalone driver.
 
-The :ref_guide:`ModuleManager psyclone.parse.html#psyclone.parse.ModuleManager`
-is a singleton which must be obtained via
-`ModuleManager.get()`. Having obtained the instance, it may be used to
-search for a particular module via the `get_module_info` method:
+A :ref_guide:`ModuleManager psyclone.parse.html#psyclone.parse.ModuleManager`
+can be created by `ModuleManager()`.
+Having obtained the instance, it may be used to search for a particular module
+via the `get_module_info` method:
 
 .. automethod:: psyclone.parse.ModuleManager.get_module_info
 
@@ -115,7 +115,7 @@ which prints the filenames of all modules used in ``tl_testkern_mod``:
 
 .. testcode ::
 
-    mod_manager = ModuleManager.get()
+    mod_manager = ModuleManager()
     # Add the path to the PSyclone LFRic example codes:
     mod_manager.add_search_path("../../src/psyclone/tests/test_files/"
                                 "dynamo0p3")

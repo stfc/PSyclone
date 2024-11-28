@@ -698,7 +698,7 @@ def test_extract_colouring_omp_dynamo0p3():
     etrans = LFRicExtractTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
-    
+
     module_manager = ModuleManager()
     from psyclone.configuration import Config
     module_manager.load_from_config(Config.get())
