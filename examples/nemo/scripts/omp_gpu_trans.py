@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import OMPDeclareTargetTrans, TransformationError
 
-PROFILING_ENABLED = True
+PROFILING_ENABLED = False
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = NOT_PERFORMANT
