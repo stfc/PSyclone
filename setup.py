@@ -161,7 +161,7 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser>=0.1.4', 'configparser',
+        install_requires=['pyparsing', 'fparser>=0.2.0', 'configparser',
                           'jsonschema', 'sympy', "Jinja2", 'termcolor',
                           'graphviz'],
         extras_require={
