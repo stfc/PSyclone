@@ -38,7 +38,7 @@
 
 import pytest
 from psyclone.psyir.symbols import (GenericInterfaceSymbol, INTEGER_TYPE,
-                                    RoutineSymbol, SymbolTable)
+                                    RoutineSymbol, SymbolTable, Symbol)
 
 
 def test_gis_constructor():
@@ -76,6 +76,27 @@ def test_gis_constructor():
     nut = RoutineSymbol("nut")
     oak.routines.append(GenericInterfaceSymbol.RoutineInfo(nut, True))
     assert oak.container_routines == [nut]
+
+
+def test_gis_specialise():
+    '''
+    Specialise a generic symbol into a GenericInterfaceSymbol.
+
+    '''
+    # Specialise symbols without routines
+    symbol = Symbol("no_routines")
+    symbol.specialise(GenericInterfaceSymbol)
+    assert symbol.routines == []  # It now has a routine attribute
+
+    symbol = Symbol("has_routines")
+    impl1 = RoutineSymbol("impl1")
+    impl2 = RoutineSymbol("impl2")
+    symbol.specialise(GenericInterfaceSymbol,
+                      routines=[(impl1, True), (impl2, False)])
+    assert symbol.routines[0].symbol is impl1
+    assert symbol.routines[0].from_container is True
+    assert symbol.routines[1].symbol is impl2
+    assert symbol.routines[1].from_container is False
 
 
 def test_gis_typedsymbol_keywords():
