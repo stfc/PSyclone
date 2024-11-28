@@ -60,8 +60,8 @@ from psyclone.domain.lfric import (
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeallocateGen, DeclGen, DoGen, InterfaceDeclGen,
-                              ModuleGen, PSyIRGen, TypeDeclGen, UseGen)
+                              DeallocateGen, DeclGen, DoGen,
+                              PSyIRGen, TypeDeclGen, UseGen)
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (InvokeSchedule, Arguments,
