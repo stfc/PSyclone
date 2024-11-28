@@ -47,7 +47,8 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
-    RoutineSymbol, Symbol, SymbolError, UnsupportedFortranType)
+    GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError,
+    UnsupportedFortranType)
 
 
 class Call(Statement, DataNode):
@@ -442,6 +443,80 @@ class Call(Statement, DataNode):
 
         return new_copy
 
+    def _get_unresolved_callee(self):
+        '''
+        Searches for the implementation(s) of the target routine for this Call
+        when it is unresolved.
+
+        :returns: the Routine(s) that this call targets.
+        :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
+
+        :raises NotImplementedError: if the routine is not found
+            in any containers in scope at the call site.
+        '''
+        rsym = self.routine.symbol
+        # Check for any "raw" Routines, i.e. any that are not in a Container.
+        # Such Routines would exist in the PSyIR as a child of a FileContainer
+        # (if the PSyIR contains a FileContainer). Note, if the PSyIR does
+        # contain a FileContainer, it will be the root node of the PSyIR.
+        for routine in self.root.children:
+            if (isinstance(routine, Routine) and
+                    routine.name.lower() == rsym.name.lower()):
+                return [routine]
+
+        # Now check for any wildcard imports and see if they can
+        # be used to resolve the symbol.
+        wildcard_names = []
+        containers_not_found = []
+        current_table = self.scope.symbol_table
+        while current_table:
+            for container_symbol in current_table.containersymbols:
+                if container_symbol.wildcard_import:
+                    wildcard_names.append(container_symbol.name)
+                    try:
+                        container = container_symbol.find_container_psyir(
+                            local_node=self)
+                    except SymbolError:
+                        container = None
+                    if not container:
+                        # Failed to find/process this Container.
+                        containers_not_found.append(container_symbol.name)
+                        continue
+                    routines = []
+                    target_sym = container.symbol_table.lookup(rsym.name,
+                                                               otherwise=None)
+                    if target_sym:
+                        # If the target of the call turns out to be an
+                        # interface then the routines themselves are allowed
+                        # to be private.
+                        can_be_private = isinstance(target_sym,
+                                                    GenericInterfaceSymbol)
+                        for name in container.resolve_routine(rsym.name):
+                            psyir = container.find_routine_psyir(
+                                name,
+                                allow_private=can_be_private)
+                            if psyir:
+                                routines.append(psyir)
+                    if routines:
+                        return routines
+            current_table = current_table.parent_symbol_table()
+        if not wildcard_names:
+            wc_text = "there are no wildcard imports"
+        else:
+            if containers_not_found:
+                wc_text = (
+                    f"attempted to resolve the wildcard imports from"
+                    f" {wildcard_names}. However, failed to find the "
+                    f"source for {containers_not_found}. The module search"
+                    f" path is set to {Config.get().include_paths}")
+            else:
+                wc_text = (f"wildcard imports from {wildcard_names}")
+        raise NotImplementedError(
+            f"Failed to find the source code of the unresolved routine "
+            f"'{rsym.name}' - looked at any routines in the same source "
+            f"file and {wc_text}. Searching for external routines "
+            f"that are only resolved at link time is not supported.")
+
     def get_callees(self):
         '''
         Searches for the implementation(s) of the target routine for this Call.
@@ -474,59 +549,7 @@ class Call(Statement, DataNode):
 
         rsym = self.routine.symbol
         if rsym.is_unresolved:
-
-            # Check for any "raw" Routines, i.e. ones that are not
-            # in a Container.  Such Routines would exist in the PSyIR
-            # as a child of a FileContainer (if the PSyIR contains a
-            # FileContainer). Note, if the PSyIR does contain a
-            # FileContainer, it will be the root node of the PSyIR.
-            for routine in self.root.children:
-                if (isinstance(routine, Routine) and
-                        routine.name.lower() == rsym.name.lower()):
-                    return [routine]
-
-            # Now check for any wildcard imports and see if they can
-            # be used to resolve the symbol.
-            wildcard_names = []
-            containers_not_found = []
-            current_table = self.scope.symbol_table
-            while current_table:
-                for container_symbol in current_table.containersymbols:
-                    if container_symbol.wildcard_import:
-                        wildcard_names.append(container_symbol.name)
-                        try:
-                            container = container_symbol.find_container_psyir(
-                                local_node=self)
-                        except SymbolError:
-                            container = None
-                        if not container:
-                            # Failed to find/process this Container.
-                            containers_not_found.append(container_symbol.name)
-                            continue
-                        routines = []
-                        for name in container.resolve_routine(rsym.name):
-                            psyir = container.find_routine_psyir(name)
-                            if psyir:
-                                routines.append(psyir)
-                        if routines:
-                            return routines
-                current_table = current_table.parent_symbol_table()
-            if not wildcard_names:
-                wc_text = "there are no wildcard imports"
-            else:
-                if containers_not_found:
-                    wc_text = (
-                        f"attempted to resolve the wildcard imports from"
-                        f" {wildcard_names}. However, failed to find the "
-                        f"source for {containers_not_found}. The module search"
-                        f" path is set to {Config.get().include_paths}")
-                else:
-                    wc_text = (f"wildcard imports from {wildcard_names}")
-            raise NotImplementedError(
-                f"Failed to find the source code of the unresolved routine "
-                f"'{rsym.name}' - looked at any routines in the same source "
-                f"file and {wc_text}. Searching for external routines "
-                f"that are only resolved at link time is not supported.")
+            return self._get_unresolved_callee()
 
         root_node = self.ancestor(Container)
         if not root_node:
@@ -535,6 +558,7 @@ class Call(Statement, DataNode):
         can_be_private = True
 
         if rsym.is_import:
+            # Chase down the Container from which the symbol is imported.
             cursor = rsym
             # A Routine imported from another Container must be public in that
             # Container.
@@ -582,6 +606,10 @@ class Call(Statement, DataNode):
         if isinstance(container, Container):
             routines = []
             all_names = container.resolve_routine(rsym.name)
+            if isinstance(rsym, GenericInterfaceSymbol):
+                # Although the interface must be public, the routines to which
+                # it points may themselves be private.
+                can_be_private = True
             for name in all_names:
                 psyir = container.find_routine_psyir(
                     name, allow_private=can_be_private)

@@ -932,6 +932,58 @@ end module some_mod''')
     assert routines[0].name == "just_do_it"
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_call_get_callees_wildcard_import_interface_container(
+        fortran_reader, tmpdir, monkeypatch):
+    '''
+    Check that get_callees() works successfully for a routine accessed via
+    a wildcard import of an interface from a module in another file. This
+    includes the case where the procedures pointed to by that interface are
+    themselves private.
+
+    '''
+    code = '''
+module other_mod
+  use some_mod
+contains
+  subroutine run_it()
+    call just_do_it()
+  end subroutine run_it
+end module other_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    # Create the module containing the subroutine definition,
+    # write it to file and set the search path so that PSyclone can find it.
+    path = str(tmpdir)
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
+
+    with open(os.path.join(path, "some_mod.f90"),
+              "w", encoding="utf-8") as mfile:
+        mfile.write('''\
+module some_mod
+  interface just_do_it
+    module procedure :: just_now, just_then
+  end interface
+  ! The procedures themselves are declared as private to this module
+  ! although the interface is public.
+  private :: just_now, just_then
+contains
+  subroutine just_now()
+    write(*,*) "hello"
+  end subroutine just_now
+  subroutine just_then(arg)
+    integer :: arg
+    write(*,*) "goodbye"
+  end subroutine just_then
+end module some_mod''')
+    routines = call.get_callees()
+    assert len(routines) == 2
+    assert all(isinstance(node, Routine) for node in routines)
+    assert routines[0].name == "just_now"
+    assert routines[1].name == "just_then"
+
+
 def test_fn_call_get_callees(fortran_reader):
     '''
     Test that get_callees() works for a function call.
