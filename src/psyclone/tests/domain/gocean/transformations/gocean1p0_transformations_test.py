@@ -1466,6 +1466,7 @@ def test_accroutinetrans_module_use():
     use statement. '''
     _, invoke = get_invoke("single_invoke_kern_with_use.f90", api="gocean",
                            idx=0)
+    mod_man = ModuleManager()
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     rtrans = ACCRoutineTrans()
@@ -1476,7 +1477,6 @@ def test_accroutinetrans_module_use():
             "represents data then it must first" in str(err.value))
     # Tell the ModuleManager where to find the module that is being USED by
     # the kernel.
-    mod_man = ModuleManager.get()
     mod_man.add_search_path(get_base_path("gocean"))
     # Now that we can resolve the symbols, we know that `rdt` is a parameter
     # (and is not a problem) but that `magic` is a variable.

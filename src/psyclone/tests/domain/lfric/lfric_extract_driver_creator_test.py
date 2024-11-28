@@ -74,7 +74,7 @@ def init_module_manager():
 
     ModuleManager._test_helper_reset()
 
-    module_manager = ModuleManager.get()
+    module_manager = ModuleManager()
     module_manager.add_search_path(infrastructure_path)
     module_manager.add_search_path(read_mod_path)
 
@@ -92,6 +92,9 @@ def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
     Test that _create_read_in_code() handles the case where a symbol
     cannot be found.
     '''
+
+    # Load the singleton instance initialized by `init_module_manager`
+    mod_man = ModuleManager._instance
     _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
                            "symbols.f90",
                            API,
@@ -110,7 +113,6 @@ def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
     monkeypatch.setattr(ledc, "_create_output_var_code",
                         lambda _1, _2, _3, _4, _5, index=None,
                         module_name="": None)
-    mod_man = ModuleManager.get()
     minfo = mod_man.get_module_info("module_with_var_mod")
     cntr = minfo.get_psyir()
     # We can't use 'remove()' with a DataSymbol.

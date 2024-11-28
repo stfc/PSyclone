@@ -555,7 +555,7 @@ def test_psy_data_node_name_clash(fortran_writer):
         os.path.dirname(os.path.dirname(infrastructure_path)))))
     read_mod_path = os.path.join(psyclone_root, "lib", "extract", "standalone")
 
-    module_manager = ModuleManager.get()
+    module_manager = ModuleManager()
     module_manager.add_search_path(infrastructure_path)
     module_manager.add_search_path(read_mod_path)
 
