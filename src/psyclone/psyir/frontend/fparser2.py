@@ -2091,6 +2091,12 @@ class Fparser2Reader():
         except NotImplementedError:
             datatype = None
             init_expr = None
+            if walk(node.children[0], Fortran2003.Length_Selector):
+                # If it has a length_selector it is a string, we do not
+                # support it yet but we can set the partial datatype as
+                # an ArrayType of CHARACTER
+                datatype = ArrayType(CHARACTER_TYPE,
+                                     [ArrayType.Extent.DEFERRED])
 
         # Restore the fparser2 parse tree
         node.items = tuple(orig_node_children)

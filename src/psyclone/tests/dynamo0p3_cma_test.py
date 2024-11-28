@@ -1339,8 +1339,8 @@ def test_cma_asm_stub_gen():
         "      REAL(KIND=r_solver), intent(inout), dimension("
         "cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d) :: cma_op_2\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_adspc1_op_1,"
-        "ndf_adspc2_op_1,op_1_ncell_3d) :: op_1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(op_1_ncell_3d,"
+        "ndf_adspc1_op_1,ndf_adspc2_op_1) :: op_1\n"
         "    END SUBROUTINE columnwise_op_asm_kernel_code\n"
         "  END MODULE columnwise_op_asm_kernel_mod")
     assert expected in str(result)
@@ -1387,7 +1387,7 @@ def test_cma_asm_with_field_stub_gen():
         "field_1_aspc1_field_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension("
-        "ndf_aspc1_field_1,ndf_aspc2_op_2,op_2_ncell_3d) :: op_2\n"
+        "op_2_ncell_3d,ndf_aspc1_field_1,ndf_aspc2_op_2) :: op_2\n"
         "    END SUBROUTINE columnwise_op_asm_field_kernel_code\n"
         "  END MODULE columnwise_op_asm_field_kernel_mod")
     assert expected in str(result)
@@ -1430,8 +1430,8 @@ def test_cma_asm_same_fs_stub_gen():
         "      REAL(KIND=r_def), intent(in), dimension(undf_aspc1_op_1) :: "
         "field_2_aspc1_op_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_aspc1_op_1,"
-        "ndf_aspc2_op_1,op_1_ncell_3d) :: op_1\n")
+        "      REAL(KIND=r_def), intent(in), dimension(op_1_ncell_3d,"
+        "ndf_aspc1_op_1,ndf_aspc2_op_1) :: op_1\n")
     assert expected in str(result)
 
 

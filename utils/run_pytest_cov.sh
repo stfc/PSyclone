@@ -31,5 +31,5 @@ if [[ -e cov.xml ]]; then
 fi
 
 echo "Running 'pytest --cov $PSYCLONE_MODULE --cov-report $COV_REPORT -n $(nproc) $SRC_DIR'"
-pytest --cov $PSYCLONE_MODULE -v --cov-report $COV_REPORT $OPTS -n $(nproc) $SRC_DIR
+time pytest --cov $PSYCLONE_MODULE --cov-report $COV_REPORT $OPTS -n $(nproc) $SRC_DIR
 
