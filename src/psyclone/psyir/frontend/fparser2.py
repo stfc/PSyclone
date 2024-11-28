@@ -932,7 +932,11 @@ class Fparser2Reader():
         num_clauses: int = -1
         default_idx: int = -1
 
-    def __init__(self):
+    def __init__(self, modules_to_import=None):
+        self._modules_to_import = []
+        if modules_to_import:
+            self._modules_to_import = modules_to_import
+
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
             Fortran2003.Allocate_Stmt: self._allocate_handler,
@@ -1390,8 +1394,7 @@ class Fparser2Reader():
                 explicit_save.remove(name)
         return list(explicit_save)
 
-    @staticmethod
-    def _process_use_stmts(parent, nodes, visibility_map=None):
+    def _process_use_stmts(self, parent, nodes, visibility_map=None):
         '''
         Process all of the USE statements in the fparser2 parse tree
         supplied as a list of nodes. Imported symbols are added to
@@ -1534,9 +1537,9 @@ class Fparser2Reader():
                 raise NotImplementedError(f"Found unsupported USE statement: "
                                           f"'{decl}'")
 
-            # Now attempt to import symbol information.
-            parent.symbol_table.resolve_imports(container)
-
+            # Import external symbols information.
+            if container.name.lower() in self._modules_to_import:
+                parent.symbol_table.resolve_imports([container])
 
     def _process_type_spec(self, parent, type_spec):
         '''

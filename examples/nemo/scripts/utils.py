@@ -125,23 +125,12 @@ def _it_should_be(symbol, of_type, instance):
 
 
 def enhance_tree_information(schedule):
-    ''' Resolve imports in order to populate relevant datatype on the
-    tree symbol tables.
+    ''' Manually fix some PSyIR issues produced by not having enough symbol
+    information from external modules.
 
     :param schedule: the PSyIR Schedule to transform.
     :type schedule: :py:class:`psyclone.psyir.nodes.node`
     '''
-
-    mod_sym_tab = schedule.ancestor(Container).symbol_table
-
-    modules_to_import = ("oce", "par_oce", "dom_oce", "phycst", "ice",
-                         "obs_fbm", "flo_oce", "sbc_ice", "wet_dry")
-
-    for module_name in modules_to_import:
-        if module_name in mod_sym_tab:
-            mod_symbol = mod_sym_tab.lookup(module_name)
-            mod_sym_tab.resolve_imports(container_symbols=[mod_symbol])
-
     are_integers = ('jpi', 'jpim1', 'jpj', 'jpjm1', 'jp_tem', 'jp_sal',
                     'jpkm1', 'jpiglo', 'jpni', 'jpk', 'jpiglo_crs',
                     'jpmxl_atf', 'jpmxl_ldf', 'jpmxl_zdf', 'jpnij',
@@ -157,8 +146,9 @@ def enhance_tree_information(schedule):
             _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
         elif isinstance(reference.symbol.interface, ImportInterface) and \
                 reference.symbol.interface.container_symbol.name == "phycst":
-            # Everything imported from phycst is a REAL
-            _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
+            if not isinstance(reference.symbol, RoutineSymbol):
+                # Every datasymbol imported from phycst is a REAL
+                _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
         elif reference.symbol.name == 'tmask':
             if reference.ancestor(Container).name == "dom_oce":
                 continue  # Do not update the original declaration

@@ -295,7 +295,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
-            recipe, _ = load_script(script_name, "trans_alg", is_optional=True)
+            recipe, _, _ = load_script(script_name, "trans_alg",
+                                       is_optional=True)
             if recipe:
                 recipe(psyir)
 
@@ -383,7 +384,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
         if script_name is not None:
             # Call the optimisation script for psy-layer optimisations
-            recipe, _ = load_script(script_name)
+            recipe, _, _ = load_script(script_name)
             recipe(psy.container.root)
 
     # TODO issue #1618 remove Alg class and tests from PSyclone

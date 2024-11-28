@@ -69,9 +69,29 @@ class GenericInterfaceSymbol(RoutineSymbol):
 
     def __init__(self, name, routines, **kwargs):
         super().__init__(name, **kwargs)
-        # Use the setter for 'routines' as it performs checking.
         self._routines = []
-        self.routines = routines
+        self._process_arguments(routines=routines,
+                                **kwargs)
+
+    def _process_arguments(self, **kwargs):
+        ''' Process the arguments for the constructor and the specialise
+        methods. In this case the 'routines' argument.
+
+        :param kwargs: keyword arguments which can be:\n
+            :param routines: the routines that this interface provides access
+                to.
+            :type routines: list[tuple[
+                 :py:class:`psyclone.psyir.symbols.RoutineSymbol`,
+                 bool]]
+        '''
+
+        if "routines" in kwargs:
+            # Use the setter for 'routines' as it performs checking.
+            self.routines = kwargs.pop("routines")
+        else:
+            self._routines = []
+
+        super()._process_arguments(**kwargs)
 
     @property
     def routines(self):
