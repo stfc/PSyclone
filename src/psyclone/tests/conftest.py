@@ -251,7 +251,7 @@ def fixture_tear_down_config():
     Config._instance = None
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope="function")
 def clear_module_manager_instance():
     '''For tests that assume that there is no pre-existing ModuleManager
     object, this fixture ensures that the module manager instance is deleted
@@ -261,7 +261,6 @@ def clear_module_manager_instance():
     '''
 
     # Enforce loading of the default ModuleManager
-
     ModuleManager._test_helper_reset()
 
     # Now execute all tests

@@ -59,11 +59,12 @@ def disable_declaration_check(monkeypatch):
                                              INTEGER_TYPE))
 
 
-@pytest.fixture(name="clear_module_manager", scope="function", autouse=True)
-def modmanager_fixture(monkeypatch, request):
-    '''
-    A fixture that ensures every test gets a fresh ModuleManager instance as
-    otherwise changes to search paths or file creation/removal is not detected.
-    '''
-    ModuleManager._test_helper_reset()
-    # monkeypatch.setattr(ModuleManager, '_instance', None)
+# TODO: This seems to be obsolete
+# @pytest.fixture(name="clear_module_manager", scope="function", autouse=True)
+# def modmanager_fixture(monkeypatch, request):
+#     '''
+#     A fixture that ensures every test gets a fresh ModuleManager instance as
+#     otherwise changes to search paths or file creation/removal is not detected.
+#     '''
+#     ModuleManager._test_helper_reset()
+#     # monkeypatch.setattr(ModuleManager, '_instance', None)

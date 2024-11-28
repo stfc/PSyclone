@@ -663,7 +663,7 @@ end subroutine top'''
     # Repeat but when some_mod_somewhere *is* resolved but doesn't help us
     # find the routine we're looking for.
     ModuleManager._test_helper_reset()
-    mod_manager = ModuleManager.get()
+    mod_manager = ModuleManager()
     # monkeypatch.setattr(mod_manager, "_instance", None)
     path = str(tmpdir)
     monkeypatch.setattr(Config.get(), '_include_paths', [path])
@@ -679,7 +679,7 @@ end module some_mod_somewhere
             " - looked at any routines in the same source file and wildcard "
             "imports from ['some_mod_somewhere']." in str(err.value))
     ModuleManager._test_helper_reset()
-    mod_manager = ModuleManager.get()
+    mod_manager = ModuleManager()
     # monkeypatch.setattr(mod_manager, "_instance", None)
     code = '''
 subroutine top()

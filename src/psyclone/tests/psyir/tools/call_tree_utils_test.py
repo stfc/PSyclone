@@ -66,7 +66,7 @@ def test_call_tree_compute_all_non_locals_non_kernel():
     that has no kernels.
     '''
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     mod_man.add_search_path(test_dir)
     mod_info = mod_man.get_module_info("module_call_tree_mod")
 
@@ -138,7 +138,7 @@ def test_call_tree_generic_functions():
     information.
     '''
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     mod_man.add_search_path(test_dir)
     mod_info_call_tree = mod_man.get_module_info("module_call_tree_mod")
     # First make sure we get indeed all three functions (even though
@@ -195,7 +195,7 @@ def test_call_tree_get_used_symbols_from_modules():
     '''
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
 
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     mod_man.add_search_path(test_dir)
 
     mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
@@ -239,7 +239,7 @@ def test_call_tree_get_used_symbols_from_modules_renamed():
     '''
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
 
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     mod_man.add_search_path(test_dir)
 
     mod_info = mod_man.get_module_info("module_renaming_external_var_mod")
@@ -272,7 +272,7 @@ def test_get_non_local_read_write_info(capsys):
     # contain any files used here:
     kernels_dir = os.path.join(get_base_path("lfric"),
                                "kernels", "dead_end", "no_really")
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     mod_man.add_search_path(kernels_dir)
 
     # Since the right search path is missing, this will result
@@ -291,7 +291,6 @@ def test_get_non_local_read_write_info(capsys):
     # Now add the correct search path of the driver creation tests to the
     # module manager:
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
-    mod_man = ModuleManager.get()
     mod_man.add_search_path(test_dir)
 
     # The example does contain an unknown subroutine (by design), and the
@@ -343,7 +342,7 @@ def test_get_non_local_read_write_info_errors(capsys):
     schedule = psyir.invokes.invoke_list[0].schedule
 
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     mod_man.add_search_path(test_dir)
     kernels = schedule.walk(Kern)
     minfo = mod_man.get_module_info(kernels[0].module_name)
@@ -384,7 +383,7 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
     # Add the search path of the driver creation tests to the
     # module manager:
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     mod_man.add_search_path(test_dir)
 
     # Test if the internal todo handling cannot find a subroutine in the
@@ -492,7 +491,7 @@ def test_module_info_generic_interfaces():
         end subroutine myfunc2
     So they both use the module variable module_var, but myfunc1 reads it,
     myfunc2 writes it. '''
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     mod_man.add_search_path("d2")
     mod_info = mod_man.get_module_info("g_mod")
     ctu = CallTreeUtils()
@@ -604,7 +603,7 @@ def testcall_tree_utils_non_local_inout_parameters(capsys):
     schedule = psyir.invokes.invoke_list[0].schedule
 
     test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     mod_man.add_search_path(test_dir)
 
     # The example does contain an unknown subroutine (by design), and the
@@ -637,7 +636,7 @@ def test_call_tree_error_var_not_found(capsys):
     ignores (TODO #2120)
     '''
     dyn_test_dir = get_base_path("lfric")
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     mod_man.add_search_path(os.path.join(dyn_test_dir, "infrastructure"))
 
     read_write_info = ReadWriteInfo()
@@ -658,7 +657,7 @@ def test_call_tree_error_module_is_codeblock(capsys):
     is handled correctly.
     '''
     dyn_test_dir = get_base_path("lfric")
-    mod_man = ModuleManager.get()
+    mod_man = ModuleManager()
     mod_man.add_search_path(os.path.join(dyn_test_dir, "driver_creation"))
 
     cblock = CodeBlock([], "dummy")

@@ -351,7 +351,6 @@ class ModuleManager:
 
         :returns: a dictionary with all modules that are required (directly
             or indirectly) for the modules in ``all_mods``.
-        :rtype: dict[str, set[str]]
 
         '''
         # This contains the mapping from each module name to the
