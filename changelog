@@ -307,6 +307,16 @@
 
 	116) PR #2804 towards #2737. Update PSyclone to use fparser 0.2.0 release.
 
+	117) PR #2803 for #2796. Fixes bug where PSyData nodes inserted within
+	LFRic loops did not have the associated variable declared.
+
+	118) PR #2792 for # 2766. Updates to all the examples and test
+	infrastructure now that the index ordering for operators in LFRic
+	has been changed.
+
+	119) PR #2775. Adds Call.get_callee() which matches the arguments of
+	a Call against the signature of potential callees.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data

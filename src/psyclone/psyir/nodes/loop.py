@@ -598,5 +598,5 @@ class Loop(Statement):
         # - Add the kernel module import statements
         for kernel in self.walk(CodedKern):
             if not kernel.module_inline:
-                parent.add(UseGen(parent, name=kernel._module_name, only=True,
-                                  funcnames=[kernel._name]))
+                parent.add(UseGen(parent, name=kernel.module_name, only=True,
+                                  funcnames=[kernel.name]))
