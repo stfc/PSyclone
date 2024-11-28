@@ -65,4 +65,5 @@ def modmanager_fixture(monkeypatch, request):
     A fixture that ensures every test gets a fresh ModuleManager instance as
     otherwise changes to search paths or file creation/removal is not detected.
     '''
-    monkeypatch.setattr(ModuleManager, '_instance', None)
+    ModuleManager._test_helper_reset()
+    # monkeypatch.setattr(ModuleManager, '_instance', None)

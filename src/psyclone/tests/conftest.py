@@ -257,11 +257,11 @@ def clear_module_manager_instance():
     object, this fixture ensures that the module manager instance is deleted
     before and after each test function. The latter makes sure that any other
     test executed next will automatically reload the default ModuleManager
-    file.
+    file even if this fixture is not used.
     '''
 
     # Enforce loading of the default ModuleManager
-    
+
     ModuleManager._test_helper_reset()
 
     # Now execute all tests

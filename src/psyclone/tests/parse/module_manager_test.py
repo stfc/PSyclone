@@ -265,6 +265,10 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
     assert all_d["d_mod"] == set(("c_mod", ))
 
     # Test ignoring of unknown modules, in this case NetCDF
+    # The default ignore modules will be read from the config.
+    # Hence, we need to clear this manually.
+    mod_man._ignore_modules.clear()
+
     all_e = mod_man.get_all_dependencies_recursively({"e_mod"})
     assert len(all_e.keys()) == 1
     assert all_e["e_mod"] == set()
@@ -291,6 +295,8 @@ def test_mod_man_sort_modules(capsys):
     '''Tests that sorting of modules works as expected.'''
 
     mod_man = ModuleManager.get()
+    mod_man._ignore_modules.clear()
+
     # Empty input:
     assert mod_man.sort_modules({}) == []
 

@@ -662,8 +662,9 @@ end subroutine top'''
             "The module search path is set to []" in str(err.value))
     # Repeat but when some_mod_somewhere *is* resolved but doesn't help us
     # find the routine we're looking for.
+    ModuleManager._test_helper_reset()
     mod_manager = ModuleManager.get()
-    monkeypatch.setattr(mod_manager, "_instance", None)
+    # monkeypatch.setattr(mod_manager, "_instance", None)
     path = str(tmpdir)
     monkeypatch.setattr(Config.get(), '_include_paths', [path])
     with open(os.path.join(path, "some_mod_somewhere.f90"), "w",
@@ -677,8 +678,9 @@ end module some_mod_somewhere
     assert ("Failed to find the source code of the unresolved routine 'bottom'"
             " - looked at any routines in the same source file and wildcard "
             "imports from ['some_mod_somewhere']." in str(err.value))
+    ModuleManager._test_helper_reset()
     mod_manager = ModuleManager.get()
-    monkeypatch.setattr(mod_manager, "_instance", None)
+    # monkeypatch.setattr(mod_manager, "_instance", None)
     code = '''
 subroutine top()
   use another_mod, only: this_one

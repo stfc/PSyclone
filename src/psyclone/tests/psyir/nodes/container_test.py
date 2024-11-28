@@ -228,6 +228,7 @@ def test_get_routine_missing_container(fortran_reader):
     the required Routine is imported.
 
     '''
+    from psyclone.parse.module_manager import ModuleManager
     code = (
         "module inline_mod\n"
         " use some_other_mod, only: my_sub\n"

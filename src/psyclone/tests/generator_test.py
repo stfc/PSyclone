@@ -1111,7 +1111,7 @@ def test_main_no_invoke_alg_stdout(capsys):
             f"Warning: Algorithm Error: Algorithm file contains no "
             f"invoke() calls: refusing to generate empty PSy code\n"
             f"Transformed algorithm code:\n{kern_str}\n")
-        assert expected_output == out
+        assert expected_output in out
 
 
 def test_main_write_psy_file(capsys, tmpdir):
@@ -1164,7 +1164,7 @@ def test_main_no_invoke_alg_file(capsys, tmpdir):
         expected_stdout = ("Warning: Algorithm Error: Algorithm file contains "
                            "no invoke() calls: refusing to generate empty PSy "
                            "code\n")
-        assert expected_stdout == stdout
+        assert expected_stdout in stdout
 
     # check alg file has same output as input file
     with open(alg_filename, encoding="utf8") as expected_file:

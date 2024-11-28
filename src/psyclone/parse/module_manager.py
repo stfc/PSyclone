@@ -77,7 +77,7 @@ class ModuleManager:
 
     # ------------------------------------------------------------------------
     @staticmethod
-    def get():
+    def get(config: Config = None):
         '''Static function that if necessary creates and returns the singleton
         ModuleManager instance.
 
@@ -85,7 +85,7 @@ class ModuleManager:
         if not ModuleManager._instance:
             # If ModuleManager is initialized for the first time, it
             # automatically registers itself to `ModuleManager._instance`
-            ModuleManager._instance = ModuleManager()
+            ModuleManager(config)
 
         return ModuleManager._instance
 
@@ -125,7 +125,8 @@ class ModuleManager:
             from psyclone.configuration import Config
 
             config = Config.get()
-            self.load_from_config(config)
+
+        self.load_from_config(config)
 
     def load_from_config(self, config: Config):
         # Avoid circular import
@@ -133,10 +134,10 @@ class ModuleManager:
         for module_name in config._ignore_modules:
             self.add_ignore_module(module_name)
 
-    def __del__(self):
-        """Deconstructor
-        """
-        ModuleManager._usage_counter -= 1
+    # def __del__(self):
+    #     """Deconstructor
+    #     """
+    #     ModuleManager._usage_counter -= 1
 
     # ------------------------------------------------------------------------
     def add_search_path(self, directories, recursive=True):
