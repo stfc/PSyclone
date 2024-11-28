@@ -49,6 +49,12 @@ from psyclone.psyir.transformations import (
 from psyclone.transformations import TransformationError
 
 
+# USE statements to chase to gather additional symbol information.
+NEMO_MODULES_TO_IMPORT = [
+    "oce", "par_oce", "dom_oce", "phycst", "ice",
+    "obs_fbm", "flo_oce", "sbc_ice", "wet_dry"
+]
+
 # Files that PSyclone could process but would reduce the performance.
 NOT_PERFORMANT = [
     "bdydta.f90", "bdyvol.f90",

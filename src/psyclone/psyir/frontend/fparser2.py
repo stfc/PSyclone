@@ -1534,6 +1534,10 @@ class Fparser2Reader():
                 raise NotImplementedError(f"Found unsupported USE statement: "
                                           f"'{decl}'")
 
+            # Now attempt to import symbol information.
+            parent.symbol_table.resolve_imports(container)
+
+
     def _process_type_spec(self, parent, type_spec):
         '''
         Processes the fparser2 parse tree of a type specification in order to

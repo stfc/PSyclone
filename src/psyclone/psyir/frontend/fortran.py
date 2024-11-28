@@ -59,10 +59,10 @@ class FortranReader():
     # Save parser object across instances to reduce the initialisation time
     _parser = None
 
-    def __init__(self):
+    def __init__(self, modules_to_resolve: list[str] | None = None):
         if not self._parser:
             self._parser = ParserFactory().create(std="f2008")
-        self._processor = Fparser2Reader()
+        self._processor = Fparser2Reader(modules_to_resolve)
         SYMBOL_TABLES.clear()
 
     @staticmethod
