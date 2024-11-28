@@ -45,7 +45,7 @@ from psyclone.domain.lfric import LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
-from psyclone.parse import ModuleManager, module_manager
+from psyclone.parse import ModuleManager, ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.tools import CallTreeUtils
@@ -104,6 +104,7 @@ def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
     rw_info = ctu.get_in_out_parameters([invoke.schedule[0]],
                                         collect_non_local_symbols=True)
     new_routine = Routine.create("driver_test")
+    new_routine.set_module_manager(mod_man)
     for mod_name, sig in rw_info.set_of_all_used_vars:
         if not mod_name:
             new_routine.symbol_table.find_or_create_tag(
@@ -155,8 +156,10 @@ def test_lfric_driver_flatten_signature():
 def test_lfric_driver_get_proxy_mapping():
     '''Tests that a kernel returns the right proxy mapping.'''
 
+    module_manager = ModuleManager._instance
     _, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
-                           dist_mem=False, idx=0)
+                           dist_mem=False, idx=0,
+                           module_manager=module_manager)
     driver_creator = LFRicExtractDriverCreator()
 
     mapping = driver_creator._get_proxy_name_mapping(invoke.schedule)
@@ -467,8 +470,10 @@ def test_lfric_driver_removing_structure_data():
     here we need explicit array accesses.
     '''
 
+    module_manager = ModuleManager._instance
     _, invoke = get_invoke("15.1.8_a_plus_X_builtin_array_of_fields.f90",
-                           API, dist_mem=False, idx=0)
+                           API, dist_mem=False, idx=0,
+                           module_manager=module_manager)
     ctu = CallTreeUtils()
     read_write_info = ctu.get_in_out_parameters(invoke.schedule)
     driver_creator = LFRicExtractDriverCreator()

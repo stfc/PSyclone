@@ -224,14 +224,33 @@ class ModuleManager:
                     # We've found the module we want. Create a ModuleInfo
                     # object for it and cache it.
                     mod_info = ModuleInfo(name, finfo, self)
-                    self._modules[name] = mod_info
+                    # TODO: We need to use 'error_if_exists=False'
+                    # for backwards compatiblity of LFRic test cases
+                    self.add_module_info(mod_info, error_if_exists=False)
+
                     # A file that has been (or does not require)
                     # preprocessing always takes precendence.
                     if finfo.filename.endswith(".f90"):
                         return mod_info
         return mod_info
 
-    # ------------------------------------------------------------------------
+    def add_module_info(
+                    self, module_info: ModuleInfo,
+                    error_if_exists: bool = True
+                    ):
+        """Add a module info to the module manager
+
+        :param module_info: The module info itself to be added to the
+            module manager.
+        :param overwrite_existing: Raise an error if a module with the name
+            already exists.
+        """
+
+        if error_if_exists:
+            assert module_info.name not in self._modules, (
+                f"Tried to add already existing module '{module_info.name}'")
+        self._modules[module_info.name] = module_info
+
     def add_ignore_module(self, module_name):
         '''Adds the specified module name to the modules to be ignored.
 
