@@ -712,7 +712,7 @@ class Call(Statement, DataNode):
             else:
                 # It doesn't match => Raise exception
                 raise CallMatchingArgumentsNotFound(
-                    f"Named argument '{arg_name}' found for routine"
+                    f"Named argument '{arg_name}' not found for routine"
                     f" '{routine.name}' in call '{self.debug_string()}'"
                 )
 
