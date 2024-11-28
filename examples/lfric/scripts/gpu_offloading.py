@@ -45,9 +45,11 @@ import os
 import sys
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.psyir.nodes import Directive, Loop, Routine
+from psyclone.psyGen import CodedKern
+from psyclone.psyir.nodes import (
+    Call, Directive, IntrinsicCall, Loop, Routine, Schedule)
 from psyclone.psyir.transformations import (
-    ACCKernelsTrans, TransformationError, OMPTargetTrans)
+    ACCKernelsTrans, InlineTrans, TransformationError, OMPTargetTrans)
 from psyclone.transformations import (
     Dynamo0p3ColourTrans, Dynamo0p3OMPLoopTrans,
     Dynamo0p3RedundantComputationTrans, OMPParallelTrans,
@@ -60,6 +62,38 @@ INVOKE_EXCLUSIONS = [
 ]
 
 OFFLOAD_DIRECTIVES = os.getenv('LFRIC_OFFLOAD_DIRECTIVES', "none")
+
+
+def _inline_calls(kern):
+    '''
+    Recursively inline all calls.
+
+    '''
+    mod_inline_trans = KernelModuleInlineTrans()
+    intrans = InlineTrans()
+
+    if isinstance(kern, CodedKern):
+        _, scheds = kern.get_kernel_schedule()
+    else:
+        scheds = [kern]
+    for sched in scheds:
+        sched: Schedule
+        for call in sched.walk(Call):
+            call: Call
+            if isinstance(call, IntrinsicCall):
+                continue
+            try:
+                for inner_call in call.get_callees():
+                    _inline_calls(inner_call)
+                mod_inline_trans.apply(call)
+                try:
+                    intrans.apply(call)
+                except TransformationError as err:
+                    print(f"Failed to inline call {call.debug_string()}:\n{err}")
+                    pass
+            except TransformationError as err:
+                print(f"Failed to module-inline routine {call.routine.name}:\n{err}")
+                pass
 
 
 def trans(psyir):
@@ -77,7 +111,8 @@ def trans(psyir):
     otrans = Dynamo0p3OMPLoopTrans()
     const = LFRicConstants()
     cpu_parallel = OMPParallelTrans()
-    intrans = KernelModuleInlineTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
+    intrans = InlineTrans()
 
     if OFFLOAD_DIRECTIVES == "omp":
         # Use OpenMP offloading
@@ -141,7 +176,14 @@ def trans(psyir):
                 if offload:
                     for kern in loop.kernels():
                         try:
-                            intrans.apply(kern)
+                            mod_inline_trans.apply(kern)
+                            _inline_calls(kern)
+                            #try:
+                            #    kern.lower_to_language_level()
+                            #    intrans.apply(kern)
+                            #except TransformationError as err:
+                            #    print(f"Failed to inline kernel '{kern.name}' "
+                            #          f"due to:\n{err.value}")
                         except TransformationError as err:
                             failed_inline.add(kern.name.lower())
                             print(f"Failed to module-inline kernel "
