@@ -47,7 +47,7 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, UnresolvedType, INTEGER_TYPE,
     StaticInterface, SymbolError, UnknownInterface,
-    UnsupportedType, IntrinsicSymbol)
+    UnsupportedFortranType, UnsupportedType, IntrinsicSymbol)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
@@ -808,17 +808,20 @@ class InlineTrans(Transformation):
                             f"formal argument with array type but is not a "
                             f"Reference or a Literal."))
 
+            actual_type = actual_arg.datatype
+            if (isinstance(actual_type, UnsupportedFortranType) and
+                    actual_type.partial_datatype):
+                actual_type = actual_type.partial_datatype
             # We have an array argument. We are only able to check that the
             # argument is not re-shaped in the called routine if we have full
             # type information on the actual argument.
             # TODO #924. It would be useful if the `datatype` property was
             # a method that took an optional 'resolve' argument to indicate
             # that it should attempt to resolve any UnresolvedTypes.
-            if (isinstance(actual_arg.datatype,
-                           (UnresolvedType, UnsupportedType)) or
-                (isinstance(actual_arg.datatype, ArrayType) and
-                 isinstance(actual_arg.datatype.intrinsic,
-                            (UnresolvedType, UnsupportedType)))):
+            if (isinstance(actual_type, (UnresolvedType, UnsupportedType)) or
+                (isinstance(actual_type, ArrayType) and
+                 isinstance(actual_type.intrinsic, (UnresolvedType,
+                                                    UnsupportedType)))):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because "
                     f"the type of the actual argument "
@@ -829,8 +832,8 @@ class InlineTrans(Transformation):
             actual_rank = 0
             if isinstance(formal_arg.datatype, ArrayType):
                 formal_rank = len(formal_arg.datatype.shape)
-            if isinstance(actual_arg.datatype, ArrayType):
-                actual_rank = len(actual_arg.datatype.shape)
+            if isinstance(actual_type, ArrayType):
+                actual_rank = len(actual_type.shape)
             if formal_rank != actual_rank:
                 # It's OK to use the loop variable in the lambda definition
                 # because if we get to this point then we're going to quit
