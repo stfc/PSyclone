@@ -24,7 +24,7 @@ TEST_CASE ?= SPITZ12
 # Example Config for MetOffice - eORCA1_GO8 - nvidia
 NEMO_DIR ?= ${WORKSPACE}/NEMO_MO
 ROOT_SRC ?= ${NEMO_DIR}/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
-MPI_INC_DIR ?= ${NVHPC_ROOT}/comm_libs/latest/hpcx/latest/ompi/include
+MPI_INC_DIR ?= ${MPI_HOME}/include
 COMPILER_ARCH ?= linux_nvidia_omp_gpu
 ADD_KEYS ?= "IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
 DEL_KEYS ?= "key_iomput key_mpp_mpi key_si3"

@@ -2095,3 +2095,24 @@ def test_pointer_assignments(fortran_reader, fortran_writer):
     assert "a = 4" in code
     assert "b => a" in code
     assert "field(3,c)%pointer => b" in code
+
+
+def test_fw_schedule(fortran_reader, fortran_writer):
+    '''Test that the FortranWriter correctly handles a Schedule node.
+
+    '''
+    routine_header = ("subroutine foo()\n"
+                      "real :: a, b, c\n")
+    test_code = (
+        "a = b\n"
+        "b = c\n"
+        "call bar(a)\n"
+    )
+    routine_end = "end subroutine foo\n"
+    routine_code = routine_header + test_code + routine_end
+    schedule = Schedule()
+    routine = fortran_reader.psyir_from_source(routine_code).children[0]
+    for child in routine.children:
+        schedule.addchild(child.copy().detach())
+    result = fortran_writer(schedule)
+    assert result == test_code
