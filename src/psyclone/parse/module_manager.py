@@ -277,7 +277,8 @@ class ModuleManager:
         # could be defeated by e.g.
         #   module &
         #    my_mod
-        # `finfo.source_code` will read the file if it hasn't already been cached.
+        # `finfo.source_code` will read the file if it hasn't already been
+        # cached.
         mod_names = self._module_pattern.findall(finfo.source_code)
 
         return [name.lower() for name in mod_names]

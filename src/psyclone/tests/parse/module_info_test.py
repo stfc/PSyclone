@@ -331,8 +331,9 @@ def test_module_info_extract_import_information_error():
     assert mod_info._used_symbols_from_module_name is None
 
     with pytest.raises(ModuleInfoError) as einfo:
-      mod_info._extract_used_module_names_from_fparser_tree()
+        mod_info._extract_used_module_names_from_fparser_tree()
 
+    print(einfo.value)
     assert ("FParser Error: Failed to get fparser tree: at line 4"
             in str(einfo.value))
 

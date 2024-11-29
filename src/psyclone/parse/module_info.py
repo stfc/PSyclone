@@ -33,25 +33,25 @@
 # -----------------------------------------------------------------------------
 # Authors: J. Henrichs, Bureau of Meteorology
 #          A. R. Porter, STFC Daresbury Laboratory
+# Modified: M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean-Kuntzmann
 
 '''This module contains the ModuleInfo class, which is used to store
-and cache information about a module.
+and information about a module.
+
+It makes use of the FileInfo class which is then used for caching.
 
 '''
 
-from typing import Dict, List
+from typing import Dict, List, Union
 
-from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
 from fparser.two.utils import FortranSyntaxError, walk
 
-from psyclone.configuration import Config
 from psyclone.errors import InternalError, PSycloneError, GenerationError
 from psyclone.parse.file_info import FileInfo
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Container, FileContainer, Node
-from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.nodes import Container, FileContainer, Routine
+from psyclone.psyir.symbols import Symbol, SymbolError
 from psyclone.parse import FileInfo, FileInfoFParserError
 
 from fparser.two.Fortran2003 import Program
@@ -273,45 +273,6 @@ class ModuleInfo:
 
         return self._used_symbols_from_module_name
 
-    def _load_psyir(self):
-        """Internal function to split loading the PsyIR from other tasks
-
-        :returns: PSyIR representing this module.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container` | NoneType
-
-        :raises InternalError: if the named Container (module) does not
-            exist in the PSyIR.
-        """
-
-        try:
-            fparser_tree = self.get_fparser_tree()
-        except FortranSyntaxError as err:
-            # TODO #11: Add proper logging
-            print(f"Error parsing '{self.filepath}':\n"+str(err))
-            return None
-
-        if not fparser_tree:
-            # TODO #11: Add proper logging
-            print(f"Empty parse tree returned for '{self.filepath}'")
-            return None
-
-        try:
-            psyir_node: FileContainer = self._processor.generate_psyir(
-                fparser_tree
-            )
-
-        except (
-            KeyError,
-            SymbolError,
-            InternalError,
-            GenerationError,
-        ) as err:
-            # TODO #11: Add proper logging
-            print(
-                f"Error trying to create PSyIR for '{self.filepath}': "
-                f"'{err}'"
-            )
-        return psyir_node
 
     def get_psyir_container_node(self):
         """Returns the PSyIR representation of this module. This is
@@ -419,7 +380,7 @@ class ModuleInfo:
                             f"module named '{self.name}'")
 
     # ------------------------------------------------------------------------
-    def get_symbol_by_name(self, symbol_name: str):
+    def get_symbol_by_name(self, symbol_name: str) -> Union[Symbol,None]:
         '''
         Gets the PSyIR Symbol with the supplied name from the Container
         representing this module (if available).
@@ -429,12 +390,11 @@ class ModuleInfo:
         (it might not have been if the source of the module cannot be found
         or cannot be parsed) and that it contains the specified Symbol.
 
-        :param str name: the name of the symbol to get from this module.
+        :param symbol_name: the name of the symbol to get from this module.
 
         :returns: the Symbol with the supplied name if the Container has
             been successfully created and contains such a symbol and None
             otherwise.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol` | None
 
         '''
         try:
