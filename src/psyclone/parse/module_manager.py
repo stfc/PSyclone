@@ -184,7 +184,7 @@ class ModuleManager:
                     self._modules[name] = mod_info
                     # A file that has been (or does not require)
                     # preprocessing always takes precendence.
-                    if finfo.filepath.endswith(".f90"):
+                    if finfo.filename.endswith(".f90"):
                         return mod_info
         return mod_info
 
@@ -228,14 +228,14 @@ class ModuleManager:
         # First check if we have already seen this module. We only end the
         # search early if the file we've found does not require pre-processing
         # (i.e. has a .f90 suffix).
-        mod_info = self._modules.get(mod_lower, None)
-        if mod_info and mod_info.filepath.endswith(".f90"):
+        mod_info: ModuleInfo = self._modules.get(mod_lower, None)
+        if mod_info and mod_info.filename.endswith(".f90"):
             return mod_info
         old_mod_info = mod_info
         # Are any of the files that we've already seen a good match?
         mod_info = self._find_module_in_files(mod_lower,
                                               self._visited_files.values())
-        if mod_info and mod_info.filepath.endswith(".f90"):
+        if mod_info and mod_info.filename.endswith(".f90"):
             return mod_info
         old_mod_info = mod_info
 

@@ -17,7 +17,7 @@
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
-#w
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -49,9 +49,9 @@ def test_file_info_constructor():
 
     '''
     finfo: FileInfo = FileInfo("missing.txt")
-    assert finfo._filepath == "missing.txt"
+    assert finfo._filename == "missing.txt"
     assert finfo._source_code is None
-    assert finfo.filepath == "missing.txt"
+    assert finfo.filename == "missing.txt"
     assert finfo.basename == "missing"
 
 
@@ -87,7 +87,7 @@ def test_file_info_content(tmpdir):
 
 def test_file_info_decode_error(tmpdir):
     '''
-    Check that FileInfo.source_code() handles a decoding error when reading
+    Check that FileInfo.source_code handles a decoding error when reading
     a file.
 
     '''

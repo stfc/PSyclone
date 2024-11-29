@@ -118,7 +118,7 @@ def test_mod_manager_precedence_preprocessed():
     mod_man.add_search_path("d1")
     mod_info: ModuleInfo = mod_man.get_module_info("a_mod")
     # Make sure we get the lower case filename:
-    assert mod_info.filepath == "d1/a_mod.f90"
+    assert mod_info.filename == "d1/a_mod.f90"
 
 
 # ----------------------------------------------------------------------------
@@ -184,7 +184,7 @@ def test_mod_manager_get_module_info():
 
     # First find a_mod, which will parse the first directory
     mod_info = mod_man.get_module_info("a_mod")
-    assert mod_info.filepath == "d1/a_mod.f90"
+    assert mod_info.filename == "d1/a_mod.f90"
     assert list(mod_man._remaining_search_paths) == ["d1/d3", "d2", "d2/d4"]
     assert set(mod_man._visited_files.keys()) == set(["d1/a_mod.f90"])
 
@@ -196,14 +196,14 @@ def test_mod_manager_get_module_info():
 
     # Then look for a second module
     mod_info = mod_man.get_module_info("b_mod")
-    assert mod_info.filepath == "d1/d3/b_mod.F90"
+    assert mod_info.filename == "d1/d3/b_mod.F90"
     assert list(mod_man._remaining_search_paths) == ["d2", "d2/d4"]
     assert set(mod_man._modules.keys()) == set(["a_mod", "b_mod"])
 
     # Then locate the e_mod, which should remove two paths from
     # the search path:
     mod_info = mod_man.get_module_info("e_mod")
-    assert mod_info.filepath == "d2/d4/e_mod.F90"
+    assert mod_info.filename == "d2/d4/e_mod.F90"
     assert list(mod_man._remaining_search_paths) == []
     assert set(mod_man._visited_files.keys()) == set(["d1/a_mod.f90",
                                                       "d1/d3/b_mod.F90",
@@ -342,4 +342,4 @@ def test_mod_manager_add_ignore_modules():
 
     # Just in case verify that other modules are not affected
     mod_info = mod_man.get_module_info("b_mod")
-    assert mod_info.filepath == "d1/d3/b_mod.F90"
+    assert mod_info.filename == "d1/d3/b_mod.F90"

@@ -47,11 +47,11 @@ from typing import List, Union
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 
-from psyclone.psyir.frontend.fortran import FortranReader, FortranStringReader
+from psyclone.psyir.frontend.fortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import FileContainer
 from psyclone.errors import PSycloneError
-
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
 class FileInfoFParserError(PSycloneError):
@@ -92,7 +92,7 @@ class FileInfo:
         """
 
         # Full path to file
-        self._filepath: str = filepath
+        self._filename: str = filepath
 
         # Source code:
         self._source_code: str = None
@@ -112,7 +112,7 @@ class FileInfo:
         self._module_name_list: List[str] = None
 
         # Single cache file
-        (path, ext) = os.path.splitext(self._filepath)
+        (path, ext) = os.path.splitext(self._filename)
         self._filepath_cache = path + ".psycache"
 
         # Cache with data
@@ -125,21 +125,21 @@ class FileInfo:
                   that this FileInfo object represents.
         :rtype: str
         '''
-        if self._filepath is None:
+        if self._filename is None:
             return None
         # Remove the path from the filename.
-        basename = os.path.basename(self._filepath)
+        basename = os.path.basename(self._filename)
         # splitext returns (root, ext) and it's `root` that we want.
         return os.path.splitext(basename)[0]
 
     # ------------------------------------------------------------------------
     @property
-    def filepath(self):
+    def filename(self):
         '''
         :returns: the full filename that this FileInfo object represents.
         :rtype: str
         '''
-        return self._filepath
+        return self._filename
 
     def get_module_name_list(self) -> Union[str, None]:
         """
@@ -170,18 +170,18 @@ class FileInfo:
 
             if verbose:
                 print(
-                    f"- Source file '{self._filepath}': "
+                    f"- Source file '{self._filename}': "
                     f"Loading source code"
                 )
 
             try:
                 with open(
-                    self._filepath, "r", encoding="utf-8", errors="ignore"
+                    self._filename, "r", encoding="utf-8", errors="ignore"
                 ) as file_in:
                     self._source_code = file_in.read()
             except FileNotFoundError:
                 raise FileNotFoundError(
-                    f"No such file or directory: '{self._filepath}'"
+                    f"No such file or directory: '{self._filename}'"
                 )
 
             # Compute hash sum which will be used to check cache of fparser
@@ -350,7 +350,7 @@ class FileInfo:
             return self._fparser_tree
 
         if verbose:
-            print(f"- Source file '{self._filepath}': " f"Running fparser")
+            print(f"- Source file '{self._filename}': " f"Running fparser")
 
         source_code = self.get_source_code()
         assert self._source_code_hash_sum is not None
@@ -414,12 +414,15 @@ class FileInfo:
                 return self._psyir_node
 
         if verbose:
-            print(f"  - Running psyir for '{self._filepath}'")
+            print(f"  - Running psyir for '{self._filename}'")
 
-        fortran_reader = FortranReader()
-
+        # First, we get the fparser tree
         fparse_tree = self.get_fparser_tree()
-        self._psyir_node = fortran_reader.psyir_from_fparse_tree(fparse_tree)
+
+        # We generate PSyIR from the fparser tree
+        _, filename = os.path.split(self.filename)
+        processor = self._processor = Fparser2Reader()
+        self._psyir_node = processor.generate_psyir(fparse_tree, filename)
 
         self._cache_save(verbose=verbose)
 
