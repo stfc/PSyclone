@@ -418,3 +418,44 @@ def test_file_info_cachefile_pickle_dump_exception(tmpdir, monkeypatch):
 
     assert file_info._cache_data_load is None
     assert file_info._cache_data_save is None
+
+
+def test_file_info_source_psyir_test(tmpdir):
+    '''
+    Here, we generate a dummy psyir cached node to load it.
+    This is not yet possible (TODO #2786), but the code
+    for this already exists and is tested here.
+
+    '''
+    filename = os.path.join(tmpdir, "testfile_g.f90")
+    filename_cache = os.path.join(tmpdir, "testfile_g.psycache")
+
+    try:
+        os.remove(filename)
+    except FileNotFoundError:
+        pass
+
+    try:
+        os.remove(filename_cache)
+    except FileNotFoundError:
+        pass
+
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY)
+
+    # Create cache
+    file_info: FileInfo = FileInfo(filename)
+    file_info.get_psyir_node()
+
+    # Load from cache
+    file_info: FileInfo = FileInfo(filename)
+
+    fparser_tree = file_info.get_fparser_tree(verbose=True)
+    fparser_tree2 = file_info.get_fparser_tree(verbose=True)
+    assert fparser_tree is fparser_tree2
+
+    psyir_node = Node("dummy")
+    file_info._cache_data_load._psyir_node = psyir_node
+
+    psyir_node2 = file_info.get_psyir_node(verbose=True)
+    assert psyir_node is psyir_node2

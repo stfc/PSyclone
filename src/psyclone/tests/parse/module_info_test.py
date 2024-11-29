@@ -43,10 +43,17 @@ from fparser.two import Fortran2003
 
 from psyclone.errors import InternalError
 from psyclone.parse import FileInfo, ModuleInfo, ModuleInfoError, ModuleManager
-from psyclone.psyir.nodes import Container
+from psyclone.psyir.nodes import Container, Node
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.tests.utilities import get_base_path
 
+
+SOURCE_DUMMY = """\
+program main
+    real :: a
+    a = 0.0
+end program main
+"""
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
@@ -377,3 +384,83 @@ end module my_mod''')
         "get_psyir_container_node",
         raise_error)
     assert module_info.get_symbol_by_name("amos") is None
+
+
+def test_module_info_coverage_a(tmpdir, monkeypatch):
+    """
+    Coverage test
+    """
+
+    node = Node("Dummy")
+    module_info: ModuleInfo = ModuleInfo(
+            "my_mod",
+            FileInfo("dummy"),
+            node
+        )
+
+    assert module_info is not None
+
+
+def test_module_info_coverage_source_node_found(tmpdir, monkeypatch):
+    """
+    Coverage test: File not found
+    """
+
+    node = Node("Dummy")
+    module_info: ModuleInfo = ModuleInfo(
+            "my_mod",
+            FileInfo("/tmp/source_not_found.f90"),
+            node
+        )
+
+    with pytest.raises(ModuleInfoError) as einfo:
+        module_info.get_source_code()
+
+    assert "Could not find file" in str(einfo.value)
+
+
+def test_module_info_coverage_fparser_tree(tmpdir, monkeypatch):
+    """
+    Coverage test: Fparser
+    """
+
+    filename = os.path.join(tmpdir, "testfile_module_info_a.f90")
+
+    #
+    # Get fparser
+    #
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY)
+
+    node = Node("Dummy")
+    module_info: ModuleInfo = ModuleInfo(
+            "my_mod", FileInfo(filename), node)
+
+    module_info.get_fparser_tree()
+
+    #
+    # Error in parsing source code with fparser
+    #
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY+"\ncreate some error")
+
+    node = Node("Dummy")
+    module_info: ModuleInfo = ModuleInfo(
+            "my_mod", FileInfo(filename), node)
+
+    with pytest.raises(ModuleInfoError) as einfo:
+        module_info.get_fparser_tree()
+
+    assert "ModuleInfoError: Error parsing" in str(einfo.value)
+
+    #
+    # File not found
+    #
+    node = Node("Dummy")
+    module_info: ModuleInfo = ModuleInfo(
+            "my_mod", FileInfo("/I_dont_exist/psyclone/asdf"), node)
+
+    with pytest.raises(ModuleInfoError) as einfo:
+        module_info.get_fparser_tree()
+
+    assert "ModuleInfoError: Could not find file" in str(einfo.value)

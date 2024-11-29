@@ -48,7 +48,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import FortranSyntaxError, walk
 
 from psyclone.errors import InternalError, PSycloneError, GenerationError
-from psyclone.psyir.nodes import Container
+from psyclone.psyir.nodes import Container, Node
 from psyclone.psyir.symbols import Symbol, SymbolError
 from psyclone.parse import FileInfo, FileInfoFParserError
 
@@ -90,27 +90,27 @@ class ModuleInfo:
         self,
         module_name: str,
         file_info: FileInfo,
-        psyir_container_node: Container = None,
+        psyir_root_node: Node = None,
     ):
         """Constructor
 
         :param module_name: Name of the module
         :param file_info: FileInfo object to load the module from
-        :param psyir_container_node: The psyir container as an alternative to
+        :param psyir_node: The psyir container as an alternative to
             loading the psyir from FileInfo, defaults to None
         """
         self._name = module_name.lower()
 
         # Do some checking
         assert isinstance(file_info, FileInfo)
-        if psyir_container_node is not None:
-            assert isinstance(psyir_container_node, Container)
+        if psyir_root_node is not None:
+            assert isinstance(psyir_root_node, Node)
 
         # File handler including fparser and psyir representation
         self._file_info: FileInfo = file_info
 
         # The PSyIR representation
-        self._psyir_container_node: Container = psyir_container_node
+        self._psyir_container_node: Container = psyir_root_node
 
         # A cache for the module dependencies: this is just a set
         # of all modules used by this module.
@@ -160,7 +160,7 @@ class ModuleInfo:
                 f" to read source code for module '{self._name}'") from err
 
     # ------------------------------------------------------------------------
-    def get_fparser_tree(self) -> Program:
+    def get_fparser_tree(self) -> Union[Program, None]:
         '''Returns the fparser AST for this module.
 
         :returns: The fparser AST for this module.
@@ -169,7 +169,8 @@ class ModuleInfo:
                 create the fparser tree.
         '''
         try:
-            parse_tree = self._file_info.get_fparser_tree()
+            return self._file_info.get_fparser_tree()
+
         except FileInfoFParserError as err:
             raise ModuleInfoError(f"Error parsing '{self.filename}'\n"
                                   + str(err)) from err
@@ -177,27 +178,6 @@ class ModuleInfo:
             raise ModuleInfoError(
                 f"Could not find file '{self._file_info.basename}' when trying"
                 f" to read source code for module '{self.name}'") from err
-        except FortranSyntaxError:
-            # TODO #11: Add proper logging
-            # TODO #2120: Handle error
-            print(f"[ModuleInfo._extract_import_information] Syntax error "
-                  f"parsing '{self.filename} - ignored")
-            # Hide syntax errors
-            return
-
-        return parse_tree
-        # if not self._parse_attempted:
-        #     # This way we avoid that any other function might trigger to
-        #     # parse this file again (in case of parsing errors).
-        #     self._parse_attempted = True
-
-        #     reader = FortranStringReader(
-        #         self.get_source_code(),
-        #         include_dirs=Config.get().include_paths)
-        #     parser = ParserFactory().create(std="f2008")
-        #     self._parse_tree = parser(reader)
-
-        # return self._parse_tree
 
     # ------------------------------------------------------------------------
     def _extract_used_module_names_from_fparser_tree(self):
