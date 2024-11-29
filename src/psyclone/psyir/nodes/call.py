@@ -573,6 +573,11 @@ class Call(Statement, DataNode):
                         f"Container '{csym.name}' but the source defining "
                         f"that container could not be found. The module search"
                         f" path is set to {Config.get().include_paths}")
+                if not container:
+                    raise NotImplementedError(
+                        f"RoutineSymbol '{rsym.name}' is imported from "
+                        f"Container '{csym.name}' but the PSyIR for that "
+                        f"container could not be generated.")
                 imported_sym = container.symbol_table.lookup(cursor.name)
                 if imported_sym.visibility != Symbol.Visibility.PUBLIC:
                     # The required Symbol must be shadowed with a PRIVATE
