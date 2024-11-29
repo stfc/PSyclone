@@ -827,6 +827,7 @@ def test_fw_gen_proceduredecl(fortran_writer):
     assert ("A Symbol must be either public or private but symbol "
             "'my_procedure' has visibility 'wrong'" in str(err.value))
 
+
 def test_gen_default_access_stmt(fortran_writer):
     '''
     Tests for the gen_default_access_stmt method of FortranWriter.
