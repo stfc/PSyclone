@@ -844,9 +844,13 @@ transformations currently supported allow the addition of:
 
 The generic versions of these transformations (i.e. ones that
 theoretically work for all APIs) were given in the
-:ref:`sec_transformations_available` section. The API-specific versions
-of these transformations are described in the API-specific sections of
-this document.
+:ref:`sec_transformations_available` section. Examples of their use,
+for both CPU and offload to GPU, may be found in the
+``PSyclone/examples/nemo/scripts/omp_?pu_trans.py`` transformation scripts.
+
+The API-specific versions of these transformations are described in the
+API-specific sections of this document. Examples for the LFRic API may
+be found in ``PSyclone/examples/lfric/scripts``.
 
 .. _openmp-reductions:
 
