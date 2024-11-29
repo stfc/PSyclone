@@ -41,7 +41,12 @@ def some_function(filename, kernel_path, node=None):
     >>> from psyclone.parse import ModuleManager
     >>> API = "gocean"
     >>> module_manager = ModuleManager()
-    >>> alg, psy = generate(SOURCE_FILE, api=API, module_manager=module_manager)
-    >>> alg, psy = generate(SOURCE_FILE, api=API, kernel_paths=[KERNEL_PATH], module_manager=module_manager)
+    >>> alg, psy = generate(SOURCE_FILE,
+    >>>                     api=API,
+    >>>                     module_manager=module_manager)
+    >>> alg, psy = generate(SOURCE_FILE,
+    >>>                     api=API,
+    >>>                     kernel_paths=[KERNEL_PATH],
+    >>>                     module_manager=module_manager)
 
     '''
