@@ -38,8 +38,16 @@
 
 import os
 import pytest
+from psyclone.psyir.nodes import Node
 
 from psyclone.parse import FileInfo
+
+SOURCE_DUMMY = """\
+program main
+    real :: a
+    a = 0.0
+end program main
+"""
 
 
 def test_file_info_constructor():
@@ -99,3 +107,314 @@ def test_file_info_decode_error(tmpdir):
     finfo = FileInfo(fname)
     # Content of file has been read with problematic byte skipped.
     assert finfo.source_code == "Just\nA\nTest"
+
+
+def test_file_info_source_fparser_psyir(tmpdir):
+    '''
+    Check that read source, fparser and psyir always result
+    in the same objects.
+
+    '''
+    filename = os.path.join(tmpdir, "testfile_a.f90")
+    try:
+        os.remove(filename)
+    except FileNotFoundError:
+        pass
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY)
+
+    file_info: FileInfo = FileInfo(filename)
+
+    source_code = file_info.get_source_code(verbose=True)
+    source_code2 = file_info.get_source_code(verbose=True)
+    assert source_code is source_code2
+
+    fparser_tree = file_info.get_fparser_tree(verbose=True)
+    fparser_tree2 = file_info.get_fparser_tree(verbose=True)
+    assert fparser_tree is fparser_tree2
+
+    psyir_node = file_info.get_psyir_node(verbose=True)
+    psyir_node2 = file_info.get_psyir_node(verbose=True)
+    assert psyir_node is psyir_node2
+
+    # For coverage check
+    file_info._cache_save(verbose=True)
+
+
+def test_file_info_load_from_cache(tmpdir):
+    '''
+    Check that the caching to file really works.
+
+    '''
+    filename = os.path.join(tmpdir, "testfile_b.f90")
+    filename_cache = os.path.join(tmpdir, "testfile_b.psyclone")
+
+    try:
+        os.remove(filename)
+    except FileNotFoundError:
+        pass
+
+    try:
+        os.remove(filename_cache)
+    except FileNotFoundError:
+        pass
+
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY)
+
+    file_info: FileInfo = FileInfo(filename)
+
+    # Call save_cache just for code coverage
+    file_info._cache_save(verbose=True)
+    file_info._cache_load(verbose=True)
+
+    # No cache exists
+    assert file_info._cache_data_load is None
+    assert file_info._cache_data_save is None
+
+    # Load file which triggers storing things to cache
+    psyir_node = file_info.get_psyir_node(verbose=True)
+    assert isinstance(psyir_node, Node)
+
+    # Save cache is used
+    assert file_info._cache_data_load is None
+    assert file_info._cache_data_save is not None
+
+    # Load new file
+    file_info: FileInfo = FileInfo(filename)
+
+    # No cache used
+    assert file_info._cache_data_load is None
+    assert file_info._cache_data_save is None
+
+    # Load file which triggers storing things to cache
+    psyir_node = file_info.get_psyir_node(verbose=True)
+    assert isinstance(psyir_node, Node)
+
+    # Loaded and saved to cache
+    assert file_info._cache_data_load is not None
+    assert file_info._cache_data_save is None
+
+
+def test_file_info_load_from_cache_corrupted(tmpdir):
+    '''
+    Test handling of corrupt cache file
+
+    '''
+    filename = os.path.join(tmpdir, "testfile_c.f90")
+    filename_cache = os.path.join(tmpdir, "testfile_c.psyclone")
+
+    try:
+        os.remove(filename)
+    except FileNotFoundError:
+        pass
+
+    try:
+        os.remove(filename_cache)
+    except FileNotFoundError:
+        pass
+
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY)
+
+    filename_cache = os.path.join(tmpdir, "testfile_c.psycache")
+    with open(filename_cache, "w", encoding='utf-8') as fout:
+        fout.write("GARBAGE")
+
+    #
+    # Step 1) Load with corrupted cache file
+    #
+
+    file_info: FileInfo = FileInfo(filename)
+
+    # No cache exists
+    assert file_info._cache_data_load is None
+    assert file_info._cache_data_save is None
+
+    # Load with damaged cache file
+    psyir_node = file_info.get_psyir_node(verbose=True)
+    assert isinstance(psyir_node, Node)
+
+    # No cache exists
+    assert file_info._cache_data_load is None
+    assert file_info._cache_data_save is not None
+
+    #
+    # Step 2) Cache file should now be restored
+    #
+
+    file_info: FileInfo = FileInfo(filename)
+
+    # No cache exists
+    assert file_info._cache_data_load is None
+    assert file_info._cache_data_save is None
+
+    # Load with damaged cache file
+    psyir_node = file_info.get_psyir_node(verbose=True)
+    assert isinstance(psyir_node, Node)
+
+    # Cache was loaded
+    assert file_info._cache_data_load is not None
+
+    # Cache not updated
+    assert file_info._cache_data_save is None
+
+
+def test_file_info_source_changed(tmpdir):
+    '''
+    Make sure that cache is not used if source code
+    file changed, hence, its checksum.
+
+    '''
+    filename = os.path.join(tmpdir, "testfile_d.f90")
+    filename_cache = os.path.join(tmpdir, "testfile_d.psyclone")
+
+    try:
+        os.remove(filename)
+    except FileNotFoundError:
+        pass
+
+    try:
+        os.remove(filename_cache)
+    except FileNotFoundError:
+        pass
+
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY)
+
+    #
+    # Step 1) Create cache file
+    #
+
+    file_info: FileInfo = FileInfo(filename)
+    psyir_node = file_info.get_psyir_node(verbose=True)
+    assert isinstance(psyir_node, Node)
+
+    assert file_info._cache_data_load is None
+    assert file_info._cache_data_save is not None
+
+    #
+    # Step 2) Change source code
+    #
+
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY+"\n! I'm a comment to change the hashsum")
+
+    #
+    # Step 3) Cache file should not be used
+    #
+
+    file_info: FileInfo = FileInfo(filename)
+
+    # Load, but not from cache
+    psyir_node = file_info.get_psyir_node(verbose=True)
+    assert isinstance(psyir_node, Node)
+
+    # Cache was not loaded
+    assert file_info._cache_data_load is None
+
+    # Cache updated
+    assert file_info._cache_data_save is not None
+
+
+def test_file_info_source_with_bugs(tmpdir):
+    '''
+    Make sure that error is triggered if there's an error.
+
+    '''
+    filename = os.path.join(tmpdir, "testfile_bug.f90")
+    filename_cache = os.path.join(tmpdir, "testfile_bug.psyclone")
+
+    try:
+        os.remove(filename)
+    except FileNotFoundError:
+        pass
+
+    try:
+        os.remove(filename_cache)
+    except FileNotFoundError:
+        pass
+
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY+"arbitrary words to trigger error")
+
+    file_info: FileInfo = FileInfo(filename)
+
+    from psyclone.parse.file_info import FileInfoFParserError
+    with pytest.raises(FileInfoFParserError) as einfo:
+        file_info.get_psyir_node(verbose=True)
+
+    assert "FParser Error: Failed to get fparser tree: at line 5" in (
+        str(einfo.value))
+
+
+def test_file_info_cachefile_not_accessible(tmpdir):
+    '''
+    Check if cachefile is not accessible
+
+    '''
+    filename = os.path.join(tmpdir, "testfile_e.f90")
+
+    try:
+        os.remove(filename)
+    except FileNotFoundError:
+        pass
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY)
+
+    file_info: FileInfo = FileInfo(filename)
+
+    # Set buggy cache file
+    file_info._filepath_cache = "/I_DONT_EXIST/FILE/cache.psycache"
+
+    source_code = file_info.get_source_code(verbose=True)
+    assert source_code == SOURCE_DUMMY
+
+    psyir_node = file_info.get_psyir_node(verbose=True)
+    assert isinstance(psyir_node, Node)
+
+
+def test_file_info_cachefile_pickle_load_exception(tmpdir, monkeypatch):
+    '''
+    Check pickle exceptions work
+
+    '''
+    filename = os.path.join(tmpdir, "testfile_f.f90")
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY)
+
+    file_info: FileInfo = FileInfo(filename)
+
+    def fun_exception(a, b):
+        raise Exception()
+
+    monkeypatch.setattr("pickle.load", fun_exception)
+
+    psyir_node = file_info.get_psyir_node(verbose=True)
+    assert isinstance(psyir_node, Node)
+
+    assert file_info._cache_data_load is None
+    assert file_info._cache_data_save is not None
+
+
+def test_file_info_cachefile_pickle_dump_exception(tmpdir, monkeypatch):
+    '''
+    Check pickle exceptions work
+
+    '''
+    filename = os.path.join(tmpdir, "testfile_f.f90")
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY)
+
+    file_info: FileInfo = FileInfo(filename)
+
+    def fun_exception(a, b):
+        raise Exception()
+
+    monkeypatch.setattr("pickle.dump", fun_exception)
+
+    psyir_node = file_info.get_psyir_node(verbose=True)
+    assert isinstance(psyir_node, Node)
+
+    assert file_info._cache_data_load is None
+    assert file_info._cache_data_save is None

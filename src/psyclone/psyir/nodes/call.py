@@ -253,9 +253,8 @@ class Call(Statement, DataNode):
         :param arg: the argument expression.
 
         :raises TypeError: if the name argument is the wrong type.
-        :raises ValueError: if the name argument is already used \
+        :raises ValueError: if the name argument is already used
             for an existing argument.
-        :raises TypeError: if the index argument is the wrong type.
 
         '''
         if not isinstance(existing_name, str):
