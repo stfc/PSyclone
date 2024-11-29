@@ -12,7 +12,7 @@
 #
 F_MOD_DESTINATION_ARG = -module$(SPACE)
 
-FFLAGS_COMPILER           = 
+FFLAGS_COMPILER           =
 FFLAGS_NO_OPTIMISATION    = -O0
 FFLAGS_SAFE_OPTIMISATION  = -O2
 FFLAGS_RISKY_OPTIMISATION = -O4
@@ -25,11 +25,11 @@ FFLAGS_FORTRAN_STANDARD   =
 # The LFRIC_OFFLOAD_DIRECTIVES env_variable is also queried in the PSyclone
 # script to generate matching directives
 ifeq ("$(LFRIC_OFFLOAD_DIRECTIVES)", "omp")
-	OPENMP_ARG = -mp=gpu -gpu=managed
-	LDFLAGS_COMPILER = -mp=gpu -gpu=managed -cuda
+	OPENMP_ARG = -mp=gpu -gpu=mem:managed
+	LDFLAGS_COMPILER = -mp=gpu -gpu=mem:managed -cuda
 else ifeq ("$(LFRIC_OFFLOAD_DIRECTIVES)", "acc")
-	OPENMP_ARG = -acc=gpu -gpu=managed -mp=multicore
-	LDFLAGS_COMPILER = -acc=gpu -gpu=managed -mp=multicore -cuda
+	OPENMP_ARG = -acc=gpu -gpu=mem:managed -mp=multicore
+	LDFLAGS_COMPILER = -acc=gpu -gpu=mem:managed -mp=multicore -cuda
 else
 	OPENMP_ARG = -mp
 	LDFLAGS_COMPILER = -mp

@@ -212,7 +212,7 @@ jobs:
         # We compile at -O1 to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O1 -Kieee -nofma -Mnovect -g -mp=gpu -gpu=managed"
+        export FCFLAGS="-i4 -Mr8 -O1 -Kieee -nofma -Mnovect -g -mp=gpu -gpu=mem:managed"
         
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
