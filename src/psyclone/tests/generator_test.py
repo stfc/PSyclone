@@ -908,6 +908,60 @@ def trans(psyir):
             in output)
 
 
+def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch):
+    ''' Test that applying recipes in the code-transformation mode follows the
+    selected list of module names when generating the tree. '''
+
+    module1 = '''
+        module module1
+            integer :: a
+        end module module1
+    '''
+    module2 = '''
+        module module2
+            integer :: b
+        end module module2
+    '''
+    code = '''
+        module test
+            use module1
+            use module2
+            real :: result
+        contains
+            subroutine mytest()
+                result = a + b
+            end subroutine mytest
+        end module test
+    '''
+    recipe = '''
+from psyclone.psyir.nodes import Reference, Literal
+from psyclone.psyir.symbols import INTEGER_TYPE
+
+RESOLVE_IMPORTS = ["module1"]
+
+def trans(psyir):
+    # Replace all integer references with literal '1', it can only be done if
+    # we have the type of the symbol (resolved from the module).
+    for ref in psyir.walk(Reference):
+        if ref.datatype == INTEGER_TYPE:
+            ref.replace_with(Literal("1", INTEGER_TYPE))
+    '''
+    for filename, content in [("module1.f90", module1),
+                              ("module2.f90", module2),
+                              ("code.f90", code),
+                              ("recipe.py", recipe)]:
+        with open(tmpdir.join(filename), "w", encoding='utf-8') as my_file:
+            my_file.write(content)
+
+    # Execute the recipe (no -I needed as we have everything at the same place)
+    monkeypatch.chdir(tmpdir)
+    main(["code.f90", "-s", "recipe.py"])
+    captured = capsys.readouterr()
+
+    # Since we only resolved "module1" the result should be:
+    assert "result = 1 + b" in str(captured)
+
+
 def test_code_transformation_trans(tmpdir):
     ''' Test that applying recipes that have a trans, and are not listed
     in the FILES_TO_SKIP, executes the recipe transformations. '''

@@ -61,7 +61,7 @@ NOT_PERFORMANT = [
     "icbdia.f90", "icbini.f90", "icbstp.f90", "iom.f90", "iom_nf90.f90",
     "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
     "obs_types.f90", "obs_read_prof.f90", "obs_write.f90", "tide_mod.f90",
-    "zdfosm.f90",
+    "zdfosm.f90", "obs_read_surf.f90",
 ]
 
 # If routine names contain these substrings then we do not profile them
