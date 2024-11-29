@@ -45,7 +45,7 @@ It makes use of the FileInfo class which is then used for caching.
 from typing import Dict, List, Union
 
 from fparser.two import Fortran2003
-from fparser.two.utils import FortranSyntaxError, walk
+from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, PSycloneError, GenerationError
 from psyclone.psyir.nodes import Container, Node

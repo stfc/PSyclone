@@ -55,8 +55,9 @@ program main
 end program main
 """
 
-# -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+
+@pytest.mark.usefixtures("change_into_tmpdir",
+                         "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_module_info():
     '''Tests the module info object.'''
