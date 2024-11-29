@@ -41,12 +41,12 @@ from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
-    CodeBlock, IntrinsicCall, Node, Range, Routine, Reference,
+    CodeBlock, Container, IntrinsicCall, Node, Range, Routine, Reference,
     Return, Literal, Statement, StructureMember, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, UnresolvedType, INTEGER_TYPE,
-    StaticInterface, SymbolError, UnknownInterface,
+    StaticInterface, Symbol, SymbolError, UnknownInterface,
     UnsupportedFortranType, UnsupportedType, IntrinsicSymbol)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
@@ -163,6 +163,35 @@ class InlineTrans(Transformation):
         # call site.
         table.merge(routine_table,
                     symbols_to_skip=routine_table.argument_list[:])
+
+        # Check for missed symbols in declarations
+        # TODO #2271 - this is just a cut-n-paste of code from
+        # KernelModuleInlineTrans
+        extra_symbols = set()
+        for sym in routine_table.datasymbols:
+            if hasattr(sym.datatype, 'precision'):
+                if isinstance(sym.datatype.precision, Symbol):
+                    extra_symbols.add(sym.datatype.precision)
+        source_container = orig_routine.ancestor(Container)
+        for sym in extra_symbols:
+            if sym.name not in table:
+                table.add(sym)
+            if sym.is_unresolved:
+                for mod in source_container.symbol_table.containersymbols:
+                    if mod.wildcard_import:
+                        if mod.name not in table:
+                            table.add(mod)
+                        else:
+                            table.lookup(mod.name).wildcard_import = True
+            elif sym.is_import:
+                module_symbol = sym.interface.container_symbol
+                if module_symbol.name not in table:
+                    table.add(module_symbol)
+                else:
+                    # If it already exists, we know it's a container (from
+                    # the validation) so we just need to point to it
+                    sym.interface.container_symbol = \
+                        table.lookup(module_symbol.name)
 
         # When constructing new references to replace references to formal
         # args, we need to know whether any of the actual arguments are array
@@ -768,7 +797,7 @@ class InlineTrans(Transformation):
                         f"cannot be found in any of the containers directly "
                         f"imported into its symbol table.")
             else:
-                if sym.name not in routine_table:
+                if not sym.is_import and sym.name not in routine_table:
                     raise TransformationError(
                         f"Routine '{routine.name}' cannot be inlined because "
                         f"it accesses variable '{sym.name}' from its "
