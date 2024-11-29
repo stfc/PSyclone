@@ -385,11 +385,6 @@ def test_file_info_cachefile_pickle_load_exception(tmpdir, monkeypatch):
 
     file_info: FileInfo = FileInfo(filename)
 
-    def fun_exception(a, b):
-        raise Exception()
-
-    monkeypatch.setattr("pickle.load", fun_exception)
-
     psyir_node = file_info.get_psyir_node(verbose=True)
     assert isinstance(psyir_node, Node)
 

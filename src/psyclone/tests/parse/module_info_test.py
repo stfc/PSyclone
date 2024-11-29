@@ -399,6 +399,7 @@ def test_module_info_coverage_a(tmpdir, monkeypatch):
             node
         )
 
+    module_info.view()
     assert module_info is not None
 
 
