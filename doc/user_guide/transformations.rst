@@ -1039,9 +1039,9 @@ porting and/or debugging of an OpenACC application as it provides
 explicit control over what data is present on a device for a given
 (part of an) Invoke routine.
 
-The PGI compiler provides an alternative approach to controlling data
-movement through its 'unified memory' option
-(``-ta=tesla:managed``). When this is enabled the compiler itself takes
+The NVIDIA compiler compiler provides an alternative approach to controlling
+data movement through its 'managed memory' option
+(``-gpu=mem:managed``). When this is enabled the compiler itself takes
 on the task of ensuring that data is copied to/from the GPU when
 required. (Note that this approach can struggle with Fortran code
 containing derived types however.)
