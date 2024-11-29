@@ -66,7 +66,7 @@ contains
     integer(kind=i_def), intent(in) :: ndf_aspc1, ndf_aspc2
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_3d
-    real(kind=r_def), dimension(ndf_aspc1,ndf_aspc2,ncell_3d) :: local_stencil
+    real(kind=r_def), dimension(ncell_3d,ndf_aspc1,ndf_aspc2) :: local_stencil
 
   end subroutine testkern_any_space_3_code
 
