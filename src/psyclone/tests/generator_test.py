@@ -949,13 +949,13 @@ def trans(psyir):
     for filename, content in [("module1.f90", module1),
                               ("module2.f90", module2),
                               ("code.f90", code),
-                              ("recipe.py", recipe)]:
+                              ("replace_integers.py", recipe)]:
         with open(tmpdir.join(filename), "w", encoding='utf-8') as my_file:
             my_file.write(content)
 
     # Execute the recipe (no -I needed as we have everything at the same place)
     monkeypatch.chdir(tmpdir)
-    main(["code.f90", "-s", "recipe.py"])
+    main(["code.f90", "-s", "replace_integers.py"])
     captured = capsys.readouterr()
 
     # Since we only resolved "module1" the result should be:
