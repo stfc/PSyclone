@@ -270,15 +270,20 @@ class KernelModuleInlineTrans(Transformation):
             copied_routines.append(code_to_inline)
             # First make a set with all symbols used inside the subroutine
             all_symbols = set()
+            init_exprns = []
             for scope in code_to_inline.walk(ScopingNode):
                 for symbol in scope.symbol_table.symbols:
                     all_symbols.add(symbol)
-            for reference in code_to_inline.walk(Reference):
-                all_symbols.add(reference.symbol)
-            for literal in code_to_inline.walk(Literal):
-                # Literals may reference symbols in their precision
-                if isinstance(literal.datatype.precision, Symbol):
-                    all_symbols.add(literal.datatype.precision)
+                for symbol in scope.symbol_table.datasymbols:
+                    if symbol.initial_value:
+                        init_exprns.append(symbol.initial_value)
+            for tree in init_exprns + [code_to_inline]:
+                for reference in tree.walk(Reference):
+                    all_symbols.add(reference.symbol)
+                for literal in tree.walk(Literal):
+                    # Literals may reference symbols in their precision
+                    if isinstance(literal.datatype.precision, Symbol):
+                        all_symbols.add(literal.datatype.precision)
             for caller in code_to_inline.walk(Call):
                 all_symbols.add(caller.routine.symbol)
             for cblock in code_to_inline.walk(CodeBlock):
@@ -463,6 +468,19 @@ class KernelModuleInlineTrans(Transformation):
                 # TODO #11 - log this.
                 if isinstance(node, CodedKern):
                     node.module_inline = True
+                return
+
+        if local_sym and local_sym.is_import:
+            # Double check that this import is not shadowing a routine we've
+            # already module-inlined.
+            table = local_sym.find_symbol_table(node)
+            outer_sym = table.node.scope.symbol_table.lookup(local_sym.name,
+                                                             otherwise=None)
+            if outer_sym:
+                # It is shadowing an outer symbol so we need to remove this
+                # local symbol and update the call to point to the outer one.
+                self._rm_imported_symbol(local_sym.name, table)
+                node.routine.symbol = outer_sym
                 return
 
         updated_routines = self._prepare_code_to_inline(codes_to_inline)
