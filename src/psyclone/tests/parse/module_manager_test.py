@@ -37,7 +37,6 @@
 '''Module containing py.test tests for the ModuleManager.'''
 
 import os
-
 import pytest
 
 from psyclone.errors import InternalError

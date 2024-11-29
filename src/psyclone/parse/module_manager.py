@@ -45,7 +45,7 @@ import re
 
 from psyclone.errors import InternalError
 from psyclone.parse.file_info import FileInfo
-from psyclone.parse.module_info import ModuleInfo
+from psyclone.parse.module_info import ModuleInfo, ModuleInfoError
 
 
 class ModuleManager:
@@ -329,7 +329,9 @@ class ModuleManager:
                 continue
             try:
                 mod_deps = self.get_module_info(module).get_used_modules()
-            except FileNotFoundError:
+                # Convert to set since we continue with a set
+                mod_deps = set(mod_deps)
+            except (FileNotFoundError, ModuleInfoError):
                 if module not in not_found:
                     # We don't have any information about this module,
                     # ignore it.

@@ -57,10 +57,11 @@ def test_module_info():
     assert mod_info.filepath == "file_for_a"
     assert mod_info.name == "a_mod"
 
-    with pytest.raises(ModuleInfoError) as err:
+    with pytest.raises(ModuleInfoError) as einfo:
         mod_info.get_fparser_tree()
+
     assert ("Could not find file 'file_for_a' when trying to read source "
-            "code for module 'a_mod'" in str(err.value))
+            "code for module 'a_mod'" in str(einfo.value))
 
     # Try to read the file a_mod.f90, which is contained in the d1 directory
     mod_man = ModuleManager.get()
@@ -77,10 +78,10 @@ def test_module_info():
     assert "end module a_mod" in source_code
 
     # Now access the parse tree:
-    assert mod_info._parse_tree is None
+    assert mod_info._file_info._fparser_tree is None
     parse_tree = mod_info.get_fparser_tree()
-    assert mod_info._parse_tree is parse_tree
-    assert isinstance(mod_info._parse_tree, Fortran2003.Program)
+    assert mod_info._file_info._fparser_tree is parse_tree
+    assert isinstance(mod_info._file_info._fparser_tree, Fortran2003.Program)
 
 
 # -----------------------------------------------------------------------------
@@ -100,7 +101,7 @@ end module my_mod''')
 
     mod_info = ModuleInfo("my_mod", FileInfo(filepath))
 
-    psyir = mod_info.get_psyir()
+    psyir = mod_info.get_psyir_container_node_alternative()
     assert isinstance(psyir, Container)
     assert psyir.name == "my_mod"
 
@@ -119,7 +120,7 @@ contains
   end function broken
 end module my_mod''')
     mod_info: ModuleInfo = ModuleInfo("my_mod", FileInfo(filepath))
-    psyir = mod_info.get_psyir()
+    psyir = mod_info.get_psyir_container_node_alternative()
     assert psyir is None
     out, _ = capsys.readouterr()
     assert "Error trying to create PSyIR for " in out
@@ -128,7 +129,7 @@ end module my_mod''')
     # The simplest way to do this is to monkeypatch.
     mod_info._psyir_container_node = None
     monkeypatch.setattr(mod_info, "get_fparser_tree", lambda: None)
-    assert mod_info.get_psyir() is None
+    assert mod_info.get_psyir_container_node_alternative() is None
 
 
 # -----------------------------------------------------------------------------
@@ -149,7 +150,7 @@ end module my_mod''')
 
     mod_info = ModuleInfo("wrong_name_mod", FileInfo(filepath))
     with pytest.raises(InternalError) as err:
-        mod_info.get_psyir()
+        mod_info.get_psyir_container_node_alternative()
     assert ("my_mod.f90' does not contain a module named 'wrong_name_mod'"
             in str(err.value))
 
@@ -157,7 +158,7 @@ end module my_mod''')
     # module.
     mod_info = ModuleInfo("my_mod", FileInfo(filepath))
     mod_info._psyir_container_node = Container("other_mod")
-    assert mod_info.get_psyir() is None
+    assert mod_info.get_psyir_container_node_alternative() is None
     out, _ = capsys.readouterr()
     assert ("my_mod.f90' does contain module 'my_mod' but PSyclone is unable "
             "to create the PSyIR of it." in out)
@@ -181,13 +182,13 @@ def test_mod_info_get_used_modules():
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
-    assert mod_man.get_module_info("a_mod").get_used_modules() == set()
-    assert mod_man.get_module_info("b_mod").get_used_modules() == set()
+    assert mod_man.get_module_info("a_mod").get_used_modules() == list()
+    assert mod_man.get_module_info("b_mod").get_used_modules() == list()
 
-    mod_c_info = mod_man.get_module_info("c_mod")
+    mod_c_info: ModuleInfo = mod_man.get_module_info("c_mod")
     assert mod_c_info.name == "c_mod"
     dep = mod_c_info.get_used_modules()
-    assert dep == set(("a_mod", "b_mod"))
+    assert dep == ["a_mod", "b_mod"]
 
     dep_cached = mod_c_info.get_used_modules()
     # Calling the method a second time should return the same
@@ -233,7 +234,7 @@ def test_mod_info_get_used_symbols_from_modules():
     mod_man.add_search_path("d2")
 
     mod_info = mod_man.get_module_info("c_mod")
-    assert mod_info._used_symbols_from_module is None
+    assert mod_info._used_symbols_from_module_name is None
     used_symbols = mod_info.get_used_symbols_from_modules()
     assert used_symbols["a_mod"] == {"a_mod_symbol"}
     assert used_symbols["b_mod"] == {"b_mod_symbol"}
@@ -249,20 +250,20 @@ def test_mod_info_get_psyir(capsys, tmpdir):
     '''This tests the handling of PSyIR representation of the module.
     '''
 
-    mod_man = ModuleManager.get()
+    mod_man: ModuleManager = ModuleManager.get()
     dyn_path = get_base_path("lfric")
     mod_man.add_search_path(f"{dyn_path}/driver_creation", recursive=False)
 
     mod_info: ModuleInfo = mod_man.get_module_info(
         "testkern_import_symbols_mod")
     assert mod_info._psyir_container_node is None
-    psyir = mod_info.get_psyir()
+    psyir: Container = mod_info.get_psyir_container_node_alternative()
     assert isinstance(psyir, Container)
     assert psyir.name == "testkern_import_symbols_mod"
     # Make sure the PSyIR is cached:
     assert mod_info._psyir_container_node.children[0] is psyir
     # Test that we get the cached value (and not a new instance)
-    psyir_cached = mod_info.get_psyir()
+    psyir_cached = mod_info.get_psyir_container_node_alternative()
     assert psyir_cached is psyir
 
     # Test that a file that can't be converted to PSyIR returns an
@@ -273,7 +274,8 @@ def test_mod_info_get_psyir(capsys, tmpdir):
 end module broken_mod''')
     mod_man.add_search_path(str(tmpdir), recursive=False)
     broken_builtins = mod_man.get_module_info("broken_mod")
-    broken_builtins_psyir = broken_builtins.get_psyir()
+    broken_builtins_psyir = \
+        broken_builtins.get_psyir_container_node_alternative()
     # We should get no PSyIR
     assert broken_builtins_psyir is None
 
@@ -303,7 +305,7 @@ def test_generic_interface():
     mod_info = mod_man.get_module_info("g_mod")
 
     # It should contain all two concrete functions
-    contr = mod_info.get_psyir()
+    contr = mod_info.get_psyir_container_node_alternative()
 
     assert contr.find_routine_psyir("myfunc1")
     assert contr.find_routine_psyir("myfunc2")
@@ -319,20 +321,25 @@ def test_module_info_extract_import_information_error():
     `d2/error_mod.f90`, which is invalid Fortran.
 
     '''
-    # TODO 2120: Once proper error handling is implemented, this should
-    # likely just raise an exception.
+
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d2")
-    mod_info = mod_man.get_module_info("error_mod")
+    mod_info: ModuleInfo = mod_man.get_module_info("error_mod")
     assert mod_info.name == "error_mod"
 
     assert mod_info._used_module_names is None
-    assert mod_info._used_symbols_from_module is None
-    mod_info._extract_used_module_names_from_fparser_tree()
+    assert mod_info._used_symbols_from_module_name is None
+
+    with pytest.raises(ModuleInfoError) as einfo:
+      mod_info._extract_used_module_names_from_fparser_tree()
+
+    assert ("FParser Error: Failed to get fparser tree: at line 4"
+            in str(einfo.value))
+
     # Make sure the internal attributes are set to not None to avoid
     # trying to parse them again later
-    assert mod_info._used_module_names == set()
-    assert mod_info._used_symbols_from_module == {}
+    assert mod_info._used_module_names == list()
+    assert mod_info._used_symbols_from_module_name == {}
 
 
 # -----------------------------------------------------------------------------
@@ -348,11 +355,24 @@ real function myfunc1()
 end function myfunc1
 end module my_mod''')
 
-    minfo = ModuleInfo("my_mod", FileInfo(filepath))
-    assert isinstance(minfo.get_symbol("myfunc1"), RoutineSymbol)
+    module_info: ModuleInfo = ModuleInfo("my_mod", FileInfo(filepath))
+    assert isinstance(module_info.get_symbol_by_name("myfunc1"), RoutineSymbol)
     # A Symbol that doesn't exist.
-    assert minfo.get_symbol("amos") is None
-    # When no Container has been created. Monkeypatch get_psyir() to simplify
+    assert module_info.get_symbol_by_name("amos") is None
+    # When no Container has been created. Monkeypatch
+    # get_psyir_container_node_alternative() to simplify
     # this.
-    monkeypatch.setattr(minfo, "get_psyir", lambda: None)
-    assert minfo.get_symbol("amos") is None
+
+    def raise_error():
+        from psyclone.parse.file_info import FileInfoFParserError
+        raise FileInfoFParserError("Dummy error")
+
+    monkeypatch.setattr(
+        module_info,
+        "get_psyir_container_node_alternative",
+        raise_error)
+    monkeypatch.setattr(
+        module_info,
+        "get_psyir_container_node",
+        raise_error)
+    assert module_info.get_symbol_by_name("amos") is None

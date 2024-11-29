@@ -149,8 +149,7 @@ class FileInfo:
         """
         return self._module_name_list
 
-    @property
-    def source_code(self, verbose: bool = False) -> str:
+    def get_source_code(self, verbose: bool = False) -> str:
         '''Returns the source code of the file. The first time, it
         will be read from the file, but the data is then cached.
 
@@ -159,11 +158,9 @@ class FileInfo:
         Fortran source and the only way such characters can appear is if they
         are in comments.
 
-        :param verbose: Produce some verbose output
-        :type verbose: str
+        :param verbose: If `True`, produce some verbose output
 
         :returns: the contents of the file (utf-8 encoding).
-        :rtype: str
 
         '''
         if self._source_code is None:
@@ -194,6 +191,10 @@ class FileInfo:
 
         return self._source_code
 
+    @property
+    def source_code(self, verbose: bool = False) -> str:
+        return self.get_source_code(verbose)
+
     def _cache_load(
         self,
         verbose: bool = False,
@@ -209,7 +210,8 @@ class FileInfo:
         :rtype: Union[_CacheFileInfo, None]
         """
 
-        # Get source code to load it in case it's not yet loaded
+        # Load the source code in case it's not yet loaded.
+        # This also fills in the hash sum
         self.get_source_code()
 
         assert self._source_code_hash_sum is not None, (
@@ -378,7 +380,7 @@ class FileInfo:
         except Exception as err:
             raise FileInfoFParserError(
                 "Failed to get fparser tree: " + str(err)
-            )
+            ) from err
 
         # We directly call the cache saving routine here in case that the
         # fparser tree will be modified later on.
