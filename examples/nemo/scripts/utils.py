@@ -77,7 +77,7 @@ NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
                   "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf", "q_sat",
                   "rho_air", "visc_air", "sbc_dcy", "glob_sum",
                   "glob_sum_full", "ptr_sj", "ptr_sjk", "interp1", "interp2",
-                  "interp3", "integ_spline", "nf90_put_var"]
+                  "interp3", "integ_spline", "nf90_put_var", "nf90_enddef"]
 
 # Currently fparser has no way of distinguishing array accesses from statement
 # functions, the following subroutines contains known statement functions
