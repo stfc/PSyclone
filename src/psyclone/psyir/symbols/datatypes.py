@@ -973,7 +973,7 @@ class StructureType(DataType):
             stype.add_component(*component)
         if procedure_components:
             for procedure_component in procedure_components:
-                if len(procedure_components) != 4:
+                if len(procedure_component) != 4:
                     raise TypeError(
                         f"Each procedure component must be specified using a "
                         f"4-tuple of (name, type, visibility, initial_value) "
@@ -1123,15 +1123,15 @@ class StructureType(DataType):
                 f"be a 'StructureType' but got '{type(datatype).__name__}'")
         if not isinstance(visibility, Symbol.Visibility):
             raise TypeError(
-                f"The visibility of a component of a StructureType must be "
-                f"an instance of 'Symbol.Visibility' but got "
+                f"The visibility of a procedure component of a StructureType "
+                f"must be an instance of 'Symbol.Visibility' but got "
                 f"'{type(visibility).__name__}'")
         if (initial_value is not None and
                 not isinstance(initial_value, DataNode)):
             raise TypeError(
-                f"The initial value of a component of a StructureType must "
-                f"be None or an instance of 'DataNode', but got "
-                f"'{type(initial_value).__name__}'.")
+                f"The initial value of a procedure component of a "
+                f"StructureType must be None or an instance of 'DataNode', "
+                f"but got '{type(initial_value).__name__}'.")
 
         self._procedure_components[name] = self.ComponentType(
             name, datatype, visibility, initial_value)

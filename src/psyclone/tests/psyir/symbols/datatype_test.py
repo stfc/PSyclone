@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     ArrayType, DataType, UnresolvedType, ScalarType, UnsupportedFortranType,
     DataSymbol, StructureType, NoType, INTEGER_TYPE, REAL_TYPE, Symbol,
-    DataTypeSymbol, SymbolTable)
+    DataTypeSymbol, SymbolTable, RoutineSymbol)
 
 
 # Abstract DataType class
@@ -890,7 +890,8 @@ def test_unsupported_fortran_type_replace_symbols():
 # StructureType tests
 
 def test_structure_type():
-    ''' Check the StructureType constructor and that we can add components. '''
+    ''' Check the StructureType constructor and that we can add components
+    and procedure_components. '''
     stype = StructureType()
     assert str(stype) == "StructureType<>"
     assert not stype.components
@@ -929,6 +930,33 @@ def test_structure_type():
     assert ("attempting to add component 'hello' - a StructureType definition "
             "cannot be recursive" in str(err.value))
 
+    # Add a procedure component
+    stype.add_procedure_component("proc1", INTEGER_TYPE,
+                                  Symbol.Visibility.PUBLIC,
+                                  None)
+    proc1 = stype.lookup_procedure_component("proc1")
+    assert not proc1.initial_value
+    assert isinstance(proc1, StructureType.ComponentType)
+    with pytest.raises(TypeError) as err:
+        stype.add_procedure_component(None, None, None, None)
+    assert ("The name of a procedure component of a StructureType must "
+            "be a 'str' but got 'NoneType'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add_procedure_component("proc2", None, None, None)
+    assert ("The type of a procedure component of a StructureType must "
+            "be a 'DataType' but got 'NoneType'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add_procedure_component("proc3", INTEGER_TYPE, None, None)
+    assert ("The visibility of a procedure component of a StructureType must "
+            "be an instance of 'Symbol.Visibility' but got 'NoneType'"
+            in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add_procedure_component("proc4", INTEGER_TYPE,
+                                      Symbol.Visibility.PUBLIC, "Hello")
+    assert ("The initial value of a procedure component of a StructureType "
+            "must be None or an instance of 'DataNode', but got 'str'."
+            in str(err.value))
+
 
 def test_create_structuretype():
     ''' Test the create() method of StructureType. '''
@@ -958,6 +986,36 @@ def test_create_structuretype():
     assert ("Each component must be specified using a 4-tuple of (name, "
             "type, visibility, initial_value) but found a tuple with 2 "
             "members: ('george', " in str(err.value))
+
+    stype = StructureType.create([],
+                                 [("procedure1", INTEGER_TYPE,
+                                   Symbol.Visibility.PUBLIC, None),
+                                  ("procedure2", REAL_TYPE,
+                                   Symbol.Visibility.PRIVATE,
+                                   Reference(RoutineSymbol("my_routine",
+                                                           REAL_TYPE)))])
+    assert len(stype.procedure_components) == 2
+    proc1 = stype.lookup_procedure_component("procedure1")
+    assert isinstance(proc1, StructureType.ComponentType)
+    assert proc1.name == "procedure1"
+    assert proc1.datatype == INTEGER_TYPE
+    assert proc1.visibility == Symbol.Visibility.PUBLIC
+    assert not proc1.initial_value
+    proc2 = stype.lookup_procedure_component("procedure2")
+    assert isinstance(proc2, StructureType.ComponentType)
+    assert proc2.name == "procedure2"
+    assert proc2.datatype == REAL_TYPE
+    assert proc2.visibility == Symbol.Visibility.PRIVATE
+    assert isinstance(proc2.initial_value, Reference)
+    assert proc2.initial_value.symbol.name == "my_routine"
+    with pytest.raises(TypeError) as err:
+        StructureType.create([],
+                             [("procedure1", INTEGER_TYPE,
+                               Symbol.Visibility.PUBLIC, None),
+                              ("procedure2", REAL_TYPE)])
+    assert ("Each procedure component must be specified using a 4-tuple of "
+            "(name, type, visibility, initial_value) but found a tuple with 2 "
+            "members: ('procedure2', " in str(err.value))
 
 
 def test_structuretype_eq():
@@ -997,6 +1055,20 @@ def test_structuretype_eq():
         ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
          Literal("1.0", REAL_TYPE)),
         ("roger", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
+    # Different number of procedure components.
+    assert stype != StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE))], [
+        ("procedure1", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
+    # Different procedure components.
+    stype.add_procedure_component("procedure2", INTEGER_TYPE,
+                                  Symbol.Visibility.PUBLIC, None)
+    assert stype != StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE))], [
+        ("procedure1", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
 
 
 def test_structuretype_replace_symbols():
@@ -1018,3 +1090,18 @@ def test_structuretype_replace_symbols():
     table.add(newtsymbol)
     stype.replace_symbols_using(table)
     assert stype.components["barry"].datatype is newtsymbol
+
+
+def test_structuretype_extends():
+    '''Test the StructureType.extends setter.'''
+    parent_datatype = DataTypeSymbol("parent_type", StructureType())
+    structure_type = StructureType.create([('a', INTEGER_TYPE,
+                                            Symbol.Visibility.PUBLIC, None)],
+                                          extends=parent_datatype)
+    assert structure_type.extends is parent_datatype
+    assert structure_type.extends.name == "parent_type"
+
+    with pytest.raises(TypeError) as err:
+        structure_type.extends = "invalid"
+    assert ("The type that a StructureType extends must be a "
+            "DataTypeSymbol but got 'str'." in str(err.value))

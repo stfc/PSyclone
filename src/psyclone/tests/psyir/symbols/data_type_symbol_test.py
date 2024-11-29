@@ -60,7 +60,7 @@ def test_create_datatypesymbol_wrong_datatype():
         sym.datatype = "integer"
     assert ("datatype of a DataTypeSymbol must be specified using a "
             "DataType but got: 'str'" in str(err.value))
-    
+
 
 def test_create_datatypesymbol_wrong_is_class():
     ''' Check that attempting to specify the is_class attribute of a

@@ -1589,10 +1589,6 @@ class Fparser2Reader():
 
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
             # This is a variable of derived type
-            if type_spec.children[0].lower() not in ("type", "class"):
-                raise NotImplementedError(
-                    f"Could not process {type_spec} - declarations "
-                    f"other than 'type' or 'class' are not yet supported.")
             if isinstance(type_spec.items[1], Fortran2003.Type_Name):
                 type_name = str(type_spec.items[1].string).lower()
             else:
@@ -2032,68 +2028,64 @@ class Fparser2Reader():
                 contains = contains_blocks[0]
                 # Get all procedures in the CONTAINS section.
                 procedures = walk(contains, Fortran2003.Specific_Binding)
-                if procedures is None:
-                    # The CONTAINS statement is empty.
-                    raise NotImplementedError(
-                        "Derived-type definition contains an empty "
-                        "CONTAINS statement.")
-                # Process each procedure.
-                for procedure in procedures:
-                    supported = True
-                    # We do not support interfaces.
-                    if procedure.items[0] is not None:
-                        supported = False
-                    # We do not support 'pass', 'nopass', etc.
-                    if procedure.items[1] is not None:
-                        supported = False
+                if len(procedures) > 0:
+                    # Process each procedure.
+                    for procedure in procedures:
+                        supported = True
+                        # We do not support interfaces.
+                        if procedure.items[0] is not None:
+                            supported = False
+                        # We do not support 'pass', 'nopass', 'deferred', etc.
+                        if procedure.items[1] is not None:
+                            supported = False
 
-                    # Get the name, look it up in the symbol table and
-                    # get its datatype or create it if it does not exist.
-                    procedure_name = procedure.items[3].string
-                    if procedure_name in parent.symbol_table and supported:
-                        procedure_symbol = parent.symbol_table.\
-                                                    lookup(procedure_name)
-                        procedure_datatype = procedure_symbol.datatype
-                    else:
-                        procedure_datatype = UnsupportedFortranType(
-                                                procedure.string,
-                                                None)
-
-                    # Get the visibility of the procedure.
-                    procedure_vis = dtype_symbol_vis
-                    if procedure.items[1] is not None:
-                        access_spec = walk(procedure.items[1],
-                                           Fortran2003.Access_Spec)
-                        if access_spec:
-                            procedure_vis = _process_access_spec(
-                                access_spec[0])
-
-                    # Deal with the optional initial value.
-                    if procedure.items[4] is not None:
-                        initial_value_name = procedure.items[4].string
-                        # Look it up in the symbol table and get its datatype
-                        # or create it if it does not exist.
-                        if initial_value_name in parent.symbol_table:
-                            initial_value_symbol = parent.symbol_table.lookup(
-                                initial_value_name)
-                            if (isinstance(procedure_datatype,
-                                           UnsupportedFortranType)
-                                    and supported):
-                                procedure_datatype = initial_value_symbol.\
-                                    datatype
+                        # Get the name, look it up in the symbol table and
+                        # get its datatype or create it if it does not exist.
+                        procedure_name = procedure.items[3].string
+                        if procedure_name in parent.symbol_table and supported:
+                            procedure_symbol = parent.symbol_table.\
+                                                        lookup(procedure_name)
+                            procedure_datatype = procedure_symbol.datatype
                         else:
-                            initial_value_symbol = RoutineSymbol(
-                                                    initial_value_name,
-                                                    UnresolvedType())
-                        initial_value = Reference(initial_value_symbol)
-                    else:
-                        initial_value = None
+                            procedure_datatype = UnsupportedFortranType(
+                                                    procedure.string,
+                                                    None)
 
-                    # Add this procedure as a component of the derived type.
-                    dtype.add_procedure_component(procedure_name,
-                                                  procedure_datatype,
-                                                  procedure_vis,
-                                                  initial_value)
+                        # Get the visibility of the procedure.
+                        procedure_vis = dtype_symbol_vis
+                        if procedure.items[1] is not None:
+                            access_spec = walk(procedure.items[1],
+                                               Fortran2003.Access_Spec)
+                            if access_spec:
+                                procedure_vis = _process_access_spec(
+                                    access_spec[0])
+
+                        # Deal with the optional initial value.
+                        if procedure.items[4] is not None:
+                            initial_value_name = procedure.items[4].string
+                            # Look it up in the symbol table and get its
+                            # datatype or create it if it does not exist.
+                            if initial_value_name in parent.symbol_table:
+                                initial_value_symbol = parent.symbol_table.\
+                                    lookup(initial_value_name)
+                                if (isinstance(procedure_datatype,
+                                               UnsupportedFortranType)
+                                        and supported):
+                                    procedure_datatype = initial_value_symbol.\
+                                        datatype
+                            else:
+                                initial_value_symbol = RoutineSymbol(
+                                                        initial_value_name,
+                                                        UnresolvedType())
+                            initial_value = Reference(initial_value_symbol)
+                        else:
+                            initial_value = None
+
+                        # Add this procedure as a component of the derived type
+                        dtype.add_procedure_component(procedure_name,
+                                                      procedure_datatype,
+                                                      procedure_vis,
+                                                      initial_value)
 
             # Re-use the existing code for processing symbols. This needs to
             # be able to find any symbols declared in an outer scope but
