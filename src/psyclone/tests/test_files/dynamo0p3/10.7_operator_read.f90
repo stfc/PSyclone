@@ -50,8 +50,12 @@ program operator_example
   integer(i_def)                      :: a
 
   a = 1_i_def
-  mm_w3 = operator_type(function_space_collection%get_fs(mesh_id,element_order,W3), &
-                        function_space_collection%get_fs(mesh_id,element_order,W3))
+  mm_w3 = operator_type(function_space_collection%get_fs(mesh_id,         &
+                                                         element_order_h, &
+                                                         element_order_v,W3), &
+                        function_space_collection%get_fs(mesh_id,         &
+                                                         element_order_h, &
+                                                         element_order_v,W3))
 
   call invoke(testkern_operator_read_type(mm_w3, coord, a, qr))
 

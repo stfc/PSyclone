@@ -9,7 +9,7 @@ The following steps are required for this (using simplified code examples):
     ```fortran
     global_mesh = global_mesh_type()
     ```
-   
+
 2) A 1x1 planar partition for one process is created:
     ```fortran
     partitioner_ptr => partitioner_planar
@@ -34,9 +34,10 @@ The following steps are required for this (using simplified code examples):
 
 5) Create a function/vector space:
     ```fortran
-    vector_space = function_space_type( mesh,          &
-                                        element_order, &
-                                        lfric_fs,      &
+    vector_space = function_space_type( mesh,            &
+                                        element_order_h, &
+                                        element_order_v, &
+                                        lfric_fs,        &
                                         ndata_sz)
     ```
 
