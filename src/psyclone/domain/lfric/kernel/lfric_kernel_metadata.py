@@ -706,9 +706,7 @@ class LFRicKernelMetadata(CommonMetadata):
         # This will be removed when the metadata is extracted from the PSyIR
         # itself.
         if isinstance(datatype, StructureType):
-            type_declaration = FortranWriter().gen_typedecl(symbol)
-            type_declaration = type_declaration.replace(", public", "")
-            type_declaration = type_declaration.replace(", private", "")
+            type_declaration = FortranWriter().gen_typedecl(symbol, False)
             return LFRicKernelMetadata.create_from_fortran_string(
                 type_declaration)
 

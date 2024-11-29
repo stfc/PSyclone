@@ -1148,19 +1148,12 @@ def test_get_procedure_name_error(fortran_reader):
     structure_type = datatype_symbol.datatype
     assert isinstance(structure_type, StructureType)
     assert len(structure_type.procedure_components) == 0
-    # metadata = LFRicKernelMetadata()
-    # reader = FortranStringReader(datatype.declaration)
-    # spec_part = Fortran2003.Derived_Type_Def(reader)
-    # with pytest.raises(ParseError) as info:
-    #     metadata._get_procedure_name(spec_part)
-    # assert "Expecting a type-bound procedure, but found" in str(info.value)
 
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     datatype_symbol = kernel_psyir.children[0].symbol_table.lookup(
         "testkern_type")
     datatype = datatype_symbol.datatype
     metadata = LFRicKernelMetadata()
-    # reader = FortranStringReader(datatype.declaration)
     assert isinstance(datatype, StructureType)
     type_declaration = FortranWriter().gen_typedecl(datatype_symbol)
     reader = FortranStringReader(type_declaration)
@@ -1178,7 +1171,6 @@ def test_get_procedure_name_error(fortran_reader):
         "testkern_type")
     datatype = datatype_symbol.datatype
     metadata = LFRicKernelMetadata()
-    # reader = FortranStringReader(datatype.declaration)
     assert isinstance(datatype, StructureType)
     type_declaration = FortranWriter().gen_typedecl(datatype_symbol)
     reader = FortranStringReader(type_declaration)
@@ -1201,12 +1193,9 @@ def test_get_procedure_name(fortran_reader):
         "testkern_type")
     datatype = datatype_symbol.datatype
     metadata = LFRicKernelMetadata()
-    # reader = FortranStringReader(datatype.declaration)
-
     assert isinstance(datatype, StructureType)
     type_declaration = FortranWriter().gen_typedecl(datatype_symbol)
     reader = FortranStringReader(type_declaration)
-
     spec_part = Fortran2003.Derived_Type_Def(reader)
     assert metadata._get_procedure_name(spec_part) == \
         "testkern_code"

@@ -291,13 +291,6 @@ def test_derived_type_contains():
     assert isinstance(sym.datatype, StructureType)
     assert len(sym.datatype.components) == 2
     assert len(sym.datatype.procedure_components) == 1
-#     assert sym.datatype.declaration == '''\
-# TYPE :: my_type
-#   INTEGER :: flag
-#   REAL, DIMENSION(3) :: posn
-#   CONTAINS
-#   PROCEDURE :: init => obesdv_setup
-# END TYPE my_type'''
 
 
 @pytest.mark.usefixtures("f2008_parser")
