@@ -312,7 +312,7 @@ class ModuleInfo:
 
         raise ModuleNotFoundError(
             f"Unable to find container '{self._name}' in "
-            f"file '{self._file_info.filepath}'"
+            f"file '{self._file_info.filename}'"
         )
 
     def get_psyir_container_node_classic(self):

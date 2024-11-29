@@ -101,7 +101,7 @@ end module my_mod''')
 
     mod_info = ModuleInfo("my_mod", FileInfo(filepath))
 
-    psyir = mod_info.get_psyir_container_node_classic()
+    psyir = mod_info.get_psyir_container_node()
     assert isinstance(psyir, Container)
     assert psyir.name == "my_mod"
 
