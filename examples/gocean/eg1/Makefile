@@ -39,7 +39,7 @@
 # openacc compilation with managed memory, use:
 #
 # export F90=nvfortran
-# export F90FLAGS="-acc=gpu -Minfo=all -gpu=managed"
+# export F90FLAGS="-acc=gpu -Minfo=all -gpu=mem:managed"
 # export LDFLAGS=""
 
 include ../../common.mk
