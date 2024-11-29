@@ -36,16 +36,22 @@
 '''This module contains a singleton class that manages information about
 which module is contained in which file (including full location). '''
 
-
+from __future__ import annotations
 from collections import OrderedDict
 import copy
 from difflib import SequenceMatcher
 import os
 import re
+import warnings
 
 from psyclone.errors import InternalError
 from psyclone.parse.file_info import FileInfo
 from psyclone.parse.module_info import ModuleInfo
+
+from typing import Dict, Set
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from psyclone.configuration import Config
 
 
 class ModuleManager:
@@ -60,24 +66,35 @@ class ModuleManager:
     # of the file.
     _threshold_similarity = 0.7
 
+    # Count how many module managers are currently used
+    _usage_counter = 0
+
+    @staticmethod
+    def _test_helper_reset():
+        """This is a helper function to reset the module manager state.
+        """
+        ModuleManager._instance = None
+        ModuleManager._usage_counter = 0
+
     # ------------------------------------------------------------------------
     @staticmethod
-    def get():
+    def get_singleton(config: Config = None):
         '''Static function that if necessary creates and returns the singleton
         ModuleManager instance.
 
         '''
+
+        warnings.warn(
+            "Using `ModuleManager.get_singleton()` is deprecated")
         if not ModuleManager._instance:
-            ModuleManager._instance = ModuleManager()
+            # If ModuleManager is initialized for the first time, it
+            # automatically registers itself to `ModuleManager._instance`
+            ModuleManager(config)
 
         return ModuleManager._instance
 
     # ------------------------------------------------------------------------
-    def __init__(self):
-
-        if ModuleManager._instance is not None:
-            raise InternalError("You need to use 'ModuleManager.get()' "
-                                "to get the singleton instance.")
+    def __init__(self, config: Config = None):
 
         self._modules = {}
         self._visited_files = {}
@@ -94,6 +111,39 @@ class ModuleManager:
         # to match e.g. "module procedure :: some_sub".
         self._module_pattern = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
                                           flags=(re.IGNORECASE | re.MULTILINE))
+
+        ModuleManager._usage_counter += 1
+
+        if ModuleManager._usage_counter > 1:
+            raise InternalError(
+                "You need to use 'ModuleManager.get_singleton()'"
+                " to get the singleton instance."
+                " NOTE: This error will be soon deprecated")
+
+        # In case this is directly initialized with the constructor
+        # for the first time, use this as the default instance.
+        if ModuleManager._instance is None:
+            assert ModuleManager._usage_counter == 1
+            ModuleManager._instance = self
+
+        # Load information from configuration
+        if config is None:
+            from psyclone.configuration import Config
+
+            config = Config.get()
+
+        self.load_from_config(config)
+
+    def load_from_config(self, config: Config):
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        for module_name in config._ignore_modules:
+            self.add_ignore_module(module_name)
+
+    # def __del__(self):
+    #     """Deconstructor
+    #     """
+    #     ModuleManager._usage_counter -= 1
 
     # ------------------------------------------------------------------------
     def add_search_path(self, directories, recursive=True):
@@ -179,15 +229,34 @@ class ModuleManager:
                 if name in mod_names:
                     # We've found the module we want. Create a ModuleInfo
                     # object for it and cache it.
-                    mod_info = ModuleInfo(name, finfo)
-                    self._modules[name] = mod_info
+                    mod_info = ModuleInfo(name, finfo, self)
+                    # TODO: We need to use 'error_if_exists=False'
+                    # for backwards compatiblity of LFRic test cases
+                    self.add_module_info(mod_info, error_if_exists=False)
+
                     # A file that has been (or does not require)
                     # preprocessing always takes precendence.
                     if finfo.filename.endswith(".f90"):
                         return mod_info
         return mod_info
 
-    # ------------------------------------------------------------------------
+    def add_module_info(
+                    self, module_info: ModuleInfo,
+                    error_if_exists: bool = True
+                    ):
+        """Add a module info to the module manager
+
+        :param module_info: The module info itself to be added to the
+            module manager.
+        :param overwrite_existing: Raise an error if a module with the name
+            already exists.
+        """
+
+        if error_if_exists:
+            assert module_info.name not in self._modules, (
+                f"Tried to add already existing module '{module_info.name}'")
+        self._modules[module_info.name] = module_info
+
     def add_ignore_module(self, module_name):
         '''Adds the specified module name to the modules to be ignored.
 
@@ -282,7 +351,10 @@ class ModuleManager:
         return [name.lower() for name in mod_names]
 
     # ------------------------------------------------------------------------
-    def get_all_dependencies_recursively(self, all_mods):
+    def get_all_dependencies_recursively(
+                self,
+                all_mods: Set[str]
+            ) -> Dict[str, Set[str]]:
         '''This function collects recursively all module dependencies
         for any of the modules in the ``all_mods`` set. I.e. it will
         add all modules used by any module listed in ``all_mods``,
@@ -299,12 +371,11 @@ class ModuleManager:
         be ignored (i.e. not listed in any dependencies).
         # TODO 2120: allow a choice to abort or ignore.
 
-        :param set[str] all_mods: the set of all modules for which to collect
+        :param all_mods: the set of all modules for which to collect
             module dependencies.
 
         :returns: a dictionary with all modules that are required (directly
             or indirectly) for the modules in ``all_mods``.
-        :rtype: dict[str, set[str]]
 
         '''
         # This contains the mapping from each module name to the

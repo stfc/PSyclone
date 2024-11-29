@@ -438,7 +438,7 @@ class MarkRoutineForGPUMixin:
             if ref.symbol.is_import:
                 # resolve_type does nothing if the Symbol type is known.
                 try:
-                    ref.symbol.resolve_type()
+                    ref.symbol.resolve_type(local_node=node)
                 except (SymbolError, FileNotFoundError):
                     # TODO #11 - log that we failed to resolve this Symbol.
                     pass
@@ -2892,7 +2892,7 @@ class KernelImportsToArguments(Transformation):
             # pylint: disable=unidiomatic-typecheck
             if (type(imported_var) is Symbol or
                     isinstance(imported_var.datatype, UnresolvedType)):
-                updated_sym = imported_var.resolve_type()
+                updated_sym = imported_var.resolve_type(local_node=node)
                 # If we have a new symbol then we must update the symbol table
                 if updated_sym is not imported_var:
                     kernel.symbol_table.swap(imported_var, updated_sym)

@@ -2085,7 +2085,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             if isinstance(ref.symbol, DataSymbol) and ref.symbol.is_constant:
                 continue
             if (ref.symbol.is_import and
-                    ref.symbol.get_external_symbol().is_constant):
+                    ref.symbol.get_external_symbol(
+                        local_node=self).is_constant):
                 continue
             in_clause.addchild(ref)
         out_clause = OMPDependClause(

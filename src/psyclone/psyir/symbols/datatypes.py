@@ -883,7 +883,7 @@ class ArrayType(DataType):
                 pass
 
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Node
+        from psyclone.psyir.nodes.node import Node
 
         # Update any Symbols referenced in the array shape
         for dim in self.shape:

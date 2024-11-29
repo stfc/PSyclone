@@ -46,6 +46,7 @@ from psyclone.psyir.symbols.containersymbol import (
     ContainerSymbol, ContainerSymbolInterface, FortranModuleInterface)
 from psyclone.psyir.nodes import Container
 from psyclone.configuration import Config
+from psyclone.parse import ModuleManager
 
 
 def create_dummy_module(path, filename="dummy_module.f90"):
@@ -115,7 +116,7 @@ def test_containersymbol_specialise_and_process_arguments():
     # It could use the container import infrastructure (in this case it fails
     # because it does not exist)
     with pytest.raises(SymbolError) as error:
-        _ = sym1.find_container_psyir()
+        _ = sym1.find_container_psyir(local_node=None)
     assert "not found" in str(error.value)
 
     # Now with a wildcard_import argument
@@ -156,31 +157,34 @@ def test_containersymbol_resolve_external_container(monkeypatch):
     '''Test that a ContainerSymbol uses its interface get_container method
     the first time its associated container reference is needed'''
 
+    container = Container("dummy")
+    container.get_module_manager()
     sym = ContainerSymbol("my_mod")
 
     monkeypatch.setattr(sym._interface, "get_container",
-                        lambda x: "MockContainer")
+                        lambda x, mm: "MockContainer")
 
     # At the beginning the reference is never resolved (lazy evaluation)
     assert not sym._reference
 
     # When find_container_psyir is invoked, the reference is resolved
-    assert sym.find_container_psyir() == "MockContainer"
+    assert sym.find_container_psyir(container) == "MockContainer"
     assert sym._reference == "MockContainer"
 
     # Check that subsequent invocations do not update the container reference
     monkeypatch.setattr(sym._interface, "get_container",
-                        staticmethod(lambda x: "OtherContainer"))
-    assert sym.find_container_psyir() == "MockContainer"
+                        staticmethod(lambda x, mm: "OtherContainer"))
+    assert sym.find_container_psyir(container) == "MockContainer"
 
 
 def test_containersymbol_generic_interface():
     '''Check ContainerSymbolInterface abstract methods '''
 
+    module_manager = ModuleManager()
     abstractinterface = ContainerSymbolInterface
 
     with pytest.raises(NotImplementedError) as error:
-        abstractinterface.get_container("name")
+        abstractinterface.get_container("name", module_manager)
     assert "Abstract method" in str(error.value)
 
 
@@ -191,23 +195,25 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     fminterface = FortranModuleInterface
     path = str(tmpdir)
 
+    module_manager = ModuleManager()
+
     # Try with a non-existent module and no include path
     monkeypatch.setattr(Config.get(), "_include_paths", [])
     with pytest.raises(SymbolError) as error:
-        fminterface.get_container("fake_module")
+        fminterface.get_container("fake_module", module_manager)
     assert ("Module 'fake_module' not found in any of the include_paths "
             "directories []." in str(error.value))
 
     # Try with a non-existent module and an existing directory
     monkeypatch.setattr(Config.get(), '_include_paths', [path])
     with pytest.raises(SymbolError) as error:
-        fminterface.get_container("fake_module")
+        fminterface.get_container("fake_module", module_manager)
     assert ("Module 'fake_module' not found in any of the include_paths "
             "directories " in str(error.value))
 
     # Try importing an existing Fortran module
     create_dummy_module(path)
-    container = fminterface.get_container("dummy_module")
+    container = fminterface.get_container("dummy_module", module_manager)
     assert isinstance(container, Container)
     assert container.name.lower() == "dummy_module"
 
@@ -216,7 +222,8 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     # not found error.
     create_dummy_module(path, "different_name_module.F90")
     with pytest.raises(SymbolError) as error:
-        container = fminterface.get_container("different_name_module")
+        container = fminterface.get_container(
+            "different_name_module", module_manager)
     assert ("Module 'different_name_module' not found in any of the "
             "include_paths directories [" in str(error.value))
 

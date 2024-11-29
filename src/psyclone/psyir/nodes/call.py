@@ -249,14 +249,14 @@ class Call(Statement, DataNode):
         '''Replace one named argument node with another node keeping the
         same name.
 
-           :param str existing_name: the argument name.
-           :param arg: the argument expression.
-           :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
+        :param str existing_name: the argument name.
+        :param arg: the argument expression.
+        :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
 
-           :raises TypeError: if the name argument is the wrong type.
-           :raises ValueError: if the name argument is already used \
-               for an existing argument.
-           :raises TypeError: if the index argument is the wrong type.
+        :raises TypeError: if the name argument is the wrong type.
+        :raises ValueError: if the name argument is already used
+            for an existing argument.
+        :raises TypeError: if the index argument is the wrong type.
 
         '''
         if not isinstance(existing_name, str):

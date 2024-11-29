@@ -38,9 +38,16 @@
 
 ''' This module contains the ContainerSymbol and its interfaces.'''
 
+from __future__ import annotations
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.interfaces import SymbolInterface
 from psyclone.configuration import Config
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes.node import Node
+    from psyclone.psyir.nodes.container import Container
+    from psyclone.parse.module_manager import ModuleManager
 
 
 class ContainerSymbol(Symbol):
@@ -125,33 +132,45 @@ class ContainerSymbol(Symbol):
         new_symbol.is_intrinsic = self.is_intrinsic
         return new_symbol
 
-    def find_container_psyir(self, local_node=None):
-        ''' Searches for the Container that this Symbol refers to. If it is
+    def find_container_psyir(
+                self,
+                local_node: Node
+            ) -> Container:
+        '''Searches for the Container that this Symbol refers to. If it is
         not available, use the interface to import the container. If
         `local_node` is supplied then the PSyIR tree below it is searched for
         the container first.
 
         :param local_node: root of PSyIR sub-tree to include in search for
                            the container.
-        :type local_node: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: referenced container.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         '''
+
         if not self._reference:
-            # First check in the current PSyIR tree (if supplied).
+            # First check in the current PSyIR tree.
+
             if local_node:
+
                 lowered_name = self.name.lower()
-                from psyclone.psyir.nodes.container import Container
-                from psyclone.psyir.nodes.routine import Routine
-                for local in local_node.root.walk(Container,
-                                                  stop_type=Routine):
+                from psyclone.psyir.nodes import Container, Routine
+                for local in local_node.root.walk(
+                            Container, stop_type=Routine):
                     if lowered_name == local.name.lower():
                         self._reference = local
                         return self._reference
+
+                module_manager = local_node.get_module_manager()
+            else:
+                module_manager = None
+
             # We didn't find it so now attempt to import the container.
-            self._reference = self._interface.get_container(self._name)
+            self._reference = self._interface.get_container(
+                    self._name,
+                    module_manager
+                )
+
         return self._reference
 
     def __str__(self):
@@ -213,7 +232,7 @@ class ContainerSymbolInterface(SymbolInterface):
     ''' Abstract implementation of the ContainerSymbol Interface '''
 
     @staticmethod
-    def get_container(name):
+    def get_container(name, module_manager: ModuleManager):
         ''' Abstract method to import an external container, the specific
         implementation depends on the language used.
 
@@ -228,37 +247,38 @@ class FortranModuleInterface(ContainerSymbolInterface):
     ''' Implementation of ContainerSymbolInterface for Fortran modules '''
 
     @staticmethod
-    def get_container(name):
+    def get_container(name: str, module_manager: ModuleManager):
         ''' Imports a Fortran module as a PSyIR Container (via the
         ModuleManager) and returns it.
 
-        :param str name: name of the module to be imported.
+        :param name: name of the module to be imported.
 
         :returns: container associated with the given name.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         :raises SymbolError: the given Fortran module is not found on the
             import path.
 
         '''
-        # pylint: disable-next=import-outside-toplevel
-        from psyclone.parse import ModuleManager
-        mod_manager = ModuleManager.get()
+        if module_manager is None:
+            # pylint: disable-next=import-outside-toplevel
+            from psyclone.parse import ModuleManager
+            module_manager = ModuleManager()
 
         # TODO #2011 - rationalise how this interacts with the kernel search
         # path set in generate().
-        mod_manager.add_search_path(Config.get().include_paths)
+        module_manager.add_search_path(Config.get().include_paths)
 
         minfo = None
         try:
-            minfo = mod_manager.get_module_info(name)
+            minfo = module_manager.get_module_info(name)
         except FileNotFoundError:
             pass
         if not minfo:
             raise SymbolError(
                 f"Module '{name}' not found in any of the include_paths "
                 f"directories {Config.get().include_paths}.")
-        return minfo.get_psyir()
+        psyir = minfo.get_psyir()
+        return psyir
 
 
 # For Sphinx AutoAPI documentation generation

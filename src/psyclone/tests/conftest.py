@@ -46,7 +46,7 @@ import pytest
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
 from psyclone.configuration import Config
-from psyclone.parse import ModuleManager
+from psyclone.parse.module_manager import ModuleManager
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.tests.gocean_build import GOceanBuild
@@ -251,20 +251,38 @@ def fixture_tear_down_config():
     Config._instance = None
 
 
-@pytest.fixture(scope='function')
-def clear_module_manager_instance():
-    '''For tests that assume that there is no pre-existing ModuleManager
-    object, this fixture ensures that the module manager instance is deleted
-    before and after each test function. The latter makes sure that any other
-    test executed next will automatically reload the default ModuleManager
-    file.
+# @pytest.fixture(scope="function")
+# def clear_module_manager_instance():
+#     '''For tests that assume that there is no pre-existing ModuleManager
+#     object, this fixture ensures that the module manager instance is deleted
+#     before and after each test function. The latter makes sure that any other
+#     test executed next will automatically reload the default ModuleManager
+#     file even if this fixture is not used.
+#     '''
+
+#     # Enforce loading of the default ModuleManager
+#     ModuleManager._test_helper_reset()
+
+#     # Now execute all tests
+#     yield
+
+#     # Enforce loading of the default ModuleManager
+#     ModuleManager._test_helper_reset()
+
+
+@pytest.fixture(
+        name="clear_module_manager_instance",
+        scope="function",
+        autouse=True
+    )
+def modmanager_fixture(monkeypatch, request):
     '''
+    A fixture that ensures every test gets a fresh ModuleManager instance as
+    otherwise changes to search paths or file creation/removal is not detected.
+    '''
+    ModuleManager._test_helper_reset()
 
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
-
-    # Now execute all tests
     yield
 
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
+    ModuleManager._test_helper_reset()
+    # monkeypatch.setattr(ModuleManager, '_instance', None)

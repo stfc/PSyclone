@@ -212,6 +212,9 @@ class Config:
         # The naming scheme to use for transformed kernels.
         self._kernel_naming = None
 
+        # List of modules to ignore
+        self._ignore_modules = None
+
         # The list of directories to search for Fortran include files.
         self._include_paths = []
 
@@ -362,12 +365,10 @@ class Config:
         self._kernel_naming = Config._default_kernel_naming
 
         ignore_modules = self._config['DEFAULT'].getlist("IGNORE_MODULES", [])
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.parse import ModuleManager
-        mod_manager = ModuleManager.get()
+
+        self._ignore_modules = []
         for module_name in ignore_modules:
-            mod_manager.add_ignore_module(module_name)
+            self._ignore_modules.append(module_name)
 
         # Set the flag that the config file has been loaded now.
         Config._HAS_CONFIG_BEEN_INITIALISED = True
@@ -449,8 +450,17 @@ class Config:
         if not within_virtual_env():
             # 4. <python-installation-base>/share/psyclone/
             _file_paths.append(share_dir)
+
         # 5. <psyclone-installation-base>/share/psyclone/
         _file_paths.extend(pkg_share_dir)
+
+        # 6. <psyclone-src-base>/config/
+        # Search for configuration file relative to this source file
+        dev_path_list = os.path.split(
+                            os.path.abspath(__file__))[:-1]+(
+                                "..", "..", "config")
+        dev_path = os.path.abspath(os.path.join(*dev_path_list))
+        _file_paths.append(dev_path)
 
         for cfile in [os.path.join(cdir, _FILE_NAME) for cdir in _file_paths]:
             if os.path.isfile(cfile):

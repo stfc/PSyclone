@@ -40,6 +40,7 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
               'sphinx.ext.intersphinx', 'sphinx.ext.coverage',
               'sphinx.ext.imgmath', 'sphinx.ext.viewcode',
               'sphinxcontrib.bibtex', 'sphinx_tabs.tabs',
+              'sphinx_autodoc_typehints',
               'apilinks',
               ]
 bibtex_bibfiles = ['../bibliography/references.bib']

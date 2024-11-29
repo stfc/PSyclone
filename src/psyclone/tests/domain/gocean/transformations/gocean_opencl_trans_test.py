@@ -53,6 +53,7 @@ from psyclone.tests.gocean_build import GOceanOpenCLBuild
 from psyclone.tests.utilities import (Compile, get_base_path, get_invoke)
 from psyclone.transformations import (TransformationError,
                                       KernelImportsToArguments)
+from psyclone.parse.module_manager import ModuleManager
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -578,9 +579,13 @@ def test_psy_init_multiple_kernels(kernel_outputdir):
     ''' Check that we create a psy_init() routine that sets-up the
     kernel_names correctly when there are multiple kernels, some of
     them repeated. '''
+
+    module_manager = ModuleManager()
+
     # This example has 2 unique kernels, one of them repeated twice
     psy, _ = get_invoke("single_invoke_three_kernels_with_use.f90",
-                        API, idx=0, dist_mem=True)
+                        API, idx=0, dist_mem=True,
+                        module_manager=module_manager)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel and removing
     # kernel imports are prerequisites for this test.

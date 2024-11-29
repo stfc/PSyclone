@@ -42,7 +42,7 @@ import pytest
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Call, colored, Container, FileContainer,
-                                  KernelSchedule, Return, Routine)
+                                  KernelSchedule, Node, Return, Routine)
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, SymbolTable
 from psyclone.tests.utilities import check_links
 
@@ -215,7 +215,7 @@ def test_find_routine_psyir_routine_not_found(fortran_reader):
         "    procedure :: this_one, that_one\n"
         "  end interface my_funky_routine\n"
         "end module inline_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
+    psyir: Node = fortran_reader.psyir_from_source(code)
     container = psyir.children[0]
     result = container.find_routine_psyir("missing")
     assert result is None
@@ -232,7 +232,7 @@ def test_get_routine_missing_container(fortran_reader):
         "module inline_mod\n"
         " use some_other_mod, only: my_sub\n"
         "end module inline_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
+    psyir: Node = fortran_reader.psyir_from_source(code)
     container = psyir.children[0]
     result = container.find_routine_psyir("my_sub")
     assert result is None
@@ -247,8 +247,8 @@ def test_get_routine_missing_container_wildcard(fortran_reader):
         "module inline_mod\n"
         " use some_other_mod\n"
         "end module inline_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    container = psyir.children[0]
+    psyir: Node = fortran_reader.psyir_from_source(code)
+    container: Container = psyir.children[0]
     result = container.find_routine_psyir("my_sub")
     assert result is None
 
@@ -270,8 +270,8 @@ def test_get_routine_recurse_named(fortran_reader):
         f"contains\n"
         f"{SUB}\n"
         f"end module inline_mod2\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    container = psyir.walk(Container)[1]
+    psyir: Node = fortran_reader.psyir_from_source(code)
+    container: Container = psyir.walk(Container)[1]
     result = container.find_routine_psyir("sub")
     assert isinstance(result, Routine)
     assert result.name == "sub"
@@ -287,7 +287,7 @@ def test_get_routine_recurse_named(fortran_reader):
         f"contains\n"
         f"{SUB}\n"
         f"end module inline_mod2\n")
-    psyir = fortran_reader.psyir_from_source(code)
+    psyir: Node = fortran_reader.psyir_from_source(code)
     container = psyir.walk(Container)[1]
     result = container.find_routine_psyir("sub")
     assert result is None
@@ -310,10 +310,11 @@ def test_get_routine_recurse_wildcard(fortran_reader):
         f"contains\n"
         f"{SUB}\n"
         f"end module inline_mod2\n")
-    psyir = fortran_reader.psyir_from_source(code)
+    psyir: Node = fortran_reader.psyir_from_source(code)
+    module_manager = psyir.get_module_manager()
     call_node = psyir.walk(Call)[0]
     csym = call_node.routine.symbol.interface.container_symbol
-    container = csym.find_container_psyir(local_node=call_node)
+    container: Container = csym.find_container_psyir(local_node=call_node)
     # By default we don't follow wildcard imports and thus don't find
     # the routine.
     result = container.find_routine_psyir(call_node.routine.name)
@@ -336,7 +337,9 @@ def test_get_routine_recurse_wildcard(fortran_reader):
         f"contains\n"
         f"{SUB}\n"
         f"end module inline_mod2\n")
-    psyir = fortran_reader.psyir_from_source(code)
+    psyir: Node = fortran_reader.psyir_from_source(code)
+    # Manually set the module manager to avoid initializing a new one
+    psyir.set_module_manager(module_manager)
     call_node = psyir.walk(Call)[0]
     csym = call_node.routine.symbol.interface.container_symbol
     container = csym.find_container_psyir(local_node=call_node)
@@ -351,7 +354,9 @@ def test_get_routine_recurse_wildcard(fortran_reader):
         f"module inline_mod\n"
         f"use inline_mod3\n"
         f"end module inline_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
+    psyir: Node = fortran_reader.psyir_from_source(code)
+    # Manually set the module manager to avoid initializing a new one
+    psyir.set_module_manager(module_manager)
     call_node = psyir.walk(Call)[0]
     csym = call_node.routine.symbol.interface.container_symbol
     container = csym.find_container_psyir(local_node=call_node)
@@ -371,11 +376,15 @@ def test_find_routine_in_container_private_routine_not_found(fortran_reader):
     private_sub_in_module = SUB_IN_MODULE.replace(
         "contains\n", "  private :: sub\ncontains\n")
     code = f"{private_sub_in_module}{CALL_IN_SUB_USE}"
-    psyir = fortran_reader.psyir_from_source(code)
+    psyir: Node = fortran_reader.psyir_from_source(code)
     call_node = psyir.walk(Call)[0]
     csym = call_node.routine.symbol.interface.container_symbol
-    container = csym.find_container_psyir(local_node=call_node)
-    result = container.find_routine_psyir(call_node.routine.name)
+    container = csym.find_container_psyir(
+            local_node=call_node
+        )
+    result = container.find_routine_psyir(
+            call_node.routine.name
+        )
     assert result is None
     assert container.find_routine_psyir("doesnotexist") is None
 
@@ -390,7 +399,7 @@ def test_container_resolve_routine(fortran_reader):
       * a name that does not exist.
 
     '''
-    psyir = fortran_reader.psyir_from_source('''
+    psyir: Node = fortran_reader.psyir_from_source('''
 module a_mod
     use some_mod, only: its_a_routine_really
     interface a_facade

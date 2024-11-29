@@ -71,9 +71,10 @@ def init_module_manager():
         os.path.dirname(os.path.dirname(infrastructure_path)))))
     read_mod_path = os.path.join(psyclone_root, "lib", "extract", "standalone")
     # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
 
-    module_manager = ModuleManager.get()
+    ModuleManager._test_helper_reset()
+
+    module_manager = ModuleManager()
     module_manager.add_search_path(infrastructure_path)
     module_manager.add_search_path(read_mod_path)
 
@@ -81,7 +82,7 @@ def init_module_manager():
     yield
 
     # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
+    ModuleManager._test_helper_reset()
 
 
 # ----------------------------------------------------------------------------
@@ -91,14 +92,19 @@ def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
     Test that _create_read_in_code() handles the case where a symbol
     cannot be found.
     '''
+
+    # Load the singleton instance initialized by `init_module_manager`
+    mod_man = ModuleManager._instance
     _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
                            "symbols.f90",
                            API,
-                           dist_mem=False, idx=0)
+                           dist_mem=False, idx=0,
+                           module_manager=mod_man)
     ctu = CallTreeUtils()
     rw_info = ctu.get_in_out_parameters([invoke.schedule[0]],
                                         collect_non_local_symbols=True)
     new_routine = Routine.create("driver_test")
+    new_routine.set_module_manager(mod_man)
     for mod_name, sig in rw_info.set_of_all_used_vars:
         if not mod_name:
             new_routine.symbol_table.find_or_create_tag(
@@ -109,7 +115,6 @@ def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
     monkeypatch.setattr(ledc, "_create_output_var_code",
                         lambda _1, _2, _3, _4, _5, index=None,
                         module_name="": None)
-    mod_man = ModuleManager.get()
     minfo = mod_man.get_module_info("module_with_var_mod")
     cntr = minfo.get_psyir()
     # We can't use 'remove()' with a DataSymbol.
@@ -151,8 +156,10 @@ def test_lfric_driver_flatten_signature():
 def test_lfric_driver_get_proxy_mapping():
     '''Tests that a kernel returns the right proxy mapping.'''
 
+    module_manager = ModuleManager._instance
     _, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
-                           dist_mem=False, idx=0)
+                           dist_mem=False, idx=0,
+                           module_manager=module_manager)
     driver_creator = LFRicExtractDriverCreator()
 
     mapping = driver_creator._get_proxy_name_mapping(invoke.schedule)
@@ -258,8 +265,10 @@ def test_lfric_driver_simple_test():
     any variable that is provided in the kernel call is also read
     in the driver. '''
 
+    module_manager = ModuleManager._instance
     _, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
-                           dist_mem=False, idx=0)
+                           dist_mem=False, idx=0,
+                           module_manager=module_manager)
 
     extract = LFRicExtractTrans()
 
@@ -324,8 +333,10 @@ def test_lfric_driver_import_precision():
     '''Test that all required precision symbols are imported from
     constants_mod'''
 
+    module_manager = ModuleManager._instance
     _, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
-                           dist_mem=False, idx=0)
+                           dist_mem=False, idx=0,
+                           module_manager=module_manager)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],
@@ -359,8 +370,10 @@ def test_lfric_driver_field_arrays():
     as an individual field. The driver needs to read in each individual
     array member into distinct variables.'''
 
+    module_manager = ModuleManager._instance
     _, invoke = get_invoke("8_vector_field_2.f90", API,
-                           dist_mem=False, idx=0)
+                           dist_mem=False, idx=0,
+                           module_manager=module_manager)
 
     extract = LFRicExtractTrans()
 
@@ -399,8 +412,10 @@ def test_lfric_driver_operator():
     '''Test handling of operators, including the structure members
     that are implicitly added.'''
 
+    module_manager = ModuleManager._instance
     _, invoke = get_invoke("10.7_operator_read.f90", API,
-                           dist_mem=False, idx=0)
+                           dist_mem=False, idx=0,
+                           module_manager=module_manager)
 
     extract = LFRicExtractTrans()
 
@@ -455,8 +470,10 @@ def test_lfric_driver_removing_structure_data():
     here we need explicit array accesses.
     '''
 
+    module_manager = ModuleManager._instance
     _, invoke = get_invoke("15.1.8_a_plus_X_builtin_array_of_fields.f90",
-                           API, dist_mem=False, idx=0)
+                           API, dist_mem=False, idx=0,
+                           module_manager=module_manager)
     ctu = CallTreeUtils()
     read_write_info = ctu.get_in_out_parameters(invoke.schedule)
     driver_creator = LFRicExtractDriverCreator()
@@ -490,8 +507,10 @@ def test_lfric_driver_extract_some_kernels_only():
     of the kernels in the tree). This test can potentially be removed
     when TODO #1731 is done.'''
 
+    module_manager = ModuleManager._instance
     _, invoke = get_invoke("4.5.2_multikernel_invokes.f90", API,
-                           dist_mem=False, idx=0)
+                           dist_mem=False, idx=0,
+                           module_manager=module_manager)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[2],
@@ -534,8 +553,10 @@ def test_lfric_driver_extract_some_kernels_only():
 def test_lfric_driver_field_array_write():
     '''Test the handling of arrays of fields which are written.'''
 
+    module_manager = ModuleManager._instance
     _, invoke = get_invoke("10.7_operator_read.f90", API,
-                           dist_mem=False, idx=0)
+                           dist_mem=False, idx=0,
+                           module_manager=module_manager)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],
@@ -578,8 +599,10 @@ def test_lfric_driver_field_array_inc():
     '''Test the handling of arrays of fields which are incremented (i.e.
     read and written).'''
 
+    module_manager = ModuleManager._instance
     _, invoke = get_invoke("8_vector_field_2.f90", API,
-                           dist_mem=False, idx=0)
+                           dist_mem=False, idx=0,
+                           module_manager=module_manager)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],
@@ -624,8 +647,10 @@ def test_lfric_driver_external_symbols():
     external functions that use module variables.
 
     '''
+    module_manager = ModuleManager._instance
     _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
-                           "symbols.f90", API, dist_mem=False, idx=0)
+                           "symbols.f90", API, dist_mem=False, idx=0,
+                           module_manager=module_manager)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],
@@ -661,8 +686,10 @@ def test_lfric_driver_external_symbols_name_clash():
     a name clash.
 
     '''
+    module_manager = ModuleManager._instance
     _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
-                           "symbols.f90", API, dist_mem=False, idx=1)
+                           "symbols.f90", API, dist_mem=False, idx=1,
+                           module_manager=module_manager)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],
@@ -707,8 +734,11 @@ def test_lfric_driver_external_symbols_error(capsys):
     resulting in external functions and variables that cannot be found.
 
     '''
+    module_manager = ModuleManager._instance
+
     _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
-                           "symbols_error.f90", API, dist_mem=False, idx=0)
+                           "symbols_error.f90", API, dist_mem=False, idx=0,
+                           module_manager=module_manager)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],
@@ -762,8 +792,11 @@ def test_lfric_driver_rename_externals():
     # a different module, i.e.:
     #     use module_with_var_mod, only: renamed_var => module_var_a
 
+    module_manager = ModuleManager._instance
+
     _, invoke = get_invoke("driver_creation/invoke_kernel_rename_symbols.f90",
-                           API, dist_mem=False, idx=0)
+                           API, dist_mem=False, idx=0,
+                           module_manager=module_manager)
 
     ctu = CallTreeUtils()
     read_write_info = ctu.get_in_out_parameters(invoke.schedule,

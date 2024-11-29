@@ -109,7 +109,7 @@ class VariablesAccessInfo(dict):
         if nodes:
             # Import here to avoid circular dependency
             # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.nodes import Node
+            from psyclone.psyir.nodes.node import Node
             if isinstance(nodes, list):
                 for node in nodes:
                     if not isinstance(node, Node):

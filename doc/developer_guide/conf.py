@@ -43,6 +43,7 @@ needs_sphinx = '1.8'
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
               'sphinx.ext.intersphinx', 'sphinx.ext.coverage',
               'sphinx.ext.imgmath', 'sphinx.ext.viewcode',
+              'sphinx_autodoc_typehints',
               'sphinxcontrib.bibtex', 'apilinks']
 bibtex_bibfiles = ['../bibliography/references.bib']
 

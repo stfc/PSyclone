@@ -151,7 +151,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         super(TypedSymbol, self).copy_properties(symbol_in)
         self._datatype = symbol_in.datatype
 
-    def resolve_type(self):
+    def resolve_type(self, local_node):
         ''' If the symbol has an Unresolved datatype, find where it is defined
         (i.e. an external container) and obtain the properties of the symbol.
 
@@ -170,7 +170,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
             # visibility (the latter is determined by the current
             # scoping unit)
             tmp = self.interface
-            extern_symbol = self.get_external_symbol()
+            extern_symbol = self.get_external_symbol(local_node=local_node)
             self.copy_properties(extern_symbol)
             self.interface = tmp
 
