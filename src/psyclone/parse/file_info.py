@@ -42,7 +42,6 @@ import hashlib
 import copy
 import os
 import pickle
-from typing import Union
 
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
@@ -277,7 +276,8 @@ class FileInfo:
             # Make copies of it since they could be modified later
             # With this, we can also figure out potential issues with
             # the serialization in fparser
-            self._cache_data_save._fparser_tree = copy.deepcopy(self._fparser_tree)
+            self._cache_data_save._fparser_tree = \
+                copy.deepcopy(self._fparser_tree)
             cache_updated = True
 
         if self._cache_data_save._psyir_node is None and (
