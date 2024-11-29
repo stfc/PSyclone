@@ -48,8 +48,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import FortranSyntaxError, walk
 
 from psyclone.errors import InternalError, PSycloneError, GenerationError
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Container, FileContainer, Routine
+from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import Symbol, SymbolError
 from psyclone.parse import FileInfo, FileInfoFParserError
 
@@ -125,9 +124,8 @@ class ModuleInfo:
 
     # ------------------------------------------------------------------------
     @property
-    def name(self):
+    def name(self) -> str:
         ''':returns: the name of this module.
-        :rtype: str
 
         '''
         return self._name
@@ -135,7 +133,9 @@ class ModuleInfo:
     # ------------------------------------------------------------------------
     @property
     def filename(self) -> str:
-        ''':returns: the filepath that contains the source code for this
+        '''
+
+        :returns: the filepath that contains the source code for this
             module.
 
         '''
@@ -272,50 +272,6 @@ class ModuleInfo:
         return self._used_symbols_from_module_name
 
     def get_psyir_container_node(self):
-        """Returns the PSyIR representation of this module. This is
-        based on parsing the file with PSyIR.
-
-        Note, that there is also the `get_psyir_node_from_fparser_tree`
-        function which provides additional information by falling
-        back to fparser.
-
-        :returns: PSyIR representing this module.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container` | NoneType
-
-        :raises ModuleNotFoundError: if the named Container (module) was
-            not found.
-        :raises FileNotFound: if the related file doesn't exist.
-        :raises FileInfoFParserError: if the some FileInfoFParserError
-            occured.
-        :raises GenerationError: if the some PSyIR generation failed.
-        """
-
-        # If container node is not provided, we will load it
-        if self._psyir_container_node is not None:
-            return self._psyir_container_node
-
-        psyir_node: FileContainer = self._file_info.get_psyir_node()
-        container_list: List[Container] = psyir_node.walk(
-            Container, stop_type=Routine
-        )
-        for container in container_list:
-            container: Container
-
-            # Sort out, e.g., FileContainer
-            if not isinstance(container, Container):
-                continue
-
-            container_name: str = container.name.lower()
-            if container_name == self._name:
-                self._psyir_container_node = container
-                return self._psyir_container_node
-
-        raise ModuleNotFoundError(
-            f"Unable to find container '{self._name}' in "
-            f"file '{self._file_info.filename}'"
-        )
-
-    def get_psyir_container_node_classic(self):
         '''Returns the PSyIR representation of this module. This is based
         on the fparser tree (see get_parse_tree), and the information is
         cached. If the PSyIR must be modified, it needs to be copied,
@@ -346,9 +302,7 @@ class ModuleInfo:
                 print(f"Empty parse tree returned for '{self.filename}'")
                 return None
             try:
-                processor = Fparser2Reader()
-                self._psyir_container_node = processor.generate_psyir(
-                    fparser_tree)
+                self._psyir_container_node = self._file_info.get_psyir_node()
             except (KeyError,
                     SymbolError,
                     InternalError,
@@ -395,7 +349,7 @@ class ModuleInfo:
 
         '''
         try:
-            container: Container = self.get_psyir_container_node_classic()
+            container: Container = self.get_psyir_container_node()
 
             # Handle "alternative" implementation of get_psyir_container_mode"
             if container is None:

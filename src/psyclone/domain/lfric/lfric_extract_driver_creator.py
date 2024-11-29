@@ -641,8 +641,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
             if module_name:
-                orig_sym = mod_man.get_module_info(module_name).get_symbol_by_name(
-                    signature[0])
+                orig_sym = mod_man.get_module_info(
+                    module_name).get_symbol_by_name(signature[0])
                 if not orig_sym:
                     # TODO 2120: We likely couldn't parse the module.
                     print(f"Error finding symbol '{signature}' in "

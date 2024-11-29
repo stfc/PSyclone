@@ -342,7 +342,6 @@ class FileInfo:
         :type verbose: str
 
         :returns: fparser representation.
-        :rtype: FileContainer
 
         :raises FileInfoFParserError: if fparser had issues
         """
@@ -392,10 +391,8 @@ class FileInfo:
         """Returns the psyclone FileContainer of the file.
 
         :param verbose: Produce some verbose output
-        :type verbose: str
 
         :returns: psyclone file container node.
-        :rtype: FileContainer
 
         """
         if self._psyir_node is not None:

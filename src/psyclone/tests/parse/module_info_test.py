@@ -120,7 +120,7 @@ contains
   end function broken
 end module my_mod''')
     mod_info: ModuleInfo = ModuleInfo("my_mod", FileInfo(filepath))
-    psyir = mod_info.get_psyir_container_node_classic()
+    psyir = mod_info.get_psyir_container_node()
     assert psyir is None
     out, _ = capsys.readouterr()
     assert "Error trying to create PSyIR for " in out
@@ -129,7 +129,7 @@ end module my_mod''')
     # The simplest way to do this is to monkeypatch.
     mod_info._psyir_container_node = None
     monkeypatch.setattr(mod_info, "get_fparser_tree", lambda: None)
-    assert mod_info.get_psyir_container_node_classic() is None
+    assert mod_info.get_psyir_container_node() is None
 
 
 # -----------------------------------------------------------------------------
@@ -150,7 +150,7 @@ end module my_mod''')
 
     mod_info = ModuleInfo("wrong_name_mod", FileInfo(filepath))
     with pytest.raises(InternalError) as err:
-        mod_info.get_psyir_container_node_classic()
+        mod_info.get_psyir_container_node()
     assert ("my_mod.f90' does not contain a module named 'wrong_name_mod'"
             in str(err.value))
 
@@ -158,7 +158,7 @@ end module my_mod''')
     # module.
     mod_info = ModuleInfo("my_mod", FileInfo(filepath))
     mod_info._psyir_container_node = Container("other_mod")
-    assert mod_info.get_psyir_container_node_classic() is None
+    assert mod_info.get_psyir_container_node() is None
     out, _ = capsys.readouterr()
     assert ("my_mod.f90' does contain module 'my_mod' but PSyclone is unable "
             "to create the PSyIR of it." in out)
@@ -257,13 +257,13 @@ def test_mod_info_get_psyir(capsys, tmpdir):
     mod_info: ModuleInfo = mod_man.get_module_info(
         "testkern_import_symbols_mod")
     assert mod_info._psyir_container_node is None
-    psyir: Container = mod_info.get_psyir_container_node_classic()
+    psyir: Container = mod_info.get_psyir_container_node()
     assert isinstance(psyir, Container)
     assert psyir.name == "testkern_import_symbols_mod"
     # Make sure the PSyIR is cached:
     assert mod_info._psyir_container_node.children[0] is psyir
     # Test that we get the cached value (and not a new instance)
-    psyir_cached = mod_info.get_psyir_container_node_classic()
+    psyir_cached = mod_info.get_psyir_container_node()
     assert psyir_cached is psyir
 
     # Test that a file that can't be converted to PSyIR returns an
@@ -275,7 +275,7 @@ end module broken_mod''')
     mod_man.add_search_path(str(tmpdir), recursive=False)
     broken_builtins = mod_man.get_module_info("broken_mod")
     broken_builtins_psyir = \
-        broken_builtins.get_psyir_container_node_classic()
+        broken_builtins.get_psyir_container_node()
     # We should get no PSyIR
     assert broken_builtins_psyir is None
 
@@ -305,7 +305,7 @@ def test_generic_interface():
     mod_info = mod_man.get_module_info("g_mod")
 
     # It should contain all two concrete functions
-    contr = mod_info.get_psyir_container_node_classic()
+    contr = mod_info.get_psyir_container_node()
 
     assert contr.find_routine_psyir("myfunc1")
     assert contr.find_routine_psyir("myfunc2")
@@ -361,7 +361,7 @@ end module my_mod''')
     # A Symbol that doesn't exist.
     assert module_info.get_symbol_by_name("amos") is None
     # When no Container has been created. Monkeypatch
-    # get_psyir_container_node_classic() to simplify
+    # get_psyir_container_node() to simplify
     # this.
 
     def raise_error():
@@ -370,7 +370,7 @@ end module my_mod''')
 
     monkeypatch.setattr(
         module_info,
-        "get_psyir_container_node_classic",
+        "get_psyir_container_node",
         raise_error)
     monkeypatch.setattr(
         module_info,

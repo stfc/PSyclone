@@ -104,7 +104,7 @@ module will only depend on previously defined modules:
 Once a ``ModuleInfo`` has been obtained, its primary role is to provide
 access to the PSyIR of the ``Container`` representing the module:
 
-.. automethod:: psyclone.parse.ModuleInfo.get_psyir
+.. automethod:: psyclone.parse.ModuleInfo.get_psyir_container_node
 
 However, it also provides methods (``get_used_modules``,
 ``get_used_symbols_from_modules``) for interrogating the parse tree which
