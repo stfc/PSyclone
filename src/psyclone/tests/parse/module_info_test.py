@@ -392,9 +392,7 @@ def test_module_info_coverage_a(tmpdir, monkeypatch):
     Coverage test
     """
 
-
-    filename = os.path.join(tmpdir,
-                            "testfile_module_info_coverage.f90")
+    filename = os.path.join(tmpdir, "testfile_module_info_coverage.f90")
 
     #
     # Get fparser
