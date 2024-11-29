@@ -49,7 +49,8 @@ from psyclone.psyGen import CodedKern
 from psyclone.psyir.nodes import (
     Call, Directive, IntrinsicCall, Loop, Routine, Schedule)
 from psyclone.psyir.transformations import (
-    ACCKernelsTrans, InlineTrans, TransformationError, OMPTargetTrans)
+    ACCKernelsTrans, InlineTrans, Matmul2CodeTrans, OMPTargetTrans,
+    TransformationError)
 from psyclone.transformations import (
     Dynamo0p3ColourTrans, Dynamo0p3OMPLoopTrans,
     Dynamo0p3RedundantComputationTrans, OMPParallelTrans,
@@ -61,6 +62,10 @@ from psyclone.transformations import (
 INVOKE_EXCLUSIONS = [
 ]
 
+# We won't attempt to inline calls to routines with names that contain
+# these strings.
+INLINE_EXCLUSIONS = ["abort", "logging"]
+
 OFFLOAD_DIRECTIVES = os.getenv('LFRIC_OFFLOAD_DIRECTIVES', "none")
 
 
@@ -68,9 +73,12 @@ def _inline_calls(kern):
     '''
     Recursively inline all calls.
 
+    :param kern: the Kernel or Routine to inline any Calls into.
+
     '''
     mod_inline_trans = KernelModuleInlineTrans()
     intrans = InlineTrans()
+    matrans = Matmul2CodeTrans()
 
     if isinstance(kern, CodedKern):
         _, scheds = kern.get_kernel_schedule()
@@ -81,6 +89,12 @@ def _inline_calls(kern):
         for call in sched.walk(Call):
             call: Call
             if isinstance(call, IntrinsicCall):
+                try:
+                    matrans.apply(call)
+                except TransformationError:
+                    pass
+                continue
+            if any(name in call.routine.name for name in INLINE_EXCLUSIONS):
                 continue
             try:
                 for inner_call in call.get_callees():
@@ -89,11 +103,11 @@ def _inline_calls(kern):
                 try:
                     intrans.apply(call)
                 except TransformationError as err:
-                    print(f"Failed to inline call {call.debug_string()}:\n{err}")
-                    pass
-            except TransformationError as err:
-                print(f"Failed to module-inline routine {call.routine.name}:\n{err}")
-                pass
+                    print(f"Failed to inline call {call.debug_string()}:\n"
+                          f"{err}")
+            except (TransformationError, NotImplementedError) as err:
+                print(f"Failed to module-inline routine {call.routine.name}:\n"
+                      f"{err}")
 
 
 def trans(psyir):
