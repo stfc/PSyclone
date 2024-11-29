@@ -946,6 +946,10 @@ def test_structure_type():
     assert ("The type of a procedure component of a StructureType must "
             "be a 'DataType' but got 'NoneType'" in str(err.value))
     with pytest.raises(TypeError) as err:
+        stype.add_procedure_component("proc3", StructureType(), None, None)
+    assert ("The type of a procedure component of a StructureType cannot "
+            "be a 'StructureType' but got 'StructureType'" in str(err.value))
+    with pytest.raises(TypeError) as err:
         stype.add_procedure_component("proc3", INTEGER_TYPE, None, None)
     assert ("The visibility of a procedure component of a StructureType must "
             "be an instance of 'Symbol.Visibility' but got 'NoneType'"

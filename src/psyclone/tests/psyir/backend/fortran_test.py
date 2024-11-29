@@ -819,6 +819,13 @@ def test_fw_gen_proceduredecl(fortran_writer):
     assert (fortran_writer.gen_proceduredecl(dtype, include_visibility=False)
             == ("procedure :: my_procedure\n"))
 
+    # Check exception is raised if visibility is not 'public' or 'private'
+    dtype = StructureType.ComponentType("my_procedure", REAL_TYPE,
+                                        "wrong", None)
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_proceduredecl(dtype)
+    assert ("A Symbol must be either public or private but symbol "
+            "'my_procedure' has visibility 'wrong'" in str(err.value))
 
 def test_gen_default_access_stmt(fortran_writer):
     '''
