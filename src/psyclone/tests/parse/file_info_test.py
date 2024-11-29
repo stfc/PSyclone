@@ -123,7 +123,7 @@ def test_file_info_source_fparser_psyir(tmpdir):
     with open(filename, "w", encoding='utf-8') as fout:
         fout.write(SOURCE_DUMMY)
 
-    file_info: FileInfo = FileInfo(filename)
+    file_info: FileInfo = FileInfo(filename, use_caching=True)
 
     source_code = file_info.get_source_code(verbose=True)
     source_code2 = file_info.get_source_code(verbose=True)
@@ -162,7 +162,7 @@ def test_file_info_load_from_cache(tmpdir):
     with open(filename, "w", encoding='utf-8') as fout:
         fout.write(SOURCE_DUMMY)
 
-    file_info: FileInfo = FileInfo(filename)
+    file_info: FileInfo = FileInfo(filename, use_caching=True)
 
     # Call save_cache just for code coverage
     file_info._cache_save(verbose=True)
@@ -181,7 +181,7 @@ def test_file_info_load_from_cache(tmpdir):
     assert file_info._cache_data_save is not None
 
     # Load new file
-    file_info: FileInfo = FileInfo(filename)
+    file_info: FileInfo = FileInfo(filename, use_caching=True)
 
     # No cache used
     assert file_info._cache_data_load is None
@@ -225,7 +225,7 @@ def test_file_info_load_from_cache_corrupted(tmpdir):
     # Step 1) Load with corrupted cache file
     #
 
-    file_info: FileInfo = FileInfo(filename)
+    file_info: FileInfo = FileInfo(filename, use_caching=True)
 
     # No cache exists
     assert file_info._cache_data_load is None
@@ -243,7 +243,7 @@ def test_file_info_load_from_cache_corrupted(tmpdir):
     # Step 2) Cache file should now be restored
     #
 
-    file_info: FileInfo = FileInfo(filename)
+    file_info: FileInfo = FileInfo(filename, use_caching=True)
 
     # No cache exists
     assert file_info._cache_data_load is None
@@ -286,7 +286,7 @@ def test_file_info_source_changed(tmpdir):
     # Step 1) Create cache file
     #
 
-    file_info: FileInfo = FileInfo(filename)
+    file_info: FileInfo = FileInfo(filename, use_caching=True)
     psyir_node = file_info.get_psyir_node(verbose=True)
     assert isinstance(psyir_node, Node)
 
@@ -304,7 +304,7 @@ def test_file_info_source_changed(tmpdir):
     # Step 3) Cache file should not be used
     #
 
-    file_info: FileInfo = FileInfo(filename)
+    file_info: FileInfo = FileInfo(filename, use_caching=True)
 
     # Load, but not from cache
     psyir_node = file_info.get_psyir_node(verbose=True)
@@ -338,7 +338,7 @@ def test_file_info_source_with_bugs(tmpdir):
     with open(filename, "w", encoding='utf-8') as fout:
         fout.write(SOURCE_DUMMY+"arbitrary words to trigger error")
 
-    file_info: FileInfo = FileInfo(filename)
+    file_info: FileInfo = FileInfo(filename, use_caching=True)
 
     from psyclone.parse.file_info import FileInfoFParserError
     with pytest.raises(FileInfoFParserError) as einfo:
@@ -362,7 +362,7 @@ def test_file_info_cachefile_not_accessible(tmpdir):
     with open(filename, "w", encoding='utf-8') as fout:
         fout.write(SOURCE_DUMMY)
 
-    file_info: FileInfo = FileInfo(filename)
+    file_info: FileInfo = FileInfo(filename, use_caching=True)
 
     # Set buggy cache file
     file_info._filepath_cache = "/I_DONT_EXIST/FILE/cache.psycache"
@@ -383,7 +383,7 @@ def test_file_info_cachefile_pickle_load_exception(tmpdir, monkeypatch):
     with open(filename, "w", encoding='utf-8') as fout:
         fout.write(SOURCE_DUMMY)
 
-    file_info: FileInfo = FileInfo(filename)
+    file_info: FileInfo = FileInfo(filename, use_caching=True)
 
     psyir_node = file_info.get_psyir_node(verbose=True)
     assert isinstance(psyir_node, Node)
@@ -401,7 +401,7 @@ def test_file_info_cachefile_pickle_dump_exception(tmpdir, monkeypatch):
     with open(filename, "w", encoding='utf-8') as fout:
         fout.write(SOURCE_DUMMY)
 
-    file_info: FileInfo = FileInfo(filename)
+    file_info: FileInfo = FileInfo(filename, use_caching=True)
 
     def fun_exception(a, b):
         raise Exception()
@@ -439,14 +439,14 @@ def test_file_info_source_psyir_test(tmpdir):
         fout.write(SOURCE_DUMMY)
 
     # Create cache
-    file_info: FileInfo = FileInfo(filename)
+    file_info: FileInfo = FileInfo(filename, use_caching=True)
     file_info.get_psyir_node()
 
     # Load again for coverage case
     file_info.get_psyir_node()
 
     # Load from cache
-    file_info: FileInfo = FileInfo(filename)
+    file_info: FileInfo = FileInfo(filename, use_caching=True)
 
     fparser_tree = file_info.get_fparser_tree(verbose=True)
     fparser_tree2 = file_info.get_fparser_tree(verbose=True)

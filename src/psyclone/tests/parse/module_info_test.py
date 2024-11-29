@@ -392,13 +392,24 @@ def test_module_info_coverage_a(tmpdir, monkeypatch):
     Coverage test
     """
 
+
+    filename = os.path.join(tmpdir, "testfile_module_info_coverage.f90")
+
+    #
+    # Get fparser
+    #
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY)
+
+    # We create a dummy
     node = Node("Dummy")
     module_info: ModuleInfo = ModuleInfo(
             "my_mod",
-            FileInfo("dummy"),
+            FileInfo(filename),
             node
         )
 
+    # view() creates also a list of all modules based on fparser!!!
     module_info.view()
     assert module_info is not None
 

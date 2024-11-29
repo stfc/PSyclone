@@ -62,22 +62,33 @@ class ModuleManager:
 
     # ------------------------------------------------------------------------
     @staticmethod
-    def get(caching: bool = False):
+    def get(use_caching: bool = None):
         '''Static function that if necessary creates and returns the singleton
         ModuleManager instance.
 
         '''
         if not ModuleManager._instance:
-            ModuleManager._instance = ModuleManager()
+            ModuleManager._instance = ModuleManager(use_caching)
 
         return ModuleManager._instance
 
     # ------------------------------------------------------------------------
-    def __init__(self):
+    def __init__(
+                self,
+                use_caching: bool = None
+            ):
+        """Constructor
+
+        :param use_caching: Whether to use (`True`) or
+            disable (`False`) caching
+        """
 
         if ModuleManager._instance is not None:
             raise InternalError("You need to use 'ModuleManager.get()' "
                                 "to get the singleton instance.")
+
+        # Disable caching by default
+        self._use_caching = use_caching if use_caching is not None else False
 
         self._modules = {}
         self._visited_files = {}
@@ -149,7 +160,8 @@ class ModuleManager:
                 full_path = os.path.join(directory, entry.name)
                 if full_path in self._visited_files:
                     continue
-                self._visited_files[full_path] = FileInfo(full_path)
+                self._visited_files[full_path] = \
+                    FileInfo(full_path, use_caching=self._use_caching)
                 new_files.append(self._visited_files[full_path])
         return new_files
 

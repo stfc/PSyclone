@@ -81,17 +81,21 @@ class FileInfo:
     - it will parse it with psyir (depends on TODO #2786 "and cache it")
 
     """
-    def __init__(self, filepath):
+    def __init__(self, filepath, use_caching: bool = False):
         """Constructor
 
         :param filepath: Path to the file that this
                          object holds information on.
+        :param use_caching: Use caching of intermediate representations
         :type filepath: str
 
         """
 
         # Full path to file
         self._filename: str = filepath
+
+        # Use cache features
+        self._use_caching: bool = use_caching
 
         # Source code:
         self._source_code: str = None
@@ -194,8 +198,10 @@ class FileInfo:
         from the cache.
 
         :param verbose: Produce some verbose output
-        :type verbose: str
         """
+
+        if not self._use_caching:
+            return
 
         # Load the source code in case it's not yet loaded.
         # This also fills in the hash sum
@@ -252,8 +258,10 @@ class FileInfo:
         - potentially psyir nodes
 
         :param verbose: Produce some verbose output
-        :type verbose: str
         """
+
+        if not self._use_caching:
+            return None
 
         if self._source_code_hash_sum is None:
             # Nothing to cache
