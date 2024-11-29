@@ -56,7 +56,7 @@ def test_mod_manager_instance():
         ModuleManager()
 
     # TODO: Should be deprecated
-    assert ("You need to use 'ModuleManager.get_singleton()'"and
+    assert ("You need to use 'ModuleManager.get_singleton()'" and
             " to get the singleton instance." in str(err.value))
 
 
