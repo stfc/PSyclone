@@ -358,7 +358,6 @@ class FileInfo:
                 return self._fparser_tree
 
         try:
-            print(source_code)
             reader = FortranStringReader(
                 source_code, include_dirs=Config.get().include_paths
             )
