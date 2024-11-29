@@ -54,11 +54,11 @@ from psyclone.tests.utilities import get_base_path
 def test_module_info():
     '''Tests the module info object.'''
     mod_info = ModuleInfo("a_mod", FileInfo("file_for_a"))
-    assert mod_info.filename == "file_for_a"
+    assert mod_info.filepath == "file_for_a"
     assert mod_info.name == "a_mod"
 
     with pytest.raises(ModuleInfoError) as err:
-        mod_info.get_parse_tree()
+        mod_info.get_fparser_tree()
     assert ("Could not find file 'file_for_a' when trying to read source "
             "code for module 'a_mod'" in str(err.value))
 
@@ -78,7 +78,7 @@ def test_module_info():
 
     # Now access the parse tree:
     assert mod_info._parse_tree is None
-    parse_tree = mod_info.get_parse_tree()
+    parse_tree = mod_info.get_fparser_tree()
     assert mod_info._parse_tree is parse_tree
     assert isinstance(mod_info._parse_tree, Fortran2003.Program)
 
@@ -118,7 +118,7 @@ contains
     broken = 2
   end function broken
 end module my_mod''')
-    mod_info = ModuleInfo("my_mod", FileInfo(filepath))
+    mod_info: ModuleInfo = ModuleInfo("my_mod", FileInfo(filepath))
     psyir = mod_info.get_psyir()
     assert psyir is None
     out, _ = capsys.readouterr()
@@ -126,8 +126,8 @@ end module my_mod''')
 
     # Check that we handle the case where get_parse_tree() returns None.
     # The simplest way to do this is to monkeypatch.
-    mod_info._psyir = None
-    monkeypatch.setattr(mod_info, "get_parse_tree", lambda: None)
+    mod_info._psyir_container_node = None
+    monkeypatch.setattr(mod_info, "get_fparser_tree", lambda: None)
     assert mod_info.get_psyir() is None
 
 
@@ -156,7 +156,7 @@ end module my_mod''')
     # Break the PSyIR so that, while it is valid, it does not contain the named
     # module.
     mod_info = ModuleInfo("my_mod", FileInfo(filepath))
-    mod_info._psyir = Container("other_mod")
+    mod_info._psyir_container_node = Container("other_mod")
     assert mod_info.get_psyir() is None
     out, _ = capsys.readouterr()
     assert ("my_mod.f90' does contain module 'my_mod' but PSyclone is unable "
@@ -253,13 +253,14 @@ def test_mod_info_get_psyir(capsys, tmpdir):
     dyn_path = get_base_path("lfric")
     mod_man.add_search_path(f"{dyn_path}/driver_creation", recursive=False)
 
-    mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
-    assert mod_info._psyir is None
+    mod_info: ModuleInfo = mod_man.get_module_info(
+        "testkern_import_symbols_mod")
+    assert mod_info._psyir_container_node is None
     psyir = mod_info.get_psyir()
     assert isinstance(psyir, Container)
     assert psyir.name == "testkern_import_symbols_mod"
     # Make sure the PSyIR is cached:
-    assert mod_info._psyir.children[0] is psyir
+    assert mod_info._psyir_container_node.children[0] is psyir
     # Test that we get the cached value (and not a new instance)
     psyir_cached = mod_info.get_psyir()
     assert psyir_cached is psyir
@@ -325,12 +326,12 @@ def test_module_info_extract_import_information_error():
     mod_info = mod_man.get_module_info("error_mod")
     assert mod_info.name == "error_mod"
 
-    assert mod_info._used_modules is None
+    assert mod_info._used_module_names is None
     assert mod_info._used_symbols_from_module is None
-    mod_info._extract_import_information()
+    mod_info._extract_used_module_names_from_fparser_tree()
     # Make sure the internal attributes are set to not None to avoid
     # trying to parse them again later
-    assert mod_info._used_modules == set()
+    assert mod_info._used_module_names == set()
     assert mod_info._used_symbols_from_module == {}
 
 

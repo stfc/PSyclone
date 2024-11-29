@@ -62,7 +62,7 @@ class ModuleManager:
 
     # ------------------------------------------------------------------------
     @staticmethod
-    def get():
+    def get(caching: bool = False):
         '''Static function that if necessary creates and returns the singleton
         ModuleManager instance.
 
@@ -229,13 +229,13 @@ class ModuleManager:
         # search early if the file we've found does not require pre-processing
         # (i.e. has a .f90 suffix).
         mod_info = self._modules.get(mod_lower, None)
-        if mod_info and mod_info.filename.endswith(".f90"):
+        if mod_info and mod_info.filepath.endswith(".f90"):
             return mod_info
         old_mod_info = mod_info
         # Are any of the files that we've already seen a good match?
         mod_info = self._find_module_in_files(mod_lower,
                                               self._visited_files.values())
-        if mod_info and mod_info.filename.endswith(".f90"):
+        if mod_info and mod_info.filepath.endswith(".f90"):
             return mod_info
         old_mod_info = mod_info
 

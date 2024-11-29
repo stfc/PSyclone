@@ -52,19 +52,26 @@ from psyclone.psyir.nodes import Container, Node
 from psyclone.psyir.symbols import SymbolError
 
 
-# ============================================================================
+class ModuleNotFoundError(PSycloneError):
+    """Triggered when the Fortran module was not found"""
+
+    def __init__(self, value):
+        PSycloneError.__init__(self, value)
+        self.value = "ModuleNotFoundError: " + str(value)
+
+
 class ModuleInfoError(PSycloneError):
-    '''
+    """
     PSyclone-specific exception for use when an error with the module manager
     happens - typically indicating that some module information cannot be
     found.
 
     :param str value: the message associated with the error.
 
-    '''
+    """
     def __init__(self, value):
         PSycloneError.__init__(self, value)
-        self.value = "ModuleInfo error: "+str(value)
+        self.value = "ModuleInfo Error: " + str(value)
 
 
 # ============================================================================
@@ -92,18 +99,16 @@ class ModuleInfo:
         # Whether we've attempted to parse the source.
         self._parse_attempted: bool = False
 
-        # A cache for the PSyIR representation
-        self._psyir: Node = None
+        # The PSyIR representation
+        self._psyir_container_node: Container = None
 
-        # A cache for the module dependencies: this is just a set
+        # Module dependencies: this is just a set
         # of all modules used by this module. Type: set[str]
-        self._used_modules = None
+        self._used_module_names = None
 
         # This is a dictionary containing the sets of symbols imported from
         # each module, indexed by the module names: dict[str, set[str]].
         self._used_symbols_from_module = None
-
-        self._processor = Fparser2Reader()
 
     # ------------------------------------------------------------------------
     @property
@@ -116,8 +121,8 @@ class ModuleInfo:
 
     # ------------------------------------------------------------------------
     @property
-    def filename(self):
-        ''':returns: the filename that contains the source code for this
+    def filepath(self):
+        ''':returns: the filepath that contains the source code for this
             module.
         :rtype: str
 
@@ -143,7 +148,7 @@ class ModuleInfo:
                 f" to read source code for module '{self._name}'") from err
 
     # ------------------------------------------------------------------------
-    def get_parse_tree(self):
+    def get_fparser_tree(self):
         '''Returns the fparser AST for this module. The first time, the file
         will be parsed by fparser using the Fortran 2008 standard. The AST is
         then cached for any future uses.
@@ -166,7 +171,7 @@ class ModuleInfo:
         return self._parse_tree
 
     # ------------------------------------------------------------------------
-    def _extract_import_information(self):
+    def _extract_used_module_names_from_fparser_tree(self):
         '''This internal function analyses a given module source file and
         caches which modules are imported (in self._used_modules), and which
         symbol is imported from each of these modules (in
@@ -174,16 +179,16 @@ class ModuleInfo:
 
         '''
         # Initialise the caches:
-        self._used_modules = set()
+        self._used_module_names = set()
         self._used_symbols_from_module = {}
 
         try:
-            parse_tree = self.get_parse_tree()
+            parse_tree = self.get_fparser_tree()
         except FortranSyntaxError:
             # TODO #11: Add proper logging
             # TODO #2120: Handle error
             print(f"[ModuleInfo._extract_import_information] Syntax error "
-                  f"parsing '{self.filename} - ignored")
+                  f"parsing '{self.filepath} - ignored")
             # Hide syntax errors
             return
         for use in walk(parse_tree, Fortran2003.Use_Stmt):
@@ -192,7 +197,7 @@ class ModuleInfo:
                 continue
 
             mod_name = str(use.items[2])
-            self._used_modules.add(mod_name)
+            self._used_module_names.add(mod_name)
             all_symbols = set()
 
             only_list = use.items[4]
@@ -217,10 +222,10 @@ class ModuleInfo:
         :rtype: set[str]
 
         '''
-        if self._used_modules is None:
-            self._extract_import_information()
+        if self._used_module_names is None:
+            self._extract_used_module_names_from_fparser_tree()
 
-        return self._used_modules
+        return self._used_module_names
 
     # ------------------------------------------------------------------------
     def get_used_symbols_from_modules(self):
@@ -235,7 +240,7 @@ class ModuleInfo:
 
         '''
         if self._used_symbols_from_module is None:
-            self._extract_import_information()
+            self._extract_used_module_names_from_fparser_tree()
 
         return self._used_symbols_from_module
 
@@ -256,42 +261,44 @@ class ModuleInfo:
             exist in the PSyIR.
 
         '''
-        if self._psyir is None:
+        if self._psyir_container_node is None:
             try:
-                ptree = self.get_parse_tree()
+                fparser_tree = self.get_fparser_tree()
             except FortranSyntaxError as err:
                 # TODO #11: Add proper logging
-                print(f"Error parsing '{self.filename}': '{err}'")
+                print(f"Error parsing '{self.filepath}': '{err}'")
                 return None
-            if not ptree:
+            if not fparser_tree:
                 # TODO #11: Add proper logging
-                print(f"Empty parse tree returned for '{self.filename}'")
+                print(f"Empty parse tree returned for '{self.filepath}'")
                 return None
             try:
-                self._psyir = self._processor.generate_psyir(ptree)
+                processor = Fparser2Reader()
+                self._psyir_container_node = processor.generate_psyir(
+                    fparser_tree)
             except (KeyError, SymbolError, InternalError, GenerationError) \
                     as err:
                 # TODO #11: Add proper logging
-                print(f"Error trying to create PSyIR for '{self.filename}': "
+                print(f"Error trying to create PSyIR for '{self.filepath}': "
                       f"'{err}'")
                 return None
 
         # Return the Container with the correct name.
-        for cntr in self._psyir.walk(Container):
-            if cntr.name.lower() == self.name:
-                return cntr
+        for container_node in self._psyir_container_node.walk(Container):
+            if container_node.name.lower() == self.name:
+                return container_node
 
         # We failed to find the Container - double-check the parse tree
-        for mod_stmt in walk(self.get_parse_tree(), Fortran2003.Module_Stmt):
+        for mod_stmt in walk(self.get_fparser_tree(), Fortran2003.Module_Stmt):
             if mod_stmt.children[1].string.lower() == self.name:
                 # The module exists but we couldn't create PSyIR for it.
                 # TODO #11: Add proper logging
-                print(f"File '{self.filename}' does contain module "
+                print(f"File '{self.filepath}' does contain module "
                       f"'{self.name}' but PSyclone is unable to create the "
                       f"PSyIR of it.")
                 return None
 
-        raise InternalError(f"File '{self.filename}' does not contain a "
+        raise InternalError(f"File '{self.filepath}' does not contain a "
                             f"module named '{self.name}'")
 
     # ------------------------------------------------------------------------
@@ -320,3 +327,9 @@ class ModuleInfo:
             return container.symbol_table.lookup(name)
         except KeyError:
             return None
+
+    def view(self, indent=""):
+        retstr = ""
+        retstr += f"{indent}- name: '{self.name}'\n"
+        retstr += f"{indent}- used_module_names: {self.get_used_modules()}\n"
+        return retstr
