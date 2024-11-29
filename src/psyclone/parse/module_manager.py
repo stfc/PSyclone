@@ -170,6 +170,7 @@ class ModuleManager:
         '''
         mod_info = None
         for finfo in file_list:
+            finfo: FileInfo
             # We only proceed to read a file to check for a module if its
             # name is sufficiently similar to that of the module.
             score = SequenceMatcher(None,
@@ -183,7 +184,7 @@ class ModuleManager:
                     self._modules[name] = mod_info
                     # A file that has been (or does not require)
                     # preprocessing always takes precendence.
-                    if finfo.filename.endswith(".f90"):
+                    if finfo.filepath.endswith(".f90"):
                         return mod_info
         return mod_info
 
@@ -260,7 +261,7 @@ class ModuleManager:
                                 f"command line option.")
 
     # ------------------------------------------------------------------------
-    def get_modules_in_file(self, finfo):
+    def get_modules_in_file(self, finfo: FileInfo):
         '''
         Uses a regex search to find all modules defined in the file with the
         supplied name.
@@ -276,8 +277,8 @@ class ModuleManager:
         # could be defeated by e.g.
         #   module &
         #    my_mod
-        # `finfo.contents` will read the file if it hasn't already been cached.
-        mod_names = self._module_pattern.findall(finfo.contents)
+        # `finfo.source_code` will read the file if it hasn't already been cached.
+        mod_names = self._module_pattern.findall(finfo.source_code)
 
         return [name.lower() for name in mod_names]
 

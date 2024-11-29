@@ -46,8 +46,9 @@ from fparser.two.utils import FortranSyntaxError, walk
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError, PSycloneError, GenerationError
+from psyclone.parse.file_info import FileInfo
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Container
+from psyclone.psyir.nodes import Container, Node
 from psyclone.psyir.symbols import SymbolError
 
 
@@ -83,16 +84,16 @@ class ModuleInfo:
     '''
     def __init__(self, name, finfo):
         self._name = name.lower()
-        self._file_info = finfo
+        self._file_info: FileInfo = finfo
 
         # A cache for the fparser tree
         self._parse_tree = None
 
         # Whether we've attempted to parse the source.
-        self._parse_attempted = False
+        self._parse_attempted: bool = False
 
         # A cache for the PSyIR representation
-        self._psyir = None
+        self._psyir: Node = None
 
         # A cache for the module dependencies: this is just a set
         # of all modules used by this module. Type: set[str]
@@ -121,7 +122,7 @@ class ModuleInfo:
         :rtype: str
 
         '''
-        return self._file_info.filename
+        return self._file_info.filepath
 
     # ------------------------------------------------------------------------
     def get_source_code(self):
@@ -135,10 +136,10 @@ class ModuleInfo:
 
         '''
         try:
-            return self._file_info.contents
+            return self._file_info.source_code
         except FileNotFoundError as err:
             raise ModuleInfoError(
-                f"Could not find file '{self._file_info.filename}' when trying"
+                f"Could not find file '{self._file_info.filepath}' when trying"
                 f" to read source code for module '{self._name}'") from err
 
     # ------------------------------------------------------------------------

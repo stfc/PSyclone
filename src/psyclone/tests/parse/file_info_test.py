@@ -17,7 +17,7 @@
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
-#
+#w
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -48,10 +48,10 @@ def test_file_info_constructor():
     properties are set correctly.
 
     '''
-    finfo = FileInfo("missing.txt")
-    assert finfo._filename == "missing.txt"
+    finfo: FileInfo = FileInfo("missing.txt")
+    assert finfo._filepath == "missing.txt"
     assert finfo._source_code is None
-    assert finfo.filename == "missing.txt"
+    assert finfo.filepath == "missing.txt"
     assert finfo.basename == "missing"
 
 
@@ -63,7 +63,7 @@ def test_file_info_missing_file():
     '''
     finfo = FileInfo("missing.txt")
     with pytest.raises(FileNotFoundError) as err:
-        _ = finfo.contents
+        _ = finfo.source_code
     assert "'missing.txt'" in str(err.value)
 
 
@@ -78,16 +78,16 @@ def test_file_info_content(tmpdir):
     with open(fname, "w", encoding='utf-8') as fout:
         fout.write(content)
     finfo = FileInfo(fname)
-    input1 = finfo.contents
+    input1 = finfo.source_code
     assert input1 == content
     # Check that the contents have been cached.
-    input2 = finfo.contents
+    input2 = finfo.source_code
     assert input2 is input1
 
 
 def test_file_info_decode_error(tmpdir):
     '''
-    Check that FileInfo.contents() handles a decoding error when reading
+    Check that FileInfo.source_code() handles a decoding error when reading
     a file.
 
     '''
@@ -98,4 +98,4 @@ def test_file_info_decode_error(tmpdir):
         fout.write(content)
     finfo = FileInfo(fname)
     # Content of file has been read with problematic byte skipped.
-    assert finfo.contents == "Just\nA\nTest"
+    assert finfo.source_code == "Just\nA\nTest"
