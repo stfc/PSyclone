@@ -447,6 +447,9 @@ def test_file_info_source_psyir_test(tmpdir):
     file_info: FileInfo = FileInfo(filename)
     file_info.get_psyir_node()
 
+    # Load again for coverage case
+    file_info.get_psyir_node()
+
     # Load from cache
     file_info: FileInfo = FileInfo(filename)
 

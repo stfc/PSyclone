@@ -268,19 +268,14 @@ class ModuleInfo:
 
         '''
         if self._psyir_container_node is None:
+            # Keep this try-except for legacy reasons
             try:
-                fparser_tree = self._file_info.get_fparser_tree()
-            except ModuleInfoError as err:
-                print(f"ModuleInfoError: {err.value}")
-                return None
+                self._file_info.get_fparser_tree()
             except FileInfoFParserError as err:
                 # TODO #11: Add proper logging
                 print(f"Error parsing '{self.filename}': '{err}'")
                 return None
-            if not fparser_tree:
-                # TODO #11: Add proper logging
-                print(f"Empty parse tree returned for '{self.filename}'")
-                return None
+
             try:
                 self._psyir_container_node = self._file_info.get_psyir_node()
             except (KeyError,
