@@ -158,14 +158,15 @@ class InlineTrans(Transformation):
         self._option_check_resolve_imports: bool = True
         self._option_check_static_interface: bool = True
         self._option_check_array_type: bool = True
-        self._option_check_argument_of_unsupported_type: bool = True
-        self._option_check_argument_unresolved_symbols: bool = True
+        self._option_check_unsupported_type: bool = True
+        self._option_check_unresolved_symbols: bool = True
 
     def set_option(
         self,
         ignore_missing_modules: bool = None,
         check_argument_strict_array_datatype: bool = None,
         check_argument_matching: bool = None,
+        check_argument_ignore_unresolved_types: bool = None,
 
         check_inline_codeblocks: bool = None,
         check_diff_container_clashes: bool = None,
@@ -173,64 +174,50 @@ class InlineTrans(Transformation):
         check_resolve_imports: bool = None,
         check_static_interface: bool = None,
         check_array_type: bool = None,
-        check_argument_of_unsupported_type: bool = None,
-        check_argument_unresolved_symbols: bool = None,
+        check_unsupported_type: bool = None,
+        check_unresolved_symbols: bool = None,
     ):
         """Set special options
 
         :param ignore_missing_modules: If `True`, raise ModuleNotFound if
             module is not available, defaults to None
-        :type ignore_missing_modules: bool, optional
         :param check_argument_strict_array_datatype:
             If `True`, make strict checks for matching arguments of
             array data types.
             If disabled, it's sufficient that both arguments are of ArrayType.
             Then, no further checks are performed, defaults to None
-        :type check_argument_strict_array_datatype: bool, optional
         :param check_argument_matching: If `True`, check for all arguments
             to match. If `False`, if no matching argument was found, take
             1st one in list. Defaults to None
-        :type check_argument_matching: bool, optional
         :param check_inline_codeblocks: If `True`, raise Exception
             if encountering code blocks, defaults to None
-        :type check_inline_codeblocks: bool, optional
         :param check_diff_container_clashes:
             If `True` and different symbols share a name but are imported
             from different containers, raise Exception.
-        :type check_diff_container_clashes: bool, optional
         :param check_diff_container_clashes_unres_types: If `True`,
             raise Exception if unresolved types are clashing, defaults to None
-        :type check_diff_container_clashes_unres_types: bool, optional
         :param check_resolve_imports: If `True`, also resolve imports,
             defaults to None
-        :type check_resolve_imports: bool, optional
         :param check_static_interface:
             Check that there are no static variables in the routine
             (because we don't know whether the routine is called from
             other places). Defaults to None
-        :type check_static_interface: bool, optional
         :param check_array_type: If `True` and argument is an array,
             check that inlining is working for this array type,
             defaults to None
-        :type check_array_type: bool, optional
-        :param check_argument_of_unsupported_type: If `True`,
+        :param check_unsupported_type: If `True`,
             also perform checks (fail inlining) on arguments of
             unsupported type, defaults to None
-        :type check_argument_of_unsupported_type: bool, optional
         :param check_argument_unresolved_symbols: If `True`,
             stop if encountering an unresolved symbol, defaults to None
-        :type check_argument_unresolved_symbols: bool, optional
         """
 
         self._call_routine_matcher.set_option(
-            ignore_missing_modules=ignore_missing_modules)
-        self._call_routine_matcher.set_option(
-            check_strict_array_datatype=(
-                check_argument_strict_array_datatype)
-            )
-        self._call_routine_matcher.set_option(
-                check_matching_arguments=check_argument_matching
-            )
+            ignore_missing_modules=ignore_missing_modules,
+            check_strict_array_datatype=check_argument_strict_array_datatype,
+            check_matching_arguments=check_argument_matching,
+            ignore_unresolved_types=check_argument_ignore_unresolved_types
+        )
 
         if check_inline_codeblocks is not None:
             self._option_check_codeblocks = check_inline_codeblocks
@@ -253,14 +240,14 @@ class InlineTrans(Transformation):
         if check_array_type is not None:
             self._option_check_array_type = check_array_type
 
-        if check_argument_of_unsupported_type is not None:
-            self._option_check_argument_of_unsupported_type = (
-                check_argument_of_unsupported_type
+        if check_unsupported_type is not None:
+            self._option_check_unsupported_type = (
+                check_unsupported_type
             )
 
-        if check_argument_unresolved_symbols is not None:
-            self._option_check_argument_unresolved_symbols = (
-                check_argument_unresolved_symbols
+        if check_unresolved_symbols is not None:
+            self._option_check_unresolved_symbols = (
+                check_unresolved_symbols
             )
 
     def apply(
@@ -335,7 +322,7 @@ class InlineTrans(Transformation):
             routine_table,
             symbols_to_skip=routine_table.argument_list[:],
             check_unresolved_symbols=(
-                self._option_check_argument_unresolved_symbols),
+                self._option_check_unresolved_symbols),
         )
 
         # When constructing new references to replace references to formal
@@ -406,7 +393,7 @@ class InlineTrans(Transformation):
             ancestor_table.merge(
                 scope.symbol_table,
                 check_unresolved_symbols=(
-                    self._option_check_argument_unresolved_symbols))
+                    self._option_check_unresolved_symbols))
             replacement = type(scope.symbol_table)()
             scope.symbol_table.detach()
             replacement.attach(scope)
@@ -1092,7 +1079,7 @@ class InlineTrans(Transformation):
             # We don't inline symbols that have an UnsupportedType and are
             # arguments since we don't know if a simple assignment if
             # enough (e.g. pointers)
-            if self._option_check_argument_of_unsupported_type:
+            if self._option_check_unsupported_type:
                 if isinstance(sym.interface, ArgumentInterface):
                     if isinstance(sym.datatype, UnsupportedType):
                         if ", OPTIONAL" not in sym.datatype.declaration:

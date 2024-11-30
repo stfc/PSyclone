@@ -39,7 +39,7 @@
 # -----------------------------------------------------------------------------
 
 from typing import List, Union
-from psyclone.psyir.symbols.datatypes import ArrayType
+from psyclone.psyir.symbols.datatypes import ArrayType, UnresolvedType
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import Call, Routine
 from psyclone.psyir.nodes.container import Container
@@ -98,8 +98,8 @@ class CallRoutineMatcher:
         # If 'True', missing modules don't raise an Exception
         self._option_ignore_missing_modules: bool = False
 
-        # If 'True', unresolved symbols don't raise an Exception
-        self._option_ignore_unresolved_symbol: bool = False
+        # If 'True', unresolved types don't raise an Exception
+        self._option_ignore_unresolved_types: bool = False
 
     def set_call_node(self, call_node: Call):
         self._call_node = call_node
@@ -111,7 +111,7 @@ class CallRoutineMatcher:
                    check_matching_arguments: bool = None,
                    check_strict_array_datatype: bool = None,
                    ignore_missing_modules: bool = None,
-                   ignore_unresolved_symbol: bool = None,
+                   ignore_unresolved_types: bool = None,
                    ):
 
         if check_matching_arguments is not None:
@@ -124,8 +124,8 @@ class CallRoutineMatcher:
         if ignore_missing_modules is not None:
             self._option_ignore_missing_modules = ignore_missing_modules
 
-        if ignore_unresolved_symbol is not None:
-            self._option_ignore_unresolved_symbol = ignore_unresolved_symbol
+        if ignore_unresolved_types is not None:
+            self._option_ignore_unresolved_types = ignore_unresolved_types
 
     def _check_argument_type_matches(
         self,
@@ -149,32 +149,34 @@ class CallRoutineMatcher:
             were found.
         """
 
-        type_matches = False
-        if not self._option_check_strict_array_datatype:
+        if self._option_check_strict_array_datatype:
             # No strict array checks have to be performed, just accept it
             if isinstance(call_arg.datatype, ArrayType) and isinstance(
                 routine_arg.datatype, ArrayType
             ):
-                type_matches = True
+                return True
 
-        if not type_matches:
-            if isinstance(routine_arg.datatype, UnsupportedFortranType):
-                # This could be an 'optional' argument.
-                # This has at least a partial data type
-                if call_arg.datatype != routine_arg.datatype.partial_datatype:
-                    raise CallMatchingArgumentsNotFoundError(
-                        "Argument partial type mismatch of call "
-                        f"argument '{call_arg}' and routine argument "
-                        f"'{routine_arg}'"
-                    )
-            else:
-                if call_arg.datatype != routine_arg.datatype:
-                    raise CallMatchingArgumentsNotFoundError(
-                        "Argument type mismatch of call argument "
-                        f"'{call_arg}' with type '{call_arg.datatype} "
-                        "and routine argument "
-                        f"'{routine_arg}' with type '{routine_arg.datatype}."
-                    )
+        if self._option_ignore_unresolved_types:
+            if isinstance(call_arg.datatype, UnresolvedType):
+                return True
+
+        if isinstance(routine_arg.datatype, UnsupportedFortranType):
+            # This could be an 'optional' argument.
+            # This has at least a partial data type
+            if call_arg.datatype != routine_arg.datatype.partial_datatype:
+                raise CallMatchingArgumentsNotFoundError(
+                    "Argument partial type mismatch of call "
+                    f"argument '{call_arg}' and routine argument "
+                    f"'{routine_arg}'"
+                )
+        else:
+            if call_arg.datatype != routine_arg.datatype:
+                raise CallMatchingArgumentsNotFoundError(
+                    "Argument type mismatch of call argument "
+                    f"'{call_arg}' with type '{call_arg.datatype}' "
+                    "and routine argument "
+                    f"'{routine_arg}' with type '{routine_arg.datatype}'."
+                )
 
         return True
 

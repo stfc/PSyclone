@@ -521,7 +521,7 @@ class Call(Statement, DataNode):
                 check_strict_array_datatype=(
                     check_strict_array_datatype),
                 ignore_missing_modules=ignore_missing_modules,
-                ignore_unresolved_symbol=ignore_unresolved_symbol,
+                ignore_unresolved_types=ignore_unresolved_symbol,
             )
 
         return call_routine_matcher.get_callee()

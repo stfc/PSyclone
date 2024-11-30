@@ -322,7 +322,7 @@ def test_apply_array_access_check_unresolved_symbols_error(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    inline_trans.set_option(check_argument_unresolved_symbols=False)
+    inline_trans.set_option(check_unresolved_symbols=False)
     inline_trans.apply(routine)
     output = fortran_writer(psyir)
     assert ("    do i = 1, 10, 1\n"
@@ -2287,8 +2287,8 @@ def test_set_options(fortran_reader):
         check_resolve_imports=False,
         check_static_interface=False,
         check_array_type=False,
-        check_argument_of_unsupported_type=False,
-        check_argument_unresolved_symbols=False,
+        check_unsupported_type=False,
+        check_unresolved_symbols=False,
     )
 
 
