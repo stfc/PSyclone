@@ -138,7 +138,7 @@ def test_mod_manager_add_files_from_dir():
     mod_man = ModuleManager.get()
 
     # Now check adding files:
-    assert mod_man._modules == {}
+    assert mod_man._module_name_to_modinfo == {}
 
     mod_man._add_all_files_from_dir("d1")
     assert set(mod_man._visited_files.keys()) == {"d1/a_mod.f90"}
@@ -198,7 +198,8 @@ def test_mod_manager_get_module_info():
     mod_info = mod_man.get_module_info("b_mod")
     assert mod_info.filename == "d1/d3/b_mod.F90"
     assert list(mod_man._remaining_search_paths) == ["d2", "d2/d4"]
-    assert set(mod_man._modules.keys()) == set(["a_mod", "b_mod"])
+    assert set(mod_man._module_name_to_modinfo.keys()) == \
+        set(["a_mod", "b_mod"])
 
     # Then locate the e_mod, which should remove two paths from
     # the search path:
@@ -212,8 +213,8 @@ def test_mod_manager_get_module_info():
                                                       "d2/d4/e_mod.F90",
                                                       "d2/g_mod.F90",
                                                       "d2/error_mod.F90"])
-    assert set(mod_man._modules.keys()) == set(["a_mod", "b_mod",
-                                                "e_mod"])
+    assert set(mod_man._module_name_to_modinfo.keys()) == \
+        set(["a_mod", "b_mod", "e_mod"])
 
     with pytest.raises(FileNotFoundError) as err:
         mod_man.get_module_info("does_not_exist")

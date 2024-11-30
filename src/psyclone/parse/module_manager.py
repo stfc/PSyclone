@@ -42,10 +42,12 @@ import copy
 from difflib import SequenceMatcher
 import os
 import re
+from typing import List, Set, Union
 
 from psyclone.errors import InternalError
 from psyclone.parse.file_info import FileInfo
 from psyclone.parse.module_info import ModuleInfo, ModuleInfoError
+from psyclone.psyir.nodes import Container, Node, Routine
 
 
 class ModuleManager:
@@ -60,22 +62,22 @@ class ModuleManager:
     # of the file.
     _threshold_similarity = 0.7
 
-    # ------------------------------------------------------------------------
     @staticmethod
-    def get(use_caching: bool = None):
+    def get(cache_active: bool = None, cache_path: str = None):
         '''Static function that if necessary creates and returns the singleton
         ModuleManager instance.
 
         '''
         if not ModuleManager._instance:
-            ModuleManager._instance = ModuleManager(use_caching)
+            ModuleManager._instance = ModuleManager(cache_active, cache_path)
 
         return ModuleManager._instance
 
     # ------------------------------------------------------------------------
     def __init__(
                 self,
-                use_caching: bool = None
+                cache_active: bool = None,
+                cache_path: str = None
             ):
         """Constructor
 
@@ -88,9 +90,13 @@ class ModuleManager:
                                 "to get the singleton instance.")
 
         # Disable caching by default
-        self._use_caching = use_caching if use_caching is not None else False
+        self._cache_active = (
+            cache_active if cache_active is not None else False)
 
-        self._modules = {}
+        # Path to cache
+        self._cache_path: str = cache_path
+
+        self._module_name_to_modinfo = {}
         self._visited_files = {}
 
         # The list of all search paths which have not yet all their files
@@ -98,6 +104,18 @@ class ModuleManager:
         # duplicating entries.
         self._remaining_search_paths = OrderedDict()
         self._original_search_paths = []
+
+        # Dictionary to lookup file info from file path
+        self._filepath_to_file_info: OrderedDict[str, FileInfo] = OrderedDict()
+
+        # Dictionary to lookup modules of all files
+        # Note that there can be multiple modules per file
+        self._filepath_to_module_info: OrderedDict[str, List[ModuleInfo]] = \
+            OrderedDict()
+
+        # Dictionary of modules to lookup module info
+        self._module_name_to_modinfo: OrderedDict[str, ModuleInfo] = \
+            OrderedDict()
 
         self._ignore_modules = set()
 
@@ -161,7 +179,11 @@ class ModuleManager:
                 if full_path in self._visited_files:
                     continue
                 self._visited_files[full_path] = \
-                    FileInfo(full_path, use_caching=self._use_caching)
+                    FileInfo(
+                            full_path,
+                            cache_active=self._cache_active,
+                            cache_path=self._cache_path
+                        )
                 new_files.append(self._visited_files[full_path])
         return new_files
 
@@ -193,7 +215,7 @@ class ModuleManager:
                     # We've found the module we want. Create a ModuleInfo
                     # object for it and cache it.
                     mod_info = ModuleInfo(name, finfo)
-                    self._modules[name] = mod_info
+                    self._module_name_to_modinfo[name] = mod_info
                     # A file that has been (or does not require)
                     # preprocessing always takes precendence.
                     if finfo.filename.endswith(".f90"):
@@ -217,7 +239,107 @@ class ModuleManager:
         '''
         return self._ignore_modules
 
-    # ------------------------------------------------------------------------
+    def add_files(self, filepaths: Union[str, List[str], Set[str]]) -> None:
+        """Add a file to the list of files
+
+        :param filepath: Path to file
+        :type filepath: str
+        """
+
+        if isinstance(filepaths, str):
+            filepaths = [filepaths]
+        elif isinstance(filepaths, set):
+            filepaths = list(filepaths)
+
+        for filepath in filepaths:
+            if filepath in self._filepath_to_file_info:
+                # Already loaded => skip
+                continue
+
+            self._filepath_to_file_info[filepath] = FileInfo(
+                filepath,
+                cache_active=self._cache_active,
+                cache_path=self._cache_path,
+            )
+
+    def load_all_source_codes(self, verbose: bool = False) -> None:
+        """Routine to load the source of all files"""
+
+        for fileinfo in self._filepath_to_file_info.values():
+            fileinfo: FileInfo
+            fileinfo.get_source_code(verbose=verbose)
+
+    def load_all_fparser_trees(self, verbose: bool = False) -> None:
+        """Routine to load the source of all files"""
+
+        for fileinfo in self._filepath_to_file_info.values():
+            fileinfo: FileInfo
+            fileinfo.get_fparser_tree(verbose=verbose)
+
+    def load_all_psyir_nodes(self, verbose: bool = False) -> None:
+        """Routine to load the psyir representation of all files"""
+
+        for fileinfo in self._filepath_to_file_info.values():
+            fileinfo: FileInfo
+            fileinfo.get_psyir_node(verbose=verbose)
+
+    def load_all_module_infos(self, verbose: bool = False, indent: str = ""):
+        """Load the module info using psyir nodes
+
+        :raises KeyError: If module was already processed
+        """
+
+        # iterate over all file infos and load psyir
+        for file_info in self._filepath_to_file_info.values():
+            file_info: FileInfo
+
+            if verbose:
+                print(
+                    f"{indent}- Loading module information for "
+                    f"file '{file_info._filepath}"
+                )
+
+            psyir_node: Node = file_info.get_psyir_node(
+                verbose=verbose, indent=indent + "  "
+            )
+
+            # Collect all module infos in this list
+            module_info_in_file: List[ModuleInfo] = []
+
+            # Walk over containers and add respective module information
+            for container_node in psyir_node.walk(
+                Container, stop_type=Routine
+            ):
+                if type(container_node) is not Container:
+                    # Sort out types which are not exactly of
+                    # type 'Container', e.g., 'FileContainer'
+                    continue
+
+                container_node: Container
+
+                container_name: str = container_node.name.lower()
+
+                if container_name in self._module_name_to_modinfo.keys():
+                    raise KeyError(
+                        f"Module '{container_name}' already processed"
+                    )
+
+                module_info = ModuleInfo(
+                    container_name, file_info, container_node
+                )
+                module_info_in_file.append(module_info)
+
+                self._module_name_to_modinfo[container_name] = module_info
+
+            filepath = file_info.get_filepath()
+            if filepath in self._filepath_to_module_info.keys():
+                raise KeyError(f"File '{filepath}' already processed")
+
+            self._filepath_to_module_info[filepath] = module_info_in_file
+
+    def get_all_module_infos(self) -> List[ModuleInfo]:
+        return self._module_name_to_modinfo.values()
+
     def get_module_info(self, module_name):
         '''This function returns the ModuleInformation for the specified
         module.
@@ -240,7 +362,8 @@ class ModuleManager:
         # First check if we have already seen this module. We only end the
         # search early if the file we've found does not require pre-processing
         # (i.e. has a .f90 suffix).
-        mod_info: ModuleInfo = self._modules.get(mod_lower, None)
+        mod_info: ModuleInfo = self._module_name_to_modinfo.get(
+                                    mod_lower, None)
         if mod_info and mod_info.filename.endswith(".f90"):
             return mod_info
         old_mod_info = mod_info

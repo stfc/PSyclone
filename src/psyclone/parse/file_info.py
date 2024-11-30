@@ -81,13 +81,16 @@ class FileInfo:
     - it will parse it with psyir (depends on TODO #2786 "and cache it")
 
     """
-    def __init__(self, filepath, use_caching: bool = False):
+    def __init__(self,
+                 filepath: str,
+                 cache_active: bool = False,
+                 cache_path: str = None
+                 ):
         """Constructor
 
         :param filepath: Path to the file that this
                          object holds information on.
         :param use_caching: Use caching of intermediate representations
-        :type filepath: str
 
         """
 
@@ -95,7 +98,7 @@ class FileInfo:
         self._filename: str = filepath
 
         # Use cache features
-        self._use_caching: bool = use_caching
+        self._use_caching: bool = cache_active
 
         # Source code:
         self._source_code: str = None
