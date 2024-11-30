@@ -131,6 +131,8 @@ class FileInfo:
         of the source code is required first.
         """
 
+        assert self._source_code_hash_sum is not None
+
         assert self._cache_active, (
             "Cache file path requested, but caching disabled")
 
@@ -213,15 +215,19 @@ class FileInfo:
                 )
 
             # Compute hash sum which will be used to check cache of fparser
-            self._source_code_hash_sum = hashlib.md5(
-                self._source_code.encode()
-            ).hexdigest()
+            self._source_code_hash_sum = self.get_source_code_hash_sum()
 
         return self._source_code
 
     @property
     def source_code(self, verbose: bool = False) -> str:
         return self.get_source_code(verbose)
+
+    def get_source_code_hash_sum(self) -> "hashlib._Hash":
+        if self._source_code_hash_sum is not None:
+            return self._source_code_hash_sum
+
+        return hashlib.md5(self.get_source_code().encode()).hexdigest()
 
     def _cache_load(
         self,

@@ -296,7 +296,7 @@ class ModuleManager:
             if verbose:
                 print(
                     f"{indent}- Loading module information for "
-                    f"file '{file_info._filepath}"
+                    f"file '{file_info._filename}"
                 )
 
             psyir_node: Node = file_info.get_psyir_node(
@@ -339,6 +339,9 @@ class ModuleManager:
 
     def get_all_module_infos(self) -> List[ModuleInfo]:
         return self._module_name_to_modinfo.values()
+
+    def get_all_file_infos(self) -> List[FileInfo]:
+        return self._filepath_to_file_info.values()
 
     def get_module_info(self, module_name):
         '''This function returns the ModuleInformation for the specified
