@@ -195,6 +195,7 @@ class FileInfo:
     def _cache_load(
         self,
         verbose: bool = False,
+        indent: str = ""
     ):
         """Load data from the cache file if possible.
         This also checks for matching checksums after loading the data
@@ -222,16 +223,27 @@ class FileInfo:
         # Load cache file
         try:
             filehandler = open(self._filepath_cache, "rb")
+            if verbose:
+                print(
+                    f"{indent}- Using cache file "
+                    f"'{self._get_filepath_cache()}'"
+                )
         except FileNotFoundError:
             if verbose:
-                print(f"  - No cache file '{self._filepath_cache}' found")
+                print(
+                    f"{indent}- No cache file "
+                    f"'{self._get_filepath_cache()}' found"
+                )
             return None
 
         # Unpack cache file
         try:
             cache: _CacheFileInfo = pickle.load(filehandler)
         except Exception as ex:
-            print("Error while reading cache file - ignoring: " + str(ex))
+            print(
+                "{indent}- Error while reading cache file - ignoring: "
+                + str(ex)
+            )
             return None
 
         # Verify checksums
@@ -387,7 +399,11 @@ class FileInfo:
 
         return self._fparser_tree
 
-    def get_psyir_node(self, verbose: bool = False) -> FileContainer:
+    def get_psyir_node(
+            self,
+            verbose: bool = False,
+            indent: str = ""
+            ) -> FileContainer:
         """Returns the psyclone FileContainer of the file.
 
         :param verbose: Produce some verbose output
@@ -399,19 +415,19 @@ class FileInfo:
             return self._psyir_node
 
         # Check for cache
-        self._cache_load(verbose=verbose)
+        self._cache_load(verbose=verbose, indent=indent)
 
         if self._cache_data_load is not None:
             if self._cache_data_load._psyir_node is not None:
                 # Use cached version
                 if verbose:
-                    print("  - Using cache of fparser tree")
+                    print(f"{indent}- Using cache of fparser tree")
 
                 self._psyir_node = self._cache_data_load._psyir_node
                 return self._psyir_node
 
         if verbose:
-            print(f"  - Running psyir for '{self._filename}'")
+            print(f"{indent}- Running psyir for '{self._filepath}'")
 
         # First, we get the fparser tree
         # TODO #2786: use 'save_to_cache=False' if TODO is resolved
