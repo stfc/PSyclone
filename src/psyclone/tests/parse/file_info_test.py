@@ -365,7 +365,7 @@ def test_file_info_cachefile_not_accessible(tmpdir):
     file_info: FileInfo = FileInfo(filename, cache_active=True)
 
     # Set buggy cache file
-    file_info._filepath_cache = "/I_DONT_EXIST/FILE/cache.psycache"
+    file_info._cache_path = "/I_DONT_EXIST/FILE/cache.psycache"
 
     source_code = file_info.get_source_code(verbose=True)
     assert source_code == SOURCE_DUMMY

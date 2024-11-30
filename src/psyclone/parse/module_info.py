@@ -48,7 +48,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, PSycloneError, GenerationError
-from psyclone.psyir.nodes import Container, Node
+from psyclone.psyir.nodes import Container, Node, Routine
 from psyclone.psyir.symbols import Symbol, SymbolError
 from psyclone.parse import FileInfo, FileInfoFParserError
 
@@ -218,7 +218,7 @@ class ModuleInfo:
             self._used_symbols_from_module_name[mod_name] = all_symbols
 
     # ------------------------------------------------------------------------
-    def get_used_modules(self) -> List[str]:
+    def get_used_module_names(self) -> List[str]:
         '''This function returns a set of all modules `used` in this
         module. Fortran `intrinsic` modules will be ignored. The information
         is based on the fparser parse tree of the module (since fparser can
@@ -340,8 +340,24 @@ class ModuleInfo:
         except KeyError:
             return None
 
+    def get_routine_by_name(
+        self, routine_name: str, trigger_exception: bool = True
+    ) -> Routine:
+        routine_found: Routine = None
+
+        for routine in self.get_psyir_container_node().walk(Routine):
+            routine: Routine
+            if routine.name.lower() == routine_name.lower():
+                routine_found = routine
+
+        if trigger_exception:
+            if routine_found is None:
+                raise Exception(f"Subroutine '{routine_name}' not found")
+
+        return routine_found
+
     def view(self, indent=""):
         retstr = ""
         retstr += f"{indent}- name: '{self.name}'\n"
-        retstr += f"{indent}- used_module_names: {self.get_used_modules()}\n"
+        retstr += f"{indent}- used_module_names: {self.get_used_module_names()}\n"
         return retstr

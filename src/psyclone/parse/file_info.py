@@ -88,9 +88,9 @@ class FileInfo:
                  ):
         """Constructor
 
-        :param filepath: Path to the file that this
+        :param _filename: Path to the file that this
                          object holds information on.
-        :param use_caching: Use caching of intermediate representations
+        :param cache_active: Use caching of intermediate representations
 
         """
 
@@ -98,7 +98,10 @@ class FileInfo:
         self._filename: str = filepath
 
         # Use cache features
-        self._use_caching: bool = cache_active
+        self._cache_active: bool = cache_active
+
+        # Cache filepath
+        self._cache_path = cache_path
 
         # Source code:
         self._source_code: str = None
@@ -112,15 +115,43 @@ class FileInfo:
         # Psyir node
         self._psyir_node: FileContainer = None
 
-        # Single cache file
-        (path, ext) = os.path.splitext(self._filename)
-        self._filepath_cache = path + ".psycache"
+        # Filepath to cache
+        self._cache_filename = None
 
         # Cache to load data from
         self._cache_data_load: _CacheFileInfo = None
 
         # Cache to store data
         self._cache_data_save: _CacheFileInfo = None
+
+    def _get_filepath_cache(self):
+        """Return the filepath of the cache.
+
+        This can't be done in the constructor since the hashcode
+        of the source code is required first.
+        """
+
+        assert self._cache_active, (
+            "Cache file path requested, but caching disabled")
+
+        if self._cache_filename is not None:
+            return self._cache_filename
+
+        if self._cache_path is None:
+            # If cache path is not specified, we use the source code path
+            # E.g.,
+            # path/to/file.f90 => path/to/file.psycache
+            (filepath_no_ext, _) = os.path.splitext(self._filename)
+
+            self._cache_filename = filepath_no_ext + ".psycache"
+            return self._cache_filename
+
+        # Cache path was specified.
+        # We assume this path is shared amongst many 
+        (path, _) = os.path.split(self._filename)
+        return (
+            path + self._source_code_hash_sum[:55] + ".psycache"
+        )
 
     @property
     def basename(self):
@@ -204,7 +235,7 @@ class FileInfo:
         :param verbose: Produce some verbose output
         """
 
-        if not self._use_caching:
+        if not self._cache_active:
             return
 
         # Load the source code in case it's not yet loaded.
@@ -222,7 +253,7 @@ class FileInfo:
 
         # Load cache file
         try:
-            filehandler = open(self._filepath_cache, "rb")
+            filehandler = open(self._get_filepath_cache(), "rb")
             if verbose:
                 print(
                     f"{indent}- Using cache file "
@@ -275,7 +306,7 @@ class FileInfo:
         :param verbose: Produce some verbose output
         """
 
-        if not self._use_caching:
+        if not self._cache_active:
             return None
 
         if self._source_code_hash_sum is None:
@@ -320,7 +351,7 @@ class FileInfo:
 
         # Open cache file
         try:
-            filehandler = open(self._filepath_cache, "wb")
+            filehandler = open(self._get_filepath_cache(), "wb")
         except Exception as err:
             if verbose:
                 print("  - Unable to write to cache file" + str(err))
@@ -427,7 +458,7 @@ class FileInfo:
                 return self._psyir_node
 
         if verbose:
-            print(f"{indent}- Running psyir for '{self._filepath}'")
+            print(f"{indent}- Running psyir for '{self._filename}'")
 
         # First, we get the fparser tree
         # TODO #2786: use 'save_to_cache=False' if TODO is resolved

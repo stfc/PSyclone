@@ -331,7 +331,7 @@ class ModuleManager:
 
                 self._module_name_to_modinfo[container_name] = module_info
 
-            filepath = file_info.get_filepath()
+            filepath = file_info.filename
             if filepath in self._filepath_to_module_info.keys():
                 raise KeyError(f"File '{filepath}' already processed")
 
@@ -418,7 +418,87 @@ class ModuleManager:
 
         return [name.lower() for name in mod_names]
 
-    # ------------------------------------------------------------------------
+    def get_all_recursively_used_module_infos(
+        self,
+        module_info: ModuleInfo,
+        verbose: bool = False,
+        indent: str = "",
+    ) -> List[ModuleInfo]:
+
+        assert type(module_info) is ModuleInfo
+
+        # List of module infos which still need to be traversed.
+        # We start with the current module
+        todo_module_name_list: List[str] = [module_info.name]
+
+        # List of modules infos in order of uses.
+        # After a module info was processed from the TODO list,
+        # it's added to the list of modules returned to the caller.
+        ret_module_info_list: List[ModuleInfo] = list()
+
+        while len(todo_module_name_list) > 0:
+            #
+            # Step 1) fetch element from the TODO list
+            #
+
+            # Get first element
+            todo_module_name = todo_module_name_list.pop(0)
+
+            try:
+                todo_module_info = self.get_module_info(
+                    todo_module_name
+                )
+                assert type(todo_module_info) is ModuleInfo
+            except ModuleNotFoundError:
+                if verbose:
+                    print(f"{indent}- Module not found: '{todo_module_name}'")
+                continue
+
+            if verbose:
+                print(f"{indent}- Module found: '{todo_module_name}'")
+
+            # Add to return list of modules
+            ret_module_info_list.append(todo_module_info)
+
+            #
+            # Step 2) Determine used modules and iterate over them
+            #
+
+            # Determine list of module names
+            used_module_name_list = todo_module_info.get_used_module_names()
+
+            for used_module_name in used_module_name_list:
+                try:
+                    used_module_info: ModuleInfo = self.get_module_info(
+                        used_module_name
+                    )
+
+                    # Could be also in ignore list which then just returns 'None'
+                    if used_module_info is None:
+                        continue
+
+                except ModuleNotFoundError:
+                    if verbose:
+                        print(
+                            f"{indent}- Module not found: '{used_module_name}'"
+                        )
+                    continue
+
+                # If module is already in the todo list,
+                # do nothing since it will be processed
+                if used_module_info.name in todo_module_name_list:
+                    continue
+
+                # If module is already in the output list,
+                # do nothing since it has been already processed
+                if used_module_info in ret_module_info_list:
+                    continue
+
+                # It's not yet on any list, hence, add it to the todo list
+                todo_module_name_list.append(used_module_info.name)
+
+        return ret_module_info_list
+
     def get_all_dependencies_recursively(self, all_mods):
         '''This function collects recursively all module dependencies
         for any of the modules in the ``all_mods`` set. I.e. it will
@@ -464,7 +544,7 @@ class ModuleManager:
             if module in self.ignores():
                 continue
             try:
-                mod_deps = self.get_module_info(module).get_used_modules()
+                mod_deps = self.get_module_info(module).get_used_module_names()
                 # Convert to set since we continue with a set
                 mod_deps = set(mod_deps)
             except (FileNotFoundError, ModuleInfoError):
