@@ -454,6 +454,11 @@ class ModuleManager:
                     print(f"{indent}- Module not found: '{todo_module_name}'")
                 continue
 
+            except FileNotFoundError:
+                if verbose:
+                    print(f"{indent}- File not found: '{todo_module_name}'")
+                continue
+
             if verbose:
                 print(f"{indent}- Module found: '{todo_module_name}'")
 
@@ -481,6 +486,13 @@ class ModuleManager:
                     if verbose:
                         print(
                             f"{indent}- Module not found: '{used_module_name}'"
+                        )
+                    continue
+
+                except FileNotFoundError:
+                    if verbose:
+                        print(
+                            f"{indent}- File not found: '{used_module_name}'"
                         )
                     continue
 
