@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,10 @@ from collections import OrderedDict
 from psyclone.configuration import Config
 from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
                                    LFRicInvokes)
-from psyclone.f2pygen import ModuleGen, UseGen, PSyIRGen
+from psyclone.f2pygen import InterfaceDeclGen, ModuleGen, UseGen, PSyIRGen
 from psyclone.psyGen import PSy, InvokeSchedule
 from psyclone.psyir.nodes import ScopingNode
+from psyclone.psyir.symbols import GenericInterfaceSymbol
 
 
 class LFRicPSy(PSy):
@@ -155,6 +156,14 @@ class LFRicPSy(PSy):
         for routine in self.container.children:
             if not isinstance(routine, InvokeSchedule):
                 psy_module.add(PSyIRGen(psy_module, routine))
+
+        # Similarly, we have to take care of any Interface symbols (which
+        # we may have if we've inlined a polymorphic Kernel).
+        for sym in self.container.symbol_table.symbols:
+            if isinstance(sym, GenericInterfaceSymbol):
+                names = [rt.symbol.name for rt in sym.routines]
+                psy_module.add(
+                    InterfaceDeclGen(psy_module, sym.name, names))
 
         # Add all invoke-specific information
         self.invokes.gen_code(psy_module)

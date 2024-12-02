@@ -43,10 +43,14 @@ setval_* generically.
 '''
 import os
 import sys
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.psyir.nodes import Directive, Loop, Routine
+from psyclone.psyGen import CodedKern
+from psyclone.psyir.nodes import (
+    Call, Directive, IntrinsicCall, Loop, Routine, Schedule)
 from psyclone.psyir.transformations import (
-    ACCKernelsTrans, TransformationError, OMPTargetTrans)
+    ACCKernelsTrans, InlineTrans, Matmul2CodeTrans, OMPTargetTrans,
+    TransformationError)
 from psyclone.transformations import (
     Dynamo0p3ColourTrans, Dynamo0p3OMPLoopTrans,
     Dynamo0p3RedundantComputationTrans, OMPParallelTrans,
@@ -58,7 +62,52 @@ from psyclone.transformations import (
 INVOKE_EXCLUSIONS = [
 ]
 
+# We won't attempt to inline calls to routines with names that contain
+# these strings.
+INLINE_EXCLUSIONS = ["abort", "logging"]
+
 OFFLOAD_DIRECTIVES = os.getenv('LFRIC_OFFLOAD_DIRECTIVES', "none")
+
+
+def _inline_calls(kern):
+    '''
+    Recursively inline all calls.
+
+    :param kern: the Kernel or Routine to inline any Calls into.
+
+    '''
+    mod_inline_trans = KernelModuleInlineTrans()
+    intrans = InlineTrans()
+    matrans = Matmul2CodeTrans()
+
+    if isinstance(kern, CodedKern):
+        _, scheds = kern.get_kernel_schedule()
+    else:
+        scheds = [kern]
+    for sched in scheds:
+        sched: Schedule
+        for call in sched.walk(Call):
+            call: Call
+            if isinstance(call, IntrinsicCall):
+                try:
+                    matrans.apply(call)
+                except TransformationError:
+                    pass
+                continue
+            if any(name in call.routine.name for name in INLINE_EXCLUSIONS):
+                continue
+            try:
+                for inner_call in call.get_callees():
+                    _inline_calls(inner_call)
+                mod_inline_trans.apply(call)
+                try:
+                    intrans.apply(call)
+                except TransformationError as err:
+                    print(f"Failed to inline call {call.debug_string()}:\n"
+                          f"{err}")
+            except (TransformationError, NotImplementedError) as err:
+                print(f"Failed to module-inline routine {call.routine.name}:\n"
+                      f"{err}")
 
 
 def trans(psyir):
@@ -76,6 +125,8 @@ def trans(psyir):
     otrans = Dynamo0p3OMPLoopTrans()
     const = LFRicConstants()
     cpu_parallel = OMPParallelTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
+    intrans = InlineTrans()
 
     if OFFLOAD_DIRECTIVES == "omp":
         # Use OpenMP offloading
@@ -120,7 +171,8 @@ def trans(psyir):
         else:
             offload = True
 
-        # Keep a record of any kernels we fail to offload
+        # Keep a record of any kernels we fail to offload.
+        failed_inline = set()
         failed_to_offload = set()
 
         # Colour loops over cells unless they are on discontinuous spaces
@@ -137,6 +189,19 @@ def trans(psyir):
             if loop.iteration_space.endswith("cell_column"):
                 if offload:
                     for kern in loop.kernels():
+                        try:
+                            mod_inline_trans.apply(kern)
+                            _inline_calls(kern)
+                            #try:
+                            #    kern.lower_to_language_level()
+                            #    intrans.apply(kern)
+                            #except TransformationError as err:
+                            #    print(f"Failed to inline kernel '{kern.name}' "
+                            #          f"due to:\n{err.value}")
+                        except TransformationError as err:
+                            failed_inline.add(kern.name.lower())
+                            print(f"Failed to module-inline kernel "
+                                  f"'{kern.name}' due to:\n{err.value}")
                         try:
                             gpu_annotation_trans.apply(kern)
                         except TransformationError as err:

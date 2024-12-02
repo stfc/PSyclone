@@ -40,7 +40,8 @@ from psyclone.configuration import Config
 from psyclone.f2pygen import (
     adduse, AssignGen, AllocateGen, BaseGen, CallGen, CharDeclGen, CommentGen,
     DeallocateGen, DeclGen, DirectiveGen, DoGen, IfThenGen, ImplicitNoneGen,
-    ModuleGen, PSyIRGen, SelectionGen, SubroutineGen, TypeDeclGen, UseGen)
+    InterfaceDeclGen, ModuleGen, PSyIRGen, SelectionGen, SubroutineGen,
+    TypeDeclGen, UseGen)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import Node, Return
 from psyclone.tests.utilities import Compile, count_lines, line_number
@@ -1342,13 +1343,42 @@ def test_declgen_multiple_use2():
     sub.add(DeclGen(sub, datatype="integer",
                     entity_decls=datanames))
     gen = str(sub.root)
-    print(gen)
     expected = (
         "      INTEGER data1, data2\n"
         "      REAL data1")
     assert expected in gen
     # check input data is not modified
     assert datanames == ["data1", "data2"]
+
+
+def test_interfacedeclgen():
+    '''Tests for InterfaceDeclGen.'''
+    module = ModuleGen(name="testmodule")
+    sub1 = SubroutineGen(module, name="sub32")
+    module.add(sub1)
+    sub2 = SubroutineGen(module, name="sub64")
+    module.add(sub2)
+    with pytest.raises(TypeError) as err:
+        InterfaceDeclGen(sub1, name="my_interface", entity_decls=[])
+    assert ("An InterfaceDeclGen must have a ModuleGen as parent"
+            in str(err.value))
+    with pytest.raises(ValueError) as err:
+        InterfaceDeclGen(module, name="my_interface", entity_decls=[])
+    assert ("The routine names to use within Interface 'my_interface' must be"
+            in str(err.value))
+    module.add(InterfaceDeclGen(module, name="my_interface",
+                                entity_decls=["sub32", "sub64"]))
+    gen = str(module.root).lower()
+    expected = """\
+  module testmodule
+    implicit none
+    interface my_interface
+    module procedure sub32, sub64
+    end interface my_interface
+    contains"""
+    assert expected in gen
+    # Can't compile this without properly creating subroutines with arguments
+    # of different precisions.
 
 
 @pytest.mark.xfail(reason="No way to add body of DEFAULT clause")
@@ -1364,7 +1394,6 @@ def test_selectiongen():
     # TODO how do we specify what happens in the default case?
     sgen.adddefault()
     gen = str(sub.root)
-    print(gen)
     expected = ("SELECT CASE ( my_var )\n"
                 "CASE ( 1 )\n"
                 "        happy = .TRUE.\n"
