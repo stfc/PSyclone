@@ -2002,17 +2002,8 @@ class Fparser2Reader():
                         # If it is not in the symbol table, create a new
                         # DataTypeSymbol for it.
                         else:
-                            # The visibility of the symbol representing this
-                            # derived type.
-                            if extends_name in visibility_map:
-                                extends_symbol_vis = visibility_map[
-                                                            extends_name]
-                            else:
-                                extends_symbol_vis = parent.symbol_table.\
-                                                        default_visibility
                             extends_symbol = DataTypeSymbol(extends_name,
-                                                            StructureType(),
-                                                            extends_symbol_vis)
+                                                            StructureType())
                         # Set it as the extended type of the new type.
                         dtype.extends = extends_symbol
                     else:
@@ -2062,20 +2053,9 @@ class Fparser2Reader():
                         # Deal with the optional initial value.
                         if procedure.items[4] is not None:
                             initial_value_name = procedure.items[4].string
-                            # Look it up in the symbol table and get its
-                            # datatype or create it if it does not exist.
-                            if initial_value_name in parent.symbol_table:
-                                initial_value_symbol = parent.symbol_table.\
-                                    lookup(initial_value_name)
-                                if (isinstance(procedure_datatype,
-                                               UnsupportedFortranType)
-                                        and supported):
-                                    procedure_datatype = initial_value_symbol.\
-                                        datatype
-                            else:
-                                initial_value_symbol = RoutineSymbol(
-                                                        initial_value_name,
-                                                        UnresolvedType())
+                            initial_value_symbol = RoutineSymbol(
+                                                    initial_value_name,
+                                                    UnresolvedType())
                             initial_value = Reference(initial_value_symbol)
                         else:
                             initial_value = None

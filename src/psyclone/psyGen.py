@@ -60,7 +60,7 @@ from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
                                     UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
                                     RoutineSymbol, Symbol)
-from psyclone.psyir.symbols.datatypes import (UnsupportedFortranType, 
+from psyclone.psyir.symbols.datatypes import (UnsupportedFortranType,
                                               StructureType)
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -1768,7 +1768,7 @@ class CodedKern(Kern):
             # go through its procedure components.
             elif isinstance(sym.datatype, StructureType):
                 for procedure_name, procedure_component \
-                    in sym.datatype.procedure_components.items():
+                 in sym.datatype.procedure_components.items():
                     # Either the procedure component is of
                     # UnsupportedFortranType, in which case we replace in its
                     # whole declaration.
@@ -1780,8 +1780,8 @@ class CodedKern(Kern):
                         new_procedure_component = StructureType.ComponentType(
                             procedure_component.name,
                             UnsupportedFortranType(new_declaration,
-                                                   procedure_component.\
-                                                    datatype.partial_datatype),
+                                                   procedure_component.
+                                                   datatype.partial_datatype),
                             procedure_component.visibility,
                             procedure_component.initial_value)
                         sym.datatype.procedure_components[procedure_name] = \
@@ -1796,11 +1796,11 @@ class CodedKern(Kern):
                         new_kernel_symbol = RoutineSymbol(new_kern_name)
                         new_procedure_component = \
                             StructureType.ComponentType(procedure_component
-                                                            .name,
+                                                        .name,
                                                         procedure_component
-                                                            .datatype,
-                                                        procedure_component\
-                                                            .visibility,
+                                                        .datatype,
+                                                        procedure_component
+                                                        .visibility,
                                                         Reference(
                                                             new_kernel_symbol))
                         sym.datatype.procedure_components[procedure_name] = \
