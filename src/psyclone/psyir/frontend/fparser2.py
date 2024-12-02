@@ -2339,6 +2339,7 @@ class Fparser2Reader():
         # Handle any derived-type declarations/definitions before we look
         # at general variable declarations in case any of the latter use
         # the former.
+        # TODO: add support for comments on derived types.
         for decl in walk(nodes, Fortran2003.Derived_Type_Def):
             self._process_derived_type_decln(parent, decl, visibility_map)
 
@@ -3280,6 +3281,7 @@ class Fparser2Reader():
 
                 # Add the comments to the if block.
                 newifblock.preceding_comment = '\n'.join(preceding_comments_strs)
+                preceding_comments_strs = []
 
                 # Create condition as first child
                 self.process_nodes(parent=newifblock,
