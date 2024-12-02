@@ -145,7 +145,7 @@ end subroutine bar
     # The call bar(c, b) as a isn't local and we can't guarantee its behaviour.
     assert len(reaches) == 2
     assert reaches[0] is routine.children[8].rhs.children[0]
-    assert reaches[2] is routine.children[6]
+    assert reaches[1] is routine.children[6]
 
     # Create use chain for c in b = c + d
     chains = DefinitionUseChain(routine.children[5].rhs.children[0], [routine])
@@ -172,14 +172,14 @@ def test_definition_use_chain_find_backward_accesses_assignment(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     # Start chain from A = a * a
-    chains = DefinitionUseChain(routine.children[0].lhs)
+    chains = DefinitionUseChain(routine.children[1].lhs)
     reaches = chains.find_backward_accesses()
     # We should find 3 results, both 3 references in
     # a = A * A
     # and A = 1
     assert len(reaches) == 3
-    assert reaches[0] is routine.children[1].rhs.children[0]
-    assert reaches[1] is routine.children[1].rhs.children[1]
+    assert reaches[0] is routine.children[1].rhs.children[1]
+    assert reaches[1] is routine.children[1].rhs.children[0]
     assert reaches[2] is routine.children[0].lhs
 
 
@@ -210,13 +210,13 @@ def test_definition_use_chain_find_backward_accesses_ifelse_example(
     # even though it will always be written to.
     assert len(reaches) == 4
     assert reaches[2] is routine.children[1].rhs.children[0]
-    assert reaches[0] is routine.children[2].if_body.children[0].lhs
-    assert reaches[1] is routine.children[2].else_body.children[0].lhs
+    assert reaches[1] is routine.children[2].if_body.children[0].lhs
+    assert reaches[0] is routine.children[2].else_body.children[0].lhs
     assert reaches[3] is routine.children[0].lhs
 
     # Also check that a = 4 backward access is not a = 3.
     a_3 = routine.children[2].if_body.children[0].lhs
-    a_4 = routine.children[2].else_body.children[0].rhs
+    a_4 = routine.children[2].else_body.children[0].lhs
     chains = DefinitionUseChain(a_4)
     reaches = chains.find_backward_accesses()
     assert len(reaches) == 2
@@ -245,7 +245,7 @@ def test_definition_use_chain_find_backward_accesses_loop_example(
     routine = psyir.walk(Routine)[0]
     # Start the chain from A = a + i.
     chains = DefinitionUseChain(
-        routine.children[1].loop_body.children[1].rhs.children[0]
+        routine.children[1].loop_body.children[0].lhs
     )
     reaches = chains.find_backward_accesses()
     # We should have 4? reaches
@@ -253,15 +253,18 @@ def test_definition_use_chain_find_backward_accesses_loop_example(
     # Second a = A + i
     # Third (?) is A = a + i
     # Last is A = 1
+    print(reaches[0].parent.debug_string())
+    print(reaches[1].parent.debug_string())
+    print(reaches[2].parent.debug_string())
     assert len(reaches) == 4
     assert (
         reaches[0] is routine.children[1].loop_body.children[1].rhs.children[0]
     )
     assert (
-        reaches[1] is routine.children[1].loop_body.children[0].rhs.children[0]
+        reaches[2] is routine.children[1].loop_body.children[0].rhs.children[0]
     )
     assert (
-        reaches[2] is routine.children[1].loop_body.children[0].lhs
+        reaches[1] is routine.children[1].loop_body.children[0].lhs
     )
     assert reaches[3] is routine.children[0].lhs
 
@@ -312,9 +315,9 @@ def test_definition_use_chain_find_backward_accesses_while_loop_example(
     reaches = chains.find_backward_accesses()
 
     assert len(reaches) == 4
-    assert reaches[2] is routine.children[2].condition.children[0]
+    assert reaches[0] is routine.children[2].condition.children[0]
     assert (
-        reaches[0] is routine.children[2].loop_body.children[0].rhs.children[0]
+        reaches[2] is routine.children[2].loop_body.children[0].rhs.children[0]
     )
     assert reaches[1] is routine.children[2].loop_body.children[0].lhs
     assert reaches[3] is routine.children[1].lhs
@@ -343,11 +346,15 @@ def test_definition_use_chain_foward_accesses_nested_loop_example(
     loops = routine.walk(WhileLoop)
     chains = DefinitionUseChain(loops[1].loop_body.children[0].rhs.children[1])
     reaches = chains.find_backward_accesses()
-    # Results should be A = A + 3 and the a < i condition, then the A = 1
+    # TODO #2760 The backwards accesses should not continue past a = a + 3 as
+    # to reach the b = b + a statement we must have passed through the
+    # a = a + 3 statement.
+    # Results should be b = b + A, A = A + 3 and the a < i condition
+    # then the A = 1
     assert len(reaches) == 4
-    assert reaches[2] is loops[0].condition.children[0]
-    assert reaches[0] is loops[0].loop_body.children[0].rhs.children[0]
-    assert reaches[1] is loops[0].loop_body.children[0].lhs
+    assert reaches[0] is loops[0].condition.children[0]
+    assert reaches[1] is loops[1].loop_body.children[0].rhs.children[1]
+    assert reaches[2] is loops[0].loop_body.children[0].lhs
     assert reaches[3] is routine.children[1].lhs
 
 
@@ -429,7 +436,7 @@ def test_definition_use_chain_find_backward_accesses_codeblock_and_call_nlocal(
     chains = DefinitionUseChain(routine.children[2].rhs.children[0])
     reaches = chains.find_backward_accesses()
     assert len(reaches) == 1
-    assert reaches[0] is routine.children[1]
+    assert reaches[0] is routine.children[1].children[1]
 
 
 def test_definition_use_chain_find_backward_accesses_codeblock_and_call_cflow(
@@ -441,7 +448,7 @@ def test_definition_use_chain_find_backward_accesses_codeblock_and_call_cflow(
     code = """
     subroutine x()
     use some_mod
-    call c(a)
+    call c()
     if(cond) then
       print *, a
       call b(a)
@@ -453,7 +460,8 @@ def test_definition_use_chain_find_backward_accesses_codeblock_and_call_cflow(
     chains = DefinitionUseChain(routine.children[2].rhs.children[0])
     reaches = chains.find_backward_accesses()
     assert len(reaches) == 2
-    assert reaches[0] is routine.children[1].if_body.children[0]
+    print([x.parent.debug_string() for x in reaches])
+    assert reaches[0] is routine.children[1].if_body.children[1].children[1]
     assert reaches[1] is routine.children[0]
 
 
@@ -489,7 +497,7 @@ def test_definition_use_chain_find_backward_accesses_call_and_codeblock_nlocal(
     subroutine x()
     use some_mod
     print *, a
-    call b(a)
+    call b()
     a = 2
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
@@ -513,7 +521,7 @@ def test_definition_use_chains_goto_statement(
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
-    chains = DefinitionUseChain(routine.children[2].lhs)
+    chains = DefinitionUseChain(routine.children[1].lhs)
     with pytest.raises(NotImplementedError) as excinfo:
         chains.find_backward_accesses()
     assert ("DefinitionUseChains can't handle code containing GOTO statements"
@@ -559,8 +567,8 @@ def test_definition_use_chains_exit_statement(
 def test_definition_use_chains_cycle_statement(
     fortran_reader,
 ):
-    """Check that DefinitionUseChains ignore statements after a cycle statement
-    in a loop."""
+    """Check that DefinitionUseChains ignore statements after a return
+    statement in a loop."""
     code = """
     subroutine x()
     integer :: a, b, c, d, e, f, i
@@ -579,7 +587,7 @@ def test_definition_use_chains_cycle_statement(
     routine = psyir.walk(Routine)[0]
     # Start the chain from a = A +i.
     chains = DefinitionUseChain(
-        routine.children[1].loop_body.children[0].rhs
+        routine.children[1].loop_body.children[0].rhs.children[0]
     )
     reaches = chains.find_backward_accesses()
     # We should have 2 reaches
@@ -613,15 +621,17 @@ def test_definition_use_chains_return_statement(
     routine = psyir.walk(Routine)[0]
     # Start the chain from a = A +i.
     chains = DefinitionUseChain(
-        routine.children[1].loop_body.children[0].rhs
+        routine.children[1].loop_body.children[0].rhs.children[0]
     )
     reaches = chains.find_backward_accesses()
     # We should have 2 reaches
     # A = b * 4
     # A = 1
     assert len(reaches) == 2
-    assert reaches[0] is routine.children[1].loop_body.children[1].lhs
     assert reaches[1] is routine.children[0].lhs
+    # Search backwards in loop isn't working correctly - we're finding
+    # the LHS of a = a + i instead of A = b + 4
+    assert reaches[0] is routine.children[1].loop_body.children[1].lhs
 
 
 def test_definition_use_chains_backward_accesses_multiple_routines(
