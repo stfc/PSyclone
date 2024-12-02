@@ -36,6 +36,7 @@ sys.path.insert(0, os.path.join(docs_dir, "_ext"))
 # ones. The definition of 'apilinks' is in PSyclone/doc/_ext/apilinks.py.
 extensions = [
     'sphinx.ext.imgmath', 'sphinx.ext.autodoc', 'sphinx.ext.intersphinx',
+    'sphinx_autodoc_typehints',
     'apilinks']
 
 
