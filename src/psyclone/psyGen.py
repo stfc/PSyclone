@@ -60,7 +60,8 @@ from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
                                     UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
                                     RoutineSymbol, Symbol)
-from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
+from psyclone.psyir.symbols.datatypes import (UnsupportedFortranType, 
+                                              StructureType)
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -1753,6 +1754,8 @@ class CodedKern(Kern):
         # the kernel metadata.
         container_table = container.symbol_table
         for sym in container_table.datatypesymbols:
+            # Either the DataTypeSymbol is of UnsupportedFortranType,
+            # in which case we replace in its whole declaration.
             if isinstance(sym.datatype, UnsupportedFortranType):
                 new_declaration = sym.datatype.declaration.replace(
                     orig_kern_name, new_kern_name)
@@ -1761,6 +1764,47 @@ class CodedKern(Kern):
                     new_declaration,
                     partial_datatype=sym.datatype.partial_datatype)
                 # pylint: enable=protected-access
+            # Or the DataTypeSymbol is a StructureType, in which case we
+            # go through its procedure components.
+            elif isinstance(sym.datatype, StructureType):
+                for procedure_name, procedure_component \
+                    in sym.datatype.procedure_components.items():
+                    # Either the procedure component is of
+                    # UnsupportedFortranType, in which case we replace in its
+                    # whole declaration.
+                    if isinstance(procedure_component.datatype,
+                                  UnsupportedFortranType):
+                        new_declaration = \
+                            procedure_component.datatype.declaration.replace(
+                                orig_kern_name, new_kern_name)
+                        new_procedure_component = StructureType.ComponentType(
+                            procedure_component.name,
+                            UnsupportedFortranType(new_declaration,
+                                                   procedure_component.\
+                                                    datatype.partial_datatype),
+                            procedure_component.visibility,
+                            procedure_component.initial_value)
+                        sym.datatype.procedure_components[procedure_name] = \
+                            new_procedure_component
+                    # Or the procedure component has an initial value that is
+                    # a Reference to the original kernel name, in which case
+                    # we replace it with a Reference to the new kernel name.
+                    elif (procedure_component.initial_value is not None
+                            and (procedure_component.initial_value.name.lower()
+                                 == orig_kern_name.lower())):
+                        # raise NotImplementedError("HERE")
+                        new_kernel_symbol = RoutineSymbol(new_kern_name)
+                        new_procedure_component = \
+                            StructureType.ComponentType(procedure_component
+                                                            .name,
+                                                        procedure_component
+                                                            .datatype,
+                                                        procedure_component\
+                                                            .visibility,
+                                                        Reference(
+                                                            new_kernel_symbol))
+                        sym.datatype.procedure_components[procedure_name] = \
+                            new_procedure_component
 
     @property
     def modified(self):

@@ -2013,7 +2013,6 @@ class Fparser2Reader():
                             extends_symbol = DataTypeSymbol(extends_name,
                                                             StructureType(),
                                                             extends_symbol_vis)
-                            parent.symbol_table.add(extends_symbol)
                         # Set it as the extended type of the new type.
                         dtype.extends = extends_symbol
                     else:
