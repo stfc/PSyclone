@@ -49,6 +49,7 @@ from fparser.two.Fortran2003 import (
     Type_Declaration_Stmt)
 from fparser.two.utils import walk
 
+from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, default_precision, default_integer_type,
@@ -1620,6 +1621,87 @@ def test_process_use_stmts_with_accessibility_statements(parser):
     assert symtab.lookup("var2").visibility == Symbol.Visibility.PUBLIC
     assert symtab.lookup("my_mod").visibility == Symbol.Visibility.PUBLIC
     assert symtab.lookup("some_var").visibility == Symbol.Visibility.PUBLIC
+
+
+def test_process_use_stmts_resolving_external_imports(parser, tmpdir,
+                                                      monkeypatch):
+    ''' Test that if the Fparser2Reader if provided with a list of
+    modules_to_import this are used to resolve external symbol information
+    by the frontend.'''
+
+    # Write a first module into a tmp file
+    other1 = str(tmpdir.join("other1.f90"))
+    with open(other1, "w", encoding='utf-8') as my_file:
+        my_file.write('''
+    module other1
+        integer, parameter :: N = 10
+        integer, dimension(N) :: unused_array
+        integer, dimension(N), private :: private_array
+    contains
+        function a_func(i)
+            integer :: a_func
+            integer, intent(in) :: i
+            a_func = 3
+        end function
+    end module other1
+    ''')
+
+    # Write a second module to a tmp file
+    other2 = str(tmpdir.join("other2.F90"))
+    with open(other2, "w", encoding='utf-8') as my_file:
+        my_file.write('''
+    module other2
+        integer, dimension(10) :: an_array
+        integer, dimension(10) :: other_array
+    end module other2
+    ''')
+
+    # Add the path to the include_path and set up a frontend instance
+    # witth the module_to_resolve names
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmpdir])
+    processor = Fparser2Reader(["other1", "other2"])
+    reader = FortranStringReader('''
+    module test
+        use other1
+    contains
+        subroutine test_function()
+            use other2, only : an_array
+            integer :: a
+            a = an_array(1) + a_func(2)
+        end subroutine
+    end module
+    ''')
+    parse_tree = parser(reader)
+    module = parse_tree.children[0]
+    psyir = processor._module_handler(module, None)
+
+    symtab = psyir.symbol_table
+
+    # The container, and all its public symbols are now in the table with
+    # the right symbol kind and datatype
+    assert isinstance(symtab.lookup("other1"), ContainerSymbol)
+    assert isinstance(symtab.lookup("a_func"), RoutineSymbol)
+    assert isinstance(symtab.lookup("unused_array"), DataSymbol)
+    assert symtab.lookup("n").datatype == INTEGER_TYPE
+    # But not the private symbols
+    assert "private_array" not in symtab
+
+    routine = psyir.children[0]
+    innersymtab = routine.symbol_table
+    # The container, and all its 'only'-listed symbols are now in the
+    # routine symbol table
+    assert isinstance(innersymtab.lookup("other2"), ContainerSymbol)
+    assert isinstance(innersymtab.lookup("an_array"), DataSymbol)
+    assert isinstance(innersymtab.lookup("an_array").datatype, ArrayType)
+    # But not the other public symbols, nor in the container symbol table.
+    assert "other_array" not in innersymtab
+    assert "an_array" not in symtab
+
+    # The provided info allows the reader to differentiate between function
+    # calls and Array accesses :)
+    stmt_rhs = routine[0].rhs
+    assert isinstance(stmt_rhs.children[0], Reference)
+    assert isinstance(stmt_rhs.children[1], Call)
 
 
 def test_intrinsic_use_stmt(parser):

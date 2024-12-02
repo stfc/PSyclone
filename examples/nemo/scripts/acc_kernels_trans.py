@@ -58,7 +58,7 @@ Tested with the NVIDIA HPC SDK version 23.7.
 
 import logging
 from utils import (add_profiling, enhance_tree_information, inline_calls,
-                   NOT_PERFORMANT)
+                   NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
 from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
@@ -76,6 +76,8 @@ Loop.set_loop_type_inference_rules({
         "levels": {"variable": "jk"},
         "tracers": {"variable": "jt"}
 })
+
+RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = ACCKernelsTrans()
