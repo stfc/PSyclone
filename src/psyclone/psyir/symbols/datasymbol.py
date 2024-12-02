@@ -319,11 +319,13 @@ class DataSymbol(TypedSymbol):
             new_datatype = self.datatype.copy()
         else:
             new_datatype = self.datatype
-        return DataSymbol(self.name, new_datatype,
+        copy = DataSymbol(self.name, new_datatype,
                           visibility=self.visibility,
                           interface=self.interface.copy(),
                           is_constant=self.is_constant,
                           initial_value=new_init_value)
+        copy.preceding_comment = self.preceding_comment
+        return copy
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from

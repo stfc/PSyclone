@@ -918,12 +918,15 @@ class StructureType(DataType):
         :param visibility: whether this member is public or private.
         :param initial_value: the initial value of this member (if any).
         :type initial_value: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :param preceding_comment: a comment that precedes this component.
+        :type preceding_comment: Optional[str]
         '''
         name: str
         # Use Union for compatibility with Python < 3.10
         datatype: Union[DataType, DataTypeSymbol]
         visibility: Symbol.Visibility
         initial_value: Any
+        preceding_comment: str = ""
 
     def __init__(self):
         self._components = OrderedDict()
@@ -952,10 +955,11 @@ class StructureType(DataType):
         '''
         stype = StructureType()
         for component in components:
-            if len(component) != 4:
+            if len(component) not in (4, 5):
                 raise TypeError(
-                    f"Each component must be specified using a 4-tuple of "
-                    f"(name, type, visibility, initial_value) but found a "
+                    f"Each component must be specified using a 4 or 5-tuple "
+                    f"of (name, type, visibility, initial_value, "
+                    f"preceding_comment) but found a "
                     f"tuple with {len(component)} members: {component}")
             stype.add(*component)
         return stype
@@ -968,7 +972,8 @@ class StructureType(DataType):
         '''
         return self._components
 
-    def add(self, name, datatype, visibility, initial_value):
+    def add(self, name, datatype, visibility, initial_value,
+            preceding_comment = ""):
         '''
         Create a component with the supplied attributes and add it to
         this StructureType.
@@ -982,6 +987,8 @@ class StructureType(DataType):
         :param initial_value: the initial value of the new component.
         :type initial_value: Optional[
             :py:class:`psyclone.psyir.nodes.DataNode`]
+        :param preceding_comment: a comment that precedes this component.
+        :type preceding_comment: Optional[str]
 
         :raises TypeError: if any of the supplied values are of the wrong type.
 
@@ -1016,9 +1023,14 @@ class StructureType(DataType):
                 f"The initial value of a component of a StructureType must "
                 f"be None or an instance of 'DataNode', but got "
                 f"'{type(initial_value).__name__}'.")
+        if not isinstance(preceding_comment, str):
+            raise TypeError(
+                f"The preceding_comment of a component of a StructureType "
+                f"must be a 'str' but got "
+                f"'{type(preceding_comment).__name__}'")
 
         self._components[name] = self.ComponentType(
-            name, datatype, visibility, initial_value)
+            name, datatype, visibility, initial_value, preceding_comment)
 
     def lookup(self, name):
         '''

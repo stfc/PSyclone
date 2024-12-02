@@ -85,11 +85,14 @@ class FortranReader():
             raise ValueError(
                 f"Invalid Fortran name '{name}' found.")
 
-    def psyir_from_source(self, source_code: str, free_form: bool = True):
+    def psyir_from_source(self, source_code: str, free_form: bool = True,
+                          ignore_comments: bool = True):
         ''' Generate the PSyIR tree representing the given Fortran source code.
 
         :param source_code: text representation of the code to be parsed.
         :param free_form: If parsing free-form code or not (default True).
+        :param ignore_comments: If comments should be ignored or not 
+                                (default True).
 
         :returns: PSyIR representing the provided Fortran source code.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -97,7 +100,8 @@ class FortranReader():
         '''
         SYMBOL_TABLES.clear()
         string_reader = FortranStringReader(
-            source_code, include_dirs=Config.get().include_paths)
+            source_code, include_dirs=Config.get().include_paths,
+            ignore_comments=ignore_comments)
         # Set reader to free format.
         string_reader.set_format(FortranFormat(free_form, False))
         parse_tree = self._parser(string_reader)
@@ -194,7 +198,8 @@ class FortranReader():
         self._processor.process_nodes(fake_parent, exec_part.children)
         return fake_parent[0].detach()
 
-    def psyir_from_file(self, file_path, free_form=True):
+    def psyir_from_file(self, file_path, free_form=True,
+                        ignore_comments: bool = True):
         ''' Generate the PSyIR tree representing the given Fortran file.
 
         :param file_path: path of the file to be read and parsed.
@@ -202,6 +207,10 @@ class FortranReader():
 
         :param free_form: If parsing free-form code or not (default True).
         :type free_form: bool
+
+        :param ignore_comments: If comments should be ignored or not
+                                (default True).
+        :type ignore_comments: bool
 
         :returns: PSyIR representing the provided Fortran file.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -217,7 +226,8 @@ class FortranReader():
         # Using the FortranFileReader instead of manually open the file allows
         # fparser to keep the filename information in the tree
         reader = FortranFileReader(file_path,
-                                   include_dirs=Config.get().include_paths)
+                                   include_dirs=Config.get().include_paths,
+                                   ignore_comments=ignore_comments)
         reader.set_format(FortranFormat(free_form, False))
         parse_tree = self._parser(reader)
         _, filename = os.path.split(file_path)

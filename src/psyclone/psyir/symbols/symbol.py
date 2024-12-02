@@ -45,6 +45,8 @@ from psyclone.psyir.symbols.interfaces import (
     AutomaticInterface, SymbolInterface, ArgumentInterface,
     UnresolvedInterface, ImportInterface, UnknownInterface,
     CommonBlockInterface, DefaultModuleInterface, StaticInterface)
+from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
+
 
 
 class SymbolError(PSycloneError):
@@ -59,7 +61,7 @@ class SymbolError(PSycloneError):
         self.value = "PSyclone SymbolTable error: "+str(value)
 
 
-class Symbol():
+class Symbol(CommentableMixin):
     '''Generic Symbol item for the Symbol Table and PSyIR References.
     It has an immutable name label because it must always match with the
     key in the SymbolTable. If the symbol is private then it is only visible

@@ -60,6 +60,7 @@ from psyclone.psyir.nodes import (
     Reference, Return, Routine, Schedule, StructureReference, UnaryOperation,
     WhileLoop)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, AutomaticInterface, CHARACTER_TYPE,
     CommonBlockInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
@@ -712,14 +713,16 @@ def _process_routine_symbols(module_ast, container, visibility_map):
         # By default, Fortran routines are not elemental.
         is_elemental = False
         # Name of the routine.
-        name = str(routine.children[0].children[1])
+        stmt = walk(routine, (Fortran2003.Subroutine_Stmt,
+                                   Fortran2003.Function_Stmt))[0]
+        name = str(stmt.children[1])
         # Type to give the RoutineSymbol.
         sym_type = type_map[type(routine)]()
         # Visibility of the symbol.
         vis = visibility_map.get(name.lower(),
                                  container.symbol_table.default_visibility)
         # Check any prefixes on the routine declaration.
-        prefix = routine.children[0].children[0]
+        prefix = stmt.children[0]
         if prefix:
             for child in prefix.children:
                 if isinstance(child, Fortran2003.Prefix_Spec):
@@ -1623,7 +1626,7 @@ class Fparser2Reader():
         return base_type, precision
 
     def _process_decln(self, scope, symbol_table, decl, visibility_map=None,
-                       statics_list=()):
+                       statics_list=(), preceding_comments_strs=None):
         '''
         Process the supplied fparser2 parse tree for a declaration. For each
         entity that is declared, a symbol is added to the supplied symbol
@@ -1643,6 +1646,9 @@ class Fparser2Reader():
             appearing in a SAVE statement). If all symbols are static then
             this contains the single entry "*".
         :type statics_list: Iterable[str]
+        :param preceding_comments_strs: the comments that preceded this
+            declaration, as a list of strings.
+        :type preceding_comments_strs: Optional[List[str]]
 
         :raises NotImplementedError: if an unsupported attribute is found.
         :raises NotImplementedError: if an unsupported intent attribute is
@@ -1664,6 +1670,9 @@ class Fparser2Reader():
 
         '''
         # pylint: disable=too-many-arguments
+        if preceding_comments_strs is None:
+            preceding_comments_strs = []
+
         (type_spec, attr_specs, entities) = decl.items
 
         # Parse the type_spec
@@ -1897,6 +1906,10 @@ class Fparser2Reader():
                         f"'{sym_name}'.") from error
                 symbol_table.add(sym, tag=tag)
 
+            # Add any preceding comments to the symbol
+            sym.preceding_comment = '\n'.join(preceding_comments_strs)
+            preceding_comments_strs = []
+
             if init_expr:
                 # In Fortran, an initialisation expression on a declaration of
                 # a symbol (whether in a routine or a module) implies that the
@@ -2002,8 +2015,22 @@ class Fparser2Reader():
             local_table = Container("tmp", parent=parent).symbol_table
             local_table.default_visibility = default_compt_visibility
 
-            for child in walk(decl, Fortran2003.Data_Component_Def_Stmt):
-                self._process_decln(parent, local_table, child)
+            preceding_comments_strs = []
+            for child in decl.children:
+                if isinstance(child, Fortran2003.Derived_Type_Stmt):
+                    continue
+                if isinstance(child, Fortran2003.Comment):
+                    # fparser2 generates lots of empty Comment nodes (without even a '!'), drop them
+                    if len(child.tostr()) == 0:
+                        continue
+                    comment_str = child.tostr()[1:].strip()
+                    preceding_comments_strs.append(comment_str)
+                    continue
+                if isinstance(child, Fortran2003.Component_Part):
+                    for component in walk(child, Fortran2003.Data_Component_Def_Stmt):
+                        self._process_decln(parent, local_table, component, 
+                                            preceding_comments_strs=preceding_comments_strs)
+                        preceding_comments_strs = []
             # Convert from Symbols to StructureType components.
             for symbol in local_table.symbols:
                 if symbol.is_unresolved:
@@ -2016,7 +2043,7 @@ class Fparser2Reader():
                     datatype = symbol.datatype
                     initial_value = symbol.initial_value
                     dtype.add(symbol.name, datatype, symbol.visibility,
-                              initial_value)
+                              initial_value, symbol.preceding_comment)
 
             # Update its type with the definition we've found
             tsymbol.datatype = dtype
@@ -2324,19 +2351,41 @@ class Fparser2Reader():
             # The include_handler just raises an error so we use that to
             # reduce code duplication.
             self._include_handler(incl_nodes[0], parent)
+
         # Now we've captured any derived-type definitions, proceed to look
         # at the variable declarations.
+        preceding_comments_strs = []
         for node in nodes:
 
-            if isinstance(node, Fortran2003.Interface_Block):
-
+            if isinstance(node, Fortran2003.Implicit_Part):
+                for comment in walk(node, Fortran2003.Comment):
+                    comment_str = comment.tostr()[1:].strip()
+                    preceding_comments_strs.append(comment_str)
+                # Anything other than a PARAMETER statement or an
+                # IMPLICIT NONE means we can't handle this code.
+                # Any PARAMETER statements are handled separately by the
+                # call to _process_parameter_stmts below.
+                # Any ENTRY statements are checked for in _subroutine_handler.
+                child_nodes = walk(node, Fortran2003.Format_Stmt)
+                if child_nodes:
+                    raise NotImplementedError(
+                        f"Error processing implicit-part: Format statements "
+                        f"are not supported but found '{child_nodes[0]}'")
+                child_nodes = walk(node, Fortran2003.Implicit_Stmt)
+                if any(imp.children != ('NONE',) for imp in child_nodes):
+                    raise NotImplementedError(
+                        f"Error processing implicit-part: implicit variable "
+                        f"declarations not supported but found '{node}'")
+            elif isinstance(node, Fortran2003.Interface_Block):
                 self._process_interface_block(node, parent.symbol_table,
                                               visibility_map)
 
             elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
                 try:
                     self._process_decln(parent, parent.symbol_table, node,
-                                        visibility_map, statics_list)
+                                        visibility_map, statics_list,
+                                        preceding_comments_strs)
+                    preceding_comments_strs = []
                 except NotImplementedError:
                     # Found an unsupported variable declaration. Create a
                     # DataSymbol with UnsupportedType for each entity being
@@ -2377,14 +2426,15 @@ class Fparser2Reader():
                         # possible that some may have already been processed
                         # successfully and thus be in the symbol table.
                         try:
-                            parent.symbol_table.add(
-                                DataSymbol(
-                                    symbol_name, UnsupportedFortranType(
-                                        str(node),
-                                        partial_datatype=datatype),
-                                    interface=UnknownInterface(),
-                                    visibility=vis,
-                                    initial_value=init))
+                            new_symbol = DataSymbol(
+                                     symbol_name, UnsupportedFortranType(
+                                         str(node),
+                                         partial_datatype=datatype),
+                                     interface=UnknownInterface(),
+                                     visibility=vis,
+                                    initial_value=init)
+                            new_symbol.preceding_comment = '\n'.join(preceding_comments_strs)
+                            parent.symbol_table.add(new_symbol)
                         except KeyError as err:
                             if len(orig_children) == 1:
                                 raise SymbolError(
@@ -2404,23 +2454,6 @@ class Fparser2Reader():
                                    Fortran2003.Use_Stmt)):
                 # These node types are handled separately
                 pass
-
-            elif isinstance(node, Fortran2003.Implicit_Part):
-                # Anything other than a PARAMETER statement or an
-                # IMPLICIT NONE means we can't handle this code.
-                # Any PARAMETER statements are handled separately by the
-                # call to _process_parameter_stmts below.
-                # Any ENTRY statements are checked for in _subroutine_handler.
-                child_nodes = walk(node, Fortran2003.Format_Stmt)
-                if child_nodes:
-                    raise NotImplementedError(
-                        f"Error processing implicit-part: Format statements "
-                        f"are not supported but found '{child_nodes[0]}'")
-                child_nodes = walk(node, Fortran2003.Implicit_Stmt)
-                if any(imp.children != ('NONE',) for imp in child_nodes):
-                    raise NotImplementedError(
-                        f"Error processing implicit-part: implicit variable "
-                        f"declarations not supported but found '{node}'")
 
             elif isinstance(node, Fortran2003.Namelist_Stmt):
                 # Place the declaration statement into the symbol table using
@@ -2729,7 +2762,17 @@ class Fparser2Reader():
         '''
         code_block_nodes = []
         message = "PSyclone CodeBlock (unsupported code) reason:"
+        # Store any comments that precede the next node
+        preceding_comments_strs = []
         for child in nodes:
+            # If the child is a comment, store it and continue to the next
+            if isinstance(child, Fortran2003.Comment):
+                if len(child.tostr()) == 0:
+                    # Skip empty comments
+                    continue
+                comment_str = child.tostr()[1:].strip()
+                preceding_comments_strs.append(comment_str)
+                continue
             try:
                 psy_child = self._create_child(child, parent)
             except NotImplementedError as err:
@@ -2748,6 +2791,11 @@ class Fparser2Reader():
                 if psy_child:
                     self.nodes_to_code_block(parent, code_block_nodes, message)
                     message = "PSyclone CodeBlock (unsupported code) reason:"
+                    # Add the comments to nodes that support it and reset the
+                    # list of comments
+                    if isinstance(psy_child, CommentableMixin):
+                        psy_child.preceding_comment += '\n'.join(preceding_comments_strs)
+                        preceding_comments_strs = []
                     parent.addchild(psy_child)
                 # If psy_child is not initialised but it didn't produce a
                 # NotImplementedError, it means it is safe to ignore it.
@@ -2778,6 +2826,7 @@ class Fparser2Reader():
             # there), so we have to examine the first statement within it. We
             # must allow for the case where the block is empty though.
             if (child.content and child.content[0] and
+                    (not isinstance(child.content[0], Fortran2003.Comment)) and
                     child.content[0].item and child.content[0].item.label):
                 raise NotImplementedError("Unsupported labelled statement")
         elif isinstance(child, StmtBase):
@@ -3128,8 +3177,31 @@ class Fparser2Reader():
         else:
             raise NotImplementedError("Unsupported Loop")
 
-        # Process loop body (ignore 'do' and 'end do' statements with [1:-1])
-        self.process_nodes(parent=loop_body, nodes=node.content[1:-1])
+        # Process loop body (ignore 'do' and 'end do' statements)
+        # Keep track of the comments before the 'do' statement
+        loop_body_nodes = []
+        preceding_comments_strs = []
+        found_do_stmt = False
+        for child in node.content:
+            if isinstance(child, Fortran2003.Comment) and not found_do_stmt:
+                if child.tostr() == "":
+                    # Skip empty comments
+                    continue
+                comment_str = child.tostr()[1:].strip()
+                preceding_comments_strs.append(comment_str)
+                continue
+            if isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
+                found_do_stmt = True
+                continue
+            if isinstance(child, Fortran2003.End_Do_Stmt):
+                continue
+
+            loop_body_nodes.append(child)
+
+        # Add the comments to the loop node.
+        loop.preceding_comment = '\n'.join(preceding_comments_strs)
+        # Process the loop body.
+        self.process_nodes(parent=loop_body, nodes=loop_body_nodes)
 
         return loop
 
@@ -3148,10 +3220,10 @@ class Fparser2Reader():
         '''
 
         # Check that the fparser2 parsetree has the expected structure
-        if not isinstance(node.content[0], Fortran2003.If_Then_Stmt):
+        if len(walk(node, Fortran2003.If_Then_Stmt)) == 0:
             raise InternalError(
                 f"Failed to find opening if then statement in: {node}")
-        if not isinstance(node.content[-1], Fortran2003.End_If_Stmt):
+        if len(walk(node, Fortran2003.End_If_Stmt)) == 0:
             raise InternalError(
                 f"Failed to find closing end if statement in: {node}")
 
@@ -3163,6 +3235,18 @@ class Fparser2Reader():
                                   Fortran2003.Else_If_Stmt,
                                   Fortran2003.End_If_Stmt)):
                 clause_indices.append(idx)
+
+        # Get the comments before the 'if' statement
+        preceding_comments_strs = []
+        for child in node.content[:clause_indices[0]]:
+            if isinstance(child, Fortran2003.Comment):
+                if len(child.tostr()) == 0:
+                    # Skip empty comments
+                    continue
+                comment_str = child.tostr()[1:].strip()
+                preceding_comments_strs.append(comment_str)
+        # NOTE: The comments are added to the IfBlock node.
+        # NOTE: Comments before the 'else[if]' statements are not handled.
 
         # Deal with each clause: "if", "else if" or "else".
         ifblock = None
@@ -3193,6 +3277,9 @@ class Fparser2Reader():
                     # Keep pointer to fpaser2 AST
                     elsebody.ast = node.content[start_idx]
                     newifblock.ast = node.content[start_idx]
+
+                # Add the comments to the if block.
+                newifblock.preceding_comment = '\n'.join(preceding_comments_strs)
 
                 # Create condition as first child
                 self.process_nodes(parent=newifblock,
@@ -3735,10 +3822,10 @@ class Fparser2Reader():
 
         '''
         # Check that the fparser2 parsetree has the expected structure
-        if not isinstance(node.content[0], Fortran2003.Select_Case_Stmt):
+        if len(walk(node, Fortran2003.Select_Case_Stmt)) == 0:
             raise InternalError(
                 f"Failed to find opening case statement in: {node}")
-        if not isinstance(node.content[-1], Fortran2003.End_Select_Stmt):
+        if len(walk(node, Fortran2003.End_Select_Stmt)) == 0:
             raise InternalError(
                 f"Failed to find closing case statement in: {node}")
 
@@ -5125,7 +5212,20 @@ class Fparser2Reader():
         if isinstance(parent, FileContainer):
             _process_routine_symbols(node, parent, {})
 
-        name = node.children[0].children[1].string
+        # Get the subroutine or function statement and store the comments
+        # that precede it.
+        preceding_comments_strs = []
+        for child in node.children:
+            if isinstance(child, Fortran2003.Comment):
+                if len(child.tostr()) == 0:
+                    continue
+                preceding_comments_strs.append(child.tostr()[1:].strip())
+                continue
+            if isinstance(child, (Fortran2003.Subroutine_Stmt,
+                                  Fortran2003.Function_Stmt)):
+                stmt = child
+                break
+        name = stmt.children[1].string
         routine = None
         # The Routine may have been forward declared in
         # _process_routine_symbol, and so may already exist in the
@@ -5143,6 +5243,8 @@ class Fparser2Reader():
             # we had forward declared the Routine and we need to ensure the
             # empty Routine is detached from the tree.
             parent.addchild(routine)
+
+        routine.preceding_comment = '\n'.join(preceding_comments_strs)
 
         try:
             routine._ast = node
@@ -5162,19 +5264,29 @@ class Fparser2Reader():
             # Dummy_Arg_List, even if there's only one of them.
             if (isinstance(node, (Fortran2003.Subroutine_Subprogram,
                                   Fortran2003.Function_Subprogram)) and
-                    isinstance(node.children[0].children[2],
+                    isinstance(stmt.children[2],
                                Fortran2003.Dummy_Arg_List)):
-                arg_list = node.children[0].children[2].children
+                arg_list = stmt.children[2].children
             else:
                 # Routine has no arguments
                 arg_list = []
             self.process_declarations(routine, decl_list, arg_list)
 
+            # TODO: fparser issue
+            # fparser puts comments at the end of the declarations 
+            # whereas as preceding comments they belong in the execution part
+            lost_comments = []
+            if len(decl_list) != 0 and isinstance(decl_list[-1], Fortran2003.Implicit_Part):
+                for comment in walk(decl_list[-1], Fortran2003.Comment):
+                    if len(comment.tostr()) == 0:
+                        continue
+                    lost_comments.append(comment)
+
             # Check whether the function-stmt has a prefix specifying the
             # return type (other prefixes are handled in
             # _process_routine_symbols()).
             base_type = None
-            prefix = node.children[0].children[0]
+            prefix = stmt.children[0]
             if prefix:
                 for child in prefix.children:
                     if isinstance(child, Fortran2003.Prefix_Spec):
@@ -5188,7 +5300,7 @@ class Fparser2Reader():
             if isinstance(node, Fortran2003.Function_Subprogram):
                 # Check whether this function-stmt has a suffix containing
                 # 'RETURNS'
-                suffix = node.children[0].children[3]
+                suffix = stmt.children[3]
                 if suffix:
                     # Although the suffix can, in principle, contain a proc-
                     # language-binding-spec (e.g. BIND(C, "some_name")), this
@@ -5258,7 +5370,10 @@ class Fparser2Reader():
                 # valid.
                 pass
             else:
-                self.process_nodes(routine, sub_exec.content)
+                # TODO: fparser issue
+                # Put the comments from the end of the declarations part
+                # at the start of the execution part manually
+                self.process_nodes(routine, lost_comments + sub_exec.content)
         except NotImplementedError as err:
             sym = routine.symbol
             routine.detach()

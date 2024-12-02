@@ -536,6 +536,11 @@ class FortranWriter(LanguageWriter):
                                 f"and should not be provided to 'gen_vardecl'."
                                 )
 
+        result = ""
+        if len(symbol.preceding_comment) > 0:
+            for line in symbol.preceding_comment.splitlines():
+                result += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+
         # Whether we're dealing with an array declaration and, if so, the
         # shape of that array.
         if isinstance(symbol.datatype, ArrayType):
@@ -554,10 +559,12 @@ class FortranWriter(LanguageWriter):
                     # blocks appearing in SAVE statements.
                     decln = add_accessibility_to_unsupported_declaration(
                                 symbol)
-                    return f"{self._nindent}{decln}\n"
+                    result += f"{self._nindent}{decln}\n"
+                    return result
 
                 decln = symbol.datatype.declaration
-                return f"{self._nindent}{decln}\n"
+                result += f"{self._nindent}{decln}\n"
+                return result
             # The Fortran backend only handles UnsupportedFortranType
             # declarations.
             raise VisitorError(
@@ -566,7 +573,7 @@ class FortranWriter(LanguageWriter):
                 f"supported by the Fortran backend.")
 
         datatype = gen_datatype(symbol.datatype, symbol.name)
-        result = f"{self._nindent}{datatype}"
+        result += f"{self._nindent}{datatype}"
 
         if ArrayType.Extent.DEFERRED in array_shape:
             # A 'deferred' array extent means this is an allocatable array
