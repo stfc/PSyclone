@@ -1792,7 +1792,6 @@ class CodedKern(Kern):
                     elif (procedure_component.initial_value is not None
                             and (procedure_component.initial_value.name.lower()
                                  == orig_kern_name.lower())):
-                        # raise NotImplementedError("HERE")
                         new_kernel_symbol = RoutineSymbol(new_kern_name)
                         new_procedure_component = \
                             StructureType.ComponentType(procedure_component
