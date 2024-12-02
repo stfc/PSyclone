@@ -96,7 +96,6 @@ class ModuleManager:
         # Path to cache
         self._cache_path: str = cache_path
 
-        self._module_name_to_modinfo = {}
         self._visited_files = {}
 
         # The list of all search paths which have not yet all their files
