@@ -2606,6 +2606,8 @@ def test_structures(fortran_reader, fortran_writer):
         "  type, extends(kernel_type), public :: my_type\n"
         "    integer, public :: i = 1\n"
         "  end type my_type\n" in result)
+    # Check that kernel_type is not declared in the module
+    assert ":: kernel_type" not in result
 
     # type that contains a procedure (StructureType)
     test_code = (
