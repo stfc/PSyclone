@@ -36,7 +36,7 @@
 # Modified: M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean-Kuntzmann
 
 '''This module contains the ModuleInfo class, which is used to store
-and information about a module.
+information about a module.
 
 It makes use of the FileInfo class which is then used for caching.
 
@@ -48,7 +48,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, PSycloneError, GenerationError
-from psyclone.psyir.nodes import Container, Node
+from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import Symbol, SymbolError
 from psyclone.parse import FileInfo, FileInfoFParserError
 
@@ -77,34 +77,36 @@ class ModuleInfoError(PSycloneError):
         self.value = "ModuleInfoError: " + str(value)
 
 
-# ============================================================================
 class ModuleInfo:
     # pylint: disable=too-many-instance-attributes
-    '''This class stores mostly cached information about a Fortran module.
-    It stores a FileInfo object holding details on the original source file.
-    If required it will parse this file and then cache the fparser2 parse tree.
-    Similarly, it will also process this parse tree to
-    create the corresponding PSyIR which is also then cached.
+    '''This class stores mostly memory-cached information about a Fortran
+    module.
+    It stores a FileInfo object holding details on the original source file,
+    the fparser2 parse tree and the PSyIR.
+    Memory-caching is always used in FileInfo with an opt-in feature of
+    caching the fparser parse tree to the file system.
+
+    :param module_name: Name of the module
+    :param file_info: FileInfo object. The fparser tree, PSyIR
+        and module information will be loaded from this file if it's
+        not yet available.
+    :param psyir_root_node: The psyir container as an alternative to
+        loading the PSyIR from FileInfo.
+        This allows using a PSyIR without loading it from a file.
+
     '''
     def __init__(
         self,
         module_name: str,
-        file_info: FileInfo,
-        psyir_root_node: Node = None,
+        file_info: FileInfo = None,
+        psyir_root_node: Container = None,
     ):
-        """Constructor
-
-        :param module_name: Name of the module
-        :param file_info: FileInfo object to load the module from
-        :param psyir_node: The psyir container as an alternative to
-            loading the psyir from FileInfo, defaults to None
-        """
         self._name = module_name.lower()
 
         # Do some checking
         assert isinstance(file_info, FileInfo)
         if psyir_root_node is not None:
-            assert isinstance(psyir_root_node, Node)
+            assert isinstance(psyir_root_node, Container)
 
         # File handler including fparser and psyir representation
         self._file_info: FileInfo = file_info
@@ -113,7 +115,7 @@ class ModuleInfo:
         self._psyir_container_node: Container = psyir_root_node
 
         # A cache for the module dependencies: this is just a set
-        # of all modules used by this module.
+        # of all modules USEd by this module.
         # We use an (ordered) list to preserve the order of the
         # used modules
         self._used_module_names: List[str] = None
@@ -165,8 +167,8 @@ class ModuleInfo:
 
         :returns: The fparser AST for this module.
 
-        :raises ModuleInfoError: When errors have been triggered to
-                create the fparser tree.
+        :raises ModuleInfoError: When errors have been triggered while
+            creating the fparser tree.
         '''
         try:
             return self._file_info.get_fparser_tree()
@@ -180,7 +182,7 @@ class ModuleInfo:
                 f" to read source code for module '{self.name}'") from err
 
     # ------------------------------------------------------------------------
-    def _extract_used_module_names_from_fparser_tree(self):
+    def _extract_import_information(self):
         '''This internal function analyses a given module source file and
         caches which modules are imported (in self._used_modules), and which
         symbol is imported from each of these modules (in
@@ -189,7 +191,7 @@ class ModuleInfo:
         '''
 
         # Make sure that this is not called twice
-        assert self._used_module_names is None
+        assert self._used_module_names is None  # Internal sanity
 
         # Initialise the caches
         self._used_module_names = []
@@ -230,7 +232,7 @@ class ModuleInfo:
 
         '''
         if self._used_module_names is None:
-            self._extract_used_module_names_from_fparser_tree()
+            self._extract_import_information()
 
         return self._used_module_names
 
@@ -247,11 +249,11 @@ class ModuleInfo:
 
         '''
         if self._used_symbols_from_module_name is None:
-            self._extract_used_module_names_from_fparser_tree()
+            self._extract_import_information()
 
         return self._used_symbols_from_module_name
 
-    def get_psyir_container_node(self):
+    def get_psyir(self):
         '''Returns the PSyIR representation of this module. This is based
         on the fparser tree (see get_parse_tree), and the information is
         cached. If the PSyIR must be modified, it needs to be copied,
@@ -268,7 +270,6 @@ class ModuleInfo:
 
         '''
         if self._psyir_container_node is None:
-            # Keep this try-except for legacy reasons
             try:
                 self._file_info.get_fparser_tree()
             except FileInfoFParserError as err:
@@ -277,7 +278,7 @@ class ModuleInfo:
                 return None
 
             try:
-                self._psyir_container_node = self._file_info.get_psyir_node()
+                self._psyir_container_node = self._file_info.get_psyir()
             except (KeyError,
                     SymbolError,
                     InternalError,
@@ -306,17 +307,17 @@ class ModuleInfo:
                             f"module named '{self.name}'")
 
     # ------------------------------------------------------------------------
-    def get_symbol_by_name(self, symbol_name: str) -> Union[Symbol, None]:
+    def get_symbol(self, name: str) -> Union[Symbol, None]:
         '''
         Gets the PSyIR Symbol with the supplied name from the Container
-        representing this module (if available).
+        representing this Fortran module (if available).
 
         This utility mainly exists to insulate the user from having to check
         that a Container has been successfully created for this module
         (it might not have been if the source of the module cannot be found
         or cannot be parsed) and that it contains the specified Symbol.
 
-        :param symbol_name: the name of the symbol to get from this module.
+        :param name: the name of the symbol to get from this module.
 
         :returns: the Symbol with the supplied name if the Container has
             been successfully created and contains such a symbol and None
@@ -324,23 +325,22 @@ class ModuleInfo:
 
         '''
         try:
-            container: Container = self.get_psyir_container_node()
+            container: Container = self.get_psyir()
 
             # Handle "alternative" implementation of get_psyir_container_mode"
             if container is None:
+                # PSyIR could not be obtained so cannot search for Symbol
                 return None
 
         except (FileNotFoundError, FileInfoFParserError, GenerationError):
             return None
 
-        assert isinstance(container, Container)
-
         try:
-            return container.symbol_table.lookup(symbol_name)
+            return container.symbol_table.lookup(name)
         except KeyError:
             return None
 
-    def view(self, indent=""):
+    def view_tree(self, indent=""):
         retstr = ""
         retstr += f"{indent}- name: '{self.name}'\n"
         retstr += f"{indent}- used_module_names: {self.get_used_modules()}\n"

@@ -316,7 +316,7 @@ class CallTreeUtils():
                     continue
 
                 # Get the Container for this module.
-                cntr = mod_info.get_psyir_container_node()
+                cntr = mod_info.get_psyir()
                 if not cntr:
                     print(f"[CallTreeUtils.get_non_local_read_write_info] "
                           f"Could not get PSyIR for module "
@@ -397,7 +397,7 @@ class CallTreeUtils():
                     print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
                           f"Cannot find module '{module_name}' - ignored.")
                     continue
-                cntr = mod_info.get_psyir_container_node()
+                cntr = mod_info.get_psyir()
                 if not cntr:
                     print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
                           f"Cannot get PSyIR for module '{module_name}' - "
@@ -439,7 +439,7 @@ class CallTreeUtils():
                           f"unknown symbol '{signature}'.")
                     continue
 
-                cntr = mod_info.get_psyir_container_node()
+                cntr = mod_info.get_psyir()
                 if not cntr:
                     print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
                           f"Cannot get PSyIR for module '{module_name}' - "

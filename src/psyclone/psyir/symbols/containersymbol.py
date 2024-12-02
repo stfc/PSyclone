@@ -258,7 +258,7 @@ class FortranModuleInterface(ContainerSymbolInterface):
             raise SymbolError(
                 f"Module '{name}' not found in any of the include_paths "
                 f"directories {Config.get().include_paths}.")
-        return minfo.get_psyir_container_node()
+        return minfo.get_psyir()
 
 
 # For Sphinx AutoAPI documentation generation

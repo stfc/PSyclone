@@ -30,3 +30,4 @@ src/*.egg-info
 cov.xml
 .coverage.*
 *.psycache
+__pycache__

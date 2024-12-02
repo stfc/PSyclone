@@ -455,10 +455,10 @@ class Config:
 
         # 6. <psyclone-src-base>/config/
         # Search for configuration file relative to this source file
-        dev_path_list = os.path.split(
-                            os.path.abspath(__file__))[:-1]+(
-                                "..", "..", "config")
-        dev_path = os.path.abspath(os.path.join(*dev_path_list))
+        dev_dir_tmp = os.path.dirname(__file__)
+        dev_dir_tmp = os.path.split(dev_dir_tmp)[0]  # Go down one level
+        dev_dir_tmp = os.path.split(dev_dir_tmp)[0]  # Go down another level
+        dev_path = os.path.join(dev_dir_tmp, "config")
         _file_paths.append(dev_path)
 
         for cfile in [os.path.join(cdir, _FILE_NAME) for cdir in _file_paths]:

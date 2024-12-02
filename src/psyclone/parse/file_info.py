@@ -62,12 +62,15 @@ class FileInfoFParserError(PSycloneError):
 
 
 class _CacheFileInfo:
+    """Class which is used to store all information
+    which can be cached to a file and read back from a file.
+    """
     def __init__(self):
         # Hash sum
         self._source_code_hash_sum: hashlib._Hash = None
 
         # Fparser tree
-        self._fparser_tree: Fortran2003 = None
+        self._fparser_tree: Fortran2003.Program = None
 
         # Psyir node
         self._psyir_node: FileContainer = None
@@ -78,18 +81,14 @@ class FileInfo:
     - it stores the original filename
     - it will read the source of the file and cache it
     - it will parse it with fparser and cache it
-    - it will parse it with psyir (depends on TODO #2786 "and cache it")
+    - it will construct the PSyIR (depends on TODO #2786 "and cache it")
+
+    :param filepath: Path to the file that this
+        object holds information on.
+    :param use_caching: Use caching of intermediate representations
 
     """
-    def __init__(self, filepath, use_caching: bool = False):
-        """Constructor
-
-        :param filepath: Path to the file that this
-                         object holds information on.
-        :param use_caching: Use caching of intermediate representations
-        :type filepath: str
-
-        """
+    def __init__(self, filepath: str, use_caching: bool = False):
 
         # Full path to file
         self._filename: str = filepath
@@ -104,7 +103,7 @@ class FileInfo:
         self._source_code_hash_sum: hashlib._Hash = None
 
         # Fparser node
-        self._fparser_tree: Fortran2003 = None
+        self._fparser_tree: Fortran2003.Program = None
 
         # Psyir node
         self._psyir_node: FileContainer = None
@@ -126,8 +125,6 @@ class FileInfo:
                   that this FileInfo object represents.
         :rtype: str
         '''
-
-        assert self._filename is not None
 
         # Remove the path from the filename.
         basename = os.path.basename(self._filename)
@@ -157,45 +154,45 @@ class FileInfo:
         :returns: the contents of the file (utf-8 encoding).
 
         '''
-        if self._source_code is None:
+        if self._source_code:
+            return self._source_code
+
+        if verbose:
+            # TODO #11: Use logging for this
+            print(
+                f"- Source file '{self._filename}': "
+                f"Loading source code"
+            )
+
+        try:
             # Specifying errors='ignore' simply skips any characters that
             # result in decoding errors. (Comments in a code may contain all
             # sorts of weird things.)
+            with open(
+                self._filename, "r", encoding="utf-8", errors="ignore"
+            ) as file_in:
+                self._source_code = file_in.read()
+        except FileNotFoundError as err:
+            raise FileNotFoundError(
+                f"No such file or directory '{self._filename}'."
+            ) from err
 
-            if verbose:
-                print(
-                    f"- Source file '{self._filename}': "
-                    f"Loading source code"
-                )
-
-            try:
-                with open(
-                    self._filename, "r", encoding="utf-8", errors="ignore"
-                ) as file_in:
-                    self._source_code = file_in.read()
-            except FileNotFoundError:
-                raise FileNotFoundError(
-                    f"No such file or directory: '{self._filename}'"
-                )
-
-            # Compute hash sum which will be used to check cache of fparser
-            self._source_code_hash_sum = hashlib.md5(
-                self._source_code.encode()
-            ).hexdigest()
+        # Compute hash sum which will be used to check cache of fparser tree
+        self._source_code_hash_sum = hashlib.md5(
+            self._source_code.encode()
+        ).hexdigest()
 
         return self._source_code
-
-    @property
-    def source_code(self, verbose: bool = False) -> str:
-        return self.get_source_code(verbose)
 
     def _cache_load(
         self,
         verbose: bool = False,
-    ):
-        """Load data from the cache file if possible.
+    ) -> _CacheFileInfo:
+        """Load fparser parse tree from the cache file if possible.
         This also checks for matching checksums after loading the data
         from the cache.
+        The checksum is based solely on a hashsum of the source code itself,
+        see code below.
 
         :param verbose: Produce some verbose output
         """
@@ -216,11 +213,16 @@ class FileInfo:
         if self._cache_data_load is not None:
             return self._cache_data_load
 
-        # Load cache file
+        # Load cache file.
+        # Warning: There could be race conditions, e.g., in parallel builds.
+        # In the worst case some content is read which is incomplete or
+        # basically garbage. This will lead either to an Exception from the
+        # unpickling or a non-matching checksum which is both caught below.
         try:
             filehandler = open(self._filepath_cache, "rb")
         except FileNotFoundError:
             if verbose:
+                # TODO #11: Use logging for this
                 print(f"  - No cache file '{self._filepath_cache}' found")
             return None
 
@@ -228,12 +230,13 @@ class FileInfo:
         try:
             cache: _CacheFileInfo = pickle.load(filehandler)
         except Exception as ex:
-            print("Error while reading cache file - ignoring: " + str(ex))
+            print(f"  - Error while reading cache file - ignoring: {str(ex)}")
             return None
 
         # Verify checksums
         if cache._source_code_hash_sum != self._source_code_hash_sum:
             if verbose:
+                # TODO #11: Use logging for this
                 print(
                     f"  - Cache hashsum mismatch: "
                     f"source {self._source_code_hash_sum} "
@@ -242,11 +245,9 @@ class FileInfo:
             return None
 
         for key in ["_source_code_hash_sum", "_fparser_tree", "_psyir_node"]:
-            assert key in cache.__dict__.keys()
+            assert key in cache.__dict__.keys()  # internal check
 
         self._cache_data_load = cache
-        self._source_code_hash_sum = \
-            self._cache_data_load._source_code_hash_sum
 
     def _cache_save(
         self,
@@ -255,7 +256,8 @@ class FileInfo:
         """Save the following elements to a cache file:
         - hash sum of code
         - fparser tree
-        - potentially psyir nodes
+        - in future work, potentially also psyir nodes too
+          (requires TODO #2786).
 
         :param verbose: Produce some verbose output
         """
@@ -275,15 +277,22 @@ class FileInfo:
                 self._source_code_hash_sum)
 
         assert self._cache_data_save._source_code_hash_sum == (
-                    self._source_code_hash_sum)
+                    self._source_code_hash_sum)  # Sanity check
 
         if (
             self._cache_data_save._fparser_tree is None
             and self._fparser_tree is not None
         ):
-            # Make copies of it since they could be modified later
-            # With this, we can also figure out potential issues with
-            # the serialization in fparser
+            # No fparser tree was loaded so far into the cache object
+            # AND
+            # an fparser tree was loaded in Fileinfo.
+            #
+            # Consequently, we cache the fparser tree to the cache file.
+            # We create a deepcopy of this fparser tree to ensure that we cache
+            # the original tree and not a modified fparser tree node if the
+            # cache is updated (based on potentially future work of also
+            # caching the PSyIR)
+
             self._cache_data_save._fparser_tree = \
                 copy.deepcopy(self._fparser_tree)
             cache_updated = True
@@ -305,10 +314,15 @@ class FileInfo:
 
         # Open cache file
         try:
+            # Atomically attempt to open the new kernel file (in case
+            # this is part of a parallel build)
+            filehandler = os.open(self._filepath_cache,
+                                  os.O_CREAT | os.O_TRUNC | os.O_WRONLY)
             filehandler = open(self._filepath_cache, "wb")
         except Exception as err:
             if verbose:
-                print("  - Unable to write to cache file" + str(err))
+                # TODO #11: Use logging for this
+                print("  - Unable to write to cache file: " + str(err))
             return None
 
         # Dump to cache file
@@ -329,9 +343,10 @@ class FileInfo:
     def get_fparser_tree(
                 self,
                 verbose: bool = False,
-                save_to_cache: bool = True
+                save_to_cache_if_cache_active: bool = True
             ) -> Fortran2003.Program:
-        """Returns the fparser Fortran2008 representation of the source code.
+        """Returns the fparser Fortran2003.Program representation of the
+        source code (including Fortran2008).
 
         :param save_to_cache: Cache is updated if fparser was
             not loaded from cache.
@@ -345,10 +360,11 @@ class FileInfo:
             return self._fparser_tree
 
         if verbose:
+            # TODO #11: Use logging for this
             print(f"- Source file '{self._filename}': " f"Running fparser")
 
         source_code = self.get_source_code()
-        assert self._source_code_hash_sum is not None
+        assert self._source_code_hash_sum is not None   # Internal sanity check
 
         # Check for cache
         self._cache_load(verbose=verbose)
@@ -356,6 +372,7 @@ class FileInfo:
         if self._cache_data_load is not None:
             if self._cache_data_load._fparser_tree is not None:
                 if verbose:
+                    # TODO #11: Use logging for this
                     print(
                         f"  - Using cache of fparser tree with hashsum"
                         f" {self._cache_data_load._source_code_hash_sum}"
@@ -379,17 +396,17 @@ class FileInfo:
 
         # We directly call the cache saving routine here in case that the
         # fparser tree will be modified later on.
-        if save_to_cache:
+        if save_to_cache_if_cache_active:
             self._cache_save(verbose=verbose)
 
         return self._fparser_tree
 
-    def get_psyir_node(self, verbose: bool = False) -> FileContainer:
-        """Returns the psyclone FileContainer of the file.
+    def get_psyir(self, verbose: bool = False) -> FileContainer:
+        """Returns the PSyIR FileContainer of the file.
 
         :param verbose: Produce some verbose output
 
-        :returns: psyclone file container node.
+        :returns: PSyIR file container node.
 
         """
         if self._psyir_node is not None:
@@ -402,19 +419,22 @@ class FileInfo:
             if self._cache_data_load._psyir_node is not None:
                 # Use cached version
                 if verbose:
-                    print("  - Using cache of fparser tree")
+                    # TODO #11: Use logging for this
+                    print("  - Using cache of PSyIR")
 
                 self._psyir_node = self._cache_data_load._psyir_node
                 return self._psyir_node
 
         if verbose:
+            # TODO #11: Use logging for this
             print(f"  - Running psyir for '{self._filename}'")
 
         # First, we get the fparser tree
-        # TODO #2786: use 'save_to_cache=False' if TODO is resolved
         fparse_tree = self.get_fparser_tree(
                 verbose=verbose,
-                save_to_cache=True
+                # TODO #2786: If this TODO is resolved, set this to False
+                # and uncomment the self._cache_save below.
+                save_to_cache_if_cache_active=True
             )
 
         # We generate PSyIR from the fparser tree

@@ -66,6 +66,13 @@ class ModuleManager:
         '''Static function that if necessary creates and returns the singleton
         ModuleManager instance.
 
+        :param use_caching: If `True`, a file-based caching of the fparser
+            tree will be used. This can significantly accelerate obtaining
+            a PSyIR from a source file.
+            For parallel builds, parallel race conditions to the cache file
+            can happen, but this shouldn't lead to wrong results. However,
+            that's untested so far.
+
         '''
         if not ModuleManager._instance:
             ModuleManager._instance = ModuleManager(use_caching)
@@ -77,12 +84,6 @@ class ModuleManager:
                 self,
                 use_caching: bool = None
             ):
-        """Constructor
-
-        :param use_caching: Whether to use (`True`) or
-            disable (`False`) caching
-        """
-
         if ModuleManager._instance is not None:
             raise InternalError("You need to use 'ModuleManager.get()' "
                                 "to get the singleton instance.")
@@ -289,9 +290,9 @@ class ModuleManager:
         # could be defeated by e.g.
         #   module &
         #    my_mod
-        # `finfo.source_code` will read the file if it hasn't already been
-        # cached.
-        mod_names = self._module_pattern.findall(finfo.source_code)
+        # `finfo.get_source_code()` will read the file if it hasn't already
+        # been cached.
+        mod_names = self._module_pattern.findall(finfo.get_source_code())
 
         return [name.lower() for name in mod_names]
 
