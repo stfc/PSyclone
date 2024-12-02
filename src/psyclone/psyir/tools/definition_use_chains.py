@@ -997,19 +997,14 @@ class DefinitionUseChain:
                         start_point=ancestor.rhs.abs_position,
                         stop_point=sys.maxsize,
                     )
-                    # Find any forward_accesses in the rhs.
+                    # Find any backward_accesses in the rhs.
                     chain.find_backward_accesses()
                     for ref in chain._reaches:
                         self._reaches.append(ref)
             # We can compute the rest of the accesses
             self._compute_backward_uses(self._scope)
             for ref in self._uses:
-                found = False
-                for ref2 in self._reaches:
-                    if ref is ref2:
-                        found = True
-                if not found:
-                    self._reaches.append(ref)
+                self._reaches.append(ref)
             # If this block doesn't kill any accesses, then we add
             # the defsout into the reaches array.
             if len(self.killed) == 0:
