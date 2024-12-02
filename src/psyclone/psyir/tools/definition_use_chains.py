@@ -695,10 +695,6 @@ class DefinitionUseChain:
                 abs_pos = reference.abs_position
                 if abs_pos < self._start_point or abs_pos >= stop_position:
                     continue
-                if isinstance(reference, Return):
-                    # We can ignore Return statements as we only check for
-                    # nodes that occur before them.
-                    continue
                 if isinstance(reference, CodeBlock):
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
@@ -709,12 +705,6 @@ class DefinitionUseChain:
                             "handle code containing GOTO"
                             " statements."
                         )
-                    # If we find an Exit or Cycle statement, only check for
-                    # nodes that occur before them so we can skip.
-                    if isinstance(
-                        reference._fp2_nodes[0], (Exit_Stmt, Cycle_Stmt)
-                    ):
-                        continue
                     if (
                         self._reference.symbol.name
                         in reference.get_symbol_names()

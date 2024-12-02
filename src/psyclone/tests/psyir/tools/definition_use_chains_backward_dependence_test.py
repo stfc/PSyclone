@@ -659,3 +659,35 @@ end module
     )
     reaches = chains.find_backward_accesses()
     assert len(reaches) == 0
+
+
+def test_definition_use_chains_backward_accesses_nonassign_reference_in_loop(
+    fortran_reader,
+):
+    '''Coverage completion to handle the case where the passed reference is
+    not part of an assignment and within a loop.'''
+    code = """
+    subroutine x()
+    integer :: a, b, c, d, e, f, i
+
+    a = 1
+    do i = 1, 100
+       a = a + i
+       call p(a)
+       return
+       b = a + 2
+    end do
+    c = a + b
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(
+        routine.children[1].loop_body.children[1].children[1]
+    )
+    reaches = chains.find_backward_accesses()
+    # TODO #2760 The backwards accesses should not continue past a = a + i
+    # when searching backwards in the loop, or to a = 1
+    assert len(reaches) == 3
+    assert reaches[0] is routine.children[1].loop_body.children[1].children[1]
+    assert reaches[1] is routine.children[1].loop_body.children[0].lhs
+    assert reaches[2] is routine.children[0].lhs
