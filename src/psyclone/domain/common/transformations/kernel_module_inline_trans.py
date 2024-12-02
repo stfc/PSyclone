@@ -474,8 +474,11 @@ class KernelModuleInlineTrans(Transformation):
             # Double check that this import is not shadowing a routine we've
             # already module-inlined.
             table = local_sym.find_symbol_table(node)
-            outer_sym = table.node.scope.symbol_table.lookup(local_sym.name,
-                                                             otherwise=None)
+            outer_sym = None
+            if table.node.parent:
+                outer_table = table.node.parent.scope.symbol_table
+                outer_sym = outer_table.lookup(local_sym.name,
+                                               otherwise=None)
             if outer_sym:
                 # It is shadowing an outer symbol so we need to remove this
                 # local symbol and update the call to point to the outer one.

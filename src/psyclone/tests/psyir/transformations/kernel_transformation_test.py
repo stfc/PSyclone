@@ -297,10 +297,10 @@ def test_transform_kern_with_interface(kernel_outputdir):
     assert "subroutine mixed_code_32" in contents
     assert "subroutine mixed_code_64" in contents
     # But they have been transformed.
-    assert ('''real*4, dimension(ndf_w0,ndf_w0,op_ncell_3d), intent(in) :: op
+    assert ('''real*4, dimension(op_ncell_3d,ndf_w0,ndf_w0), intent(in) :: op
 
     !$acc routine seq''' in contents)
-    assert ('''real*8, dimension(ndf_w0,ndf_w0,op_ncell_3d), intent(in) :: op
+    assert ('''real*8, dimension(op_ncell_3d,ndf_w0,ndf_w0), intent(in) :: op
 
     !$acc routine seq''' in contents)
     assert LFRicBuild(kernel_outputdir).code_compiles(psy)
