@@ -43,7 +43,7 @@ from fparser.two import Fortran2003
 
 from psyclone.errors import InternalError
 from psyclone.parse import FileInfo, ModuleInfo, ModuleInfoError, ModuleManager
-from psyclone.psyir.nodes import Container, Node
+from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.tests.utilities import get_base_path
 
@@ -109,7 +109,7 @@ end module my_mod''')
 
     mod_info = ModuleInfo("my_mod", FileInfo(filepath))
 
-    psyir = mod_info.get_psyir_container_node()
+    psyir = mod_info.get_psyir()
     assert isinstance(psyir, Container)
     assert psyir.name == "my_mod"
 
@@ -128,7 +128,7 @@ contains
   end function broken
 end module my_mod''')
     mod_info: ModuleInfo = ModuleInfo("my_mod", FileInfo(filepath))
-    psyir = mod_info.get_psyir_container_node()
+    psyir = mod_info.get_psyir()
     assert psyir is None
     out, _ = capsys.readouterr()
     assert "Error trying to create PSyIR for " in out
@@ -137,7 +137,7 @@ end module my_mod''')
     # The simplest way to do this is to monkeypatch.
     mod_info._psyir_container_node = None
     monkeypatch.setattr(mod_info, "get_fparser_tree", lambda: None)
-    assert mod_info.get_psyir_container_node() is None
+    assert mod_info.get_psyir() is None
 
 
 # -----------------------------------------------------------------------------
@@ -158,7 +158,7 @@ end module my_mod''')
 
     mod_info = ModuleInfo("wrong_name_mod", FileInfo(filepath))
     with pytest.raises(InternalError) as err:
-        mod_info.get_psyir_container_node()
+        mod_info.get_psyir()
     assert ("my_mod.f90' does not contain a module named 'wrong_name_mod'"
             in str(err.value))
 
@@ -166,7 +166,7 @@ end module my_mod''')
     # module.
     mod_info = ModuleInfo("my_mod", FileInfo(filepath))
     mod_info._psyir_container_node = Container("other_mod")
-    assert mod_info.get_psyir_container_node() is None
+    assert mod_info.get_psyir() is None
     out, _ = capsys.readouterr()
     assert ("my_mod.f90' does contain module 'my_mod' but PSyclone is unable "
             "to create the PSyIR of it." in out)
@@ -265,13 +265,13 @@ def test_mod_info_get_psyir(capsys, tmpdir):
     mod_info: ModuleInfo = mod_man.get_module_info(
         "testkern_import_symbols_mod")
     assert mod_info._psyir_container_node is None
-    psyir: Container = mod_info.get_psyir_container_node()
+    psyir: Container = mod_info.get_psyir()
     assert isinstance(psyir, Container)
     assert psyir.name == "testkern_import_symbols_mod"
     # Make sure the PSyIR is cached:
     assert mod_info._psyir_container_node.children[0] is psyir
     # Test that we get the cached value (and not a new instance)
-    psyir_cached = mod_info.get_psyir_container_node()
+    psyir_cached = mod_info.get_psyir()
     assert psyir_cached is psyir
 
     # Test that a file that can't be converted to PSyIR returns an
@@ -283,7 +283,7 @@ end module broken_mod''')
     mod_man.add_search_path(str(tmpdir), recursive=False)
     broken_builtins = mod_man.get_module_info("broken_mod")
     broken_builtins_psyir = \
-        broken_builtins.get_psyir_container_node()
+        broken_builtins.get_psyir()
     # We should get no PSyIR
     assert broken_builtins_psyir is None
 
@@ -313,7 +313,7 @@ def test_generic_interface():
     mod_info = mod_man.get_module_info("g_mod")
 
     # It should contain all two concrete functions
-    contr = mod_info.get_psyir_container_node()
+    contr = mod_info.get_psyir()
 
     assert contr.find_routine_psyir("myfunc1")
     assert contr.find_routine_psyir("myfunc2")
@@ -339,7 +339,7 @@ def test_module_info_extract_import_information_error():
     assert mod_info._used_symbols_from_module_name is None
 
     with pytest.raises(ModuleInfoError) as einfo:
-        mod_info._extract_used_module_names_from_fparser_tree()
+        mod_info._extract_import_information()
 
     print(einfo.value)
     assert ("FParser Error: Failed to get fparser tree: at line 4"
@@ -365,11 +365,11 @@ end function myfunc1
 end module my_mod''')
 
     module_info: ModuleInfo = ModuleInfo("my_mod", FileInfo(filepath))
-    assert isinstance(module_info.get_symbol_by_name("myfunc1"), RoutineSymbol)
+    assert isinstance(module_info.get_symbol("myfunc1"), RoutineSymbol)
     # A Symbol that doesn't exist.
-    assert module_info.get_symbol_by_name("amos") is None
+    assert module_info.get_symbol("amos") is None
     # When no Container has been created. Monkeypatch
-    # get_psyir_container_node() to simplify
+    # get_psyir() to simplify
     # this.
 
     def raise_error():
@@ -378,13 +378,13 @@ end module my_mod''')
 
     monkeypatch.setattr(
         module_info,
-        "get_psyir_container_node",
+        "get_psyir",
         raise_error)
     monkeypatch.setattr(
         module_info,
-        "get_psyir_container_node",
+        "get_psyir",
         raise_error)
-    assert module_info.get_symbol_by_name("amos") is None
+    assert module_info.get_symbol("amos") is None
 
 
 def test_module_info_coverage_a(tmpdir, monkeypatch):
@@ -401,7 +401,7 @@ def test_module_info_coverage_a(tmpdir, monkeypatch):
         fout.write(SOURCE_DUMMY)
 
     # We create a dummy
-    node = Node("Dummy")
+    node = Container("Dummy")
     module_info: ModuleInfo = ModuleInfo(
             "my_mod",
             FileInfo(filename),
@@ -409,7 +409,7 @@ def test_module_info_coverage_a(tmpdir, monkeypatch):
         )
 
     # view() creates also a list of all modules based on fparser!!!
-    module_info.view()
+    module_info.view_tree()
     assert module_info is not None
 
 
@@ -418,7 +418,7 @@ def test_module_info_coverage_source_node_found(tmpdir, monkeypatch):
     Coverage test: File not found
     """
 
-    node = Node("Dummy")
+    node = Container("Dummy")
     module_info: ModuleInfo = ModuleInfo(
             "my_mod",
             FileInfo("/tmp/source_not_found.f90"),
@@ -444,7 +444,7 @@ def test_module_info_coverage_fparser_tree(tmpdir, monkeypatch):
     with open(filename, "w", encoding='utf-8') as fout:
         fout.write(SOURCE_DUMMY)
 
-    node = Node("Dummy")
+    node = Container("Dummy")
     module_info: ModuleInfo = ModuleInfo(
             "my_mod", FileInfo(filename), node)
 
@@ -456,7 +456,7 @@ def test_module_info_coverage_fparser_tree(tmpdir, monkeypatch):
     with open(filename, "w", encoding='utf-8') as fout:
         fout.write(SOURCE_DUMMY+"\ncreate some error")
 
-    node = Node("Dummy")
+    node = Container("Dummy")
     module_info: ModuleInfo = ModuleInfo(
             "my_mod", FileInfo(filename), node)
 
@@ -468,7 +468,7 @@ def test_module_info_coverage_fparser_tree(tmpdir, monkeypatch):
     #
     # File not found
     #
-    node = Node("Dummy")
+    node = Container("Dummy")
     module_info: ModuleInfo = ModuleInfo(
             "my_mod", FileInfo("/I_dont_exist/psyclone/asdf"), node)
 

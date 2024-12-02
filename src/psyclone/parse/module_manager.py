@@ -67,6 +67,13 @@ class ModuleManager:
         '''Static function that if necessary creates and returns the singleton
         ModuleManager instance.
 
+        :param use_caching: If `True`, a file-based caching of the fparser
+            tree will be used. This can significantly accelerate obtaining
+            a PSyIR from a source file.
+            For parallel builds, parallel race conditions to the cache file
+            can happen, but this shouldn't lead to wrong results. However,
+            that's untested so far.
+
         '''
         if not ModuleManager._instance:
             ModuleManager._instance = ModuleManager(cache_active, cache_path)
@@ -79,12 +86,6 @@ class ModuleManager:
                 cache_active: bool = None,
                 cache_path: str = None
             ):
-        """Constructor
-
-        :param use_caching: Whether to use (`True`) or
-            disable (`False`) caching
-        """
-
         if ModuleManager._instance is not None:
             raise InternalError("You need to use 'ModuleManager.get()' "
                                 "to get the singleton instance.")
@@ -280,7 +281,7 @@ class ModuleManager:
 
         for fileinfo in self._filepath_to_file_info.values():
             fileinfo: FileInfo
-            fileinfo.get_psyir_node(verbose=verbose)
+            fileinfo.get_psyir(verbose=verbose)
 
     def load_all_module_infos(self, verbose: bool = False, indent: str = ""):
         """Load the module info using psyir nodes
@@ -298,7 +299,7 @@ class ModuleManager:
                     f"file '{file_info._filename}"
                 )
 
-            psyir_node: Node = file_info.get_psyir_node(
+            psyir_node: Node = file_info.get_psyir(
                 verbose=verbose, indent=indent + "  "
             )
 
@@ -414,9 +415,9 @@ class ModuleManager:
         # could be defeated by e.g.
         #   module &
         #    my_mod
-        # `finfo.source_code` will read the file if it hasn't already been
-        # cached.
-        mod_names = self._module_pattern.findall(finfo.source_code)
+        # `finfo.get_source_code()` will read the file if it hasn't already
+        # been cached.
+        mod_names = self._module_pattern.findall(finfo.get_source_code())
 
         return [name.lower() for name in mod_names]
 

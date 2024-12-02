@@ -71,7 +71,7 @@ def test_file_info_missing_file():
     '''
     finfo = FileInfo("missing.txt")
     with pytest.raises(FileNotFoundError) as err:
-        _ = finfo.source_code
+        _ = finfo.get_source_code()
     assert "'missing.txt'" in str(err.value)
 
 
@@ -86,16 +86,16 @@ def test_file_info_content(tmpdir):
     with open(fname, "w", encoding='utf-8') as fout:
         fout.write(content)
     finfo = FileInfo(fname)
-    input1 = finfo.source_code
+    input1 = finfo.get_source_code()
     assert input1 == content
     # Check that the contents have been cached.
-    input2 = finfo.source_code
+    input2 = finfo.get_source_code()
     assert input2 is input1
 
 
 def test_file_info_decode_error(tmpdir):
     '''
-    Check that FileInfo.source_code handles a decoding error when reading
+    Check that FileInfo.get_source_code() handles a decoding error when reading
     a file.
 
     '''
@@ -106,7 +106,7 @@ def test_file_info_decode_error(tmpdir):
         fout.write(content)
     finfo = FileInfo(fname)
     # Content of file has been read with problematic byte skipped.
-    assert finfo.source_code == "Just\nA\nTest"
+    assert finfo.get_source_code() == "Just\nA\nTest"
 
 
 def test_file_info_source_fparser_psyir(tmpdir):
@@ -133,8 +133,8 @@ def test_file_info_source_fparser_psyir(tmpdir):
     fparser_tree2 = file_info.get_fparser_tree(verbose=True)
     assert fparser_tree is fparser_tree2
 
-    psyir_node = file_info.get_psyir_node(verbose=True)
-    psyir_node2 = file_info.get_psyir_node(verbose=True)
+    psyir_node = file_info.get_psyir(verbose=True)
+    psyir_node2 = file_info.get_psyir(verbose=True)
     assert psyir_node is psyir_node2
 
     # For coverage check
@@ -173,7 +173,7 @@ def test_file_info_load_from_cache(tmpdir):
     assert file_info._cache_data_save is None
 
     # Load file which triggers storing things to cache
-    psyir_node = file_info.get_psyir_node(verbose=True)
+    psyir_node = file_info.get_psyir(verbose=True)
     assert isinstance(psyir_node, Node)
 
     # Save cache is used
@@ -188,7 +188,7 @@ def test_file_info_load_from_cache(tmpdir):
     assert file_info._cache_data_save is None
 
     # Load file which triggers storing things to cache
-    psyir_node = file_info.get_psyir_node(verbose=True)
+    psyir_node = file_info.get_psyir(verbose=True)
     assert isinstance(psyir_node, Node)
 
     # Loaded and saved to cache
@@ -232,7 +232,7 @@ def test_file_info_load_from_cache_corrupted(tmpdir):
     assert file_info._cache_data_save is None
 
     # Load with damaged cache file
-    psyir_node = file_info.get_psyir_node(verbose=True)
+    psyir_node = file_info.get_psyir(verbose=True)
     assert isinstance(psyir_node, Node)
 
     # No cache exists
@@ -250,7 +250,7 @@ def test_file_info_load_from_cache_corrupted(tmpdir):
     assert file_info._cache_data_save is None
 
     # Load with damaged cache file
-    psyir_node = file_info.get_psyir_node(verbose=True)
+    psyir_node = file_info.get_psyir(verbose=True)
     assert isinstance(psyir_node, Node)
 
     # Cache was loaded
@@ -287,7 +287,7 @@ def test_file_info_source_changed(tmpdir):
     #
 
     file_info: FileInfo = FileInfo(filename, cache_active=True)
-    psyir_node = file_info.get_psyir_node(verbose=True)
+    psyir_node = file_info.get_psyir(verbose=True)
     assert isinstance(psyir_node, Node)
 
     assert file_info._cache_data_load is None
@@ -307,7 +307,7 @@ def test_file_info_source_changed(tmpdir):
     file_info: FileInfo = FileInfo(filename, cache_active=True)
 
     # Load, but not from cache
-    psyir_node = file_info.get_psyir_node(verbose=True)
+    psyir_node = file_info.get_psyir(verbose=True)
     assert isinstance(psyir_node, Node)
 
     # Cache was not loaded
@@ -342,7 +342,7 @@ def test_file_info_source_with_bugs(tmpdir):
 
     from psyclone.parse.file_info import FileInfoFParserError
     with pytest.raises(FileInfoFParserError) as einfo:
-        file_info.get_psyir_node(verbose=True)
+        file_info.get_psyir(verbose=True)
 
     assert "FParser Error: Failed to get fparser tree: at line 5" in (
         str(einfo.value))
@@ -370,7 +370,7 @@ def test_file_info_cachefile_not_accessible(tmpdir):
     source_code = file_info.get_source_code(verbose=True)
     assert source_code == SOURCE_DUMMY
 
-    psyir_node = file_info.get_psyir_node(verbose=True)
+    psyir_node = file_info.get_psyir(verbose=True)
     assert isinstance(psyir_node, Node)
 
 
@@ -385,7 +385,7 @@ def test_file_info_cachefile_pickle_load_exception(tmpdir, monkeypatch):
 
     file_info: FileInfo = FileInfo(filename, cache_active=True)
 
-    psyir_node = file_info.get_psyir_node(verbose=True)
+    psyir_node = file_info.get_psyir(verbose=True)
     assert isinstance(psyir_node, Node)
 
     assert file_info._cache_data_load is None
@@ -408,7 +408,7 @@ def test_file_info_cachefile_pickle_dump_exception(tmpdir, monkeypatch):
 
     monkeypatch.setattr("pickle.dump", fun_exception)
 
-    psyir_node = file_info.get_psyir_node(verbose=True)
+    psyir_node = file_info.get_psyir(verbose=True)
     assert isinstance(psyir_node, Node)
 
     assert file_info._cache_data_load is None
@@ -440,10 +440,10 @@ def test_file_info_source_psyir_test(tmpdir):
 
     # Create cache
     file_info: FileInfo = FileInfo(filename, cache_active=True)
-    file_info.get_psyir_node()
+    file_info.get_psyir()
 
     # Load again for coverage case
-    file_info.get_psyir_node()
+    file_info.get_psyir()
 
     # Load from cache
     file_info: FileInfo = FileInfo(filename, cache_active=True)
@@ -455,5 +455,5 @@ def test_file_info_source_psyir_test(tmpdir):
     psyir_node = Node("dummy")
     file_info._cache_data_load._psyir_node = psyir_node
 
-    psyir_node2 = file_info.get_psyir_node(verbose=True)
+    psyir_node2 = file_info.get_psyir(verbose=True)
     assert psyir_node is psyir_node2

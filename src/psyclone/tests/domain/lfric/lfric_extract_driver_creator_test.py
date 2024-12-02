@@ -111,7 +111,7 @@ def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
                         module_name="": None)
     mod_man = ModuleManager.get()
     minfo = mod_man.get_module_info("module_with_var_mod")
-    cntr = minfo.get_psyir_container_node()
+    cntr = minfo.get_psyir()
     # We can't use 'remove()' with a DataSymbol.
     cntr.symbol_table._symbols.pop("module_var_b")
     ledc._create_read_in_code(new_routine,

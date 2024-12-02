@@ -72,7 +72,7 @@ def test_call_tree_compute_all_non_locals_non_kernel():
 
     ctu = CallTreeUtils()
 
-    container_node = mod_info.get_psyir_container_node()
+    container_node = mod_info.get_psyir()
 
     # Check that using a local variable is not reported:
     psyir = container_node.find_routine_psyir("local_var_sub")
@@ -146,13 +146,13 @@ def test_call_tree_generic_functions():
     # First make sure we get indeed all three functions (even though
     # one of the functions does not exist, which is required for testing
     # exceptions):
-    all_names = (mod_info_call_tree.get_psyir_container_node().
+    all_names = (mod_info_call_tree.get_psyir().
                  resolve_routine("generic_function"))
     assert all_names == ["real_func", "double_func", "integer_func"]
 
     ctu = CallTreeUtils()
     mod_info = mod_man.get_module_info("module_calling_generic_function")
-    todo = ctu.get_non_local_symbols(mod_info.get_psyir_container_node())
+    todo = ctu.get_non_local_symbols(mod_info.get_psyir())
     rw_info = ReadWriteInfo()
     ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert (set(rw_info.read_list) ==
@@ -201,7 +201,7 @@ def test_call_tree_get_used_symbols_from_modules():
     mod_man.add_search_path(test_dir)
 
     mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
-    container_node = mod_info.get_psyir_container_node()
+    container_node = mod_info.get_psyir()
     psyir = container_node.find_routine_psyir("testkern_import_symbols_code")
     ctu = CallTreeUtils()
     non_locals = ctu.get_non_local_symbols(psyir)
@@ -245,7 +245,7 @@ def test_call_tree_get_used_symbols_from_modules_renamed():
     mod_man.add_search_path(test_dir)
 
     mod_info = mod_man.get_module_info("module_renaming_external_var_mod")
-    container_node = mod_info.get_psyir_container_node()
+    container_node = mod_info.get_psyir()
     psyir = container_node.find_routine_psyir("renaming_subroutine")
     ctu = CallTreeUtils()
     non_locals = ctu.get_non_local_symbols(psyir)
@@ -350,7 +350,7 @@ def test_get_non_local_read_write_info_errors(capsys):
     mod_man.add_search_path(test_dir)
     kernels = schedule.walk(Kern)
     minfo = mod_man.get_module_info(kernels[0].module_name)
-    cntr = minfo.get_psyir_container_node()
+    cntr = minfo.get_psyir()
     routine = cntr.find_routine_psyir("testkern_import_symbols_code")
     # Remove the kernel routine from the PSyIR.
     routine.detach()
@@ -439,7 +439,7 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
     # associated Symbol.
     info = SingleVariableAccessInfo(Signature("module_subroutine"))
     minfo = mod_man.get_module_info("module_with_var_mod")
-    cntr = minfo.get_psyir_container_node()
+    cntr = minfo.get_psyir()
     cntr.find_routine_psyir("module_subroutine").detach()
     # Since the Routine detach removes the routine symbol, we add a
     # Routine symbol back in. This mimics the behaviour of having a
@@ -500,13 +500,13 @@ def test_module_info_generic_interfaces():
     mod_info = mod_man.get_module_info("g_mod")
     ctu = CallTreeUtils()
 
-    cntr = mod_info.get_psyir_container_node()
+    cntr = mod_info.get_psyir()
     all_routines = cntr.resolve_routine("myfunc")
     all_non_locals = []
     for routine_name in all_routines:
         all_non_locals.extend(
             ctu.get_non_local_symbols(
-                mod_info.get_psyir_container_node().
+                mod_info.get_psyir().
                 find_routine_psyir(routine_name)))
     # Both functions of the generic interface use 'module_var',
     # and in addition my_func1 uses module_var_1, myfunc2 uses module_var_2
@@ -669,7 +669,7 @@ def test_call_tree_error_module_is_codeblock(capsys):
     mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
     # get_psyir returns the module PSyIR, which we need to replace with
     # the codeblock in order to reproduce this error:
-    container = mod_info.get_psyir_container_node()
+    container = mod_info.get_psyir()
     container.replace_with(cblock)
 
     ctu = CallTreeUtils()
