@@ -37,10 +37,11 @@
 ''' This module contains the Call node implementation.'''
 
 from collections.abc import Iterable
+from typing import List
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, PSycloneError
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
@@ -54,8 +55,6 @@ from psyclone.psyir.symbols import (
     UnsupportedFortranType,
     DataSymbol,
 )
-from typing import List
-from psyclone.errors import PSycloneError
 
 
 class CallMatchingArgumentsNotFound(PSycloneError):
