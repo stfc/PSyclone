@@ -714,7 +714,7 @@ def _process_routine_symbols(module_ast, container, visibility_map):
         is_elemental = False
         # Name of the routine.
         stmt = walk(routine, (Fortran2003.Subroutine_Stmt,
-                                   Fortran2003.Function_Stmt))[0]
+                              Fortran2003.Function_Stmt))[0]
         name = str(stmt.children[1])
         # Type to give the RoutineSymbol.
         sym_type = type_map[type(routine)]()
@@ -2020,15 +2020,17 @@ class Fparser2Reader():
                 if isinstance(child, Fortran2003.Derived_Type_Stmt):
                     continue
                 if isinstance(child, Fortran2003.Comment):
-                    # fparser2 generates lots of empty Comment nodes (without even a '!'), drop them
+                    # fparser2 generates lots of empty Comment nodes
+                    # (without even a '!'), drop them
                     if len(child.tostr()) == 0:
                         continue
                     comment_str = child.tostr()[1:].strip()
                     preceding_comments_strs.append(comment_str)
                     continue
                 if isinstance(child, Fortran2003.Component_Part):
-                    for component in walk(child, Fortran2003.Data_Component_Def_Stmt):
-                        self._process_decln(parent, local_table, component, 
+                    for component in walk(child,
+                                          Fortran2003.Data_Component_Def_Stmt):
+                        self._process_decln(parent, local_table, component,
                                             preceding_comments_strs=preceding_comments_strs)
                         preceding_comments_strs = []
             # Convert from Symbols to StructureType components.
@@ -2433,8 +2435,9 @@ class Fparser2Reader():
                                          partial_datatype=datatype),
                                      interface=UnknownInterface(),
                                      visibility=vis,
-                                    initial_value=init)
-                            new_symbol.preceding_comment = '\n'.join(preceding_comments_strs)
+                                     initial_value=init)
+                            new_symbol.preceding_comment \
+                                = '\n'.join(preceding_comments_strs)
                             parent.symbol_table.add(new_symbol)
                         except KeyError as err:
                             if len(orig_children) == 1:
@@ -2766,7 +2769,7 @@ class Fparser2Reader():
         # Store any comments that precede the next node
         preceding_comments_strs = []
         for child in nodes:
-            # If the child is a comment, store it and continue to the next
+            # If the child is a comment, store it and continue to the next
             if isinstance(child, Fortran2003.Comment):
                 if len(child.tostr()) == 0:
                     # Skip empty comments
@@ -2795,7 +2798,8 @@ class Fparser2Reader():
                     # Add the comments to nodes that support it and reset the
                     # list of comments
                     if isinstance(psy_child, CommentableMixin):
-                        psy_child.preceding_comment += '\n'.join(preceding_comments_strs)
+                        psy_child.preceding_comment\
+                            += '\n'.join(preceding_comments_strs)
                         preceding_comments_strs = []
                     parent.addchild(psy_child)
                 # If psy_child is not initialised but it didn't produce a
@@ -3280,7 +3284,8 @@ class Fparser2Reader():
                     newifblock.ast = node.content[start_idx]
 
                 # Add the comments to the if block.
-                newifblock.preceding_comment = '\n'.join(preceding_comments_strs)
+                newifblock.preceding_comment \
+                    = '\n'.join(preceding_comments_strs)
                 preceding_comments_strs = []
 
                 # Create condition as first child
@@ -5275,10 +5280,11 @@ class Fparser2Reader():
             self.process_declarations(routine, decl_list, arg_list)
 
             # TODO: fparser issue
-            # fparser puts comments at the end of the declarations 
+            # fparser puts comments at the end of the declarations
             # whereas as preceding comments they belong in the execution part
             lost_comments = []
-            if len(decl_list) != 0 and isinstance(decl_list[-1], Fortran2003.Implicit_Part):
+            if len(decl_list) != 0 and isinstance(decl_list[-1],
+                                                  Fortran2003.Implicit_Part):
                 for comment in walk(decl_list[-1], Fortran2003.Comment):
                     if len(comment.tostr()) == 0:
                         continue

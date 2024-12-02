@@ -973,7 +973,7 @@ class StructureType(DataType):
         return self._components
 
     def add(self, name, datatype, visibility, initial_value,
-            preceding_comment = ""):
+            preceding_comment=""):
         '''
         Create a component with the supplied attributes and add it to
         this StructureType.

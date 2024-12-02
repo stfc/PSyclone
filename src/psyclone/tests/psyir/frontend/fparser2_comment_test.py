@@ -33,20 +33,21 @@
 # -----------------------------------------------------------------------------
 # Author Julien Remy, Université Grenoble Alpes & Inria
 
-'''Performs pytest tests on the support for comments in the fparser2 
-PSyIR front-end'''
+"""Performs pytest tests on the support for comments in the fparser2
+PSyIR front-end"""
 
 import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Container, Routine, Assignment, Loop, IfBlock, Call
+from psyclone.psyir.nodes import (Container, Routine, Assignment,
+                                  Loop, IfBlock, Call)
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols import DataTypeSymbol, StructureType
 
 from psyclone.psyir.backend.fortran import FortranWriter
 
 # Test code
-CODE = '''
+CODE = """
 ! Comment on module 'test_mod'
 ! and second line
 module test_mod
@@ -100,10 +101,11 @@ contains
     end do
   end subroutine test_sub
 end module test_mod
-'''
+"""
+
 
 def test_no_comments():
-    '''Test that the FortranReader is without comments by default'''
+    """Test that the FortranReader is without comments by default"""
     reader = FortranReader()
     psyir = reader.psyir_from_source(CODE)
 
@@ -132,7 +134,7 @@ def test_no_comments():
 
 
 def test_comments():
-    '''Test that the FortranReader is able to read comments'''
+    """Test that the FortranReader is able to read comments"""
     reader = FortranReader()
     psyir = reader.psyir_from_source(CODE, ignore_comments=False)
 
@@ -179,7 +181,8 @@ def test_comments():
     loop_j = loops[1]
     assert loop_j.preceding_comment == "Comment on loop 'do j = 1, 10'"
 
-EXPECTED_WITH_COMMENTS = '''! Comment on module 'test_mod'
+
+EXPECTED_WITH_COMMENTS = """! Comment on module 'test_mod'
 ! and second line
 module test_mod
   implicit none
@@ -235,10 +238,11 @@ module test_mod
   end subroutine test_sub
 
 end module test_mod
-'''
+"""
+
 
 def test_write_comments():
-    '''Test that the comments are written back to the code'''
+    """Test that the comments are written back to the code"""
     reader = FortranReader()
     writer = FortranWriter()
     psyir = reader.psyir_from_source(CODE, ignore_comments=False)
@@ -246,3 +250,56 @@ def test_write_comments():
     assert generated_code == EXPECTED_WITH_COMMENTS
 
 
+CODE_WITH_DIRECTIVE = """
+subroutine test_sub()
+  integer :: a
+  integer :: i
+  ! Comment on loop 'do i = 1, 10'
+  !$omp parallel do
+  do i = 1, 10
+    a = 1
+  end do
+end subroutine test_sub
+"""
+
+
+def test_no_directives():
+    """Test that the FortranReader is without directives by default"""
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(CODE_WITH_DIRECTIVE, ignore_comments=False)
+
+    loop = psyir.walk(Loop)[0]
+    assert loop.preceding_comment == "Comment on loop 'do i = 1, 10'"
+
+
+def test_directives():
+    """Test that the FortranReader is able to read directives"""
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(CODE_WITH_DIRECTIVE, ignore_comments=False, ignore_directives=False)
+
+    loop = psyir.walk(Loop)[0]
+    assert loop.preceding_comment == "Comment on loop 'do i = 1, 10'\n$omp parallel do"
+
+
+EXPECTED_WITH_DIRECTIVES = """subroutine test_sub()
+  integer :: a
+  integer :: i
+
+  ! Comment on loop 'do i = 1, 10'
+  !$omp parallel do
+  do i = 1, 10, 1
+    a = 1
+  enddo
+
+end subroutine test_sub
+"""
+
+@pytest.mark.xfail(reason="Directive is written back as '! $omp parallel do'"
+                         "instead of '!$omp parallel do'")
+def test_write_directives():
+    """Test that the directives are written back to the code"""
+    reader = FortranReader()
+    writer = FortranWriter()
+    psyir = reader.psyir_from_source(CODE_WITH_DIRECTIVE, ignore_comments=False, ignore_directives=False)
+    generated_code = writer(psyir)
+    assert generated_code == EXPECTED_WITH_DIRECTIVES

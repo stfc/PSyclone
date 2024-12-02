@@ -48,7 +48,6 @@ from psyclone.psyir.symbols.interfaces import (
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 
 
-
 class SymbolError(PSycloneError):
     '''
     PSyclone-specific exception for use with errors relating to the Symbol and

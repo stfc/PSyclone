@@ -44,7 +44,7 @@ from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003, pattern_tools
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
-from fparser.two.utils import NoMatchError
+from fparser.two.utils import NoMatchError, walk
 from psyclone.configuration import Config
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Schedule, Assignment, Routine
@@ -86,13 +86,17 @@ class FortranReader():
                 f"Invalid Fortran name '{name}' found.")
 
     def psyir_from_source(self, source_code: str, free_form: bool = True,
-                          ignore_comments: bool = True):
+                          ignore_comments: bool = True,
+                          ignore_directives: bool = True):
         ''' Generate the PSyIR tree representing the given Fortran source code.
 
         :param source_code: text representation of the code to be parsed.
         :param free_form: If parsing free-form code or not (default True).
-        :param ignore_comments: If comments should be ignored or not 
+        :param ignore_comments: If comments should be ignored or not
                                 (default True).
+        :param ignore_directives: If directives should be ignored or not
+                                  (default True). Only has an effect
+                                  if ignore_comments is False.
 
         :returns: PSyIR representing the provided Fortran source code.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -105,6 +109,10 @@ class FortranReader():
         # Set reader to free format.
         string_reader.set_format(FortranFormat(free_form, False))
         parse_tree = self._parser(string_reader)
+
+        if (not ignore_comments) and ignore_directives:
+            self._strip_directives(parse_tree)
+
         psyir = self._processor.generate_psyir(parse_tree)
         return psyir
 
@@ -199,7 +207,8 @@ class FortranReader():
         return fake_parent[0].detach()
 
     def psyir_from_file(self, file_path, free_form=True,
-                        ignore_comments: bool = True):
+                        ignore_comments: bool = True,
+                        ignore_directives: bool = True):
         ''' Generate the PSyIR tree representing the given Fortran file.
 
         :param file_path: path of the file to be read and parsed.
@@ -211,6 +220,11 @@ class FortranReader():
         :param ignore_comments: If comments should be ignored or not
                                 (default True).
         :type ignore_comments: bool
+
+        :param ignore_directives: If directives should be ignored or not
+                                  (default True). Only has an effect
+                                  if ignore_comments is False.
+        :type ignore_directives: bool
 
         :returns: PSyIR representing the provided Fortran file.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -231,8 +245,22 @@ class FortranReader():
         reader.set_format(FortranFormat(free_form, False))
         parse_tree = self._parser(reader)
         _, filename = os.path.split(file_path)
+
+        if (not ignore_comments) and ignore_directives:
+            self._strip_directives(parse_tree)
+
         psyir = self._processor.generate_psyir(parse_tree, filename)
         return psyir
+
+    def _strip_directives(self, node):
+        '''Remove all '!$' directives from the comments in the fparser tree.
+
+        :param node: the fparser node to process.
+        '''
+        for comment in walk(node, Fortran2003.Comment):
+            if comment.tostr().startswith("!$"):
+                comment.items[0] = ""
+        return node
 
 
 # For Sphinx AutoAPI documentation generation
