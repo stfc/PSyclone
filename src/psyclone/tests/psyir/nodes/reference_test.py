@@ -396,7 +396,7 @@ def test_reference_previous_accesses(fortran_reader):
     assert len(b.previous_accesses()) == 0
     assert a_2.previous_accesses()[0] is a
     assert b_2.previous_accesses()[0] is b
-            
+
     code = '''subroutine my_sub()
     integer :: a
     integer :: b
@@ -411,7 +411,7 @@ def test_reference_previous_accesses(fortran_reader):
     loop = routine.children[1]
     b_a = loop.loop_body.children[0].lhs
     a_2 = loop.loop_body.children[0].rhs
-    assert len(a.previous_accesses()) == 0  
+    assert len(a.previous_accesses()) == 0
     assert len(b_a.previous_accesses()) == 1
     assert b_a.previous_accesses()[0] is b_a
     assert len(a_2.previous_accesses()) == 1
