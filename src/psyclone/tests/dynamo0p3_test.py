@@ -464,7 +464,7 @@ def test_op_any_discontinuous_space_1(tmpdir):
     assert "ndf_adspc3_op4 = op4_proxy%fs_to%get_ndf()" in generated_code
     assert "ndf_adspc7_op4 = op4_proxy%fs_from%get_ndf()" in generated_code
     assert ("CALL testkern_any_discontinuous_space_op_1_code(cell, "
-            "nlayers_op4, f1_1_data, f1_2_data, f1_3_data, "
+            "nlayers_f1, f1_1_data, f1_2_data, f1_3_data, "
             "f2_data, op3_proxy%ncell_3d, op3_local_stencil, "
             "op4_proxy%ncell_3d, op4_local_stencil, rdt, "
             "ndf_adspc1_f1, undf_adspc1_f1, map_adspc1_f1(:,cell), "
