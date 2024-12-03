@@ -867,7 +867,7 @@ class DefinitionUseChain:
                     body = ancestor.loop_body.children[:]
                     # Find the stop point - this needs to be the last node
                     # in the ancestor loop
-                    sub_stop_point = ancestor.walk(Node)[-1].abs_position
+                    sub_stop_point = ancestor.walk(Node)[-1].abs_position + 1
                     # We make a copy of the reference to have a detached
                     # node to avoid handling the special cases based on
                     # the parents of the reference.

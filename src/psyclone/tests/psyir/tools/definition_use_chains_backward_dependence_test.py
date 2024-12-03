@@ -323,7 +323,7 @@ def test_definition_use_chain_find_backward_accesses_while_loop_example(
     assert reaches[3] is routine.children[1].lhs
 
 
-def test_definition_use_chain_foward_accesses_nested_loop_example(
+def test_definition_use_chain_backward_accesses_nested_loop_example(
     fortran_reader,
 ):
     """Functionality test for the find_backward_accesses routine. This
