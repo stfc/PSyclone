@@ -50,6 +50,10 @@ cloning this repository and using:
 
     $ pip install .
 
+or in developer (editable) mode using
+
+    $ pip install -e .
+
 For more information about the installation process see
 [this section of the User Guide](https://psyclone.readthedocs.io/en/latest/system_specific_setup.html).
 

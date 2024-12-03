@@ -134,8 +134,9 @@ can be found in the API-specific sections).
 .. note:: PSyclone currently only supports OpenCL and
           KernelImportsToArguments transformations for the GOcean 1.0
           API, the OpenACC Data transformation is limited to
-          the NEMO and GOcean 1.0 APIs and the OpenACC Kernels
-          transformation is limited to the NEMO and LFRic (Dynamo0.3) APIs.
+          the generic code transformation and the GOcean 1.0 API and the
+          OpenACC Kernels transformation is limited to the generic code
+          transformation and the LFRic API.
 
 .. note:: The directory layout of PSyclone is currently being restructured.
           As a result of this some transformations are already in the new
@@ -146,11 +147,6 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.Abs2CodeTrans
       :members: apply
       :noindex:
-
-.. warning:: This transformation assumes that the ABS Intrinsic acts on
-             PSyIR Real scalar data and does not check that this is
-             not the case. Once issue #658 is on master then this
-             limitation can be fixed.
 
 ####
 
@@ -459,11 +455,6 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.Sign2CodeTrans
       :members: apply
       :noindex:
-
-.. warning:: This transformation assumes that the SIGN Intrinsic acts
-             on PSyIR Real scalar data and does not check whether or not
-             this is the case. Once issue #658 is on master then this
-             limitation can be fixed.
 
 ####
 
@@ -843,9 +834,13 @@ transformations currently supported allow the addition of:
 
 The generic versions of these transformations (i.e. ones that
 theoretically work for all APIs) were given in the
-:ref:`sec_transformations_available` section. The API-specific versions
-of these transformations are described in the API-specific sections of
-this document.
+:ref:`sec_transformations_available` section. Examples of their use,
+for both CPU and offload to GPU, may be found in the
+``PSyclone/examples/nemo/scripts/omp_?pu_trans.py`` transformation scripts.
+
+The API-specific versions of these transformations are described in the
+API-specific sections of this document. Examples for the LFRic API may
+be found in ``PSyclone/examples/lfric/scripts``.
 
 .. _openmp-reductions:
 
@@ -1038,9 +1033,9 @@ porting and/or debugging of an OpenACC application as it provides
 explicit control over what data is present on a device for a given
 (part of an) Invoke routine.
 
-The PGI compiler provides an alternative approach to controlling data
-movement through its 'unified memory' option
-(``-ta=tesla:managed``). When this is enabled the compiler itself takes
+The NVIDIA compiler compiler provides an alternative approach to controlling
+data movement through its 'managed memory' option
+(``-gpu=mem:managed``). When this is enabled the compiler itself takes
 on the task of ensuring that data is copied to/from the GPU when
 required. (Note that this approach can struggle with Fortran code
 containing derived types however.)
@@ -1049,9 +1044,9 @@ As well as ensuring the correct data is copied to and from the remote
 device, OpenACC directives must also be added to a code in order to
 tell the compiler how it should be parallelised. PSyclone provides the
 ``ACCKernelsTrans``, ``ACCParallelTrans`` and ``ACCLoopTrans``
-transformations for this purpose. The simplest of these is
-``ACCKernelsTrans`` (currently only supported for the NEMO and
-Dynamo0.3 APIs) which encloses the code represented by a sub-tree of
+transformations for this purpose. The simplest of these is ``ACCKernelsTrans``
+(currently only supported for the generic code transformation
+and LFRic API) which encloses the code represented by a sub-tree of
 the PSyIR within an OpenACC ``kernels`` region.  This essentially
 gives free-reign to the compiler to automatically parallelise any
 suitable loops within the specified region. An example of the use of
@@ -1085,8 +1080,8 @@ SIR
 
 It is currently not possible for PSyclone to output SIR code without
 using a script. Three examples of such scripts are given in example 4
-for the NEMO API. The first `sir_trans.py` simply outputs SIR. This
-will raise an exception if used with the `tracer advection` example as
+for the NEMO examples directory. The first `sir_trans.py` simply outputs SIR.
+This will raise an exception if used with the `tracer advection` example as
 the example contains array-index notation which is not supported by
 the SIR backend, but will generate code for the other examples. The
 second, `sir_trans_loop.py` includes transformations to hoist code out

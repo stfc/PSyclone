@@ -39,23 +39,27 @@
 ''' This module implements the PSyclone LFRic API by specialising the required
     base class Kern in psyGen.py '''
 
-# Imports
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict
+from dataclasses import dataclass
+from typing import List
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
-from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.psyGen import InvokeSchedule, CodedKern, args_filter
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (Loop, Literal, Reference,
                                   KernelSchedule)
-from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType
+from psyclone.psyir.symbols import (DataSymbol, ScalarType, ArrayType,
+                                    INTEGER_TYPE)
 
 
 class LFRicKern(CodedKern):
@@ -66,16 +70,22 @@ class LFRicKern(CodedKern):
 
     '''
     # pylint: disable=too-many-instance-attributes
-    # An instance of this `namedtuple` is used to store information on each of
-    # the quadrature rules required by a kernel.
-    #
-    # alg_name: The actual argument text specifying the QR object in the
-    #           Alg. layer.
-    # psy_name: The PSy-layer variable name for the QR object.
-    # kernel_args: List of kernel arguments associated with this QR rule.
 
-    QRRule = namedtuple("QRRule",
-                        ["alg_name", "psy_name", "kernel_args"])
+    @dataclass(frozen=True)
+    class QRRule:
+        '''
+        Used to store information on a quadrature rule required by
+        a kernel.
+
+        :param alg_name: The actual argument text specifying the QR object in
+                         the Alg. layer.
+        :param psy_name: The PSy-layer variable name for the QR object.
+        :param kernel_args: Kernel arguments associated with this QR rule.
+
+        '''
+        alg_name: str
+        psy_name: str
+        kernel_args: List[str]
 
     def __init__(self):
         # The super-init is called from the _setup() method which in turn
@@ -112,6 +122,10 @@ class LFRicKern(CodedKern):
         self._reference_element = None
         # The mesh properties required by this kernel
         self._mesh_properties = None
+        # The depth of halo that this kernel expects to operate on. (Only
+        # applicable to kernels with operates_on=HALO_CELL_COLUMN or
+        # OWNED_AND_HALO_CELL_COLUMN.)
+        self._halo_depth = None
         # Initialise kinds (precisions) of all kernel arguments (start
         # with 'real' and 'integer' kinds)
         api_config = Config.get().api_conf("lfric")
@@ -218,6 +232,12 @@ class LFRicKern(CodedKern):
                     # Add a quadrature argument for each required quadrature
                     # rule.
                     args.append(Arg("variable", "qr_"+shape))
+
+        # If this kernel operates on halo cells then it takes an additional
+        # argument specifying the halo depth.
+        if "halo" in ktype.iterates_over:
+            args.append(Arg("variable", "halo_depth"))
+
         self._setup(ktype, "dummy_name", args, None, check=False)
 
     def _setup_basis(self, kmetadata):
@@ -260,6 +280,7 @@ class LFRicKern(CodedKern):
         super().__init__(DynKernelArguments,
                          KernelCall(module_name, ktype, args),
                          parent, check)
+
         # Remove "_code" from the name if it exists to determine the
         # base name which (if LFRic naming conventions are
         # followed) is used as the root for the module and subroutine
@@ -300,6 +321,23 @@ class LFRicKern(CodedKern):
                 f"Evaluator shape(s) {list(invalid_shapes)} is/are not "
                 f"recognised. Must be one of {const.VALID_EVALUATOR_SHAPES}.")
 
+        # If this kernel operates into the halo then it must be passed a
+        # halo depth. This is currently restricted to being either a simple
+        # variable name or a literal value.
+        freader = FortranReader()
+        invoke_schedule = self.ancestor(InvokeSchedule)
+        table = invoke_schedule.symbol_table if invoke_schedule else None
+        if "halo" in ktype.iterates_over:
+            self._halo_depth = freader.psyir_from_expression(
+                args[-1].text.lower(), symbol_table=table)
+            if isinstance(self._halo_depth, Reference):
+                # If we got a Reference, check whether we need to specialise
+                # the associated Symbol.
+                sym = self._halo_depth.symbol
+                if not hasattr(sym, "datatype"):
+                    self._halo_depth.symbol.specialise(
+                        DataSymbol,
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")())
         # If there are any quadrature rule(s), what are the names of the
         # corresponding algorithm arguments? Can't use set() here because
         # we need to preserve the ordering specified in the metadata.
@@ -308,7 +346,10 @@ class LFRicKern(CodedKern):
 
         # The quadrature-related arguments to a kernel always come last so
         # construct an enumerator with start value -<no. of qr rules>
-        for idx, shape in enumerate(qr_shapes, -len(qr_shapes)):
+        start_value = -len(qr_shapes)
+        if self._halo_depth:
+            start_value -= 1
+        for idx, shape in enumerate(qr_shapes, start_value):
 
             qr_arg = args[idx]
 
@@ -316,8 +357,8 @@ class LFRicKern(CodedKern):
             # name for the whole Invoke.
             if qr_arg.varname:
                 tag = "AlgArgs_" + qr_arg.text
-                qr_name = self.ancestor(InvokeSchedule).symbol_table.\
-                    find_or_create_integer_symbol(qr_arg.varname, tag=tag).name
+                qr_name = table.find_or_create_integer_symbol(qr_arg.varname,
+                                                              tag=tag).name
             else:
                 # If we don't have a name then we must be doing kernel-stub
                 # generation so create a suitable name.
@@ -366,6 +407,19 @@ class LFRicKern(CodedKern):
 
         # Properties of the mesh required by this kernel
         self._mesh_properties = ktype.mesh
+
+    @property
+    def halo_depth(self):
+        '''
+        If this is a kernel that has metadata specifying that it operates on
+        halo cells then this property gives the depth of halo that is written.
+
+        :returns: the PSyIR of the depth of halo that is modified.
+        :rtype: :py:class:`psyclone.psyir.nodes.Literal` |
+                :py:class:`psyclone.psyir.nodes.Reference`
+
+        '''
+        return self._halo_depth
 
     @property
     def qr_rules(self):
@@ -587,8 +641,9 @@ class LFRicKern(CodedKern):
         :returns: root of fparser1 AST for the stub routine.
         :rtype: :py:class:`fparser.one.block_statements.Module`
 
-        :raises GenerationError: if the supplied kernel stub does not operate \
-            on a supported subset of the domain (currently only "cell_column").
+        :raises GenerationError: if the supplied kernel stub does not operate
+            on a supported subset of the domain (currently only those that
+            end with "cell_column").
 
         '''
         # The operates-on/iterates-over values supported by the stub generator.
@@ -619,10 +674,10 @@ class LFRicKern(CodedKern):
         from psyclone.domain.lfric import (
             LFRicCellIterators, LFRicScalarArgs, LFRicFields,
             LFRicDofmaps, LFRicStencils)
-        from psyclone.dynamo0p3 import (DynFunctionSpaces,
-                                        DynCMAOperators, DynBoundaryConditions,
-                                        DynLMAOperators, LFRicMeshProperties,
-                                        DynBasisFunctions, DynReferenceElement)
+        from psyclone.dynamo0p3 import (
+            DynFunctionSpaces, DynCMAOperators, DynBoundaryConditions,
+            DynLMAOperators, LFRicMeshProperties, DynBasisFunctions,
+            DynReferenceElement)
         for entities in [LFRicCellIterators, LFRicDofmaps, DynFunctionSpaces,
                          DynCMAOperators, LFRicScalarArgs, LFRicFields,
                          DynLMAOperators, LFRicStencils, DynBasisFunctions,
@@ -904,12 +959,12 @@ class LFRicKern(CodedKern):
         tree to be complete).
 
         :raises GenerationError: if this kernel does not have a supported
-                        operates-on (currently only "cell_column").
+            operates-on.
         :raises GenerationError: if the loop goes beyond the level 1
-                        halo and an operator is accessed.
+            halo and an operator is accessed.
         :raises GenerationError: if a kernel in the loop has an inc access
-                        and the loop is not coloured but is within an OpenMP
-                        parallel region.
+            and the loop is not coloured but is within an OpenMP parallel
+            region.
         '''
         # Check operates-on (iteration space) before generating code
         const = LFRicConstants()
@@ -931,12 +986,13 @@ class LFRicKern(CodedKern):
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.
             if (parent_loop.upper_bound_name == "cell_halo" and
-                    parent_loop.upper_bound_halo_depth > 1):
+                    parent_loop.upper_bound_halo_depth != Literal(
+                        "1", INTEGER_TYPE)):
                 raise GenerationError(
                     f"Kernel '{self._name}' reads from an operator and "
                     f"therefore cannot be used for cells beyond the level 1 "
                     f"halo. However the containing loop goes out to level "
-                    f"{parent_loop.upper_bound_halo_depth}")
+                    f"{parent_loop.upper_bound_halo_depth.debug_string()}")
 
         if not self.is_coloured():
             # This kernel call has not been coloured
