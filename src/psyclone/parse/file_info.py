@@ -316,9 +316,23 @@ class FileInfo:
         try:
             # Atomically attempt to open the new kernel file (in case
             # this is part of a parallel build)
-            filehandler = os.open(self._filepath_cache,
-                                  os.O_CREAT | os.O_TRUNC | os.O_WRONLY)
-            filehandler = open(self._filepath_cache, "wb")
+            # We first remove the cache file and then open it.
+            # If the file exists, it throws an exception.
+            # This is not a perfect solution, but avoids parallel
+            # writing access of the same file.
+
+            # We first remove a potentially existing file
+            try:
+                os.remove(self._filepath_cache)
+            except FileNotFoundError:
+                pass
+
+            # Then we open it in exclusive mode.
+            # If it already exists, an exception would be raised.
+            fd = os.open(self._filepath_cache,
+                         os.O_CREAT | os.O_WRONLY | os.O_EXCL)
+
+            filehandler = os.fdopen(fd, "wb")
         except Exception as err:
             if verbose:
                 # TODO #11: Use logging for this
