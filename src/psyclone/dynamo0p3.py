@@ -5008,8 +5008,8 @@ class DynKernelArguments(Arguments):
                 return arg
 
         raise InternalError(
-            "Failed to find a DynKernelArgument that is a "
-            "field or operator - this is not valid for the LFRic API.")
+            f"Invalid LFRic kernel: failed to find a DynKernelArgument that is"
+            f" a field or operator in '{self.names}'.")
 
     def iteration_space_arg(self):
         '''

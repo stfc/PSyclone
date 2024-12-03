@@ -53,7 +53,8 @@ from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import (
     DynACCEnterDataDirective, DynBoundaryConditions, DynGlobalSum,
-    DynKernelArguments, DynProxies, HaloReadAccess, KernCallArgList)
+    DynKernelArgument, DynKernelArguments, DynProxies, HaloReadAccess,
+    KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
@@ -3056,6 +3057,25 @@ def test_kernel_args_has_op():
     with pytest.raises(GenerationError) as excinfo:
         _ = dka.has_operator(op_type="gh_field")
     assert "'op_type' must be a valid operator type" in str(excinfo.value)
+
+
+def test_dynkernelargs_first_field_or_op(monkeypatch):
+    '''Test the first_field_or_operator property of DynKernelArguments.'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api=TEST_API)
+    # Find the parsed code's Call class
+    call = invoke_info.calls[0].kcalls[0]
+    dka = DynKernelArguments(call, None)
+    arg = dka.first_field_or_operator
+    assert isinstance(arg, DynKernelArgument)
+    assert arg.is_field
+    # Monkeypatch the argument list to make it invalid.
+    monkeypatch.setattr(dka, "_args", [])
+    with pytest.raises(InternalError) as err:
+        dka.first_field_or_operator
+    assert ("Invalid LFRic kernel: failed to find a DynKernelArgument that is "
+            "a field or operator in ''" in str(err.value))
 
 
 def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
