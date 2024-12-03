@@ -68,17 +68,12 @@ class DataSymbol(TypedSymbol):
 
     '''
     def __init__(self, name, datatype, is_constant=False, initial_value=None,
-                 is_pointer=False, is_target=False,
                  **kwargs):
         super().__init__(name, datatype)
         self._is_constant = False
         self._initial_value = None
-        self._is_pointer = False
-        self._is_target = False
         self._process_arguments(is_constant=is_constant,
                                 initial_value=initial_value,
-                                is_pointer=is_pointer,
-                                is_target=is_target,
                                 **kwargs)
 
     def _process_arguments(self, **kwargs):
@@ -99,10 +94,6 @@ class DataSymbol(TypedSymbol):
             :type initial_value: Optional[item of TYPE_MAP_TO_PYTHON |
                                  :py:class:`psyclone.psyir.nodes.Node`]\n
             and the arguments in :py:class:`psyclone.psyir.symbols.TypedSymbol`
-            :param bool is_pointer: whether this DataSymbol is a pointer
-                                    (default is False).\n
-            :param bool is_target: whether this DataSymbol is a target
-                                    (default is False).\n
         :type kwargs: unwrapped dict.
 
         :raises ValueError: if the symbol is a run-time constant but is not
@@ -135,11 +126,6 @@ class DataSymbol(TypedSymbol):
             # a Symbol).
             self._is_constant = False
 
-        # Set the 'is_pointer' and 'is_target' attributes if they are provided,
-        # using the typechecked setters, or to False if they are not provided.
-        self._is_pointer = kwargs.pop("is_pointer", False)
-        self._is_target = kwargs.pop("is_target", False)
-
         # Record whether an explicit value has been supplied for 'interface'
         # (before it is consumed by the super method).
         interface_supplied = "interface" in kwargs
@@ -161,6 +147,12 @@ class DataSymbol(TypedSymbol):
             # a runtime constant so change its interface to be static if it
             # would otherwise default to Automatic.
             self.interface = StaticInterface()
+
+        if self.is_constant and self.datatype.is_pointer:
+            # PARAMETER and POINTER are mutually exclusive in Fortran.
+            raise ValueError(
+                f"DataSymbol '{self.name}' is a constant and therefore cannot "
+                f"be a pointer.")
 
     @property
     def is_constant(self):
@@ -298,52 +290,6 @@ class DataSymbol(TypedSymbol):
                     f"and therefore must have an initial value but got None")
             self._initial_value = None
 
-    @property
-    def is_pointer(self):
-        '''
-        :returns: Whether the symbol is a pointer (True) or not (False).
-        :rtype: bool
-        '''
-        return self._is_pointer
-
-    @is_pointer.setter
-    def is_pointer(self, is_pointer):
-        '''
-        :param bool value: whether or not this symbol is a pointer.
-        '''
-        if not isinstance(is_pointer, bool):
-            raise TypeError(
-                f"The 'is_pointer' attribute of a DataSymbol must be a "
-                f"boolean but got '{type(is_pointer).__name__}'.")
-        if self.is_target and is_pointer:
-            raise ValueError(
-                f"A DataSymbol cannot be both a pointer and a target but "
-                f"symbol '{self.name}' is being set as both.")
-        self._is_pointer = is_pointer
-
-    @property
-    def is_target(self):
-        '''
-        :returns: Whether the symbol is a target (True) or not (False).
-        :rtype: bool
-        '''
-        return self._is_target
-
-    @is_target.setter
-    def is_target(self, is_target):
-        '''
-        :param bool value: whether or not this symbol is a target.
-        '''
-        if not isinstance(is_target, bool):
-            raise TypeError(
-                f"The 'is_target' attribute of a DataSymbol must be a "
-                f"boolean but got '{type(is_target).__name__}'.")
-        if self.is_pointer and is_target:
-            raise ValueError(
-                f"A DataSymbol cannot be both a pointer and a target but "
-                f"symbol '{self.name}' is being set as both.")
-        self._is_target = is_target
-
     def __str__(self):
         ret = self.name + ": DataSymbol<" + str(self.datatype)
         ret += ", " + str(self._interface)
@@ -351,10 +297,6 @@ class DataSymbol(TypedSymbol):
             ret += f", initial_value={self.initial_value}"
         if self.is_constant:
             ret += ", constant=True"
-        if self.is_pointer:
-            ret += ", pointer=True"
-        if self.is_target:
-            ret += ", target=True"
         return ret + ">"
 
     def copy(self):
@@ -373,9 +315,7 @@ class DataSymbol(TypedSymbol):
         return DataSymbol(self.name, self.datatype, visibility=self.visibility,
                           interface=self.interface,
                           is_constant=self.is_constant,
-                          initial_value=new_init_value,
-                          is_pointer=self.is_pointer,
-                          is_target=self.is_target)
+                          initial_value=new_init_value)
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
@@ -393,5 +333,3 @@ class DataSymbol(TypedSymbol):
         super().copy_properties(symbol_in)
         self._is_constant = symbol_in.is_constant
         self._initial_value = symbol_in.initial_value
-        self._is_pointer = symbol_in.is_pointer
-        self._is_target = symbol_in.is_target

@@ -628,10 +628,9 @@ def test_validate_matmat_with_same_mem(fortran_reader):
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(assign.rhs)
-    assert ("Transformation Error: Must have full type information for result "
-            "and operands of MATMUL IntrinsicCall but found 'result: "
-            "DataSymbol<UnsupportedFortranType('REAL, DIMENSION(2, 2), "
-            "POINTER :: result')" in str(excinfo.value))
+    assert ("Expected result and operands of MATMUL IntrinsicCall to "
+            "be references to arrays that are not potentially aliased "
+            "but found" in str(excinfo.value))
 
 
 def test_apply_matvect(tmpdir):

@@ -681,7 +681,7 @@ def test_get_partial_datatype():
 
     # Entry in symbol table with partial information. Example has one
     # unsupported attribute (and no others) and an unsupported assignment.
-    reader = FortranStringReader("integer, pointer :: l1 => null()")
+    reader = FortranStringReader("integer, asynchronous :: l1 => null()")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
     datatype, init = processor._get_partial_datatype(node, fake_parent, {})
@@ -694,7 +694,7 @@ def test_get_partial_datatype():
 
     # Entry in symbol table with partial information. Example has one
     # unsupported attribute and one supported attribute.
-    reader = FortranStringReader("real*4, target, dimension(10,20) :: l1")
+    reader = FortranStringReader("real*4, asynchronous, dimension(10,20):: l1")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
     datatype, init = processor._get_partial_datatype(node, fake_parent, {})
@@ -722,7 +722,7 @@ def test_get_partial_datatype():
     # Multiple variables in the declaration are also supported but are
     # not used by PSyclone at the moment.
     reader = FortranStringReader(
-        "integer, pointer :: l1 => null(), l2 => null()")
+        "integer, asynchronous :: l1 => null(), l2 => null()")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
     datatype, init = processor._get_partial_datatype(node, fake_parent, {})
@@ -788,6 +788,30 @@ def test_process_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert symtab.lookup("p3").visibility == Symbol.Visibility.PRIVATE
     assert symtab.lookup("p4").visibility == Symbol.Visibility.PRIVATE
+
+    # pointer/target attribute
+    reader = FortranStringReader("real, pointer :: p5")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert symtab.lookup("p5").is_pointer
+    assert not symtab.lookup("p5").is_target
+    assert isinstance(symtab.lookup("p5").datatype, ScalarType)
+    assert symtab.lookup("p5").datatype.intrinsic == ScalarType.Intrinsic.REAL
+    reader = FortranStringReader("real, target :: p6")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert symtab.lookup("p6").is_target
+    assert not symtab.lookup("p6").is_pointer
+    assert isinstance(symtab.lookup("p6").datatype, ScalarType)
+    assert symtab.lookup("p6").datatype.intrinsic == ScalarType.Intrinsic.REAL
+    reader = FortranStringReader("real, dimension(5), pointer :: p7")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert symtab.lookup("p7").is_pointer
+    assert not symtab.lookup("p7").is_target
+    assert isinstance(symtab.lookup("p7").datatype, ArrayType)
+    assert symtab.lookup("p7").datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert not symtab.lookup("p7").datatype.datatype.is_pointer
 
     # Initialisations of static constant values (parameters)
     reader = FortranStringReader("integer, parameter :: i1 = 1")
@@ -860,7 +884,9 @@ def test_process_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     ptr_sym = fake_parent.symbol_table.lookup("dptr")
     assert isinstance(ptr_sym, DataSymbol)
-    assert isinstance(ptr_sym.datatype, UnsupportedFortranType)
+    assert isinstance(ptr_sym.datatype, ArrayType)
+    assert ptr_sym.datatype.intrinsic is ScalarType.Intrinsic.REAL
+    assert ptr_sym.datatype.is_pointer
     assert isinstance(ptr_sym.initial_value, CodeBlock)
 
 
@@ -875,7 +901,7 @@ def test_process_declarations_unsupportedfortrantype():
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
     reader = FortranStringReader(
-        "integer, pointer :: l1 => null(), l2 => null()")
+        "integer, asynchronous :: l1 => null(), l2 => null()")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     for varname in ("l1", "l2"):
@@ -1044,29 +1070,29 @@ def test_process_unsupported_declarations(fortran_reader):
     processor = Fparser2Reader()
 
     # Multiple symbols with a single attribute
-    reader = FortranStringReader("integer, private, pointer :: d, e")
+    reader = FortranStringReader("integer, private, asynchronous :: d, e")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     dsym = fake_parent.symbol_table.lookup("d")
     assert isinstance(dsym.datatype, UnsupportedFortranType)
-    assert dsym.datatype.declaration == "INTEGER, PRIVATE, POINTER :: d"
+    assert dsym.datatype.declaration == "INTEGER, PRIVATE, ASYNCHRONOUS :: d"
     esym = fake_parent.symbol_table.lookup("e")
     assert isinstance(esym.datatype, UnsupportedFortranType)
-    assert esym.datatype.declaration == "INTEGER, PRIVATE, POINTER :: e"
+    assert esym.datatype.declaration == "INTEGER, PRIVATE, ASYNCHRONOUS :: e"
 
     # Multiple attributes
     reader = FortranStringReader(
-        "INTEGER, PRIVATE, DIMENSION(3), POINTER :: f, g")
+        "INTEGER, PRIVATE, DIMENSION(3), ASYNCHRONOUS :: f, g")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     fsym = fake_parent.symbol_table.lookup("f")
     assert isinstance(fsym.datatype, UnsupportedFortranType)
     assert (fsym.datatype.declaration ==
-            "INTEGER, PRIVATE, DIMENSION(3), POINTER :: f")
+            "INTEGER, PRIVATE, DIMENSION(3), ASYNCHRONOUS :: f")
     gsym = fake_parent.symbol_table.lookup("g")
     assert isinstance(gsym.datatype, UnsupportedFortranType)
     assert (gsym.datatype.declaration ==
-            "INTEGER, PRIVATE, DIMENSION(3), POINTER :: g")
+            "INTEGER, PRIVATE, DIMENSION(3), ASYNCHRONOUS :: g")
 
     # Test with unsupported intrinsic type. Note the space before complex
     # below which stops the line being treated as a comment.
@@ -1519,15 +1545,25 @@ def test_process_save_attribute_declarations(parser):
     assert isinstance(fake_parent.symbol_table.lookup("var4").interface,
                       StaticInterface)
 
-    # Test that when it is part of an UnsupportedType (target attribute in
-    # this case) it becomes an UnknownInterface.
-    reader = FortranStringReader("integer, target :: var5")
+    # Test that when it is part of an UnsupportedType (asynchronous attribute
+    # in this case) it becomes an UnknownInterface.
+    reader = FortranStringReader("integer, volatile, save :: var5")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert isinstance(fake_parent.symbol_table.lookup("var5").datatype,
                       UnsupportedFortranType)
     assert isinstance(fake_parent.symbol_table.lookup("var5").interface,
                       UnknownInterface)
+
+    # Test that it works in combination with another attribute, here target.
+    reader = FortranStringReader("integer, target, save :: var6")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert (fake_parent.symbol_table.lookup("var6").datatype.intrinsic
+            == ScalarType.Intrinsic.INTEGER)
+    assert fake_parent.symbol_table.lookup("var6").is_target
+    assert isinstance(fake_parent.symbol_table.lookup("var6").interface,
+                      StaticInterface)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1948,14 +1984,14 @@ def test_process_declarations_unrecognised_attribute():
     a symbol with UnsupportedFortranType and the correct visibility. '''
     fake_parent = KernelSchedule("dummy")
     processor = Fparser2Reader()
-    reader = FortranStringReader("integer, private, target :: idx1\n")
+    reader = FortranStringReader("integer, private, volatile :: idx1\n")
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.children, [])
     sym = fake_parent.symbol_table.lookup("idx1")
     assert isinstance(sym.datatype, UnsupportedFortranType)
     assert sym.visibility == Symbol.Visibility.PRIVATE
     # No access statement so should be public (the default in Fortran)
-    reader = FortranStringReader("integer, target :: idx2\n")
+    reader = FortranStringReader("integer, volatile :: idx2\n")
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.children, [])
     sym = fake_parent.symbol_table.lookup("idx2")
@@ -1964,7 +2000,7 @@ def test_process_declarations_unrecognised_attribute():
     # No access statement so should pick up the default visibility supplied
     # to the symbol table.
     fake_parent.symbol_table.default_visibility = Symbol.Visibility.PRIVATE
-    reader = FortranStringReader("integer, target :: idx3\n")
+    reader = FortranStringReader("integer, volatile :: idx3\n")
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(
         fake_parent, fparser2spec.children, [], {})
@@ -1973,7 +2009,7 @@ def test_process_declarations_unrecognised_attribute():
     assert sym.visibility == Symbol.Visibility.PRIVATE
     # No access statement but visibility provided in visibility_map argument
     # to process_declarations()
-    reader = FortranStringReader("integer, target :: idx4\n")
+    reader = FortranStringReader("integer, volatile :: idx4\n")
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(
         fake_parent, fparser2spec.children, [],

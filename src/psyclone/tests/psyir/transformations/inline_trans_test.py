@@ -1652,7 +1652,7 @@ def test_validate_unsupportedtype_argument(fortran_reader):
         "  call sub(ptr)\n"
         "end subroutine main\n"
         "subroutine sub(x)\n"
-        "  real, pointer, intent(inout) :: x\n"
+        "  real, volatile, intent(inout) :: x\n"
         "  x = x + 1.0\n"
         "end subroutine sub\n"
         "end module test_mod\n"
@@ -1663,7 +1663,7 @@ def test_validate_unsupportedtype_argument(fortran_reader):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(routine)
     assert ("Routine 'sub' cannot be inlined because it contains a Symbol 'x' "
-            "which is an Argument of UnsupportedType: 'REAL, POINTER, "
+            "which is an Argument of UnsupportedType: 'REAL, VOLATILE, "
             "INTENT(INOUT) :: x'" in str(err.value))
 
 
@@ -1680,7 +1680,7 @@ def test_validate_unknowninterface(fortran_reader, fortran_writer, tmpdir):
         "  call sub()\n"
         "end subroutine main\n"
         "subroutine sub()\n"
-        "  real, pointer :: x\n"
+        "  real, volatile :: x\n"
         "  x = x + 1.0\n"
         "end subroutine sub\n"
         "end module test_mod\n"
@@ -1691,7 +1691,7 @@ def test_validate_unknowninterface(fortran_reader, fortran_writer, tmpdir):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(routine)
     assert (" Routine 'sub' cannot be inlined because it contains a Symbol "
-            "'x' with an UnknownInterface: 'REAL, POINTER :: x'"
+            "'x' with an UnknownInterface: 'REAL, VOLATILE :: x'"
             in str(err.value))
 
     # But if the interface is known, it has no problem inlining it
@@ -1700,7 +1700,7 @@ def test_validate_unknowninterface(fortran_reader, fortran_writer, tmpdir):
     inline_trans.apply(routine)
     assert fortran_writer(psyir.walk(Routine)[0]) == """\
 subroutine main()
-  REAL, POINTER :: x
+  REAL, VOLATILE :: x
 
   x = x + 1.0
 

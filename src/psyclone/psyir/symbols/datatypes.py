@@ -48,7 +48,26 @@ from psyclone.psyir.symbols.symbol import Symbol
 
 
 class DataType(metaclass=abc.ABCMeta):
-    '''Abstract base class from which all types are derived.'''
+    '''Abstract base class from which all types are derived.
+
+    :param bool is_pointer: whether this datatype is a pointer.
+    :param bool is_target: whether this datatype is a target.
+
+    :raises TypeError: if is_pointer or is_target are not of type bool.
+    :raises ValueError: if is_pointer and is_target are both True.
+    '''
+    def __init__(self, is_pointer=False, is_target=False):
+        if not isinstance(is_pointer, bool):
+            raise TypeError(f"Expected 'is_pointer' to be a bool but got "
+                            f"'{type(is_pointer)}'")
+        if not isinstance(is_target, bool):
+            raise TypeError(f"Expected 'is_target' to be a bool but got "
+                            f"'{type(is_target)}'")
+        if is_pointer and is_target:
+            raise ValueError("A datatype cannot be both a pointer and a "
+                             "target.")
+        self._is_pointer = is_pointer
+        self._is_target = is_target
 
     @abc.abstractmethod
     def __str__(self):
@@ -65,7 +84,25 @@ class DataType(metaclass=abc.ABCMeta):
         :returns: whether this type is equal to the 'other' type.
         :rtype: bool
         '''
-        return type(other) is type(self)
+        return (type(other) is type(self)
+                and self.is_pointer == other.is_pointer
+                and self.is_target == other.is_target)
+
+    @property
+    def is_pointer(self):
+        '''
+        :returns: whether this datatype is a pointer.
+        :rtype: bool
+        '''
+        return self._is_pointer
+
+    @property
+    def is_target(self):
+        '''
+        :returns: whether this datatype is a target.
+        :rtype: bool
+        '''
+        return self._is_target
 
 
 class UnresolvedType(DataType):
@@ -97,7 +134,8 @@ class UnsupportedType(DataType, metaclass=abc.ABCMeta):
     :raises TypeError: if the supplied declaration_txt is not a str.
 
     '''
-    def __init__(self, declaration_txt):
+    def __init__(self, declaration_txt, is_pointer=False, is_target=False):
+        super().__init__(is_pointer, is_target)
         if not isinstance(declaration_txt, str):
             raise TypeError(
                 f"UnsupportedType constructor expects the original variable "
@@ -135,8 +173,9 @@ class UnsupportedFortranType(UnsupportedType):
         :py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
 
     '''
-    def __init__(self, declaration_txt, partial_datatype=None):
-        super().__init__(declaration_txt)
+    def __init__(self, declaration_txt, partial_datatype=None,
+                 is_pointer=False, is_target=False):
+        super().__init__(declaration_txt, is_pointer, is_target)
         # This will hold the Fortran type specification (as opposed to
         # the whole declaration).
         self._type_text = ""
@@ -268,7 +307,9 @@ class ScalarType(DataType):
         DOUBLE = 2
         UNDEFINED = 3
 
-    def __init__(self, intrinsic, precision):
+    def __init__(self, intrinsic, precision, is_pointer=False,
+                 is_target=False):
+        super().__init__(is_pointer, is_target)
         if not isinstance(intrinsic, ScalarType.Intrinsic):
             raise TypeError(
                 f"ScalarType expected 'intrinsic' argument to be of type "
@@ -383,7 +424,8 @@ class ArrayType(DataType):
     #: namedtuple used to store lower and upper limits of an array dimension
     ArrayBounds = namedtuple("ArrayBounds", ["lower", "upper"])
 
-    def __init__(self, datatype, shape):
+    def __init__(self, datatype, shape, is_pointer=False, is_target=False):
+        super().__init__(is_pointer, is_target)
 
         # This import must be placed here to avoid circular dependencies.
         # pylint: disable=import-outside-toplevel
@@ -620,6 +662,9 @@ class ArrayType(DataType):
                 _validate_data_node(dimension)
 
         if ArrayType.Extent.DEFERRED in extents:
+            if self.is_pointer:
+                raise ValueError("An array with a deferred shape cannot be a "
+                                 "pointer.")
             if not all(dim == ArrayType.Extent.DEFERRED
                        for dim in extents):
                 raise TypeError(
@@ -724,13 +769,11 @@ class StructureType(DataType):
     '''
     # Each member of a StructureType is represented by a ComponentType
     # (named tuple).
-    # NOTE: the defaults are set to False for the last two arguments,
-    # is_pointer and is_target.
     ComponentType = namedtuple("ComponentType", [
-        "name", "datatype", "visibility", "initial_value", "is_pointer", 
-        "is_target"], defaults=[False, False])
+        "name", "datatype", "visibility", "initial_value"])
 
     def __init__(self):
+        super().__init__(is_pointer=False, is_target=False)
         self._components = OrderedDict()
 
     def __str__(self):
@@ -749,8 +792,6 @@ class StructureType(DataType):
             :py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility`,
             Optional[:py:class:`psyclone.psyir.symbols.DataNode`],
-            bool,
-            bool
             ]]
 
         :returns: the new type object.
@@ -759,11 +800,10 @@ class StructureType(DataType):
         '''
         stype = StructureType()
         for component in components:
-            if len(component) not in (4, 5, 6):
+            if len(component) != 4:
                 raise TypeError(
-                    f"Each component must be specified using a 6-tuple of "
-                    f"(name, type, visibility, initial_value, is_pointer, "
-                    f"is_target), the two of which are optional, but found a "
+                    f"Each component must be specified using a 4-tuple of "
+                    f"(name, type, visibility, initial_value) but found a "
                     f"tuple with {len(component)} members: {component}")
             stype.add(*component)
         return stype
@@ -776,13 +816,13 @@ class StructureType(DataType):
         '''
         return self._components
 
-    def add(self, name, datatype, visibility, initial_value, is_pointer=False,
-            is_target=False):
+    def add(self, name, datatype, visibility, initial_value):
         '''
         Create a component with the supplied attributes and add it to
         this StructureType.
 
-        :param str name: the name of the new component.
+        :param str name: the name of the new component., is_pointer=False,
+            is_target=False
         :param datatype: the type of the new component.
         :type datatype: :py:class:`psyclone.psyir.symbols.DataType` |
             :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
@@ -791,8 +831,6 @@ class StructureType(DataType):
         :param initial_value: the initial value of the new component.
         :type initial_value: Optional[
             :py:class:`psyclone.psyir.nodes.DataNode`]
-        :param bool is_pointer: whether this component is a pointer.
-        :param bool is_target: whether this component is a target.
 
         :raises TypeError: if any of the supplied values are of the wrong type.
 
@@ -827,22 +865,9 @@ class StructureType(DataType):
                 f"The initial value of a component of a StructureType must "
                 f"be None or an instance of 'DataNode', but got "
                 f"'{type(initial_value).__name__}'.")
-        if not isinstance(is_pointer, bool):
-            raise TypeError(
-                f"The is_pointer attribute of a component of a StructureType "
-                f"must be a 'bool' but got '{type(is_pointer).__name__}'.")
-        if not isinstance(is_target, bool):
-            raise TypeError(
-                f"The is_target attribute of a component of a StructureType "
-                f"must be a 'bool' but got '{type(is_target).__name__}'.")
-        if is_pointer and is_target:
-            raise ValueError(
-                f"A component of a StructureType cannot be both a pointer "
-                f"and a target but got is_pointer={is_pointer} and "
-                f"is_target={is_target}.")
 
         self._components[name] = self.ComponentType(
-            name, datatype, visibility, initial_value, is_pointer, is_target)
+            name, datatype, visibility, initial_value)
 
     def lookup(self, name):
         '''
