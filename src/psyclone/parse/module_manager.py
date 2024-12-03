@@ -114,7 +114,7 @@ class ModuleManager:
             OrderedDict()
 
         # Dictionary of modules to lookup module info
-        self._module_name_to_modinfo: OrderedDict[str, ModuleInfo] = \
+        self._modules: OrderedDict[str, ModuleInfo] = \
             OrderedDict()
 
         self._ignore_modules = set()
@@ -215,7 +215,7 @@ class ModuleManager:
                     # We've found the module we want. Create a ModuleInfo
                     # object for it and cache it.
                     mod_info = ModuleInfo(name, finfo)
-                    self._module_name_to_modinfo[name] = mod_info
+                    self._modules[name] = mod_info
                     # A file that has been (or does not require)
                     # preprocessing always takes precendence.
                     if finfo.filename.endswith(".f90"):
@@ -319,7 +319,7 @@ class ModuleManager:
 
                 container_name: str = container_node.name.lower()
 
-                if container_name in self._module_name_to_modinfo.keys():
+                if container_name in self._modules.keys():
                     raise KeyError(
                         f"Module '{container_name}' already processed"
                     )
@@ -329,7 +329,7 @@ class ModuleManager:
                 )
                 module_info_in_file.append(module_info)
 
-                self._module_name_to_modinfo[container_name] = module_info
+                self._modules[container_name] = module_info
 
             filepath = file_info.filename
             if filepath in self._filepath_to_module_info.keys():
@@ -338,20 +338,19 @@ class ModuleManager:
             self._filepath_to_module_info[filepath] = module_info_in_file
 
     def get_all_module_infos(self) -> List[ModuleInfo]:
-        return self._module_name_to_modinfo.values()
+        return self._modules.values()
 
     def get_all_file_infos(self) -> List[FileInfo]:
         return self._filepath_to_file_info.values()
 
-    def get_module_info(self, module_name):
-        '''This function returns the ModuleInformation for the specified
+    def get_module_info(self, module_name: str) -> ModuleInfo:
+        '''This function returns the ModuleInfo for the specified
         module.
 
-        :param str module_name: name of the module.
+        :param module_name: name of the module.
 
         :returns: object describing the requested module or None if the
                   manager has been configured to ignore this module.
-        :rtype: :py:class:`psyclone.parse.ModuleInfo` | None
 
         :raises FileNotFoundError: if the module_name is not found in
             either the cached data nor in the search path.
@@ -365,8 +364,7 @@ class ModuleManager:
         # First check if we have already seen this module. We only end the
         # search early if the file we've found does not require pre-processing
         # (i.e. has a .f90 suffix).
-        mod_info: ModuleInfo = self._module_name_to_modinfo.get(
-                                    mod_lower, None)
+        mod_info: ModuleInfo = self._modules.get(mod_lower, None)
         if mod_info and mod_info.filename.endswith(".f90"):
             return mod_info
         old_mod_info = mod_info
@@ -399,16 +397,14 @@ class ModuleManager:
                                 f"command line option.")
 
     # ------------------------------------------------------------------------
-    def get_modules_in_file(self, finfo: FileInfo):
+    def get_modules_in_file(self, finfo: FileInfo) -> List[str]:
         '''
         Uses a regex search to find all modules defined in the file with the
         supplied name.
 
         :param finfo: object holding information on the file to examine.
-        :type finfo: :py:class:`psyclone.parse.FileInfo`
 
         :returns: the names of any modules present in the supplied file.
-        :rtype: list[str]
 
         '''
         # TODO #2597: perhaps use the fparser FortranReader here as this regex
@@ -473,7 +469,7 @@ class ModuleManager:
             #
 
             # Determine list of module names
-            used_module_name_list = todo_module_info.get_used_module_names()
+            used_module_name_list = todo_module_info.get_used_modules()
 
             for used_module_name in used_module_name_list:
                 try:
@@ -481,7 +477,8 @@ class ModuleManager:
                         used_module_name
                     )
 
-                    # Could be also in ignore list which then just returns 'None'
+                    # Could be also in ignore list which then just
+                    # returns 'None'
                     if used_module_info is None:
                         continue
 
@@ -559,7 +556,7 @@ class ModuleManager:
             if module in self.ignores():
                 continue
             try:
-                mod_deps = self.get_module_info(module).get_used_module_names()
+                mod_deps = self.get_module_info(module).get_used_modules()
                 # Convert to set since we continue with a set
                 mod_deps = set(mod_deps)
             except (FileNotFoundError, ModuleInfoError):

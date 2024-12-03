@@ -220,7 +220,7 @@ class ModuleInfo:
             self._used_symbols_from_module_name[mod_name] = all_symbols
 
     # ------------------------------------------------------------------------
-    def get_used_module_names(self) -> List[str]:
+    def get_used_modules(self) -> List[str]:
         '''This function returns a set of all modules `used` in this
         module. Fortran `intrinsic` modules will be ignored. The information
         is based on the fparser parse tree of the module (since fparser can
@@ -359,5 +359,6 @@ class ModuleInfo:
     def view_tree(self, indent=""):
         retstr = ""
         retstr += f"{indent}- name: '{self.name}'\n"
-        retstr += f"{indent}- used_module_names: {self.get_used_module_names()}\n"
+        retstr += (f"{indent}- used_module_names:"
+                   f" {self.get_used_modules()}\n")
         return retstr

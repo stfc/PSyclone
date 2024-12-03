@@ -93,13 +93,6 @@ class FileInfo:
                  cache_active: bool = False,
                  cache_path: str = None
                  ):
-        """Constructor
-
-        :param _filename: Path to the file that this
-                         object holds information on.
-        :param cache_active: Use caching of intermediate representations
-
-        """
 
         # Full path to file
         self._filename: str = filepath
@@ -228,8 +221,8 @@ class FileInfo:
                 f"Loading source code"
             )
 
-        # Compute hash sum which will be used to check cache of fparser
-        self._source_code_hash_sum = self.get_source_code_hash_sum()
+        # Update the hash sum
+        self.get_source_code_hash_sum()
 
         return self._source_code
 
@@ -237,7 +230,9 @@ class FileInfo:
         if self._source_code_hash_sum is not None:
             return self._source_code_hash_sum
 
-        return hashlib.md5(self.get_source_code().encode()).hexdigest()
+        self._source_code_hash_sum = hashlib.md5(
+                    self._source_code.encode()).hexdigest()
+        return self._source_code_hash_sum
 
     def _cache_load(
         self,
@@ -278,6 +273,7 @@ class FileInfo:
         try:
             filehandler = open(self._get_filepath_cache(), "rb")
             if verbose:
+                # TODO #11: Use logging for this
                 print(
                     f"{indent}- Using cache file "
                     f"'{self._get_filepath_cache()}'"
@@ -383,8 +379,23 @@ class FileInfo:
         try:
             # Atomically attempt to open the new kernel file (in case
             # this is part of a parallel build)
-            filehandler = os.open(self._get_filepath_cache(),
-                                  os.O_CREAT | os.O_TRUNC | os.O_WRONLY)
+            # We first remove the cache file and then open it.
+            # If the file exists, it throws an exception.
+            # This is not a perfect solution, but avoids parallel
+            # writing access of the same file.
+
+            # We first remove a potentially existing file
+            try:
+                os.remove(self._get_filepath_cache())
+            except FileNotFoundError:
+                pass
+
+            # Then we open it in exclusive mode.
+            # If it already exists, an exception would be raised.
+            fd = os.open(self._get_filepath_cache(),
+                         os.O_CREAT | os.O_WRONLY | os.O_EXCL)
+
+            filehandler = os.fdopen(fd, "wb")
         except Exception as err:
             if verbose:
                 # TODO #11: Use logging for this
