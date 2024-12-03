@@ -631,7 +631,10 @@ class FortranWriter(LanguageWriter):
                     f"value ({self._visit(symbol.initial_value)}) and "
                     f"therefore (in Fortran) must have a StaticInterface. "
                     f"However it has an interface of '{symbol.interface}'.")
-            result += " = " + self._visit(symbol.initial_value)
+            if symbol.is_pointer:
+                result += " => " + self._visit(symbol.initial_value)
+            else:
+                result += " = " + self._visit(symbol.initial_value)
 
         return result + "\n"
 
