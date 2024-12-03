@@ -339,7 +339,12 @@ class DefinitionUseChain:
                     # If the control flow node is a Loop we have to check
                     # if the variable is the same symbol as the _reference.
                     if isinstance(cfn, Loop):
-                        if cfn.variable == self._reference.symbol:
+                        cfn_abs_pos = cfn.abs_position
+                        if (
+                            cfn.variable == self._reference.symbol
+                            and cfn_abs_pos >= self._start_point
+                            and cfn_abs_pos < self._stop_point
+                        ):
                             # The loop variable is always written to and so
                             # we're done if its reached.
                             self._reaches.append(cfn)
@@ -862,7 +867,7 @@ class DefinitionUseChain:
                     body = ancestor.loop_body.children[:]
                     # Find the stop point - this needs to be the last node
                     # in the ancestor loop
-                    sub_stop_point = ancestor.walk(Node)[-1].abs_position + 1
+                    sub_stop_point = ancestor.walk(Node)[-1].abs_position
                     # We make a copy of the reference to have a detached
                     # node to avoid handling the special cases based on
                     # the parents of the reference.
@@ -898,19 +903,15 @@ class DefinitionUseChain:
                 if ancestor is not None:
                     # If the reference is not the lhs then we can ignore
                     # the RHS.
-                    if ancestor.lhs is not self._reference:
-                        pass
-                    else:
-                        end = ancestor.rhs
-                        while len(end.children) > 0:
-                            end = end.children[-1]
+                    if ancestor.lhs is self._reference:
+                        end = ancestor.walk(Node)[-1]
                         # Add the rhs as a potential basic block with
                         # different start and stop positions.
                         chain = DefinitionUseChain(
                             self._reference.copy(),
                             ancestor.rhs.children[:],
                             start_point=ancestor.rhs.abs_position,
-                            stop_point=end.abs_position + 1,
+                            stop_point=end.abs_position,
                         )
                         control_flow_nodes.append(None)
                         chains.append(chain)
@@ -958,7 +959,12 @@ class DefinitionUseChain:
                     # If the control flow node is a Loop we have to check
                     # if the variable is the same symbol as the _reference.
                     if isinstance(cfn, Loop):
-                        if cfn.variable == self._reference.symbol:
+                        cfn_abs_pos = cfn.abs_position
+                        if (
+                            cfn.variable == self._reference.symbol
+                            and cfn_abs_pos >= self._start_point
+                            and cfn_abs_pos < self._stop_point
+                        ):
                             # The loop variable is always written to and so
                             # we're done if its reached.
                             self._reaches.append(cfn)
@@ -1001,6 +1007,7 @@ class DefinitionUseChain:
                     chain.find_backward_accesses()
                     for ref in chain._reaches:
                         self._reaches.append(ref)
+
             # We can compute the rest of the accesses
             self._compute_backward_uses(self._scope)
             for ref in self._uses:
