@@ -295,7 +295,7 @@ end subroutine test_sub
 """
 
 @pytest.mark.xfail(reason="Directive is written back as '! $omp parallel do'"
-                         "instead of '!$omp parallel do'")
+                          "instead of '!$omp parallel do'")
 def test_write_directives():
     """Test that the directives are written back to the code"""
     reader = FortranReader()
@@ -303,3 +303,32 @@ def test_write_directives():
     psyir = reader.psyir_from_source(CODE_WITH_DIRECTIVE, ignore_comments=False, ignore_directives=False)
     generated_code = writer(psyir)
     assert generated_code == EXPECTED_WITH_DIRECTIVES
+
+
+CODE_WITH_INLINE_COMMENT = """
+subroutine test_sub()
+  integer :: a ! THIS GETS ATTACHED TO THE SYMBOL 'i'
+  integer :: i
+  a = 1 ! THIS GETS ATTACHED TO THE ASSIGNMENT 'i = 1'
+  i = 1
+end subroutine test_sub
+"""
+
+def test_inline_comment():
+    """Test that the FortranReader is able to read inline comments"""
+    reader = FortranReader()
+    psyir = reader.psyir_from_source(CODE_WITH_INLINE_COMMENT, ignore_comments=False)
+
+    routine = psyir.walk(Routine)[0]
+    sym_a = routine.symbol_table.lookup("a")
+    assert sym_a.preceding_comment == ""
+    sym_i = routine.symbol_table.lookup("i")
+    assert sym_i.preceding_comment == "THIS GETS ATTACHED TO THE SYMBOL 'i'"
+
+    assignment = routine.walk(Assignment)[0]
+    assert "a = 1" in assignment.debug_string()
+    assert assignment.preceding_comment == ""
+
+    assignment = routine.walk(Assignment)[1]
+    assert "i = 1" in assignment.debug_string()
+    assert assignment.preceding_comment == "THIS GETS ATTACHED TO THE ASSIGNMENT 'i = 1'"
