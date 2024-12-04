@@ -53,7 +53,8 @@ from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import SymbolTable, REAL_TYPE
+from psyclone.psyir.symbols import SymbolTable, REAL_TYPE, StructureType
+from psyclone.psyir.backend.fortran import FortranWriter
 
 METADATA = ("TYPE, EXTENDS(kernel_type) :: compute_cu\n"
             "  TYPE(go_arg), DIMENSION(4) :: meta_args = (/ &\n"
@@ -209,8 +210,8 @@ def test_goceankernelmetadata_create1(fortran_reader):
     symbol._datatype = REAL_TYPE
     with pytest.raises(InternalError) as info:
         _ = GOceanKernelMetadata.create_from_psyir(symbol)
-    assert ("Expected kernel metadata to be stored in the PSyIR as an "
-            "UnsupportedFortranType, but found ScalarType." in str(info.value))
+    assert ("Expected kernel metadata to be stored in the PSyIR as a "
+            "StructureType, but found ScalarType." in str(info.value))
 
 
 # create_from_fortran_string
@@ -398,10 +399,16 @@ def test_getproperty(fortran_reader):
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "compute_cu").datatype
+    datatype_symbol = kernel_psyir.children[0].symbol_table.lookup(
+        "compute_cu")
+    datatype = datatype_symbol.datatype
     metadata = GOceanKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
+    # reader = FortranStringReader(datatype.declaration)
+
+    assert isinstance(datatype, StructureType)
+    type_declaration = FortranWriter().gen_typedecl(datatype_symbol)
+    reader = FortranStringReader(type_declaration)
+
     spec_part = Fortran2003.Derived_Type_Def(reader)
     assert metadata._get_property(spec_part, "code").string == \
         "compute_cu_code"
@@ -409,8 +416,8 @@ def test_getproperty(fortran_reader):
         "GO_ALL_PTS"
     with pytest.raises(ParseError) as info:
         metadata._get_property(spec_part, "not_found")
-    assert ("'not_found' was not found in TYPE, EXTENDS(kernel_type) :: "
-            "compute_cu" in str(info.value))
+    assert ("'not_found' was not found in TYPE, EXTENDS(kernel_type), PUBLIC "
+            ":: compute_cu" in str(info.value))
 
 
 def test_iteratesover():
