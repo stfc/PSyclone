@@ -204,11 +204,6 @@ class FileInfo:
         # This also fills in the hash sum
         self.get_source_code()
 
-        assert self._source_code_hash_sum is not None, (
-            "Source code needs to be loaded before fparser or psyir "
-            "representation is loaded."
-        )
-
         # Check whether cache was already loaded
         if self._cache_data_load is not None:
             return self._cache_data_load
