@@ -52,14 +52,17 @@ CODE = """
 ! and second line
 module test_mod
   implicit none
-  ! Comment on derived type 'my_type' SHOULD BE LOST
+  ! Comment on derived type 'my_type'
   type :: my_type
     ! Comment on component 'i'
     ! and second line
-    integer :: i
+    integer :: i ! Inline comment on 'integer :: i'
     ! Comment on component 'j'
     integer :: j
-  end type my_type
+  end type my_type ! Inline comment on 'end type my_type'
+  ! Comment on derived type 'my_type2'
+  type :: my_type2
+  end type my_type2 ! Inline comment on 'end type my_type2'
 contains
   ! Comment on a subroutine
   subroutine test_sub()
@@ -97,9 +100,9 @@ contains
         do j = 1, 10
           ! Comment on assignment 'a = 6'
           a = 6
-        end do
-    end do
-  end subroutine test_sub
+        end do ! Inline comment on 'end do j = 1, 10'
+    end do ! Inline comment on 'end do i = 1, 10'
+  end subroutine test_sub ! Inline comment on 'end subroutine test_sub'
 end module test_mod
 """
 
@@ -143,17 +146,25 @@ def test_comments():
 
     # TODO: add support for comments on derived types.
     my_type_sym = module.symbol_table.lookup("my_type")
-    assert my_type_sym.preceding_comment == ""
+    assert my_type_sym.preceding_comment == "Comment on derived type 'my_type'"
+    assert my_type_sym.inline_comment == "Inline comment on 'end type my_type'"
 
     assert isinstance(my_type_sym.datatype, StructureType)
     for i, component in enumerate(my_type_sym.datatype.components.values()):
         if i == 0:
             assert component.preceding_comment == "Comment on component 'i'\nand second line"
+            assert component.inline_comment == "Inline comment on 'integer :: i'"
         else:
             assert component.preceding_comment == "Comment on component 'j'"
+            assert component.inline_comment == ""
+
+    my_type2_sym = module.symbol_table.lookup("my_type2")
+    assert my_type2_sym.preceding_comment == "Comment on derived type 'my_type2'"
+    assert my_type2_sym.inline_comment == "Inline comment on 'end type my_type2'"
 
     routine = module.walk(Routine)[0]
     assert routine.preceding_comment == "Comment on a subroutine"
+    assert routine.inline_comment == "Inline comment on 'end subroutine test_sub'"
 
     for i, symbol in enumerate(routine.symbol_table.symbols):
         if i == 0:
@@ -177,22 +188,28 @@ def test_comments():
     loop_i = loops[0]
     # OMP directives should be ignored
     assert loop_i.preceding_comment == "Comment on loop 'do i = 1, 10'"
+    assert loop_i.inline_comment == "Inline comment on 'end do i = 1, 10'"
 
     loop_j = loops[1]
     assert loop_j.preceding_comment == "Comment on loop 'do j = 1, 10'"
+    assert loop_j.inline_comment == "Inline comment on 'end do j = 1, 10'"
 
 
 EXPECTED_WITH_COMMENTS = """! Comment on module 'test_mod'
 ! and second line
 module test_mod
   implicit none
+  ! Comment on derived type 'my_type'
   type, public :: my_type
     ! Comment on component 'i'
     ! and second line
-    integer, public :: i
+    integer, public :: i ! Inline comment on 'integer :: i'
     ! Comment on component 'j'
     integer, public :: j
-  end type my_type
+  end type my_type ! Inline comment on 'end type my_type'
+  ! Comment on derived type 'my_type2'
+  type, public :: my_type2
+  end type my_type2 ! Inline comment on 'end type my_type2'
   public
 
   contains
@@ -232,10 +249,10 @@ module test_mod
       do j = 1, 10, 1
         ! Comment on assignment 'a = 6'
         a = 6
-      enddo
-    enddo
+      enddo  ! Inline comment on 'end do j = 1, 10'
+    enddo  ! Inline comment on 'end do i = 1, 10'
 
-  end subroutine test_sub
+  end subroutine test_sub  ! Inline comment on 'end subroutine test_sub'
 
 end module test_mod
 """

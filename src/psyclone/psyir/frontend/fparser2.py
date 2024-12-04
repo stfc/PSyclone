@@ -2002,7 +2002,8 @@ class Fparser2Reader():
             else:
                 sym.interface = this_interface
 
-    def _process_derived_type_decln(self, parent, decl, visibility_map):
+    def _process_derived_type_decln(self, parent, decl, visibility_map,
+                                    preceding_comments_strs=None):
         '''
         Process the supplied fparser2 parse tree for a derived-type
         declaration. A DataTypeSymbol representing the derived-type is added
@@ -2016,12 +2017,21 @@ class Fparser2Reader():
             those symbols listed in an accessibility statement).
         :type visibility_map: dict[str,
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
+        :param preceding_comments_strs: the comments that preceded this
+            declaration, as a list of strings.
+        :type preceding_comments_strs: Optional[List[str]]
 
         :raises SymbolError: if a Symbol already exists with the same name
             as the derived type being defined and it is not a DataTypeSymbol
             or is not of UnresolvedType.
+        
+        :return: the DataTypeSymbol representing the derived type.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
         '''
+        if preceding_comments_strs is None:
+            preceding_comments_strs = []
+
         name = str(walk(decl.children[0], Fortran2003.Type_Name)[0]).lower()
         # Create a new StructureType for this derived type
         dtype = StructureType()
@@ -2071,6 +2081,8 @@ class Fparser2Reader():
             # We don't already have an entry for this type so create one
             tsymbol = DataTypeSymbol(name, dtype, visibility=dtype_symbol_vis)
             parent.symbol_table.add(tsymbol)
+
+        tsymbol.preceding_comment = '\n'.join(preceding_comments_strs)
 
         # Populate this StructureType by processing the components of
         # the derived type
@@ -2146,6 +2158,8 @@ class Fparser2Reader():
             # set the datatype of the DataTypeSymbol to UnsupportedFortranType.
             tsymbol.datatype = UnsupportedFortranType(str(decl))
             tsymbol.interface = UnknownInterface()
+
+        return tsymbol
 
     def _get_partial_datatype(self, node, scope, visibility_map):
         '''Try to obtain partial datatype information from node by removing
@@ -2433,8 +2447,29 @@ class Fparser2Reader():
         # at general variable declarations in case any of the latter use
         # the former.
         # TODO: add support for comments on derived types.
-        for decl in walk(nodes, Fortran2003.Derived_Type_Def):
-            self._process_derived_type_decln(parent, decl, visibility_map)
+        preceding_comments_strs = []
+        for node in nodes:
+            if isinstance(node, Fortran2003.Implicit_Part):
+                for comment in walk(node, Fortran2003.Comment):
+                    if len(comment.tostr()) == 0:
+                        continue
+                    comment_str = comment.tostr()[1:].strip()
+                    if self.last_symbol_parsed_and_span is not None:
+                        last_sym, last_span \
+                            = self.last_symbol_parsed_and_span
+                        if (last_span[1] is not None
+                            and last_span[1] == comment.item.span[0]):
+                            last_sym.inline_comment = comment_str
+                            continue
+                    preceding_comments_strs.append(comment_str)
+            elif isinstance(node, Fortran2003.Derived_Type_Def):
+                sym = self._process_derived_type_decln(parent, node,
+                                                       visibility_map,
+                                                       preceding_comments_strs)
+                preceding_comments_strs = []
+                derived_type_span = (node.children[0].item.span[0],
+                                            node.children[-1].item.span[1])
+                self.last_symbol_parsed_and_span = (sym, derived_type_span)
 
         # INCLUDE statements are *not* part of the Fortran language and
         # can appear anywhere. Therefore we have to do a walk to make sure we
@@ -2908,10 +2943,20 @@ class Fparser2Reader():
                         psy_child.preceding_comment\
                             += '\n'.join(preceding_comments_strs)
                         preceding_comments_strs = []
-                    if (isinstance(psy_child, CommentableMixin)
-                        and child.item is not None):
-                        self.last_node_parsed_and_span = (psy_child,
-                                                          child.item.span)
+                    if isinstance(psy_child, CommentableMixin):
+                        if child.item is not None:
+                            self.last_node_parsed_and_span = (psy_child,
+                                                              child.item.span)
+                        # If the fparser2 node has no span, try to build one
+                        # from the spans of the first and last children.
+                        elif (len(child.children) != 0
+                              and (child.children[0] is not None
+                                   and child.children[0].item is not None)
+                              and (child.children[-1] is not None
+                                   and child.children[-1].item is not None)):
+                            span = (child.children[0].item.span[0],
+                                    child.children[-1].item.span[1])
+                            self.last_node_parsed_and_span = (psy_child, span)
                     parent.addchild(psy_child)
                 # If psy_child is not initialised but it didn't produce a
                 # NotImplementedError, it means it is safe to ignore it.

@@ -185,7 +185,10 @@ def test_name_clash_derived_type_def(f2008_parser):
     # This should raise an error because the Container symbol table will
     # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
+        processor.process_declarations(fake_parent,
+                                       walk(fparser2spec.content,
+                                            Fortran2003.Derived_Type_Def),
+                                       [])
     assert ("Error processing definition of derived type 'my_type'. The "
             "symbol table already contains an entry with this name but it is a"
             " 'RoutineSymbol' when it should be a 'DataTypeSymbol' (for the "
@@ -200,7 +203,10 @@ def test_name_clash_derived_type_def(f2008_parser):
                             "  end type my_type2\n"
                             "end subroutine my_sub2\n"))
     with pytest.raises(SymbolError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
+        processor.process_declarations(fake_parent,
+                                       walk(fparser2spec.content,
+                                            Fortran2003.Derived_Type_Def),
+                                       [])
     assert ("Error processing definition of derived type 'my_type2'. The "
             "symbol table already contains a DataTypeSymbol with this name but"
             " it is of type 'UnsupportedFortranType' when it should be of "

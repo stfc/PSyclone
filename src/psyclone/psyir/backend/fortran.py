@@ -712,7 +712,12 @@ class FortranWriter(LanguageWriter):
                 f"Fortran backend cannot generate code for symbol "
                 f"'{symbol.name}' of type '{type(symbol.datatype).__name__}'")
 
-        result = f"{self._nindent}type"
+        result = ""
+        if symbol.preceding_comment != "":
+            for line in symbol.preceding_comment.splitlines():
+                result += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+
+        result += f"{self._nindent}type"
 
         if include_visibility:
             if symbol.visibility == Symbol.Visibility.PRIVATE:
@@ -742,7 +747,13 @@ class FortranWriter(LanguageWriter):
                                        include_visibility=include_visibility)
         self._depth -= 1
 
-        result += f"{self._nindent}end type {symbol.name}\n"
+        result += f"{self._nindent}end type {symbol.name}"
+
+        if symbol.inline_comment != "":
+            result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
+
+        result += "\n"
+
         return result
 
     def gen_default_access_stmt(self, symbol_table):
