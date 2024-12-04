@@ -68,8 +68,11 @@ def test_module_info():
     with pytest.raises(ModuleInfoError) as einfo:
         mod_info.get_fparser_tree()
 
-    assert ("Could not find file 'file_for_a' when trying to read source "
-            "code for module 'a_mod'" in str(einfo.value))
+    assert ("ModuleInfoError: Error to get fparser tree of file"
+            " 'file_for_a' for module 'a_mod'" in str(einfo.value))
+
+    assert ("FileInfoFParserError: File 'file_for_a' not found:"
+            in str(einfo.value))
 
     # Try to read the file a_mod.f90, which is contained in the d1 directory
     mod_man = ModuleManager.get()
@@ -341,8 +344,7 @@ def test_module_info_extract_import_information_error():
     with pytest.raises(ModuleInfoError) as einfo:
         mod_info._extract_import_information()
 
-    print(einfo.value)
-    assert ("FParser Error: Failed to get fparser tree: at line 4"
+    assert ("FileInfoFParserError: Failed to get fparser tree: at line 4"
             in str(einfo.value))
 
     # Make sure the internal attributes are set to not None to avoid
@@ -463,7 +465,8 @@ def test_module_info_coverage_fparser_tree(tmpdir, monkeypatch):
     with pytest.raises(ModuleInfoError) as einfo:
         module_info.get_fparser_tree()
 
-    assert "ModuleInfoError: Error parsing" in str(einfo.value)
+    assert ("ModuleInfoError: Error to get fparser tree of file" 
+            in str(einfo.value))
 
     #
     # File not found
@@ -475,4 +478,5 @@ def test_module_info_coverage_fparser_tree(tmpdir, monkeypatch):
     with pytest.raises(ModuleInfoError) as einfo:
         module_info.get_fparser_tree()
 
-    assert "ModuleInfoError: Could not find file" in str(einfo.value)
+    assert ("FileInfoFParserError: File '/I_dont_exist/psyclone/asdf'"
+            " not found:" in str(einfo.value))

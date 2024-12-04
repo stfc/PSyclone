@@ -103,11 +103,6 @@ class ModuleInfo:
     ):
         self._name = module_name.lower()
 
-        # Do some checking
-        assert isinstance(file_info, FileInfo)
-        if psyir_root_node is not None:
-            assert isinstance(psyir_root_node, Container)
-
         # File handler including fparser and psyir representation
         self._file_info: FileInfo = file_info
 
@@ -174,12 +169,10 @@ class ModuleInfo:
             return self._file_info.get_fparser_tree()
 
         except FileInfoFParserError as err:
-            raise ModuleInfoError(f"Error parsing '{self.filename}'\n"
-                                  + str(err)) from err
-        except FileNotFoundError as err:
             raise ModuleInfoError(
-                f"Could not find file '{self._file_info.basename}' when trying"
-                f" to read source code for module '{self.name}'") from err
+                f"Error to get fparser tree of file '{self.filename}'"
+                f" for module '{self.name}':\n"
+                + str(err)) from err
 
     # ------------------------------------------------------------------------
     def _extract_import_information(self):
@@ -189,9 +182,6 @@ class ModuleInfo:
         self._used_symbols_from_module_name).
 
         '''
-
-        # Make sure that this is not called twice
-        assert self._used_module_names is None  # Internal sanity
 
         # Initialise the caches
         self._used_module_names = []
@@ -279,10 +269,9 @@ class ModuleInfo:
 
             try:
                 self._psyir_container_node = self._file_info.get_psyir()
-            except (KeyError,
-                    SymbolError,
-                    InternalError,
-                    GenerationError) as err:
+            except (
+                    GenerationError,
+                    FileInfoFParserError) as err:
                 # TODO #11: Add proper logging
                 print(f"Error trying to create PSyIR for '{self.filename}': "
                       f"'{err}'")

@@ -58,7 +58,7 @@ class FileInfoFParserError(PSycloneError):
 
     def __init__(self, value: str):
         super().__init__(value)
-        self.value = "FParser Error: " + str(value)
+        self.value = "FileInfoFParserError: " + str(value)
 
 
 class _CacheFileInfo:
@@ -239,9 +239,6 @@ class FileInfo:
                 )
             return None
 
-        for key in ["_source_code_hash_sum", "_fparser_tree", "_psyir_node"]:
-            assert key in cache.__dict__.keys()  # internal check
-
         self._cache_data_load = cache
 
     def _cache_save(
@@ -369,8 +366,11 @@ class FileInfo:
             # TODO #11: Use logging for this
             print(f"- Source file '{self._filename}': " f"Running fparser")
 
-        source_code = self.get_source_code()
-        assert self._source_code_hash_sum is not None   # Internal sanity check
+        try:
+            source_code = self.get_source_code()
+        except FileNotFoundError as err:
+            raise FileInfoFParserError(
+                f"File '{self._filename}' not found:\n{str(err)}")
 
         # Check for cache
         self._cache_load(verbose=verbose)
