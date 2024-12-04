@@ -49,7 +49,7 @@ from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, PSycloneError, GenerationError
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import Symbol, SymbolError
+from psyclone.psyir.symbols import Symbol
 from psyclone.parse import FileInfo, FileInfoFParserError
 
 from fparser.two.Fortran2003 import Program

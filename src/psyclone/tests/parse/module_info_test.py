@@ -465,7 +465,7 @@ def test_module_info_coverage_fparser_tree(tmpdir, monkeypatch):
     with pytest.raises(ModuleInfoError) as einfo:
         module_info.get_fparser_tree()
 
-    assert ("ModuleInfoError: Error to get fparser tree of file" 
+    assert ("ModuleInfoError: Error to get fparser tree of file"
             in str(einfo.value))
 
     #
