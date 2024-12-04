@@ -920,6 +920,9 @@ class StructureType(DataType):
         :type initial_value: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         :param preceding_comment: a comment that precedes this component.
         :type preceding_comment: Optional[str]
+        :param inline_comment: a comment that follows this component on the 
+                               same line.
+        :type inline_comment: Optional[str]
         '''
         name: str
         # Use Union for compatibility with Python < 3.10
@@ -927,6 +930,7 @@ class StructureType(DataType):
         visibility: Symbol.Visibility
         initial_value: Any
         preceding_comment: str = ""
+        inline_comment: str = ""
 
     def __init__(self):
         self._components = OrderedDict()
@@ -940,13 +944,16 @@ class StructureType(DataType):
         Creates a StructureType from the supplied list of properties.
 
         :param components: the name, type, visibility (whether public or
-            private) and initial value (if any) of each component.
+            private), initial value (if any), preceding comment (if any)
+            and inline comment (if any) of each component.
         :type components: List[tuple[
             str,
             :py:class:`psyclone.psyir.symbols.DataType` |
             :py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility`,
-            Optional[:py:class:`psyclone.psyir.symbols.DataNode`]
+            Optional[:py:class:`psyclone.psyir.symbols.DataNode`],
+            Optional[str],
+            Optional[str]
             ]]
 
         :returns: the new type object.
@@ -955,11 +962,11 @@ class StructureType(DataType):
         '''
         stype = StructureType()
         for component in components:
-            if len(component) not in (4, 5):
+            if len(component) not in (4, 5, 6):
                 raise TypeError(
-                    f"Each component must be specified using a 4 or 5-tuple "
+                    f"Each component must be specified using a 4 to 6-tuple "
                     f"of (name, type, visibility, initial_value, "
-                    f"preceding_comment) but found a "
+                    f"preceding_comment, inline_comment) but found a "
                     f"tuple with {len(component)} members: {component}")
             stype.add(*component)
         return stype
@@ -973,7 +980,7 @@ class StructureType(DataType):
         return self._components
 
     def add(self, name, datatype, visibility, initial_value,
-            preceding_comment=""):
+            preceding_comment="", inline_comment=""):
         '''
         Create a component with the supplied attributes and add it to
         this StructureType.
@@ -989,6 +996,9 @@ class StructureType(DataType):
             :py:class:`psyclone.psyir.nodes.DataNode`]
         :param preceding_comment: a comment that precedes this component.
         :type preceding_comment: Optional[str]
+        :param inline_comment: a comment that follows this component on the
+                               same line.
+        :type inline_comment: Optional[str]
 
         :raises TypeError: if any of the supplied values are of the wrong type.
 
@@ -1028,9 +1038,15 @@ class StructureType(DataType):
                 f"The preceding_comment of a component of a StructureType "
                 f"must be a 'str' but got "
                 f"'{type(preceding_comment).__name__}'")
+        if not isinstance(inline_comment, str):
+            raise TypeError(
+                f"The inline_comment of a component of a StructureType must "
+                f"be a 'str' but got "
+                f"'{type(inline_comment).__name__}'")
 
         self._components[name] = self.ComponentType(
-            name, datatype, visibility, initial_value, preceding_comment)
+            name, datatype, visibility, initial_value, preceding_comment,
+            inline_comment)
 
     def lookup(self, name):
         '''

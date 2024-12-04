@@ -147,8 +147,11 @@ class Symbol(CommentableMixin):
         '''
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
-        return type(self)(self.name, visibility=self.visibility,
-                          interface=self.interface.copy())
+        copy = type(self)(self.name, visibility=self.visibility,
+                                interface=self.interface.copy())
+        copy.preceding_comment = self.preceding_comment
+        copy.inline_comment = self.inline_comment
+        return copy
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
@@ -164,6 +167,8 @@ class Symbol(CommentableMixin):
             raise TypeError(f"Argument should be of type 'Symbol' but "
                             f"found '{type(symbol_in).__name__}'.")
         self._interface = symbol_in.interface
+        self.preceding_comment = symbol_in.preceding_comment
+        self.inline_comment = symbol_in.inline_comment
 
     def specialise(self, subclass, **kwargs):
         '''Specialise this symbol so that it becomes an instance of the class

@@ -954,9 +954,10 @@ def test_create_structuretype():
         StructureType.create([
             ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
             ("george", Symbol.Visibility.PRIVATE)])
-    assert ("Each component must be specified using a 4 or 5-tuple of (name, "
-            "type, visibility, initial_value, preceding_comment) but found a "
-            "tuple with 2 members: ('george', " in str(err.value))
+    assert ("Each component must be specified using a 4 to 6-tuple of (name, "
+            "type, visibility, initial_value, preceding_comment, "
+            "inline_comment) but found a tuple with 2 members: ('george', "
+            in str(err.value))
 
 
 def test_structuretype_eq():

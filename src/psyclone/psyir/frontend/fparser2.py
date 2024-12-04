@@ -979,6 +979,87 @@ class Fparser2Reader():
             Fortran2003.Main_Program: self._main_program_handler,
             Fortran2003.Program: self._program_handler,
         }
+        # Used to attach inline comments to the PSyIR symbols and nodes
+        self._last_symbol_parsed_and_span = None
+        self._last_node_parsed_and_span = None
+
+    @property
+    def last_symbol_parsed_and_span(self):
+        '''
+        :returns: the last symbol parsed and the span of source code lines it
+                  was found in.
+        :rtype: Union[None, Tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
+                                  Tuple[int, int]]]'''
+        return self._last_symbol_parsed_and_span
+
+    @last_symbol_parsed_and_span.setter
+    def last_symbol_parsed_and_span(self, value):
+        '''Setter for the last_symbol_parsed_and_span property.
+        
+        :param value: the last symbol parsed and the span of source code lines
+                      it was found in.
+        :type value: Tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
+                           Tuple[int, int]]
+                           
+        :raises TypeError: if the value is not of the right type.
+        '''
+        if not isinstance(value, tuple) or len(value) != 2:
+            raise TypeError(
+                "The value of the last_symbol_parsed_and_span property must "
+                "be a 2-tuple.")
+        if not isinstance(value[0], Symbol):
+            raise TypeError(
+                "The first element of the last_symbol_parsed_and_span tuple "
+                "must be a Symbol.")
+        if not isinstance(value[1], tuple) or len(value[1]) != 2:
+            raise TypeError(
+                "The second element of the last_symbol_parsed_and_span tuple "
+                "must be a 2-tuple.")
+        if not all(isinstance(item, int) for item in value[1]):
+            raise TypeError(
+                "The second element of the last_symbol_parsed_and_span tuple "
+                "must contain two integers.")
+
+        self._last_symbol_parsed_and_span = value
+
+    @property
+    def last_node_parsed_and_span(self):
+        '''
+        :returns: the last node parsed and the span of source code lines it
+                  was found in.
+        :rtype: Union[None, Tuple[:py:class:`psyclone.psyir.nodes.Node`,
+                                  Tuple[int, int]]]'''
+        return self._last_node_parsed_and_span
+
+    @last_node_parsed_and_span.setter
+    def last_node_parsed_and_span(self, value):
+        '''Setter for the last_node_parsed_and_span property.
+        
+        :param value: the last node parsed and the span of source code lines
+                      it was found in.
+        :type value: Tuple[:py:class:`psyclone.psyclone.psyir.nodes.Node`,
+                           Tuple[int, int]]
+
+        :raises TypeError: if the value is not of the right type.
+        '''
+        if not isinstance(value, tuple) or len(value) != 2:
+            raise TypeError(
+                "The value of the last_node_parsed_and_span property must "
+                "be a 2-tuple.")
+        if not isinstance(value[0], Node):
+            raise TypeError(
+                "The first element of the last_node_parsed_and_span tuple "
+                "must be a Node.")
+        if not isinstance(value[1], tuple) or len(value[1]) != 2:
+            raise TypeError(
+                "The second element of the last_node_parsed_and_span tuple "
+                "must be a 2-tuple.")
+        if not all(isinstance(item, int) for item in value[1]):
+            raise TypeError(
+                "The second element of the last_node_parsed_and_span tuple "
+                "must contain two integers.")
+        
+        self._last_node_parsed_and_span = value
 
     @staticmethod
     def nodes_to_code_block(parent, fp2_nodes, message=None):
@@ -1910,6 +1991,8 @@ class Fparser2Reader():
             sym.preceding_comment = '\n'.join(preceding_comments_strs)
             preceding_comments_strs = []
 
+            self.last_symbol_parsed_and_span = (sym, decl.item.span)
+
             if init_expr:
                 # In Fortran, an initialisation expression on a declaration of
                 # a symbol (whether in a routine or a module) implies that the
@@ -2025,6 +2108,13 @@ class Fparser2Reader():
                     if len(child.tostr()) == 0:
                         continue
                     comment_str = child.tostr()[1:].strip()
+                    if self.last_symbol_parsed_and_span is not None:
+                        last_sym, last_span \
+                            = self.last_symbol_parsed_and_span
+                        if (last_span[1] is not None
+                            and last_span[1] == child.item.span[0]):
+                            last_sym.inline_comment = comment_str
+                            continue
                     preceding_comments_strs.append(comment_str)
                     continue
                 if isinstance(child, Fortran2003.Component_Part):
@@ -2045,7 +2135,8 @@ class Fparser2Reader():
                     datatype = symbol.datatype
                     initial_value = symbol.initial_value
                     dtype.add(symbol.name, datatype, symbol.visibility,
-                              initial_value, symbol.preceding_comment)
+                              initial_value, symbol.preceding_comment,
+                              symbol.inline_comment)
 
             # Update its type with the definition we've found
             tsymbol.datatype = dtype
@@ -2363,6 +2454,12 @@ class Fparser2Reader():
             if isinstance(node, Fortran2003.Implicit_Part):
                 for comment in walk(node, Fortran2003.Comment):
                     comment_str = comment.tostr()[1:].strip()
+                    if self.last_symbol_parsed_and_span is not None:
+                        last_sym, last_span = self.last_symbol_parsed_and_span
+                        if (last_span[1] is not None
+                            and last_span[1] == comment.item.span[0]):
+                            last_sym.inline_comment = comment_str
+                            continue
                     preceding_comments_strs.append(comment_str)
                 # Anything other than a PARAMETER statement or an
                 # IMPLICIT NONE means we can't handle this code.
@@ -2438,6 +2535,8 @@ class Fparser2Reader():
                                      initial_value=init)
                             new_symbol.preceding_comment \
                                 = '\n'.join(preceding_comments_strs)
+                            self.last_symbol_parsed_and_span = (new_symbol,
+                                                                node.item.span)
                             parent.symbol_table.add(new_symbol)
                         except KeyError as err:
                             if len(orig_children) == 1:
@@ -2769,12 +2868,20 @@ class Fparser2Reader():
         # Store any comments that precede the next node
         preceding_comments_strs = []
         for child in nodes:
-            # If the child is a comment, store it and continue to the next
+            # If the child is a comment, attach it to the preceding node if
+            # it is an inline comment or store it for the next node.
             if isinstance(child, Fortran2003.Comment):
                 if len(child.tostr()) == 0:
                     # Skip empty comments
                     continue
                 comment_str = child.tostr()[1:].strip()
+                if self.last_node_parsed_and_span is not None:
+                    last_node, last_span \
+                        = self.last_node_parsed_and_span
+                    if last_span[1] is not None and \
+                       last_span[1] == child.item.span[0]:
+                        last_node.inline_comment = comment_str
+                        continue
                 preceding_comments_strs.append(comment_str)
                 continue
             try:
@@ -2801,6 +2908,10 @@ class Fparser2Reader():
                         psy_child.preceding_comment\
                             += '\n'.join(preceding_comments_strs)
                         preceding_comments_strs = []
+                    if (isinstance(psy_child, CommentableMixin)
+                        and child.item is not None):
+                        self.last_node_parsed_and_span = (psy_child,
+                                                          child.item.span)
                     parent.addchild(psy_child)
                 # If psy_child is not initialised but it didn't produce a
                 # NotImplementedError, it means it is safe to ignore it.
@@ -3193,6 +3304,12 @@ class Fparser2Reader():
                     # Skip empty comments
                     continue
                 comment_str = child.tostr()[1:].strip()
+                if self.last_node_parsed_and_span is not None:
+                    last_node, last_span = self.last_node_parsed_and_span
+                    if last_span[1] is not None and \
+                       last_span[1] == child.item.span[0]:
+                        last_node.inline_comment = comment_str
+                        continue
                 preceding_comments_strs.append(comment_str)
                 continue
             if isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
@@ -3249,6 +3366,13 @@ class Fparser2Reader():
                     # Skip empty comments
                     continue
                 comment_str = child.tostr()[1:].strip()
+                if self.last_node_parsed_and_span is not None:
+                    last_node, last_span = self.last_node_parsed_and_span
+                    if last_span[1] is not None and \
+                       last_span[1] == child.item.span[0]:
+                        last_node.inline_comment = comment_str
+                        continue
+
                 preceding_comments_strs.append(comment_str)
         # NOTE: The comments are added to the IfBlock node.
         # NOTE: Comments before the 'else[if]' statements are not handled.
@@ -5220,13 +5344,23 @@ class Fparser2Reader():
             _process_routine_symbols(node, parent, {})
 
         # Get the subroutine or function statement and store the comments
-        # that precede it.
+        # that precede it, or attach it to the last parsed node if it is
+        # on the same line.
         preceding_comments_strs = []
         for child in node.children:
             if isinstance(child, Fortran2003.Comment):
                 if len(child.tostr()) == 0:
                     continue
-                preceding_comments_strs.append(child.tostr()[1:].strip())
+                comment = child.tostr()[1:].strip()
+                if self.last_node_parsed_and_span is not None:
+                    last_node, last_span \
+                        = self.last_node_parsed_and_span
+                    if (isinstance(last_node, CommentableMixin)
+                        and last_span is not None
+                        and last_span[1] == child.item.span[0]):
+                        last_node.inline_comment = comment
+                        continue
+                preceding_comments_strs.append(comment)
                 continue
             if isinstance(child, (Fortran2003.Subroutine_Stmt,
                                   Fortran2003.Function_Stmt)):
@@ -5282,12 +5416,20 @@ class Fparser2Reader():
             # TODO: fparser issue
             # fparser puts comments at the end of the declarations
             # whereas as preceding comments they belong in the execution part
+            # except if it's an inline comment on the last declaration.
             lost_comments = []
             if len(decl_list) != 0 and isinstance(decl_list[-1],
                                                   Fortran2003.Implicit_Part):
                 for comment in walk(decl_list[-1], Fortran2003.Comment):
                     if len(comment.tostr()) == 0:
                         continue
+                    if self.last_symbol_parsed_and_span is not None:
+                        last_symbol, last_span \
+                            = self.last_symbol_parsed_and_span
+                        if (last_span is not None
+                            and last_span[1] == comment.item.span[0]):
+                            last_symbol.inline_comment = comment.tostr()[1:].strip()
+                            continue
                     lost_comments.append(comment)
 
             # Check whether the function-stmt has a prefix specifying the

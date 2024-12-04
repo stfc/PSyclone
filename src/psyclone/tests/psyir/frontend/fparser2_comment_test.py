@@ -307,10 +307,13 @@ def test_write_directives():
 
 CODE_WITH_INLINE_COMMENT = """
 subroutine test_sub()
-  integer :: a ! THIS GETS ATTACHED TO THE SYMBOL 'i'
-  integer :: i
-  a = 1 ! THIS GETS ATTACHED TO THE ASSIGNMENT 'i = 1'
-  i = 1
+  integer :: a ! Inline comment on 'integer :: a'
+  ! Preceding comment on 'i = 1'
+  integer :: i ! Inline comment on 'integer :: i'
+  ! Preceding comment on 'a = 1'
+  a = 1 ! Inline comment on 'a = 1'
+  ! Preceding comment on 'i = 1'
+  i = 1 ! Inline comment on 'i = 1'
 end subroutine test_sub
 """
 
@@ -322,13 +325,17 @@ def test_inline_comment():
     routine = psyir.walk(Routine)[0]
     sym_a = routine.symbol_table.lookup("a")
     assert sym_a.preceding_comment == ""
+    assert sym_a.inline_comment == "Inline comment on 'integer :: a'"
     sym_i = routine.symbol_table.lookup("i")
-    assert sym_i.preceding_comment == "THIS GETS ATTACHED TO THE SYMBOL 'i'"
+    assert sym_i.preceding_comment == "Preceding comment on 'i = 1'"
+    assert sym_i.inline_comment == "Inline comment on 'integer :: i'"
 
     assignment = routine.walk(Assignment)[0]
     assert "a = 1" in assignment.debug_string()
-    assert assignment.preceding_comment == ""
+    assert assignment.preceding_comment == "Preceding comment on 'a = 1'"
+    assert assignment.inline_comment == "Inline comment on 'a = 1'"
 
     assignment = routine.walk(Assignment)[1]
     assert "i = 1" in assignment.debug_string()
-    assert assignment.preceding_comment == "THIS GETS ATTACHED TO THE ASSIGNMENT 'i = 1'"
+    assert assignment.preceding_comment == "Preceding comment on 'i = 1'"
+    assert assignment.inline_comment == "Inline comment on 'i = 1'"

@@ -325,6 +325,7 @@ class DataSymbol(TypedSymbol):
                           is_constant=self.is_constant,
                           initial_value=new_init_value)
         copy.preceding_comment = self.preceding_comment
+        copy.inline_comment = self.inline_comment
         return copy
 
     def copy_properties(self, symbol_in):
@@ -343,6 +344,8 @@ class DataSymbol(TypedSymbol):
         super().copy_properties(symbol_in)
         self._is_constant = symbol_in.is_constant
         self._initial_value = symbol_in.initial_value
+        self.preceding_comment = symbol_in.preceding_comment
+        self.inline_comment = symbol_in.inline_comment
 
     def replace_symbols_using(self, table):
         '''

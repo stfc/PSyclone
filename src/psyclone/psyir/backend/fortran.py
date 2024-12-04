@@ -559,11 +559,17 @@ class FortranWriter(LanguageWriter):
                     # blocks appearing in SAVE statements.
                     decln = add_accessibility_to_unsupported_declaration(
                                 symbol)
-                    result += f"{self._nindent}{decln}\n"
+                    result += f"{self._nindent}{decln}"
+                    if symbol.inline_comment != "":
+                        result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
+                    result += "\n"
                     return result
 
                 decln = symbol.datatype.declaration
-                result += f"{self._nindent}{decln}\n"
+                result += f"{self._nindent}{decln}"
+                if symbol.inline_comment != "":
+                    result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
+                result += "\n"
                 return result
             # The Fortran backend only handles UnsupportedFortranType
             # declarations.
@@ -622,6 +628,9 @@ class FortranWriter(LanguageWriter):
                     f"therefore (in Fortran) must have a StaticInterface. "
                     f"However it has an interface of '{symbol.interface}'.")
             result += " = " + self._visit(symbol.initial_value)
+
+        if symbol.inline_comment != "":
+            result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
 
         return result + "\n"
 
