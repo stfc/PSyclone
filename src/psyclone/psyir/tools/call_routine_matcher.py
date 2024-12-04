@@ -242,7 +242,7 @@ class CallRoutineMatcher:
                 if routine_arg is None:
                     continue
 
-                if arg_name == routine_arg.name:
+                if arg_name.lower() == routine_arg.name.lower():
                     self._check_argument_type_matches(
                         call_arg,
                         routine_arg
