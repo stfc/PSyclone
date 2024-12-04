@@ -276,16 +276,13 @@ class FileInfo:
             self._cache_data_save._source_code_hash_sum = (
                 self._source_code_hash_sum)
 
-        assert self._cache_data_save._source_code_hash_sum == (
-                    self._source_code_hash_sum)  # Sanity check
-
         if (
             self._cache_data_save._fparser_tree is None
             and self._fparser_tree is not None
         ):
             # No fparser tree was loaded so far into the cache object
             # AND
-            # an fparser tree was loaded in Fileinfo.
+            # an fparser tree was loaded and stored to Fileinfo.
             #
             # Consequently, we cache the fparser tree to the cache file.
             # We create a deepcopy of this fparser tree to ensure that we cache
