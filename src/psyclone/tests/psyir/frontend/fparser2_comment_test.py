@@ -38,9 +38,11 @@ PSyIR front-end"""
 
 import pytest
 
+from fparser.two import Fortran2003
+
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Container, Routine, Assignment,
-                                  Loop, IfBlock, Call)
+                                  Loop, IfBlock, Call, CodeBlock)
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols import DataTypeSymbol, StructureType
 
@@ -82,16 +84,16 @@ contains
     if (a == 1) then
       ! Comment on assignment 'a = 2'
       a = 2
-    ! Comment on elseif block 'elseif (a == 2) then' SHOULD BE LOST
+    ! Comment on elseif block 'elseif (a == 2) then' => CodeBlock
     elseif (a == 2) then
       ! Comment on assignment 'a = 3'
       a = 3
-    ! Comment on else block 'else' SHOULD BE LOST
+    ! Comment on else block 'else' => CodeBlock
     else
       ! Comment on assignment 'a = 4'
       a = 4
-    ! Comment on 'end if' SHOULD BE LOST
-    end if
+    ! Comment on 'end if' => CodeBlock
+    end if ! Inline comment on 'end if'
     ! Comment on loop 'do i = 1, 10'
     do i = 1, 10
       ! Comment on assignment 'a = 5'
@@ -100,8 +102,11 @@ contains
         do j = 1, 10
           ! Comment on assignment 'a = 6'
           a = 6
+          ! Comment at end of loop on j => CodeBlock
         end do ! Inline comment on 'end do j = 1, 10'
+        ! Comment at end of loop on i => CodeBlock
     end do ! Inline comment on 'end do i = 1, 10'
+    ! Comment at end of subroutine => CodeBlock
   end subroutine test_sub ! Inline comment on 'end subroutine test_sub'
 end module test_mod
 """
@@ -135,6 +140,8 @@ def test_no_comments():
     for node in commentable_nodes:
         assert node.preceding_comment == ""
 
+    assert len(routine.walk(CodeBlock)) == 0
+
 
 def test_comments():
     """Test that the FortranReader is able to read comments"""
@@ -165,6 +172,10 @@ def test_comments():
     routine = module.walk(Routine)[0]
     assert routine.preceding_comment == "Comment on a subroutine"
     assert routine.inline_comment == "Inline comment on 'end subroutine test_sub'"
+    last_child = routine.children[-1]
+    assert isinstance(last_child, CodeBlock)
+    assert isinstance(last_child.ast, Fortran2003.Comment)
+    assert last_child.ast.tostr() == "! Comment at end of subroutine => CodeBlock"
 
     for i, symbol in enumerate(routine.symbol_table.symbols):
         if i == 0:
@@ -183,16 +194,38 @@ def test_comments():
 
     ifblock = routine.walk(IfBlock)[0]
     assert ifblock.preceding_comment == "Comment on if block 'if (a == 1) then'"
+    last_child = ifblock.if_body.children[-1]
+    assert isinstance(last_child, CodeBlock)
+    assert isinstance(last_child.ast, Fortran2003.Comment)
+    assert last_child.ast.tostr() == "! Comment on elseif block 'elseif (a == 2) then' => CodeBlock"
+    ifblock2 = ifblock.else_body.children[0]
+    last_child = ifblock2.if_body.children[-1]
+    assert isinstance(last_child, CodeBlock)
+    assert isinstance(last_child.ast, Fortran2003.Comment)
+    assert last_child.ast.tostr() == "! Comment on else block 'else' => CodeBlock"
+    last_child = ifblock2.else_body.children[-1]
+    assert isinstance(last_child, CodeBlock)
+    assert isinstance(last_child.ast, Fortran2003.Comment)
+    assert last_child.ast.tostr() == "! Comment on 'end if' => CodeBlock"
 
     loops = routine.walk(Loop)
     loop_i = loops[0]
-    # OMP directives should be ignored
+    assert loop_i.variable.name == "i"
     assert loop_i.preceding_comment == "Comment on loop 'do i = 1, 10'"
     assert loop_i.inline_comment == "Inline comment on 'end do i = 1, 10'"
+    last_child = loop_i.loop_body.children[-1]
+    assert isinstance(last_child, CodeBlock)
+    assert isinstance(last_child.ast, Fortran2003.Comment)
+    assert last_child.ast.tostr() == "! Comment at end of loop on i => CodeBlock"
 
     loop_j = loops[1]
+    assert loop_j.variable.name == "j"
     assert loop_j.preceding_comment == "Comment on loop 'do j = 1, 10'"
     assert loop_j.inline_comment == "Inline comment on 'end do j = 1, 10'"
+    last_child = loop_j.loop_body.children[-1]
+    assert isinstance(last_child, CodeBlock)
+    assert isinstance(last_child.ast, Fortran2003.Comment)
+    assert last_child.ast.tostr() == "! Comment at end of loop on j => CodeBlock"
 
 
 EXPECTED_WITH_COMMENTS = """! Comment on module 'test_mod'
@@ -232,15 +265,18 @@ module test_mod
     if (a == 1) then
       ! Comment on assignment 'a = 2'
       a = 2
+      ! Comment on elseif block 'elseif (a == 2) then' => CodeBlock
     else
       if (a == 2) then
         ! Comment on assignment 'a = 3'
         a = 3
+        ! Comment on else block 'else' => CodeBlock
       else
         ! Comment on assignment 'a = 4'
         a = 4
+        ! Comment on 'end if' => CodeBlock
       end if
-    end if
+    end if  ! Inline comment on 'end if'
     ! Comment on loop 'do i = 1, 10'
     do i = 1, 10, 1
       ! Comment on assignment 'a = 5'
@@ -249,8 +285,11 @@ module test_mod
       do j = 1, 10, 1
         ! Comment on assignment 'a = 6'
         a = 6
+        ! Comment at end of loop on j => CodeBlock
       enddo  ! Inline comment on 'end do j = 1, 10'
+      ! Comment at end of loop on i => CodeBlock
     enddo  ! Inline comment on 'end do i = 1, 10'
+    ! Comment at end of subroutine => CodeBlock
 
   end subroutine test_sub  ! Inline comment on 'end subroutine test_sub'
 
