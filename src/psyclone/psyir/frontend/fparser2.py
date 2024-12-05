@@ -1697,7 +1697,8 @@ class Fparser2Reader():
                     has_pointer_attr = True
                 elif normalized_string == "target":
                     has_target_attr = True
-                elif isinstance(attr, Fortran2003.Attr_Spec):
+                elif isinstance(attr, (Fortran2003.Attr_Spec,
+                                       Fortran2003.Component_Attr_Spec)):
                     normalized_string = str(attr).lower().replace(' ', '')
                     if normalized_string == "save":
                         if interface is not None:
