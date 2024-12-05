@@ -337,7 +337,7 @@ c_sizeof(field%grid%'''
       use ocl_utils_mod, only: check_status
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
-      integer(kind=c_intptr_t), pointer :: cmd_queues(:)
+      integer(kind=c_intptr_t), dimension(:), pointer :: cmd_queues
       integer(kind=c_intptr_t) cl_mem
       integer ierr
 
@@ -430,7 +430,7 @@ def test_opencl_routines_initialisation(kernel_outputdir):
       use clfortran
       use fortcl, only: get_cmd_queues
       type(c_ptr), intent(in) :: from
-      real(kind=go_wp), intent(inout), dimension(:, :), target :: to
+      real(kind=go_wp), dimension(:,:), intent(inout), target :: to
       integer, intent(in) :: startx
       integer, intent(in) :: starty
       integer, intent(in) :: nx
@@ -439,7 +439,7 @@ def test_opencl_routines_initialisation(kernel_outputdir):
       integer(kind=c_size_t) size_in_bytes
       integer(kind=c_size_t) offset_in_bytes
       integer(kind=c_intptr_t) cl_mem
-      integer(kind=c_intptr_t), pointer :: cmd_queues(:)
+      integer(kind=c_intptr_t), dimension(:), pointer :: cmd_queues
       integer ierr
       integer i
 
@@ -477,7 +477,7 @@ offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
       use kind_params_mod, only: go_wp
       use clfortran
       use fortcl, only: get_cmd_queues
-      real(kind=go_wp), intent(in), dimension(:, :), target :: from
+      real(kind=go_wp), dimension(:,:), intent(in), target :: from
       type(c_ptr), intent(in) :: to
       integer, intent(in) :: startx
       integer, intent(in) :: starty
@@ -487,7 +487,7 @@ offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
       integer(kind=c_intptr_t) cl_mem
       integer(kind=c_size_t) size_in_bytes
       integer(kind=c_size_t) offset_in_bytes
-      integer(kind=c_intptr_t), pointer :: cmd_queues(:)
+      integer(kind=c_intptr_t), dimension(:), pointer :: cmd_queues
       integer ierr
       integer i
 
