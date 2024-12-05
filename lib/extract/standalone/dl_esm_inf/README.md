@@ -43,6 +43,17 @@ environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 [Fortran compiler](./../../../README.md#compilation) and flags to use. They
 default to ``gfortran`` and the empty string.
 
+The library can be compiled with MPI support, which will add the process rank
+to each output filename, by setting ``MPI=yes``:
+
+```shell
+MPI=yes make
+```
+
+The build environment will provide ``NO_MPI`` as a pre-processor definition when
+MPI is not enabled (to be compatible with LFRic) so that MPI specific code can
+be disabled.
+
 It needs the dl_esm_inf infrastructure library. By default, the version
 included in PSyclone repository
 (``<PSYCLONEHOME>/external/dl_esm_inf/finite_difference``) is used. This is not

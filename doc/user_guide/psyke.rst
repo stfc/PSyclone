@@ -153,11 +153,16 @@ are used or not.
 Distributed memory
 ##################
 
-As noted in the :ref:`PSyKAl Introduction <introduction_to_psykal>` section,
-PSyKAl can support distributed memory. However, since the generated PSy-layer
-code with DM enabled contains infrastructure calls (e.g. checks for runtime
-status of field halos, halo exchanges etc.), code extraction is not allowed
-when distributed memory is enabled.
+Kernel extraction for distributed memory is supported in as much as each
+process will write its own output file by adding its rank to the output
+file name. So each kernel and each rank will produce one file. It is possible
+to extract several consecutive kernels, but there must be no halo exchange
+calls between the kernels. The extraction transformation will test for this
+and raise an exception if this should happen.
+The compiled driver program accepts the name of the extracted kernel file as
+a command line parameter. If this is not specified, it will use the default
+name (``module-region`` without a rank).
+
 
 .. _psyke-intro-restrictions-shared:
 
@@ -175,6 +180,8 @@ The ``ExtractTrans`` transformation cannot be applied to:
   the LFRic API,
 
 * An inner Loop without its parent outer Loop in the GOcean API.
+
+* Kernels that have a halo exchange call between them.
 
 .. _psyke-use:
 
@@ -381,6 +388,19 @@ and in
 `lib/extract/netcdf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf>`_.
 
+All versions of the extraction libraries can be compiled with MPI
+support by setting the variable ``MPI=yes``:
+
+.. code-block:: shell
+
+  make MPI=yes ...
+
+The only difference is that the output files will now have the process
+rank in the name. The compiled driver program accepts the name of the
+extracted kernel file as a command line parameter. If this is not specified,
+it will use the default name (``module-region`` without a rank).
+
+
 .. _extraction_for_gocean:
 
 Extraction for GOcean
@@ -536,23 +556,23 @@ creation code:
   ``protected`` declarations in any source files, meaning no manual
   modification of files is required anymore (TODO #2536).
 
-Extraction for NEMO
-++++++++++++++++++++
+Extraction for generic Fortran
+++++++++++++++++++++++++++++++
 The libraries in
-`lib/extract/standalone/nemo
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/nemo>`_
+`lib/extract/standalone/generic
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/generic>`_
 and
-`lib/extract/netcdf/nemo
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/nemo>`_
-implement the full PSyData API for use with the
-:ref:`NEMO <nemo-api>` API. When running the
-code, it will create an output file for each instrumented code region.
+`lib/extract/netcdf/generic
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/generic>`_
+implement the full PSyData API for use with generic code transformation.
+When running the code, it will create an output file for each instrumented
+code region.
 The same logic for naming variables used in :ref:`extraction_for_gocean`
 is used here.
 
 .. note::
 
-  Driver creation in NEMO is not yet supported, and is
+  Driver creation for generic Fortran is not yet supported, and is
   tracked in issue #2058.
 
 .. _driver_summary_statistics:

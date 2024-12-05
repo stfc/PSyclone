@@ -49,10 +49,10 @@ from psyclone.psyir.nodes import (
     CodeBlock, Routine, BinaryOperation)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, ScalarType, UnresolvedType, SymbolError,
-    ArrayType)
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+    ArrayType, DataSymbol, INTEGER_TYPE, ScalarType, SymbolError,
+    UnresolvedType)
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 
@@ -241,17 +241,16 @@ class ArrayAssignment2LoopsTrans(Transformation):
                 f"Range, but none were found in '{node.debug_string()}'."))
 
         # All the ArrayMixins must have the same number of Ranges to expand
-        found = None
+        num_of_ranges = None
         for accessor in node.walk(ArrayMixin):
-            num_of_ranges = len([x for x in accessor.indices
-                                 if isinstance(x, Range)])
-            if num_of_ranges > 0:
-                if not found:
+            count = len([x for x in accessor.indices if isinstance(x, Range)])
+            if count > 0:
+                if not num_of_ranges:
                     # If it's the first value we find, we store it
-                    found = num_of_ranges
+                    num_of_ranges = count
                 else:
                     # Otherwise we compare it against the previous found value
-                    if found != num_of_ranges:
+                    if count != num_of_ranges:
                         raise TransformationError(LazyString(
                             lambda: f"{self.name} does not support statements"
                             f" containing array accesses that have varying "
@@ -288,8 +287,9 @@ class ArrayAssignment2LoopsTrans(Transformation):
         if not options.get("allow_string", False):
             for child in node.walk((Literal, Reference)):
                 try:
-                    if (child.datatype.intrinsic ==
-                            ScalarType.Intrinsic.CHARACTER):
+                    forbidden = ScalarType.Intrinsic.CHARACTER
+                    if (child.is_character(unknown_as=False) or
+                            (child.symbol.datatype.intrinsic == forbidden)):
                         message = (f"{self.name} does not expand ranges "
                                    f"on character arrays by default (use the"
                                    f"'allow_string' option to expand them)")
@@ -306,8 +306,11 @@ class ArrayAssignment2LoopsTrans(Transformation):
         # We don't accept calls that are not guaranteed to be elemental
         for call in node.rhs.walk(Call):
             if isinstance(call, IntrinsicCall):
-                if call.intrinsic.is_inquiry:
-                    continue  # Inquiry intrinsic calls are fine
+                # Intrinsics that return scalars are also fine.
+                if call.intrinsic in (IntrinsicCall.Intrinsic.LBOUND,
+                                      IntrinsicCall.Intrinsic.UBOUND,
+                                      IntrinsicCall.Intrinsic.SIZE):
+                    continue
                 name = call.intrinsic.name
             else:
                 name = call.routine.symbol.name
@@ -322,8 +325,8 @@ class ArrayAssignment2LoopsTrans(Transformation):
                     lambda: f"{message} in:\n{node.debug_string()}."))
 
         # For each top-level reference (because we don't support nesting), the
-        # apply will have to be able to decide if its an Array (and access it
-        # with the index) or an Scalar (and leave it as it is). We can not
+        # apply() will have to determine whether it's an Array (and access it
+        # with the index) or a Scalar (and leave it as it is). We cannot
         # transform references where this is unclear.
         for reference in node.walk(Reference, stop_type=Reference):
             if isinstance(reference.parent, Call):
@@ -351,12 +354,12 @@ class ArrayAssignment2LoopsTrans(Transformation):
             # scalar.
             if not isinstance(reference.datatype, (ScalarType, ArrayType)):
                 if isinstance(reference.symbol, DataSymbol):
-                    typestr = f"an {reference.symbol.datatype}"
+                    typestr = f"an {reference.datatype}"
                 else:
                     typestr = "not a DataSymbol"
                 message = (
                     f"{self.name} cannot expand expression because it "
-                    f"contains the variable '{reference.symbol.name}' "
+                    f"contains the access '{reference.debug_string()}' "
                     f"which is {typestr} and therefore cannot be guaranteed"
                     f" to be ScalarType.")
                 if not isinstance(reference.symbol, DataSymbol) or \

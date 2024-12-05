@@ -73,7 +73,7 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
     integer(kind=i_def), intent(in) :: ndf_w2, ndf_w0, undf_w3
     real(kind=r_def), intent(inout), dimension(undf_w3) :: f2
-    real(kind=r_def), intent(in), dimension(ndf_w2,ndf_w0,ncell_3d) :: op1_stencil
+    real(kind=r_def), intent(in), dimension(ncell_3d,ndf_w2,ndf_w0) :: op1_stencil
     real(kind=r_def), intent(in), dimension(3,ndf_w2,ndf_w3) :: basis_w2_on_w3
     real(kind=r_def), intent(in), dimension(1,ndf_w2,ndf_w3) :: diff_basis_w2_on_w3
     real(kind=r_def), intent(in), dimension(3,ndf_w3,ndf_w3) :: diff_basis_w3_on_w3

@@ -57,8 +57,9 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.psyir import symbols
 
-# constants
+# Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
@@ -478,8 +479,8 @@ def test_operator(tmpdir):
     assert "TYPE(operator_type), intent(in) :: mm_w0" in generated_code
     assert "TYPE(operator_proxy_type) mm_w0_proxy" in generated_code
     assert "mm_w0_proxy = mm_w0%get_proxy()" in generated_code
-    assert ("CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, "
-            "mm_w0_local_stencil, coord_1_data, "
+    assert ("CALL testkern_operator_code(cell, nlayers_mm_w0, "
+            "mm_w0_proxy%ncell_3d, mm_w0_local_stencil, coord_1_data, "
             "coord_2_data, coord_3_data, a, ndf_w0, undf_w0, "
             "map_w0(:,cell), basis_w0_qr, diff_basis_w0_qr, np_xy_qr, "
             "np_z_qr, weights_xy_qr, weights_z_qr)") in generated_code
@@ -524,7 +525,7 @@ def test_operator_different_spaces(tmpdir):
         "      REAL(KIND=r_def), pointer :: weights_xy_qr(:) => null(), "
         "weights_z_qr(:) => null()\n"
         "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_mapping\n"
         "      REAL(KIND=r_def), pointer, dimension(:,:,:) :: "
         "mapping_local_stencil => null()\n"
         "      TYPE(operator_proxy_type) mapping_proxy\n"
@@ -552,7 +553,7 @@ def test_operator_different_spaces(tmpdir):
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = mapping_proxy%fs_from%get_nlayers()\n"
+        "      nlayers_mapping = mapping_proxy%fs_from%get_nlayers()\n"
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
@@ -622,7 +623,7 @@ def test_operator_different_spaces(tmpdir):
         "      END IF\n"
         "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL assemble_weak_derivative_w3_w2_kernel_code(cell, "
-        "nlayers, mapping_proxy%ncell_3d, mapping_local_stencil, "
+        "nlayers_mapping, mapping_proxy%ncell_3d, mapping_local_stencil, "
         "coord_1_data, coord_2_data, coord_3_data, "
         "ndf_w3, basis_w3_qr, ndf_w2, diff_basis_w2_qr, ndf_w0, "
         "undf_w0, map_w0(:,cell), diff_basis_w0_qr, "
@@ -658,7 +659,7 @@ def test_operator_nofield(tmpdir):
     assert "mm_w2_local_stencil => mm_w2_proxy%local_stencil" in gen_code_str
     assert "undf_w2" not in gen_code_str
     assert "map_w2" not in gen_code_str
-    assert ("CALL testkern_operator_nofield_code(cell, nlayers, "
+    assert ("CALL testkern_operator_nofield_code(cell, nlayers_mm_w2, "
             "mm_w2_proxy%ncell_3d, mm_w2_local_stencil, "
             "coord_1_data, coord_2_data, coord_3_data, "
             "ndf_w2, basis_w2_qr, ndf_w0, undf_w0, "
@@ -679,13 +680,13 @@ def test_operator_nofield_different_space(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
-    assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
+    assert "nlayers_my_mapping = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
     # We compute operators redundantly (out to the L1 halo)
     assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
-    assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_"
-            "local_stencil, ndf_w2, ndf_w3)" in gen)
+    assert ("(cell, nlayers_my_mapping, my_mapping_proxy%ncell_3d, "
+            "my_mapping_local_stencil, ndf_w2, ndf_w3)" in gen)
 
 
 def test_operator_nofield_scalar(tmpdir):
@@ -699,10 +700,10 @@ def test_operator_nofield_scalar(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
-    assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
+    assert "nlayers_my_mapping = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
-    assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_"
+    assert ("(cell, nlayers_my_mapping, my_mapping_proxy%ncell_3d, my_mapping_"
             "local_stencil, b, ndf_w2, basis_w2_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr)" in gen)
 
@@ -735,7 +736,7 @@ def test_operator_read_level1_halo(tmpdir):
     loop = schedule.children[0]
     # Modify the loop bound so that we attempt to read from the L2 halo
     # (of the operator)
-    loop.set_upper_bound("cell_halo", index=2)
+    loop.set_upper_bound("cell_halo", halo_depth=2)
     # Attempt to generate the code
     with pytest.raises(VisitorError) as excinfo:
         _ = psy.gen
@@ -762,9 +763,9 @@ def test_operator_bc_kernel(tmpdir):
     output2 = "boundary_dofs_op_a => op_a_proxy%fs_to%get_boundary_dofs()"
     assert output2 in generated_code
     output3 = (
-        "CALL enforce_operator_bc_code(cell, nlayers, op_a_proxy%ncell_3d, "
-        "op_a_local_stencil, ndf_aspc1_op_a, ndf_aspc2_op_a, "
-        "boundary_dofs_op_a)")
+        "CALL enforce_operator_bc_code(cell, nlayers_op_a, "
+        "op_a_proxy%ncell_3d, op_a_local_stencil, ndf_aspc1_op_a, "
+        "ndf_aspc2_op_a, boundary_dofs_op_a)")
     assert output3 in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -824,7 +825,7 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
             "should only have 1 (an LMA operator)") in str(excinfo.value)
 
 
-def test_operator_bc_kernel_wrong_access_err(dist_mem):
+def test_operator_bc_kernel_wrong_access_err(dist_mem, monkeypatch):
     ''' Test that we reject the recognised operator boundary conditions
     kernel if its operator argument has the wrong access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -836,7 +837,11 @@ def test_operator_bc_kernel_wrong_access_err(dist_mem):
     loop = schedule.children[0]
     call = loop.loop_body[0]
     arg = call.arguments.args[0]
-    arg._access = AccessType.READ
+    monkeypatch.setattr(arg, "_access", AccessType.READ)
+    # We have to monkeypatch iteration_space_arg() too to reach the error
+    # we want to exercise.
+    monkeypatch.setattr(call.arguments, "iteration_space_arg",
+                        lambda: symbols.Symbol("var"))
     with pytest.raises(VisitorError) as excinfo:
         _ = psy.gen
     assert ("applies boundary conditions to an operator. However its "
@@ -912,44 +917,44 @@ def test_operators():
         "ndf_w2vtrace, ndf_w3, ndf_wtheta, ndf_aspc1_op_12, ndf_adspc1_op_13\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w0,ndf_w0,"
-        "op_1_ncell_3d) :: op_1\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_1_ncell_3d,"
+        "ndf_w0,ndf_w0) :: op_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
-        "op_2_ncell_3d) :: op_2\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_2_ncell_3d,"
+        "ndf_w1,ndf_w1) :: op_2\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_3_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2,ndf_w2,"
-        "op_3_ncell_3d) :: op_3\n"
+        "      REAL(KIND=r_def), intent(in), dimension(op_3_ncell_3d,"
+        "ndf_w2,ndf_w2) :: op_3\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2h,ndf_w2h,"
-        "op_4_ncell_3d) :: op_4\n"
+        "      REAL(KIND=r_def), intent(in), dimension(op_4_ncell_3d,"
+        "ndf_w2h,ndf_w2h) :: op_4\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_5_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2v,ndf_w2v,"
-        "op_5_ncell_3d) :: op_5\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_5_ncell_3d,"
+        "ndf_w2v,ndf_w2v) :: op_5\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2broken,"
-        "ndf_w2broken,op_6_ncell_3d) :: op_6\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_6_ncell_3d,"
+        "ndf_w2broken,ndf_w2broken) :: op_6\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_7_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2trace,"
-        "ndf_w2trace,op_7_ncell_3d) :: op_7\n"
+        "      REAL(KIND=r_def), intent(in), dimension(op_7_ncell_3d,"
+        "ndf_w2trace,ndf_w2trace) :: op_7\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_8_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2htrace,"
-        "ndf_w2htrace,op_8_ncell_3d) :: op_8\n"
+        "      REAL(KIND=r_def), intent(in), dimension(op_8_ncell_3d,"
+        "ndf_w2htrace,ndf_w2htrace) :: op_8\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_9_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2vtrace,"
-        "ndf_w2vtrace,op_9_ncell_3d) :: op_9\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_9_ncell_3d,"
+        "ndf_w2vtrace,ndf_w2vtrace) :: op_9\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w3,ndf_w3,"
-        "op_10_ncell_3d) :: op_10\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_10_ncell_3d,"
+        "ndf_w3,ndf_w3) :: op_10\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_11_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_wtheta,"
-        "ndf_wtheta,op_11_ncell_3d) :: op_11\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(op_11_ncell_3d,"
+        "ndf_wtheta,ndf_wtheta) :: op_11\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_aspc1_op_12,"
-        "ndf_aspc1_op_12,op_12_ncell_3d) :: op_12\n"
+        "      REAL(KIND=r_def), intent(in), dimension(op_12_ncell_3d,"
+        "ndf_aspc1_op_12,ndf_aspc1_op_12) :: op_12\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_13_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_adspc1_op_13,"
-        "ndf_adspc1_op_13,op_13_ncell_3d) :: op_13\n"
+        "      REAL(KIND=r_def), intent(in), dimension(op_13_ncell_3d,"
+        "ndf_adspc1_op_13,ndf_adspc1_op_13) :: op_13\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in generated_code
@@ -985,7 +990,7 @@ def test_stub_operator_different_spaces():
     kernel.load_meta(metadata)
     result = str(kernel.gen_stub)
     assert "(cell, nlayers, op_1_ncell_3d, op_1, ndf_w0, ndf_w1)" in result
-    assert "dimension(ndf_w0,ndf_w1,op_1_ncell_3d)" in result
+    assert "dimension(op_1_ncell_3d,ndf_w0,ndf_w1)" in result
     # Check for discontinuous to- and from- spaces
     code = OPERATOR_DIFFERENT_SPACES.replace(
         "(gh_operator, gh_real, gh_write, w0, w1)",
@@ -997,7 +1002,7 @@ def test_stub_operator_different_spaces():
     result = str(kernel.gen_stub)
     assert ("(cell, nlayers, op_1_ncell_3d, op_1, ndf_w3, ndf_adspc2_op_1)"
             in result)
-    assert "dimension(ndf_w3,ndf_adspc2_op_1,op_1_ncell_3d)" in result
+    assert "dimension(op_1_ncell_3d,ndf_w3,ndf_adspc2_op_1)" in result
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
     assert "function_space_to[3]='w3'" in result

@@ -65,7 +65,7 @@ def make_loop():
     start = Literal("0", INTEGER_SINGLE_TYPE)
     stop = Literal("1", INTEGER_SINGLE_TYPE)
     step = Literal("1", INTEGER_SINGLE_TYPE)
-    sched = Routine("loop_test_sub")
+    sched = Routine.create("loop_test_sub")
     tmp = sched.symbol_table.new_symbol("tmp", symbol_type=DataSymbol,
                                         datatype=REAL_SINGLE_TYPE)
     isym = sched.symbol_table.new_symbol("i", symbol_type=DataSymbol,
@@ -199,6 +199,30 @@ def test_loop_node_str(monkeypatch):
     out = loop.node_str()
     assert "yes[variable='i', loop_type='i-loop']" in out
     Loop.set_loop_type_inference_rules({})
+
+
+def test_loop_replace_symbols_using():
+    '''Test the replace_symbols_using() method of Loop.'''
+    loop = make_loop()
+    assert loop.variable.name == "i"
+    # Create a symbol table containing a replacement symbol.
+    table = SymbolTable()
+    new_i = table.new_symbol("i", symbol_type=DataSymbol,
+                             datatype=INTEGER_TYPE)
+    assert loop.variable is not new_i
+    loop.replace_symbols_using(table)
+    # Loop variable should have been updated.
+    assert loop.variable is new_i
+    # Check that the method has recursed to the children too.
+    assert loop.loop_body[0].rhs.symbol is new_i
+    # Test when the Loop doesn't have the _variable property set.
+    loop = Loop()
+    loop.addchild(Literal("0", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("2", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("1", INTEGER_SINGLE_TYPE))
+    loop.addchild(Schedule(parent=loop))
+    assert not loop._variable
+    loop.replace_symbols_using(table)
 
 
 def test_loop_str():
@@ -566,3 +590,42 @@ def test_loop_type(fortran_reader):
     Loop.set_loop_type_inference_rules(None)
     assert outer_loop.loop_type is None
     assert inner_loop.loop_type is None
+
+
+def test_explicitly_private_symbols(fortran_reader):
+    ''' Check that the explicitly_private_symbols functionality works '''
+    code = '''
+    subroutine basic_loop()
+      integer, parameter :: jpi=16, jpj=16
+      integer :: ji, jj
+      real :: a(jpi, jpj), fconst
+      do jj = 1, jpj
+        do ji = 1, jpi
+          a(ji) = b(ji, jj)
+        end do
+      end do
+    end subroutine basic_loop
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    a_ref = psyir.walk(Assignment)[0].lhs
+    b_ref = psyir.walk(Assignment)[0].rhs
+
+    # By default no loop has explict local symbols
+    assert len(loops[0].explicitly_private_symbols) == 0
+    assert len(loops[1].explicitly_private_symbols) == 0
+
+    # Add A as explicitly local to the first loop
+    loops[0].explicitly_private_symbols.add(a_ref.symbol)
+    assert len(loops[0].explicitly_private_symbols) == 1
+    assert a_ref.symbol in loops[0].explicitly_private_symbols
+    assert b_ref.symbol not in loops[0].explicitly_private_symbols
+    assert len(loops[1].explicitly_private_symbols) == 0
+
+    # Check that the copy method appropriately updates the symbol references
+    new_psyir = psyir.copy()
+    new_loops = new_psyir.walk(Loop)
+    new_a_ref = new_psyir.walk(Assignment)[0].lhs
+    assert new_a_ref.symbol is not a_ref.symbol
+    assert a_ref.symbol not in new_loops[0].explicitly_private_symbols
+    assert new_a_ref.symbol in new_loops[0].explicitly_private_symbols

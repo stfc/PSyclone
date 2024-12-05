@@ -819,17 +819,34 @@ def test_gen_access_stmts(fortran_writer):
     symbol_table.default_visibility = Symbol.Visibility.PRIVATE
     code = fortran_writer.gen_access_stmts(symbol_table)
     assert code.strip() == "public :: my_sub1, some_var"
-    # Check that we don't generate an accessibility statement for a
-    # RoutineSymbol tagged with 'own_routine_symbol'
-    symbol_table.add(RoutineSymbol("my_routine",
-                                   visibility=Symbol.Visibility.PUBLIC),
-                     tag='own_routine_symbol')
-    code = fortran_writer.gen_access_stmts(symbol_table)
-    assert "my_routine" not in code
     # Accessibility should also be generated for a GenericInterfaceSymbol.
     symbol_table.add(GenericInterfaceSymbol("overloaded", [(sub2, True)]))
     code = fortran_writer.gen_access_stmts(symbol_table)
     assert code.strip() == "public :: my_sub1, some_var, overloaded"
+
+
+def test_gen_access_stmts_avoids_internal(fortran_reader, fortran_writer):
+    '''
+    Tests for the gen_access_stmts does not list the psyclone internal symbols
+    '''
+    test_module = '''
+    module test_mod
+      private
+      interface test
+        module procedure test, test_code
+      end interface test
+      public test
+    contains
+      subroutine test_code()
+      end subroutine test_code
+      subroutine test()
+      end subroutine test
+    end module test_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(test_module)
+    # Check that the internal symbol exists but is not listed
+    assert psyir.children[0].symbol_table.lookup("_PSYCLONE_INTERNAL_test")
+    assert "_psyclone_internal_test" not in fortran_writer(psyir).lower()
 
 
 def test_fw_exception(fortran_writer):
@@ -864,7 +881,7 @@ def test_fw_filecontainer_2(fortran_writer):
 
     '''
     container = Container("mod_name")
-    routine = Routine("sub_name")
+    routine = Routine.create("sub_name")
     file_container = FileContainer.create(
         "None", SymbolTable(), [container, routine])
     result = fortran_writer(file_container)
@@ -1376,6 +1393,7 @@ def test_fw_char_literal(fortran_writer):
     result = fortran_writer(lit)
     assert result == "'hello'"
 
+
 # literal is already checked within previous tests
 
 
@@ -1670,6 +1688,10 @@ def test_fw_literal_node(fortran_writer):
     result = fortran_writer(lit1)
     assert result == '3.14'
 
+    lit1 = Literal('3', REAL_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '3.0'
+
     lit1 = Literal('3.14E0', REAL_TYPE)
     result = fortran_writer(lit1)
     assert result == '3.14e0'
@@ -1677,6 +1699,10 @@ def test_fw_literal_node(fortran_writer):
     lit1 = Literal('3.14E0', REAL_DOUBLE_TYPE)
     result = fortran_writer(lit1)
     assert result == '3.14d0'
+
+    lit1 = Literal('3', REAL_DOUBLE_TYPE)
+    result = fortran_writer(lit1)
+    assert result == '3.0d0'
 
     # Check that BOOLEANS use the FORTRAN formatting
     lit1 = Literal('true', BOOLEAN_TYPE)
@@ -1839,7 +1865,7 @@ def test_fw_comments(fortran_writer):
     ''' Test the generation of Fortran from PSyIR with comments. '''
 
     container = Container("my_container")
-    routine = Routine("my_routine")
+    routine = Routine.create("my_routine")
     container.addchild(routine)
     statement1 = Return()
     statement2 = Return()
@@ -2009,3 +2035,24 @@ def test_pointer_assignments(fortran_reader, fortran_writer):
     assert "a = 4" in code
     assert "b => a" in code
     assert "field(3,c)%pointer => b" in code
+
+
+def test_fw_schedule(fortran_reader, fortran_writer):
+    '''Test that the FortranWriter correctly handles a Schedule node.
+
+    '''
+    routine_header = ("subroutine foo()\n"
+                      "real :: a, b, c\n")
+    test_code = (
+        "a = b\n"
+        "b = c\n"
+        "call bar(a)\n"
+    )
+    routine_end = "end subroutine foo\n"
+    routine_code = routine_header + test_code + routine_end
+    schedule = Schedule()
+    routine = fortran_reader.psyir_from_source(routine_code).children[0]
+    for child in routine.children:
+        schedule.addchild(child.copy().detach())
+    result = fortran_writer(schedule)
+    assert result == test_code

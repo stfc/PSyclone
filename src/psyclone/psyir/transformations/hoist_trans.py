@@ -42,14 +42,16 @@ is a name that is often used to describe this type of transformation.
 
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Loop, Assignment, Schedule
+from psyclone.psyir.nodes import (
+    Loop, Assignment, Schedule, Call, CodeBlock)
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
 
 class HoistTrans(Transformation):
     '''This transformation takes an assignment and moves it outside of
-    its parent loop if it is valid to do so. For example:
+    its parent loop if it is valid to do so. If as a result the loop body
+    becomes empty, the loop will be removed altogether. For example:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
@@ -112,6 +114,10 @@ class HoistTrans(Transformation):
         # Place the assignment node before the loop.
         loop.parent.children.insert(loop.position, node)
 
+        # Remove loop if no more children are left.
+        if not loop.loop_body.children:
+            loop.detach()
+
     def validate(self, node, options=None):
         '''Checks that the supplied node is a valid target for a hoist
         transformation. At this stage only an assignment statement is
@@ -154,6 +160,15 @@ class HoistTrans(Transformation):
                     f"should be directly within a loop but found "
                     f"'{current.debug_string()}'.")
             current = current.parent
+
+        # Check that the assignment has no side effects
+        for to_check in node.walk((Call, CodeBlock)):
+            if isinstance(to_check, Call) and to_check.is_pure:
+                continue  # Pure calls are fine
+            raise TransformationError(
+                f"The supplied assignment should not have side effects, but "
+                f"we can't prove this for '{node.debug_string()}' since it "
+                f"contains Calls or CodeBlocks")
 
         # Check dependency issues that might prevent hoisting:
         self._validate_dependencies(node, parent_loop)

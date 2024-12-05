@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
+# Modified: I. Kavcic, Met Office
 
 PSYROOT=../../../..
 include ${PSYROOT}/examples/common.mk
@@ -61,9 +62,14 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=tl_rhs_sample_eos_kernel ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas exner_cell theta_vd_cell rho_cell rho_e exner_e theta_vd_e"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_poly_advective_kernel ACTIVE_VAR_LIST="advective u v dtdx dtdy tracer wind"
 	$(MAKE) single -e TL_KERNEL_NAME=strong_curl_kernel ACTIVE_VAR_LIST="xi res_dot_product curl_u u"
-
-	# The following files no not need any modification after PSyAD processing so
-	# go straight into the adjoint directory.
+	$(MAKE) single -e TL_KERNEL_NAME=poly1d_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction tracer"
+	$(MAKE) single -e TL_KERNEL_NAME=poly2d_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction tracer"
+	$(MAKE) single -e TL_KERNEL_NAME=apply_helmholtz_operator_kernel ACTIVE_VAR_LIST="y x"
+	# PSyAD does not work for this kernel as-is. Compare with the version
+	# in ../tangent_linear_tweaked.
+	# $(MAKE) single -e TL_KERNEL_NAME=poly_adv_update_kernel ACTIVE_VAR_LIST="tracer reconstruction dtdy dtdx advective"
+	# The following files do not need any modification after PSyAD processing so
+	# are placed in the 'adjoint' directory.
 	$(MAKE) single -e TL_KERNEL_NAME=transpose_matrix_vector_kernel ACTIVE_VAR_LIST="lhs lhs_e x_e x" OUT_DIR="../adjoint"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_hydrostatic_kernel ACTIVE_VAR_LIST="r_u exner theta grad_term exner_at_quad theta_v_at_quad res_dot_product grad_theta_v_at_quad theta_v_e exner_e moist_dyn_tot moist_dyn_gas" OUT_DIR="../adjoint"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_moist_dyn_mass_kernel ACTIVE_VAR_LIST="moist_dyn_tot mr_v mr_cl mr_r mr_ci mr_s mr_g mr_v_at_dof mr_cl_at_dof mr_r_at_dof mr_ci_at_dof mr_s_at_dof mr_g_at_dof" OUT_DIR="../adjoint"
@@ -74,10 +80,11 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=sample_flux_kernel ACTIVE_VAR_LIST="flux u" OUT_DIR="../adjoint"
 	#
 	# The arguments to helmholtz_operator_kernel do not conform to
-	# those expected by the metadata. I presume this is a
-	# psykalite kernel. This causes psyad to fail when updating
-	# the adjoint metadata description. It can be seen that the
-	# arguments differ by looking at the number of arguments at
+	# those expected by the metadata. The kernel is currently called
+	# through PSyKAl-lite code due to missing support for stencils
+	# for operators (issue #1103). This causes PSyAD to fail when
+	# updating the adjoint metadata description. It can be seen that
+	# the arguments differ by looking at the number of arguments at
 	# the start of the argument list. Two are expected (cell and
 	# nlayers) but a load of stencil information is passed first.
 	#

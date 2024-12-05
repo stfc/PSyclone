@@ -36,8 +36,7 @@
 ''' Tests for the OMPTargetTrans transformation. '''
 
 import pytest
-from psyclone.psyir.nodes import Loop, Schedule, OMPTargetDirective, Routine, \
-    CodeBlock
+from psyclone.psyir.nodes import Loop, Schedule, OMPTargetDirective, Routine
 from psyclone.psyir.transformations import OMPTargetTrans, TransformationError
 
 
@@ -102,20 +101,52 @@ def test_omptargettrans(sample_psyir):
     assert loops[0].parent.parent is loops[1].parent.parent
 
 
-def test_omptargettrans_validate(sample_psyir):
+def test_omptargettrans_validate(fortran_reader):
     ''' Test that OMPTargetTrans validation fails if it contains non-allowed
     constructs. '''
 
     omptargettrans = OMPTargetTrans()
-    tree = sample_psyir.copy()
-    loops = tree.walk(Loop, stop_type=Loop)
 
-    # Valid loop
-    omptargettrans.validate(loops[0])
+    code = '''
+    function myfunc(a)
+        integer :: a
+        integer :: myfunc
+        do i = 1, 1
+            myfunc = a
+        enddo
+    end function
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A
+        integer :: i
+        integer :: j
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = myfunc(3)
+            end do
+        end do
+        do i = 1, 10
+            do j = 1, 10
+                char = 'a' // 'b'
+            end do
+        end do
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop, stop_type=Loop)
 
-    # With a CodeBlock it should fail
-    loops[0].loop_body.addchild(CodeBlock([], CodeBlock.Structure.STATEMENT))
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[0])
-    assert ("cannot be enclosed by a OMPTargetTrans "
-            "transformation" in str(err.value))
+    assert ("OpenMP Target cannot enclose a region that has a function "
+            "return value symbol, but found one in 'myfunc'."
+            in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[1])
+    assert ("'myfunc' is not available on the accelerator device, and "
+            "therefore it cannot be called from within an OMP Target region."
+            in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[2])
+    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a OMPTarget"
+            "Trans transformation" in str(err.value))

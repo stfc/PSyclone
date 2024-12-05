@@ -687,8 +687,9 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
             datatype = arg_type_defns.get(var_name)
             arguments.append(Arg('variable', full_text, varname=var_name,
                                  datatype=datatype))
-        elif isinstance(argument, Part_Ref):
-            # An indexed variable e.g. arg(n)
+        elif isinstance(argument, (Part_Ref, Structure_Constructor)):
+            # An indexed variable e.g. arg(n). (Sometimes fparser matches
+            # these as structure constructors - fparser/#384.)
             full_text = argument.tostr().lower()
             var_name = str(argument.items[0]).lower()
             datatype = arg_type_defns.get(var_name)
