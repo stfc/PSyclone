@@ -48,8 +48,16 @@ from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.tests.utilities import get_base_path
 
 
-# -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+SOURCE_DUMMY = """\
+program main
+    real :: a
+    a = 0.0
+end program main
+"""
+
+
+@pytest.mark.usefixtures("change_into_tmpdir",
+                         "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_module_info():
     '''Tests the module info object.'''
@@ -57,10 +65,14 @@ def test_module_info():
     assert mod_info.filename == "file_for_a"
     assert mod_info.name == "a_mod"
 
-    with pytest.raises(ModuleInfoError) as err:
-        mod_info.get_parse_tree()
-    assert ("Could not find file 'file_for_a' when trying to read source "
-            "code for module 'a_mod'" in str(err.value))
+    with pytest.raises(ModuleInfoError) as einfo:
+        mod_info.get_fparser_tree()
+
+    assert ("ModuleInfoError: Error to get fparser tree of file"
+            " 'file_for_a' for module 'a_mod'" in str(einfo.value))
+
+    assert ("FileInfoFParserError: File 'file_for_a' not found:"
+            in str(einfo.value))
 
     # Try to read the file a_mod.f90, which is contained in the d1 directory
     mod_man = ModuleManager.get()
@@ -77,10 +89,10 @@ def test_module_info():
     assert "end module a_mod" in source_code
 
     # Now access the parse tree:
-    assert mod_info._parse_tree is None
-    parse_tree = mod_info.get_parse_tree()
-    assert mod_info._parse_tree is parse_tree
-    assert isinstance(mod_info._parse_tree, Fortran2003.Program)
+    assert mod_info._file_info._fparser_tree is None
+    parse_tree = mod_info.get_fparser_tree()
+    assert mod_info._file_info._fparser_tree is parse_tree
+    assert isinstance(mod_info._file_info._fparser_tree, Fortran2003.Program)
 
 
 # -----------------------------------------------------------------------------
@@ -118,7 +130,7 @@ contains
     broken = 2
   end function broken
 end module my_mod''')
-    mod_info = ModuleInfo("my_mod", FileInfo(filepath))
+    mod_info: ModuleInfo = ModuleInfo("my_mod", FileInfo(filepath))
     psyir = mod_info.get_psyir()
     assert psyir is None
     out, _ = capsys.readouterr()
@@ -126,8 +138,8 @@ end module my_mod''')
 
     # Check that we handle the case where get_parse_tree() returns None.
     # The simplest way to do this is to monkeypatch.
-    mod_info._psyir = None
-    monkeypatch.setattr(mod_info, "get_parse_tree", lambda: None)
+    mod_info._psyir_container_node = None
+    monkeypatch.setattr(mod_info, "get_fparser_tree", lambda: None)
     assert mod_info.get_psyir() is None
 
 
@@ -156,7 +168,7 @@ end module my_mod''')
     # Break the PSyIR so that, while it is valid, it does not contain the named
     # module.
     mod_info = ModuleInfo("my_mod", FileInfo(filepath))
-    mod_info._psyir = Container("other_mod")
+    mod_info._psyir_container_node = Container("other_mod")
     assert mod_info.get_psyir() is None
     out, _ = capsys.readouterr()
     assert ("my_mod.f90' does contain module 'my_mod' but PSyclone is unable "
@@ -181,13 +193,13 @@ def test_mod_info_get_used_modules():
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
 
-    assert mod_man.get_module_info("a_mod").get_used_modules() == set()
-    assert mod_man.get_module_info("b_mod").get_used_modules() == set()
+    assert mod_man.get_module_info("a_mod").get_used_modules() == list()
+    assert mod_man.get_module_info("b_mod").get_used_modules() == list()
 
-    mod_c_info = mod_man.get_module_info("c_mod")
+    mod_c_info: ModuleInfo = mod_man.get_module_info("c_mod")
     assert mod_c_info.name == "c_mod"
     dep = mod_c_info.get_used_modules()
-    assert dep == set(("a_mod", "b_mod"))
+    assert dep == ["a_mod", "b_mod"]
 
     dep_cached = mod_c_info.get_used_modules()
     # Calling the method a second time should return the same
@@ -233,7 +245,7 @@ def test_mod_info_get_used_symbols_from_modules():
     mod_man.add_search_path("d2")
 
     mod_info = mod_man.get_module_info("c_mod")
-    assert mod_info._used_symbols_from_module is None
+    assert mod_info._used_symbols_from_module_name is None
     used_symbols = mod_info.get_used_symbols_from_modules()
     assert used_symbols["a_mod"] == {"a_mod_symbol"}
     assert used_symbols["b_mod"] == {"b_mod_symbol"}
@@ -249,17 +261,18 @@ def test_mod_info_get_psyir(capsys, tmpdir):
     '''This tests the handling of PSyIR representation of the module.
     '''
 
-    mod_man = ModuleManager.get()
+    mod_man: ModuleManager = ModuleManager.get()
     dyn_path = get_base_path("lfric")
     mod_man.add_search_path(f"{dyn_path}/driver_creation", recursive=False)
 
-    mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
-    assert mod_info._psyir is None
-    psyir = mod_info.get_psyir()
+    mod_info: ModuleInfo = mod_man.get_module_info(
+        "testkern_import_symbols_mod")
+    assert mod_info._psyir_container_node is None
+    psyir: Container = mod_info.get_psyir()
     assert isinstance(psyir, Container)
     assert psyir.name == "testkern_import_symbols_mod"
     # Make sure the PSyIR is cached:
-    assert mod_info._psyir.children[0] is psyir
+    assert mod_info._psyir_container_node.children[0] is psyir
     # Test that we get the cached value (and not a new instance)
     psyir_cached = mod_info.get_psyir()
     assert psyir_cached is psyir
@@ -272,7 +285,8 @@ def test_mod_info_get_psyir(capsys, tmpdir):
 end module broken_mod''')
     mod_man.add_search_path(str(tmpdir), recursive=False)
     broken_builtins = mod_man.get_module_info("broken_mod")
-    broken_builtins_psyir = broken_builtins.get_psyir()
+    broken_builtins_psyir = \
+        broken_builtins.get_psyir()
     # We should get no PSyIR
     assert broken_builtins_psyir is None
 
@@ -318,20 +332,25 @@ def test_module_info_extract_import_information_error():
     `d2/error_mod.f90`, which is invalid Fortran.
 
     '''
-    # TODO 2120: Once proper error handling is implemented, this should
-    # likely just raise an exception.
+
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d2")
-    mod_info = mod_man.get_module_info("error_mod")
+    mod_info: ModuleInfo = mod_man.get_module_info("error_mod")
     assert mod_info.name == "error_mod"
 
-    assert mod_info._used_modules is None
-    assert mod_info._used_symbols_from_module is None
-    mod_info._extract_import_information()
+    assert mod_info._used_module_names is None
+    assert mod_info._used_symbols_from_module_name is None
+
+    with pytest.raises(ModuleInfoError) as einfo:
+        mod_info._extract_import_information()
+
+    assert ("FileInfoFParserError: Failed to get fparser tree: at line 4"
+            in str(einfo.value))
+
     # Make sure the internal attributes are set to not None to avoid
     # trying to parse them again later
-    assert mod_info._used_modules == set()
-    assert mod_info._used_symbols_from_module == {}
+    assert mod_info._used_module_names == list()
+    assert mod_info._used_symbols_from_module_name == {}
 
 
 # -----------------------------------------------------------------------------
@@ -347,11 +366,117 @@ real function myfunc1()
 end function myfunc1
 end module my_mod''')
 
-    minfo = ModuleInfo("my_mod", FileInfo(filepath))
-    assert isinstance(minfo.get_symbol("myfunc1"), RoutineSymbol)
+    module_info: ModuleInfo = ModuleInfo("my_mod", FileInfo(filepath))
+    assert isinstance(module_info.get_symbol("myfunc1"), RoutineSymbol)
     # A Symbol that doesn't exist.
-    assert minfo.get_symbol("amos") is None
-    # When no Container has been created. Monkeypatch get_psyir() to simplify
+    assert module_info.get_symbol("amos") is None
+    # When no Container has been created. Monkeypatch
+    # get_psyir() to simplify
     # this.
-    monkeypatch.setattr(minfo, "get_psyir", lambda: None)
-    assert minfo.get_symbol("amos") is None
+
+    def raise_error():
+        from psyclone.parse.file_info import FileInfoFParserError
+        raise FileInfoFParserError("Dummy error")
+
+    monkeypatch.setattr(
+        module_info,
+        "get_psyir",
+        raise_error)
+    monkeypatch.setattr(
+        module_info,
+        "get_psyir",
+        raise_error)
+    assert module_info.get_symbol("amos") is None
+
+
+def test_module_info_coverage_a(tmpdir, monkeypatch):
+    """
+    Coverage test
+    """
+
+    filename = os.path.join(tmpdir, "testfile_module_info_coverage.f90")
+
+    #
+    # Get fparser
+    #
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY)
+
+    # We create a dummy
+    node = Container("Dummy")
+    module_info: ModuleInfo = ModuleInfo(
+            "my_mod",
+            FileInfo(filename),
+            node
+        )
+
+    # view() creates also a list of all modules based on fparser!!!
+    module_info.view_tree()
+    assert module_info is not None
+
+
+def test_module_info_coverage_source_node_found(tmpdir, monkeypatch):
+    """
+    Coverage test: File not found
+    """
+
+    node = Container("Dummy")
+    module_info: ModuleInfo = ModuleInfo(
+            "my_mod",
+            FileInfo("/tmp/source_not_found.f90"),
+            node
+        )
+
+    with pytest.raises(ModuleInfoError) as einfo:
+        module_info.get_source_code()
+
+    assert "Could not find file" in str(einfo.value)
+
+
+def test_module_info_coverage_fparser_tree(tmpdir, monkeypatch):
+    """
+    Coverage test: Fparser
+    """
+
+    filename = os.path.join(tmpdir, "testfile_module_info_a.f90")
+
+    #
+    # Get fparser
+    #
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY)
+
+    node = Container("Dummy")
+    module_info: ModuleInfo = ModuleInfo(
+            "my_mod", FileInfo(filename), node)
+
+    module_info.get_fparser_tree()
+
+    #
+    # Error in parsing source code with fparser
+    #
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY+"\ncreate some error")
+
+    node = Container("Dummy")
+    module_info: ModuleInfo = ModuleInfo(
+            "my_mod", FileInfo(filename), node)
+
+    with pytest.raises(ModuleInfoError) as einfo:
+        module_info.get_fparser_tree()
+
+    assert ("ModuleInfoError: Error to get fparser tree of file"
+            in str(einfo.value))
+
+    #
+    # File not found
+    #
+    node = Container("Dummy")
+    module_info: ModuleInfo = ModuleInfo(
+            "my_mod", FileInfo("/I_dont_exist/psyclone/asdf"), node)
+
+    with pytest.raises(ModuleInfoError) as einfo:
+        module_info.get_fparser_tree()
+
+    assert ("FileInfoFParserError: File '/I_dont_exist/psyclone/asdf'"
+            " not found:" in str(einfo.value))
