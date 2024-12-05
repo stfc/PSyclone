@@ -585,8 +585,11 @@ class SymbolTable():
 
         self._symbols[key] = new_symbol
 
-    def check_for_clashes(self, other_table, symbols_to_skip=()):
-        '''
+    def check_for_clashes(
+        self, other_table, symbols_to_skip=(),
+        check_unresolved_symbols: bool = True
+    ):
+        """
         Checks the symbols in the supplied table against those in
         this table. If there is a name clash that cannot be resolved by
         renaming then a SymbolError is raised. Any symbols appearing
@@ -598,13 +601,16 @@ class SymbolTable():
             the check.
         :type symbols_to_skip: Iterable[
             :py:class:`psyclone.psyir.symbols.Symbol`]
+        :param check_unresolved_symbols: If 'True', also check unresolved
+            symbols
+        :type check_unresolved_symbols: bool
 
         :raises TypeError: if symbols_to_skip is supplied but is not an
             instance of Iterable.
         :raises SymbolError: if there would be an unresolvable name clash
             when importing symbols from `other_table` into this table.
 
-        '''
+        """
         # pylint: disable-next=import-outside-toplevel
         from psyclone.psyir.nodes import IntrinsicCall
 
@@ -646,6 +652,10 @@ class SymbolTable():
                         f"This table has an import of '{this_sym.name}' via "
                         f"interface '{this_sym.interface}' but the supplied "
                         f"table imports it via '{other_sym.interface}'.")
+                continue
+
+            if not check_unresolved_symbols:
+                # Skip if unresolved symbols shouldn't be checked
                 continue
 
             if other_sym.is_unresolved and this_sym.is_unresolved:
@@ -822,7 +832,8 @@ class SymbolTable():
             self.rename_symbol(self_sym, new_name)
             self.add(old_sym)
 
-    def merge(self, other_table, symbols_to_skip=()):
+    def merge(self, other_table, symbols_to_skip=(),
+              check_unresolved_symbols: bool = True):
         '''Merges all of the symbols found in `other_table` into this
         table. Symbol objects in *either* table may be renamed in the
         event of clashes.
@@ -835,6 +846,9 @@ class SymbolTable():
                                 the merge.
         :type symbols_to_skip: Iterable[
             :py:class:`psyclone.psyir.symbols.Symbol`]
+        :param check_unresolved_symbols: If `True`, also check unresolved
+            symbols.
+        :type check_unresolved_symbols: bool
 
         :raises TypeError: if `other_table` is not a SymbolTable.
         :raises TypeError: if `symbols_to_skip` is not an Iterable.
@@ -851,7 +865,9 @@ class SymbolTable():
 
         try:
             self.check_for_clashes(other_table,
-                                   symbols_to_skip=symbols_to_skip)
+                                   symbols_to_skip=symbols_to_skip,
+                                   check_unresolved_symbols=(
+                                       check_unresolved_symbols))
         except SymbolError as err:
             raise SymbolError(
                 f"Cannot merge {other_table.view()} with {self.view()} due to "

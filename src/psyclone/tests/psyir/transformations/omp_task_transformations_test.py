@@ -178,7 +178,8 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     new_container.addchild(my_test)
     sym = my_test.symbol_table.lookup("test_kernel")
     sym.interface.container_symbol._reference = test_kernel_mod
-    trans = OMPTaskTrans()
+    trans: OMPTaskTrans = OMPTaskTrans()
+    trans.set_option(check_matching_arguments_of_callee=False)
     master = OMPSingleTrans()
     parallel = OMPParallelTrans()
     calls = my_test.walk(Call)
