@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 # Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' Single location for the current version number of PSyclone. This is
     used in setup.py and
@@ -42,5 +43,5 @@ __MAJOR__ = 3
 __MINOR__ = 0
 __MICRO__ = 0
 
-__SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}"
-__VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}"
+__SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}-dev"
+__VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}-dev"
