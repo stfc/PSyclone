@@ -332,6 +332,9 @@
 	124) PR #2815 for #2636. Get nlayers from first field or operator
 	argument to each kernel in LFRic.
 
+	125) PR #2817 for #2816. Fix index type in initialisation of arrays
+	of fields in PSyAD test harness construction.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
