@@ -42,8 +42,9 @@
 
 # Imports
 import abc
-from psyclone.domain.lfric import (LFRicSymbolTable, LFRicInvoke,
-                                   LFRicKern)
+from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
+from psyclone.domain.lfric.lfric_kern import LFRicKern
+from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.errors import InternalError
 
 

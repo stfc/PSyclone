@@ -41,7 +41,7 @@ An example of PSyclone transformation script to extract a list of Nodes from
 
 This script can be applied via the '-s' option when running PSyclone:
 
-$ psyclone -nodm -s ./extract_nodes.py \
+$ psyclone -api lfric -nodm -s ./extract_nodes.py \
     ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 
 Please note that distributed memory is not supported for code extraction
@@ -56,7 +56,6 @@ Please note that ExtractTrans works for consecutive Nodes in an
 Invoke Schedule (the Nodes also need to be children of the same parent).
 '''
 
-from __future__ import print_function
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
 
@@ -71,23 +70,22 @@ LBOUND = 0
 UBOUND = 3
 
 
-def trans(psy):
-    ''' PSyclone transformation script for the Dynamo0.3 API to extract
-    the specified Nodes in an Invoke. '''
+def trans(psyir):
+    ''' PSyclone transformation script for the LFRic API to extract
+    the specified Nodes in an Invoke.
 
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     # Get instance of the ExtractTrans transformation
     etrans = LFRicExtractTrans()
 
-    # Get Invoke and its Schedule
-    invoke = psy.invokes.get(INVOKE_NAME)
-    schedule = invoke.schedule
+    # Get the Invoke Schedule
+    schedule = next(x for x in psyir.children[0].children
+                    if x.name == INVOKE_NAME)
 
     # Apply extract transformation to selected Nodes
     print("\nExtracting Nodes '[" + str(LBOUND) + ":" + str(UBOUND) +
-          "]' from Invoke '" + invoke.name + "'\n")
+          "]' from Invoke '" + schedule.name + "'\n")
     etrans.apply(schedule.children[LBOUND:UBOUND])
-
-    # Take a look at the transformed Schedule
-    print(schedule.view())
-
-    return psy

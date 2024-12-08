@@ -93,6 +93,7 @@ class GOPSy(PSy):
 
     '''
     def __init__(self, invoke_info):
+        Config.get().api = "gocean"
         PSy.__init__(self, invoke_info)
 
         # Add GOcean infrastructure-specific libraries
@@ -187,12 +188,12 @@ class GOInvokes(Invokes):
 
             # Lower the GOcean PSyIR to language level so it can be visited
             # by the backends
-            invoke.schedule.root.lower_to_language_level()
+            invoke.schedule.parent.lower_to_language_level()
             # Then insert it into a f2pygen AST as a PSyIRGen node.
             # Note that other routines besides the Invoke could have been
             # inserted during the lowering (e.g. module-inlined kernels),
-            # so have to iterate over all current children of root.
-            for child in invoke.schedule.root.children:
+            # so have to iterate over all current children of parent.
+            for child in invoke.schedule.parent.children:
                 parent.add(PSyIRGen(parent, child))
 
 
@@ -216,7 +217,7 @@ class GOInvoke(Invoke):
 
     '''
     def __init__(self, alg_invocation, idx, invokes):
-        self._schedule = GOInvokeSchedule('name', None)  # for pyreverse
+        self._schedule = GOInvokeSchedule.create('name')
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
 
         if Config.get().distributed_memory:
@@ -308,9 +309,12 @@ class GOInvokeSchedule(InvokeSchedule):
     constructor and pass it factories to create GO-specific calls to both
     user-supplied kernels and built-ins.
 
-    :param str name: name of the Invoke.
-    :param alg_calls: list of KernelCalls parsed from the algorithm layer.
-    :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
+    :param symbol: RoutineSymbol representing the Invoke.
+    :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+    :param alg_calls: optional list of KernelCalls parsed from the algorithm
+                      layer.
+    :type alg_calls: Optional[list of
+                              :py:class:`psyclone.parse.algorithm.KernelCall`]
     :param reserved_names: optional list of names that are not allowed in the \
                            new InvokeSchedule SymbolTable.
     :type reserved_names: list of str
@@ -321,10 +325,14 @@ class GOInvokeSchedule(InvokeSchedule):
     # Textual description of the node.
     _text_name = "GOInvokeSchedule"
 
-    def __init__(self, name, alg_calls, reserved_names=None, parent=None):
-        InvokeSchedule.__init__(self, name, GOKernCallFactory,
+    def __init__(self, symbol, alg_calls=None, reserved_names=None,
+                 parent=None, **kwargs):
+        if not alg_calls:
+            alg_calls = []
+        InvokeSchedule.__init__(self, symbol, GOKernCallFactory,
                                 GOBuiltInCallFactory,
-                                alg_calls, reserved_names, parent=parent)
+                                alg_calls, reserved_names, parent=parent,
+                                **kwargs)
 
 
 # pylint: disable=too-many-instance-attributes
@@ -697,7 +705,7 @@ class GOLoop(PSyLoop):
         # pylint: disable=too-many-locals
         '''
         Adds a new iteration space to PSyclone. An iteration space in the
-        gocean1.0 API is for a certain offset type and field type. It defines
+        gocean API is for a certain offset type and field type. It defines
         the loop boundaries for the outer and inner loop. The format is a
         ":" separated tuple:
 
@@ -810,7 +818,7 @@ class GOLoop(PSyLoop):
             are not in the GOcean lookup table or the loop type is not \
             `inner` or `outer`.
         '''
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         # Get a field argument from the argument list
         field = None
         invoke = self.ancestor(InvokeSchedule)
@@ -899,7 +907,7 @@ class GOLoop(PSyLoop):
             stop = IntrinsicCall(IntrinsicCall.Intrinsic.SIZE)
             # Use the data property to access the member of the field that
             # contains the actual grid points.
-            api_config = Config.get().api_conf("gocean1.0")
+            api_config = Config.get().api_conf("gocean")
             sref = self._grid_property_psyir_expression(
                 api_config.grid_properties["go_grid_data"].fortran)
             stop.addchild(sref)
@@ -914,7 +922,7 @@ class GOLoop(PSyLoop):
         # 'internal' and 'whole' structures respectively. For other
         # iteration_spaces we look if a custom expression is defined in the
         # lookup table.
-        props = Config.get().api_conf("gocean1.0").grid_properties
+        props = Config.get().api_conf("gocean").grid_properties
         if self.iteration_space.lower() == "go_internal_pts":
             return self._grid_property_psyir_expression(
                 props[f"go_grid_internal_{self._loop_type}_stop"].fortran)
@@ -941,7 +949,7 @@ class GOLoop(PSyLoop):
         # 'internal' and 'whole' structures respectively. For other
         # iteration_spaces we look if a custom expression is defined in the
         # lookup table.
-        props = Config.get().api_conf("gocean1.0").grid_properties
+        props = Config.get().api_conf("gocean").grid_properties
         if self.iteration_space.lower() == "go_internal_pts":
             return self._grid_property_psyir_expression(
                 props[f"go_grid_internal_{self._loop_type}_start"].fortran)
@@ -1360,7 +1368,7 @@ class GOKernelArguments(Arguments):
         # access.
         grid_fld = self.find_grid_access()
         grid_ptr = grid_fld.name + "%grid"
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         # TODO: #676 go_grid_data is actually a field property
         data_fmt = api_config.grid_properties["go_grid_data"].fortran
         arg_list.extend([grid_fld.name, data_fmt.format(grid_fld.name)])
@@ -1490,11 +1498,18 @@ class GOKernelArgument(KernelArgument):
                                property is not 'go_r_scalar' or 'go_i_scalar'.
 
         '''
+        scope = self._call.ancestor(Container)
+        if scope is None:
+            # Prefer the module scope, but some tests that are disconnected can
+            # use the current scope
+            scope = self._call.scope
+
+        symtab = scope.symbol_table
         # All GOcean fields are r2d_field
         if self.argument_type == "field":
             # r2d_field can have UnresolvedType and UnresolvedInterface because
             # it is an unnamed import from a module.
-            type_symbol = self._call.root.symbol_table.find_or_create_tag(
+            type_symbol = symtab.find_or_create_tag(
                 "r2d_field", symbol_type=DataTypeSymbol,
                 datatype=UnresolvedType(), interface=UnresolvedInterface())
             return type_symbol
@@ -1502,7 +1517,7 @@ class GOKernelArgument(KernelArgument):
         # Gocean scalars can be REAL or INTEGER
         if self.argument_type == "scalar":
             if self.space.lower() == "go_r_scalar":
-                go_wp = self._call.root.symbol_table.find_or_create_tag(
+                go_wp = symtab.find_or_create_tag(
                     "go_wp", symbol_type=DataSymbol, datatype=UnresolvedType(),
                     interface=UnresolvedInterface())
                 return ScalarType(ScalarType.Intrinsic.REAL, go_wp)
@@ -1579,7 +1594,7 @@ class GOKernelGridArgument(Argument):
         # needs to be separated.
         self._complete_init(None)
 
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         try:
             deref_name = api_config.grid_properties[arg.grid_prop].fortran
         except KeyError as err:
@@ -1636,7 +1651,7 @@ class GOKernelGridArgument(Argument):
             in a dl_esm field (e.g. "subdomain%internal%xstart"). The name
             must contains a "{0}" which is replaced by the field name.
         :rtype: str'''
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         deref_name = api_config.grid_properties[self._property_name].fortran
         return deref_name.format(fld_name)
 
@@ -1654,7 +1669,7 @@ class GOKernelGridArgument(Argument):
         :rtype: str
 
         '''
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         return api_config.grid_properties[self._property_name].intrinsic_type
 
     @property
@@ -1664,7 +1679,7 @@ class GOKernelGridArgument(Argument):
         :rtype: bool
         '''
         # The constructor guarantees that _property_name is a valid key!
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         return api_config.grid_properties[self._property_name].type \
             == "scalar"
 
@@ -1994,7 +2009,7 @@ class GO1p0Descriptor(Descriptor):
 
             self._grid_prop = grid_var
             self._argument_type = "grid_property"
-            api_config = Config.get().api_conf("gocean1.0")
+            api_config = Config.get().api_conf("gocean")
 
             if grid_var.lower() not in api_config.grid_properties:
                 valid_keys = str(api_config.grid_properties.keys())
@@ -2008,7 +2023,7 @@ class GO1p0Descriptor(Descriptor):
                 f"expects 2 or 3 arguments but found '{len(kernel_arg.args)}' "
                 f"in '{kernel_arg.args}'")
 
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         access_mapping = api_config.get_access_mapping()
         try:
             access_type = access_mapping[access]
@@ -2085,7 +2100,7 @@ class GOKernelType1p0(KernelType):
         for idx, init in enumerate(self._inits):
             if init.name != 'go_arg':
                 raise ParseError(f"Each meta_arg value must be of type "
-                                 f"'go_arg' for the gocean1.0 api, but "
+                                 f"'go_arg' for the gocean api, but "
                                  f"found '{init.name}'")
             # Pass in the name of this kernel for the purposes
             # of error reporting
@@ -2142,19 +2157,24 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
 
         :returns: the symbol representing the read_from_device routine.
         :rtype: :py:class:`psyclone.psyir.symbols.symbol`
+
+        :raises GenerationError: if this class is lowered from a location where
+            a Routine can not be inserted.
         '''
-        symtab = self.root.symbol_table
+        # Insert the routine as a child of the ancestor Container
+        if not self.ancestor(Container):
+            raise GenerationError(
+                f"The GOACCEnterDataDirective can only be generated/lowered "
+                f"inside a Container in order to insert a sibling "
+                f"subroutine, but '{self}' is not inside a Container.")
+
+        symtab = self.ancestor(Container).symbol_table
         try:
             return symtab.lookup_with_tag("openacc_read_func")
         except KeyError:
             # If the subroutines does not exist, it needs to be
             # generated first.
             pass
-
-        # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol(
-            "read_from_device", symbol_type=RoutineSymbol,
-            tag="openacc_read_func").name
 
         code = '''
             subroutine read_openacc(from, to, startx, starty, nx, ny, blocking)
@@ -2167,6 +2187,9 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
             end subroutine read_openacc
             '''
 
+        # Create the symbol for the routine and add it to the symbol table.
+        subroutine_symbol = RoutineSymbol("read_from_device")
+
         # Obtain the PSyIR representation of the code above
         fortran_reader = FortranReader()
         container = fortran_reader.psyir_from_source(code)
@@ -2175,16 +2198,12 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         subroutine.addchild(ACCUpdateDirective([Signature("to")], "host",
                                                if_present=False))
 
-        # Rename subroutine
-        subroutine.name = subroutine_name
+        self.ancestor(Container).symbol_table.add(subroutine_symbol,
+                                                  tag="openacc_read_func")
+        subroutine.detach()
+        subroutine.symbol = subroutine_symbol
 
-        # Insert the routine as a child of the ancestor Container
-        if not self.ancestor(Container):
-            raise GenerationError(
-                f"The GOACCEnterDataDirective can only be generated/lowered "
-                f"inside a Container in order to insert a sibling "
-                f"subroutine, but '{self}' is not inside a Container.")
-        self.ancestor(Container).addchild(subroutine.detach())
+        self.ancestor(Container).addchild(subroutine)
 
         return symtab.lookup_with_tag("openacc_read_func")
 

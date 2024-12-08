@@ -82,6 +82,10 @@ class Loop(Statement):
     _text_name = "Loop"
     _colour = "red"
 
+    # Set of rules that give a loop a certain loop_type by inspecting
+    # its variable name
+    _loop_type_inference_rules = {}
+
     def __init__(self, variable=None, annotations=None, **kwargs):
         # Although the base class checks on the annotations individually, we
         # need to do further checks here
@@ -98,6 +102,10 @@ class Loop(Statement):
         self._variable = None
         if variable is not None:
             self.variable = variable
+        # Hold the set of symbols that will be private/local to the interation
+        # if this loop is run concurrently. Alternatively this could be
+        # implemented by moving the symbols to the loop_body symbol table.
+        self._explicitly_private_symbols = set()
 
     def __eq__(self, other):
         '''
@@ -117,6 +125,76 @@ class Loop(Statement):
         is_eq = is_eq and self.variable.name == other.variable.name
 
         return is_eq
+
+    @property
+    def explicitly_private_symbols(self):
+        '''
+        :returns: the set of symbols inside the loop which are private to each
+            iteration of the loop if it is executed concurrently.
+        :rtype: Set[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+        '''
+        return self._explicitly_private_symbols
+
+    @property
+    def loop_type(self):
+        '''
+        :returns: the type of this loop, if set.
+        :rtype: Optional[str]
+        '''
+        if not self._variable:
+            return None
+        return self._loop_type_inference_rules.get(self.variable.name, None)
+
+    @classmethod
+    def set_loop_type_inference_rules(cls, rules):
+        '''
+        Specify the rules that define a loop type by inspecting its variable,
+        name. This affects all instances of the Loop class. For example:
+
+        .. code-block::
+
+            rules = {
+                "lon": {"variable": "ji"},
+                "lat": {"variable": "jj"}
+            }
+
+        :param rules: new set of rules for inferring loop_types.
+        :type rules: dict[str, dict[str, str]]
+        '''
+        if rules is None:
+            cls._loop_type_inference_rules = {}
+            return
+
+        # Check that the provided rules have the right format
+        if not isinstance(rules, dict):
+            raise TypeError(f"The rules argument must be of type 'dict' but "
+                            f"found '{type(rules)}'.")
+        for key, rule in rules.items():
+            if not isinstance(key, str):
+                raise TypeError(f"The rules keys must be of type 'str' but "
+                                f"found '{type(key)}'.")
+            if not isinstance(rule, dict):
+                raise TypeError(f"The rules values must be of type 'dict' but "
+                                f"found '{type(rule)}'.")
+            for rkey, value in rule.items():
+                if not isinstance(rkey, str) or not isinstance(value, str):
+                    raise TypeError(
+                        f"All the values of the rule definition must be "
+                        f"of type 'str' but found '{rule}'.")
+                if rkey != "variable":
+                    raise TypeError(f"Currently only the 'variable' rule key"
+                                    f" is accepted, but found: '{rkey}'.")
+            if "variable" not in rule:
+                raise TypeError(f"A rule must at least have a 'variable' field"
+                                f" to specify the loop variable name that "
+                                f"defines this loop_type, but the rule for "
+                                f"'{key}' does not have it.")
+
+        # Convert the rules to a dictionary with variable as a key
+        inference_rules = {}
+        for key, rule in rules.items():
+            inference_rules[rule["variable"]] = key
+        cls._loop_type_inference_rules = inference_rules
 
     @staticmethod
     def _check_variable(variable):
@@ -322,7 +400,11 @@ class Loop(Statement):
         :rtype: str
 
         '''
-        return f"{self.coloured_name(colour)}[variable='{self.variable.name}']"
+        result = f"{self.coloured_name(colour)}["
+        result += f"variable='{self.variable.name}'"
+        if self.loop_type:
+            result += f", loop_type='{self.loop_type}'"
+        return result + "]"
 
     @property
     def variable(self):
@@ -345,12 +427,44 @@ class Loop(Statement):
         self._check_variable(var)
         self._variable = var
 
+    def replace_symbols_using(self, table):
+        '''
+        Replace the Symbol referred to by this object's `variable` and
+        `explicit_local_symbols` properties with those in the supplied
+        SymbolTable with a matching name. If there is no matches then they
+        are left unchanged.
+
+        :param table: symbol table in which to look up the replacement symbol.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        if self._variable:
+            try:
+                new_sym = table.lookup(self._variable.name)
+                self.variable = new_sym
+            except KeyError:
+                pass
+
+        for symbol in list(self._explicitly_private_symbols):
+            try:
+                new_sym = table.lookup(symbol.name)
+                self._explicitly_private_symbols.remove(symbol)
+                self._explicitly_private_symbols.add(new_sym)
+            except KeyError:
+                pass
+        super().replace_symbols_using(table)
+
     def __str__(self):
         # Give Loop sub-classes a specialised name
         name = self.__class__.__name__
         result = name + "["
-        result += "variable:'" + self.variable.name
-        result += "']\n"
+        if self._variable:
+            result += f"variable:'{self.variable.name}'"
+        else:
+            result += "variable:None"
+        if self.loop_type:
+            result += f", loop_type:'{self.loop_type}'"
+        result += "]\n"
         for entity in self._children:
             result += str(entity) + "\n"
         result += "End " + name
@@ -484,5 +598,5 @@ class Loop(Statement):
         # - Add the kernel module import statements
         for kernel in self.walk(CodedKern):
             if not kernel.module_inline:
-                parent.add(UseGen(parent, name=kernel._module_name, only=True,
-                                  funcnames=[kernel._name]))
+                parent.add(UseGen(parent, name=kernel.module_name, only=True,
+                                  funcnames=[kernel.name]))

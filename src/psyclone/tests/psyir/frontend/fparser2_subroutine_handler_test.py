@@ -86,7 +86,8 @@ def test_subroutine_handler(parser, fortran_writer, code, expected):
     reader = FortranStringReader(code)
     parse_tree = parser(reader)
     subroutine = parse_tree.children[0]
-    psyir = processor._subroutine_handler(subroutine, None)
+    fake_parent = Container("None")
+    psyir = processor._subroutine_handler(subroutine, fake_parent)
     # Check the expected PSyIR nodes are being created
     assert isinstance(psyir, Routine)
     assert psyir.parent is None
@@ -106,8 +107,9 @@ end subroutine'''
     reader = FortranStringReader(code)
     parse_tree = parser(reader)
     subroutine = parse_tree.children[0]
+    fake_parent = Container("None")
     with pytest.raises(InternalError) as err:
-        _ = processor._subroutine_handler(subroutine, None)
+        _ = processor._subroutine_handler(subroutine, fake_parent)
     assert ("The argument list ['idx'] for routine 'sub1' does not match "
             "the variable declarations:" in str(err.value))
 
@@ -126,8 +128,9 @@ end subroutine'''
     reader = FortranStringReader(code)
     parse_tree = parser(reader)
     subroutine = parse_tree.children[0]
+    fake_parent = Container("None")
     with pytest.raises(InternalError) as err:
-        _ = processor._subroutine_handler(subroutine, None)
+        _ = processor._subroutine_handler(subroutine, fake_parent)
     err_msg = str(err.value)
     assert "The argument list ['var', 'idx'] for routine 'sub1'" in err_msg
     assert "Could not find 'idx' in the Symbol Table" in err_msg
@@ -223,9 +226,6 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
     assert return_sym.datatype.intrinsic == TYPE_MAP_FROM_FORTRAN[basic_type]
     result = fortran_writer(psyir)
     assert result == expected
-    # Also check that the "own_routine_symbol" tag is maintained
-    assert routine.symbol_table.lookup_with_tag("own_routine_symbol") \
-        is return_sym
 
 
 FN1_IN = ("  function my_func() result(my_val)\n"
@@ -374,7 +374,7 @@ def test_function_unsupported_derived_type(fortran_reader):
 
 
 @pytest.mark.parametrize("fn_prefix", ["elemental", "pure", "impure",
-                                       "pure elemental"])
+                                       "pure elemental", "impure elemental"])
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
 def test_supported_prefix(fortran_reader, fn_prefix, routine_type):
     '''Check that the frontend correctly handles a routine with the various
@@ -393,7 +393,12 @@ def test_supported_prefix(fortran_reader, fn_prefix, routine_type):
     rsym = routine.parent.scope.symbol_table.lookup("my_func")
     assert isinstance(rsym, RoutineSymbol)
     assert rsym.is_elemental is ("elemental" in fn_prefix)
-    assert rsym.is_pure is fn_prefix.startswith("pure")
+    if fn_prefix.startswith("pure"):
+        assert rsym.is_pure
+    elif "impure" in fn_prefix:
+        assert not rsym.is_pure
+    else:
+        assert rsym.is_pure is None
 
 
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
@@ -555,3 +560,30 @@ def test_entry_stmt(parser):
     assert ("PSyclone does not support routines that contain one or more ENTRY"
             " statements but found 'ENTRY a_no_really(b, c, d)'"
             in str(err.value))
+
+
+def test_module_contains_subroutine_contains_subroutine(
+        fortran_reader, fortran_writer):
+    ''' Test to check that subroutines contained within subroutines
+    do not put their symbols into the container ancestor.'''
+    code = """
+    module my_mod
+    contains
+    function func_a(i)
+      integer :: i
+      i = i + 1
+      func_a = i + s(i)
+
+      contains
+        function s(i)
+        integer :: i
+        s = i * i
+        end function s
+    end function func_a
+    end module my_mod"""
+    psyir = fortran_reader.psyir_from_source(code)
+    # s symbol should not be in my_mod
+    with pytest.raises(KeyError):
+        psyir.children[0].symbol_table.lookup("s")
+    out = fortran_writer(psyir)
+    assert "subroutine func_a" not in out

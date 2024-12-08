@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by T. Vockerodt, Met Office
 
 '''A module to perform pytest tests on the code in the tl2ad.py file
 within the psyad directory.
@@ -137,10 +138,14 @@ def test_generate_adjoint_str_lfric_api():
     testkern = os.path.join(LFRIC_TEST_FILES_DIR, "tl_testkern_mod.F90")
     with open(testkern, mode="r", encoding="utf-8") as kfile:
         tl_code = kfile.read()
-    result, _ = generate_adjoint_str(tl_code,
+    adj, test = generate_adjoint_str(tl_code,
                                      ["xi", "u", "res_dot_product", "curl_u"],
-                                     api="dynamo0.3")
-    assert "subroutine adj_testkern_code" in result.lower()
+                                     api="lfric",
+                                     create_test=True,
+                                     test_name="atlt_testkern")
+    assert "subroutine adj_testkern_code" in adj.lower()
+    assert "module atlt_testkern_mod" in test.lower()
+    assert "subroutine atlt_testkern" in test.lower()
 
 
 def test_generate_adjoint_str_function():
@@ -165,9 +170,9 @@ def test_generate_adjoint_str_wrong_api():
         "a = b\n"
         "end program test\n")
     with pytest.raises(NotImplementedError) as err:
-        generate_adjoint_str(tl_code, ["a", "b"], api="gocean1.0")
+        generate_adjoint_str(tl_code, ["a", "b"], api="gocean")
     assert ("PSyAD only supports generic routines/programs or LFRic "
-            "(dynamo0.3) kernels but got API 'gocean1.0'" in str(err.value))
+            "kernels but got API 'gocean'" in str(err.value))
 
 
 def test_generate_adjoint_str_trans(tmpdir):
@@ -202,6 +207,26 @@ def test_generate_adjoint_str_trans(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
+def test_generate_adjoint_str_trans_error(tmpdir):
+    '''Test that the generate_adjoint_str() function successfully catches
+    an error from the preprocess_trans() function.
+
+    '''
+    code = (
+        "program test\n"
+        "use other_mod, only: func\n"
+        "real, dimension(10,10,10) :: a,b,c,d,e,f\n"
+        "integer, dimension(10) :: map\n"
+        "integer, parameter :: i = 5\n"
+        "a(:,1,:) = b(:,1,:) * c(:,1+int(real(complex(1.0,1.0))),:)\n"
+        "end program test\n")
+    with pytest.raises(NotImplementedError) as err:
+        _ = generate_adjoint_str(code, ["a", "c"])
+    assert ("failed to pre-process the supplied tangent-linear code. The error"
+            " was: Transformation Error: ArrayAssignment2LoopsTrans does not"
+            in str(err.value))
+
+
 def test_generate_adjoint_str_generate_harness_no_api(tmpdir):
     '''Test the create_test option to generate_adjoint_str() when no
     API is specified.'''
@@ -218,10 +243,10 @@ def test_generate_adjoint_str_generate_harness_invalid_api():
     '''Test that passing an unsupported API to generate_adjoint_str()
     raises the expected error.'''
     with pytest.raises(NotImplementedError) as err:
-        _ = generate_adjoint_str(TL_CODE, ["field"], api="gocean1.0",
+        _ = generate_adjoint_str(TL_CODE, ["field"], api="gocean",
                                  create_test=True)
     assert ("PSyAD only supports generic routines/programs or LFRic "
-            "(dynamo0.3) kernels but got API 'gocean1.0'" in str(err.value))
+            "kernels but got API 'gocean'" in str(err.value))
 
 
 def test_generate_adjoint_str_generate_harness_lfric():
@@ -253,7 +278,7 @@ def test_generate_adjoint_str_generate_harness_lfric():
     )
     result, harness = generate_adjoint_str(tl_code, ["field"],
                                            create_test=True,
-                                           api="dynamo0.3")
+                                           api="lfric")
     assert ("subroutine adj_testkern_code(nlayers, field, ndf_w3, "
             "undf_w3, map_w3)\n" in result)
     assert "module adjoint_test_mod\n" in harness

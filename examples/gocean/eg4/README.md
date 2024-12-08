@@ -13,7 +13,7 @@ PSyclone can be run in the directory containing this file by
 executing, e.g.:
 
 ```sh
-psyclone -api "gocean1.0" alg_kern_with_use.f90
+psyclone -api "gocean" alg_kern_with_use.f90
 ```
 
 This will produce 'vanilla' PSy code along with a re-written version of
@@ -40,7 +40,7 @@ transformation script (employing the `KernelImportsToArguments` and
 example:
 
 ```sh
-psyclone -api "gocean1.0" -s ./ocl_transform.py alg_kern_use_var.f90
+psyclone -api "gocean" -s ./ocl_transform.py alg_kern_use_var.f90
 ```
 
 The generated PSy- and Algorithm-layer code is written to stdout and a
@@ -58,7 +58,7 @@ Similarly, we can generate an OpenACC version of the same example by
 doing:
 
 ```sh
-psyclone -api "gocean1.0" -s ./acc_transform.py alg_kern_use_var.f90
+psyclone -api "gocean" -s ./acc_transform.py alg_kern_use_var.f90
 ```
 
 which write the OpenACC PSy- and Algorithm-layer code to stdout with
@@ -74,7 +74,7 @@ Support for recursive kernel transformation is the subject of
 be demonstrated by:
 
 ```sh
-psyclone -api "gocean1.0" -s ./acc_transform.py alg_kern_call_kern.f90
+psyclone -api "gocean" -s ./acc_transform.py alg_kern_call_kern.f90
 ```
 
 Currently this raises a TransformationError because PSyclone spots
@@ -83,7 +83,7 @@ that the kernel accesses the global symbol 'my_function'.
 The third example:
 
 ```sh
-psyclone -api "gocean1.0" -s ./acc_transform.py alg_nested_use.f90
+psyclone -api "gocean" -s ./acc_transform.py alg_nested_use.f90
 ```
 
 also currently raises a TransformationError for the same reason.
@@ -92,13 +92,13 @@ also currently raises a TransformationError for the same reason.
 Additionally, this example's Makefile has the necessary rules to compile
 the OpenAcc version of `alg_kern_use_var.f90`. This is done with the
 `compile-acc` target. Note that this requires an OpenACC compatible compiler
-(currently the Makefile only supports pgf90 - the build system flags will need
+(currently the Makefile only supports nvfortran - the build system flags will need
 to be updated to support other OpenACC compilers) and the infrastructure libraries
 must be built with the same compiler. To make sure the infrastructure and the
 generated files are compiled as described, we can do:
 
 ```sh
-export F90=pgf90
+export F90=nvfortran
 make allclean
 make compile-acc
 ```

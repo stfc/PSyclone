@@ -62,7 +62,7 @@
 <g id="node2" class="node">
 <title>21</title>
 <polygon fill="none" stroke="#000000" points="272.5,-.5 272.5,-70.5 399.5,-70.5 399.5,-.5 272.5,-.5"/>
-<text text-anchor="middle" x="336" y="-55.3" font-family="Times,serif" font-size="14.00" fill="#000000">DynInvokeSchedule</text>
+<text text-anchor="middle" x="336" y="-55.3" font-family="Times,serif" font-size="14.00" fill="#000000">LFRicInvokeSchedule</text>
 <polyline fill="none" stroke="#000000" points="272.5,-47.5 399.5,-47.5 "/>
 <polyline fill="none" stroke="#000000" points="272.5,-23.5 399.5,-23.5 "/>
 <text text-anchor="start" x="280.5" y="-8.3" font-family="Times,serif" font-size="14.00" fill="#000000">view()</text>
@@ -94,7 +94,7 @@
 <g id="node4" class="node">
 <title>36</title>
 <polygon fill="none" stroke="#000000" points="0,-674 0,-744 86,-744 86,-674 0,-674"/>
-<text text-anchor="middle" x="43" y="-728.8" font-family="Times,serif" font-size="14.00" fill="#000000">DynamoPSy</text>
+<text text-anchor="middle" x="43" y="-728.8" font-family="Times,serif" font-size="14.00" fill="#000000">LFRicPSy</text>
 <polyline fill="none" stroke="#000000" points="0,-721 86,-721 "/>
 <polyline fill="none" stroke="#000000" points="0,-697 86,-697 "/>
 <text text-anchor="middle" x="43" y="-681.8" font-family="Times,serif" font-size="14.00" fill="#000000"> </text>

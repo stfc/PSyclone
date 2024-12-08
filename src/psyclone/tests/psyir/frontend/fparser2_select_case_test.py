@@ -36,6 +36,7 @@
 ''' Module containing pytest tests for the handling of some select case
 construction for the Fparser->PSyIR frontend.'''
 
+import sys
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -93,6 +94,39 @@ def test_handling_case_construct():
     assert ifnode.else_body[0].children[1].ast_end is \
         fparser2case_construct.content[4]
     assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
+
+
+def test_very_large_select_construct_increases_recursion_limit(fortran_reader):
+    '''Test that a select case with a very large number of CASES preventively
+    increases the python recursion limit.'''
+
+    default_recursion_limit = sys.getrecursionlimit()
+
+    repetitions = 200
+    code = '''
+    subroutine test_subroutine(a)
+        use other, only: my_sub
+        integer, intent(in) :: a
+
+        SELECT CASE(a)
+    '''
+    for i in range(repetitions):
+        code += f'''
+        CASE ({i})
+            call my_sub()
+        '''
+    code += '''
+        END SELECT
+    end subroutine'''
+
+    try:
+        _ = fortran_reader.psyir_from_source(code)
+
+        # Check that the recursion limit has been increased
+        assert sys.getrecursionlimit() > default_recursion_limit
+    finally:
+        # Restore default value
+        sys.setrecursionlimit(default_recursion_limit)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -498,7 +532,7 @@ def has_cmp_interface(code):
 def test_find_or_create_psyclone_internal_cmp(fortran_writer):
     '''Test that the find_or_create_psyclone_internal_cmp returns the expected
     symbol and creates the interface if it does not exist. '''
-    subroutine = Routine("mysub", children=[Return()])
+    subroutine = Routine.create("mysub", children=[Return()])
     node_in_subroutine = subroutine.children[0]
 
     # If it is not inside a Container it producess a NotImplementedError
@@ -682,7 +716,6 @@ def test_derived_types_case(fortran_reader, fortran_writer):
 
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
-
     # Check that the interface implementation has been inserted
     has_cmp_interface(output)
 

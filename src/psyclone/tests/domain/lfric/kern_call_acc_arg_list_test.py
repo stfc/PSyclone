@@ -52,7 +52,7 @@ from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
 
 # constants
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 BASE_PATH = get_base_path(TEST_API)
 
 
@@ -139,7 +139,7 @@ def test_lfric_acc():
     # with OpenACC directives.
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
-    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
+    _, invoke = get_invoke("1_single_invoke.f90", "lfric",
                            name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule
     acc_par_trans.apply(sched.children)
@@ -172,7 +172,7 @@ def test_lfric_acc_operator():
     # with OpenACC directives.
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
-    _, invoke = get_invoke("20.0_cma_assembly.f90", "dynamo0.3",
+    _, invoke = get_invoke("20.0_cma_assembly.f90", "lfric",
                            idx=0, dist_mem=False)
     sched = invoke.schedule
     acc_par_trans.apply(sched.children)
@@ -197,7 +197,7 @@ def test_lfric_stencil():
     # Use the OpenACC transforms to create the required kernels
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
-    _, invoke = get_invoke("14.4_halo_vector.f90", "dynamo0.3",
+    _, invoke = get_invoke("14.4_halo_vector.f90", "lfric",
                            idx=0, dist_mem=False)
     sched = invoke.schedule
     acc_par_trans.apply(sched.children)
@@ -212,3 +212,31 @@ def test_lfric_stencil():
     assert "f1: READ+WRITE" in var_info
     assert "f2: READ" in var_info
     assert "f2_stencil_dofmap: READ" in var_info
+
+
+def test_lfric_field():
+    '''Check that the method to generate a field argument returns the
+    field data varaible name and the correct variable access info.
+
+    '''
+    # Use the OpenACC transforms to create the required kernels
+    acc_par_trans = ACCParallelTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
+                           "lfric",
+                           idx=0, dist_mem=False)
+    sched = invoke.schedule
+    acc_par_trans.apply(sched.children)
+    acc_enter_trans.apply(sched)
+
+    # Find the first kernel:
+    kern = invoke.schedule.walk(psyGen.CodedKern)[0]
+    create_acc_arg_list = KernCallAccArgList(kern)
+    var_accesses = VariablesAccessInfo()
+    create_acc_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    # Check fields
+    assert "f1_data: READ+WRITE" in var_info    # Written to in Built-in
+    assert "f2_data: READ" in var_info
+    assert "m1_data: READ" in var_info
+    assert "m2_data: READ" in var_info

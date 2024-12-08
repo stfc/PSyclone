@@ -166,7 +166,7 @@ documented using Sphinx mark-up. An example of how to do this is shown below:
 
     .. literalinclude:: interface_example.py
 
-Example layout of the interface description above: 
+Example layout of the interface description above:
 
 .. autofunction:: interface_example.some_function
 
@@ -254,7 +254,7 @@ domain:
 
 psyir:
     This directory contains all classes and functions related to the PSyIR
-    (PSyclone Internal Representation). The directory itself does not contain
+    (PSyclone Intermediate Representation). The directory itself does not contain
     any source files (except `__init__.py` to shorten the import paths).
 
     psyir/transformations

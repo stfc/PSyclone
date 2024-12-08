@@ -972,6 +972,7 @@ Some of the wrapper libraries use the PSyData base class (e.g. dl_timer,
 simple_timing, template), others do not (e.g. NVIDIA profiling, TAU,
 DrHook wrapper).
 
+.. _psyke:
 
 Kernel Extraction (PSyKE)
 -------------------------
@@ -1174,7 +1175,7 @@ The driver creation process is explained in the Python sources:
 .. autoclass:: psyclone.domain.lfric.LFRicExtractDriverCreator
     :members:
 
-Here an example showing some of the driver code created:
+Here is an example showing some of the driver code created:
 
 .. code-block:: Fortran
 
@@ -1220,70 +1221,5 @@ compared with the expected values in ``field1_post``.
 .. note:: For now the created driver still depends on the infrastructure
     library and any other modules used. Issue #1991 improves this.
 
-Module Manager
-++++++++++++++
-The LFRic driver creation utilises a ``ModuleManager`` to find
+The LFRic driver creation utilises the :ref:`module_manager` to find
 and inline all modules required by the driver.
-
-
-.. autoclass:: psyclone.parse.ModuleManager
-    :members:
-
-Any PSyclone command line option ``-d`` (see :ref:`psyclone_command`)
-will be added to the ``ModuleManager`` as recursive search paths. The
-``ModuleManager`` is a singleton and it can be queried for information about
-any module. It internally uses caching to avoid repeatedly searching
-directories, and it will only access search paths as required. For example,
-if the first search path will be sufficient to find all modules during the
-lifetime of the module manager, no other search path will ever be accessed.
-The caching also implies that the ModuleManager will not detect if new files
-should be created during its lifetime.
-
-The ``ModuleManager`` also provides a static function that will sort
-a list of module dependencies, so that compiling the modules in this order
-(or adding them in this order to a file) will allow compilation, i.e. any
-module will only depend on previously defined modules.
-
-
-The ``ModuleManager`` will return a ``ModuleInfo`` object to make information
-about a module available:
-
-.. autoclass:: psyclone.parse.ModuleInfo
-    :members:
-
-Similar to the ``ModuleManager``, a ``ModuleInfo`` object will heavily rely on
-caching to avoid repeatedly reading a source file or parsing it. The side
-effect is that changes to a source file during the lifetime of the
-``ModuleManager`` will not be reflected in its information.
-
-At this stage, the ``ModuleInfo`` can be used to get the original source
-code of a module as string and to query a module about modules and symbols
-it depends on. It uses the fparser parse tree to detect this information (which
-means it can handle files that are not supported by PSyIR, e.g. files with
-preprocessor directives).
-
-An example usage of the ``ModuleManager`` and ``ModuleInfo`` objects,
-which prints the filenames of all modules used in ``tl_testkern_mod``:
-
-.. testcode ::
-
-    mod_manager = ModuleManager.get()
-    # Add the path to the PSyclone LFRic example codes:
-    mod_manager.add_search_path("../../src/psyclone/tests/test_files/"
-                                "dynamo0p3")
-
-    testkern_info = mod_manager.get_module_info("tl_testkern_mod")
-
-    used_mods = testkern_info.get_used_modules()
-    # Sort the modules so we get a reproducible output ordering
-    used_mods_list = sorted(list(used_mods))
-    for module_name in used_mods_list:
-        mod_info = mod_manager.get_module_info(module_name)
-        print("Module:", module_name, os.path.basename(mod_info.filename))
-
-.. testoutput::
-
-    Module: argument_mod argument_mod.f90
-    Module: constants_mod constants_mod.f90
-    Module: fs_continuity_mod fs_continuity_mod.f90
-    Module: kernel_mod kernel_mod.f90

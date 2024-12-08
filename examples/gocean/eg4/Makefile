@@ -40,7 +40,7 @@ include ../../common.mk
 # variable.
 #
 # export F90=nvfortran
-# export F90FLAGS = -Minfo -acc -ta=tesla:cc70
+# export F90FLAGS = -Minfo -acc -gpu=cc70
 # export LDFLAGS=""
 # Currently only compatible with F90=nvfortran
 
@@ -61,13 +61,13 @@ KERNELS=data_mod.o kern_use_var_mod.o
 transform: basic opencl openacc others
 
 basic:
-	${PSYCLONE} -api "gocean1.0" alg_kern_use_var.f90
+	${PSYCLONE} -api "gocean" alg_kern_use_var.f90
 
 opencl:
-	${PSYCLONE} -api "gocean1.0" -s ./ocl_transform.py alg_kern_use_var.f90
+	${PSYCLONE} -api "gocean" -s ./ocl_transform.py alg_kern_use_var.f90
 
 openacc:
-	${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py -opsy psy_gen.f90 \
+	${PSYCLONE} -api "gocean" -s ./acc_transform.py -opsy psy_gen.f90 \
 		 -oalg alg_gen.f90  alg_kern_use_var.f90
 
 ${INF_LIB}:
@@ -87,8 +87,8 @@ compile-acc: ${INF_LIB} ${KERNELS} alg_gen.o psy_gen.o
 others:
 	# The following currently fail as work is in progress to support transforming
 	# kernels that access nested modules or call kernels from modules (TODO #342).
-	# ${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_call_kern.f90
-	# ${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_nested_use.f90
+	# ${PSYCLONE} -api "gocean" -s ./acc_transform.py alg_kern_call_kern.f90
+	# ${PSYCLONE} -api "gocean" -s ./acc_transform.py alg_kern_nested_use.f90
 
 compile: transform
 	@echo "No compilation targets for example gocean/eg4"

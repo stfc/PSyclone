@@ -54,7 +54,7 @@ class ParaTrans(ParallelLoopTrans):
         '''
         Creates an OMP Parallel Do directive for the purposes of testing.
         '''
-        return OMPParallelDoDirective(children=children)
+        return OMPParallelDoDirective(children=children, collapse=collapse)
 
 
 CODE = '''
@@ -82,9 +82,283 @@ def test_paralooptrans_validate_force(fortran_reader):
     trans = ParaTrans()
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
-    assert "Dependency analysis failed with the following" in str(err.value)
+    assert "Loop cannot be parallelised because:" in str(err.value)
     # Set the 'force' option to True - no exception should be raised.
     trans.validate(loop, {"force": True})
+
+
+def test_paralooptrans_validate_pure_calls(fortran_reader):
+    ''' Test that the validation checks for calls that are not guaranteed
+    to be pure unless the 'force' option is provided.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          use other, only: my_sub
+          integer :: i
+          real :: var(10) = 1
+
+          do i = LBOUND(var), UBOUND(var)  ! Inquiry calls are pure
+            var(i) = max(i, 3)             ! max is pure
+            call my_sub(i)                 ! purity is unknown
+          end do
+        end subroutine my_sub''')
+
+    loop = psyir.walk(Loop)[0]
+    trans = ParaTrans()
+    # Check that we reject non-integer collapse arguments
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop, {"verbose": True})
+    assert ("Loop cannot be parallelised because it cannot guarantee that "
+            "the following calls are pure: ['my_sub']" in str(err.value))
+
+    # Check that forcing the transformation or setting it to "pure" let the
+    # validation pass
+    trans.validate(loop.copy(), {"force": True})
+    loop.scope.symbol_table.lookup("my_sub").is_pure = True
+    trans.validate(loop)
+
+
+def test_paralooptrans_validate_loop_inside_pure(fortran_reader):
+    ''' Test that the validation checks that we don't attempt to parallelise
+    a loop inside a pure (or elemental) routine
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    program test_prog
+        real, dimension(10) :: var = 1
+        integer :: j
+        do j = LBOUND(var), UBOUND(var)
+          var(j) = var(j) + 1
+        end do
+    end program
+    module test
+        contains
+        elemental function my_func(a)
+          real, intent(in) :: a(10)
+          real, intent(out) :: my_func(10)
+          integer :: i
+
+          do i = LBOUND(a), UBOUND(a)
+            my_func(i) = a(i) + 1
+          end do
+        end function
+
+        pure subroutine my_sub(a,b)
+          real, intent(in) :: a(10)
+          real, intent(out) :: b(10)
+          integer :: i
+
+          do i = LBOUND(a), UBOUND(a)
+            b(i) = a(i) + 1
+          end do
+        end subroutine
+    end module
+    ''')
+
+    trans = ParaTrans()
+    loops = psyir.walk(Loop)
+
+    # The first one succeeds as it is not inside a pure function
+    trans.validate(loops[0], {"verbose": True})
+
+    for loop in loops[1:]:
+        # Check that we reject parallelisng inside a pure routine
+        with pytest.raises(TransformationError) as err:
+            trans.validate(loop, {"verbose": True})
+        assert ("Loops inside a pure (or elemental) routine cannot be "
+                "parallelised, but attempted to parallelise loop inside '"
+                in str(err.value))
+
+
+def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader,
+                                                        fortran_writer):
+    '''
+    Test that the 'ignore_dependencies_for' option allows the validate check to
+    succeed even when the dependency analysis finds a possible loop-carried
+    dependency, but the user guarantees that it's a false dependency. It also
+    checks that the appopriate comments are added when dependencies are found.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(CODE)
+    loop = psyir.walk(Loop)[0]
+    trans = ParaTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop, options={"verbose": True})
+    assert ("Loop cannot be parallelised because:\nWarning: Variable 'sum' is "
+            "read first, which indicates a reduction. Variable: 'sum'."
+            in str(err.value))
+    # With the verbose option, the dependency will be reported in a comment
+    assert ("PSyclone: Loop cannot be parallelised because:"
+            in loop.preceding_comment)
+
+    # Test that the inner loop does not log again the same error message
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop.loop_body[0], options={"verbose": True})
+    assert ("PSyclone: Loop cannot be parallelised because the dependency"
+            not in loop.loop_body[0].preceding_comment)
+
+    # But if it's not already in an ancestor, it adds the comment there
+    loop.preceding_comment = ""
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop.loop_body[0], options={"verbose": True})
+    assert ("PSyclone: Loop cannot be parallelised because:"
+            in loop.loop_body[0].preceding_comment)
+
+    # Now use the 'ignore_dependencies_for' option
+    with pytest.raises(TypeError) as err:
+        trans.validate(loop, {"ignore_dependencies_for": "sum"})
+    assert ("The 'ignore_dependencies_for' option must be an Iterable object "
+            "containing str representing the symbols to ignore, but"
+            " got 'sum'.") in str(err.value)
+    # Set the ignore_dependencies_for option to ignore "sum"
+    trans.validate(loop, {"ignore_dependencies_for": ["sum"]})
+
+
+def test_paralooptrans_apply_collapse(fortran_reader, fortran_writer):
+    ''' Test the 'collapse' option with valid bool and integer values. '''
+    trans = ParaTrans()
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer :: i, j, k
+          real :: var(10,10,10) = 1
+
+          do i = 1, 10
+            do j = 1, 10
+              do k = 1, 10
+                var(i,j,k) = var(i, j, k) + 1
+              end do
+            end do
+          end do
+        end subroutine my_sub''')
+
+    # When 'collapse' is an integer, it won't collapse more than the requested
+    # number of loops. But it won't fail if it can't
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"collapse": 2})
+    assert ("!$omp parallel do collapse(2)"
+            in fortran_writer(test_loop.parent.parent))
+
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"collapse": 4})
+    assert ("!$omp parallel do collapse(3)"
+            in fortran_writer(test_loop.parent.parent))
+
+    # When collapse is a bool, it will collapse all possible loops when True
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"collapse": True})
+    assert ("!$omp parallel do collapse(3)"
+            in fortran_writer(test_loop.parent.parent))
+
+
+def test_paralooptrans_collapse_options(fortran_reader, fortran_writer):
+    '''
+    Test the 'collapse' option, also in combination with the 'force' and
+    'ignore_dependencies_for' options.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer :: i, j, k
+          real :: var(10,10,10) = 1
+          integer, dimension(10) :: map
+
+          do i = 1, 10  ! This loop is iteration independent
+            do j = 1, 10  ! This loop has a loop-carried dependency in var
+              do k = 1, j  ! This loop bound depends on previous indices
+                var(i,j,k) = var(i, map(j), k)
+              end do
+            end do
+          end do
+        end subroutine my_sub''')
+    loop = psyir.walk(Loop)[0]
+    trans = ParaTrans()
+    # The validation does not see any problem because the outer loop can be
+    # parallel
+    trans.validate(loop)
+
+    # By default it stops at collapse 1, because loop 2 has a dependency on,
+    # var. With verbose it adds the stopping reason as a comment.
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"collapse": True, "verbose": True})
+    assert '''\
+!$omp parallel do collapse(1) default(shared), private(i,j,k)
+do i = 1, 10, 1
+  ! Error: The write access to 'var(i,j,k)' and the read access to 'var(i,\
+map(j),k)' are dependent and cannot be parallelised. Variable: 'var'. \
+Consider using the "ignore_dependencies_for" transformation option if this \
+is a false dependency.
+  do j = 1, 10, 1
+    do k = 1, j, 1
+      var(i,j,k) = var(i,map(j),k)
+    enddo
+  enddo
+enddo
+''' in fortran_writer(test_loop.parent.parent)
+
+    # Check that the collapse logic can uses the "ignore_dependencies_for" and
+    # "force" logic to skip dependencies
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"collapse": True, "verbose": True,
+                            "ignore_dependencies_for": ["var"]})
+    assert '''\
+!$omp parallel do collapse(2) default(shared), private(i,j,k)
+do i = 1, 10, 1
+  do j = 1, 10, 1
+    ! Loop cannot be collapsed because one of the bounds depends on the \
+previous iteration variable 'j'
+    do k = 1, j, 1
+      var(i,j,k) = var(i,map(j),k)
+    enddo
+  enddo
+enddo
+''' in fortran_writer(test_loop.parent.parent)
+
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"collapse": True, "verbose": True, "force": True})
+    assert '''\
+!$omp parallel do collapse(2) default(shared), private(i,j,k)
+do i = 1, 10, 1
+  do j = 1, 10, 1
+    ! Loop cannot be collapsed because one of the bounds depends on the \
+previous iteration variable 'j'
+    do k = 1, j, 1
+      var(i,j,k) = var(i,map(j),k)
+    enddo
+  enddo
+enddo
+''' in fortran_writer(test_loop.parent.parent)
+
+    # Also it won't collapse if the loop inside is not perfectly nested,
+    # regardless of the force option.
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer :: i, j, k
+          real :: var(10,10,10) = 1
+          integer, dimension(10) :: map
+
+          do i = 1, 10  ! This loop is iteration independent
+            do j = 1, 10  ! This loop has a loop-carried dependency in var1
+              do k = 1, 10
+                var(i,j,k) = var(i, map(j), k)
+              end do
+              var(i,j,5) = 0
+            end do
+          end do
+        end subroutine my_sub''')
+    loop = psyir.walk(Loop)[0]
+    trans = ParaTrans()
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"collapse": True, "verbose": True, "force": True})
+    assert '''\
+!$omp parallel do collapse(2) default(shared), private(i,j,k)
+do i = 1, 10, 1
+  do j = 1, 10, 1
+    ! Loop cannot be collapsed because it has siblings
+    do k = 1, 10, 1
+      var(i,j,k) = var(i,map(j),k)
+    enddo
+    var(i,j,5) = 0
+  enddo
+enddo
+''' in fortran_writer(test_loop.parent.parent)
 
 
 def test_paralooptrans_validate_sequential(fortran_reader):
@@ -98,7 +372,7 @@ def test_paralooptrans_validate_sequential(fortran_reader):
     trans = ParaTrans()
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
-    assert "Dependency analysis failed with the following" in str(err.value)
+    assert "Loop cannot be parallelised because" in str(err.value)
     # Set the 'sequential' option to True - no exception should be raised.
     trans.validate(loop, {"sequential": True})
 
@@ -112,22 +386,10 @@ def test_paralooptrans_validate_collapse(fortran_reader):
     loop = psyir.walk(Loop)[0]
     trans = ParaTrans()
     # Check that we reject non-integer collapse arguments
-    with pytest.raises(TransformationError) as err:
+    with pytest.raises(TypeError) as err:
         trans.validate(loop, {"collapse": loop})
-    assert ("The 'collapse' argument must be an integer but got an object "
-            "of type" in str(err.value))
-
-    # Check that we reject invalid depths
-    with pytest.raises(TransformationError) as err:
-        trans.validate(loop, {"collapse": 1})
-    assert ("It only makes sense to collapse 2 or more loops but got a "
-            "value of 1" in str(err.value))
-
-    # Check that we reject attempts to collapse more loops than we have
-    with pytest.raises(TransformationError) as err:
-        trans.validate(loop, {"collapse": 3})
-    assert ("Cannot apply COLLAPSE(3) clause to a loop nest containing "
-            "only 2 loops" in str(err.value))
+    assert ("The 'collapse' argument must be an integer or a bool but got an"
+            " object of type" in str(err.value))
 
 
 def test_paralooptrans_validate_colours(monkeypatch):
@@ -139,7 +401,7 @@ def test_paralooptrans_validate_colours(monkeypatch):
     permitted.
 
     '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
                            name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
     child = schedule.walk(Loop)[0]
@@ -232,9 +494,6 @@ end subroutine my_sub
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
     err_text = str(err.value)
-    # Should have two messages (the first being the one that is ignored by
-    # validate).
-    assert "'ipivot' is only written once" in err_text
     assert ("Variable 'zval1' is read first, which indicates a reduction"
             in err_text)
 
@@ -268,3 +527,93 @@ def test_paralooptrans_apply(fortran_reader):
     trans = ParaTrans()
     trans.apply(loop, {"force": True})
     assert isinstance(loop.parent.parent, OMPParallelDoDirective)
+
+
+def test_paralooptrans_with_array_privatisation(fortran_reader,
+                                                fortran_writer):
+    '''
+    Check that the 'privatise_arrays' transformation option allows to ignore
+    write-write dependencies by setting the associated variable as 'private'
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer ji, jj
+          real :: var1(10,10)
+          real :: ztmp(10)
+          real :: ztmp2(10)
+          var1 = 1.0
+          ztmp2 = 1.0
+
+          do ji = 1, 10
+            do jj = 1, 10
+              if (jj == 4) then
+                ztmp2(jj) = 4
+              end if  ! the rest get the value from before the loop
+              ztmp(jj) = var1(ji, jj) + ztmp2(jj)
+            end do
+            do jj = 1, 10
+              var1(ji, jj) = ztmp(jj) * 2
+            end do
+          end do
+        end subroutine my_sub''')
+
+    loop = psyir.walk(Loop)[0]
+    trans = ParaTrans()
+
+    # By default this can not be parallelised because 'ztmp' is shared
+    with pytest.raises(TransformationError) as err:
+        trans.apply(loop)
+    assert "ztmp(jj)\' causes a write-write race condition." in str(err.value)
+    assert "ztmp2(jj)\' causes a write-write race condition." in str(err.value)
+
+    # Now enable array privatisation
+    trans.apply(loop, {"privatise_arrays": True})
+    assert ("!$omp parallel do default(shared), private(ji,jj,ztmp), "
+            "firstprivate(ztmp2)" in fortran_writer(psyir))
+
+    # If the array is accessed after the loop, or is a not an automatic
+    # interface, or is not a plain array, the privatisation will fail
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          use other, only: mystruct
+          integer ji, jj
+          real :: ztmp(10)  ! This one is fine
+          real :: ztmp_after(10)
+          real, save :: ztmp_nonlocal(10)
+          var1 = 1.0
+          ztmp = 3.0
+
+          do ji = 1, 10
+            do jj = 1, 10
+              ztmp(jj) = 3
+              ztmp_nonlocal(jj) = 3
+              ztmp_after(jj) = 3
+              mystruct%array(jj) = 3
+            end do
+          end do
+          call something(ztmp_after)
+        end subroutine my_sub''')
+
+    loop = psyir.walk(Loop)[0]
+    with pytest.raises(TransformationError) as err:
+        trans.apply(loop, {"privatise_arrays": True})
+    # with and updated error messages
+    assert "ztmp(jj)\' causes a write-write race " not in str(err.value)
+    assert "ztmp_after(jj)\' causes a write-write race " not in str(err.value)
+    assert ("ztmp_nonlocal(jj)\' causes a write-write race "
+            not in str(err.value))
+    assert ("The write-write dependency in 'ztmp_after' cannot be solved by "
+            "array privatisation because it is not a plain local array or it "
+            "is used after the loop" in str(err.value))
+    assert ("The write-write dependency in 'ztmp_nonlocal' cannot be solved "
+            "by array privatisation because it is not a plain local array or "
+            "it is used after the loop" in str(err.value))
+    assert ("The write-write dependency in 'mystruct%array' cannot be solved "
+            "by array privatisation because it is not a plain local array or "
+            "it is used after the loop" in str(err.value))
+
+    # The privatise_arrays only accepts bools
+    with pytest.raises(TypeError) as err:
+        trans.apply(loop, {"privatise_arrays": 3})
+    assert ("The 'privatise_arrays' option must be a bool but got an object "
+            "of type int" in str(err.value))

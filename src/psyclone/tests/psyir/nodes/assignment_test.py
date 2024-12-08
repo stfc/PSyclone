@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+#         J. G. Wallwork, University of Cambridge
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Assignment PSyIR node. '''
@@ -100,6 +101,7 @@ def test_assignment_create():
     lhs = Reference(DataSymbol("tmp", REAL_SINGLE_TYPE))
     rhs = Literal("0.0", REAL_SINGLE_TYPE)
     assignment = Assignment.create(lhs, rhs)
+    assert assignment.is_literal_assignment
     check_links(assignment, [lhs, rhs])
     result = FortranWriter().assignment_node(assignment)
     assert result == "tmp = 0.0\n"
@@ -150,6 +152,7 @@ def test_is_array_assignment():
     array_ref = ArrayReference.create(symbol, [x_range, int_one.copy()])
     assignment = Assignment.create(array_ref, one.copy())
     assert assignment.is_array_assignment is True
+    assert assignment.is_literal_assignment
 
     # Check when lhs consists of various forms of structure access
     grid_type = StructureType.create([
@@ -338,3 +341,38 @@ def test_assignment_gen_code():
     assignment.gen_code(module)
     code = str(module.root)
     assert "tmp = 0.0\n" in code
+
+
+def test_pointer_assignment():
+    ''' Test that pointer assignments work as expected '''
+    lhs = Reference(Symbol("var1"))
+    rhs = Reference(Symbol("var2"))
+
+    # Constructors and creators
+    assignment1 = Assignment(is_pointer=True)
+    assignment1.addchild(lhs.copy())
+    assignment1.addchild(rhs.copy())
+    assert not assignment1.is_literal_assignment
+    assignment2 = Assignment.create(lhs, rhs, is_pointer=True)
+    assert not assignment2.is_literal_assignment
+    not_pointer = Assignment.create(lhs.copy(), rhs.copy())
+    assert not not_pointer.is_literal_assignment
+
+    # Getters, equality and copy
+    assert assignment1.is_pointer
+    assert assignment2.is_pointer
+    assert assignment2.copy().is_pointer
+    assert not not_pointer.is_pointer
+    assert assignment1 == assignment2
+    assert assignment1.copy() == assignment2
+    assert assignment1 != not_pointer
+    assert assignment1 != 3
+
+    # Str and setter
+    assert "Assignment[is_pointer=True]" in str(assignment1)
+    with pytest.raises(TypeError) as err:
+        assignment1.is_pointer = None
+    assert ("is_pointer must be a boolean but got 'NoneType'"
+            in str(err.value))
+    assignment1.is_pointer = False
+    assert "Assignment[]" in str(assignment1)

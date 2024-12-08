@@ -61,7 +61,7 @@ BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 FIELD_CODE = '''
@@ -281,7 +281,8 @@ def test_ad_field_init_wrong_iteration_space():
             field_arg, metadata.iterates_over, 0)._init_field(
                 field_arg, "ncolours")
     assert ("Invalid operates_on 'ncolours' in the kernel metadata (expected "
-            "one of ['cell_column', 'domain', 'dof'])." in
+            "one of ['cell_column', 'domain', 'dof', 'halo_cell_column', "
+            "'owned_and_halo_cell_column'])." in
             str(excinfo.value))
 
 

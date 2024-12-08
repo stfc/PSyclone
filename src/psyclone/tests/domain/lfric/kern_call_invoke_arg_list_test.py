@@ -97,6 +97,22 @@ def test_kcial_generate_operator(lfrickern_op):
     assert opers[0][2] == "w2"
 
 
+def test_kcial_generate_halos(lfrickern_halo):
+    '''
+    Test that appropriate arguments are generated for a kernel that operates
+    on halo cells.
+    '''
+    # generate() assumes a suitably initialised symbol table so create
+    # that here.
+    table = LFRicSymbolTable()
+    table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+                     datatype=UnresolvedType())
+    kcial = KernCallInvokeArgList(lfrickern_halo, table)
+    kcial.generate()
+    assert len(kcial.arglist) == 9
+    assert kcial.arglist[0] == "halo_depth"
+
+
 def test_kcial_not_implemented(lfrickern):
     ''' Check all the methods that handle unsupported types of kernel
     argument. '''

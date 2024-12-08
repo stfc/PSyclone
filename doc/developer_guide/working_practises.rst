@@ -216,6 +216,12 @@ Additionally html output can be created by adding the option ``--cov-report html
 The html output can be viewed with a browser at ``file:///.../tests/htmlcov/index.html``
 and it highlights all source lines in red that are not covered by at least one test.
 
+For convenience, there is also a script in ``<PSYCLONEHOME>/utils/run_pytest_cov.sh``
+running the coverage tests for all relevant files.
+This also creates a ``cov.xml`` file which can be used by, e.g., vscode.
+See the respective comments in this script for further information.
+
+
 .. _parallel_execution:
 
 Parallel execution
@@ -343,7 +349,7 @@ file ``transformation.py`` uses::
         For example:
 
         >>> from psyclone.parse.algorithm import parse
-        >>> api = "gocean1.0"
+        >>> api = "gocean"
         >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
         ...
         >>> dtrans.apply(schedule)
@@ -406,11 +412,11 @@ functions from the LFRic infrastructure is included in
 are requested, the stub files are automatically compiled to create the required
 .mod files. 
 
-For the gocean1.0 domain a complete copy of the dl_esm_inf library is included 
+For the gocean domain a complete copy of the dl_esm_inf library is included 
 as a submodule in ``<PSYCLONEHOME>/external/dl_esm_inf``. Before running tests
 with compilation, make sure this submodule is up-to-date (see
 :ref:`dev-installation`). The test process will compile dl_esm_inf
-automatically, and all PSyclone gocean1.0 compilation tests will reference
+automatically, and all PSyclone gocean compilation tests will reference
 these files.
 
 If you  run the tests in parallel (see :ref:`parallel_execution` section) each
@@ -424,10 +430,7 @@ Occasionally the code that is to be compiled as part of a test may depend
 upon some piece of code that is not a Kernel or part of one of the supported
 infrastructure libraries. In order to support this, the ``code_compiles``
 method of ``psyclone.tests.utilities.Compile`` allows the user to supply a
-list of additional files upon which kernels depend:
-
-.. automethod:: psyclone.tests.utilities.Compile.code_compiles
-
+list of additional files upon which kernels depend.
 These files must be located in the same directory as the kernels.
 
 Continuous Integration
@@ -442,26 +445,22 @@ triggered whenever there is a push to a pull-request on the repository
 and consists of five main checks performed, in order of increasing
 computational cost (so that we 'fail fast'):
 
- 1. All links within all MarkDown files are checked. Those links to skip
-    (because they are e.g. password protected) are specified in the
-    ``PSyclone/.github/workflows/mlc_config.json`` configuration file.
-
- 2. All examples in the Developer Guide are checked for correctness by
+ 1. All examples in the Developer Guide are checked for correctness by
     running ``make doctest``.
 
- 3. The code base, examples and tutorials are lint'ed with flake8.
-    (Configuration of flake8 is performed in ``setup.cfg``.)
+ 2. The code base, examples and tutorials are Lint'ed with flake8, see
+    also :ref:`flake8`.
 
- 4. All links within the Sphinx documentation (rst files) are checked (see
+ 3. All links within the Sphinx documentation (rst files) are checked (see
     note below);
 
- 5. All of the examples are tested (for Python versions 3.7, 3.8 and 3.12)
+ 4. All of the examples are tested (for Python versions 3.7, 3.8 and 3.13)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
     The ``transform`` target is run 2-way parallel (``-j 2``).
 
- 6. The full test suite is run for Python versions 3.7, 3.8 and 3.12 but
+ 5. The full test suite is run for Python versions 3.7, 3.8 and 3.13 but
     without the compilation checks. ``pytest`` is passed the ``-n auto`` flag
     so that it will run the tests in parallel on as many cores as are
     available (currently 2 on GHA instances).
@@ -491,7 +490,7 @@ and therefore the line described above must be commented out again
 before making a release.
 
 A single run of the test suite on GitHub Actions uses
-approximately 20 minutes of CPU time and we run the test suite on three
+approximately 15 minutes of CPU time and we run the test suite on three
 different versions of Python. Therefore, it is good practise to avoid
 triggering the tests unnecessarily (e.g. when we know that a certain commit
 won't pass). This may be achieved by including the "[skip ci]" tag (without
@@ -499,6 +498,14 @@ the quotes) in the associated commit message.
 
 Link checking
 -------------
+
+Link checking for all of the MarkDown files is performed using the
+linkspector GitHub Action which has its own workflow file,
+``linkspector.yml``. Those links to skip (because they are e.g. password
+protected) are specified in the ``PSyclone/.github/linkspector.yml``
+configuration file. That file also ensures that links to the PSyclone
+documentation are always checked against the 'latest' version on
+ReadTheDocs rather than 'stable'.
 
 The link checking performed for the Sphinx documentation
 uses Sphinx's `linkcheck` functionality. Some URLs are excluded from
@@ -596,6 +603,29 @@ psyclone scripts suffered from each change for LFRic and NEMO applications.
 However, one must note that the test runner does not have exclusive access to
 the testing system, and some results may be impacted by other users using the
 system at the same time.
+
+
+.. _flake8:
+
+Flake8
+------------------
+
+All code is linted by flake8 and must be free from errors to be merged with
+master.
+It can be installed with::
+  
+  > pip install flake8
+
+and executed with::
+
+  > flake8 src/psyclone
+
+An existing configuration of flake8 is given in ``setup.cfg``.
+A check with flake8 is performed automatically by the CI and it can be useful
+to setup a git pre-push hook at ``.git/hooks/pre-push`` to do this check before
+pushing to the repository.
+For convenience, such a script where a such a hook can be linked to is available
+in ``utils/run_flake8.sh``.
 
 
 Performance

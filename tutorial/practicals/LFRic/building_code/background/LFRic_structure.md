@@ -36,7 +36,7 @@ they will be referred to as "LFRic data objects".
 
 The important thing to note here is that algorithms (as well as other
 high-level code such as drivers) operate on [full objects](
-https://psyclone.readthedocs.io/en/stable/algorithm_layer.html) but
+https://psyclone.readthedocs.io/en/stable/introduction_to_psykal.html#algorithm-layer) but
 **do not operate directly on object data** (or, in OO terminology, *must
 not break encapsulation*). The data is accessed in the [PSy layer](
 #psy-layer) via the required object accessor class, referred to as
@@ -93,7 +93,7 @@ LFRic kernels perform mathematical operations on a subset of data
 points of these objects.
 
 In the *Parallel Systems* or, in short, [PSy layer](
-https://psyclone.readthedocs.io/en/stable/psy_layer.html), PSyclone
+https://psyclone.readthedocs.io/en/stable/introduction_to_psykal.html#psy-layer), PSyclone
 generates calls to the accessor classes for the LFRic data objects
 passed from the algorithm layer, referred to as `<class_name>_proxy`
 (e.g. `field_proxy`) and accesses the object data by dereferencing
@@ -112,7 +112,7 @@ The generated PSy-layer code in these tutorials is purely serial.
 https://psyclone.readthedocs.io/en/stable/dynamo0p3.html#kernel)
 
 LFRic kernels perform mathematical operations on [a subset of data points](
-https://psyclone.readthedocs.io/en/stable/kernel_layer.html#kernel-layer)
+https://psyclone.readthedocs.io/en/stable/introduction_to_psykal.html#kernel-layer)
 of LFRic data objects (fields, operators and scalars) passed
 from the [algorithm](#algorithm-layer) through the [PSy layer](#psy-layer).
 

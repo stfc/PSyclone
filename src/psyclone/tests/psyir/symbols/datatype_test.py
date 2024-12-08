@@ -40,8 +40,9 @@
 
 import pytest
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
-    Container, KernelSchedule
+from psyclone.psyir.nodes import (
+    BinaryOperation, Container, KernelSchedule,
+    Literal, Reference, Routine)
 from psyclone.psyir.symbols import (
     ArrayType, DataType, UnresolvedType, ScalarType, UnsupportedFortranType,
     DataSymbol, StructureType, NoType, INTEGER_TYPE, REAL_TYPE, Symbol,
@@ -83,6 +84,15 @@ def test_unresolvedtype_eq():
     data_type1 = UnresolvedType()
     assert data_type1 == UnresolvedType()
     assert data_type1 != NoType()
+
+
+def test_unresolvedtype_copy():
+    '''Test the copy() method of UnresolvedType (which is just inherited
+    from DataType).'''
+    dtype1 = UnresolvedType()
+    dtype2 = dtype1.copy()
+    assert isinstance(dtype2, UnresolvedType)
+    assert dtype2 is not dtype1
 
 
 # NoType class
@@ -266,7 +276,41 @@ def test_scalartype_immutable():
         data_type.precision = 8
 
 
+def test_scalartype_replace_symbols():
+    '''Test that the replace_symbols_using method updates any symbol referred
+    to by a ScalarType.
+
+    '''
+    stype = ScalarType(ScalarType.Intrinsic.BOOLEAN,
+                       ScalarType.Precision.UNDEFINED)
+    table = SymbolTable()
+    stype.replace_symbols_using(table)
+    # No Symbol so there should be no change to the object.
+    assert stype == ScalarType(ScalarType.Intrinsic.BOOLEAN,
+                               ScalarType.Precision.UNDEFINED)
+    rdef = DataSymbol("rdef", INTEGER_TYPE)
+    stype2 = ScalarType(ScalarType.Intrinsic.INTEGER,
+                        rdef)
+    # Symbol with name 'rdef' is not in the supplied table so no change.
+    stype2.replace_symbols_using(table)
+    assert stype2.precision is rdef
+    # Add a symbol with that name to the table and repeat.
+    rdef2 = DataSymbol("rdef", INTEGER_TYPE)
+    table.add(rdef2)
+    stype2.replace_symbols_using(table)
+    # Precision symbol should have been updated.
+    assert stype2.precision is rdef2
+
+
 # ArrayType class
+
+def test_arraytype_extent():
+    '''Test the ArrayType.Extent class. This is just an enum with a
+    copy() method. '''
+    xtent = ArrayType.Extent.ATTRIBUTE
+    ytent = xtent.copy()
+    assert isinstance(ytent, ArrayType.Extent)
+
 
 def test_arraytype():
     '''Test that the ArrayType class __init__ works as expected. Test the
@@ -319,8 +363,9 @@ def test_arraytype():
     assert array_type.shape[1] == ArrayType.Extent.DEFERRED
     # Provided as an attribute extent
     array_type = ArrayType(
-        scalar_type, [ArrayType.Extent.ATTRIBUTE, ArrayType.Extent.ATTRIBUTE])
-    assert array_type.shape[1] == ArrayType.Extent.ATTRIBUTE
+        scalar_type, [ArrayType.Extent.ATTRIBUTE,
+                      (2, ArrayType.Extent.ATTRIBUTE)])
+    assert array_type.shape[1].upper == ArrayType.Extent.ATTRIBUTE
 
 
 def test_arraytype_invalid_datatype():
@@ -366,6 +411,10 @@ def test_arraytype_unsupportedtype():
     assert isinstance(atype, ArrayType)
     assert atype.datatype is utype
     assert atype.precision is None
+    assert utype.declaration == "integer, pointer :: var"
+    # Since no partial datatype is provided, these return None
+    assert utype.partial_datatype is None
+    assert utype.intrinsic is None
 
 
 def test_arraytype_invalid_shape():
@@ -572,6 +621,88 @@ def test_arraytype_eq():
     assert data_type1 != ArrayType(iscalar_type, [10, 10])
 
 
+def test_arraytype_copy():
+    '''Test the copy() method of ArrayType.'''
+    sym1 = DataSymbol("alimit", INTEGER_TYPE)
+    atype = ArrayType(INTEGER_TYPE, [Reference(sym1),
+                                     (Reference(sym1), Reference(sym1))])
+    acopy = atype.copy()
+    assert acopy == atype
+    assert acopy is not atype
+    # The Reference defining the upper bound should have been copied.
+    assert acopy.shape[0].upper is not atype.shape[0].upper
+    assert acopy.shape[1].lower is not atype.shape[1].lower
+    # But the new Reference should still refer to the same Symbol.
+    assert acopy.shape[0].upper.symbol is atype.shape[0].upper.symbol
+    assert acopy.shape[1].lower.symbol is atype.shape[1].lower.symbol
+    # When shape doesn't have set bounds.
+    btype = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    bcopy = btype.copy()
+    assert bcopy == btype
+    assert bcopy is not btype
+
+
+def test_arraytype_replace_symbols_using():
+    '''Test that the replace_symbols_using method updates any symbol referred
+    to by an ArrayType.
+
+    '''
+    table = SymbolTable()
+    sym1 = DataSymbol("alimit", INTEGER_TYPE)
+    atype = ArrayType(INTEGER_TYPE, [Reference(sym1),
+                                     (Reference(sym1), Reference(sym1))])
+    atype.replace_symbols_using(table)
+    assert atype.shape[0].upper.symbol is sym1
+    assert atype.shape[1].lower.symbol is sym1
+    assert atype.shape[1].upper.symbol is sym1
+
+    sym1_new = DataSymbol("alimit", INTEGER_TYPE)
+    table.add(sym1_new)
+    atype.replace_symbols_using(table)
+    assert atype.shape[0].upper.symbol is sym1_new
+    assert atype.shape[1].lower.symbol is sym1_new
+    assert atype.shape[1].upper.symbol is sym1_new
+
+    # Test when the intrinsic type of the array is given by a DataTypeSymbol.
+    typesym = DataTypeSymbol("grid", UnresolvedType())
+    btype = ArrayType(typesym, [Reference(sym1)])
+    btype.replace_symbols_using(table)
+    assert btype.shape[0].upper.symbol is sym1_new
+    newtypesim = DataTypeSymbol("grid", UnresolvedType())
+    table.add(newtypesim)
+    btype.replace_symbols_using(table)
+    assert btype.intrinsic is newtypesim
+
+    # Test when the precision of the intrinsic type of the array is given
+    # by a symbol.
+    rdef = DataSymbol("rdef", INTEGER_TYPE)
+    ctype = ArrayType(ScalarType(ScalarType.Intrinsic.REAL, rdef),
+                      [Reference(sym1)])
+    ctype.replace_symbols_using(table)
+    assert ctype.precision is rdef
+    assert ctype.shape[0].upper.symbol is sym1_new
+    newrdef = DataSymbol("rdef", INTEGER_TYPE)
+    table.add(newrdef)
+    ctype.replace_symbols_using(table)
+    assert ctype.precision is newrdef
+
+    # Check that having an array dimension of unknown size is OK.
+    dtype = ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+    dtype.replace_symbols_using(table)
+    assert dtype == ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+
+    idef = DataSymbol("idef", INTEGER_TYPE)
+    etype = ArrayType(ScalarType(ScalarType.Intrinsic.REAL, rdef),
+                      [Literal("10", ScalarType(ScalarType.Intrinsic.INTEGER,
+                                                idef))])
+    etype.replace_symbols_using(table)
+    assert etype.shape[0].upper.datatype.precision is idef
+    newidef = DataSymbol("idef", INTEGER_TYPE)
+    table.add(newidef)
+    etype.replace_symbols_using(table)
+    assert etype.shape[0].upper.datatype.precision is newidef
+
+
 # UnsupportedFortranType tests
 
 def test_unsupported_fortran_type():
@@ -685,6 +816,77 @@ def test_unsupported_fortran_type_eq():
             UnsupportedFortranType("save :: blue_blood"))
 
 
+def test_unsupported_fortran_type_copy(fortran_reader):
+    '''Test the copy() method of UnsupportedFortranType.'''
+    code = '''
+    subroutine test
+      use some_mod, only: some_type, start, stop
+      integer, parameter :: nelem = 4
+      type(some_type), pointer :: var(nelem), var2(start:stop)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    vsym = routine.symbol_table.lookup("var")
+    vtype = vsym.datatype
+    assert isinstance(vtype, UnsupportedFortranType)
+    cpytype = vtype.copy()
+    assert isinstance(cpytype, UnsupportedFortranType)
+    assert isinstance(cpytype.partial_datatype, ArrayType)
+    # Reference to 'nelem' should be a copy.
+    assert (cpytype.partial_datatype.shape[0] is not
+            vtype.partial_datatype.shape[0])
+    assert (cpytype.partial_datatype.shape[0].lower is not
+            vtype.partial_datatype.shape[0].lower)
+    assert (cpytype.partial_datatype.shape[0].upper is not
+            vtype.partial_datatype.shape[0].upper)
+    # But the symbol referred to should be the same.
+    assert (cpytype.partial_datatype.shape[0].upper.symbol is
+            vtype.partial_datatype.shape[0].upper.symbol)
+    # The intrinsic type of the partial type should also be the same Symbol
+    # in both cases.
+    stype = routine.symbol_table.lookup("some_type")
+    assert vtype.partial_datatype.intrinsic is stype
+    assert cpytype.partial_datatype.intrinsic is stype
+    # Repeat check when array lower bound is also a Reference.
+    var2 = routine.symbol_table.lookup("var2")
+    v2type = var2.datatype
+    v2copy = v2type.copy()
+    assert (v2type.partial_datatype.shape[0].lower is not
+            v2copy.partial_datatype.shape[0].lower)
+    assert (v2type.partial_datatype.shape[0].lower.symbol is
+            v2copy.partial_datatype.shape[0].lower.symbol)
+
+
+def test_unsupported_fortran_type_replace_symbols():
+    '''Test that replace_symbols_using() correctly updates Symbols in
+    the _partial_datatype.
+
+    '''
+    decl = "type(some_type), dimension(nelem) :: var"
+    stype = DataTypeSymbol("some_type", UnresolvedType())
+    nelem = DataSymbol("nelem", INTEGER_TYPE)
+    ptype = ArrayType(stype, [Reference(nelem)])
+    utype = UnsupportedFortranType(decl, partial_datatype=ptype)
+    table = SymbolTable()
+    utype.replace_symbols_using(table)
+    assert utype.partial_datatype.shape[0].upper.symbol is nelem
+    newnelem = nelem.copy()
+    table.add(newnelem)
+    utype.replace_symbols_using(table)
+    assert utype.partial_datatype.shape[0].upper.symbol is newnelem
+    wp = DataSymbol("wp", INTEGER_TYPE)
+    ptype2 = ScalarType(ScalarType.Intrinsic.REAL, wp)
+    decl2 = "real(kind=wp), pointer :: var"
+    stype2 = UnsupportedFortranType(decl2, partial_datatype=ptype2)
+    stype2.replace_symbols_using(table)
+    assert stype2.partial_datatype.precision is wp
+    newp = wp.copy()
+    table.add(newp)
+    stype2.replace_symbols_using(table)
+    assert stype2.partial_datatype.precision is newp
+
+
 # StructureType tests
 
 def test_structure_type():
@@ -794,3 +996,24 @@ def test_structuretype_eq():
         ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
          Literal("1.0", REAL_TYPE)),
         ("roger", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
+
+
+def test_structuretype_replace_symbols():
+    '''Test that replace_symbols_using() correctly updates any Symbols referred
+    to within a StructureType.
+
+    '''
+    tsymbol = DataTypeSymbol("my_type", UnresolvedType())
+    stype = StructureType.create([
+        ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("george", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE)),
+        ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
+    table = SymbolTable()
+    assert stype.components["barry"].datatype is tsymbol
+    stype.replace_symbols_using(table)
+    assert stype.components["barry"].datatype is tsymbol
+    newtsymbol = DataTypeSymbol("my_type", UnresolvedType())
+    table.add(newtsymbol)
+    stype.replace_symbols_using(table)
+    assert stype.components["barry"].datatype is newtsymbol

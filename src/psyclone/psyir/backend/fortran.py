@@ -47,8 +47,8 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
 from psyclone.psyir.nodes import (
-    BinaryOperation, Call, CodeBlock, DataNode, IntrinsicCall, Literal,
-    Operation, Range, Routine, Schedule, UnaryOperation)
+    BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
+    Literal, Operation, Range, Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
@@ -305,28 +305,16 @@ class FortranWriter(LanguageWriter):
     currently PSyIR algorithm code which has its own gen method for
     generating Fortran).
 
-    :param bool skip_nodes: If skip_nodes is False then an exception \
-        is raised if a visitor method for a PSyIR node has not been \
-        implemented, otherwise the visitor silently continues. This is an \
-        optional argument which defaults to False.
-    :param str indent_string: Specifies what to use for indentation. This \
-        is an optional argument that defaults to two spaces.
-    :param int initial_indent_depth: Specifies how much indentation to \
-        start with. This is an optional argument that defaults to 0.
-    :param bool check_global_constraints: whether or not to validate all \
-        global constraints when walking the tree. Defaults to True.
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
 
     '''
     _COMMENT_PREFIX = "! "
 
-    def __init__(self, skip_nodes=False, indent_string="  ",
-                 initial_indent_depth=0, check_global_constraints=True):
+    def __init__(self, **kwargs):
         # Construct the base class using () as array parenthesis, and
         # % as structure access symbol
-        super().__init__(("(", ")"), "%", skip_nodes,
-                         indent_string,
-                         initial_indent_depth,
-                         check_global_constraints)
+        super().__init__(("(", ")"), "%", **kwargs)
         # Reverse the Fparser2Reader maps that are used to convert from
         # Fortran operator names to PSyIR operator names.
         self._operator_2_str = {}
@@ -484,15 +472,21 @@ class FortranWriter(LanguageWriter):
                 # This variable is not renamed.
                 only_list.append(dsym.name)
 
+        # Add a space into the returned string if intrinsic is not set anyway.
+        intrinsic_str = " "
+        if symbol.is_intrinsic:
+            intrinsic_str = ", intrinsic :: "
+
         # Finally construct the use statements for this Container (module)
         if not only_list and not symbol.wildcard_import:
             # We have a "use xxx, only:" - i.e. an empty only list
-            return f"{self._nindent}use {symbol.name}, only :\n"
+            return f"{self._nindent}use{intrinsic_str}{symbol.name}, only :\n"
         if only_list and not symbol.wildcard_import:
-            return f"{self._nindent}use {symbol.name}, only : " + \
-                    ", ".join(sorted(only_list)) + "\n"
+            return (f"{self._nindent}use{intrinsic_str}{symbol.name}, "
+                    f"only : " +
+                    ", ".join(sorted(only_list)) + "\n")
 
-        return f"{self._nindent}use {symbol.name}\n"
+        return f"{self._nindent}use{intrinsic_str}{symbol.name}\n"
 
     def gen_vardecl(self, symbol, include_visibility=False):
         '''Create and return the Fortran variable declaration for this Symbol
@@ -779,24 +773,16 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-        # Find the symbol that represents itself, this one will not need
-        # an accessibility statement
-        try:
-            itself = symbol_table.lookup_with_tag('own_routine_symbol')
-        except KeyError:
-            itself = None
-
         public_symbols = []
         private_symbols = []
         for symbol in symbol_table.symbols:
             if (isinstance(symbol, RoutineSymbol) or
                     symbol.is_unresolved or symbol.is_import):
 
-                # Skip the symbol representing the routine where these
-                # declarations belong
-                if isinstance(symbol, RoutineSymbol) and symbol is itself:
+                # Skip _PSYCLONE_INTERNAL_* symbols
+                if (isinstance(symbol, RoutineSymbol) and
+                        symbol.name.startswith("_PSYCLONE_INTERNAL_")):
                     continue
-
                 # It doesn't matter whether this symbol has a local or import
                 # interface - its accessibility in *this* context is determined
                 # by the local accessibility statements. e.g. if we are
@@ -1048,17 +1034,20 @@ class FortranWriter(LanguageWriter):
         :returns: the Fortran code as a string.
         :rtype: str
 
-        :raises VisitorError: if the attached symbol table contains \
-            any data symbols.
-        :raises VisitorError: if more than one child is a Routine Node \
+        :raises VisitorError: if the attached symbol table contains
+            any non-routine symbols.
+        :raises VisitorError: if more than one child is a Routine Node
             with is_program set to True.
 
         '''
-        if node.symbol_table.symbols:
-            raise VisitorError(
-                f"In the Fortran backend, a file container should not have "
-                f"any symbols associated with it, but found "
-                f"{len(node.symbol_table.symbols)}.")
+        for symbol in node.symbol_table.symbols:
+            # TODO #2201 - ContainerSymbols should be accepted but
+            # currently are stored in its containing scope.
+            if not isinstance(symbol, RoutineSymbol):
+                raise VisitorError(
+                    f"In the Fortran backend, a file container should not "
+                    f"have any symbols associated with it other than "
+                    f"RoutineSymbols, but found {str(symbol)}.")
 
         program_nodes = len([child for child in node.children if
                              isinstance(child, Routine) and child.is_program])
@@ -1146,18 +1135,28 @@ class FortranWriter(LanguageWriter):
 
         :returns: the Fortran code for this node.
         :rtype: str
-
-        :raises VisitorError: if the name attribute of the supplied \
-                              node is empty or None.
-
         '''
-        if not node.name:
-            raise VisitorError("Expected node name to have a value.")
-
         if node.is_program:
             result = f"{self._nindent}program {node.name}\n"
             routine_type = "program"
         else:
+            # Find RoutineSymbol
+            container = node.ancestor(Container)
+            rsym = None
+            if container:
+                # TODO #2592: When this is implemented it will be node.symbol
+                rsym = container.symbol_table.lookup(node.name, otherwise=None)
+            prefix = ""
+            if rsym:
+                if rsym.is_elemental:
+                    # elemental => pure unless known to be False
+                    if rsym.is_pure or rsym.is_pure is None:
+                        prefix = "elemental "
+                    else:
+                        prefix = "impure elemental "
+                elif rsym.is_pure:
+                    prefix = "pure "
+
             args = [symbol.name for symbol in node.symbol_table.argument_list]
             suffix = ""
             if node.return_symbol:
@@ -1167,7 +1166,7 @@ class FortranWriter(LanguageWriter):
                     suffix = f" result({node.return_symbol.name})"
             else:
                 routine_type = "subroutine"
-            result = f"{self._nindent}{routine_type} {node.name}("
+            result = f"{self._nindent}{prefix}{routine_type} {node.name}("
             result += ", ".join(args) + f"){suffix}\n"
 
         self._depth += 1
@@ -1188,14 +1187,7 @@ class FortranWriter(LanguageWriter):
 
             for schedule in node.walk(Schedule):
                 sched_table = schedule.symbol_table
-                # We can't declare a routine inside itself so make sure we
-                # skip any RoutineSymbol representing this routine.
-                try:
-                    rsym = sched_table.lookup_with_tag("own_routine_symbol")
-                    skip = [rsym] if isinstance(rsym, RoutineSymbol) else []
-                except KeyError:
-                    skip = []
-                whole_routine_scope.merge(sched_table, skip)
+                whole_routine_scope.merge(sched_table)
                 if schedule is node:
                     # Replace the Routine's symbol table as soon as we've
                     # merged it into the new one. This ensures that the new
@@ -1239,7 +1231,8 @@ class FortranWriter(LanguageWriter):
         '''
         lhs = self._visit(node.lhs)
         rhs = self._visit(node.rhs)
-        result = f"{self._nindent}{lhs} = {rhs}\n"
+        op = "=>" if node.is_pointer else "="
+        result = f"{self._nindent}{lhs} {op} {rhs}\n"
         return result
 
     def binaryoperation_node(self, node):
@@ -1292,7 +1285,7 @@ class FortranWriter(LanguageWriter):
 
         '''
         if node.parent and node.parent.is_lower_bound(
-                node.parent.indices.index(node)):
+                node.parent.index_of(node)):
             # The range starts for the first element in this
             # dimension. This is the default in Fortran so no need to
             # output anything.
@@ -1301,7 +1294,7 @@ class FortranWriter(LanguageWriter):
             start = self._visit(node.start)
 
         if node.parent and node.parent.is_upper_bound(
-                node.parent.indices.index(node)):
+                node.parent.index_of(node)):
             # The range ends with the last element in this
             # dimension. This is the default in Fortran so no need to
             # output anything.
@@ -1357,12 +1350,23 @@ class FortranWriter(LanguageWriter):
                         )
                 quote_symbol = '"'
             result = f"{quote_symbol}{node.value}{quote_symbol}"
-        elif (node.datatype.intrinsic == ScalarType.Intrinsic.REAL and
-              precision == ScalarType.Precision.DOUBLE):
-            # The PSyIR stores real scalar values using the standard 'e'
-            # notation. If the scalar is in fact double precision then this
-            # 'e' must be replaced by 'd' for Fortran.
-            result = node.value.replace("e", "d", 1)
+        elif node.datatype.intrinsic == ScalarType.Intrinsic.REAL:
+            # Ensure it ends with ".0" if it isn't already explicitly
+            # formatted as a real.
+            result = node.value
+            try:
+                _ = int(result)
+                if precision == ScalarType.Precision.DOUBLE:
+                    result = result + ".0d0"
+                else:
+                    result = result + ".0"
+            except ValueError:
+                # It is already formatted as a real.
+                if precision == ScalarType.Precision.DOUBLE:
+                    # The PSyIR stores real, scalar values using the standard
+                    # 'e' notation. If the scalar is in fact double precision
+                    # then this 'e' must be replaced by 'd' for Fortran.
+                    result = result.replace("e", "d", 1)
         else:
             result = node.value
 
@@ -1738,3 +1742,19 @@ class FortranWriter(LanguageWriter):
             result_list.append(self._visit(child))
         args = ", ".join(result_list)
         return f"{node.name}({args})"
+
+    def schedule_node(self, node):
+        '''
+        Translate the Schedule node into Fortran.
+
+        :param node: the PSyIR node to translate.
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :returns: the equivalent Fortran code.
+        :rtype: str
+
+        '''
+        result = ""
+        for child in node.children:
+            result += self._visit(child)
+        return result
