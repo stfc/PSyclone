@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import (
     Call,
     CodeBlock,
 )
-from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
+from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols import DataTypeSymbol, StructureType
 
 from psyclone.psyir.backend.fortran import FortranWriter
