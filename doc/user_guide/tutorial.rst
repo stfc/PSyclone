@@ -54,10 +54,12 @@ introduction ``jupyter-notebook introduction.ipynb``.
 
 Another part of the tutorial are `practicals
 <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals>`_
-that provide hands-on introductions to various functionality contained in the
-:ref:`LFRic <dynamo0.3-api>` and :ref:`NEMO <nemo-api>` APIs. The sections
-in the included directories are worked through using PSyclone in a "normal"
-Linux environment.
+that provide hands-on introductions to the
+:ref:`code transfomrmation approach for the NEMO application <nemo-api>` 
+and various functionality contained in the
+:ref:`LFRic API <lfric-api>`.
+The sections in the included directories are worked through using PSyclone in
+a "normal" Linux environment.
 
 .. note:: Hands-on practicals are not currently included in a
           PSyclone installation.

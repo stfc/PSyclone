@@ -40,18 +40,18 @@
 import os
 import pytest
 
-from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
+from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.tools import CallTreeUtils
 from psyclone.tests.utilities import Compile, get_base_path, get_invoke
 
 
-API = "dynamo0.3"
+API = "lfric"
 
 
 @pytest.fixture(scope='function')
@@ -84,27 +84,42 @@ def init_module_manager():
 
 
 # ----------------------------------------------------------------------------
-def test_lfric_driver_valid_unit_name():
-    '''Tests that we create valid unit names, i.e. less than 64 characters,
-    and no ":" in name.'''
-
-    long_name = "A"*100
-    new_name = LFRicExtractDriverCreator._make_valid_unit_name(long_name)
-    assert new_name == "A"*63
-
-    special_characters = "aaa:bbb"
-    new_name = \
-        LFRicExtractDriverCreator._make_valid_unit_name(special_characters)
-    assert new_name == "aaabbb"
-
-
-# ----------------------------------------------------------------------------
-def test_lfric_driver_flatten_signature():
-    '''Tests that a user-defined type access is correctly converted
-    to a 'flattened' string.'''
-
-    new_name = LFRicExtractDriverCreator._flatten_signature(Signature("a%b%c"))
-    assert new_name == "a_b_c"
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
+    '''
+    Test that _create_read_in_code() handles the case where a symbol
+    cannot be found.
+    '''
+    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                           "symbols.f90",
+                           API,
+                           dist_mem=False, idx=0)
+    ctu = CallTreeUtils()
+    rw_info = ctu.get_in_out_parameters([invoke.schedule[0]],
+                                        collect_non_local_symbols=True)
+    new_routine = Routine("driver_test")
+    for mod_name, sig in rw_info.set_of_all_used_vars:
+        if not mod_name:
+            new_routine.symbol_table.find_or_create_tag(
+                str(sig), symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    ledc = LFRicExtractDriverCreator()
+    # To limit the scope of the test we monkeypatch _create_output_var_code
+    # so that it doesn't do anything.
+    monkeypatch.setattr(ledc, "_create_output_var_code",
+                        lambda _1, _2, _3, _4, _5, index=None,
+                        module_name="": None)
+    mod_man = ModuleManager.get()
+    minfo = mod_man.get_module_info("module_with_var_mod")
+    cntr = minfo.get_psyir()
+    # We can't use 'remove()' with a DataSymbol.
+    cntr.symbol_table._symbols.pop("module_var_b")
+    ledc._create_read_in_code(new_routine,
+                              DataSymbol("psy1", INTEGER_TYPE),
+                              invoke.schedule.symbol_table,
+                              rw_info, "my_postfix")
+    out, _ = capsys.readouterr()
+    assert ("Error finding symbol 'module_var_b' in 'module_with_var_mod'"
+            in out)
 
 
 # ----------------------------------------------------------------------------
@@ -128,8 +143,7 @@ def test_lfric_driver_flatten_reference_error():
     driver_creator = LFRicExtractDriverCreator()
 
     with pytest.raises(InternalError) as err:
-        driver_creator._flatten_reference("NoUserType", symbol_table=None,
-                                          proxy_name_mapping={})
+        driver_creator._flatten_reference("NoUserType", symbol_table=None)
     assert ("Unexpected type 'str' in _flatten_reference, it must be a "
             "'StructureReference'" in str(err.value))
 
@@ -143,15 +157,15 @@ def test_lfric_driver_add_call(fortran_writer):
     program.symbol_table.find_or_create_tag("test")
     driver_creator = LFRicExtractDriverCreator()
     with pytest.raises(TypeError) as err:
-        driver_creator._add_call(program, "test", [])
-    assert ("Routine 'test' is a symbol of type 'Symbol', not a "
-            "'RoutineSymbol'" in str(err.value))
+        driver_creator.add_call(program, "test", [])
+    assert ("Error creating call to 'test' - existing symbol is of type "
+            "'Symbol', not a 'RoutineSymbol'" in str(err.value))
     # Clean up previous invalid test symbol
     del program.symbol_table._symbols['test']
     del program.symbol_table._tags['test']
 
-    driver_creator._add_call(program, "my_sub", [])
-    driver_creator._add_call(program, "my_sub_2", [Literal("1", INTEGER_TYPE)])
+    driver_creator.add_call(program, "my_sub", [])
+    driver_creator.add_call(program, "my_sub_2", [Literal("1", INTEGER_TYPE)])
     out = fortran_writer(program)
     assert "call my_sub()" in out
     assert "call my_sub_2(1)" in out
@@ -174,7 +188,7 @@ def test_lfric_driver_import_modules():
     # Initially we should only have one symbol:
     assert ["routine"] == [sym.name for sym in program.symbol_table.symbols]
 
-    driver_creator._import_modules(program.scope.symbol_table, sched)
+    driver_creator.import_modules(program.scope.symbol_table, sched)
     # We should now have two more symbols:
     all_symbols = ["routine", "testkern_coord_w0_2_mod",
                    "testkern_coord_w0_2_code"]
@@ -182,7 +196,7 @@ def test_lfric_driver_import_modules():
 
     # Import twice so we test the handling of symbols that
     # are already in the symbol table:
-    driver_creator._import_modules(program.scope.symbol_table, sched)
+    driver_creator.import_modules(program.scope.symbol_table, sched)
 
     # The symbol table should be the same as it was before:
     assert (all_symbols == [sym.name for sym in program.symbol_table.symbols])
@@ -203,7 +217,7 @@ def test_lfric_driver_import_modules_no_import_interface(fortran_reader):
     sched.lower_to_language_level()
     driver_creator = LFRicExtractDriverCreator()
     program = Routine("routine", is_program=True)
-    driver_creator._import_modules(program.scope.symbol_table, sched)
+    driver_creator.import_modules(program.scope.symbol_table, sched)
     # Only the program routine itself should be in the symbol table after
     # calling `import_modules`.
     assert (["routine"] == [sym.name for sym in program.symbol_table.symbols])
@@ -230,7 +244,11 @@ def test_lfric_driver_simple_test():
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
-    for line in ["call extract_psy_data%OpenRead('field', 'test')",
+    for line in ["if (ALLOCATED(psydata_filename)) then",
+                 "call extract_psy_data%OpenReadFileName(psydata_filename)",
+                 "else",
+                 "call extract_psy_data%OpenReadModuleRegion('field', 'test')",
+                 "end if",
                  "call extract_psy_data%ReadVariable('a', a)",
                  "call extract_psy_data%ReadVariable('loop0_start', "
                  "loop0_start)",
@@ -400,7 +418,7 @@ def test_lfric_driver_operator():
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_removing_structure_data():
     '''Check that array accesses correctly remove the `%data`(which would be
-    added for builtins using f1_proxy$data(df)). E.g. the following code needs
+    added for builtins using f1_proxy%data(df)). E.g. the following code needs
     to be created:
         do df = loop0_start, loop0_stop, 1
             f2(df) = a + f1(df)
@@ -424,7 +442,7 @@ def test_lfric_driver_removing_structure_data():
             in driver)
     assert "ALLOCATE(f2_data, mold=f2_data_post)" in driver
     assert "f2_data(df) = a + f1_data(df)" in driver
-    assert "if (ALL(f2_data - f2_data_post == 0.0)) then" in driver
+    assert "compare('f2_data', f2_data, f2_data_post" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod"]:
         assert f"module {mod}" in driver
@@ -511,7 +529,8 @@ def test_lfric_driver_field_array_write():
     for i in range(1, 4):
         assert (f"ReadVariable('coord_post%{i}', coord_{i}_data_post)"
                 in driver)
-        assert f"ALL(coord_{i}_data - coord_{i}_data_post == 0.0))" in driver
+        assert (f"compare('coord_{i}_data', coord_{i}_data, "
+                f"coord_{i}_data_post)" in driver)
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
@@ -568,3 +587,176 @@ def test_lfric_driver_field_array_inc():
     # does not need any of the infrastructure files
     build = Compile(".")
     build.compile_file("driver-field-test.F90")
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+def test_lfric_driver_external_symbols():
+    '''Test the handling of symbols imported from other modules, or calls to
+    external functions that use module variables.
+
+    '''
+    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                           "symbols.f90", API, dist_mem=False, idx=0)
+
+    extract = LFRicExtractTrans()
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("import", "test")})
+    code = str(invoke.gen())
+    assert ('CALL extract_psy_data%PreDeclareVariable("'
+            'module_var_a_post@module_with_var_mod", module_var_a)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("'
+            'module_var_a_post@module_with_var_mod", module_var_a)' in code)
+
+    filename = "driver-import-test.F90"
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
+    assert ("call extract_psy_data%ReadVariable('module_var_a_post@"
+            "module_with_var_mod', module_var_a_post)" in driver)
+    assert ("call compare('module_var_a', module_var_a, module_var_a_post)"
+            in driver)
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files
+    build = Compile(".")
+    build.compile_file("driver-import-test.F90")
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+def test_lfric_driver_external_symbols_name_clash():
+    '''Test the handling of symbols imported from other modules, or calls to
+    external functions that use module variables. In this example the external
+    module uses a variable with the same name as the user code, which causes
+    a name clash.
+
+    '''
+    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                           "symbols.f90", API, dist_mem=False, idx=1)
+
+    extract = LFRicExtractTrans()
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("import", "test")})
+    code = str(invoke.gen())
+
+    # Make sure the imported, clashing symbol 'f1_data' is renamed:
+    assert "USE module_with_name_clash_mod, ONLY: f1_data_1=>f1_data" in code
+    assert ('CALL extract_psy_data%PreDeclareVariable("f1_data@'
+            'module_with_name_clash_mod", f1_data_1)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("f1_data@'
+            'module_with_name_clash_mod", f1_data_1)' in code)
+
+    # Even though PSyclone cannot find the variable, it should still be
+    # extracted:
+
+    filename = "driver-import-test.F90"
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
+    assert ("call extract_psy_data%ReadVariable("
+            "'f1_data@module_with_name_clash_mod', f1_data_1)" in driver)
+    assert ("call extract_psy_data%ReadVariable("
+            "'f2_data@module_with_name_clash_mod', f2_data_1)" in driver)
+    assert ("call extract_psy_data%ReadVariable("
+            "'f2_data_post@module_with_name_clash_mod', f2_data_1_post)"
+            in driver)
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files
+    build = Compile(".")
+    build.compile_file("driver-import-test.F90")
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+def test_lfric_driver_external_symbols_error(capsys):
+    '''Test the handling of symbols imported from other modules, or calls to
+    external functions that use module variables. In this example, the
+    external module cannot be parsed by fparser (it contains syntax errors),
+    resulting in external functions and variables that cannot be found.
+
+    '''
+    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                           "symbols_error.f90", API, dist_mem=False, idx=0)
+
+    extract = LFRicExtractTrans()
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("import", "test")})
+    code = str(invoke.gen())
+    # Even though PSyclone cannot find the variable, it should still be
+    # extracted:
+    assert ('CALL extract_psy_data%PreDeclareVariable("non_existent_var@'
+            'module_with_error_mod", non_existent_var' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("non_existent_var@'
+            'module_with_error_mod", non_existent_var' in code)
+
+    filename = "driver-import-test.F90"
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
+    # First check output of extraction, which will detect the problems of
+    # finding variables and functions:
+    out, _ = capsys.readouterr()
+    assert ("Cannot get PSyIR for module 'module_with_error_mod' - ignoring "
+            "unknown symbol 'non_existent_func'" in out)
+    assert ("Cannot get PSyIR for module 'module_with_error_mod' - ignoring "
+            "unknown symbol 'non_existent_var'" in out)
+
+    # This error comes from the driver creation: a variable is in the list
+    # of variables to be processed, but its type cannot be found.
+    assert ("Cannot find symbol with tag 'non_existent_var@module_with_"
+            "error_mod' - likely a symptom of an earlier parsing problem."
+            in out)
+    # This variable will be ignored (for now, see TODO 2120) so no code will
+    # be created for it. The string will still be in the created driver (since
+    # the module is still inlined), but no ReadVariable code should be created:
+    assert "call extract_psy_data%ReadVariable('non_existent@" not in driver
+
+    # Note that this driver cannot be compiled, since one of the inlined
+    # source files is invalid Fortran.
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+def test_lfric_driver_rename_externals():
+    '''Tests that we get the used non-local symbols from a routine that
+    renames a symbol reported correctly. Additionally, this also tests
+    a potential name clash, if the renamed symbol should already exist
+    in the PSy layer: in this case, the symbol also needs to be renamed
+    on import
+
+    '''
+    # This example calls a subroutine that renames a symbol used from
+    # a different module, i.e.:
+    #     use module_with_var_mod, only: renamed_var => module_var_a
+
+    _, invoke = get_invoke("driver_creation/invoke_kernel_rename_symbols.f90",
+                           API, dist_mem=False, idx=0)
+
+    ctu = CallTreeUtils()
+    read_write_info = ctu.get_in_out_parameters(invoke.schedule,
+                                                collect_non_local_symbols=True)
+    driver_creator = LFRicExtractDriverCreator()
+    code = driver_creator.get_driver_as_string(invoke.schedule,
+                                               read_write_info, "extract",
+                                               "_post", ("region", "name"))
+    # The invoking program also contains a variable `module_var_a`. So
+    # the `module_var_a` from the module must be renamed on import and it
+    # becomes `module_var_a_1`.
+    assert ("use module_with_var_mod, only : module_var_a_1=>module_var_a"
+            in code)
+    assert ("call extract_psy_data%ReadVariable("
+            "'module_var_a@module_with_var_mod', module_var_a_1)" in code)
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files. The string also needs
+    # to be wrapped explicitly (which the driver creation only does
+    # when writing the result to a file).
+    build = Compile(".")
+    fll = FortLineLength()
+    code = fll.process(code)
+    build.string_compiles(code)

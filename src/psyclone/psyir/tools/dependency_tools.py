@@ -51,6 +51,8 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Loop
 
 
+# pylint: disable=too-many-lines
+
 class DTCode(IntEnum):
     '''A simple enum to store the various info, warning and error
     codes used in the dependency analysis. It is based in IntEnum
@@ -626,7 +628,7 @@ class DependencyTools():
                             [var_info.var_name])
                     else:
                         # Circular dependency:
-                        # pylint: disable=import-outside-toplevel
+                        # pylint: disable-next=import-outside-toplevel
                         from psyclone.gocean1p0 import GOKern
 
                         # If the node is a GOKern, the node.debug_string()
@@ -659,9 +661,9 @@ class DependencyTools():
                         else:
                             other_info = f"{access_type} access to"
 
-                        # We need to use default parameters, since otherwise
-                        # the value of a variable might be different when
-                        # the message is actually evaluated.
+                        # We need to use default parameters for wnode and
+                        # onode, since otherwise the value of a variable might
+                        # be different when the message is actually evaluated.
                         # Some pylint version complain here (because of the
                         # above). The code is correct, so disable this
                         # message:
@@ -770,8 +772,9 @@ class DependencyTools():
         loop_vars = [loop.variable.name for loop in loop.walk(Loop)]
 
         result = True
+        symbol_table = loop.scope.symbol_table
         # Now check all variables used in the loop
-        for signature in var_accesses.all_signatures:
+        for signature, var_info in var_accesses.items():
             # This string contains derived type information, e.g.
             # "a%b"
             var_string = str(signature)
@@ -782,12 +785,14 @@ class DependencyTools():
             if signature in signatures_to_ignore:
                 continue
 
-            # This returns the first component of the signature,
-            # i.e. in case of "a%b" it will only return "a"
-            var_name = signature.var_name
-            var_info = var_accesses[signature]
-            symbol_table = loop.scope.symbol_table
-            symbol = symbol_table.lookup(var_name)
+            # Access the symbol by inspecting the first access reference
+            try:
+                symbol = var_info.all_accesses[0].node.symbol
+            except AttributeError:
+                # If its a node without a symbol, look it up
+                var_name = signature.var_name
+                symbol = symbol_table.lookup(var_name)
+
             # TODO #1270 - the is_array_access function might be moved
             is_array = symbol.is_array_access(access_info=var_info)
             if is_array:
@@ -822,9 +827,9 @@ class DependencyTools():
         '''
         # pylint: disable=too-many-locals
         # This should only be called from loop_fuse_trans, which
-        # has done tests for loop boundaries (depending on domain) and that
-        # the loop variable is the same
+        # has done tests for loop boundaries (depending on domain)
 
+        self._clear_messages()
         assert isinstance(loop1, Loop)
         assert isinstance(loop2, Loop)
         vars1 = VariablesAccessInfo(loop1)
@@ -881,7 +886,8 @@ class DependencyTools():
             else:
                 result = self._fuse_validate_written_array(var_info1,
                                                            var_info2,
-                                                           loop_var1)
+                                                           loop_var1,
+                                                           loop_var2)
             if not result:
                 return False
 
@@ -926,7 +932,7 @@ class DependencyTools():
 
     # -------------------------------------------------------------------------
     def _fuse_validate_written_array(self, var_info1, var_info2,
-                                     loop_variable):
+                                     loop_variable1, loop_variable2):
         '''Validates if the accesses to an array, which is at least written
         once, allows loop fusion. The access pattern to this array is
         specified in the two parameters `var_info1` and `var_info2`. Ff
@@ -941,8 +947,11 @@ class DependencyTools():
         :param var_info2: access information for variable in the second loop.
         :type var_info2: \
             :py:class:`psyclone.core.var_info.SingleVariableAccessInfo`
-        :param loop_variable: symbol of the variable associated with the \
-            loops being fused.
+        :param loop_variable1: symbol of the variable associated with the \
+            first loop being fused.
+        :type loop_variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param loop_variable2: symbol of the variable associated with the \
+            second loops being fused.
         :type loop_variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :returns: whether the scalar is accessed in a way that allows
@@ -952,7 +961,7 @@ class DependencyTools():
         '''
         # pylint: disable=too-many-locals
         all_accesses = var_info1.all_accesses + var_info2.all_accesses
-        loop_var_name = loop_variable.name
+        loop_var_name1 = loop_variable1.name
         # Compare all accesses with the first one. If the loop variable
         # is used in a different subscript, raise an error. We test this
         # by computing the partition of the indices:
@@ -963,14 +972,14 @@ class DependencyTools():
         for other_access in all_accesses:
             comp_other = other_access.component_indices
             partitions = self._partition(comp_1, comp_other,
-                                         [loop_var_name])
+                                         [loop_var_name1])
             for (set_of_vars, index) in partitions:
                 # Find the partition that contains the loop variable:
-                if loop_var_name in set_of_vars:
+                if loop_var_name1 in set_of_vars:
                     break
             else:
                 error = (f"Variable '{var_info1.signature[0]}' does not "
-                         f"depend on loop variable '{loop_var_name}', but is "
+                         f"depend on loop variable '{loop_var_name1}', but is "
                          f"read and written")
                 self._add_message(error, DTCode.ERROR_READ_WRITE_NO_LOOP_VAR,
                                   [var_info1.signature[0]])
@@ -983,7 +992,7 @@ class DependencyTools():
                 access1 = all_accesses[0].node.debug_string()
                 access2 = other_access.node.debug_string()
                 error = (f"Variable '{var_info1.signature[0]}' is written to "
-                         f"and the loop variable '{loop_var_name}' is used "
+                         f"and the loop variable '{loop_var_name1}' is used "
                          f"in different index locations: {access1} and "
                          f"{access2}.")
                 self._add_message(error,
@@ -992,7 +1001,9 @@ class DependencyTools():
                 return False
             first_index = all_accesses[0].component_indices[index[0]]
             other_index = other_access.component_indices[index[0]]
-            if not SymbolicMaths.equal(first_index, other_index):
+            if not SymbolicMaths.equal(
+                    first_index, other_index,
+                    assume={loop_var_name1: loop_variable2.name}):
                 # If we have one accesses for the loop variable that is
                 # different from others (e.g. a(i) and a(i+1)), for now
                 # don't allow loop fusion.

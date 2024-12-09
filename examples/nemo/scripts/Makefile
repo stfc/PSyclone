@@ -8,8 +8,6 @@
 
 # - Specify NEMO directory
 # NEMO_DIR ?=
-# - Specify location of PSyclone transformation scripts
-PSYCLONE_NEMO_DIR ?= ${WORKSPACE}/PSyclone/examples/nemo/scripts
 # - Specify location of preprocessed files - you need to call 'make compile-serial' once first)
 # ROOT_SRC ?=
 # Where to find the MPI header files
@@ -27,7 +25,7 @@ TEST_CASE ?= SPITZ12
 # Example Config for MetOffice - eORCA1_GO8 - nvidia
 NEMO_DIR ?= ${WORKSPACE}/NEMO
 ROOT_SRC ?= ${NEMO_DIR}/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
-MPI_INC_DIR ?= ${NVHPC_ROOT}/comm_libs/mpi/include
+MPI_INC_DIR ?= ${NVHPC_ROOT}/comm_libs/latest/hpcx/latest/ompi/include
 COMPILER_ARCH ?= linux_nvidia_omp_gpu
 ADD_KEYS ?= "IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
 DEL_KEYS ?= "key_iomput key_mpp_mpi key_si3"
@@ -61,24 +59,21 @@ $(OUTPUT_FOLDERS):
 $(TARGETS): % : $(addprefix psycloned-%/, $(notdir $(SRC_FILES)))
 	@echo "Finished generating $@"
 
-# PSyclone instructions for each target type.
-
-# We perform a 'passthrough' test by simply not providing a transformation
-# script.
+# PSyclone instructions for each transformation recipe
 psycloned-passthrough/%.f90: ${ROOT_SRC}%.f90 psycloned-passthrough
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o psycloned-passthrough $<
+	psyclone -s passthrough.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openmp_cpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_cpu
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o psycloned-openmp_cpu $<
+	psyclone -s omp_cpu_trans.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openmp_gpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_gpu
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o psycloned-openmp_gpu $<
+	psyclone -s omp_gpu_trans.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openacc_kernels/%.f90: ${ROOT_SRC}%.f90 psycloned-openacc_kernels
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/acc_kernels_trans.py -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o psycloned-openacc_kernels $<
+	psyclone -s acc_kernels_trans.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openacc_loops/%.f90: ${ROOT_SRC}%.f90 psycloned-openacc_loops
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/acc_loops_trans.py -I ${ROOT_SRC} -o psycloned-openacc_loops $<
+	psyclone -s acc_loops_trans.py -l output -I ${ROOT_SRC} -o $@ $<
 
 # Get the number of Makefile parallel jobs to pass it to the makenemo
 MAKE_PID := $(shell echo $$PPID)

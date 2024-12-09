@@ -37,8 +37,8 @@
 ..          L. Turner, Met Office
 
 
-The PSyclone Internal Representation (PSyIR)
-############################################
+The PSyclone Intermediate Representation (PSyIR)
+################################################
 
 The PSyclone Intermediate Representation (PSyIR) is a language-independent
 Intermediate Representation that PSyclone uses to represent the PSy (Parallel
@@ -257,6 +257,24 @@ relationship.
 Methods like ``node.detach()``, ``node.copy()`` and ``node.pop_all_children()``
 can be used to move or replicate existing children into different nodes. 
 
+Tree Copying
+============
+
+The ability to create a deep-copy of a PSyIR tree is used heavily in PSyclone,
+primarily by the PSyIR backends. (This is because those backends often need
+to modify the tree while ensuring that the one provided by the caller remains
+unchanged.) As mentioned in the previous section, the ``node.copy()`` method
+provides this functionality:
+
+.. automethod:: psyclone.psyir.nodes.Node.copy
+
+As part of this copy operation, all Symbols referred to in the new tree must
+also be replaced with their equivalents from the symbol tables in the new tree.
+Since these symbol tables are associated with instances of ``ScopingNode``, it
+is ``ScopingNode._refine_copy`` which handles this:
+
+.. automethod:: psyclone.psyir.nodes.ScopingNode._refine_copy
+
 .. _update_signals_label:
 
 Dynamic Tree Updates
@@ -381,23 +399,25 @@ with `return_type` set to `None` and `is_program` set to `False`.
 Control-Flow Nodes
 ------------------
 
-The PSyIR has four control flow nodes: `IfBlock`, `Loop`, `WhileLoop` and
-`Call`. These nodes represent the canonical structure with which
+The PSyIR has four control flow nodes: `IfBlock`, `Loop`, `WhileLoop`
+and `Call`. These nodes represent the canonical structure with which
 conditional branching constructs, iteration constructs and accesses to
 other blocks of code are built. Additional language-specific syntax
 for branching and iteration will be normalised to use these same
 constructs.  For example, Fortran has the additional branching
-constructs `ELSE IF` and `CASE`: when a Fortran code is translated
-into the PSyIR, PSyclone will build a semantically equivalent
-implementation using `IfBlock` nodes.  Similarly, Fortran also has the
-`WHERE` construct and statement which are represented in the PSyIR
-with a combination of `Loop` and `IfBlock` nodes. Such nodes in the
-new tree structure are annotated with information to enable the
-original language-specific syntax to be recreated if required (see
-below).  See the full `IfBlock` API in the :ref_guide:`IfBlock reference
-guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.IfBlock`. The
-PSyIR also supports the concept of named arguments for `Call` nodes,
-see the :ref:`named_arguments-label` section for more details.
+constructs `ELSE IF`, `SELECT CASE` and `SELECT TYPE`: when a Fortran code is
+translated into the PSyIR, PSyclone will build a semantically
+equivalent implementation using `IfBlock` nodes (and an additional
+`CodeBlock` containing `SELECT TYPE` in the case of `SELECT TYPE`).
+Similarly, Fortran also has the `WHERE` construct and statement which
+are represented in the PSyIR with a combination of `Loop` and
+`IfBlock` nodes. Such nodes in the new tree structure are annotated
+with information to enable the original language-specific syntax to be
+recreated if required (see below).  See the full `IfBlock` API in the
+:ref_guide:`IfBlock reference guide
+psyclone.psyir.nodes.html#psyclone.psyir.nodes.IfBlock`. The PSyIR
+also supports the concept of named arguments for `Call` nodes, see the
+:ref:`named_arguments-label` section for more details.
 
 .. note:: A Call node (like the CodeBlock) inherits from both
           Statement and DataNode because it can be found in Schedules
@@ -425,6 +445,10 @@ Annotation           Node types         Origin
 `was_case`           `IfBlock`          Fortran `select case` construct
 `was_where`          `Loop`, `IfBlock`  Fortran `where` construct
 `was_unconditional`  `WhileLoop`        Fortran `do` loop with no condition
+`was_type_is`        `IfBlock`          Fortran `type is` construct within
+                                        a `select type` construct
+`was_class_is`       `IfBlock`          Fortran `class is` construct within
+                                        a `select type` construct
 ===================  =================  ===================================
 
 .. note:: A `Loop` may currently only be given the `was_single_stmt`
@@ -572,6 +596,11 @@ In addition to Fortran Intrinsics, special Fortran statements such as:
 IntrinsicCalls, like Calls, have properties to inform if the call is to a
 pure, elemental, inquiry (does not touch the first argument data) function
 or is available on a GPU device.
+
+`SUM`, `PRODUCT`, `LBOUND`, and `UBOUND` are not documented as having
+support on GPUs according to the current Nvidia documentation, however we
+have confirmed them experimentally and so PSyclone treats them as
+available on GPU devices.
 
 CodeBlock Node
 --------------
@@ -905,7 +934,7 @@ PSy-layer concepts
   sub-classed in all of the domains supported by PSyclone. This then allows
   the class to be configured with a list of valid loop 'types'. For instance,
   the GOcean sub-class, `GOLoop`, has "inner" and "outer" while the LFRic
-  (dynamo0.3) sub-class, `LFRicLoop`, has "dofs", "colours", "colour", ""
+  sub-class, `LFRicLoop`, has "dofs", "colours", "colour", ""
   and "null". The default loop type (iterating over cells) is here
   indicated by the empty string. The concept of a "null" loop type is
   currently required because the dependency analysis that determines the

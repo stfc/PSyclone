@@ -77,15 +77,13 @@ ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
 # Construct the path to the default configuration file
 DEFAULT_CFG_FILE = os.path.join(ROOT_PATH, "config", "psyclone.cfg")
 
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
 
 
 CODE = '''
@@ -169,7 +167,7 @@ def test_ad_invalid_access_type():
                         "(gh_scalar,   gh_integer, gh_ead)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    api_config = Config.get().api_conf("dynamo0.3")
+    api_config = Config.get().api_conf("lfric")
     valid_access_names = api_config.get_valid_accesses_api()
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
@@ -311,16 +309,20 @@ def test_unnecessary_shape():
 def test_kernel_call_invalid_iteration_space():
     ''' Check that we raise an exception if we attempt to generate kernel
     call for a kernel with an unsupported iteration space.
-
     '''
-    _, invoke_info = parse(os.path.join(
-        BASE_PATH, "1.14_single_invoke_dofs.f90"), api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = psy.gen
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_dofs_mod.f90"),
+                      ignore_comments=False)
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
+    kernel.load_meta(metadata)
+    # set iterates_over to something unsupported
+    kernel._iterates_over = "vampires"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = kernel.validate_global_constraints()
     assert ("The LFRic API supports calls to user-supplied kernels that "
-            "operate on one of ['cell_column', 'domain'], but "
-            "kernel 'testkern_dofs_code' operates on 'dof'."
+            "operate on one of ['cell_column', 'domain', 'dof'], but "
+            "kernel 'testkern_dofs_code' operates on 'vampires'."
             in str(excinfo.value))
 
 
@@ -807,7 +809,7 @@ def test_multi_kernel_specific(tmpdir):
 def test_field_bc_kernel(tmpdir):
     ''' Tests that a kernel with a particular name is recognised as a
     boundary condition kernel and that appropriate code is added to
-    support this. This code is required as the dynamo0.3 api does not
+    support this. This code is required as the lfric api does not
     know about boundary conditions but this kernel requires them. This
     "hack" is only supported to get PSyclone to generate correct code
     for the current implementation of LFRic. Future APIs will not
@@ -837,7 +839,7 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
@@ -1205,7 +1207,8 @@ def test_kernel_datatype_not_found():
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(BASE_PATH, "testkern_no_datatype_mod.f90"),
                  api=TEST_API)
-    assert 'Kernel type testkern_type does not exist' in str(excinfo.value)
+    assert ('Kernel type testkern_no_datatype_type does not exist' in
+            str(excinfo.value))
 
 
 def test_arg_descriptor_funcs_method_error():
@@ -2130,6 +2133,7 @@ def test_arg_descriptor_func_method_error():
             in str(excinfo.value))
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_arg_descriptor_str_error():
     ''' Tests that an internal error is raised in LFRicArgDescriptor
     when __str__() is called and the internal type is an unexpected
@@ -2466,10 +2470,9 @@ def test_halo_exchange(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     output1 = (
-        "     IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
-        "      END IF\n"
-        "      !\n")
+        "     IF (f2_proxy%is_dirty(depth=f2_extent + 1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=f2_extent + 1)\n"
+        "      END IF\n")
     assert output1 in generated_code
     assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
     assert "DO cell = loop0_start, loop0_stop, 1\n" in generated_code
@@ -2485,7 +2488,7 @@ def test_halo_exchange_inc(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.6_multikernel_invokes.f90"),
@@ -2496,35 +2499,28 @@ def test_halo_exchange_inc(monkeypatch, annexed):
     output0 = (
         "      IF (a_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL a_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      !\n")
+        "      END IF\n")
     output1 = (
         "      IF (b_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL b_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (d_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL d_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (e_proxy(1)%is_dirty(depth=1)) THEN\n"
         "        CALL e_proxy(1)%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (e_proxy(2)%is_dirty(depth=1)) THEN\n"
         "        CALL e_proxy(2)%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (e_proxy(3)%is_dirty(depth=1)) THEN\n"
         "        CALL e_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      DO cell = loop0_start, loop0_stop, 1\n")
     output2 = (
         "      IF (f_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      DO cell = loop1_start, loop1_stop, 1\n")
     assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in result
     assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in result
@@ -2586,7 +2582,7 @@ def test_halo_exchange_vectors_1(monkeypatch, annexed, tmpdir):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2607,7 +2603,6 @@ def test_halo_exchange_vectors_1(monkeypatch, annexed, tmpdir):
         expected = ("      IF (f1_proxy(3)%is_dirty(depth=1)) THEN\n"
                     "        CALL f1_proxy(3)%halo_exchange(depth=1)\n"
                     "      END IF\n"
-                    "      !\n"
                     "      DO cell = loop0_start, loop0_stop, 1\n")
         assert expected in result
 
@@ -2620,7 +2615,7 @@ def test_halo_exchange_vectors(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
@@ -2635,12 +2630,11 @@ def test_halo_exchange_vectors(monkeypatch, annexed):
             assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
     for idx in range(1, 4):
         assert ("f2_proxy("+str(idx)+")%halo_exchange("
-                "depth=f2_extent+1)" in result)
-    expected = ("      IF (f2_proxy(4)%is_dirty(depth=f2_extent+1)) "
+                "depth=f2_extent + 1)" in result)
+    expected = ("      IF (f2_proxy(4)%is_dirty(depth=f2_extent + 1)) "
                 "THEN\n"
-                "        CALL f2_proxy(4)%halo_exchange(depth=f2_extent+1)\n"
+                "        CALL f2_proxy(4)%halo_exchange(depth=f2_extent + 1)\n"
                 "      END IF\n"
-                "      !\n"
                 "      DO cell = loop0_start, loop0_stop, 1\n")
     assert expected in result
 
@@ -2661,15 +2655,12 @@ def test_halo_exchange_depths(tmpdir):
     expected = ("      IF (f2_proxy%is_dirty(depth=extent)) THEN\n"
                 "        CALL f2_proxy%halo_exchange(depth=extent)\n"
                 "      END IF\n"
-                "      !\n"
                 "      IF (f3_proxy%is_dirty(depth=extent)) THEN\n"
                 "        CALL f3_proxy%halo_exchange(depth=extent)\n"
                 "      END IF\n"
-                "      !\n"
                 "      IF (f4_proxy%is_dirty(depth=extent)) THEN\n"
                 "        CALL f4_proxy%halo_exchange(depth=extent)\n"
                 "      END IF\n"
-                "      !\n"
                 "      DO cell = loop0_start, loop0_stop, 1\n")
     assert expected in result
 
@@ -2686,7 +2677,7 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.6_halo_depth_2.f90"),
@@ -2697,21 +2688,17 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
     expected1 = (
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f1_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      !\n")
+        "      END IF\n")
     expected2 = (
-        "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
+        "      IF (f2_proxy%is_dirty(depth=f2_extent + 1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=f2_extent + 1)\n"
         "      END IF\n"
-        "      !\n"
-        "      IF (f3_proxy%is_dirty(depth=f3_extent+1)) THEN\n"
-        "        CALL f3_proxy%halo_exchange(depth=f3_extent+1)\n"
+        "      IF (f3_proxy%is_dirty(depth=f3_extent + 1)) THEN\n"
+        "        CALL f3_proxy%halo_exchange(depth=f3_extent + 1)\n"
         "      END IF\n"
-        "      !\n"
-        "      IF (f4_proxy%is_dirty(depth=f4_extent+1)) THEN\n"
-        "        CALL f4_proxy%halo_exchange(depth=f4_extent+1)\n"
+        "      IF (f4_proxy%is_dirty(depth=f4_extent + 1)) THEN\n"
+        "        CALL f4_proxy%halo_exchange(depth=f4_extent + 1)\n"
         "      END IF\n"
-        "      !\n"
         "      DO cell = loop0_start, loop0_stop, 1\n")
     if not annexed:
         assert expected1 in result
@@ -3127,15 +3114,12 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f1_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (f3_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f3_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      DO cell = loop0_start, loop0_stop, 1\n"
             "        CALL testkern_multi_anyw2_code(nlayers, "
             "f1_data, f2_data, f3_data, ndf_any_w2, "
@@ -3475,7 +3459,7 @@ def test_new_halo_exch_vect_field(monkeypatch):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
@@ -3512,7 +3496,7 @@ def test_new_halo_exch_vect_deps(monkeypatch):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
@@ -3550,7 +3534,7 @@ def test_new_halo_exch_vect_deps2(monkeypatch):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
@@ -3781,8 +3765,10 @@ def test_dynkernelarguments_acc_args_1():
     returns the expected arguments.
 
     '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     kern = sched.kernels()[0]
     kern_args = kern.arguments
@@ -3799,9 +3785,10 @@ def test_dynkernelarguments_acc_args_2():
     returns the expected arguments when there is a field vector.
 
     '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only_vector.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke_w3_only_vector.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_w3_only_vector_type').schedule
     kern = sched.kernels()[0]
     kern_args = kern.arguments
@@ -3818,9 +3805,10 @@ def test_dynkernelarguments_acc_args_3():
     returns the expected arguments when there is a stencil.
 
     '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "19.1_single_stencil.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_stencil_type').schedule
     kern = sched.kernels()[0]
     kern_args = kern.arguments
@@ -3838,9 +3826,10 @@ def test_dynkernelarguments_acc_args_4():
     returns the expected arguments when there is a stencil.
 
     '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "19.26_single_stencil_cross2d.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(
+        os.path.join(BASE_PATH, "19.26_single_stencil_cross2d.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_stencil_cross2d_type').schedule
     kern = sched.kernels()[0]
     kern_args = kern.arguments
@@ -3859,9 +3848,10 @@ def test_dynkernelarguments_acc_args_5():
     returns the expected arguments when there is an operator.
 
     '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "10_operator.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(
+        os.path.join(BASE_PATH, "10_operator.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_operator_type').schedule
     kern = sched.kernels()[0]
     kern_args = kern.arguments
@@ -3882,8 +3872,10 @@ def test_dynkernelarguments_scalars():
     where this method is used).
 
     '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     kern = sched.kernels()[0]
     kern_args = kern.arguments
@@ -3910,7 +3902,7 @@ def test_lfricinvoke_runtime(tmpdir, monkeypatch):
     '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
@@ -3973,7 +3965,7 @@ def test_dynruntimechecks_anyspace(tmpdir, monkeypatch):
     '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                            api=TEST_API)
@@ -4017,7 +4009,7 @@ def test_dynruntimechecks_vector(tmpdir, monkeypatch):
     ''' Test that run-time checks work for vector fields. '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
                            api=TEST_API)
@@ -4081,7 +4073,7 @@ def test_dynruntimechecks_multikern(tmpdir, monkeypatch):
     '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
                            api=TEST_API)
@@ -4159,7 +4151,7 @@ def test_dynruntimechecks_builtins(tmpdir, monkeypatch):
     '''Test that run-time checks work when there are builtins.'''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.1_X_plus_Y_builtin.f90"),
@@ -4199,7 +4191,7 @@ def test_dynruntimechecks_anydiscontinuous(tmpdir, monkeypatch):
     '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "11.4_any_discontinuous_space.f90"),
@@ -4264,7 +4256,7 @@ def test_dynruntimechecks_anyw2(tmpdir, monkeypatch):
     '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "21.1_single_invoke_multi_anyw2.f90"),
@@ -4336,11 +4328,9 @@ def test_read_only_fields_hex(tmpdir):
         "      IF (f2_proxy(1)%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy(1)%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f2_proxy(2)%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy(2)%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f2_proxy(3)%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n")

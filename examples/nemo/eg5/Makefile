@@ -65,7 +65,7 @@ ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/nemo
 	READ_DIR ?= $(PSYROOT)/lib/extract/netcdf
 	F90FLAGS += $$(nf-config --fflags)
-	LDFLAGS += $$(nf-config --flibs)
+	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 	GENERATED_FILES += tra_adv-r?.nc
 else
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/nemo
@@ -92,8 +92,7 @@ transform: kernels
 # Need `-l all` to ensure line-lengths in generated code are less than the
 # standard-mandated 132 chars.
 kernels: extract_kernels.py
-	$(PSYCLONE) -l all -api "nemo" -s ./extract_kernels.py -opsy psy.f90 \
-   ../code/tra_adv.F90
+	$(PSYCLONE) -l all -s ./extract_kernels.py -o psy.f90 ../code/tra_adv.F90
 
 $(EXTRACT_DIR)/$(LIB_NAME):
 	make -C $(EXTRACT_DIR)

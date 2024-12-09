@@ -125,9 +125,9 @@ def test_fortran_psyir_from_expression(fortran_reader):
     psyir = fortran_reader.psyir_from_expression("ABS(-3.0)", table)
     assert isinstance(psyir, IntrinsicCall)
     assert psyir.intrinsic == IntrinsicCall.Intrinsic.ABS
-    assert isinstance(psyir.children[0], UnaryOperation)
-    assert psyir.children[0].operator == UnaryOperation.Operator.MINUS
-    assert isinstance(psyir.children[0].children[0], Literal)
+    assert isinstance(psyir.arguments[0], UnaryOperation)
+    assert psyir.arguments[0].operator == UnaryOperation.Operator.MINUS
+    assert isinstance(psyir.arguments[0].children[0], Literal)
 
     psyir = fortran_reader.psyir_from_expression("3.0_r_def", table)
     assert isinstance(psyir, Literal)
@@ -217,7 +217,7 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
         wfile.write("")
     file_container = fortran_reader.psyir_from_file(filename)
     assert isinstance(file_container, FileContainer)
-    assert file_container.name == "None"
+    assert file_container.name == "empty.f90"
 
     # Check with a file that doesn't exist
     filename = str(tmpdir_factory.mktemp('frontend_test').join("Idontexist"))

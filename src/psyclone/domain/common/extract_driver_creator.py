@@ -42,37 +42,37 @@ the output data contained in the input file.
 
 
 from psyclone.configuration import Config
+from psyclone.domain.common import BaseDriverCreator
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
-                                  IntrinsicCall, Literal, Reference, Routine,
-                                  StructureReference)
+from psyclone.psyir.nodes import (Assignment, FileContainer,
+                                  IntrinsicCall, Literal, Reference, Routine)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
-                                    REAL8_TYPE, RoutineSymbol, ScalarType)
+                                    REAL8_TYPE, ScalarType)
 from psyclone.psyir.transformations import ExtractTrans
 
 # TODO 1382: once we support LFRic, make this into a proper base class
 # and put the domain-specific implementations into the domain/* directories.
 
 
-class ExtractDriverCreator:
+class ExtractDriverCreator(BaseDriverCreator):
     '''This class provides the functionality to create a driver that
     reads in extracted data produced by using the PSyData kernel-extraction
     functionality.
 
-    :param integer_type: default scalar integer type to be used for integer \
+    :param integer_type: default scalar integer type to be used for integer
         variables. Defaults to INTEGER_TYPE.
     :type integer_type: :py:class:`psyclone.psyir.symbols.ScalarType`
-    :param real_type: default scalar real type to be used for real \
+    :param real_type: default scalar real type to be used for real
         variables. Defaults to REAL8_TYPE.
     :type real_type: :py:class:`psyclone.psyir.symbols.ScalarType`
 
     '''
     def __init__(self, integer_type=INTEGER_TYPE, real_type=REAL8_TYPE):
+        super().__init__()
         # Set the integer and real types to use.
         # For convenience, also add the names used in the gocean config file:
         self._default_types = {ScalarType.Intrinsic.INTEGER: integer_type,
@@ -81,31 +81,46 @@ class ExtractDriverCreator:
                                "real": real_type}
 
     # -------------------------------------------------------------------------
+    def is_supported_derived_type(self, symbol):
+        '''This method checks if a unknown derived type is being used, which
+        might not be supported in all domains.
+
+        :param symbol: the symbol whose datatype is to be checked.
+        :type symbol: py:class:`psyclone.psyir.symbols.Symbol`
+
+        :returns: whether the datatype is supported or not
+        :rtype bool:
+
+        '''
+        # In gocean we only allow r2d_field
+        return symbol.datatype.name == "r2d_field"
+
+    # -------------------------------------------------------------------------
     def create_flattened_symbol(self, flattened_name, reference, symbol_table,
                                 writer=FortranWriter()):
         '''Takes a reference to a structure and creates a new Symbol of the
         type that the reference resolves to, e.g. fld%data... will be mapped
         to `real, dimension(:,:)`, and `fld%data$whole%xstart` to `integer`.
 
-        :param str flattened_name: the new 'flattened' name to be used for \
+        :param str flattened_name: the new 'flattened' name to be used for
             the newly created symbol.
         :param reference: the reference to a structure.
         :type reference: :py:class:`psyclone.psyir.nodes.StructureReference`
-        :param symbol_table: the symbol table to use to make sure a unique \
+        :param symbol_table: the symbol table to use to make sure a unique
             name is created (based on `flattened_name`).
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param writer: a backend visitor to convert the reference into a \
-            string, which is then used to find the corresponding \
+        :param writer: a backend visitor to convert the reference into a
+            string, which is then used to find the corresponding
             gocean-grid-properties.
-        :type writer: \
+        :type writer:
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
-        :raises InternalError: if the structure access is not to a \
+        :raises InternalError: if the structure access is not to a
             GOCean grid property.
-        :raises InternalError: if there is no default type defined for \
-            the type of the GOCean grid property (defaults are defined in \
+        :raises InternalError: if there is no default type defined for
+            the type of the GOCean grid property (defaults are defined in
             the constructor of this class).
-        :raises InternalError: if the gocean grid property type is \
+        :raises InternalError: if the gocean grid property type is
             neither 'array' nor 'scalar'.
 
         :returns: the new symbol created.
@@ -113,7 +128,7 @@ class ExtractDriverCreator:
 
         '''
         fortran_expression = writer(reference)
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         grid_properties = api_config.grid_properties
 
         for prop_name in grid_properties:
@@ -155,32 +170,18 @@ class ExtractDriverCreator:
         return new_symbol
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def flatten_string(fortran_string):
-        '''Replaces all `%` with `_` in the string, creating a 'flattened'
-        name.
-
-        :param str fortran_string: the Fortran string containing '%'.
-
-        :returns: a flattened string (all '%' replaced with '_'.)
-        :rtype: str
-
-        '''
-        return fortran_string.replace("%", "_")
-
-    # -------------------------------------------------------------------------
-    def flatten_reference(self, old_reference, symbol_table,
-                          writer=FortranWriter()):
+    def _flatten_reference(self, old_reference, symbol_table,
+                           writer=FortranWriter()):
         '''Replaces `old_reference` which is a structure type with a new
         simple Reference and a flattened name (replacing all % with _).
 
         :param old_reference: a reference to a structure member.
-        :type old_reference: \
+        :type old_reference:
             :py:class:`psyclone.psyir.nodes.StructureReference`
-        :param symbol_table: the symbol table to which to add the newly \
+        :param symbol_table: the symbol table to which to add the newly
             defined flattened symbol.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param writer: a Fortran writer used when flattening a \
+        :param writer: a Fortran writer used when flattening a
             `StructureReference`.
         :type writer: :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
 
@@ -192,137 +193,22 @@ class ExtractDriverCreator:
         # Furthermore, the netcdf file declares the variable without `%data`,
         # so removing `%data` here also simplifies code creation later on.
         signature, _ = old_reference.get_signature_and_indices()
-        fortran_string = writer(old_reference)
         if signature[-1] == "data":
-            # Remove %data
-            fortran_string = fortran_string[:-5]
+            # Remove %data to make the name more recognisable
+            signature = signature[:-1]
         try:
-            symbol = symbol_table.lookup_with_tag(fortran_string)
+            symbol = symbol_table.lookup_with_tag(str(signature))
         except KeyError:
-            flattened_name = self.flatten_string(fortran_string)
+            flattened_name = self._flatten_signature(signature)
+
             # Symbol not in table, create a new symbol
             symbol = self.create_flattened_symbol(flattened_name,
                                                   old_reference, symbol_table,
                                                   writer)
-            symbol_table.add(symbol, tag=fortran_string)
+            symbol_table.add(symbol, tag=str(signature))
         # We need to create a new, flattened Reference and replace the
         # StructureReference with it:
         old_reference.replace_with(Reference(symbol))
-
-    # -------------------------------------------------------------------------
-    def add_all_kernel_symbols(self, sched, symbol_table,
-                               writer=FortranWriter()):
-        '''This function adds all symbols used in `sched` to the symbol table.
-        It uses GOcean-specific knowledge to declare fields and flatten their
-        name.
-
-        :param sched: the schedule that will be called by this driver program.
-        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
-        :param symbol_table: the symbol table to which to add all found \
-            symbols.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param writer: a Fortran writer used when flattening a \
-            `StructureReference`.
-        :type writer: :py:class:`psyclone.psyir.backend.fortan.FortranWriter`
-
-        :raises InternalError: if a non-derived type has an unknown \
-            intrinsic type.
-        :raises InternalError: if an unknown derived type is \
-            encountered. At this stage only the dl_esm_inf `field` type \
-            is supported.
-
-        '''
-        all_references = sched.walk(Reference)
-        # First we add all non-structure names to the symbol table. This way
-        # the flattened name can be ensured not to clash with a variable name
-        # used in the program.
-        for reference in all_references:
-            # For now ignore structure names, which require flattening
-            if isinstance(reference, StructureReference):
-                continue
-            old_symbol = reference.symbol
-            if old_symbol.name in symbol_table:
-                # The symbol has already been declared. We then still
-                # replace the old symbol with the new symbol to have all
-                # symbols consistent:
-                reference.symbol = symbol_table.lookup(old_symbol.name)
-                continue
-
-            # We found a new symbol, so we create a new symbol in the new
-            # symbol table here. GOcean does not support any arbitrary array
-            # as kernel argument (only fields and grid properties), so we
-            # only need to declare scalars here.
-            try:
-                new_type = self._default_types[old_symbol.datatype.intrinsic]
-            except KeyError as err:
-                fortran_string = writer(reference)
-                valid = list(self._default_types.keys())
-                # Sort to make sure we get a reproducible order for testing
-                valid.sort()
-                raise InternalError(
-                    f"Error when constructing driver for '{sched.name}': "
-                    f"Unknown intrinsic data type "
-                    f"'{old_symbol.datatype.intrinsic}' in reference "
-                    f"'{fortran_string}'. Valid types are '{valid}'.") from err
-            new_symbol = symbol_table.new_symbol(root_name=reference.name,
-                                                 tag=reference.name,
-                                                 symbol_type=DataSymbol,
-                                                 datatype=new_type)
-            reference.symbol = new_symbol
-
-        # Now handle all derived type. In GOcean the only supported derived
-        # type is "r2d_field". This type might be used to access the field
-        # data, loop boundaries or other properties. We use the
-        # grid_properties information from the config file to identify which
-        # property is used. The name of a derived type is 'flattened', i.e.
-        # all '%' are replaced with '_', and this is then declared as a
-        # non-structured type. We also need to make sure that a flattened
-        # name does not clash with a variable declared by the user. We use
-        # the structured name (with '%') as tag to handle this.
-        for reference in all_references:
-            if not isinstance(reference, StructureReference):
-                continue
-            old_symbol = reference.symbol
-            if old_symbol.datatype.name != "r2d_field":
-                fortran_string = writer(reference)
-                raise InternalError(
-                    f"Error when constructing driver for '{sched.name}': "
-                    f"Unknown derived type '{old_symbol.datatype.name}' "
-                    f"in reference '{fortran_string}'.")
-            # We have a structure reference to a field, flatten it, and
-            # replace the StructureReference with a new Reference to this
-            # flattened name (e.g. `fld%data` becomes `fld_data`)
-            self.flatten_reference(reference, symbol_table, writer=writer)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def add_call(program, name, args):
-        '''This function creates a call to the subroutine of the given name,
-        providing the arguments. The call will be added to the program and
-        to the symbol table.
-
-        :param program: the PSyIR Routine to which any code must \
-            be added. It also contains the symbol table to be used.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param str name: name of the subroutine to call.
-        :param args: list of all arguments for the call.
-        :type args: list of :py:class:`psyclone.psyir.nodes.Node`
-
-        :raises TypeError: if there is a symbol with the \
-            specified name defined that is not a RoutineSymbol.
-        '''
-        if name in program.symbol_table:
-            routine_symbol = program.symbol_table.lookup(name)
-            if not isinstance(routine_symbol, RoutineSymbol):
-                raise TypeError(
-                    f"Error when adding call: Routine '{name}' is "
-                    f"a symbol of type '{type(routine_symbol).__name__}', "
-                    f"not a 'RoutineSymbol'.")
-        else:
-            routine_symbol = RoutineSymbol(name)
-            program.symbol_table.add(routine_symbol)
-        call = Call.create(routine_symbol, args)
-        program.addchild(call)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -344,25 +230,25 @@ class ExtractDriverCreator:
           parameter to the function), allocates it based on the shape of
           the corresponding "_post" variable, and initialises it with 0.
 
-        :param program: the PSyIR Routine to which any code must \
+        :param program: the PSyIR Routine to which any code must
             be added. It also contains the symbol table to be used.
         :type program: :py:class:`psyclone.psyir.nodes.Routine`
         :param psy_data: the PSyData symbol to be used.
         :type psy_data: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param read_write_info: information about all input and output \
+        :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str postfix: a postfix that is added to a variable to \
-            create the corresponding variable that stores the output \
+        :param str postfix: a postfix that is added to a variable to
+            create the corresponding variable that stores the output
             value from the kernel data file.
 
-        :returns: a list with all output parameters, i.e. variables that \
-            need to be verified after executing the kernel. Each entry is \
-            a 2-tuple containing the symbol of the computed variable, and \
-            the symbol of the variable that contains the value read from \
+        :returns: a list with all output parameters, i.e. variables that
+            need to be verified after executing the kernel. Each entry is
+            a 2-tuple containing the symbol of the computed variable, and
+            the symbol of the variable that contains the value read from
             the file.
-        :rtype: list of 2-tuples of \
-            :py:class:`psyclone.psyir.symbols.Symbol`
+        :rtype: list[tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
+            :py:class:`psyclone.psyir.symbols.Symbol`]]
 
         '''
         symbol_table = program.scope.symbol_table
@@ -387,8 +273,8 @@ class ExtractDriverCreator:
             sig_str = str(signature)
             sym = symbol_table.lookup_with_tag(sig_str)
             name_lit = Literal(sig_str, CHARACTER_TYPE)
-            ExtractDriverCreator.add_call(program, read_var,
-                                          [name_lit, Reference(sym)])
+            BaseDriverCreator.add_call(program, read_var,
+                                       [name_lit, Reference(sym)])
 
         # Then handle all variables that are written (note that some
         # variables might be read and written)
@@ -409,9 +295,9 @@ class ExtractDriverCreator:
             post_sym = symbol_table.new_symbol(post_name,
                                                symbol_type=DataSymbol,
                                                datatype=sym.datatype)
-            ExtractDriverCreator.add_call(program, read_var,
-                                          [Literal(post_name, CHARACTER_TYPE),
-                                           Reference(post_sym)])
+            BaseDriverCreator.add_call(program, read_var,
+                                       [Literal(post_name, CHARACTER_TYPE),
+                                        Reference(post_sym)])
 
             # Now if a variable is written to, but not read, the variable
             # is not allocated. So we need to allocate it and set it to 0.
@@ -429,80 +315,22 @@ class ExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def import_modules(program, sched):
-        '''This function adds all the import statements required for the
-        actual kernel calls. It finds all calls in the PSyIR tree and
-        checks for calls with a ImportInterface. Any such call will
-        get a ContainerSymbol added for the module, and a RoutineSymbol
-        with an import interface pointing to this module.
+    def _add_precision_symbols(symbol_table):
+        '''This function adds an import of go_wp from kind_params_mod.
 
-        :param program: the PSyIR Routine to which any code must \
-            be added. It also contains the symbol table to be used.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param sched: the schedule that will be called by the driver \
-            program created.
-        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
+        :param symbol_table: the symbol table to which the precision symbols
+            must be added.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        symbol_table = program.scope.symbol_table
-        for call in sched.walk(Call):
-            routine = call.routine
-            if not isinstance(routine.interface, ImportInterface):
-                continue
-            if routine.name in symbol_table:
-                # Symbol has already been added - ignore
-                continue
-            # We need to create a new symbol for the module and the routine
-            # called (the PSyIR backend will then create a suitable import
-            # statement).
-            module = ContainerSymbol(routine.interface.container_symbol.name)
-            symbol_table.add(module)
-            new_routine_sym = RoutineSymbol(routine.name, UnresolvedType(),
-                                            interface=ImportInterface(module))
-            symbol_table.add(new_routine_sym)
+        kind_params_mod = ContainerSymbol("kind_params_mod")
+        symbol_table.add(kind_params_mod)
 
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def add_result_tests(program, output_symbols):
-        '''Adds tests to check that all output variables have the expected
-        value.
-
-        :param program: the program to which the tests should be added.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param output_symbols: a list containing all output variables of \
-            the executed code. Each entry in the list is a 2-tuple, \
-            containing first the symbol that was computed when executing \
-            the kernels, and then the symbol containing the expected \
-            values that have been read in from a file.
-        :type output_symbols: list of 2-tuples of \
-            :py:class:`psyclone.psyir.symbols.Symbol`
-        '''
-
-        for (sym_computed, sym_read) in output_symbols:
-            if isinstance(sym_computed.datatype, ArrayType):
-                cond = f"all({sym_computed.name} - {sym_read.name} == 0.0)"
-            else:
-                cond = f"{sym_computed.name} == {sym_read.name}"
-            # The PSyIR has no support for output functions, so we parse
-            # Fortran code to create a code block which stores the output
-            # statements.
-            code = f'''
-                subroutine tmp()
-                  integer :: {sym_computed.name}, {sym_read.name}
-                  if ({cond}) then
-                     print *,"{sym_computed.name} correct"
-                  else
-                     print *,"{sym_computed.name} incorrect. Values are:"
-                     print *,{sym_computed.name}
-                     print *,"{sym_computed.name} values should be:"
-                     print *,{sym_read.name}
-                  endif
-                end subroutine tmp'''
-
-            fortran_reader = FortranReader()
-            container = fortran_reader.psyir_from_source(code)
-            if_block = container.children[0].children[0]
-            program.addchild(if_block.detach())
+        symbol_table.new_symbol("go_wp",
+                                tag="go_wp@kind_params_mod",
+                                symbol_type=DataSymbol,
+                                datatype=INTEGER_TYPE,
+                                interface=ImportInterface(kind_params_mod))
 
     # -------------------------------------------------------------------------
     def create(self, nodes, read_write_info, prefix, postfix, region_name):
@@ -514,21 +342,21 @@ class ExtractDriverCreator:
         file container which contains the driver.
 
         :param nodes: a list of nodes.
-        :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param read_write_info: information about all input and output \
+        :type nodes: list[:py:class:`psyclone.psyir.nodes.Node`]
+        :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol, \
+        :param str prefix: the prefix to use for each PSyData symbol,
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param str postfix: a postfix that is appended to an output variable \
-            to create the corresponding variable that stores the output \
-            value from the kernel data file. The caller must guarantee that \
-            no name clashes are created when adding the postfix to a variable \
-            and that the postfix is consistent between extract code and \
+        :param str postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param (str,str) region_name: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
+        :param (str,str) region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
             should uniquely identify a region.
 
         :returns: the program PSyIR for a stand-alone driver.
@@ -545,7 +373,7 @@ class ExtractDriverCreator:
         extract_trans.validate(nodes, options={"prefix": prefix})
 
         module_name, local_name = region_name
-        unit_name = f"{module_name}_{local_name}"
+        unit_name = self._make_valid_unit_name(f"{module_name}_{local_name}")
 
         # First create the file container, which will only store the program:
         file_container = FileContainer(unit_name)
@@ -569,9 +397,10 @@ class ExtractDriverCreator:
         # in the node list have the same parent.
         schedule_copy = nodes[0].parent.copy()
         schedule_copy.lower_to_language_level()
-        self.import_modules(program, schedule_copy)
+        self._add_precision_symbols(program.scope.symbol_table)
+        self.import_modules(program_symbol_table, schedule_copy)
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
-                                    writer)
+                                    read_write_info, writer)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,
@@ -580,7 +409,7 @@ class ExtractDriverCreator:
 
         module_str = Literal(module_name, CHARACTER_TYPE)
         region_str = Literal(local_name, CHARACTER_TYPE)
-        self.add_call(program, f"{psy_data.name}%OpenRead",
+        self.add_call(program, f"{psy_data.name}%OpenReadModuleRegion",
                       [module_str, region_str])
 
         output_symbols = self.create_read_in_code(program, psy_data,
@@ -593,84 +422,3 @@ class ExtractDriverCreator:
         self.add_result_tests(program, output_symbols)
 
         return file_container
-
-    # -------------------------------------------------------------------------
-    def get_driver_as_string(self, nodes, read_write_info,
-                             prefix, postfix, region_name,
-                             writer=FortranWriter()):
-        # pylint: disable=too-many-arguments
-        '''This function uses `create()` function to get the PSyIR of a
-        stand-alone driver, and then uses the provided language writer
-        to create a string representation in the selected language
-        (defaults to Fortran).
-
-        :param nodes: a list of nodes.
-        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param read_write_info: information about all input and output \
-            parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol, \
-            e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param str postfix: a postfix that is appended to an output variable \
-            to create the corresponding variable that stores the output \
-            value from the kernel data file. The caller must guarantee that \
-            no name clashes are created when adding the postfix to a variable \
-            and that the postfix is consistent between extract code and \
-            driver code (see 'ExtractTrans.determine_postfix()').
-        :param (str,str) region_name: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
-            should uniquely identify a region.
-        :param language_writer: a backend visitor to convert PSyIR \
-            representation to the selected language. It defaults to \
-            the FortranWriter.
-        :type language_writer: \
-            :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
-
-        :returns: the driver in the selected language.
-        :rtype: str
-
-        '''
-        file_container = self.create(nodes, read_write_info,
-                                     prefix, postfix, region_name)
-        return writer(file_container)
-
-    # -------------------------------------------------------------------------
-    def write_driver(self, nodes, read_write_info, prefix, postfix,
-                     region_name, writer=FortranWriter()):
-        # pylint: disable=too-many-arguments
-        '''This function uses the `get_driver_as_string()` function to get a
-        a stand-alone driver, and then writes this source code to a file. The
-        file name is derived from the region name:
-        "driver-"+module_name+"_"+region_name+".f90"
-
-        :param nodes: a list of nodes.
-        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param read_write_info: information about all input and output \
-            parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol, \
-            e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param str postfix: a postfix that is appended to an output variable \
-            to create the corresponding variable that stores the output \
-            value from the kernel data file. The caller must guarantee that \
-            no name clashes are created when adding the postfix to a variable \
-            and that the postfix is consistent between extract code and \
-            driver code (see 'ExtractTrans.determine_postfix()').
-        :param (str,str) region_name: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
-            should uniquely identify a region.
-        :param language_writer: a backend visitor to convert PSyIR \
-            representation to the selected language. It defaults to \
-            the FortranWriter.
-        :type language_writer: \
-            :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
-
-        '''
-        code = self.get_driver_as_string(nodes, read_write_info, prefix,
-                                         postfix, region_name, writer=writer)
-        module_name, local_name = region_name
-        with open(f"driver-{module_name}-{local_name}.f90", "w",
-                  encoding='utf-8') as out:
-            out.write(code)

@@ -40,14 +40,9 @@
 
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyGen import TransInfo
 from psyclone.tests.utilities import Compile
 from psyclone.transformations import TransformationError
-
-
-# The PSyclone API under test
-API = "nemo"
 
 
 SINGLE_LOOP = ("program do_loop\n"
@@ -60,18 +55,16 @@ SINGLE_LOOP = ("program do_loop\n"
                "end program do_loop\n")
 
 
-def test_parallel_single_loop(parser, tmpdir):
+def test_parallel_single_loop(fortran_reader, fortran_writer, tmpdir):
     ''' Check that we can apply the transformation to a single, explicit
     loop. '''
-    reader = FortranStringReader(SINGLE_LOOP)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(SINGLE_LOOP)
+    schedule = psyir.children[0]
     data_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
     acc_trans.apply(schedule[0:1])
     data_trans.apply(schedule[0])
-    code = str(psy.gen).lower()
+    code = fortran_writer(psyir).lower()
 
     assert ("program do_loop\n"
             "  integer, parameter :: jpj = 128\n"
@@ -90,13 +83,12 @@ def test_parallel_single_loop(parser, tmpdir):
     assert Compile(tmpdir).string_compiles(code)
 
 
-def test_parallel_single_loop_with_no_default_present_clause(parser, tmpdir):
+def test_parallel_single_loop_with_no_default_present_clause(
+        fortran_reader, fortran_writer, tmpdir):
     ''' Check that we can apply the transformation to a single, explicit
     loop, wihtout the default present clause '''
-    reader = FortranStringReader(SINGLE_LOOP)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(SINGLE_LOOP)
+    schedule = psyir.children[0]
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
 
     with pytest.raises(TransformationError) as err:
@@ -105,7 +97,7 @@ def test_parallel_single_loop_with_no_default_present_clause(parser, tmpdir):
             "but found '3'." in str(err.value))
 
     acc_trans.apply(schedule[0:1], options={"default_present": False})
-    code = str(psy.gen).lower()
+    code = fortran_writer(psyir).lower()
 
     assert ("program do_loop\n"
             "  integer, parameter :: jpj = 128\n"
@@ -122,27 +114,26 @@ def test_parallel_single_loop_with_no_default_present_clause(parser, tmpdir):
     assert Compile(tmpdir).string_compiles(code)
 
 
-def test_parallel_two_loops(parser, tmpdir):
+def test_parallel_two_loops(fortran_reader, fortran_writer, tmpdir):
     ''' Check that we can enclose two loops within a parallel region. '''
-    reader = FortranStringReader("program do_loop\n"
-                                 "integer :: ji\n"
-                                 "integer, parameter :: jpi=11\n"
-                                 "real :: sto_tmp(jpi), sto_tmp2(jpi)\n"
-                                 "do ji = 1,jpi\n"
-                                 "  sto_tmp(ji) = 1.0d0\n"
-                                 "end do\n"
-                                 "do ji = 1,jpi\n"
-                                 "  sto_tmp2(ji) = 1.0d0\n"
-                                 "end do\n"
-                                 "end program do_loop\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program do_loop\n"
+                "integer :: ji\n"
+                "integer, parameter :: jpi=11\n"
+                "real :: sto_tmp(jpi), sto_tmp2(jpi)\n"
+                "do ji = 1,jpi\n"
+                "  sto_tmp(ji) = 1.0d0\n"
+                "end do\n"
+                "do ji = 1,jpi\n"
+                "  sto_tmp2(ji) = 1.0d0\n"
+                "end do\n"
+                "end program do_loop\n")
+    schedule = psyir.children[0]
     data_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
     acc_trans.apply(schedule[0:2])
     data_trans.apply(schedule[0])
-    code = str(psy.gen).lower()
+    code = fortran_writer(psyir).lower()
     assert ("program do_loop\n"
             "  integer, parameter :: jpi = 11\n"
             "  integer :: ji\n"
@@ -164,31 +155,30 @@ def test_parallel_two_loops(parser, tmpdir):
     assert Compile(tmpdir).string_compiles(code)
 
 
-def test_parallel_if_block(parser, tmpdir):
+def test_parallel_if_block(fortran_reader, fortran_writer, tmpdir):
     ''' Check that we can enclose an IF-block within a parallel region. '''
-    reader = FortranStringReader("program do_loop\n"
-                                 "integer :: ji\n"
-                                 "integer, parameter :: jpi=64\n"
-                                 "logical :: init\n"
-                                 "real :: sto_tmp(jpi), sto_tmp2(jpi)\n"
-                                 "if(init)then\n"
-                                 "  do ji = 1,jpi\n"
-                                 "    sto_tmp(ji) = 1.0d0\n"
-                                 "  end do\n"
-                                 "else\n"
-                                 "  do ji = 1,jpi\n"
-                                 "    sto_tmp2(ji) = 1.0d0\n"
-                                 "  end do\n"
-                                 "end if\n"
-                                 "end program do_loop\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program do_loop\n"
+                "integer :: ji\n"
+                "integer, parameter :: jpi=64\n"
+                "logical :: init\n"
+                "real :: sto_tmp(jpi), sto_tmp2(jpi)\n"
+                "if(init)then\n"
+                "  do ji = 1,jpi\n"
+                "    sto_tmp(ji) = 1.0d0\n"
+                "  end do\n"
+                "else\n"
+                "  do ji = 1,jpi\n"
+                "    sto_tmp2(ji) = 1.0d0\n"
+                "  end do\n"
+                "end if\n"
+                "end program do_loop\n")
+    schedule = psyir.children[0]
     data_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
     acc_trans.apply(schedule[0:1])
     data_trans.apply(schedule[0])
-    code = str(psy.gen).lower()
+    code = fortran_writer(psyir).lower()
     assert ("  !$acc data copyout(sto_tmp,sto_tmp2)\n"
             "  !$acc parallel default(present)\n"
             "  if (init) then\n"

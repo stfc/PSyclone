@@ -1528,11 +1528,13 @@ class Node():
                 f"Node class should be None but found "
                 f"'{type(node.parent).__name__}'.")
 
+        # The n'th argument is placed at the n'th+1 children position
+        # because the 1st child is the routine reference
         if keep_name_in_context and hasattr(self.parent, "argument_names") \
-                and self.parent.argument_names[self.position] is not None:
+                and self.parent.argument_names[self.position - 1] is not None:
             # If it is a named context it will have a specific method for
             # replacing the node while keeping the name
-            name = self.parent.argument_names[self.position]
+            name = self.parent.argument_names[self.position - 1]
             self.parent.replace_named_arg(name, node)
         else:
             self.parent.children[self.position] = node
@@ -1729,6 +1731,21 @@ class Node():
 
         result_list.reverse()
         return result_list
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        This base implementation simply propagates the call to any child Nodes.
+
+        :param table: the symbol table in which to look up replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        for child in self.children:
+            child.replace_symbols_using(table)
 
 
 # For automatic documentation generation

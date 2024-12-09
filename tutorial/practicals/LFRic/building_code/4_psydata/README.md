@@ -100,7 +100,7 @@ and notice the added PSyData calls, e.g.:
 ```fortran
     TYPE(extract_PSyDataType), target, save :: extract_psy_data
     ....
-    CALL extract_psy_data%PreStart("time_evolution_alg_mod_psy", "invoke_propagate_perturbation:prop_perturbation_code:r0", 7, 2)
+    CALL extract_psy_data%PreStart("time_evolution_alg_mod_psy", "invoke_propagate_perturbation:prop_perturbation_code-r0", 7, 2)
     CALL extract_psy_data%PreStart("main", "update", 7, 2)
     CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
     CALL extract_psy_data%PreDeclareVariable("perturbation", perturbation)
@@ -128,7 +128,7 @@ After running the application using:
     ./time_evolution
 
 you should get a new NetCDF file called
-``time_evolution_alg_mod_psy-invoke_propagate_perturbation:prop_perturbation_code:r0.nc``.
+``time_evolution_alg_mod_psy-invoke_propagate_perturbation-prop_perturbation_code-r0.nc``.
 This name is just the concatenation of the two parameters to the ``PreStart`` function.
 It is rather long and convoluted because PSyclone automatically creates a unique module 
 and local name. 
@@ -267,8 +267,8 @@ like this will be printed:
 
 
 The transformation ``NanTestTrans`` is imported from ``psyclone.psyir.transformations``.
-You can use the template ``nan_all_transform.py`` for your script, and ``Makefile.nan_all``
-for the makefile to use.
+You can use the template ``value_range_check_transform.py`` for your script,
+and ``Makefile.value_range_check`` for the makefile to use.
 
 This example by itself will not print any message (since there is no invalid floating
 point number), so you have to use ``PSYDATA_VERBOSE`` and set it to 1 or 2 to see that

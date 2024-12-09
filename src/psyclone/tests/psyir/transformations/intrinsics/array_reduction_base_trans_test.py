@@ -175,7 +175,7 @@ def test_array_shape(fortran_reader, monkeypatch):
     node = psyir.children[0].children[0].children[1]
 
     # Modify array shape from node to create exception
-    array_ref = node.children[0]
+    array_ref = node.arguments[0]
     array_symbol = array_ref.symbol
     monkeypatch.setattr(array_symbol._datatype, "_shape", [None])
 
@@ -202,7 +202,7 @@ def test_unexpected_shape(fortran_reader, monkeypatch):
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[1]
-    array_ref = node.children[0]
+    array_ref = node.arguments[0]
     # Modify the shape of the array reference shape to create an
     # exception
     monkeypatch.setattr(array_ref.symbol._datatype, "_shape", [1])
@@ -227,7 +227,7 @@ def test_not_assignment(fortran_reader):
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Call/IntrinsicCall
-    node = psyir.children[0].children[0].children[0]
+    node = psyir.children[0].children[0].arguments[0]
     trans = Maxval2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(node)
@@ -454,7 +454,7 @@ def test_allocate(fortran_reader, fortran_writer, tmpdir):
     node = psyir.walk(IntrinsicCall)[1]
     trans.apply(node)
     result = fortran_writer(psyir)
-    assert expected in result
+    assert expected in result, result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -488,7 +488,7 @@ def test_references(fortran_reader, fortran_writer, tmpdir):
     node = psyir.children[0].children[0].children[1]
     trans.apply(node)
     result = fortran_writer(psyir)
-    assert expected in result
+    assert expected in result, result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -732,7 +732,7 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
         "use othermod\n"
         "real :: a(10,10)\n"
         "real :: x\n"
-        "x = maxval(a(:,:undeclared))\n"
+        "x = maxval(a(:,b(:)))\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
@@ -740,9 +740,8 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
     code_before = fortran_writer(psyir)
     with pytest.raises(TransformationError) as info:
         trans.apply(node)
-    assert ("NemoAllArrayRange2LoopTrans could not convert the expression "
-            "'a(:,:undeclared) = a(:,:undeclared)\n' into a loop."
-            in str(info.value))
+    assert ("does not support array assignments that contain nested Range "
+            "expressions" in str(info.value))
     # Check that the failed transformation does not modify the code
     code_after = fortran_writer(psyir)
     assert code_before == code_after

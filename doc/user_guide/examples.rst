@@ -53,10 +53,11 @@ so that a user can find one that is appropriate to them. For details of
 what each example does and how to run each example please see the
 ``README.md`` files in the associated directories.
 
-Alternatively, some of the examples have associated Jupyter notebooks
-that may be launched with Binder on `MyBinder <https://mybinder.org/>`_.
-This is most easily done by following the links from the top-level
-`README <https://github.com/stfc/PSyclone#try-it-on-binder>`_.
+.. TODO #2627
+    Alternatively, some of the examples have associated Jupyter notebooks
+    that may be launched with Binder on `MyBinder <https://mybinder.org/>`_.
+    This is most easily done by following the links from the top-level
+    `README <https://github.com/stfc/PSyclone#try-it-on-binder>`_.
 
 For the purposes of correctness checking, the whole suite of examples
 may be executed using Gnu ``make`` (this functionality is used by GitHub
@@ -314,33 +315,52 @@ read-only variables:
     New value:         123.00000000000000     
     --------------------------------------
 
-.. _gocean_example_nan:
+.. _gocean_example_value_range_check:
 
-Example 5.4: Valid Number Verification (NaN Test)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Example 5.4: Value Range Check
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This example shows the use of valid number verification with PSyclone.
 It instruments each of the two invokes in the example program
-with the PSyData-based NaN-verification code.
+with the PSyData-based Value-Range-Check code.
 It uses the dl_esm_inf-specific nan_test library
-(``lib/nan_test/dl_esm_inf/``).
+(``lib/value_range_check/dl_esm_inf/``).
 
 .. note:: The ``update_field_mod`` subroutine contains code
     that will trigger a division by 0 to create NaNs. If
-    the compiler should add floating point exception handling
-    code, this will take effect before the NaN testing is done
-    by the PSyData-based verification code.
+    the compiler should add code that handles floating point
+    exceptions , this will take effect before the NaN testing is
+    done by the PSyData-based verification code.
 
 The ``Makefile`` in this example will link with the compiled
-nan_test library. You can execute the created
-binary and it will print five warnings about invalid numbers
-at the indices  1 1, ..., 5 5:
+value_range_check library. You can then execute the binary
+and enable the value range check by setting environments
+(see :ref:`value range check<psydata_value_range_check>` for
+details).
 
-.. code-block:: none
+.. code-block:: shell
 
-    PSyData: Variable a_fld has the invalid value
-                     Infinity  at index/indices            1           1
-    mainupdate
+    PSYVERIFY__main__init__b_fld=2:3 ./value_range_check
     ...
+    PSyData: Variable b_fld has the value 0.0000000000000000 at index/indices 6 1 in module 'main' region 'init', which is not between '2.0000000000000000' and '3.0000000000000000'.
+    ...
+    PSyData: Variable a_fld has the invalid value 'Inf' at index/indices 1 1 in module 'main' region 'update'.
+
+As indicated in :ref:`value range check<psydata_value_range_check>`, you can
+also check a variable in all kernels of a module, or in any instrumented
+code region (since the example has only one module, both settings below
+will create the same warnings):
+
+.. code-block:: shell
+
+    PSYVERIFY__main__b_fld=2:3 ./value_range_check
+    PSYVERIFY__b_fld=2:3 ./value_range_check
+    ...
+    PSyData: Variable b_fld has the value 0.0000000000000000 at index/indices 6 1 in module 'main' region 'init', which is not between '2.0000000000000000' and '3.0000000000000000'.
+    ...
+    PSyData: Variable b_fld has the value 0.0000000000000000 at index/indices 6 1 in module 'main' region 'update', which is not between '2.0000000000000000' and '3.0000000000000000'.
+
+Notice that now a warning is created for both kernels: ``init`` and ``update``.
+
 
 
 Example 6: PSy-layer Code Creation using PSyIR
@@ -361,7 +381,7 @@ Example 1: Basic Operation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Basic operation of PSyclone with an ``invoke()`` containing two
-kernels, one :ref:`user-supplied <dynamo0.3-kernel>`, the other a
+kernels, one :ref:`user-supplied <lfric-kernel>`, the other a
 :ref:`Built-in <lfric-built-ins>`. Code is generated both with and
 without distributed-memory support. Also demonstrates the use of the
 ``-d`` flag to specify where to search for user-supplied kernel code
@@ -371,7 +391,7 @@ Example 2: Applying Transformations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A more complex example showing the use of PSyclone
-:ref:`transformations <dynamo0.3-api-transformations>` to
+:ref:`transformations <lfric-api-transformations>` to
 change the generated PSy-layer code. Provides examples of
 kernel-inlining and loop-fusion transformations.
 
@@ -511,11 +531,11 @@ of the kernel launches and data transfers:
    > NV_ACC_NOTIFY=3 ./example_openacc
    ...
      Step             5 : chksm =    2.1098315506694516E-004
-     PreStart called for module 'main_psy' region 'invoke_2:setval_c:r2'
+     PreStart called for module 'main_psy' region 'invoke_2-setval_c-r2'
     upload CUDA data  file=PSyclone/examples/lfric/eg14/main_psy.f90 function=invoke_2 line=183 device=0 threadid=1 variable=.attach. bytes=144
     upload CUDA data  file=PSyclone/examples/lfric/eg14/main_psy.f90 function=invoke_2 line=183 device=0 threadid=1 variable=.attach. bytes=144
     launch CUDA kernel  file=PSyclone/examples/lfric/eg14/main_psy.f90 function=invoke_2 line=186 device=0 threadid=1 num_gangs=5 num_workers=1 vector_length=128 grid=5 block=128
-     PostEnd called for module 'main_psy' region 'invoke_2:setval_c:r2'
+     PostEnd called for module 'main_psy' region 'invoke_2-setval_c-r2'
     download CUDA data  file=PSyclone/src/psyclone/tests/test_files/dynamo0p3/infrastructure//field/field_r64_mod.f90 function=log_minmax line=756 device=0 threadid=1 variable=self%data(:) bytes=4312
     20230807214504.374+0100:INFO : Min/max minmax of field1 =   0.30084014E+00  0.17067212E+01
    ...

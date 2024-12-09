@@ -36,6 +36,8 @@
 
 ''' This module provides the PSyIR Fortran front-end.'''
 
+import os
+
 from typing import Optional
 from fparser.common.readfortran import FortranStringReader, FortranFileReader
 from fparser.common.sourceinfo import FortranFormat
@@ -94,7 +96,8 @@ class FortranReader():
 
         '''
         SYMBOL_TABLES.clear()
-        string_reader = FortranStringReader(source_code)
+        string_reader = FortranStringReader(
+            source_code, include_dirs=Config.get().include_paths)
         # Set reader to free format.
         string_reader.set_format(FortranFormat(free_form, False))
         parse_tree = self._parser(string_reader)
@@ -221,7 +224,8 @@ class FortranReader():
                                    include_dirs=Config.get().include_paths)
         reader.set_format(FortranFormat(free_form, False))
         parse_tree = self._parser(reader)
-        psyir = self._processor.generate_psyir(parse_tree)
+        _, filename = os.path.split(file_path)
+        psyir = self._processor.generate_psyir(parse_tree, filename)
         return psyir
 
 

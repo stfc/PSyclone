@@ -37,79 +37,71 @@
 ''' PSyclone transformation script showing the introduction of OpenACC loop
 directives into Nemo code. '''
 
-from utils import insert_explicit_loop_parallelism, normalise_loops, \
-    enhance_tree_information, add_profiling
-from psyclone.psyir.nodes import Call, Loop
-from psyclone.transformations import ACCParallelTrans, ACCLoopTrans
-from psyclone.transformations import ACCRoutineTrans
+from utils import (
+    insert_explicit_loop_parallelism, normalise_loops, add_profiling,
+    enhance_tree_information, NOT_PERFORMANT, NOT_WORKING)
+from psyclone.psyir.nodes import Loop, Routine
+from psyclone.transformations import (
+    ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans, TransformationError)
 
 PROFILING_ENABLED = True
 
+# List of all files that psyclone will skip processing
+FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING
 
-def trans(psy):
+
+def trans(psyir):
     ''' Add OpenACC Parallel and Loop directives to all loops, including the
     implicit ones, to parallelise the code and execute it in an acceleration
     device.
 
-    :param psy: the PSy object which this script will transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     acc_region_trans = ACCParallelTrans(default_present=False)
     acc_loop_trans = ACCLoopTrans()
 
-    print(f"Invokes found in {psy.name}:")
-    for invoke in psy.invokes.invoke_list:
-        print(invoke.name)
+    # TODO #2317: Has structure accesses that can not be offloaded and has
+    # a problematic range to loop expansion of (1:1)
+    if psyir.name.startswith("obs_"):
+        print("Skipping", psyir.name)
+        return
+
+    for subroutine in psyir.walk(Routine):
+        print(f"Transforming subroutine: {subroutine.name}")
 
         if PROFILING_ENABLED:
-            add_profiling(invoke.schedule.children)
-
-        # TODO #2317: Has structure accesses that can not be offloaded and has
-        # a problematic range to loop expansion of (1:1)
-        if psy.name.startswith("psy_obs_"):
-            print("Skipping", invoke.name)
-            continue
+            add_profiling(subroutine.children)
 
         # S-0074-Illegal number or type of arguments to ubound [and lbound]
         # - keyword argument array; and  NVFORTRAN-S-0082-Illegal substring
         # expression for variable filtide
-        if invoke.name in ("bdytide_init", "sbc_cpl_init"):
-            print("Skipping", invoke.name)
-            continue
-
-        # TODO #1841: These files have a bug in the array-range-to-loop
-        # transformation. One leads to the following compiler error
-        # NVFORTRAN-S-0083-Vector expression used where scalar expression
-        # required, the other to an incorrect result.
-        if invoke.name in ("trc_oce_rgb", ):
-            print("Skipping", invoke.name)
+        if subroutine.name in ("bdytide_init", "sbc_cpl_init"):
+            print("Skipping", subroutine.name)
             continue
 
         # This are functions with scalar bodies, we don't want to parallelise
         # them, but we could:
         # - Inline them
         # - Annotate them with 'omp declare target' and allow to call from gpus
-        if invoke.name in ("q_sat", "sbc_dcy", "gamma_moist", "cd_neutral_10m",
-                           "psi_h", "psi_m"):
-
-            print("Skipping", invoke.name)
+        if subroutine.name in ("q_sat", "sbc_dcy", "gamma_moist",
+                               "cd_neutral_10m", "psi_h", "psi_m"):
+            print("Skipping", subroutine.name)
             continue
 
         # OpenACC fails in the following routines with the Compiler error:
         # Could not find allocated-variable index for symbol - xxx
         # This all happen on characters arrays, e.g. cd_nat
-        if invoke.name in ("lbc_nfd_2d_ptr", "lbc_nfd_3d_ptr",
-                           "lbc_nfd_4d_ptr", "bdy_dyn", "dia_obs_init"):
-            print("Skipping", invoke.name)
+        if subroutine.name in ("lbc_nfd_2d_ptr", "lbc_nfd_3d_ptr",
+                               "lbc_nfd_4d_ptr", "bdy_dyn", "dia_obs_init"):
+            print("Skipping", subroutine.name)
             continue
 
-        enhance_tree_information(invoke.schedule)
+        enhance_tree_information(subroutine)
 
         normalise_loops(
-                invoke.schedule,
+                subroutine,
                 hoist_local_arrays=True,
                 convert_array_notation=True,
                 convert_range_loops=True,
@@ -117,22 +109,21 @@ def trans(psy):
         )
 
         # For performance in lib_fortran, mark serial routines as GPU-enabled
-        if psy.name == "psy_lib_fortran_psy":
-            if not invoke.schedule.walk(Loop):
-                calls = invoke.schedule.walk(Call)
-                if all(call.is_available_on_device() for call in calls):
+        if psyir.name == "lib_fortran.f90":
+            if not subroutine.walk(Loop):
+                try:
+                    # We need the 'force' option.
                     # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
                     # array notation. (TODO #717)
-                    ACCRoutineTrans().apply(invoke.schedule,
+                    ACCRoutineTrans().apply(subroutine,
                                             options={"force": True})
-                    continue
+                except TransformationError as err:
+                    print(err)
 
         insert_explicit_loop_parallelism(
-            invoke.schedule,
+            subroutine,
             region_directive_trans=acc_region_trans,
             loop_directive_trans=acc_loop_trans,
             # Collapse is necessary to give GPUs enough parallel items
             collapse=True,
         )
-
-    return psy

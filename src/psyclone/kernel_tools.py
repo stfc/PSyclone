@@ -53,7 +53,7 @@ import sys
 import traceback
 
 from psyclone import gen_kernel_stub
-from psyclone.configuration import Config, ConfigurationError
+from psyclone.configuration import Config, ConfigurationError, LFRIC_API_NAMES
 from psyclone.domain.lfric.algorithm import LFRicAlg
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
@@ -99,8 +99,7 @@ def run(args):
                         help="filename for created code.")
     parser.add_argument('-api',
                         help=f"choose a particular API from "
-                        f"{Config.get().supported_apis}, default "
-                        f"'{Config.get().default_api}'.")
+                        f"{Config.get().curated_api_list}.")
     parser.add_argument('filename', help='file containing Kernel metadata.')
 
     # Make the default an empty list so that we can check whether the
@@ -116,7 +115,7 @@ def run(args):
         'output Fortran. Use \'output\' to apply line-length limit to output '
         'Fortran only.')
 
-    parser.add_argument("--config", help="config file with "
+    parser.add_argument("--config", "-c", help="config file with "
                         "PSyclone specific options.")
     parser.add_argument(
         '--version', '-v', action='version',
@@ -161,7 +160,7 @@ def run(args):
     try:
         if args.gen == "alg":
             # Generate algorithm code.
-            if api == "dynamo0.3":
+            if api in LFRIC_API_NAMES:
                 alg_psyir = LFRicAlg().create_from_kernel("test_alg",
                                                           args.filename)
                 code = FortranWriter()(alg_psyir)

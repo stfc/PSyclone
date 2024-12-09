@@ -37,7 +37,7 @@ algorithm layer and PSY-layer file.
 
 To create the required PSy-layer, use the following command:
 
-    psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+    psyclone -api lfric -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 The same command can be triggered by `make`. This will create
 two new output files, `main_alg.f90`, the rewritten algorithm layer `main_alg.x90`,
@@ -76,7 +76,7 @@ The explanation can be found [here](#explanation-for-using-psyclone).
 As explained, PSyclone has the ability to support MPI parallelisation of the code. This
 is simply done by using the command line option `-dm` (instead of `-nodm`):
 
-    psyclone -dm -l output -opsy main_psy.f90 -oalg main_alg.f90 main_alg.x90
+    psyclone -api lfric -dm -l output -opsy main_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 Use this option, and look at the PSy-layer. Some of the setup code
 has changed (which is related to getting the loop sizes based on a distributed field),
@@ -101,7 +101,7 @@ In this example you will add a transformation script to the PSyclone command lin
 This script will apply OpenMP transformation to the loops. Add the option
 `-s omp.py` to the PSyclone command, i.e.:
 
-    psyclone -s ./omp_transformation.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+    psyclone -api lfric -s ./omp_transformation.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 The script will apply OpenMP parallelisation to all loops.
 Compare the PSy-layer files with the previously created files in the directory
@@ -124,7 +124,7 @@ MPI and OpenMP at the same time. In this example we will enable both kind of
 parallelisation at the same time. In order to do this, you need to invoke PSyclone
 with the `-dm` flag, but also apply the OpenMP transformation:
 
-    psyclone -s ./omp_transformation.py -dm -l output -opsy main_al_psy.f90 -oalg main_alg.f90 main_alg.x90
+    psyclone -api lfric -s ./omp_transformation.py -dm -l output -opsy main_al_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 
 Again, check the created PSy-layer file `main_alg_psy.f90` for the calls to halo-exchanges
@@ -142,7 +142,7 @@ first example `main_alg.x90` contains an invalid PSyclone builtin name,
 though of course PSyclone cannot know what exactly the user meant.
 Use:
 
-    psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+    psyclone -api lfric -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 Does PSyclone's error message make sense?
 
@@ -152,7 +152,7 @@ The explanation can be found [here](#explanation-for-error-in-algorithm-layer).
 ## Missing Parameter (`6_missing_parameter`)
 This example misses a kernel parameter. Run PSyclone, i.e.:
 
-    psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+    psyclone -api lfric -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 What happens?
 
@@ -174,7 +174,7 @@ different threads at the same time.
 
 Running PSyclone with the OpenMP transformation script:
 
-    psyclone -s ./omp_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+    psyclone -api lfric -s ./omp_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 What is PSyclone's behaviour? Note that LFRic provides a more
 sophisticated version of the `omp_transformation.py` script, which will change the single
@@ -198,7 +198,7 @@ transformation, the inner loop can then be executed in parallel, and the script 
 the OpenMP transformation to the inner loop. You can apply this more advanced
 transformation using:
 
-     psyclone -s ./omp_colour_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+     psyclone -api lfric -s ./omp_colour_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 Check the created psy-layer for the different loop structure created by PSyclone.
 Then you can use `make compile` to compile the example and `OMP_NUM_THREADS=4 ./example`
@@ -227,7 +227,7 @@ to create, it cannot process the algorithm layer.
 
 Run PSyclone with the standard command:
 
-    psyclone -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+    psyclone -api lfric -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 and look at the error message provided by PSyclone.
 

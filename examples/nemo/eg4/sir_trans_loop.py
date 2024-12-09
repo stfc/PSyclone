@@ -31,56 +31,48 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''Module providing a transformation script that converts the supplied
-PSyIR to the Stencil intermediate representation (SIR). Translation to
-the SIR is limited to the NEMO API. The NEMO API has no algorithm
-layer so all of the original code is captured in the invoke
-objects. Therefore by translating all of the invoke objects, all of
-the original code is translated.
+PSyIR to the Stencil intermediate representation (SIR).
 
 '''
 from psyclone.psyir.backend.sir import SIRWriter
 
-from psyclone.psyir.nodes import Assignment
-from psyclone.psyir.transformations import HoistTrans
-from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans, \
-    NemoAllArrayAccess2LoopTrans
+from psyclone.psyir.nodes import Assignment, Loop, Routine
+from psyclone.psyir.transformations import (
+    HoistTrans, AllArrayAccess2LoopTrans, ArrayAssignment2LoopsTrans,
+    TransformationError)
 
 
-def trans(psy):
+def trans(psyir):
     '''Transformation routine for use with PSyclone. Applies the
-    NemoAllArrayRange2LoopTrans, NemoAllArrayAccess2LoopTrans and
-    HoistTrans transformations to the supplied invokes. This
-    transformation routine is limited to the NEMO API.
+    ArrayAssignment2LoopsTrans, AllArrayAccess2LoopTrans and
+    HoistTrans transformations and then produces the SIR representation
+    of the given code.
 
-    :param psy: the PSy object which this script will transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-
-    array_range_trans = NemoAllArrayRange2LoopTrans()
-    array_access_trans = NemoAllArrayAccess2LoopTrans()
+    array_range_trans = ArrayAssignment2LoopsTrans()
+    array_access_trans = AllArrayAccess2LoopTrans()
     hoist_trans = HoistTrans()
 
     sir_writer = SIRWriter()
-    # For each Invoke write out the SIR representation of the
-    # schedule. Note, there is no algorithm layer in the NEMO API so
-    # the invokes represent all of the original code.
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
 
+    for subroutine in psyir.walk(Routine):
         # Transform any single index accesses in array assignments
         # (e.g. a(1)) into 1-trip loops.
-        for assignment in schedule.walk(Assignment):
+        for assignment in subroutine.walk(Assignment):
             array_access_trans.apply(assignment)
 
         # Transform any array assignments (Fortran ':' notation) into loops.
-        for assignment in schedule.walk(Assignment):
-            array_range_trans.apply(assignment)
+        for assignment in subroutine.walk(Assignment):
+            try:
+                array_range_trans.apply(assignment)
+            except TransformationError:
+                pass
 
         # Remove any loop invariant assignments inside k-loops to make
         # them perfectly nested. At the moment this transformation
@@ -89,15 +81,12 @@ def trans(psy):
         # #1387. However, it is known that it is safe do apply this
         # transformation to this particular code
         # (tra_adv_compute.F90).
-        for loop in schedule.loops():
-            # outermost only
-            if loop.loop_type == "levels":
-                for child in loop.loop_body[:]:
-                    if isinstance(child, Assignment):
-                        hoist_trans.apply(child)
+        for loop in subroutine.walk(Loop, stop_type=Loop):  # outermost only
+            for child in loop.loop_body[:]:
+                if isinstance(child, Assignment):
+                    hoist_trans.apply(child)
 
-        kern = sir_writer(schedule)
+        kern = sir_writer(subroutine)
         # TODO issue #1854. There should be backend support for
         # writing out SIR.
         print(kern)
-    return psy

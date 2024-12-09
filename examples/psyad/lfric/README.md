@@ -49,8 +49,8 @@ able to process them. These kernels are copied from the
 `tangent_linear` directory, manually modified and placed in the
 `tangent_linear_tweaked` directory.
 
-The reason for having two directories containing the adjoint kernels
-is that some require manual modification after 'psyad' has processed
+Similarly, there are two directories containing the adjoint kernels
+because some require manual modification after 'psyad' has processed
 them. These kernels are copied from the `adjoint_partial` directory,
 manually modified and placed in the `adjoint` directory. At the
 present time all generated adjoint kernels need some manual

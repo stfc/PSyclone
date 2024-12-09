@@ -57,19 +57,17 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.utilities import get_invoke
 
-API = "gocean1.0"
+API = "gocean"
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))))),
     "test_files", "gocean1p0")
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use gocean1.0 as API.'''
+    '''Make sure that all tests here use gocean as API.'''
     Config.get().api = API
-    yield
-    Config._instance = None
 
 
 def test_gok_construction():
@@ -132,8 +130,8 @@ def test_gok_reference_accesses(fortran_writer):
     information are PSyIR nodes.
 
     '''
-    # Large stencil has 123,110,100
-    _, invoke = get_invoke("large_stencil.f90", "gocean1.0", idx=0)
+    # Large stencil has 100, 110, 123 as stencil
+    _, invoke = get_invoke("large_stencil.f90", "gocean", idx=0)
     schedule = invoke.schedule
 
     # Get the first kernel
@@ -142,7 +140,7 @@ def test_gok_reference_accesses(fortran_writer):
     assert str(vai) == "cu_fld: WRITE, p_fld: READ, u_fld: READ"
     p_fld = vai[Signature("p_fld")]
     # We can't have lists in a set, so we convert the lists to string
-    # for easy comparison. Calling `to_fortran` also ensures that the
+    # for easy comparison. Calling `fortran_writer` also ensures that the
     # component indices are PSyIR nodes (not strings)
 
     # Convert each PSyIR index into a string, and then also convert each
@@ -153,8 +151,8 @@ def test_gok_reference_accesses(fortran_writer):
         for indices in access.component_indices:
             result.add(str([fortran_writer(index) for index in indices]))
 
-    # The stencil is 123, 110, 100 - test that appropriate accesses were
-    # added for each direction
+    # The stencil is 100, 110, 123 - test that appropriate
+    # accesses were added for each direction
     expected = {
         # First stencil direction of 123: 1
         "['i - 1', 'j - 1']",
@@ -180,7 +178,7 @@ def test_gok_access_info_scalar_and_property():
 
     '''
     _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
-                           "gocean1.0", idx=0)
+                           "gocean", idx=0)
     schedule = invoke.schedule
 
     # Get the first kernel
@@ -212,7 +210,7 @@ def test_gok_local_vars():
 
     '''
     _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
-                           "gocean1.0", idx=0)
+                           "gocean", idx=0)
     schedule = invoke.schedule
 
     # Get the first kernel

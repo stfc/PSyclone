@@ -41,8 +41,8 @@ PSyIR array-reduction intrinsic to PSyIR code.
 from abc import ABC, abstractmethod
 
 from psyclone.psyir.nodes import (
-    Assignment, Reference, ArrayReference, IfBlock, Loop,
-    IntrinsicCall, Node, UnaryOperation, BinaryOperation)
+    Assignment, Reference, ArrayReference, IfBlock, IntrinsicCall, Node,
+    UnaryOperation, BinaryOperation)
 from psyclone.psyir.symbols import ArrayType, DataSymbol, ScalarType
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.reference2arrayrange_trans import \
@@ -78,7 +78,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         # Determine the arguments to the intrinsic
         args = [None, None, None]
         arg_names_map = {"array": 0, "dim": 1, "mask": 2}
-        for idx, child in enumerate(node.children):
+        for idx, child in enumerate(node.arguments):
             if not node.argument_names[idx]:
                 # positional arg
                 args[idx] = child
@@ -263,7 +263,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         array_refs = rhs.walk(ArrayReference)
         # The lhs of the created expression needs to be an array
         # reference from the expression itself because the
-        # ArrayRange2Loop transformation uses it to obtain the loop
+        # ArrayAssignment2Loops transformation uses it to obtain the loop
         # bounds.
         lhs = array_refs[0].copy()
 
@@ -273,7 +273,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         orig_assignment = node.ancestor(Assignment)
         orig_assignment.replace_with(assignment)
 
-        # Step 3 call nemoarrayrange2loop_trans to create loop bounds
+        # Step 3 call ArrayAssignment2Loops to create loop bounds
         # and array indexing from the array ranges created in step 2
         # (keeping track of where the new loop nest is created). Also
         # extract the mask if it exists. For example:
@@ -295,22 +295,22 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         assignment_position = assignment.position
         # Must be placed here to avoid circular imports
         # pylint: disable=import-outside-toplevel
-        from psyclone.domain.nemo.transformations import \
-            NemoAllArrayRange2LoopTrans
-        array_range = NemoAllArrayRange2LoopTrans()
-        array_range.apply(assignment)
-        outer_loop = assignment_parent.children[assignment_position]
-        if not isinstance(outer_loop, Loop):
-            # The NemoAllArrayRange2LoopTrans could fail to convert the
-            # ranges without raising a TransformationError, unfortunately
-            # this can not be tested before previous modifications to the
+        from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans
+        try:
+            ArrayAssignment2LoopsTrans().apply(assignment)
+        except TransformationError as err:
+            # The ArrayAssignment2LoopsTrans could fail to convert the ranges,
+            # unfortunately this can not be tested before modifications to the
             # tree (e.g. in the validate), so the best we can do is reverting
             # to the orginal statement (with maybe some leftover tmp variable)
             # and produce the error here.
             assignment.replace_with(orig_assignment)
+            # pylint: disable=raise-missing-from
             raise TransformationError(
-                f"NemoAllArrayRange2LoopTrans could not convert the "
-                f"expression '{assignment.debug_string()}' into a loop.")
+                f"ArrayAssignment2LoopsTrans could not convert the "
+                f"expression:\n{assignment.debug_string()}\n into a loop "
+                f"because:\n{err.value}")
+        outer_loop = assignment_parent.children[assignment_position]
         if mask_ref:
             # remove mask from the rhs of the assignment
             orig_assignment = assignment_rhs.children[0].copy()
