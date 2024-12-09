@@ -2810,7 +2810,9 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     subroutine.symbol_table.resolve_imports(
             symbol_target=subroutine.symbol_table.lookup('b_2'))
     assert isinstance(b_2, symbols.DataSymbol)
-    assert isinstance(b_2.datatype, symbols.UnsupportedFortranType)
+    assert isinstance(b_2.datatype, symbols.ScalarType)
+    assert b_2.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
+    assert b_2.datatype.is_pointer
     assert isinstance(b_2.interface, symbols.ImportInterface)
     assert b_2.interface.container_symbol == \
            subroutine.symbol_table.lookup('b_mod')
@@ -3246,7 +3248,9 @@ def test_resolve_imports_from_child_symtab_uft(
     symbol = mod.symbol_table.lookup("some_var")
     # pylint: disable=unidiomatic-typecheck
     assert type(symbol) is symbols.DataSymbol
-    assert isinstance(symbol.datatype, symbols.UnsupportedFortranType)
+    assert isinstance(symbol.datatype, symbols.ScalarType)
+    assert symbol.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
+    assert symbol.datatype.is_pointer
     assert isinstance(symbol.interface, symbols.ImportInterface)
     assert symbol.interface.container_symbol.name == "a_mod"
 
@@ -3355,7 +3359,9 @@ def test_resolve_imports_from_child_symtabs_utf(
     symbol = mod.symbol_table.lookup("some_var")
     # pylint: disable=unidiomatic-typecheck
     assert type(symbol) is symbols.DataSymbol
-    assert isinstance(symbol.datatype, symbols.UnsupportedFortranType)
+    assert isinstance(symbol.datatype, symbols.ScalarType)
+    assert symbol.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
+    assert symbol.datatype.is_pointer
     assert isinstance(symbol.interface, symbols.ImportInterface)
     assert symbol.interface.container_symbol.name == "a_mod"
 

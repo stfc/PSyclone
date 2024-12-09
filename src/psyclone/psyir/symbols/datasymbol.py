@@ -92,7 +92,7 @@ class DataSymbol(TypedSymbol):
                 intrinsic types available in the TYPE_MAP_TO_PYTHON map. By
                 default it is None.\n
             :type initial_value: Optional[item of TYPE_MAP_TO_PYTHON |
-                :py:class:`psyclone.psyir.nodes.Node`]\n
+                                 :py:class:`psyclone.psyir.nodes.Node`]\n
             and the arguments in :py:class:`psyclone.psyir.symbols.TypedSymbol`
         :type kwargs: unwrapped dict.
 
@@ -147,6 +147,12 @@ class DataSymbol(TypedSymbol):
             # a runtime constant so change its interface to be static if it
             # would otherwise default to Automatic.
             self.interface = StaticInterface()
+
+        if self.is_constant and self.datatype.is_pointer:
+            # PARAMETER and POINTER are mutually exclusive in Fortran.
+            raise ValueError(
+                f"DataSymbol '{self.name}' is a constant and therefore cannot "
+                f"be a pointer.")
 
     @property
     def is_constant(self):
@@ -357,3 +363,16 @@ class DataSymbol(TypedSymbol):
         # Ensure any Symbols referenced in the initial value are updated.
         if self.initial_value:
             self.initial_value.replace_symbols_using(table)
+
+    @property
+    def is_unresolved(self):
+        '''
+        :returns: whether the Symbol has an UnresolvedInterface or its
+                  datatype is an UnresolvedType.
+        :rtype: bool
+        '''
+        # Import here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import UnresolvedType
+        return (super().is_unresolved
+                or isinstance(self.datatype, UnresolvedType))

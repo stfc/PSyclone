@@ -38,7 +38,100 @@
 ''' Performs py.test tests on the handling of pointers in the fparser2
     PSyIR front-end. '''
 
-from psyclone.psyir.nodes import CodeBlock, Assignment
+from psyclone.psyir.nodes import CodeBlock, Assignment, Routine
+from psyclone.psyir.symbols import ScalarType, ArrayType, DataTypeSymbol
+
+
+def test_pointer_declaration(fortran_reader):
+    ''' Test that pointer declarations are parsed correctly. '''
+    test_module = '''
+    subroutine mysub()
+        integer, pointer :: a
+        integer, pointer :: b(:)
+        integer, pointer :: c(:,:)
+        type(my_type), pointer :: d
+    end subroutine
+    '''
+    file_container = fortran_reader.psyir_from_source(test_module)
+    assert not file_container.walk(CodeBlock)
+    routine = file_container.walk(Routine)[0]
+    symbol_table = routine.symbol_table
+
+    sym_a = symbol_table.lookup("a")
+    assert isinstance(sym_a.datatype, ScalarType)
+    assert sym_a.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert sym_a.datatype.is_pointer
+    assert sym_a.is_pointer
+    assert not sym_a.is_target
+
+    sym_b = symbol_table.lookup("b")
+    assert isinstance(sym_b.datatype, ArrayType)
+    assert sym_b.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert sym_b.datatype.is_pointer
+    assert sym_b.is_pointer
+    assert not sym_b.datatype.datatype.is_pointer
+    assert not sym_b.is_target
+
+    sym_c = symbol_table.lookup("c")
+    assert isinstance(sym_c.datatype, ArrayType)
+    assert sym_c.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert sym_c.datatype.is_pointer
+    assert sym_c.is_pointer
+    assert not sym_c.datatype.datatype.is_pointer
+    assert not sym_c.is_target
+
+    sym_d = symbol_table.lookup("d")
+    assert isinstance(sym_d.datatype, DataTypeSymbol)
+    assert sym_d.datatype.name == "my_type"
+    assert sym_d.datatype.is_pointer
+    assert sym_d.is_pointer
+    assert not sym_d.is_target
+
+
+def test_target_declaration(fortran_reader):
+    ''' Test that target declarations are parsed correctly. '''
+    test_module = '''
+    subroutine mysub()
+        integer, target :: a
+        integer, target :: b(:)
+        integer, target :: c(:,:)
+        type(my_type), target :: d
+    end subroutine
+    '''
+    file_container = fortran_reader.psyir_from_source(test_module)
+    assert not file_container.walk(CodeBlock)
+    routine = file_container.walk(Routine)[0]
+    symbol_table = routine.symbol_table
+
+    sym_a = symbol_table.lookup("a")
+    assert isinstance(sym_a.datatype, ScalarType)
+    assert sym_a.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert sym_a.datatype.is_target
+    assert sym_a.is_target
+    assert not sym_a.is_pointer
+
+    sym_b = symbol_table.lookup("b")
+    assert isinstance(sym_b.datatype, ArrayType)
+    assert sym_b.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert sym_b.datatype.is_target
+    assert sym_b.is_target
+    assert not sym_b.datatype.datatype.is_target
+    assert not sym_b.is_pointer
+
+    sym_c = symbol_table.lookup("c")
+    assert isinstance(sym_c.datatype, ArrayType)
+    assert sym_c.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert sym_c.datatype.is_target
+    assert sym_c.is_target
+    assert not sym_c.datatype.datatype.is_target
+    assert not sym_c.is_pointer
+
+    sym_d = symbol_table.lookup("d")
+    assert isinstance(sym_d.datatype, DataTypeSymbol)
+    assert sym_d.datatype.name == "my_type"
+    assert sym_d.datatype.is_target
+    assert sym_d.is_target
+    assert not sym_d.is_pointer
 
 
 def test_pointer_assignments(fortran_reader):

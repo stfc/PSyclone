@@ -822,7 +822,7 @@ def test_unsupported_fortran_type_copy(fortran_reader):
     subroutine test
       use some_mod, only: some_type, start, stop
       integer, parameter :: nelem = 4
-      type(some_type), pointer :: var(nelem), var2(start:stop)
+      type(some_type), asynchronous :: var(nelem), var2(start:stop)
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
