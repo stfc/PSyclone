@@ -72,8 +72,8 @@ the same time as checking that read-only values are indeed not modified,
 different module names and data types must be used.
 
 PSyData divides its application into different classes. For example,
-the class "profile" is used for all profiling tools (e.g. TAU, DrHook or the
-NVIDIA profiling tools). This class name is used as a prefix for
+the class "profile" is used for all profiling tools (e.g. TAU, Vernier,
+DrHook, or the NVIDIA profiling tools). This class name is used as a prefix for
 the module name, the ``PSyDataType`` and functions. So if a profiling application
 is linked the above code will actually look like this::
 
