@@ -156,6 +156,7 @@ def test_no_comments():
 
     assert len(routine.walk(CodeBlock)) == 0
 
+
 @pytest.mark.parametrize("last_comments_as_codeblocks", [True, False])
 def test_comments_and_codeblocks(last_comments_as_codeblocks):
     """Test that the FortranReader is able to read comments"""
@@ -213,7 +214,8 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
         assert isinstance(last_child, CodeBlock)
         assert isinstance(last_child.ast, Fortran2003.Comment)
         assert (
-            last_child.ast.tostr() == "! Comment at end of subroutine => CodeBlock"
+            last_child.ast.tostr()
+            == "! Comment at end of subroutine => CodeBlock"
         )
     else:
         assert not isinstance(last_child, CodeBlock)
@@ -265,7 +267,8 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
         assert isinstance(last_child, CodeBlock)
         assert isinstance(last_child.ast, Fortran2003.Comment)
         assert (
-            last_child.ast.tostr() == "! Comment on else block 'else' => CodeBlock"
+            last_child.ast.tostr()
+            == "! Comment on else block 'else' => CodeBlock"
         )
     else:
         assert not isinstance(last_child, CodeBlock)
@@ -287,7 +290,8 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
         assert isinstance(last_child, CodeBlock)
         assert isinstance(last_child.ast, Fortran2003.Comment)
         assert (
-            last_child.ast.tostr() == "! Comment at end of loop on i => CodeBlock"
+            last_child.ast.tostr()
+            == "! Comment at end of loop on i => CodeBlock"
         )
     else:
         assert not isinstance(last_child, CodeBlock)
@@ -301,7 +305,8 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
         assert isinstance(last_child, CodeBlock)
         assert isinstance(last_child.ast, Fortran2003.Comment)
         assert (
-            last_child.ast.tostr() == "! Comment at end of loop on j => CodeBlock"
+            last_child.ast.tostr()
+            == "! Comment at end of loop on j => CodeBlock"
         )
     else:
         assert not isinstance(last_child, CodeBlock)
@@ -448,6 +453,7 @@ module test_mod
 
 end module test_mod
 """
+
 
 @pytest.mark.parametrize("last_comments_as_codeblocks", [True, False])
 def test_write_comments(last_comments_as_codeblocks):
