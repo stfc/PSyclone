@@ -610,7 +610,8 @@ def test_process_declarations():
 
 @pytest.mark.usefixtures("f2008_parser")
 @pytest.mark.parametrize("decln_text",
-                         ["integer, asynchronous :: l1 => null(), l2 => null()",
+                         ["integer, asynchronous :: l1 => null(),"
+                          " l2 => null()",
                           "integer, intent(in), optional :: l1, l2",
                           "integer, asynchronous :: l1, l2"])
 def test_process_declarations_unsupportedfortrantype(decln_text):

@@ -894,7 +894,8 @@ class ArrayType(DataType):
                 # This dimension is specified with an ArrayType.Extent
                 # so no need to copy.
                 new_shape.append(dim)
-        array_copy = ArrayType(self.datatype, new_shape, self.is_pointer, self.is_target)
+        array_copy = ArrayType(self.datatype, new_shape, self.is_pointer,
+                               self.is_target)
         return array_copy
 
     def replace_symbols_using(self, table):
