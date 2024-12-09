@@ -898,7 +898,7 @@ class, for example:
 
 .. code-block:: python
 
-    from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
+    from psyclone.psyir.commentable_mixin import CommentableMixin
 
     class MyNode(Node, CommentableMixin):
         ''' Example node '''
