@@ -42,12 +42,11 @@ F90FLAGS ?=
 # of the Vernier directory next to a clone of PSyclone repository.
 # Overwrite for a custom location.
 VERNIER_ROOT ?= ./../../../../vernier
-# Path to the DrHook "include" files. Overwrite for a custom location.
-VERNIER_INCLUDE ?= $(VERNIER_ROOT)/src/f
+# Path to the Vernier "include" files. Overwrite for a custom location.
 VERNIER_MODULES ?= $(VERNIER_ROOT)/local/include
 # -----------------------------------------------------------------------------
 
-F90FLAGS += -I$(VERNIER_INCLUDE) -I$(VERNIER_MODULES)
+F90FLAGS += -I$(VERNIER_MODULES)
 
 PSYDATA_LIB_NAME = vernier_psy
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a

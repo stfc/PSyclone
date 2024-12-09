@@ -36,14 +36,14 @@
 
 module profile_psy_data_mod
 
-  ! The DrHook  handle type
+  ! The Vernier handle type
   use vernier_mod, only : vik
   implicit none
 
   type :: profile_PSyDataType
      ! The opaque Vernier handle for a specific region
      integer (kind=vik) :: vernier_handle
-     ! The name of the subroutine and module to be used by DrHook
+     ! The name of the subroutine and module to be used by Vernier
      character(:), allocatable :: name
      ! True if this instance of PSyDataType has the name already
      ! initialised. This way the copy of subroutine name is only
@@ -60,8 +60,7 @@ contains
   ! ---------------------------------------------------------------------------
   !> The initialisation subroutine. It is not called directly from
   !! any PSyclone created code, so a call to profile_PSyDataInit must be
-  !! inserted manually by the developer. In case of Dr Hook an initialisation
-  !! is not necessary.
+  !! inserted manually by the developer.
 
   subroutine profile_PSyDataInit()
     use vernier_mod, only: vernier_init
@@ -122,7 +121,7 @@ contains
 
   ! ---------------------------------------------------------------------------
   !> Called at the end of the execution of a program, usually to generate
-  !! all output for the profiling library. Not required in the case of Dr Hook.
+  !! all output for the profiling library.
   subroutine profile_PSyDataShutdown()
     use vernier_mod, only : vernier_finalize, vernier_write
 

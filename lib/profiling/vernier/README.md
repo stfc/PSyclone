@@ -1,4 +1,4 @@
-# PSyclone Wrapper Library for Dr Hook
+# PSyclone Wrapper Library for Vernier
 
 This is a wrapper library that maps the [PSyclone profiling API](
 https://psyclone.readthedocs.io/en/stable/profiling.html#profiling)
@@ -17,7 +17,7 @@ Full documentation on using this template is provided in the PSyclone
 [Developer Guide](
 https://psyclone-dev.readthedocs.io/en/latest/psy_data.html#jinja).
 
-The library uses the ``ProfileData`` type to store Dr Hook's handle for each
+The library uses the ``ProfileData`` type to store a Vernier handle for each
 region.
 
 ## Compilation
@@ -27,59 +27,45 @@ environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 [Fortran compiler](./../../README.md#compilation) and flags to use. They
 default to ``gfortran`` and the empty string.
 
-In the version tested here, 1.0.0, it appears that the installation target
-in the Dr Hook distribution is broken, so the following instructions and
-the default values assume that Dr Hook is compiled in a ``drhook``
-subdirectory called ``build`` and not installed.
-
-To compile the PSyclone wrapper library for Dr Hook, one of the following
-two ``Makefile`` variables must be set to specify the path to the Dr Hook
+To compile the PSyclone wrapper library for Vernier, one of the following
+two ``Makefile`` variables must be set to specify the path to the Vernier
 installation:
+VERNIER_ROOT ?= ./../../../../vernier
 
-- ``DRHOOK_ROOT``, the path to the Dr Hook root directory in which
-  Dr Hook is compiled. It defaults to ``./../../../../drhook`` in the
-  ``Makefile`` (i.e., it assumes Dr Hook is installed next to a PSyclone
-  repository clone). This will set ``DRHOOK_INCLUDE`` to
-  ``.../drhook/include`` and ``DRHOOK_MODULES`` to
-  ``.../drhook/build/module``, so that the ``*.mod`` files created in the
-  build processes are found.
+- ``VERNIER_ROOT``, the path to the Vernier root directory in which
+  Vernier is compiled and installed. It defaults to ``./../../../../vernier``
+  in the ``Makefile`` (i.e., it assumes Vernier is installed next to a PSyclone
+  repository clone). This will set ``VERNIER_MODULES`` to
+  ``.../vernier/local/include``, so that the ``*.mod`` for Vernier
+  can be found.
 
-- ``DRHOOK_INCLUDE`` and ``DRHOOK_MODULES``: Setting these environment
+- ``VERNIER_MODULES``: Setting these environment
   variables explicitly will allow to flexibly point to an existing
-  Dr Hook installation.
-
-**Note**, it is not known whether a proper Dr Hook installation will
-install ``include`` and ``*.mod`` files in separate directories.
+  Vernier installation.
 
 For instance, compiling the wrapper library with the default compiler
 flags may look something like:
 
 ```shell
-DRHOOK_ROOT=<path_to_drhook> make
+VERNIER_ROOT=<path_to_vernier> make
 ```
 
-The compilation process will create the wrapper library ``libdrhook_psy.a``.
+The compilation process will create the wrapper library ``libvernier_psy.a``.
 
 ### Linking the wrapper library
 
-In order to use the wrapper with your application, you must provide the
-location of the wrapper as an ``include`` path (so that the module file is found),
-and link first with the wrapper library, then the DrHook library:
-
 In order to use the wrapper with your application, the location of this
 library must be provided as an ``include`` path (so that the module file
-is found), and linked first with the wrapper library, ``drhook_psy``,
-and then with the Dr Hook library:
+is found), and linked first with the wrapper library, ``vernier_psy``,
+and then with the Vernier library:
 
 ```shell
-$(F90) -c  ... -I <PATH-TO-PSYCLONE>/lib/profiling/drhook somefile.f90
-$(F90) -o a.out ... -L <PATH-TO-PSYCLONE>/lib/profiling/drhook -ldrhook_psy \
-       -L <PATH-TO-DRHOOK> -ldrhook
+$(F90) -c  ... -I <PATH-TO-PSYCLONE>/lib/profiling/vernier somefile.f90
+$(F90) -o a.out ... -L <PATH-TO-PSYCLONE>/lib/profiling/vernier -lvernier_psy \
+       -L <PATH-TO-VERNIER> -lvernier_f -lvernier_c -lvernier
 ```
 
 **Note:**
-
-- The name of the Dr Hook library might depend on the way it is compiled.
 
 - The ``<PATH-TO-PSYCLONE>`` differs depending on whether the wrapper
   library is compiled in a clone of PSyclone repository or in a PSyclone
@@ -87,27 +73,22 @@ $(F90) -o a.out ... -L <PATH-TO-PSYCLONE>/lib/profiling/drhook -ldrhook_psy \
 
 ## Output
 
-An example output of the profiling report is below:
+An example output of the profiling report is below. Note that Vernier
+writes the output into rank-specific output files, the output is not
+added to stdout:
 
 ```
-Profiling information for program='./profile_test.drhook', proc#1:
-        No. of instrumented routines called : 2
-        Instrumentation started : 20200929 161905
-        Instrumentation   ended : 20200929 161905
-        Instrumentation overhead: 12.12%
-        Memory usage : 70 MBytes (heap), 70 MBytes (rss), 0 MBytes (stack), 0 (paging)
-        Wall-time is 0.00 sec on proc#1 (1 procs, 4 threads)
-        Thread#1:        0.00 sec (100.00%)
-        Thread#2:        0.00 sec (0.00%)
-        Thread#3:        0.00 sec (0.00%)
-        Thread#4:        0.00 sec (0.00%)
+Profiling on 8 thread(s).
 
-    #  % Time         Cumul         Self        Total     # of calls        Self       Total    Routine@<thread-id>
+    #  % Time         Cumul         Self        Total     # of calls        Self   Total    Routine@
                                                                              (Size; Size/sec; Size/call; MinSize; MaxSize)
-        (self)        (sec)        (sec)        (sec)                    ms/call     ms/call
+        (self)        (sec)        (sec)        (sec)                    ms/call   ms/call
 
-    1    78.38        0.000        0.000        0.000              1        0.01        0.01    psy_test:invoke_0:r0@1
-    2    21.62        0.000        0.000        0.000              1        0.00        0.00    psy_test:invoke_1_update_field:update_field_code:r0@1
+    1  100.000        1.496        1.496        1.496              1    1496.066    1496.066    skeleton_constants_mod_psy:invoke_create_de_rham_matrices-compute_derham_matrices_code-r0@0
+    2    0.425        1.502        0.006        0.006              5       1.271       1.271    lfric_xios_setup_mod_psy:invoke_1_nodal_coordinates_kernel_type-nodal_coordinates_code-r1@0
+    3    0.368        1.508        0.006        0.006             10       0.550       0.550    skeleton_alg_mod_psy:invoke_compute_divergence-matrix_vector_code-r2@0
+    4    0.318        1.513        0.005        0.005              1       4.754       4.754    lfric_xios_setup_mod_psy:invoke_0_nodal_xyz_coordinates_kernel_type-nodal_xyz_coordinates_code-r0@0
+    5    0.195        1.516        0.003        0.003              3       0.971       0.971    lfric_xios_setup_mod_psy:invoke_2_nodal_coordinates_kernel_type-nodal_coordinates_code-r2@0
 
 ```
 
@@ -118,7 +99,7 @@ Profiling information for program='./profile_test.drhook', proc#1:
 
 BSD 3-Clause License
 
-Copyright (c) 2019-2024, Science and Technology Facilities Council.
+Copyright (c) 2024, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -150,5 +131,4 @@ POSSIBILITY OF SUCH DAMAGE.
 
 -------------------------------------------------------------------------------
 Authors: J. Henrichs, Bureau of Meteorology,
-         I. Kavcic, Met Office
 -->
