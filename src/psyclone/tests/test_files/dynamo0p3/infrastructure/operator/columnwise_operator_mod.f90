@@ -37,6 +37,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Modified by: I. Kavcic, Met Office
+!              J. Dendy, Met Office
 !
 !> @brief A module providing columnwise operator related classes.
 !>
@@ -457,8 +458,8 @@ contains
     fs_to=>self%get_fs_to()
     fs_from=>self%get_fs_from()
     ! Extract function types and other function space information
-    self%ndof_face_to = fs_to%get_ndof_face()
-    self%ndof_face_from = fs_from%get_ndof_face()
+    self%ndof_face_to = fs_to%get_ndof_face_v()
+    self%ndof_face_from = fs_from%get_ndof_face_v()
     self%ndof_interior_to = fs_to%get_ndof_interior()
     self%ndof_interior_from = fs_from%get_ndof_interior()
     ! The following two formulae for the total number of DoFs only
