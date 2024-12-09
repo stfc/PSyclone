@@ -63,19 +63,6 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         self._process_arguments(datatype=datatype, **kwargs)
 
     @property
-    def is_unresolved(self):
-        '''
-        :returns: whether the Symbol has an UnresolvedInterface or its
-                  datatype is an UnresolvedType.
-        :rtype: bool
-        '''
-        # Import here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import UnresolvedType
-        return (super().is_unresolved
-                or isinstance(self.datatype, UnresolvedType))
-
-    @property
     def is_unsupported(self):
         '''
         :returns: whether the datatype of the Symbol is an UnsupportedType.

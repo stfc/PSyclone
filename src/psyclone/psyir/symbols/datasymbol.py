@@ -363,3 +363,16 @@ class DataSymbol(TypedSymbol):
         # Ensure any Symbols referenced in the initial value are updated.
         if self.initial_value:
             self.initial_value.replace_symbols_using(table)
+
+    @property
+    def is_unresolved(self):
+        '''
+        :returns: whether the Symbol has an UnresolvedInterface or its
+                  datatype is an UnresolvedType.
+        :rtype: bool
+        '''
+        # Import here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import UnresolvedType
+        return (super().is_unresolved
+                or isinstance(self.datatype, UnresolvedType))
