@@ -38,8 +38,8 @@
     used in setup.py and
     doc/{user_guide,developer_guide,reference_guide/source}/conf.py '''
 
-__MAJOR__ = 2
-__MINOR__ = 5
+__MAJOR__ = 3
+__MINOR__ = 0
 __MICRO__ = 0
 
 __SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}"
