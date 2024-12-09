@@ -982,6 +982,7 @@ class Fparser2Reader():
         # Used to attach inline comments to the PSyIR symbols and nodes
         self._last_symbol_parsed_and_span = None
         self._last_node_parsed_and_span = None
+        self._last_comments_as_codeblocks = False
 
     @property
     def last_symbol_parsed_and_span(self):
@@ -1060,6 +1061,33 @@ class Fparser2Reader():
                 "must contain two integers.")
 
         self._last_node_parsed_and_span = value
+
+    @property
+    def last_comments_as_codeblocks(self):
+        '''
+        :returns: whether the last comments in a given block (e.g. subroutine,
+                  do, if-then body, etc.) should be kept as code blocks or lost
+                  (default False).
+                  Only has an effect if the fparser2 parse tree has comments.
+        '''
+        return self._last_comments_as_codeblocks
+
+    @last_comments_as_codeblocks.setter
+    def last_comments_as_codeblocks(self, value):
+        '''Setter for the last_comments_as_codeblocks property.
+
+        :param value: whether the last comments in a given block (e.g.
+                      subroutine, do, if-then body, etc.) should be kept as
+                      code blocks or lost.
+                      Only has an effect if the fparser2 parse tree has
+                      comments.
+        :type value: bool
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(
+                "The value of the last_comments_as_codeblocks property must "
+                "be a boolean.")
+        self._last_comments_as_codeblocks = value
 
     @staticmethod
     def nodes_to_code_block(parent, fp2_nodes, message=None):
@@ -2937,7 +2965,7 @@ class Fparser2Reader():
         # Complete any unfinished code-block
         self.nodes_to_code_block(parent, code_block_nodes, message)
 
-        if len(preceding_comments) != 0:
+        if self.last_comments_as_codeblocks and len(preceding_comments) != 0:
             self.nodes_to_code_block(parent, preceding_comments)
 
     def _create_child(self, child, parent=None):

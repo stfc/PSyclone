@@ -87,7 +87,8 @@ class FortranReader():
 
     def psyir_from_source(self, source_code: str, free_form: bool = True,
                           ignore_comments: bool = True,
-                          ignore_directives: bool = True):
+                          ignore_directives: bool = True,
+                          last_comments_as_codeblocks: bool = False):
         ''' Generate the PSyIR tree representing the given Fortran source code.
 
         :param source_code: text representation of the code to be parsed.
@@ -97,7 +98,13 @@ class FortranReader():
         :param ignore_directives: If directives should be ignored or not
                                   (default True). Only has an effect
                                   if ignore_comments is False.
-
+        :param last_comments_as_codeblocks: If the last comments in the
+                                            a given block (e.g. subroutine,
+                                            do, if-then body, etc.) should
+                                            be kept as code blocks or lost
+                                            (default False).
+                                            Only has an effect if
+                                            ignore_comments is False.
         :returns: PSyIR representing the provided Fortran source code.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -112,6 +119,8 @@ class FortranReader():
 
         if (not ignore_comments) and ignore_directives:
             self._strip_directives(parse_tree)
+        self._processor.last_comments_as_codeblocks\
+            = last_comments_as_codeblocks
 
         psyir = self._processor.generate_psyir(parse_tree)
         return psyir
@@ -208,7 +217,8 @@ class FortranReader():
 
     def psyir_from_file(self, file_path, free_form=True,
                         ignore_comments: bool = True,
-                        ignore_directives: bool = True):
+                        ignore_directives: bool = True,
+                        last_comments_as_codeblocks: bool = False):
         ''' Generate the PSyIR tree representing the given Fortran file.
 
         :param file_path: path of the file to be read and parsed.
@@ -220,11 +230,18 @@ class FortranReader():
         :param ignore_comments: If comments should be ignored or not
                                 (default True).
         :type ignore_comments: bool
-
         :param ignore_directives: If directives should be ignored or not
                                   (default True). Only has an effect
                                   if ignore_comments is False.
         :type ignore_directives: bool
+        :param last_comments_as_codeblocks: If the last comments in the
+                                            a given block (e.g. subroutine,
+                                            do, if-then body, etc.) should
+                                            be kept as code blocks or lost
+                                            (default False).
+                                            Only has an effect if
+                                            ignore_comments is False.
+        :type last_comments_as_codeblocks: bool
 
         :returns: PSyIR representing the provided Fortran file.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -248,6 +265,8 @@ class FortranReader():
 
         if (not ignore_comments) and ignore_directives:
             self._strip_directives(parse_tree)
+        self._processor.last_comments_as_codeblocks\
+            = last_comments_as_codeblocks
 
         psyir = self._processor.generate_psyir(parse_tree, filename)
         return psyir
