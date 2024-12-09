@@ -148,7 +148,7 @@ class Symbol(CommentableMixin):
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
         copy = type(self)(self.name, visibility=self.visibility,
-                                interface=self.interface.copy())
+                          interface=self.interface.copy())
         copy.preceding_comment = self.preceding_comment
         copy.inline_comment = self.inline_comment
         return copy

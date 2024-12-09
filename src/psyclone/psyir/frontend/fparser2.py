@@ -995,12 +995,12 @@ class Fparser2Reader():
     @last_symbol_parsed_and_span.setter
     def last_symbol_parsed_and_span(self, value):
         '''Setter for the last_symbol_parsed_and_span property.
-        
+
         :param value: the last symbol parsed and the span of source code lines
                       it was found in.
         :type value: Tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
                            Tuple[int, int]]
-                           
+
         :raises TypeError: if the value is not of the right type.
         '''
         if not isinstance(value, tuple) or len(value) != 2:
@@ -1034,7 +1034,7 @@ class Fparser2Reader():
     @last_node_parsed_and_span.setter
     def last_node_parsed_and_span(self, value):
         '''Setter for the last_node_parsed_and_span property.
-        
+
         :param value: the last node parsed and the span of source code lines
                       it was found in.
         :type value: Tuple[:py:class:`psyclone.psyclone.psyir.nodes.Node`,
@@ -1991,7 +1991,8 @@ class Fparser2Reader():
                 symbol_table.add(sym, tag=tag)
 
             # Add any preceding comments to the symbol
-            sym.preceding_comment = self._comments_list_to_string(preceding_comments)
+            sym.preceding_comment\
+                = self._comments_list_to_string(preceding_comments)
             preceding_comments = []
 
             self.last_symbol_parsed_and_span = (sym, decl.item.span)
@@ -2030,7 +2031,7 @@ class Fparser2Reader():
         :raises SymbolError: if a Symbol already exists with the same name
             as the derived type being defined and it is not a DataTypeSymbol
             or is not of UnresolvedType.
-        
+
         :return: the DataTypeSymbol representing the derived type.
         :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
@@ -2088,7 +2089,8 @@ class Fparser2Reader():
             tsymbol = DataTypeSymbol(name, dtype, visibility=dtype_symbol_vis)
             parent.symbol_table.add(tsymbol)
 
-        tsymbol.preceding_comment = self._comments_list_to_string(preceding_comments)
+        tsymbol.preceding_comment\
+            = self._comments_list_to_string(preceding_comments)
 
         # Populate this StructureType by processing the components of
         # the derived type
@@ -2127,8 +2129,9 @@ class Fparser2Reader():
                 if isinstance(child, Fortran2003.Component_Part):
                     for component in walk(child,
                                           Fortran2003.Data_Component_Def_Stmt):
-                        self._process_decln(parent, local_table, component,
-                                            preceding_comments=preceding_comments)
+                        self._process_decln(
+                            parent, local_table, component,
+                            preceding_comments=preceding_comments)
                         preceding_comments = []
             # Convert from Symbols to StructureType components.
             for symbol in local_table.symbols:
@@ -2453,7 +2456,7 @@ class Fparser2Reader():
                                                        preceding_comments)
                 preceding_comments = []
                 derived_type_span = (node.children[0].item.span[0],
-                                            node.children[-1].item.span[1])
+                                     node.children[-1].item.span[1])
                 self.last_symbol_parsed_and_span = (sym, derived_type_span)
 
         # INCLUDE statements are *not* part of the Fortran language and
@@ -2911,7 +2914,8 @@ class Fparser2Reader():
                     # list of comments
                     if isinstance(psy_child, CommentableMixin):
                         psy_child.preceding_comment\
-                            += self._comments_list_to_string(preceding_comments)
+                            += self._comments_list_to_string(
+                                preceding_comments)
                         preceding_comments = []
                     if isinstance(psy_child, CommentableMixin):
                         if child.item is not None:
@@ -3330,7 +3334,8 @@ class Fparser2Reader():
             loop_body_nodes.append(child)
 
         # Add the comments to the loop node.
-        loop.preceding_comment = self._comments_list_to_string(preceding_comments)
+        loop.preceding_comment\
+            = self._comments_list_to_string(preceding_comments)
         # Process the loop body.
         self.process_nodes(parent=loop_body, nodes=loop_body_nodes)
 
@@ -3407,7 +3412,8 @@ class Fparser2Reader():
                     newifblock.ast = node.content[start_idx]
 
                 # Add the comments to the if block.
-                newifblock.preceding_comment = self._comments_list_to_string(preceding_comments)
+                newifblock.preceding_comment\
+                    = self._comments_list_to_string(preceding_comments)
                 preceding_comments = []
 
                 # Create condition as first child
@@ -5373,7 +5379,8 @@ class Fparser2Reader():
             # empty Routine is detached from the tree.
             parent.addchild(routine)
 
-        routine.preceding_comment = self._comments_list_to_string(preceding_comments)
+        routine.preceding_comment\
+            = self._comments_list_to_string(preceding_comments)
 
         try:
             routine._ast = node
@@ -5415,8 +5422,9 @@ class Fparser2Reader():
                         last_symbol, last_span \
                             = self.last_symbol_parsed_and_span
                         if (last_span is not None
-                            and last_span[1] == comment.item.span[0]):
-                            last_symbol.inline_comment = comment.tostr()[1:].strip()
+                                and last_span[1] == comment.item.span[0]):
+                            last_symbol.inline_comment\
+                                = self._comment_to_string(comment)
                             continue
                     lost_comments.append(comment)
 
@@ -5664,13 +5672,13 @@ class Fparser2Reader():
     def _comment_to_string(self, comment):
         '''Convert a comment to a string, by stripping the '!' and any
         leading/trailing whitespace.
-        
+
         :param comment: Comment to convert to a string.
         :type comment: :py:class:`fparser.two.utils.Comment`
-        
+
         :returns: The comment as a string.
         :rtype: str
-        
+
         '''
         return comment.tostr()[1:].strip()
 
@@ -5688,9 +5696,10 @@ class Fparser2Reader():
         return '\n'.join([self._comment_to_string(comment)
                           for comment in comments])
 
-    def process_comment(self, comment, preceding_comments, last_psyir_and_span):
+    def process_comment(self, comment, preceding_comments,
+                        last_psyir_and_span):
         '''
-        Process a comment and attach it to the last PSyIR object (Symbol or 
+        Process a comment and attach it to the last PSyIR object (Symbol or
         Node) if it is an inline comment. Otherwise append it to the
         preceding_comments list. Ignore empty comments.
 
@@ -5712,7 +5721,8 @@ class Fparser2Reader():
             return
         if last_psyir_and_span is not None:
             last_sym, last_span = last_psyir_and_span
-            if last_span[1] is not None and last_span[1] == comment.item.span[0]:
+            if (last_span[1] is not None
+                    and last_span[1] == comment.item.span[0]):
                 last_sym.inline_comment = self._comment_to_string(comment)
                 return
 

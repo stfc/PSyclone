@@ -920,7 +920,7 @@ class StructureType(DataType):
         :type initial_value: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         :param preceding_comment: a comment that precedes this component.
         :type preceding_comment: Optional[str]
-        :param inline_comment: a comment that follows this component on the 
+        :param inline_comment: a comment that follows this component on the
                                same line.
         :type inline_comment: Optional[str]
         '''

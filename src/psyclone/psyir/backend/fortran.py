@@ -561,14 +561,16 @@ class FortranWriter(LanguageWriter):
                                 symbol)
                     result += f"{self._nindent}{decln}"
                     if symbol.inline_comment != "":
-                        result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
+                        result += (f" {self._COMMENT_PREFIX}"
+                                   f"{symbol.inline_comment}")
                     result += "\n"
                     return result
 
                 decln = symbol.datatype.declaration
                 result += f"{self._nindent}{decln}"
                 if symbol.inline_comment != "":
-                    result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
+                    result += (f" {self._COMMENT_PREFIX}"
+                               f"{symbol.inline_comment}")
                 result += "\n"
                 return result
             # The Fortran backend only handles UnsupportedFortranType

@@ -41,8 +41,15 @@ import pytest
 from fparser.two import Fortran2003
 
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (Container, Routine, Assignment,
-                                  Loop, IfBlock, Call, CodeBlock)
+from psyclone.psyir.nodes import (
+    Container,
+    Routine,
+    Assignment,
+    Loop,
+    IfBlock,
+    Call,
+    CodeBlock,
+)
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols import DataTypeSymbol, StructureType
 
@@ -149,7 +156,10 @@ def test_comments():
     psyir = reader.psyir_from_source(CODE, ignore_comments=False)
 
     module = psyir.children[0]
-    assert module.preceding_comment == "Comment on module 'test_mod'\nand second line"
+    assert (
+        module.preceding_comment
+        == "Comment on module 'test_mod'\nand second line"
+    )
 
     # TODO: add support for comments on derived types.
     my_type_sym = module.symbol_table.lookup("my_type")
@@ -159,50 +169,82 @@ def test_comments():
     assert isinstance(my_type_sym.datatype, StructureType)
     for i, component in enumerate(my_type_sym.datatype.components.values()):
         if i == 0:
-            assert component.preceding_comment == "Comment on component 'i'\nand second line"
-            assert component.inline_comment == "Inline comment on 'integer :: i'"
+            assert (
+                component.preceding_comment
+                == "Comment on component 'i'\nand second line"
+            )
+            assert (
+                component.inline_comment == "Inline comment on 'integer :: i'"
+            )
         else:
             assert component.preceding_comment == "Comment on component 'j'"
             assert component.inline_comment == ""
 
     my_type2_sym = module.symbol_table.lookup("my_type2")
-    assert my_type2_sym.preceding_comment == "Comment on derived type 'my_type2'"
-    assert my_type2_sym.inline_comment == "Inline comment on 'end type my_type2'"
+    assert (
+        my_type2_sym.preceding_comment == "Comment on derived type 'my_type2'"
+    )
+    assert (
+        my_type2_sym.inline_comment == "Inline comment on 'end type my_type2'"
+    )
 
     routine = module.walk(Routine)[0]
     assert routine.preceding_comment == "Comment on a subroutine"
-    assert routine.inline_comment == "Inline comment on 'end subroutine test_sub'"
+    assert (
+        routine.inline_comment == "Inline comment on 'end subroutine test_sub'"
+    )
     last_child = routine.children[-1]
     assert isinstance(last_child, CodeBlock)
     assert isinstance(last_child.ast, Fortran2003.Comment)
-    assert last_child.ast.tostr() == "! Comment at end of subroutine => CodeBlock"
+    assert (
+        last_child.ast.tostr() == "! Comment at end of subroutine => CodeBlock"
+    )
 
     for i, symbol in enumerate(routine.symbol_table.symbols):
         if i == 0:
-            assert symbol.preceding_comment == "Comment on variable 'a'\nand second line"
+            assert (
+                symbol.preceding_comment
+                == "Comment on variable 'a'\nand second line"
+            )
         else:
-            assert symbol.preceding_comment == f"Comment on variable '{symbol.name}'"
+            assert (
+                symbol.preceding_comment
+                == f"Comment on variable '{symbol.name}'"
+            )
 
     for i, assignment in enumerate(routine.walk(Assignment)):
         if i == 0:
-            assert assignment.preceding_comment == "Comment on assignment 'a = 1'\nand second line"
+            assert (
+                assignment.preceding_comment
+                == "Comment on assignment 'a = 1'\nand second line"
+            )
         else:
-            assert assignment.preceding_comment == f"Comment on assignment 'a = {i+1}'"
+            assert (
+                assignment.preceding_comment
+                == f"Comment on assignment 'a = {i+1}'"
+            )
 
     call = routine.walk(Call)[0]
     assert call.preceding_comment == "Comment on call 'call test_sub()'"
 
     ifblock = routine.walk(IfBlock)[0]
-    assert ifblock.preceding_comment == "Comment on if block 'if (a == 1) then'"
+    assert (
+        ifblock.preceding_comment == "Comment on if block 'if (a == 1) then'"
+    )
     last_child = ifblock.if_body.children[-1]
     assert isinstance(last_child, CodeBlock)
     assert isinstance(last_child.ast, Fortran2003.Comment)
-    assert last_child.ast.tostr() == "! Comment on elseif block 'elseif (a == 2) then' => CodeBlock"
+    assert (
+        last_child.ast.tostr()
+        == "! Comment on elseif block 'elseif (a == 2) then' => CodeBlock"
+    )
     ifblock2 = ifblock.else_body.children[0]
     last_child = ifblock2.if_body.children[-1]
     assert isinstance(last_child, CodeBlock)
     assert isinstance(last_child.ast, Fortran2003.Comment)
-    assert last_child.ast.tostr() == "! Comment on else block 'else' => CodeBlock"
+    assert (
+        last_child.ast.tostr() == "! Comment on else block 'else' => CodeBlock"
+    )
     last_child = ifblock2.else_body.children[-1]
     assert isinstance(last_child, CodeBlock)
     assert isinstance(last_child.ast, Fortran2003.Comment)
@@ -216,7 +258,9 @@ def test_comments():
     last_child = loop_i.loop_body.children[-1]
     assert isinstance(last_child, CodeBlock)
     assert isinstance(last_child.ast, Fortran2003.Comment)
-    assert last_child.ast.tostr() == "! Comment at end of loop on i => CodeBlock"
+    assert (
+        last_child.ast.tostr() == "! Comment at end of loop on i => CodeBlock"
+    )
 
     loop_j = loops[1]
     assert loop_j.variable.name == "j"
@@ -225,7 +269,9 @@ def test_comments():
     last_child = loop_j.loop_body.children[-1]
     assert isinstance(last_child, CodeBlock)
     assert isinstance(last_child.ast, Fortran2003.Comment)
-    assert last_child.ast.tostr() == "! Comment at end of loop on j => CodeBlock"
+    assert (
+        last_child.ast.tostr() == "! Comment at end of loop on j => CodeBlock"
+    )
 
 
 EXPECTED_WITH_COMMENTS = """! Comment on module 'test_mod'
@@ -322,7 +368,9 @@ end subroutine test_sub
 def test_no_directives():
     """Test that the FortranReader is without directives by default"""
     reader = FortranReader()
-    psyir = reader.psyir_from_source(CODE_WITH_DIRECTIVE, ignore_comments=False)
+    psyir = reader.psyir_from_source(
+        CODE_WITH_DIRECTIVE, ignore_comments=False
+    )
 
     loop = psyir.walk(Loop)[0]
     assert loop.preceding_comment == "Comment on loop 'do i = 1, 10'"
@@ -331,10 +379,15 @@ def test_no_directives():
 def test_directives():
     """Test that the FortranReader is able to read directives"""
     reader = FortranReader()
-    psyir = reader.psyir_from_source(CODE_WITH_DIRECTIVE, ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(
+        CODE_WITH_DIRECTIVE, ignore_comments=False, ignore_directives=False
+    )
 
     loop = psyir.walk(Loop)[0]
-    assert loop.preceding_comment == "Comment on loop 'do i = 1, 10'\n$omp parallel do"
+    assert (
+        loop.preceding_comment
+        == "Comment on loop 'do i = 1, 10'\n$omp parallel do"
+    )
 
 
 EXPECTED_WITH_DIRECTIVES = """subroutine test_sub()
@@ -350,13 +403,18 @@ EXPECTED_WITH_DIRECTIVES = """subroutine test_sub()
 end subroutine test_sub
 """
 
-@pytest.mark.xfail(reason="Directive is written back as '! $omp parallel do'"
-                          "instead of '!$omp parallel do'")
+
+@pytest.mark.xfail(
+    reason="Directive is written back as '! $omp parallel do'"
+    "instead of '!$omp parallel do'"
+)
 def test_write_directives():
     """Test that the directives are written back to the code"""
     reader = FortranReader()
     writer = FortranWriter()
-    psyir = reader.psyir_from_source(CODE_WITH_DIRECTIVE, ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(
+        CODE_WITH_DIRECTIVE, ignore_comments=False, ignore_directives=False
+    )
     generated_code = writer(psyir)
     assert generated_code == EXPECTED_WITH_DIRECTIVES
 
@@ -373,10 +431,13 @@ subroutine test_sub()
 end subroutine test_sub
 """
 
+
 def test_inline_comment():
     """Test that the FortranReader is able to read inline comments"""
     reader = FortranReader()
-    psyir = reader.psyir_from_source(CODE_WITH_INLINE_COMMENT, ignore_comments=False)
+    psyir = reader.psyir_from_source(
+        CODE_WITH_INLINE_COMMENT, ignore_comments=False
+    )
 
     routine = psyir.walk(Routine)[0]
     sym_a = routine.symbol_table.lookup("a")
