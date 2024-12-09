@@ -99,10 +99,17 @@ script-files = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["src", "examples", "tutorial", "lib"]
+where = ["src", "examples", "tutorial", "lib", "config", "share"]
 exclude = [
     "psyclone.tests",
     "psyclone.tests.test_files",
     "psyclone.tests.*",
 ]
 namespaces = false
+
+[tool.setuptools.package-data]
+examples = ["*.*90", "*.py", "*.md", "*.c", "*.cl", "Makefile", "*.mk"]
+tutorial = ["*.ipynb"]
+lib = ["*.*90", "*.sh", "*.py", "*.md", "Makefile", "*.mk", "*.jinja", "*.doxyfile"]
+config = ["psyclone.cfg"]
+share = ["psyclone"]
