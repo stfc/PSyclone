@@ -48,6 +48,8 @@ from psyclone.transformations import OMPDeclareTargetTrans, TransformationError
 
 PROFILING_ENABLED = False
 
+# List of all module names that PSyclone will chase during the creation of the
+# PSyIR tree in order to use the symbol information from those modules
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing

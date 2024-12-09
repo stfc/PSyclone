@@ -44,7 +44,11 @@ from psyclone.psyir.nodes import Routine
 from psyclone.transformations import (
     ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans)
 
+# Enable the insertion of profiling hooks during the transformation script
 PROFILING_ENABLED = True
+
+# List of all module names that PSyclone will chase during the creation of the
+# PSyIR tree in order to use the symbol information from those modules
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing

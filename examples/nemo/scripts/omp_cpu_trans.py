@@ -45,7 +45,11 @@ from utils import (
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
+# Enable the insertion of profiling hooks during the transformation script
 PROFILING_ENABLED = False
+
+# List of all module names that PSyclone will chase during the creation of the
+# PSyIR tree in order to use the symbol information from those modules
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # A environment variable can inform if this is targeting NEMOv5, in which case
