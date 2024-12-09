@@ -68,7 +68,38 @@ from psyclone.psyir.symbols import (
 
 # pylint: disable=too-many-statements
 
+
 # Tests
+
+
+def test_constructor():
+    ''' Test the constructor and its arguments '''
+    processor = Fparser2Reader()
+
+    # By default it will not resolve external modules
+    assert processor._resolve_all_modules is False
+    assert processor._modules_to_resolve == []
+
+    # But it can be set to true or a list of module names
+    processor = Fparser2Reader(resolve_modules=True)
+    assert processor._resolve_all_modules is True
+    assert processor._modules_to_resolve == []
+
+    processor = Fparser2Reader(resolve_modules=['module1'])
+    assert processor._resolve_all_modules is False
+    assert "module1" in processor._modules_to_resolve
+
+    # Anything else is invalid
+    with pytest.raises(TypeError) as err:
+        processor = Fparser2Reader(resolve_modules=[123])
+    assert ("The 'resolve_modules' argument must be a boolean or an "
+            "Iterable[str] but found '[123]'." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        processor = Fparser2Reader(resolve_modules=456)
+    assert ("The 'resolve_modules' argument must be a boolean or an "
+            "Iterable[str] but found '456'." in str(err.value))
+
 
 FAKE_KERNEL_METADATA = '''
 module dummy_mod
@@ -1623,8 +1654,12 @@ def test_process_use_stmts_with_accessibility_statements(parser):
     assert symtab.lookup("some_var").visibility == Symbol.Visibility.PUBLIC
 
 
-def test_process_use_stmts_resolving_external_imports(parser, tmpdir,
-                                                      monkeypatch):
+@pytest.mark.parametrize("value",
+                         [True,                  # All enabled
+                          ["other1", "other2"],  # Precise name enabled
+                          False])                # Disabled
+def test_process_use_stmts_resolving_external_imports(
+        parser, tmpdir, monkeypatch, value):
     ''' Test that if the Fparser2Reader if provided with a list of
     modules_to_import this are used to resolve external symbol information
     by the frontend.'''
@@ -1659,7 +1694,7 @@ def test_process_use_stmts_resolving_external_imports(parser, tmpdir,
     # Add the path to the include_path and set up a frontend instance
     # witth the module_to_resolve names
     monkeypatch.setattr(Config.get(), '_include_paths', [tmpdir])
-    processor = Fparser2Reader(["other1", "other2"])
+    processor = Fparser2Reader(value)
     reader = FortranStringReader('''
     module test
         use other1
@@ -1676,6 +1711,12 @@ def test_process_use_stmts_resolving_external_imports(parser, tmpdir,
     psyir = processor._module_handler(module, None)
 
     symtab = psyir.symbol_table
+
+    if value is False:
+        # If value is false, the symbol information is not resolved, e.g.
+        # unused public symbols will not be present
+        assert "unused_array" not in symtab
+        return  # The rest of the asserts requiere this information
 
     # The container, and all its public symbols are now in the table with
     # the right symbol kind and datatype

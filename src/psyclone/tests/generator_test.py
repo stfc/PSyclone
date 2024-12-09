@@ -911,7 +911,15 @@ def trans(psyir):
             in output)
 
 
-def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch):
+@pytest.mark.parametrize(
+         "idx, value, output",
+         [("0", "False", "result = a + b"),
+          ("1", "True", "result = 1 + 1"),
+          ("2", "[\"module1\"]", "result = 1 + b"),
+          ("3", "[\"module2\"]", "result = a + 1"),
+          ("4", "[\"module1\",\"module2\"]", "result = 1 + 1")])
+def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
+                                             idx, value, output):
     ''' Test that applying recipes in the code-transformation mode follows the
     selected list of module names when generating the tree. '''
 
@@ -936,11 +944,11 @@ def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch):
             end subroutine mytest
         end module test
     '''
-    recipe = '''
+    recipe = f'''
 from psyclone.psyir.nodes import Reference, Literal
 from psyclone.psyir.symbols import INTEGER_TYPE
 
-RESOLVE_IMPORTS = ["module1"]
+RESOLVE_IMPORTS = {value}
 
 def trans(psyir):
     # Replace all integer references with literal '1', it can only be done if
@@ -949,20 +957,21 @@ def trans(psyir):
         if ref.datatype == INTEGER_TYPE:
             ref.replace_with(Literal("1", INTEGER_TYPE))
     '''
+    recipe_name = f"replace_integers_{idx}.py"
     for filename, content in [("module1.f90", module1),
                               ("module2.f90", module2),
                               ("code.f90", code),
-                              ("replace_integers.py", recipe)]:
+                              (recipe_name, recipe)]:
         with open(tmpdir.join(filename), "w", encoding='utf-8') as my_file:
             my_file.write(content)
 
     # Execute the recipe (no -I needed as we have everything at the same place)
     monkeypatch.chdir(tmpdir)
-    main(["code.f90", "-s", "replace_integers.py"])
+    main(["code.f90", "-s", recipe_name])
     captured = capsys.readouterr()
 
     # Since we only resolved "module1" the result should be:
-    assert "result = 1 + b" in str(captured)
+    assert output in str(captured), str(captured)
 
 
 def test_code_transformation_trans(tmpdir):

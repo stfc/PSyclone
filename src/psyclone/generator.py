@@ -50,6 +50,7 @@ import sys
 import traceback
 import importlib
 import shutil
+from typing import Union, Callable, List, Tuple
 
 from fparser.api import get_reader
 from fparser.two import Fortran2003
@@ -93,19 +94,21 @@ from psyclone.version import __VERSION__
 LFRIC_TESTING = False
 
 
-def load_script(script_name, function_name="trans", is_optional=False):
+def load_script(
+        script_name: str, function_name: str = "trans",
+        is_optional: bool = False
+) -> Tuple[Callable, List[str], Union[bool, List[str]]]:
     ''' Loads the specified script containing a psyclone recipe. We also
     prepend the script path to the sys.path, so that the script itself and
     any imports that it has from the same directory can be found.
 
-    :param str script_name: name of the script to load.
-    :param str function_name: the name of the function to call in the script.
-    :param bool is_optional: whether the function is optional or
-        not. Defaults to False.
+    :param script_name: name of the script to load.
+    :param function_name: the name of the function to call in the script.
+    :param is_optional: whether the function is optional or not. Defaults to
+        False.
 
-    :returns: callable recipe, list of files to skip, list of modules to
-        resolve.
-    :rtype: Tuple[Callable, List[str], List[str]]
+    :returns: callable recipe, list of files to skip, whether to resolved
+        modules (or which ones).
 
     :raises IOError: if the file is not found.
     :raises GenerationError: if the file does not have .py extension.
@@ -706,9 +709,9 @@ def code_transformation_mode(input_file, recipe_file, output_file,
     '''
     # Load recipe file
     if recipe_file:
-        trans_recipe, files_to_skip, mod_to_resolve = load_script(recipe_file)
+        trans_recipe, files_to_skip, resolve_mods = load_script(recipe_file)
     else:
-        trans_recipe, files_to_skip, mod_to_resolve = (None, [], [])
+        trans_recipe, files_to_skip, resolve_mods = (None, [], False)
 
     _, filename = os.path.split(input_file)
     if filename not in files_to_skip:
@@ -725,7 +728,7 @@ def code_transformation_mode(input_file, recipe_file, output_file,
                     sys.exit(1)
 
         # Parse file
-        psyir = FortranReader(mod_to_resolve).psyir_from_file(input_file)
+        psyir = FortranReader(resolve_mods).psyir_from_file(input_file)
 
         # Modify file
         if trans_recipe:
