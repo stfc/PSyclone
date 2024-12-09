@@ -38,7 +38,7 @@
 
 import os
 
-from typing import Optional, Union
+from typing import Optional, Union, List
 from fparser.common.readfortran import FortranStringReader, FortranFileReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003, pattern_tools
@@ -63,7 +63,7 @@ class FortranReader():
     # Save parser object across instances to reduce the initialisation time
     _parser = None
 
-    def __init__(self, resolve_modules: Union[bool, list[str]] = False):
+    def __init__(self, resolve_modules: Union[bool, List[str]] = False):
         if not self._parser:
             self._parser = ParserFactory().create(std="f2008")
         self._processor = Fparser2Reader(resolve_modules)
