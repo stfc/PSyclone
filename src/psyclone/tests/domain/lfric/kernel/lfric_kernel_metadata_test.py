@@ -50,7 +50,8 @@ from psyclone.domain.lfric.kernel import (
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.symbols import DataTypeSymbol, REAL_TYPE, \
-    UnsupportedFortranType
+    UnsupportedFortranType, StructureType
+from psyclone.psyir.backend.fortran import FortranWriter
 
 # pylint: disable=too-many-statements
 
@@ -1141,20 +1142,21 @@ def test_get_procedure_name_error(fortran_reader):
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM.replace(
         "procedure, nopass :: code => testkern_code", ""))
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type").datatype
-    metadata = LFRicKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
-    spec_part = Fortran2003.Derived_Type_Def(reader)
-    with pytest.raises(ParseError) as info:
-        metadata._get_procedure_name(spec_part)
-    assert "Expecting a type-bound procedure, but found" in str(info.value)
+    datatype_symbol = kernel_psyir.children[0].symbol_table.lookup(
+        "testkern_type")
+    assert isinstance(datatype_symbol, DataTypeSymbol)
+    structure_type = datatype_symbol.datatype
+    assert isinstance(structure_type, StructureType)
+    assert len(structure_type.procedure_components) == 0
 
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type").datatype
+    datatype_symbol = kernel_psyir.children[0].symbol_table.lookup(
+        "testkern_type")
+    datatype = datatype_symbol.datatype
     metadata = LFRicKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
+    assert isinstance(datatype, StructureType)
+    type_declaration = FortranWriter().gen_typedecl(datatype_symbol)
+    reader = FortranStringReader(type_declaration)
     spec_part = Fortran2003.Derived_Type_Def(reader)
     binding = spec_part.children[2]
     binding.children[1] = binding.children[0]
@@ -1165,10 +1167,13 @@ def test_get_procedure_name_error(fortran_reader):
 
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM.replace(
         "code", "hode"))
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type").datatype
+    datatype_symbol = kernel_psyir.children[0].symbol_table.lookup(
+        "testkern_type")
+    datatype = datatype_symbol.datatype
     metadata = LFRicKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
+    assert isinstance(datatype, StructureType)
+    type_declaration = FortranWriter().gen_typedecl(datatype_symbol)
+    reader = FortranStringReader(type_declaration)
     spec_part = Fortran2003.Derived_Type_Def(reader)
     with pytest.raises(ParseError) as info:
         metadata._get_procedure_name(spec_part)
@@ -1184,10 +1189,13 @@ def test_get_procedure_name(fortran_reader):
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type").datatype
+    datatype_symbol = kernel_psyir.children[0].symbol_table.lookup(
+        "testkern_type")
+    datatype = datatype_symbol.datatype
     metadata = LFRicKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
+    assert isinstance(datatype, StructureType)
+    type_declaration = FortranWriter().gen_typedecl(datatype_symbol)
+    reader = FortranStringReader(type_declaration)
     spec_part = Fortran2003.Derived_Type_Def(reader)
     assert metadata._get_procedure_name(spec_part) == \
         "testkern_code"

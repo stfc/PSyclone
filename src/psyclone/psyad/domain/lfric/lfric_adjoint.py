@@ -52,7 +52,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyad.domain.common import create_adjoint_name
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import ContainerSymbol, UnsupportedFortranType
+from psyclone.psyir.symbols import (ContainerSymbol, StructureType)
 from psyclone.psyir.symbols.symbol import ArgumentInterface, ImportInterface
 
 
@@ -80,8 +80,9 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     # linear kernel.
     tl_container = find_container(tl_psyir)
     for sym in tl_container.symbol_table.datatypesymbols:
-        if (isinstance(sym.datatype, UnsupportedFortranType) and
-                "extends(kernel_type)" in sym.datatype.declaration.lower()):
+        if (isinstance(sym.datatype, StructureType) and
+            sym.datatype.extends is not None and
+                sym.datatype.extends.name.lower() == "kernel_type"):
             tl_metadata_name = sym.name
             break
     else:

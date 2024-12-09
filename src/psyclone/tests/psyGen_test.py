@@ -66,10 +66,11 @@ from psyclone.psyGen import (TransInfo, Transformation, PSyFactory,
                              GlobalSum, InvokeSchedule, BuiltIn)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
-                                  colored, Schedule)
+                                  colored, Schedule, Reference)
 from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, REAL_TYPE,
                                     ImportInterface, ContainerSymbol, Symbol,
-                                    INTEGER_TYPE, UnresolvedType, SymbolTable)
+                                    INTEGER_TYPE, UnresolvedType, SymbolTable,
+                                    StructureType, UnsupportedFortranType)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
@@ -661,6 +662,96 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     csymbol = rsymbol.interface.container_symbol
     assert isinstance(csymbol, ContainerSymbol)
     assert csymbol.name == "testkern_mod"
+
+
+def test_codedkern__rename_psyir():
+    ''' Check that the CodedKern rename method renames the kernel in the PSyIR
+    tree. '''
+    # pylint: disable=protected-access, too-many-statements
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.children[0].loop_body[0]
+    assert isinstance(kern, CodedKern)
+
+    # Ensure everything is as expected before renaming
+    kern_schedule = kern.get_kernel_schedule()
+    assert kern_schedule.name == "testkern_code"
+
+    container = kern_schedule.ancestor(Container)
+    assert isinstance(container, Container)
+    assert container.name == "testkern_mod"
+    container_table = container.symbol_table
+    testkern_type = container_table.lookup("testkern_type")
+    assert isinstance(testkern_type.datatype, StructureType)
+    assert len(testkern_type.datatype.procedure_components) == 1
+    assert "code" in testkern_type.datatype.procedure_components
+    assert testkern_type.datatype.procedure_components["code"].name == "code"
+    assert isinstance(testkern_type.datatype.procedure_components["code"]
+                      .datatype,
+                      UnsupportedFortranType)
+
+    # Rename the kernel in the PSyIR tree
+    kern._rename_psyir(suffix="_new")
+    kern_schedule = kern.get_kernel_schedule()
+    assert kern_schedule.name == "testkern_new_code"
+    container = kern_schedule.ancestor(Container)
+    assert container.name == "testkern_new_mod"
+    container_table = container.symbol_table
+    testkern_type = container_table.lookup("testkern_type")
+    assert isinstance(testkern_type.datatype.procedure_components["code"]
+                      .datatype,
+                      UnsupportedFortranType)
+    # In this case string substitution is applied in the .declaration string
+    assert ("code => testkern_new_code"
+            in testkern_type.datatype.procedure_components["code"].datatype
+            .declaration)
+
+    # Make the procedure component of the structure type be of a supported type
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.children[0].loop_body[0]
+    assert isinstance(kern, CodedKern)
+    kern_schedule = kern.get_kernel_schedule()
+    container = kern_schedule.ancestor(Container)
+    container_table = container.symbol_table
+    testkern_type = container_table.lookup("testkern_type")
+    procedure_component = testkern_type.datatype.procedure_components["code"]
+    assert isinstance(procedure_component.datatype, UnsupportedFortranType)
+    # Replace the procedure component
+    new_procedure_component = StructureType.ComponentType(
+        procedure_component.name,
+        UnresolvedType(),
+        procedure_component.visibility,
+        # This initial_value part should be renamed
+        Reference(RoutineSymbol("testkern_code")))
+    testkern_type.datatype.procedure_components["code"] \
+        = new_procedure_component
+    # Rename
+    kern._rename_psyir(suffix="_new2")
+    assert (testkern_type.datatype.procedure_components["code"]
+            .initial_value.name == "testkern_new2_code")
+
+    # Make the DataTypeSymbol be of UnsupportedFortranType
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kern = schedule.children[0].loop_body[0]
+    assert isinstance(kern, CodedKern)
+    container = kern.get_kernel_schedule().ancestor(Container)
+    container_table = container.symbol_table
+    testkern_type = container_table.lookup("testkern_type")
+    assert isinstance(testkern_type.datatype, StructureType)
+    # This is only to test string substitution so use a fake type string
+    testkern_type._datatype = UnsupportedFortranType("testkerntype [...] code "
+                                                     "=> testkern_code [...]")
+    kern._rename_psyir(suffix="_new")
+    assert (testkern_type.datatype.declaration == "testkerntype [...] code => "
+            "testkern_new_code [...]")
 
 
 def test_kern_coloured_text():
