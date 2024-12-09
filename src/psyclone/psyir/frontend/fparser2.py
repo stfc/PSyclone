@@ -44,7 +44,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 import os
 import sys
-from typing import Optional, List
+from typing import Optional, List, Iterable
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
@@ -848,6 +848,10 @@ class Fparser2Reader():
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
     convert the nodes to PSyIR.
+
+    :param resolve_modules: Whether to resolve modules while parsing a file,
+        for more precie control it also accepts a list of modules names.
+        Defaults to False.
     '''
 
     unary_operators = OrderedDict([
@@ -932,7 +936,19 @@ class Fparser2Reader():
         num_clauses: int = -1
         default_idx: int = -1
 
-    def __init__(self):
+    def __init__(self, resolve_modules=False):
+        if isinstance(resolve_modules, bool):
+            self._resolve_all_modules = resolve_modules
+            self._modules_to_resolve = []
+        elif (isinstance(resolve_modules, Iterable) and
+              all(isinstance(x, str) for x in resolve_modules)):
+            self._resolve_all_modules = False
+            self._modules_to_resolve = resolve_modules
+        else:
+            raise TypeError(
+                f"The 'resolve_modules' argument must be a boolean or an "
+                f"Iterable[str] but found '{resolve_modules}'.")
+
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
             Fortran2003.Allocate_Stmt: self._allocate_handler,
@@ -1390,8 +1406,7 @@ class Fparser2Reader():
                 explicit_save.remove(name)
         return list(explicit_save)
 
-    @staticmethod
-    def _process_use_stmts(parent, nodes, visibility_map=None):
+    def _process_use_stmts(self, parent, nodes, visibility_map=None):
         '''
         Process all of the USE statements in the fparser2 parse tree
         supplied as a list of nodes. Imported symbols are added to
@@ -1533,6 +1548,11 @@ class Fparser2Reader():
             else:
                 raise NotImplementedError(f"Found unsupported USE statement: "
                                           f"'{decl}'")
+
+            # Import symbols information from module/container (if enabled)
+            if (self._resolve_all_modules or
+                    container.name.lower() in self._modules_to_resolve):
+                parent.symbol_table.resolve_imports([container])
 
     def _process_type_spec(self, parent, type_spec):
         '''
