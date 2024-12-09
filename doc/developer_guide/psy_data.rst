@@ -101,7 +101,7 @@ The class prefixes supported at the moment are:
 Class Prefix            Description
 ======================= =======================================================
 profile                 All libraries related to profiling tools like TAU,
-                        DrHook, NVIDIA's profiling tools etc. See
+                        DrHook, NVIDIA's profiling tools, Vernier etc. See
                         :ref:`user_guide:profiling` for details.
 extract                 For libraries used for kernel data extraction. See
                         :ref:`user_guide:psyke` for details.
@@ -970,7 +970,7 @@ by storing pointers to the profiling data to be able to
 print all results in a ProfileFinalise() subroutine.
 Some of the wrapper libraries use the PSyData base class (e.g. dl_timer,
 simple_timing, template), others do not (e.g. NVIDIA profiling, TAU,
-DrHook wrapper).
+Vernier, DrHook wrapper).
 
 .. _psyke:
 
