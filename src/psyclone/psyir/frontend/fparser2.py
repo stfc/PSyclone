@@ -49,7 +49,7 @@ from typing import Optional, List
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
 from fparser.two.parser import ParserFactory
-from fparser.two.utils import walk, BlockBase, StmtBase
+from fparser.two.utils import walk, BlockBase, StmtBase, Base
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
@@ -2952,9 +2952,9 @@ class Fparser2Reader():
                         # If the fparser2 node has no span, try to build one
                         # from the spans of the first and last children.
                         elif (len(child.children) != 0
-                              and (child.children[0] is not None
+                              and (isinstance(child.children[0], Base)
                                    and child.children[0].item is not None)
-                              and (child.children[-1] is not None
+                              and (isinstance(child.children[-1], Base)
                                    and child.children[-1].item is not None)):
                             span = (child.children[0].item.span[0],
                                     child.children[-1].item.span[1])
