@@ -1,3 +1,5 @@
+release 3.0.0 6th of December 2024
+
 	1) PR #2477 for #2463. Add support for Fortran Namelist statements.
 
 	2) PR #2367 for #2296. Extends ModuleInfo so that it can be queried
@@ -331,6 +333,9 @@
 
 	124) PR #2815 for #2636. Get nlayers from first field or operator
 	argument to each kernel in LFRic.
+
+	125) PR #2817 for #2816. Fix index type in initialisation of arrays
+	of fields in PSyAD test harness construction.
 
 release 2.5.0 14th of February 2024
 

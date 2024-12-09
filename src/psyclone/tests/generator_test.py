@@ -701,7 +701,10 @@ def test_main_profile(capsys):
         main(options+["--profile", filename])
     _, outerr = capsys.readouterr()
 
-    correct_re = "invalid choice.*choose from 'invokes', 'routines', 'kernels'"
+    # regex is slightly complicated to allow for changes in the formatting
+    # of the message between versions of argparse.
+    correct_re = ("invalid choice[.:].*choose from '?invokes'?, "
+                  "'?routines'?, '?kernels'?")
     assert re.search(correct_re, outerr) is not None
 
     # Check for invalid parameter
