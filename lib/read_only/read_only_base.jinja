@@ -325,21 +325,22 @@ contains
                 write(stderr,*) "------------- PSyData -------------------------"
                 write(stderr,*) "{{type}} variable ", name, " has been modified in ", &
                     trim(this%module_name)," : ", trim(this%region_name)
-                ! We can recreate the original value which is stored as
-                ! 64-bit integer as the checksum:
-                {% if name == "Char" %}
-                {% elif bits == 32 %}
+              {% if name != "Char" %}
+                ! We can recreate the original scalar value which is stored as
+                ! 64-bit integer in the checksum:
+               {% if bits == 32 %}
                 int_32 = this%checksums(this%next_var_index)
                 orig_value = transfer(int_32, orig_value)
-                {% elif bits == 64 %}
+               {% elif bits == 64 %}
                 orig_value = transfer(this%checksums(this%next_var_index), orig_value)
-                {% elif name == "Logical" %}
+               {% elif name == "Logical" %}
                 orig_value = this%checksums(this%next_var_index) .eq. 1
-                {% else %}
+               {% else %}
                 ERROR - UNSUPPORTED BIT SIZE {{bits}}!
-                {% endif %}
+               {% endif %}
                 write(stderr,*) "Original value: ", orig_value
                 write(stderr,*) "New value:      ", value
+              {% endif %}
                 write(stderr,*) "------------- PSyData -------------------------"
             else if(this%verbosity>1) then
                 write(stderr,*) "PSyData: checked variable ", trim(name)
