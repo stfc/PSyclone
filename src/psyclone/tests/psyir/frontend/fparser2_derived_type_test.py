@@ -185,7 +185,10 @@ def test_name_clash_derived_type_def(f2008_parser):
     # This should raise an error because the Container symbol table will
     # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
+        processor.process_declarations(fake_parent,
+                                       walk(fparser2spec.content,
+                                            Fortran2003.Derived_Type_Def),
+                                       [])
     assert ("Error processing definition of derived type 'my_type'. The "
             "symbol table already contains an entry with this name but it is a"
             " 'RoutineSymbol' when it should be a 'DataTypeSymbol' (for the "
@@ -200,7 +203,10 @@ def test_name_clash_derived_type_def(f2008_parser):
                             "  end type my_type2\n"
                             "end subroutine my_sub2\n"))
     with pytest.raises(SymbolError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
+        processor.process_declarations(fake_parent,
+                                       walk(fparser2spec.content,
+                                            Fortran2003.Derived_Type_Def),
+                                       [])
     assert ("Error processing definition of derived type 'my_type2'. The "
             "symbol table already contains a DataTypeSymbol with this name but"
             " it is of type 'UnsupportedFortranType' when it should be of "
@@ -231,6 +237,44 @@ def test_existing_symbol_derived_type_def(f2008_parser):
     assert typ.visibility == Symbol.Visibility.PRIVATE
     assert typ.name == "my_type"
     assert isinstance(typ.interface, ImportInterface)
+
+
+def test_preceding_comments(f2008_parser):
+    ''' Check that the frontend correctly handles comments that precede
+    a derived type definition. '''
+    fake_parent = KernelSchedule.create("dummy_schedule")
+    processor = Fparser2Reader()
+    comment = Fortran2003.Comment(
+        FortranStringReader("! This is a comment\n",
+                            ignore_comments=False))
+    other = Fortran2003.Comment(
+        FortranStringReader("! This is another comment\n",
+                            ignore_comments=False))
+    fparser2spec = f2008_parser(FortranStringReader("subroutine my_sub\n"
+                                                    "type :: my_type\n"
+                                                    "  integer :: flag\n"
+                                                    "end type my_type\n"
+                                                    "end subroutine my_sub\n"))
+    type_decl = walk(fparser2spec, types=Fortran2003.Derived_Type_Def)
+    typ = processor._process_derived_type_decln(fake_parent, type_decl[0],
+                                                dict(),
+                                                preceding_comments=[comment,
+                                                                    other])
+    assert typ.preceding_comment == ("This is a comment\n"
+                                     "This is another comment")
+
+    fake_parent = KernelSchedule.create("dummy_schedule")
+    processor = Fparser2Reader()
+    fparser2spec = f2008_parser(FortranStringReader("subroutine my_sub\n"
+                                                    "type :: my_type\n"
+                                                    "  integer :: flag\n"
+                                                    "end type my_type\n"
+                                                    "end subroutine my_sub\n"))
+    type_decl = walk(fparser2spec, types=Fortran2003.Derived_Type_Def)
+    typ = processor._process_derived_type_decln(fake_parent, type_decl[0],
+                                                dict(),
+                                                preceding_comments=None)
+    assert typ.preceding_comment == ""
 
 
 @pytest.mark.usefixtures("f2008_parser")
