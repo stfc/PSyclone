@@ -148,12 +148,6 @@ class DataSymbol(TypedSymbol):
             # would otherwise default to Automatic.
             self.interface = StaticInterface()
 
-        if self.is_constant and self.datatype.is_pointer:
-            # PARAMETER and POINTER are mutually exclusive in Fortran.
-            raise ValueError(
-                f"DataSymbol '{self.name}' is a constant and therefore cannot "
-                f"be a pointer.")
-
     @property
     def is_constant(self):
         '''

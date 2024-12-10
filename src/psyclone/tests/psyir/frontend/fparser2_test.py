@@ -653,6 +653,27 @@ def test_process_declarations_errors():
     assert ("SAVE and PARAMETER attributes are not compatible but found:\n "
             "INTEGER, PARAMETER, SAVE :: l1 = 1" in str(error.value))
 
+    reader = FortranStringReader("real, pointer, target :: l1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(GenerationError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("POINTER and TARGET attributes are not compatible but found:\n "
+            "REAL, POINTER, TARGET :: l1" in str(error.value))
+
+    reader = FortranStringReader("real, pointer, parameter :: l1 = 1.0")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(GenerationError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("POINTER and PARAMETER attributes are not compatible but found:\n "
+            "REAL, POINTER, PARAMETER :: l1 = 1.0" in str(error.value))
+
+    reader = FortranStringReader("real, pointer, allocatable :: l1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(GenerationError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("ALLOCATABLE and POINTER attributes are not compatible but found:"
+            "\n REAL, POINTER, ALLOCATABLE :: l1" in str(error.value))
+
     reader = FortranStringReader("integer, parameter, intent(in) :: l1 = 1")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(GenerationError) as error:

@@ -62,12 +62,12 @@ class DataType(metaclass=abc.ABCMeta):
     def __init__(self, is_pointer=False, is_target=False):
         if not isinstance(is_pointer, bool):
             raise TypeError(f"Expected 'is_pointer' to be a bool but got "
-                            f"'{type(is_pointer)}'")
+                            f"'{type(is_pointer).__name__}'")
         if not isinstance(is_target, bool):
             raise TypeError(f"Expected 'is_target' to be a bool but got "
-                            f"'{type(is_target)}'")
+                            f"'{type(is_target).__name__}'")
         if is_pointer and is_target:
-            raise ValueError("A datatype cannot be both a pointer and a "
+            raise ValueError("A DataType cannot be both a pointer and a "
                              "target.")
         self._is_pointer = is_pointer
         self._is_target = is_target
@@ -780,9 +780,6 @@ class ArrayType(DataType):
                 _validate_data_node(dimension)
 
         if ArrayType.Extent.DEFERRED in extents:
-            if self.is_pointer:
-                raise ValueError("An array with a deferred shape cannot be a "
-                                 "pointer.")
             if not all(dim == ArrayType.Extent.DEFERRED
                        for dim in extents):
                 raise TypeError(
