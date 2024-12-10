@@ -1,3 +1,5 @@
+release 3.0.0 6th of December 2024
+
 	1) PR #2477 for #2463. Add support for Fortran Namelist statements.
 
 	2) PR #2367 for #2296. Extends ModuleInfo so that it can be queried
@@ -225,8 +227,8 @@
 
 	77) PR #2708 for #2663. Add LFRic OpenACC in the integration tests.
 
-	78) PR #2678 for #2636. Alter LFRic PSy-layer to lookup nlevels for
-	each kernel
+	78) PR #2678 for #2636. Alter LFRic PSy-layer to lookup nlayers for
+	each kernel.
 
 	79) PR #2687 for #2684. Add support for WHERE constructs that contain
 	references without range-notation (and prevent some incorrect cases).
@@ -247,7 +249,7 @@
 	Python used in the CI.
 
 	85) PR #2748. Revert Python used on RTD to 3.12 as 3.13 unsupported.
-	
+
 	86) PR #2707 for #257. Fixes bugs in the loop-fusion transformation.
 
 	87) PR #2752 towards #2717. Adds Assignment.is_literal_assignment property.
@@ -280,6 +282,60 @@
 	106) PR #2770 towards #2543. Improve UG introduction.
 
 	107) PR #2776 for #1280. Fixes ref_guide warnings.
+
+	108) PR #2767 for #2755. Bug fix for psyad failing to transform array
+	assignment
+
+	109) PR #2785 towards #759. Populates partial_datatype for OPTIONAL.
+
+	110) PR #2789 for #2778. Removes some old TODOs now that kernel
+	extraction for GOcean has been improved.
+
+	111) PR #2791 for #2790. Updates the dl_esm_inf git submodule to point
+	to the latest version.
+
+	112) PR #2795 for #2774. Generalises MatMul2CodeTrans to cope with
+	non-contiguous array slices.
+
+	113) PR #2769 for #2768. Generalises Sign2CodeTrans and Abs2CodeTrans
+	to allow non-floating point scalar literals.
+
+	114) PR #2461 for #2460. Renames DynamoPSy class to LFRicPSy and moves
+	into a new module lfric_psy.py in domain/lfric.
+
+	115) PR #2697 towards #2671. Fixes various issues relating to incorrect
+	parallelisation of loops in NEMO. Also adds support for array-
+	privatisation option.
+
+	116) PR #2804 towards #2737. Update PSyclone to use fparser 0.2.0 release.
+
+	117) PR #2803 for #2796. Fixes bug where PSyData nodes inserted within
+	LFRic loops did not have the associated variable declared.
+
+	118) PR #2792 for # 2766. Updates to all the examples and test
+	infrastructure now that the index ordering for operators in LFRic
+	has been changed.
+
+	119) PR #2775. Adds Call.get_callee() which matches the arguments of
+	a Call against the signature of potential callees.
+
+	120) PR #2628 for #2624. Improves debug_string output for Schedules.
+
+	121) PR #2800. Updates integration test dependencies and documentation
+	about compiling for GPUs.
+
+	122) PR #2811. Adds sphinx-autodoc-typehints package to 'doc'
+	dependencies so that Sphinx markup is able to make use of the
+	typehints that we are starting to add to the code base.
+
+	123) PR #2809 for #2737. Updates documentation on OpenMP to point to
+	examples of tranformations for CPU and GPU.
+
+	124) PR #2815 for #2636. Get nlayers from first field or operator
+	argument to each kernel in LFRic.
+
+	125) PR #2817 for #2816. Fix index type in initialisation of arrays
+	of fields in PSyAD test harness construction.
 
 release 2.5.0 14th of February 2024
 

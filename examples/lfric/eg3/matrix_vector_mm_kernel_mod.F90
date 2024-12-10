@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2024, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@
 
 !> @details Accessor functions for the W2_solver_kernel class are defined in this module.
 
-module matrix_vector_mm_mod
+module matrix_vector_mm_kernel_mod
 
 use argument_mod,            only : arg_type,                 &
                                     GH_FIELD, GH_OPERATOR,    &
@@ -106,7 +106,7 @@ subroutine matrix_vector_mm_code(cell,        &
   integer(kind=i_def), dimension(ndf),  intent(in)    :: map
   real(kind=r_def), dimension(undf), intent(in)    :: x
   real(kind=r_def), dimension(undf), intent(inout) :: lhs
-  real(kind=r_def), dimension(ndf,ndf,ncell_3d), intent(in) :: mass_matrix
+  real(kind=r_def), dimension(ncell_3d,ndf,ndf), intent(in) :: mass_matrix
 
   ! Internal variables
   integer(kind=i_def)                      :: df, k, ik
@@ -117,7 +117,7 @@ subroutine matrix_vector_mm_code(cell,        &
       x_e(df) = x(map(df)+k)
     end do
     ik = (cell-1)*nlayers + k + 1
-    lhs_e = matmul(mass_matrix(:,:,ik),x_e)
+    lhs_e = matmul(mass_matrix(ik,:,:),x_e)
     do df = 1,ndf
        lhs(map(df)+k) = lhs(map(df)+k) + lhs_e(df)
     end do
@@ -125,4 +125,4 @@ subroutine matrix_vector_mm_code(cell,        &
 
 end subroutine matrix_vector_mm_code
 
-end module matrix_vector_mm_mod
+end module matrix_vector_mm_kernel_mod

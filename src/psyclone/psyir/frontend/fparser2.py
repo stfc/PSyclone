@@ -2060,7 +2060,7 @@ class Fparser2Reader():
         orig_entity_decl_children = list(entity_decl.children[:])
 
         # 2: Remove any unsupported attributes
-        unsupported_attribute_names = ["pointer", "target"]
+        unsupported_attribute_names = ["pointer", "target", "optional"]
         attr_spec_list = node.children[1]
         orig_node_children = list(node.children[:])
         orig_attr_spec_list_children = (list(node.children[1].children[:])
@@ -2091,6 +2091,12 @@ class Fparser2Reader():
         except NotImplementedError:
             datatype = None
             init_expr = None
+            if walk(node.children[0], Fortran2003.Length_Selector):
+                # If it has a length_selector it is a string, we do not
+                # support it yet but we can set the partial datatype as
+                # an ArrayType of CHARACTER
+                datatype = ArrayType(CHARACTER_TYPE,
+                                     [ArrayType.Extent.DEFERRED])
 
         # Restore the fparser2 parse tree
         node.items = tuple(orig_node_children)

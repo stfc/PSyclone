@@ -79,7 +79,7 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf1) :: map1
     real(kind=r_def), intent(inout), dimension(undf1) :: field1
     real(kind=r_def), intent(in), dimension(undf1)    :: field2
-    real(kind=r_def), intent(in), dimension(ndf1,ndf1,ncell_3d) :: op_3
+    real(kind=r_def), intent(in), dimension(ncell_3d,ndf1,ndf1) :: op_3
 
   end subroutine matrix_vector_code
 
