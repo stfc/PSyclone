@@ -89,6 +89,7 @@ class BaseDriverCreator:
     def add_result_tests(program, output_symbols):
         '''Adds tests to check that all output variables have the expected
         value. It takes a list of tuples. Each tuple contains:
+
         1. the symbol containing the result when the kernel is called in the
             driver.
         2. the symbol containing the original results, i.e. the values read
