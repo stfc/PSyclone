@@ -278,6 +278,17 @@ class UnsupportedFortranType(UnsupportedType):
         if self.partial_datatype:
             self.partial_datatype.replace_symbols_using(table)
 
+    @property
+    def intrinsic(self):
+        '''
+        :returns: the intrinsic used by this type (this is often recoverable
+            from the partial datatype).
+        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
+        '''
+        if self.partial_datatype:
+            return self.partial_datatype.intrinsic
+        return None
+
 
 class ScalarType(DataType):
     '''Describes a scalar datatype (and its precision).

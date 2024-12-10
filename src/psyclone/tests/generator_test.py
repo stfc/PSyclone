@@ -701,7 +701,10 @@ def test_main_profile(capsys):
         main(options+["--profile", filename])
     _, outerr = capsys.readouterr()
 
-    correct_re = "invalid choice.*choose from 'invokes', 'routines', 'kernels'"
+    # regex is slightly complicated to allow for changes in the formatting
+    # of the message between versions of argparse.
+    correct_re = ("invalid choice[.:].*choose from '?invokes'?, "
+                  "'?routines'?, '?kernels'?")
     assert re.search(correct_re, outerr) is not None
 
     # Check for invalid parameter
@@ -868,7 +871,7 @@ def test_main_expected_fatal_error(capsys):
     assert output == expected_output
 
 
-def test_code_transformation_skip_files_error(tmpdir):
+def test_code_transformation_skip_files_error(tmpdir, capsys):
     ''' Test that applying recipes in the code-transformation mode skips the
     files marked as FILES_TO_SKIP '''
     code = '''
@@ -898,6 +901,14 @@ def trans(psyir):
     with open(outputfile, "r", encoding='utf-8') as my_file:
         new_code = my_file.read()
     assert new_code == code
+
+    # When doing the same but without a '-o' (output file), we just print
+    # in stdout that the file was skipped.
+    outputfile = str(tmpdir.join("output.f90"))
+    main([inputfile, "-s", recipefile])
+    output, _ = capsys.readouterr()
+    assert ("funny_syntax.f90' skipped because it is listed in FILES_TO_SKIP."
+            in output)
 
 
 def test_code_transformation_trans(tmpdir):
