@@ -71,7 +71,7 @@ OFFLOAD_DIRECTIVES = os.getenv('LFRIC_OFFLOAD_DIRECTIVES', "none")
 
 def _inline_calls(kern):
     '''
-    Recursively inline all calls.
+    Recursively inline all calls within the supplied Kernel or Routine.
 
     :param kern: the Kernel or Routine to inline any Calls into.
 
@@ -126,7 +126,6 @@ def trans(psyir):
     const = LFRicConstants()
     cpu_parallel = OMPParallelTrans()
     mod_inline_trans = KernelModuleInlineTrans()
-    intrans = InlineTrans()
 
     if OFFLOAD_DIRECTIVES == "omp":
         # Use OpenMP offloading
@@ -192,12 +191,13 @@ def trans(psyir):
                         try:
                             mod_inline_trans.apply(kern)
                             _inline_calls(kern)
-                            #try:
-                            #    kern.lower_to_language_level()
-                            #    intrans.apply(kern)
-                            #except TransformationError as err:
-                            #    print(f"Failed to inline kernel '{kern.name}' "
-                            #          f"due to:\n{err.value}")
+                            # At this point we would like to fully inline the
+                            # kernel but InlineTrans does not accept a
+                            # CodedKern. If we lower this kernel first then we
+                            # get errors later (at code-generation time).
+                            # Hopefully this will be resolved when we move
+                            # LFRic to use the PSyIR backend for code
+                            # generation.
                         except TransformationError as err:
                             failed_inline.add(kern.name.lower())
                             print(f"Failed to module-inline kernel "
