@@ -797,9 +797,11 @@ class IntrinsicCall(Call):
             IntrinsicCall.Intrinsic.SIGN, IntrinsicCall.Intrinsic.SIN,
             IntrinsicCall.Intrinsic.SINH, IntrinsicCall.Intrinsic.SQRT,
             IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH,
-            # The one below are not documented on nvidia compiler
+            # The ones below are not documented in the nvidia compiler docs
             IntrinsicCall.Intrinsic.PRODUCT, IntrinsicCall.Intrinsic.SIZE,
             IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
+            IntrinsicCall.Intrinsic.MATMUL,
+            IntrinsicCall.Intrinsic.RANDOM_NUMBER,
             IntrinsicCall.Intrinsic.UBOUND)
 
     @classmethod

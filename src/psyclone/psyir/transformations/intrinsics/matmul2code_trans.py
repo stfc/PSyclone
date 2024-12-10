@@ -47,7 +47,8 @@ from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference,
     Loop, Literal, ArrayReference, Range, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, UnsupportedType)
+    ArrayType, DataSymbol, INTEGER_TYPE, REAL_TYPE, TypedSymbol,
+    UnsupportedType)
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
 
@@ -318,12 +319,13 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                 f"be references, but found: '{node.parent.debug_string()}'.")
 
         # The arguments of matvec should be References to arrays
-        if any(isinstance(var.symbol.datatype, UnsupportedType) for var
-               in [matrix1, matrix2, result]):
-            raise TransformationError(
-                f"Must have full type information for result and operands of "
-                f"MATMUL IntrinsicCall but found '{result.symbol}', "
-                f"'{matrix1.symbol}' and '{matrix2.symbol}'.")
+        for var in [matrix1, matrix2, result]:
+            if (not isinstance(var.symbol, TypedSymbol) or
+                    isinstance(var.symbol.datatype, UnsupportedType)):
+                raise TransformationError(
+                    f"Must have full type information for result and operands "
+                    f"of MATMUL IntrinsicCall but found '{result.symbol}', "
+                    f"'{matrix1.symbol}' and '{matrix2.symbol}'.")
         if (len(matrix1.symbol.shape) == 0 or len(matrix2.symbol.shape) == 0 or
                 len(result.symbol.shape) == 0):
             raise TransformationError(

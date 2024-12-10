@@ -713,14 +713,6 @@ class InvokeSchedule(Routine):
                 self.addchild(KernFactory.create(call, parent=self))
 
     @property
-    def symbol_table(self):
-        '''
-        :returns: Table containing symbol information for the schedule.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        '''
-        return self._symbol_table
-
-    @property
     def invoke(self):
         return self._invoke
 
@@ -1360,12 +1352,13 @@ class CodedKern(Kern):
                                         KernelArguments, check)
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
-        self._fp2_ast = None  # The fparser2 AST for the kernel
-        self._kern_schedule = None  # PSyIR schedule for the kernel
-        # Whether or not this kernel has been transformed
+        self._fp2_ast = None  #: The fparser2 AST for the kernel
+        self._kern_schedules = None  #: PSyIR schedule(s) for the kernel
+        self._interface_symbol = None
+        #: Whether or not this kernel has been transformed
         self._modified = False
-        # Whether or not to in-line this kernel into the module containing
-        # the PSy layer
+        #: Whether or not to in-line this kernel into the module containing
+        #: the PSy layer
         self._module_inline = False
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
         self.arg_descriptors = call.ktype.arg_descriptors
@@ -1376,15 +1369,17 @@ class CodedKern(Kern):
         is just generated on first invocation, this allows us to retain
         transformations that may subsequently be applied to the Schedule.
 
-        :returns: Schedule representing the kernel code.
-        :rtype: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+        :returns: Interface symbol (if any) and Schedule(s) representing the
+                  kernel code.
+        :rtype: tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
+                      list[:py:class:`psyclone.psyir.nodes.KernelSchedule`]]
+
+        :raises NotImplementedError: must be overridden in sub-class.
+
         '''
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-        if self._kern_schedule is None:
-            astp = Fparser2Reader()
-            self._kern_schedule = astp.generate_schedule(self.name, self.ast)
-            # TODO: Validate kernel with metadata (issue #288).
-        return self._kern_schedule
+        raise NotImplementedError(
+            f"get_kernel_schedule() must be overridden in class "
+            f"{self.__class__}")
 
     @property
     def opencl_options(self):
@@ -1527,7 +1522,7 @@ class CodedKern(Kern):
                         shadowing=True,
                         interface=ImportInterface(csymbol))
         else:
-            # If its inlined, the symbol must exist
+            # If it's inlined, the symbol must exist
             try:
                 rsymbol = self.scope.symbol_table.lookup(self._name)
             except KeyError as err:
@@ -1682,7 +1677,8 @@ class CodedKern(Kern):
         # Start from the root of the schedule as we want to output
         # any module information surrounding the kernel subroutine
         # as well as the subroutine itself.
-        new_kern_code = fortran_writer(self.get_kernel_schedule().root)
+        _, schedules = self.get_kernel_schedule()
+        new_kern_code = fortran_writer(schedules[0].root)
         fll = FortLineLength()
         new_kern_code = fll.process(new_kern_code)
 
@@ -1720,27 +1716,34 @@ class CodedKern(Kern):
         :param str suffix: the string to insert into the quantity names.
 
         '''
-        # We need to get the kernel schedule before modifying self.name
-        kern_schedule = self.get_kernel_schedule()
-        container = kern_schedule.ancestor(Container)
+        # We need to get the kernel schedule before modifying self.name.
+        interface_sym, kern_schedules = self.get_kernel_schedule()
+        container = kern_schedules[0].ancestor(Container)
 
         # Use the suffix to create a new kernel name.  This will
         # conform to the PSyclone convention of ending in "_code"
         orig_mod_name = self.module_name[:]
-        orig_kern_name = self.name[:]
-
-        new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
         new_mod_name = self._new_name(orig_mod_name, suffix, "_mod")
 
-        # Change the name of this kernel and the associated
-        # module. These names are used when generating the PSy-layer.
-        self.name = new_kern_name[:]
-        self._module_name = new_mod_name[:]
-        kern_schedule.name = new_kern_name[:]
-        container.name = new_mod_name[:]
+        # If the kernel is polymorphic, we can just change the name of
+        # the interface.
+        if interface_sym:
+            orig_kern_name = interface_sym.name
+            new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
+            container.symbol_table.rename_symbol(interface_sym, new_kern_name)
+            self.name = new_kern_name
+        else:
+            kern_schedule = kern_schedules[0]
+            orig_kern_name = kern_schedule.name[:]
+            new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
 
-        # Change the name of the Kernel Schedule
-        kern_schedule.name = new_kern_name
+            # Change the name of this kernel and the associated
+            # module. These names are used when generating the PSy-layer.
+            self.name = new_kern_name[:]
+            kern_schedule.name = new_kern_name[:]
+
+        self._module_name = new_mod_name[:]
+        container.name = new_mod_name[:]
 
         # Ensure the metadata points to the correct procedure now. Since this
         # routine is general purpose, we won't always have a domain-specific
@@ -1756,11 +1759,10 @@ class CodedKern(Kern):
             if isinstance(sym.datatype, UnsupportedFortranType):
                 new_declaration = sym.datatype.declaration.replace(
                     orig_kern_name, new_kern_name)
-                # pylint: disable=protected-access
+                # pylint: disable-next=protected-access
                 sym._datatype = UnsupportedFortranType(
                     new_declaration,
                     partial_datatype=sym.datatype.partial_datatype)
-                # pylint: enable=protected-access
 
     @property
     def modified(self):
