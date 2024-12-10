@@ -600,6 +600,11 @@ class FortranWriter(LanguageWriter):
                     f"A Symbol must be either public or private but symbol "
                     f"'{symbol.name}' has visibility '{symbol.visibility}'")
 
+        if symbol.datatype.is_pointer:
+            result += ", pointer"
+        elif symbol.datatype.is_target:
+            result += ", target"
+
         # Specify name
         result += f" :: {symbol.name}"
 
@@ -614,7 +619,10 @@ class FortranWriter(LanguageWriter):
                     f"value ({self._visit(symbol.initial_value)}) and "
                     f"therefore (in Fortran) must have a StaticInterface. "
                     f"However it has an interface of '{symbol.interface}'.")
-            result += " = " + self._visit(symbol.initial_value)
+            if symbol.is_pointer:
+                result += " => " + self._visit(symbol.initial_value)
+            else:
+                result += " = " + self._visit(symbol.initial_value)
 
         return result + "\n"
 

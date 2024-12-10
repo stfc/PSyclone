@@ -357,7 +357,7 @@ def test_function_unsupported_derived_type(fortran_reader):
         "    type :: my_type\n"
         "      integer :: flag\n"
         "    end type my_type\n"
-        "    type(my_type), pointer :: my_func, var1\n"
+        "    type(my_type), pointer, asynchronous :: my_func, var1\n"
         "    my_func => null()\n"
         "  end function my_func\n"
         "end module a\n")
@@ -367,10 +367,11 @@ def test_function_unsupported_derived_type(fortran_reader):
     assert routine.return_symbol.name == "my_func"
     assert isinstance(routine.return_symbol.datatype, UnsupportedFortranType)
     assert (routine.return_symbol.datatype.declaration.lower() ==
-            "type(my_type), pointer :: my_func")
+            "type(my_type), pointer, asynchronous :: my_func")
     sym = routine.symbol_table.lookup("var1")
     assert isinstance(sym.datatype, UnsupportedFortranType)
-    assert sym.datatype.declaration.lower() == "type(my_type), pointer :: var1"
+    assert (sym.datatype.declaration.lower()
+            == "type(my_type), pointer, asynchronous :: var1")
 
 
 @pytest.mark.parametrize("fn_prefix", ["elemental", "pure", "impure",
