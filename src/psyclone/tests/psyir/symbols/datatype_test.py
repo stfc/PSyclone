@@ -920,6 +920,17 @@ def test_structure_type():
     assert ("The initial value of a component of a StructureType must be "
             "None or an instance of 'DataNode', but got 'str'."
             in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add("hello", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None,
+                  preceding_comment=None)
+    assert ("The preceding_comment of a component of a StructureType "
+            "must be a 'str' but got 'NoneType'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add("hello", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None,
+                  inline_comment=None)
+    assert ("The inline_comment of a component of a StructureType "
+            "must be a 'str' but got 'NoneType'" in str(err.value))
+
     with pytest.raises(KeyError):
         stype.lookup("missing")
     # Cannot have a recursive type definition

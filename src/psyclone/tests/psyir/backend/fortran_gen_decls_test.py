@@ -298,6 +298,20 @@ def test_gen_decls_static_variables(fortran_writer):
     assert "parameter :: v1 = 1" in fortran_writer.gen_vardecl(sym)
 
 
+def test_gen_decls_comments(fortran_writer):
+    '''Test that the gen_vardecl method adds comments to the Fortran code
+    when the symbol has a description.
+
+    '''
+    sym = DataSymbol("v1", datatype=INTEGER_TYPE)
+    sym.preceding_comment = "Preceding comment"
+    sym.inline_comment = "Inline comment"
+    result = fortran_writer.gen_vardecl(sym)
+    expected = ("! Preceding comment\n"
+                "integer :: v1 ! Inline comment")
+    assert expected in result
+
+
 @pytest.mark.parametrize("visibility", ["public", "private"])
 def test_visibility_abstract_interface(fortran_reader, fortran_writer,
                                        visibility):

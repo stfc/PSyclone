@@ -985,84 +985,6 @@ class Fparser2Reader():
         self._last_comments_as_codeblocks = False
 
     @property
-    def last_symbol_parsed_and_span(self):
-        '''
-        :returns: the last symbol parsed and the span of source code lines it
-                  was found in.
-        :rtype: Union[None, Tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
-                                  Tuple[int, int]]]'''
-        return self._last_symbol_parsed_and_span
-
-    @last_symbol_parsed_and_span.setter
-    def last_symbol_parsed_and_span(self, value):
-        '''Setter for the last_symbol_parsed_and_span property.
-
-        :param value: the last symbol parsed and the span of source code lines
-                      it was found in.
-        :type value: Tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
-                           Tuple[int, int]]
-
-        :raises TypeError: if the value is not of the right type.
-        '''
-        if not isinstance(value, tuple) or len(value) != 2:
-            raise TypeError(
-                "The value of the last_symbol_parsed_and_span property must "
-                "be a 2-tuple.")
-        if not isinstance(value[0], Symbol):
-            raise TypeError(
-                "The first element of the last_symbol_parsed_and_span tuple "
-                "must be a Symbol.")
-        if not isinstance(value[1], tuple) or len(value[1]) != 2:
-            raise TypeError(
-                "The second element of the last_symbol_parsed_and_span tuple "
-                "must be a 2-tuple.")
-        if not all(isinstance(item, int) for item in value[1]):
-            raise TypeError(
-                "The second element of the last_symbol_parsed_and_span tuple "
-                "must contain two integers.")
-
-        self._last_symbol_parsed_and_span = value
-
-    @property
-    def last_node_parsed_and_span(self):
-        '''
-        :returns: the last node parsed and the span of source code lines it
-                  was found in.
-        :rtype: Union[None, Tuple[:py:class:`psyclone.psyir.nodes.Node`,
-                                  Tuple[int, int]]]'''
-        return self._last_node_parsed_and_span
-
-    @last_node_parsed_and_span.setter
-    def last_node_parsed_and_span(self, value):
-        '''Setter for the last_node_parsed_and_span property.
-
-        :param value: the last node parsed and the span of source code lines
-                      it was found in.
-        :type value: Tuple[:py:class:`psyclone.psyclone.psyir.nodes.Node`,
-                           Tuple[int, int]]
-
-        :raises TypeError: if the value is not of the right type.
-        '''
-        if not isinstance(value, tuple) or len(value) != 2:
-            raise TypeError(
-                "The value of the last_node_parsed_and_span property must "
-                "be a 2-tuple.")
-        if not isinstance(value[0], Node):
-            raise TypeError(
-                "The first element of the last_node_parsed_and_span tuple "
-                "must be a Node.")
-        if not isinstance(value[1], tuple) or len(value[1]) != 2:
-            raise TypeError(
-                "The second element of the last_node_parsed_and_span tuple "
-                "must be a 2-tuple.")
-        if not all(isinstance(item, int) for item in value[1]):
-            raise TypeError(
-                "The second element of the last_node_parsed_and_span tuple "
-                "must contain two integers.")
-
-        self._last_node_parsed_and_span = value
-
-    @property
     def last_comments_as_codeblocks(self):
         '''
         :returns: whether the last comments in a given block (e.g. subroutine,
@@ -1085,8 +1007,8 @@ class Fparser2Reader():
         '''
         if not isinstance(value, bool):
             raise TypeError(
-                "The value of the last_comments_as_codeblocks property must "
-                "be a boolean.")
+                f"The value of the last_comments_as_codeblocks property must "
+                f"be a boolean but found '{type(value).__name__}'.")
         self._last_comments_as_codeblocks = value
 
     @staticmethod
@@ -2023,7 +1945,7 @@ class Fparser2Reader():
                 = self._comments_list_to_string(preceding_comments)
             preceding_comments = []
 
-            self.last_symbol_parsed_and_span = (sym, decl.item.span)
+            self._last_symbol_parsed_and_span = (sym, decl.item.span)
 
             if init_expr:
                 # In Fortran, an initialisation expression on a declaration of
@@ -2152,7 +2074,7 @@ class Fparser2Reader():
                     continue
                 if isinstance(child, Fortran2003.Comment):
                     self.process_comment(child, preceding_comments,
-                                         self.last_symbol_parsed_and_span)
+                                         self._last_symbol_parsed_and_span)
                     continue
                 if isinstance(child, Fortran2003.Component_Part):
                     for component in walk(child,
@@ -2477,7 +2399,7 @@ class Fparser2Reader():
             if isinstance(node, Fortran2003.Implicit_Part):
                 for comment in walk(node, Fortran2003.Comment):
                     self.process_comment(comment, preceding_comments,
-                                         self.last_symbol_parsed_and_span)
+                                         self._last_symbol_parsed_and_span)
             elif isinstance(node, Fortran2003.Derived_Type_Def):
                 sym = self._process_derived_type_decln(parent, node,
                                                        visibility_map,
@@ -2485,7 +2407,7 @@ class Fparser2Reader():
                 preceding_comments = []
                 derived_type_span = (node.children[0].item.span[0],
                                      node.children[-1].item.span[1])
-                self.last_symbol_parsed_and_span = (sym, derived_type_span)
+                self._last_symbol_parsed_and_span = (sym, derived_type_span)
 
         # INCLUDE statements are *not* part of the Fortran language and
         # can appear anywhere. Therefore we have to do a walk to make sure we
@@ -2505,7 +2427,7 @@ class Fparser2Reader():
             if isinstance(node, Fortran2003.Implicit_Part):
                 for comment in walk(node, Fortran2003.Comment):
                     self.process_comment(comment, preceding_comments,
-                                         self.last_symbol_parsed_and_span)
+                                         self._last_symbol_parsed_and_span)
                     continue
                 # Anything other than a PARAMETER statement or an
                 # IMPLICIT NONE means we can't handle this code.
@@ -2581,8 +2503,9 @@ class Fparser2Reader():
                                      initial_value=init)
                             new_symbol.preceding_comment \
                                 = '\n'.join(preceding_comments)
-                            self.last_symbol_parsed_and_span = (new_symbol,
-                                                                node.item.span)
+                            self._last_symbol_parsed_and_span\
+                                = (new_symbol,
+                                   node.item.span)
                             parent.symbol_table.add(new_symbol)
                         except KeyError as err:
                             if len(orig_children) == 1:
@@ -2918,7 +2841,7 @@ class Fparser2Reader():
             # it is an inline comment or store it for the next node.
             if isinstance(child, Fortran2003.Comment):
                 self.process_comment(child, preceding_comments,
-                                     self.last_node_parsed_and_span)
+                                     self._last_node_parsed_and_span)
                 continue
             try:
                 psy_child = self._create_child(child, parent)
@@ -2947,8 +2870,8 @@ class Fparser2Reader():
                         preceding_comments = []
                     if isinstance(psy_child, CommentableMixin):
                         if child.item is not None:
-                            self.last_node_parsed_and_span = (psy_child,
-                                                              child.item.span)
+                            self._last_node_parsed_and_span = (psy_child,
+                                                               child.item.span)
                         # If the fparser2 node has no span, try to build one
                         # from the spans of the first and last children.
                         elif (len(child.children) != 0
@@ -2958,7 +2881,7 @@ class Fparser2Reader():
                                    and child.children[-1].item is not None)):
                             span = (child.children[0].item.span[0],
                                     child.children[-1].item.span[1])
-                            self.last_node_parsed_and_span = (psy_child, span)
+                            self._last_node_parsed_and_span = (psy_child, span)
                     parent.addchild(psy_child)
                 # If psy_child is not initialised but it didn't produce a
                 # NotImplementedError, it means it is safe to ignore it.
@@ -3351,7 +3274,7 @@ class Fparser2Reader():
         for child in node.content:
             if isinstance(child, Fortran2003.Comment) and not found_do_stmt:
                 self.process_comment(child, preceding_comments,
-                                     self.last_node_parsed_and_span)
+                                     self._last_node_parsed_and_span)
                 continue
             if isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
                 found_do_stmt = True
@@ -3405,7 +3328,7 @@ class Fparser2Reader():
         for child in node.content[:clause_indices[0]]:
             if isinstance(child, Fortran2003.Comment):
                 self.process_comment(child, preceding_comments,
-                                     self.last_node_parsed_and_span)
+                                     self._last_node_parsed_and_span)
         # NOTE: The comments are added to the IfBlock node.
         # NOTE: Comments before the 'else[if]' statements are not handled.
 
@@ -5382,7 +5305,7 @@ class Fparser2Reader():
         for child in node.children:
             if isinstance(child, Fortran2003.Comment):
                 self.process_comment(child, preceding_comments,
-                                     self.last_node_parsed_and_span)
+                                     self._last_node_parsed_and_span)
                 continue
             if isinstance(child, (Fortran2003.Subroutine_Stmt,
                                   Fortran2003.Function_Stmt)):
@@ -5446,9 +5369,9 @@ class Fparser2Reader():
                 for comment in walk(decl_list[-1], Fortran2003.Comment):
                     if len(comment.tostr()) == 0:
                         continue
-                    if self.last_symbol_parsed_and_span is not None:
+                    if self._last_symbol_parsed_and_span is not None:
                         last_symbol, last_span \
-                            = self.last_symbol_parsed_and_span
+                            = self._last_symbol_parsed_and_span
                         if (last_span is not None
                                 and last_span[1] == comment.item.span[0]):
                             last_symbol.inline_comment\

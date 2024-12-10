@@ -239,6 +239,44 @@ def test_existing_symbol_derived_type_def(f2008_parser):
     assert isinstance(typ.interface, ImportInterface)
 
 
+def test_preceding_comments(f2008_parser):
+    ''' Check that the frontend correctly handles comments that precede
+    a derived type definition. '''
+    fake_parent = KernelSchedule.create("dummy_schedule")
+    processor = Fparser2Reader()
+    comment = Fortran2003.Comment(
+        FortranStringReader("! This is a comment\n",
+                            ignore_comments=False))
+    other = Fortran2003.Comment(
+        FortranStringReader("! This is another comment\n",
+                            ignore_comments=False))
+    fparser2spec = f2008_parser(FortranStringReader("subroutine my_sub\n"
+                                                    "type :: my_type\n"
+                                                    "  integer :: flag\n"
+                                                    "end type my_type\n"
+                                                    "end subroutine my_sub\n"))
+    type_decl = walk(fparser2spec, types=Fortran2003.Derived_Type_Def)
+    typ = processor._process_derived_type_decln(fake_parent, type_decl[0],
+                                                dict(),
+                                                preceding_comments=[comment,
+                                                                    other])
+    assert typ.preceding_comment == ("This is a comment\n"
+                                     "This is another comment")
+
+    fake_parent = KernelSchedule.create("dummy_schedule")
+    processor = Fparser2Reader()
+    fparser2spec = f2008_parser(FortranStringReader("subroutine my_sub\n"
+                                                    "type :: my_type\n"
+                                                    "  integer :: flag\n"
+                                                    "end type my_type\n"
+                                                    "end subroutine my_sub\n"))
+    type_decl = walk(fparser2spec, types=Fortran2003.Derived_Type_Def)
+    typ = processor._process_derived_type_decln(fake_parent, type_decl[0],
+                                                dict(),
+                                                preceding_comments=None)
+    assert typ.preceding_comment == ""
+
+
 @pytest.mark.usefixtures("f2008_parser")
 @pytest.mark.parametrize("use_stmt", ["use grid_mod, only: grid_type",
                                       "use grid_mod, only: GRID_TYPE",
