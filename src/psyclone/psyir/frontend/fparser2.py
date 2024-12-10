@@ -5660,11 +5660,11 @@ class Fparser2Reader():
         :type preceding_comments: List[:py:class:`fparser.two.utils.Comment`]
         :param last_psyir_and_span: Tuple containing the last PSyIR object and
                                     its span.
-        :type last_psyir_and_span: Tuple[
-                                    Union[
-                                     :py:class:`psyclone.psyir.nodes.Node`,
-                                     :py:class:`psyclone.psyir.symbols.Symbol`
-                                     ],
+        :type last_psyir_and_span: Tuple[\
+                                    Union[\
+                                     :py:class:`psyclone.psyir.nodes.Node`,\
+                                     :py:class:`psyclone.psyir.symbols.Symbol`\
+                                     ],\
                                     Tuple[int, int]]
 
         '''
