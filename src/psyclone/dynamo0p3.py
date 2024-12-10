@@ -4993,6 +4993,24 @@ class DynKernelArguments(Arguments):
         specified in the kernel metadata) '''
         return self._unique_fs_names
 
+    @property
+    def first_field_or_operator(self):
+        '''
+        :returns: the first field or operator argument in the list.
+        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :raises InternalError: if no field or operator argument is found.
+
+        '''
+        for arg in self._args:
+            arg: DynKernelArgument
+            if arg.is_field or arg.is_operator:
+                return arg
+
+        raise InternalError(
+            f"Invalid LFRic kernel: failed to find a DynKernelArgument that is"
+            f" a field or operator in '{self.names}'.")
+
     def iteration_space_arg(self):
         '''
         Returns an argument we can use to dereference the iteration
