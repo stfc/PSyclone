@@ -41,7 +41,8 @@ kernel based on the kernel metadata.
 
 '''
 from psyclone.core import AccessType
-from psyclone.domain.lfric import ArgOrdering, LFRicConstants
+from psyclone.domain.lfric.arg_ordering import ArgOrdering
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import InternalError
