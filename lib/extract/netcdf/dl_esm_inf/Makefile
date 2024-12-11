@@ -105,7 +105,8 @@ $(INF_LIB):
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_netcdf_base.f90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_netcdf_base.F90 \
+		compare_variables_mod.F90 read_kernel_data_mod.f90
 
 allclean: clean
 	$(MAKE) -C $(GOCEAN_INF_DIR) clean
