@@ -1087,7 +1087,7 @@ class StructureType(DataType):
         return self._components[name]
 
     def add_procedure_component(self, name, datatype, visibility,
-                                initial_value):
+                                initial_value=None):
         '''
         Create a procedure component with the supplied attributes and add it to
         this StructureType.
@@ -1146,6 +1146,74 @@ class StructureType(DataType):
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
         '''
         return self._procedure_components[name]
+
+    def replace_procedure_component_initial_value(self, old_value_name,
+                                                  new_value):
+        '''
+        Replace the initial value of the procedure component with
+        "old_value_name" as initial value with the supplied new value.
+
+        :param str old_value_name: the name of the initial value to replace.
+        :param new_value: the new initial value for the procedure component.
+        :type new_value: :py:class:`psyclone.psyir.nodes.Reference`
+
+        :raises TypeError: if the name is not a string.
+        :raises TypeError: if the new value is not a Reference to a
+                           RoutineSymbol.
+
+        :returns: None
+
+        '''
+        # pylint: disable=import-outside-toplevel
+        # These imports must be placed here to avoid circular dependencies.
+        from psyclone.psyir.symbols import RoutineSymbol
+        from psyclone.psyir.nodes import Reference
+
+        if not isinstance(old_value_name, str):
+            raise TypeError(
+                "The name of the procedure component to replace must be a "
+                f"string but got '{type(old_value_name).__name__}'.")
+        if not isinstance(new_value, Reference):
+            raise TypeError(
+                "The new value for the procedure component must be a "
+                f"Reference but got '{type(new_value).__name__}'.")
+        if not isinstance(new_value.symbol, RoutineSymbol):
+            raise TypeError(
+                "The new value for the procedure component must be a "
+                f"Reference to a RoutineSymbol but got a Reference to a "
+                f"'{type(new_value.symbol).__name__}'.")
+
+        for name, procedure_component in self._procedure_components.items():
+            if isinstance(procedure_component.datatype,
+                          UnsupportedFortranType):
+                # Either the procedure component is of UnsupportedFortranType,
+                # in which case we replace in its whole string declaration.
+                if old_value_name.lower() not in procedure_component.datatype\
+                        .declaration.lower():
+                    continue
+                new_declaration = procedure_component.datatype\
+                    .declaration.replace(old_value_name, new_value.name)
+                new_datatype = UnsupportedFortranType(
+                    new_declaration,
+                    procedure_component.datatype.partial_datatype)
+                self._procedure_components[name] = self.ComponentType(
+                    name,
+                    new_datatype,
+                    procedure_component.visibility,
+                    new_value)
+                return
+
+            # Or it is enough to replace the initial value.
+            if (not procedure_component.initial_value
+                or procedure_component.initial_value.name.lower()
+                    != old_value_name.lower()):
+                continue
+            self._procedure_components[name] = self.ComponentType(
+                name,
+                procedure_component.datatype,
+                procedure_component.visibility,
+                new_value)
+            return
 
     def __eq__(self, other):
         '''

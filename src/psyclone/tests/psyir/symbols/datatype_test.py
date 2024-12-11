@@ -1113,3 +1113,50 @@ def test_structuretype_extends():
         structure_type.extends = "invalid"
     assert ("The type that a StructureType extends must be a "
             "DataTypeSymbol but got 'str'." in str(err.value))
+
+
+def test_replace_procedure_component_initial_value():
+    '''Test the replace_procedure_component_initial_value method of
+    StructureType.'''
+    stype = StructureType()
+    with pytest.raises(TypeError) as excinfo:
+        stype.replace_procedure_component_initial_value(123, None)
+    assert ("The name of the procedure component to replace must be a string"
+            in str(excinfo.value))
+
+    stype = StructureType()
+    with pytest.raises(TypeError) as excinfo:
+        stype.replace_procedure_component_initial_value("old_value", 123)
+    assert ("The new value for the procedure component must be a Reference"
+            in str(excinfo.value))
+
+    stype = StructureType()
+    symbol = Symbol("dummy")
+    ref = Reference(symbol)
+    with pytest.raises(TypeError) as excinfo:
+        stype.replace_procedure_component_initial_value("old_value", ref)
+    assert ("The new value for the procedure component must be a Reference to "
+            "a RoutineSymbol" in str(excinfo.value))
+
+    # UnsupportedFortranType
+    stype = StructureType()
+    unsupported_type = UnsupportedFortranType("procedure, code => routine",
+                                              None)
+    stype.add_procedure_component("proc", unsupported_type,
+                                  Symbol.Visibility.PUBLIC)
+    new_routine_symbol = RoutineSymbol("new_routine")
+    new_ref = Reference(new_routine_symbol)
+    stype.replace_procedure_component_initial_value("routine", new_ref)
+    assert (stype.lookup_procedure_component("proc").datatype.declaration
+            == "procedure, code => new_routine")
+
+    # Other datatype
+    stype = StructureType()
+    routine_symbol = RoutineSymbol("routine")
+    old_ref = Reference(routine_symbol)
+    stype.add_procedure_component("proc", UnresolvedType(),
+                                  Symbol.Visibility.PUBLIC, old_ref)
+    new_routine_symbol = RoutineSymbol("new_routine")
+    new_ref = Reference(new_routine_symbol)
+    stype.replace_procedure_component_initial_value("routine", new_ref)
+    assert stype.lookup_procedure_component("proc").initial_value == new_ref

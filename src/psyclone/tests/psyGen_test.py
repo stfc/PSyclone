@@ -760,6 +760,11 @@ def test_codedkern__rename_psyir_supported_procedure_datatype():
         Reference(routine_symbol))
     testkern_type.datatype.procedure_components["code"] \
         = new_procedure_component
+    # Check that the procedure component has been replaced
+    assert (testkern_type.datatype.procedure_components["code"]
+            .initial_value is not None)
+    assert (testkern_type.datatype.procedure_components["code"]
+            .initial_value.name.lower() == "testkern_code")
     # Rename
     kern._rename_psyir(suffix="_new2")
     assert (testkern_type.datatype.procedure_components["code"]

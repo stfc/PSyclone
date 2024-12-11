@@ -1765,46 +1765,14 @@ class CodedKern(Kern):
                     partial_datatype=sym.datatype.partial_datatype)
                 # pylint: enable=protected-access
             # Or the DataTypeSymbol is a StructureType, in which case we
-            # go through its procedure components.
+            # replace the "code" procedure component initial value.
             elif isinstance(sym.datatype, StructureType):
-                for procedure_name, procedure_component \
-                 in sym.datatype.procedure_components.items():
-                    # Either the procedure component is of
-                    # UnsupportedFortranType, in which case we replace in its
-                    # whole declaration.
-                    if isinstance(procedure_component.datatype,
-                                  UnsupportedFortranType):
-                        new_declaration = \
-                            procedure_component.datatype.declaration.replace(
-                                orig_kern_name, new_kern_name)
-                        new_procedure_component = StructureType.ComponentType(
-                            procedure_component.name,
-                            UnsupportedFortranType(new_declaration,
-                                                   procedure_component.
-                                                   datatype.partial_datatype),
-                            procedure_component.visibility,
-                            procedure_component.initial_value)
-                        sym.datatype.procedure_components[procedure_name] = \
-                            new_procedure_component
-                    # Or the procedure component has an initial value that is
-                    # a Reference to the original kernel name, in which case
-                    # we replace it with a Reference to the new kernel name.
-                    elif (procedure_component.initial_value is not None
-                            and (procedure_component.initial_value.name.lower()
-                                 == orig_kern_name.lower())):
-                        new_kernel_symbol = container_table.lookup(
-                            new_kern_name)
-                        new_procedure_component = \
-                            StructureType.ComponentType(procedure_component
-                                                        .name,
-                                                        procedure_component
-                                                        .datatype,
-                                                        procedure_component
-                                                        .visibility,
-                                                        Reference(
-                                                            new_kernel_symbol))
-                        sym.datatype.procedure_components[procedure_name] = \
-                            new_procedure_component
+                new_kernel_symbol = container_table.lookup(new_kern_name)
+                new_initial_value = Reference(new_kernel_symbol)
+                sym.datatype.replace_procedure_component_initial_value(
+                    orig_kern_name,
+                    new_initial_value
+                )
 
     @property
     def modified(self):
