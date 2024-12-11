@@ -44,38 +44,40 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk, get_child
 
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
-    ColumnwiseOperatorArgMetadata
+from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import (
+    ColumnwiseOperatorArgMetadata)
 from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
-from psyclone.domain.lfric.kernel.field_vector_arg_metadata import \
-    FieldVectorArgMetadata
-from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import \
-    InterGridArgMetadata
-from psyclone.domain.lfric.kernel.inter_grid_vector_arg_metadata import \
-    InterGridVectorArgMetadata
-from psyclone.domain.lfric.kernel.operator_arg_metadata import \
-    OperatorArgMetadata
+from psyclone.domain.lfric.kernel.field_vector_arg_metadata import (
+    FieldVectorArgMetadata)
+from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import (
+    InterGridArgMetadata)
+from psyclone.domain.lfric.kernel.inter_grid_vector_arg_metadata import (
+    InterGridVectorArgMetadata)
+from psyclone.domain.lfric.kernel.operator_arg_metadata import (
+    OperatorArgMetadata)
 from psyclone.domain.lfric.kernel.common_metadata import CommonMetadata
-from psyclone.domain.lfric.kernel.common_meta_arg_metadata import \
-    CommonMetaArgMetadata
-from psyclone.domain.lfric.kernel.evaluator_targets_metadata import \
-    EvaluatorTargetsMetadata
-from psyclone.domain.lfric.kernel.meta_args_metadata import \
-    MetaArgsMetadata
-from psyclone.domain.lfric.kernel.meta_funcs_metadata import \
-    MetaFuncsMetadata
-from psyclone.domain.lfric.kernel.meta_mesh_metadata import \
-    MetaMeshMetadata
-from psyclone.domain.lfric.kernel.meta_ref_element_metadata import \
-    MetaRefElementMetadata
-from psyclone.domain.lfric.kernel.operates_on_metadata import \
-    OperatesOnMetadata
+from psyclone.domain.lfric.kernel.common_meta_arg_metadata import (
+    CommonMetaArgMetadata)
+from psyclone.domain.lfric.kernel.evaluator_targets_metadata import (
+    EvaluatorTargetsMetadata)
+from psyclone.domain.lfric.kernel.meta_args_metadata import (
+    MetaArgsMetadata)
+from psyclone.domain.lfric.kernel.meta_funcs_metadata import (
+    MetaFuncsMetadata)
+from psyclone.domain.lfric.kernel.meta_mesh_metadata import (
+    MetaMeshMetadata)
+from psyclone.domain.lfric.kernel.meta_ref_element_metadata import (
+    MetaRefElementMetadata)
+from psyclone.domain.lfric.kernel.operates_on_metadata import (
+    OperatesOnMetadata)
 from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.symbols import (DataTypeSymbol, UnsupportedFortranType,
+                                    StructureType)
 
 # pylint: disable=too-many-lines
 # pylint: disable=too-many-instance-attributes
@@ -697,6 +699,16 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"{type(symbol).__name__}.")
 
         datatype = symbol.datatype
+
+        # TODO #2643: This is a temporary solution using FortranWriter
+        # to allow the current metadata extraction to work with StructureType,
+        # instead of relying on UnsupportedFortranType.
+        # This will be removed when the metadata is extracted from the PSyIR
+        # itself.
+        if isinstance(datatype, StructureType):
+            type_declaration = FortranWriter().gen_typedecl(symbol, False)
+            return LFRicKernelMetadata.create_from_fortran_string(
+                type_declaration)
 
         if not isinstance(datatype, UnsupportedFortranType):
             raise InternalError(

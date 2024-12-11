@@ -157,9 +157,9 @@ def test_name_clash_derived_type(f2008_parser, type_name):
     # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, spec_part.children, [])
-    assert (f"Search for a DataTypeSymbol named '{type_name}' (required by "
-            f"specification 'TYPE({type_name})') found a 'RoutineSymbol' "
-            f"instead" in str(err.value))
+    assert (f"Search for a DataTypeSymbol named '{type_name.lower()}' "
+            f"(required by specification 'TYPE({type_name})') found a "
+            f"'RoutineSymbol' instead" in str(err.value))
 
 
 def test_name_clash_derived_type_def(f2008_parser):
@@ -256,14 +256,14 @@ def test_parse_derived_type(use_stmt, type_name):
     sym = symtab.lookup("my_type")
     assert isinstance(sym, DataTypeSymbol)
     assert isinstance(sym.datatype, StructureType)
-    flag = sym.datatype.lookup("flag")
+    flag = sym.datatype.lookup_component("flag")
     assert isinstance(flag.datatype, ScalarType)
     assert flag.visibility == Symbol.Visibility.PUBLIC
-    grid = sym.datatype.lookup("grid")
+    grid = sym.datatype.lookup_component("grid")
     assert isinstance(grid.datatype, DataTypeSymbol)
     assert isinstance(grid.datatype.datatype, UnresolvedType)
     assert grid.visibility == Symbol.Visibility.PRIVATE
-    posn = sym.datatype.lookup("posn")
+    posn = sym.datatype.lookup_component("posn")
     assert isinstance(posn.datatype, ArrayType)
     var = symtab.lookup("var")
     assert var.datatype is sym
@@ -271,7 +271,7 @@ def test_parse_derived_type(use_stmt, type_name):
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_derived_type_contains():
-    ''' Check that we get a DataTypeSymbol of UnsupportedFortranType if a
+    ''' Check that we get a DataTypeSymbol of StructureType if a
     derived-type definition has a CONTAINS section. '''
     fake_parent = KernelSchedule.create("dummy_schedule")
     symtab = fake_parent.symbol_table
@@ -286,16 +286,11 @@ def test_derived_type_contains():
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
-    # It should still be a DataTypeSymbol but its type is unknown.
+    # It should still be a DataTypeSymbol and its type is known.
     assert isinstance(sym, DataTypeSymbol)
-    assert isinstance(sym.datatype, UnsupportedFortranType)
-    assert sym.datatype.declaration == '''\
-TYPE :: my_type
-  INTEGER :: flag
-  REAL, DIMENSION(3) :: posn
-  CONTAINS
-  PROCEDURE :: init => obesdv_setup
-END TYPE my_type'''
+    assert isinstance(sym.datatype, StructureType)
+    assert len(sym.datatype.components) == 2
+    assert len(sym.datatype.procedure_components) == 1
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -339,9 +334,10 @@ def test_derived_type_accessibility():
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
     assert isinstance(sym, DataTypeSymbol)
-    flag = sym.datatype.lookup("flag")
+    assert isinstance(sym.datatype, StructureType)
+    flag = sym.datatype.components["flag"]
     assert flag.visibility == Symbol.Visibility.PRIVATE
-    scale = sym.datatype.lookup("scale")
+    scale = sym.datatype.components["scale"]
     assert scale.visibility == Symbol.Visibility.PUBLIC
 
 

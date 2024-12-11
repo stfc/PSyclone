@@ -72,7 +72,7 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
         "  END SELECT\n"
         "end subroutine\n"
         "end module\n")
-    expected1 = "CLASS(*), TARGET :: type_selector"
+    expected1 = "class(*), target :: type_selector"
     expected2 = (
         "    character(256) :: type_string\n"
         "    INTEGER, pointer :: ptr_INTEGER => null()\n"
@@ -377,7 +377,7 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected1 = (
-        "    CLASS(*), TARGET :: type\n"
+        "    class(*), target :: type\n"
         "    integer :: branch1\n"
         "    integer :: branch2\n"
         "    REAL(KIND = 4) :: rinfo1\n"
@@ -435,7 +435,7 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected1 = (
-        "    CLASS(*), TARGET :: type\n"
+        "    class(*), target :: type\n"
         "    type :: field_type\n"
         "      integer :: x\n"
         "    end type field_type\n"
@@ -455,9 +455,9 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
         "      field_type_info = ptr_field_type\n"
         "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir)
-    assert expected1 in result
-    assert expected2 in result
+    result = fortran_writer(psyir).lower()
+    assert expected1.lower() in result
+    assert expected2.lower() in result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -492,7 +492,7 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected1 = (
-        "    CLASS(*), TARGET :: type_selector\n"
+        "    class(*), target :: type_selector\n"
         "    integer :: branch1\n"
         "    integer :: branch2\n"
         "    integer :: branch3\n"
@@ -564,7 +564,7 @@ def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
         f"end module\n")
     expected1 = (
         f"  subroutine select_type(type_selector)\n"
-        f"    CLASS(*), TARGET :: type_selector\n"
+        f"    class(*), target :: type_selector\n"
         f"    CHARACTER{char_type_out} :: character_type\n"
         f"    character(256) :: type_string\n"
         f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star => "
@@ -609,7 +609,7 @@ def test_character_assumed_len(fortran_reader, fortran_writer, tmpdir,
         f"end module\n")
     expected1 = (
         f"  subroutine select_type(type_selector)\n"
-        f"    CLASS(*), TARGET :: type_selector\n"
+        f"    class(*), target :: type_selector\n"
         f"    CHARACTER{char_type_out}, POINTER :: character_type => null()\n"
         f"    character(256) :: type_string\n"
         f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star => "
@@ -723,7 +723,7 @@ def test_class_target(
         f"  public\n\n"
         f"  contains\n"
         f"  subroutine select_type(type_selector, character_type)\n"
-        f"    CLASS(*), {post_attribute} :: type_selector\n"
+        f"    class(*), {post_attribute.lower()} :: type_selector\n"
         f"    CHARACTER(LEN = *) :: character_type\n"
         f"    character(256) :: type_string\n"
         f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star => null()\n\n"

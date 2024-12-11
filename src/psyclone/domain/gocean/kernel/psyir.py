@@ -50,8 +50,10 @@ from psyclone.domain.gocean import GOceanConstants
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType
+from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType, \
+                                   StructureType
 
 
 class GOceanContainer(Container):
@@ -222,16 +224,22 @@ class GOceanKernelMetadata():
 
         datatype = symbol.datatype
 
-        if not isinstance(datatype, UnsupportedFortranType):
+        if not isinstance(datatype, StructureType):
             raise InternalError(
                 f"Expected kernel metadata to be stored in the PSyIR as "
-                f"an UnsupportedFortranType, but found "
+                f"a StructureType, but found "
                 f"{type(datatype).__name__}.")
 
-        # In an UnsupportedFortranType, the declaration is stored as a
-        # string, so use create_from_fortran_string()
+        # TODO #2643: This is a temporary solution using FortranWriter
+        # to allow the current metadata extraction to work with StructureType,
+        # instead of relying on UnsupportedFortranType.
+        # This will be removed when the metadata is extracted from the PSyIR
+        # itself.
+        type_declaration = FortranWriter().gen_typedecl(symbol)
+        type_declaration = type_declaration.replace(", public", "")
+        type_declaration = type_declaration.replace(", private", "")
         return GOceanKernelMetadata.create_from_fortran_string(
-            datatype.declaration)
+            type_declaration)
 
     @staticmethod
     def create_from_fortran_string(fortran_string):

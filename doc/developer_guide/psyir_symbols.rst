@@ -78,16 +78,15 @@ explicitly listed may be assumed to be unsupported):
 +----------------------+--------------------+--------------------+
 |                      |Supported           |Unsupported         |
 +======================+====================+====================+
-|Variables             |ALLOCATABLE         |CLASS               |
+|Variables             |ALLOCATABLE, CLASS  |                    |
 +----------------------+--------------------+--------------------+
 |                      |CHARACTER, DOUBLE   |COMPLEX, CHARACTER  |
 |                      |PRECISION, INTEGER, |with LEN or KIND    |
 |                      |LOGICAL, REAL       |                    |
 +----------------------+--------------------+--------------------+
-|                      |Derived Types       |'extends',          |
-|                      |                    |'abstract' or with  |
-|                      |                    |CONTAINS; Operator  |
-|                      |                    |overloading         |
+|                      |Derived Types,      |'abstract',         |
+|                      |'extends',          |operator overloading|
+|                      |CONTAINS            |                    |
 +----------------------+--------------------+--------------------+
 |                      |DIMENSION           |Array extents       |
 |                      |                    |specified using     |

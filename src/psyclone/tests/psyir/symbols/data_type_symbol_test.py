@@ -62,6 +62,16 @@ def test_create_datatypesymbol_wrong_datatype():
             "DataType but got: 'str'" in str(err.value))
 
 
+def test_create_datatypesymbol_wrong_is_class():
+    ''' Check that attempting to specify the is_class attribute of a
+    DataTypeSymbol with an invalid type results in the expected error. '''
+    sym = DataTypeSymbol("my_type", UnresolvedType())
+    with pytest.raises(TypeError) as err:
+        sym.is_class = "integer"
+    assert ("The is_class attribute of a DataTypeSymbol must be a bool "
+            "but got: 'str'" in str(err.value))
+
+
 def test_datatypesymbol_copy():
     ''' Check that a DataTypeSymbol can be copied. '''
     symbol = DataTypeSymbol("my_type", UnresolvedType(),
