@@ -37,8 +37,8 @@
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Loop, Assignment, Directive, Container, Reference, CodeBlock, Call,
-    Return, IfBlock, Routine, IntrinsicCall)
+    Assignment, Loop, Directive, Container, Reference, CodeBlock,
+    Call, Return, IfBlock, Routine, IntrinsicCall)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ScalarType,
     RoutineSymbol, ImportInterface)
@@ -51,14 +51,11 @@ from psyclone.transformations import TransformationError
 
 # Files that PSyclone could process but would reduce the performance.
 NOT_PERFORMANT = [
-    "bdydta.f90", "bdyvol.f90",
-    "fldread.f90",
-    "icbclv.f90", "icbthm.f90", "icbdia.f90", "icbini.f90",
-    "icbstp.f90",
-    "iom.f90", "iom_nf90.f90",
+    "bdydta.f90", "bdyvol.f90", "fldread.f90", "icbclv.f90", "icbthm.f90",
+    "icbdia.f90", "icbini.f90", "icbstp.f90", "iom.f90", "iom_nf90.f90",
     "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
-    "obs_types.f90", "obs_read_prof.f90", "obs_write.f90",
-    "tide_mod.f90", "zdfosm.f90",
+    "obs_types.f90", "obs_read_prof.f90", "obs_write.f90", "tide_mod.f90",
+    "zdfosm.f90",
 ]
 
 # If routine names contain these substrings then we do not profile them
@@ -68,24 +65,41 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     # prevents from being in-lined (and then breaks any attempt
                     # to create OpenACC regions with calls to them)
                     "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
-                    "sum", "sign_", "ddpdd"]
+                    "sum", "sign_", "ddpdd", "psyclone_cmp_int",
+                    "psyclone_cmp_char", "psyclone_cmp_logical"]
 
 # Currently fparser has no way of distinguishing array accesses from
 # function calls if the symbol is imported from some other module.
 # We therefore work-around this by keeping a list of known NEMO functions.
 NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
-                  "eos_pt_from_ct", "gamma_moist", "l_vap",
+                  "eos_pt_from_ct", "gamma_moist", "l_vap", "q_air_rh",
                   "sbc_dcy", "solfrac", "psi_h", "psi_m", "psi_m_coare",
                   "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf", "q_sat",
                   "rho_air", "visc_air", "sbc_dcy", "glob_sum",
                   "glob_sum_full", "ptr_sj", "ptr_sjk", "interp1", "interp2",
-                  "interp3", "integ_spline"]
+                  "interp3", "integ_spline", "nf90_put_var"]
 
 # Currently fparser has no way of distinguishing array accesses from statement
 # functions, the following subroutines contains known statement functions
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
-VERBOSE = False
+# These files change the results from baseline when psyclone processes them
+PASSTHROUGH_ISSUES = [
+    "ldfslp.f90",  # It has a '!dir$ NOVECTOR' that gets deleted by fparser
+]
+
+# These files change the results from the baseline when psyclone adds
+# parallelisation dirctives
+PARALLELISATION_ISSUES = [
+    "ldfc1d_c2d.f90",
+    "tramle.f90",
+    # These files get the same results when parallelised by: "nvfortran -O1
+    # -Kieee -nofma -Mnovect" but had to be excluded by other compiler/flags
+    # TODO #2787: May solve these issues.
+    "icedyn_rhg_evp.f90",
+    "domqco.f90",
+    "dynspg_ts.f90",
+]
 
 
 def _it_should_be(symbol, of_type, instance):
@@ -236,7 +250,6 @@ def normalise_loops(
     :param bool hoist_expressions: whether to hoist bounds and loop invariant
         statements out of the loop nest.
     '''
-
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
         # to files with statement functions because it will attempt to put the
@@ -248,7 +261,7 @@ def normalise_loops(
 
     if convert_array_notation:
         # Make sure all array dimensions are explicit
-        for reference in schedule.walk(Reference, stop_type=Reference):
+        for reference in schedule.walk(Reference):
             part_of_the_call = reference.ancestor(Call)
             if part_of_the_call:
                 if not part_of_the_call.is_elemental:
@@ -303,6 +316,7 @@ def insert_explicit_loop_parallelism(
         region_directive_trans=None,
         loop_directive_trans=None,
         collapse: bool = True,
+        privatise_arrays: bool = False,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
@@ -319,6 +333,8 @@ def insert_explicit_loop_parallelism(
         :py:class:`psyclone.transformation.Transformation`
     :param collapse: whether to attempt to insert the collapse clause to as
         many nested loops as possible.
+    :param privatise_arrays: whether to attempt to privatise arrays that cause
+        write-write race conditions.
 
     '''
     # Add the parallel directives in each loop
@@ -326,7 +342,8 @@ def insert_explicit_loop_parallelism(
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
-        opts = {"collapse": collapse, "verbose": True}
+        opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
+                "verbose": True}
 
         routine_name = loop.ancestor(Routine).name
 

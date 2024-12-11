@@ -110,7 +110,7 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
     assert Signature("cell_map_field2") in vai
 
     assert create_arg_list._arglist == [
-        'nlayers_field2', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
+        'nlayers_field1', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
         'ncpc_field1_field2_y', 'ncell_field1', 'field1_data',
         'field2_data', 'ndf_w1', 'undf_w1', 'map_w1', 'undf_w2',
         'map_w2(:,cell)']
@@ -267,6 +267,25 @@ def test_kerncallarglist_evaluator(fortran_writer):
         'map_w1(:,cmap_1(colour,cell))', 'diff_basis_w1_on_w0']
 
     check_psyir_results(create_arg_list, fortran_writer)
+
+
+def test_kerncallarglist_halo_depth(dist_mem):
+    '''Test that a kernel that iterates over halo cells is passed the
+    usual arguments.
+
+    '''
+    psy, _ = get_invoke("1.4_into_halos_invoke.f90", TEST_API,
+                        dist_mem=dist_mem, idx=0)
+    schedule = psy.invokes.invoke_list[0].schedule
+    create_arg_list = KernCallArgList(schedule.kernels()[0])
+    create_arg_list.generate()
+
+    assert create_arg_list._arglist == ['nlayers_f1', 'a',
+                                        'f1_data', 'f2_data',
+                                        'm1_data', 'm2_data',
+                                        'ndf_w1', 'undf_w1', 'map_w1(:,cell)',
+                                        'ndf_w2', 'undf_w2', 'map_w2(:,cell)',
+                                        'ndf_w3', 'undf_w3', 'map_w3(:,cell)']
 
 
 def test_kerncallarglist_stencil(fortran_writer):

@@ -84,7 +84,7 @@ contains
     real*4,              intent(inout), dimension(undf_w3) :: field_w3
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: op_ncell_3d
-    real*4,              intent(in), dimension(ndf_w0,ndf_w0,op_ncell_3d) :: op
+    real*4,              intent(in), dimension(op_ncell_3d,ndf_w0,ndf_w0) :: op
 
     write(*,*) "32-bit example called"
 
@@ -104,7 +104,7 @@ contains
     real*8,              intent(inout), dimension(undf_w3) :: field_w3
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: op_ncell_3d
-    real*8,              intent(in), dimension(ndf_w0,ndf_w0,op_ncell_3d) :: op
+    real*8,              intent(in), dimension(op_ncell_3d,ndf_w0,ndf_w0) :: op
 
     write(*,*) "64-bit example called"
 

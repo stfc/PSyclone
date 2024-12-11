@@ -313,7 +313,7 @@ the Built-ins since they are provided as part of the environment.
 
   module solver_mod
     ...
-    use matrix_vector_mm_mod, only: matrix_vector_kernel_mm_type
+    use matrix_vector_mm_kernel_mod, only: matrix_vector_kernel_mm_type
     ...
 
     subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)

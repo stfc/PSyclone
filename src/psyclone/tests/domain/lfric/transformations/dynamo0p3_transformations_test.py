@@ -312,7 +312,7 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
 
     assert (
         "          CALL columnwise_op_asm_field_kernel_code(cmap(colour,"
-        "cell), nlayers_cma_op1, ncell_2d, afield_data, "
+        "cell), nlayers_afield, ncell_2d, afield_data, "
         "lma_op1_proxy%ncell_3d, lma_op1_local_stencil, "
         "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, "
@@ -1380,7 +1380,7 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "      cma_op1_gamma_p = cma_op1_proxy%gamma_p\n"
     ) in code
     assert (
-        "CALL columnwise_op_asm_field_kernel_code(cell, nlayers_cma_op1, "
+        "CALL columnwise_op_asm_field_kernel_code(cell, nlayers_afield, "
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
@@ -4146,6 +4146,23 @@ def test_rc_nodm():
             "distributed memory must be switched on") in str(excinfo.value)
 
 
+def test_rc_no_halo_kernels():
+    '''
+    Test that Dynamo0p3RedundantComputationTrans refuses to transform a kernel
+    that operates on halo cells.
+
+    '''
+    _, invoke = get_invoke("1.4.1_into_halos_plus_domain_invoke.f90",
+                           TEST_API, idx=0, dist_mem=True)
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = invoke.schedule.walk(LFRicLoop)[0]
+    with pytest.raises(TransformationError) as err:
+        rc_trans.validate(loop)
+    assert ("Dynamo0p3RedundantComputationTrans transformation to kernels that"
+            " operate on halo cells but kernel 'testkern_halo_only_code' "
+            "operates on 'halo_cell_column'" in str(err.value))
+
+
 def test_rc_invalid_depth():
     ''' Test that Dynamo0p3RedundantComputationTrans raises an exception if the
     supplied depth is less than 1. '''
@@ -4228,7 +4245,7 @@ def test_rc_continuous_no_depth():
     assert "loop0_stop = mesh%get_last_halo_cell()" in result
     assert "DO cell = loop0_start, loop0_stop" in result
     assert ("      CALL f1_proxy%set_dirty()\n"
-            "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)") in result
+            "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)") in result
 
 
 def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
@@ -4759,7 +4776,7 @@ def test_rc_vector_no_depth(tmpdir):
     for idx in range(1, 4):
         assert f"CALL chi_proxy({idx})%set_dirty()" in result
     for idx in range(1, 4):
-        assert (f"CALL chi_proxy({idx})%set_clean(max_halo_depth_mesh-1)"
+        assert (f"CALL chi_proxy({idx})%set_clean(max_halo_depth_mesh - 1)"
                 in result)
 
 
@@ -4991,8 +5008,8 @@ def test_rc_continuous_halo_remove():
     rc_trans.apply(f3_inc_loop, {"depth": 3})
     result = str(psy.gen)
     assert result.count("CALL f3_proxy%halo_exchange(depth=") == 2
-    assert f3_inc_hex._compute_halo_depth() == "2"
-    assert f3_read_hex._compute_halo_depth() == "3"
+    assert f3_inc_hex._compute_halo_depth().value == "2"
+    assert f3_read_hex._compute_halo_depth().value == "3"
     assert "IF (f3_proxy%is_dirty(depth=2)) THEN" in result
     assert "IF (f3_proxy%is_dirty(depth=3)) THEN" not in result
     #
@@ -5003,7 +5020,7 @@ def test_rc_continuous_halo_remove():
     rc_trans.apply(f3_inc_loop, {"depth": 4})
     result = str(psy.gen)
     assert result.count("CALL f3_proxy%halo_exchange(depth=") == 1
-    assert f3_inc_hex._compute_halo_depth() == "3"
+    assert f3_inc_hex._compute_halo_depth().value == "3"
     # Position 7 is now halo exchange on f4 instead of f3
     assert schedule.children[7].field != "f3"
     assert "IF (f3_proxy%is_dirty(depth=4)" not in result
@@ -5330,7 +5347,7 @@ def test_rc_max_w_to_r_continuous_known_halo(monkeypatch, annexed):
         w_to_r_halo_exchange = schedule.children[4]
 
     # sanity check that the halo exchange goes to the full halo depth
-    assert (w_to_r_halo_exchange._compute_halo_depth() ==
+    assert (w_to_r_halo_exchange._compute_halo_depth().symbol.name ==
             "max_halo_depth_mesh")
 
     # the halo exchange should be both required to be added and known
@@ -5684,7 +5701,7 @@ def test_rc_max_colour(tmpdir):
 
     assert (
         "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5812,7 +5829,7 @@ def test_rc_then_colour2(tmpdir):
 
     assert (
         "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5869,7 +5886,7 @@ def test_loop_fuse_then_rc(tmpdir):
         "max_halo_depth_mesh), 1\n" in result)
     assert (
         "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5890,15 +5907,14 @@ def test_haloex_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "1"
+        assert halo_exchange._compute_halo_depth().value == "1"
         assert halo_exchange.required() == (True, True)
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
         write_access = halo_exchange._compute_halo_write_info()
         assert write_access.set_by_value
-        assert not write_access.var_depth
+        assert write_access.var_depth.value == "1"
         assert not write_access.max_depth
-        assert write_access.literal_depth == 1
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -5906,9 +5922,8 @@ def test_haloex_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert depth_info.literal_depth == 1
+        assert depth_info.var_depth.value == "1"
         assert not depth_info.max_depth
-        assert not depth_info.var_depth
 
     config = Config.get()
     dyn_config = config.api_conf("lfric")
@@ -5972,15 +5987,15 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "max_halo_depth_mesh"
+        assert (halo_exchange._compute_halo_depth().symbol.name ==
+                "max_halo_depth_mesh")
         assert halo_exchange.required
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
         write_access = halo_exchange._compute_halo_write_info()
         assert write_access.set_by_value
-        assert not write_access.var_depth
+        assert write_access.var_depth.value == "1"
         assert not write_access.max_depth
-        assert write_access.literal_depth == 1
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -5988,7 +6003,6 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert not depth_info.literal_depth
         assert depth_info.max_depth
         assert not depth_info.var_depth
 
@@ -6038,8 +6052,6 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
-        print("OK for iteration ", idx)
-
 
 def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
@@ -6065,7 +6077,7 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "1"
+        assert halo_exchange._compute_halo_depth().value == "1"
         assert halo_exchange.required() == (True, False)
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
@@ -6073,7 +6085,6 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         assert write_access.set_by_value
         assert not write_access.var_depth
         assert write_access.max_depth
-        assert not write_access.literal_depth
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -6081,9 +6092,8 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert depth_info.literal_depth == 1
         assert not depth_info.max_depth
-        assert not depth_info.var_depth
+        assert depth_info.var_depth.value == "1"
 
     config = Config.get()
     dyn_config = config.api_conf("lfric")
@@ -6130,8 +6140,6 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
-        print("OK for iteration ", idx)
-
 
 def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
@@ -6156,7 +6164,8 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         # check halo exchange has the expected values
         assert halo_exchange.field.name == "f1"
         assert halo_exchange._compute_stencil_type() == "region"
-        assert halo_exchange._compute_halo_depth() == "max_halo_depth_mesh"
+        assert (halo_exchange._compute_halo_depth().symbol.name ==
+                "max_halo_depth_mesh")
         assert halo_exchange.required() == (True, True)
         # check that the write_access information (information based on
         # the previous writer) has been computed correctly
@@ -6164,7 +6173,6 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         assert write_access.set_by_value
         assert not write_access.var_depth
         assert write_access.max_depth
-        assert not write_access.literal_depth
         assert write_access.dirty_outer
         assert not write_access.annexed_only
         # check that the read_access information is correct
@@ -6172,7 +6180,6 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         assert len(depth_info_list) == 1
         depth_info = depth_info_list[0]
         assert not depth_info.annexed_only
-        assert not depth_info.literal_depth
         assert depth_info.max_depth
         assert not depth_info.var_depth
 
@@ -6219,8 +6226,6 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         check_halo_exchange(halo_exchange)
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
-
-        print("OK for iteration ", idx)
 
 
 def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
@@ -6359,7 +6364,7 @@ def test_intergrid_colour(dist_mem, trans_class, tmpdir):
             "(colour), 1\n")
     assert expected in gen
     expected = (
-        "          call prolong_test_kernel_code(nlayers_fld_m, cell_map_fld_m"
+        "          call prolong_test_kernel_code(nlayers_fld_f, cell_map_fld_m"
         "(:,:,cmap_fld_m(colour,cell)), ncpc_fld_f_fld_m_x, "
         "ncpc_fld_f_fld_m_y, ncell_fld_f, fld_f_data, fld_m_data, "
         "ndf_w1, undf_w1, map_w1, undf_w2, "
@@ -6473,7 +6478,7 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
             f"        !$omp parallel default(shared), private(cell)\n"
             f"        !$omp do schedule(static)\n"
             f"        DO cell = loop1_start, {upper_bound}, 1\n"
-            f"          CALL prolong_test_kernel_code(nlayers_cmap_fld_c, "
+            f"          CALL prolong_test_kernel_code(nlayers_fld_m, "
             f"cell_map_cmap_fld_c(:,:,cmap_cmap_fld_c(colour,cell)), "
             f"ncpc_fld_m_cmap_fld_c_x, ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, "
             f"fld_m_data, cmap_fld_c_data, ndf_w1, undf_w1, "

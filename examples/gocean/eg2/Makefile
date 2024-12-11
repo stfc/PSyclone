@@ -44,11 +44,11 @@
 #     make NVTX_DIR=/apps/packages/cuda/10.0/lib64 profile
 #
 # The compiler to use may be specified via the F90 environment
-# variable. e.g. to use PGI and OpenACC:
+# variable. e.g. to use the NVIDIA compiler and OpenACC:
 #
-# export F90=pgf90
-# export F90FLAGS="-O1 -acc -ta=tesla,cc70 -Minfo=all"
-# export LDFLAGS="-acc -ta=tesla,cc70"
+# export F90=nvfortran
+# export F90FLAGS="-O1 -acc -gpu=cc70 -Minfo=all"
+# export LDFLAGS="-acc -gpu=cc70"
 
 include ../../common.mk
 
@@ -119,5 +119,5 @@ psy_prof.f90 alg_prof.f90: alg.f90
 # start-up. Therefore wildcards do not pick-up any files generated
 # during execution.
 kernels:
-	${MAKE} inc_field_mod.o inc_field_0_mod.o
+	${MAKE} inc_field_mod.o
 

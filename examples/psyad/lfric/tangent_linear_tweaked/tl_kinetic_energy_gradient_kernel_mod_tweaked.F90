@@ -201,8 +201,8 @@ subroutine tl_kinetic_energy_gradient_code(nlayers,       &
         end do
 
         ! Calculation
-        mul1(3) = matmul( jac(:,:,qp1,qp2), ls_u_at_quad )
-        mul2(3) = matmul( jac(:,:,qp1,qp2), u_at_quad )
+        mul1 = matmul( jac(:,:,qp1,qp2), ls_u_at_quad )
+        mul2 = matmul( jac(:,:,qp1,qp2), u_at_quad )
         ke_at_quad = dot_product(mul1, mul2) / ( dj(qp1,qp2)**2 )
 
         do df = 1, ndf_w2
