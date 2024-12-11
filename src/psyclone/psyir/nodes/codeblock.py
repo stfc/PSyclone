@@ -175,7 +175,12 @@ class CodeBlock(Statement, DataNode):
                                  Fortran2003.End_If_Stmt)):
                 # We don't want labels associated with loop or branch control.
                 result.append(node.string)
-
+        # Precision on literals requires special attention since they are just
+        # stored in the tree as str (fparser/#456).
+        for node in walk(parse_tree, (Fortran2003.Int_Literal_Constant,
+                                      Fortran2003.Real_Literal_Constant)):
+            if node.items[1]:
+                result.append(node.items[1])
         return result
 
     def reference_accesses(self, var_accesses: VariablesAccessInfo):
