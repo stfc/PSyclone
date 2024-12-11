@@ -271,7 +271,6 @@ def test_reference_next_accesses(fortran_reader):
     a_after_loop = routine.children[1].lhs
     loop = routine.children[0]
     b = loop.loop_body.children[0].lhs
-    a_in_loop = loop.loop_body.children[0].rhs
     assert len(a_after_loop.next_accesses()) == 0
 
     # Check the function for basic structures
