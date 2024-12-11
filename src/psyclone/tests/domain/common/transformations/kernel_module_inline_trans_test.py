@@ -166,8 +166,8 @@ def test_validate_no_inline_global_var(parser):
 
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kernels[0])
-    assert ("'kernel_with_global_code' contains accesses to 'alpha' in a "
-            "CodeBlock that is declared in the same module scope. Cannot "
+    assert ("'kernel_with_global_code' contains accesses to 'alpha' which is "
+            "declared in the same module scope. Cannot "
             "inline such a Kernel." in str(err.value))
 
     # Check that a symbol of unknown origin within a CodeBlock is caught.
@@ -182,7 +182,7 @@ def test_validate_no_inline_global_var(parser):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kernels[0])
     assert ("Kernel 'kernel_with_global_code' contains accesses to 'unknown' "
-            "in a CodeBlock but the origin of this symbol is unknown" in
+            "but the origin of this symbol is unknown" in
             str(err.value))
 
     # But make sure that an IntrinsicCall routine name is not considered

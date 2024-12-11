@@ -36,8 +36,11 @@
 
 ''' This module contains the ScopingNode implementation.'''
 
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import RoutineSymbol, SymbolError, SymbolTable
+from psyclone.psyir.symbols import (
+    DataTypeSymbol, RoutineSymbol, StructureType, Symbol,
+    SymbolError, SymbolTable)
 
 
 class ScopingNode(Node):
@@ -169,6 +172,44 @@ class ScopingNode(Node):
         # a performance issue we could keep track of the depth of the recursive
         # call to _refine_copy and only do this call when that depth is zero.
         self.replace_symbols_using(self._symbol_table)
+
+    def reference_accesses(self, access_info: VariablesAccessInfo):
+        '''
+        Get all variable access information. This specialisation is required
+        to query the SymbolTable associated with a Scoping node and ensure
+        that any Symbols appearing in precision specifications or
+        initialisation expressions are captured.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the
+            information about variable accesses.
+
+        '''
+        for sym in self._symbol_table.datasymbols:
+            if isinstance(sym.datatype, DataTypeSymbol):
+                access_info.add_access(Signature(sym.datatype.name),
+                                       AccessType.READ, self)
+            elif (hasattr(sym.datatype, "precision") and
+                  isinstance(sym.datatype, Symbol)):
+                access_info.add_access(
+                    Signature(sym.datatype.precision.name),
+                    AccessType.READ, self)
+            elif isinstance(sym.datatype, StructureType):
+                for cmpt in sym.datatype.components:
+                    if isinstance(cmpt.datatype, DataTypeSymbol):
+                        access_info.add_access(
+                            Signature(cmpt.datatype.name),
+                            AccessType.READ, self)
+                    elif (hasattr(cmpt.datatype, "precision") and
+                          isinstance(sym.datatype, Symbol)):
+                        access_info.add_access(
+                            Signature(cmpt.datatype.precision.name),
+                            AccessType.READ, self)
+                    if cmpt.initial_value:
+                        cmpt.initial_value.reference_accesses(access_info)
+            if sym.initial_value:
+                sym.initial_value.reference_accesses(access_info)
+
+        super().reference_accesses(access_info)
 
     def replace_symbols_using(self, table):
         '''
