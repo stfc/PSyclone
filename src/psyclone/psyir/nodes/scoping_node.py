@@ -197,7 +197,7 @@ class ScopingNode(Node):
                 info.add_access(Signature(dtype.name),
                                 AccessType.READ, self)
             elif (hasattr(dtype, "precision") and
-                  isinstance(dtype, Symbol)):
+                  isinstance(dtype.precision, Symbol)):
                 access_info.add_access(
                     Signature(dtype.precision.name),
                     AccessType.READ, self)

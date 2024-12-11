@@ -37,10 +37,13 @@
 ''' Performs py.test tests on the ScopingNode PSyIR node. '''
 
 import pytest
-from psyclone.psyir.nodes import (Schedule, Assignment, Reference, Container,
-                                  Loop, Literal, Routine, ArrayReference)
-from psyclone.psyir.symbols import (DataSymbol, ArrayType, INTEGER_TYPE,
-                                    ArgumentInterface, SymbolTable, REAL_TYPE)
+from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.psyir.nodes import (
+    Schedule, Assignment, Reference, Container, IntrinsicCall, Loop, Literal,
+    Routine, ArrayReference)
+from psyclone.psyir.symbols import (
+    DataSymbol, ArrayType, INTEGER_TYPE,
+    ArgumentInterface, ScalarType, SymbolTable, REAL_TYPE)
 from psyclone.tests.utilities import Compile
 
 
@@ -275,3 +278,37 @@ def test_scoping_node_equality():
 
     assert sched1 == sched2
     assert sched1 != sched3
+
+
+def test_scoping_node_reference_accesses():
+    '''Test the reference_accesses() method of ScopingNode.'''
+    vai = VariablesAccessInfo()
+    sched = Schedule()
+    table = sched.symbol_table
+    # First test with an empty symbol table.
+    sched.reference_accesses(vai)
+    assert not vai.all_signatures
+    # Just adding a Symbol to the table does not affect anything.
+    prsym = table.new_symbol("r_def", symbol_type=DataSymbol,
+                             datatype=INTEGER_TYPE)
+    sched.reference_accesses(vai)
+    assert not vai.all_signatures
+    # Add another Symbol that references the first one in its precision.
+    new_type = ScalarType(ScalarType.Intrinsic.REAL, prsym)
+    var1 = table.new_symbol("var1", symbol_type=DataSymbol, datatype=new_type)
+    sched.reference_accesses(vai)
+    assert vai.all_signatures == [Signature("r_def")]
+    # Add a Symbol with initialisation.
+    idef = table.new_symbol("i_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
+    var2 = table.new_symbol("var2", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE,
+                            initial_value=Literal("100", int_type))
+    vai2 = VariablesAccessInfo()
+    sched.reference_accesses(vai2)
+    assert len(vai2.all_signatures) == 2
+    assert Signature("i_def") in vai2.all_signatures
+    # A StructureType.
+    # stype = StructureType.create()
+    # Dimensions of an ArrayType.
