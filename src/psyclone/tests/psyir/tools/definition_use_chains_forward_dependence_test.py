@@ -115,8 +115,8 @@ def test_definition_use_chain_init_and_properties(fortran_reader):
     # Test remaining TypeErrors
     with pytest.raises(TypeError) as excinfo:
         duc = DefinitionUseChain("123")
-    assert ("The reference passed into a DefinitionUseChain must be a "
-            "Reference but found 'str'." in str(excinfo.value))
+    assert ("The 'reference' argument passed into a DefinitionUseChain must "
+            "be a Reference but found 'str'." in str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
         duc = DefinitionUseChain(r1, start_point="123")
     assert ("The start_point passed into a DefinitionUseChain must be an "
