@@ -765,7 +765,7 @@ def test_codedkern__rename_psyir_supported_procedure_datatype():
     assert (testkern_type.datatype.procedure_components["code"]
             .name == procedure_component.name)
     assert isinstance(testkern_type.datatype.procedure_components["code"]
-            .datatype, UnresolvedType)
+                      .datatype, UnresolvedType)
     assert (testkern_type.datatype.procedure_components["code"]
             .visibility == procedure_component.visibility)
     assert isinstance(testkern_type.datatype.procedure_components["code"]
