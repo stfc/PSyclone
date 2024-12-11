@@ -91,7 +91,7 @@ class DefinitionUseChain:
     ):
         if not isinstance(reference, Reference):
             raise TypeError(
-                f"The reference passed into a DefinitionUseChain "
+                f"The 'reference' argument passed into a DefinitionUseChain "
                 f"must be a Reference but found "
                 f"'{type(reference).__name__}'."
             )
@@ -331,8 +331,8 @@ class DefinitionUseChain:
                         self._stop_point = save_stop_position
                         return self._reaches
                 else:
-                    # We assume that the control flow here could not be taken,
-                    # i.e. that this doesn't kill the chain.
+                    # We assume that the control flow here could be 'not
+                    # taken', i.e. that this doesn't kill the chain.
                     # TODO #2760: In theory we could analyse loop structures
                     # or if block structures to see if we're guaranteed to
                     # write to the symbol.
@@ -455,9 +455,8 @@ class DefinitionUseChain:
                     # positives for structure accesses inside CodeBlocks.
                     if isinstance(reference._fp2_nodes[0], Goto_Stmt):
                         raise NotImplementedError(
-                            "DefinitionUseChains can't "
-                            "handle code containing GOTO"
-                            " statements."
+                            "DefinitionUseChains can't handle code containing"
+                            " GOTO statements."
                         )
                     # If we find an Exit or Cycle statement, we can't
                     # reach further in this code region so we can return.
@@ -622,9 +621,9 @@ class DefinitionUseChain:
                     refs = node.else_body.walk(Reference)
                     for ref in refs:
                         if ref is self._reference:
+                            # If its in the else_body we don't add the if_body
                             in_else_body = True
                             break
-                # If its in the else_body we don't add the if_body
                 if not in_else_body:
                     control_flow_nodes.append(node)
                     basic_blocks.append(node.if_body.children[:])
@@ -706,9 +705,8 @@ class DefinitionUseChain:
                     # positives for structure accesses inside CodeBlocks.
                     if isinstance(reference._fp2_nodes[0], Goto_Stmt):
                         raise NotImplementedError(
-                            "DefinitionUseChains can't "
-                            "handle code containing GOTO"
-                            " statements."
+                            "DefinitionUseChains can't handle code containing"
+                            " GOTO statements."
                         )
                     if (
                         self._reference.symbol.name
@@ -740,7 +738,6 @@ class DefinitionUseChain:
                 elif reference.get_signature_and_indices()[0] == sig:
                     # Work out if its read only or not.
                     assign = reference.ancestor(Assignment)
-                    # TODO Need to invert how we think about assignments.
                     # RHS reads occur "before" LHS writes, so if we
                     # hit the LHS or an assignment then we won't have
                     # a dependency to the value used from the LHS.
@@ -951,8 +948,8 @@ class DefinitionUseChain:
                         self._stop_point = save_stop_position
                         return self._reaches
                 else:
-                    # We assume that the control flow here could not be taken,
-                    # i.e. that this doesn't kill the chain.
+                    # We assume that the control flow here could be 'not
+                    # taken', i.e. that this doesn't kill the chain.
                     # TODO #2760: In theory we could analyse loop structures
                     # or if block structures to see if we're guaranteed to
                     # write to the symbol.
@@ -984,7 +981,6 @@ class DefinitionUseChain:
             # Check if there is an ancestor Assignment.
             ancestor = self._reference.ancestor(Assignment)
             if ancestor is not None:
-                # TODO Need to fix this - not sure what is going on here.
                 # If we get here to check the start part of a loop we need
                 # to handle this differently.
                 # If the reference is the lhs then we can ignore the RHS.

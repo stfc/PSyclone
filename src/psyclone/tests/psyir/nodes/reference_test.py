@@ -247,12 +247,12 @@ def test_reference_next_accesses(fortran_reader):
     end subroutine'''
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.children[0]
-    a = routine.children[0].lhs
+    a_before_loop = routine.children[0].lhs
     loop = routine.children[1]
     b = loop.loop_body.children[0].lhs
-    a_2 = loop.loop_body.children[0].rhs
-    assert len(a.next_accesses()) == 1
-    assert a.next_accesses()[0] is loop
+    a_in_loop = loop.loop_body.children[0].rhs
+    assert len(a_before_loop.next_accesses()) == 1
+    assert a_before_loop.next_accesses()[0] is loop
     assert len(b.next_accesses()) == 1
     assert b.next_accesses()[0] == b
 
@@ -268,11 +268,11 @@ def test_reference_next_accesses(fortran_reader):
     end subroutine'''
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.children[0]
-    a = routine.children[1].lhs
+    a_after_loop = routine.children[1].lhs
     loop = routine.children[0]
     b = loop.loop_body.children[0].lhs
-    a_2 = loop.loop_body.children[0].rhs
-    assert len(a.next_accesses()) == 0
+    a_in_loop = loop.loop_body.children[0].rhs
+    assert len(a_after_loop.next_accesses()) == 0
 
     # Check the function for basic structures
     code = '''subroutine my_sub()
