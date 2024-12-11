@@ -39,7 +39,7 @@
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import (
-    DataTypeSymbol, RoutineSymbol, StructureType, Symbol,
+    DataType, DataTypeSymbol, RoutineSymbol, StructureType, Symbol,
     SymbolError, SymbolTable)
 
 
@@ -184,28 +184,34 @@ class ScopingNode(Node):
             information about variable accesses.
 
         '''
-        for sym in self._symbol_table.datasymbols:
-            if isinstance(sym.datatype, DataTypeSymbol):
-                access_info.add_access(Signature(sym.datatype.name),
-                                       AccessType.READ, self)
-            elif (hasattr(sym.datatype, "precision") and
-                  isinstance(sym.datatype, Symbol)):
+        def _get_accesses(dtype: DataType, info: VariablesAccessInfo):
+            '''
+            Store information on any symbols referenced within the supplied
+            datatype.
+
+            :param dtype: the datatype to query.
+            :param info: the VariablesAccessInfo instance in which to store
+                         information.
+            '''
+            if isinstance(dtype, DataTypeSymbol):
+                info.add_access(Signature(dtype.name),
+                                AccessType.READ, self)
+            elif (hasattr(dtype, "precision") and
+                  isinstance(dtype, Symbol)):
                 access_info.add_access(
-                    Signature(sym.datatype.precision.name),
+                    Signature(dtype.precision.name),
                     AccessType.READ, self)
-            elif isinstance(sym.datatype, StructureType):
+            elif isinstance(dtype, StructureType):
                 for cmpt in sym.datatype.components:
-                    if isinstance(cmpt.datatype, DataTypeSymbol):
-                        access_info.add_access(
-                            Signature(cmpt.datatype.name),
-                            AccessType.READ, self)
-                    elif (hasattr(cmpt.datatype, "precision") and
-                          isinstance(sym.datatype, Symbol)):
-                        access_info.add_access(
-                            Signature(cmpt.datatype.precision.name),
-                            AccessType.READ, self)
+                    # Recurse for members of a StructureType
+                    _get_accesses(cmpt.datatype, info)
                     if cmpt.initial_value:
-                        cmpt.initial_value.reference_accesses(access_info)
+                        cmpt.initial_value.reference_accesses(info)
+
+        # Examine the datatypes and initial values of all DataSymbols.
+        for sym in self._symbol_table.datasymbols:
+            _get_accesses(sym.datatype, access_info)
+
             if sym.initial_value:
                 sym.initial_value.reference_accesses(access_info)
 
