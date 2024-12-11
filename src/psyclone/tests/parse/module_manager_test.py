@@ -37,11 +37,10 @@
 '''Module containing py.test tests for the ModuleManager.'''
 
 import os
-
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.parse import ModuleManager
+from psyclone.parse import ModuleInfo, ModuleManager
 
 
 # ----------------------------------------------------------------------------
@@ -117,7 +116,7 @@ def test_mod_manager_precedence_preprocessed():
 
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
-    mod_info = mod_man.get_module_info("a_mod")
+    mod_info: ModuleInfo = mod_man.get_module_info("a_mod")
     # Make sure we get the lower case filename:
     assert mod_info.filename == "d1/a_mod.f90"
 

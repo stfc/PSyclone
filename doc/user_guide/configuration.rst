@@ -76,6 +76,10 @@ locations searched is now:
 2. ``<python-base-dir>/share/psyclone/``
 3. ``${HOME}/.local/share/psyclone/``
 
+As a last resort, the location
+``<psyclone-src-base>/config/``
+is searched in case PSyclone was installed in editable mode.
+
 Note that for developers a slightly different configuration handling
 is implemented, see :ref:`dev_guide:dev_configuration` for details.
 
