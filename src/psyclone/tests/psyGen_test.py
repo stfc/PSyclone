@@ -763,6 +763,17 @@ def test_codedkern__rename_psyir_supported_procedure_datatype():
     # Rename
     kern._rename_psyir(suffix="_new2")
     assert (testkern_type.datatype.procedure_components["code"]
+            .name == procedure_component.name)
+    assert isinstance(testkern_type.datatype.procedure_components["code"]
+            .datatype, UnresolvedType)
+    assert (testkern_type.datatype.procedure_components["code"]
+            .visibility == procedure_component.visibility)
+    assert isinstance(testkern_type.datatype.procedure_components["code"]
+                      .initial_value, Reference)
+    assert (testkern_type.datatype.procedure_components["code"]
+            .initial_value.symbol
+            == container_table.lookup("testkern_new2_code"))
+    assert (testkern_type.datatype.procedure_components["code"]
             .initial_value.name == "testkern_new2_code")
 
 
