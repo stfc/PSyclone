@@ -262,15 +262,24 @@ def test_search_path(monkeypatch):
         pkg_share_idx = min(err_msg.find(dir) for dir in pkg_share_dir)
         assert pkg_share_idx != -1
 
+        # source directory to be used for installation in editable mode
+        dev_dir_tmp = os.path.dirname(__file__)
+        dev_dir_tmp = os.path.split(dev_dir_tmp)[0]  # Go down one level
+        dev_dir_tmp = os.path.split(dev_dir_tmp)[0]  # Go down another level
+        dev_dir_tmp = os.path.split(dev_dir_tmp)[0]  # Go down another level
+        dev_dir = os.path.join(dev_dir_tmp, "config")  # Add config
+        dev_idx = err_msg.find(dev_dir)
+        assert dev_idx != -1
+
         # Check the order of the various directories, which depends on
         # whether we are in a virtualenv or not:
         if inside_venv:
             # When inside a virtual environment, the 'share' directory of
             # that environment takes precedence over the user's home
             # directory
-            assert cwd_idx < share_idx < home_idx < pkg_share_idx
+            assert cwd_idx < share_idx < home_idx < pkg_share_idx < dev_idx
         else:
-            assert cwd_idx < home_idx < share_idx < pkg_share_idx
+            assert cwd_idx < home_idx < share_idx < pkg_share_idx < dev_idx
 
 
 @pytest.mark.usefixtures("change_into_tmpdir")
