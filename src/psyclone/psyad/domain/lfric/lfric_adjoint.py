@@ -52,7 +52,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyad.domain.common import create_adjoint_name
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import (ContainerSymbol, StructureType)
+from psyclone.psyir.symbols import ContainerSymbol, StructureType
 from psyclone.psyir.symbols.symbol import ArgumentInterface, ImportInterface
 
 

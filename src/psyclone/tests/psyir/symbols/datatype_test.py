@@ -946,10 +946,6 @@ def test_structure_type():
     assert ("The type of a procedure component of a StructureType must "
             "be a 'DataType' but got 'NoneType'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add_procedure_component("proc3", StructureType(), None, None)
-    assert ("The type of a procedure component of a StructureType cannot "
-            "be a 'StructureType' but got 'StructureType'" in str(err.value))
-    with pytest.raises(TypeError) as err:
         stype.add_procedure_component("proc3", INTEGER_TYPE, None, None)
     assert ("The visibility of a procedure component of a StructureType must "
             "be an instance of 'Symbol.Visibility' but got 'NoneType'"
@@ -958,8 +954,16 @@ def test_structure_type():
         stype.add_procedure_component("proc4", INTEGER_TYPE,
                                       Symbol.Visibility.PUBLIC, "Hello")
     assert ("The initial value of a procedure component of a StructureType "
-            "must be None or an instance of 'DataNode', but got 'str'."
+            "must be None or an instance of 'Reference' but got 'str'."
             in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add_procedure_component("proc5", INTEGER_TYPE,
+                                      Symbol.Visibility.PUBLIC,
+                                      Reference(DataSymbol("not_a_routine",
+                                                           INTEGER_TYPE)))
+    assert ("The initial value of a procedure component of a StructureType "
+            "must be None or a Reference to a RoutineSymbol but got a "
+            "Reference to a 'DataSymbol'." in str(err.value))
 
 
 def test_create_structuretype():

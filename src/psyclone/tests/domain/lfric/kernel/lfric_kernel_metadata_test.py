@@ -51,7 +51,6 @@ from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.symbols import DataTypeSymbol, REAL_TYPE, \
     UnsupportedFortranType, StructureType
-from psyclone.psyir.backend.fortran import FortranWriter
 
 # pylint: disable=too-many-statements
 
@@ -1135,27 +1134,18 @@ def test_lower_to_psyir():
     assert symbol.datatype.declaration == metadata.fortran_string()
 
 
-def test_get_procedure_name_error(fortran_reader):
+def test_get_procedure_name_error(fortran_reader, fortran_writer):
     '''Test that all the exceptions are raised as expected in the
     _get_procedure_name method.
 
     '''
-    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM.replace(
-        "procedure, nopass :: code => testkern_code", ""))
-    datatype_symbol = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type")
-    assert isinstance(datatype_symbol, DataTypeSymbol)
-    structure_type = datatype_symbol.datatype
-    assert isinstance(structure_type, StructureType)
-    assert len(structure_type.procedure_components) == 0
-
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     datatype_symbol = kernel_psyir.children[0].symbol_table.lookup(
         "testkern_type")
     datatype = datatype_symbol.datatype
     metadata = LFRicKernelMetadata()
     assert isinstance(datatype, StructureType)
-    type_declaration = FortranWriter().gen_typedecl(datatype_symbol)
+    type_declaration = fortran_writer.gen_typedecl(datatype_symbol)
     reader = FortranStringReader(type_declaration)
     spec_part = Fortran2003.Derived_Type_Def(reader)
     binding = spec_part.children[2]
@@ -1172,7 +1162,7 @@ def test_get_procedure_name_error(fortran_reader):
     datatype = datatype_symbol.datatype
     metadata = LFRicKernelMetadata()
     assert isinstance(datatype, StructureType)
-    type_declaration = FortranWriter().gen_typedecl(datatype_symbol)
+    type_declaration = fortran_writer.gen_typedecl(datatype_symbol)
     reader = FortranStringReader(type_declaration)
     spec_part = Fortran2003.Derived_Type_Def(reader)
     with pytest.raises(ParseError) as info:
@@ -1182,7 +1172,7 @@ def test_get_procedure_name_error(fortran_reader):
             in str(info.value))
 
 
-def test_get_procedure_name(fortran_reader):
+def test_get_procedure_name(fortran_reader, fortran_writer):
     '''Test utility function that takes metadata in an fparser2 tree and
     returns the procedure metadata name, or None is there is no
     procedure name.
@@ -1194,7 +1184,7 @@ def test_get_procedure_name(fortran_reader):
     datatype = datatype_symbol.datatype
     metadata = LFRicKernelMetadata()
     assert isinstance(datatype, StructureType)
-    type_declaration = FortranWriter().gen_typedecl(datatype_symbol)
+    type_declaration = fortran_writer.gen_typedecl(datatype_symbol)
     reader = FortranStringReader(type_declaration)
     spec_part = Fortran2003.Derived_Type_Def(reader)
     assert metadata._get_procedure_name(spec_part) == \

@@ -276,8 +276,8 @@ def test_generate_lfric_adjoint_multi_precision(
     test_type_symbol = sym_table.lookup("test_type")
     datatype = test_type_symbol.datatype
     assert isinstance(datatype, StructureType)
-    datatype.procedure_components.clear()
     # Remove procedure metadata
+    datatype.procedure_components.clear()
     ad_psyir = generate_lfric_adjoint(psyir, ["field_1_w0", "field_2_w0"])
     result = fortran_writer(ad_psyir)
     # Check that the metadata type name is updated.

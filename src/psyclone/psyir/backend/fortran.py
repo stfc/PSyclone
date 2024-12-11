@@ -1000,6 +1000,9 @@ class FortranWriter(LanguageWriter):
             # We ignore all symbols with a PreprocessorInterface
             if isinstance(sym.interface, PreprocessorInterface):
                 all_symbols.remove(sym)
+            # We remove the '*' symbol used in 'class(*) :: var'
+            if sym.name == "*":
+                all_symbols.remove(sym)
 
         # If the symbol table contains any symbols with an
         # UnresolvedInterface interface (they are not explicitly
@@ -1010,9 +1013,7 @@ class FortranWriter(LanguageWriter):
         unresolved_symbols = []
         for sym in all_symbols[:]:
             if isinstance(sym.interface, UnresolvedInterface):
-                # Explicitly deal with '*' as in 'class(*) :: var'
-                if sym.name != "*":
-                    unresolved_symbols.append(sym)
+                unresolved_symbols.append(sym)
                 all_symbols.remove(sym)
         try:
             internal_interface_symbol = symbol_table.lookup(

@@ -286,7 +286,7 @@ def test_derived_type_contains():
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
-    # It should still be a DataTypeSymbol but its type is unknown.
+    # It should still be a DataTypeSymbol and its type is known.
     assert isinstance(sym, DataTypeSymbol)
     assert isinstance(sym.datatype, StructureType)
     assert len(sym.datatype.components) == 2

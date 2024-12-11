@@ -581,6 +581,17 @@ def test_process_declarations():
     assert isinstance(ptr_sym.datatype, UnsupportedFortranType)
     assert isinstance(ptr_sym.initial_value, IntrinsicCall)
 
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_class_keyword():
+    '''Test that process_declarations method of Fparser2Reader
+    converts the fparser2 declarations with the class keyword to symbols
+    in the provided parent Kernel Schedule.
+
+    '''
+    fake_parent = KernelSchedule.create("dummy_schedule")
+    processor = Fparser2Reader()
+
     # Class declaration
     reader = FortranStringReader("class(my_type), intent(in) :: carg")
     # Set reader to free format (otherwise this is a comment in fixed format)
@@ -593,6 +604,20 @@ def test_process_declarations():
     assert sym.datatype.is_class is True
     assert sym.name == "carg"
     assert sym.datatype.name == "my_type"
+    assert isinstance(sym.interface, ArgumentInterface)
+    assert sym.interface.access == ArgumentInterface.Access.READ
+
+    # class(*) case
+    reader = FortranStringReader("class(*), intent(in) :: urgh")
+    reader.set_format(FortranFormat(True, True))
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    sym = fake_parent.symbol_table.lookup("urgh")
+    assert isinstance(sym, DataSymbol)
+    assert isinstance(sym.datatype, DataTypeSymbol)
+    assert sym.datatype.is_class is True
+    assert sym.name == "urgh"
+    assert sym.datatype.name == "*"
     assert isinstance(sym.interface, ArgumentInterface)
     assert sym.interface.access == ArgumentInterface.Access.READ
 
@@ -2678,7 +2703,7 @@ def test_structures(fortran_reader, fortran_writer):
         "  PROCEDURE, NOPASS :: test_code\n"
         "END TYPE test_type\n" in result)
 
-    # type that contains procedures
+    # public type that contains procedures
     test_code = (
         "module test_mod\n"
         "  use kernel_mod, only : parent_type\n"
@@ -2709,6 +2734,42 @@ def test_structures(fortran_reader, fortran_writer):
         "    integer, public :: i = 1\n"
         "    contains\n"
         "      procedure, public :: test_code\n"
+        "      procedure, private :: test_code_private\n"
+        "      procedure, public :: test_code_public\n"
+        "  end type test_type\n" in result)
+
+    # private type that contains procedures
+    # the `test_code` procedure should thus become private
+    test_code = (
+        "module test_mod\n"
+        "  use kernel_mod, only : parent_type\n"
+        "  type, extends(parent_type), private :: test_type\n"
+        "    integer :: i = 1\n"
+        "    contains\n"
+        "      procedure :: test_code\n"
+        "      procedure, private :: test_code_private\n"
+        "      procedure, public :: test_code_public\n"
+        "  end type test_type\n"
+        "  contains\n"
+        "  subroutine test_code()\n"
+        "  end subroutine\n"
+        "  subroutine test_code_private()\n"
+        "  end subroutine\n"
+        "  subroutine test_code_public()\n"
+        "  end subroutine\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].symbol_table
+    symbol = sym_table.lookup("test_type")
+    assert isinstance(symbol, DataTypeSymbol)
+    assert isinstance(symbol.datatype, StructureType)
+    assert len(symbol.datatype.procedure_components) == 3
+    result = fortran_writer(psyir)
+    assert (
+        "  type, extends(parent_type), private :: test_type\n"
+        "    integer, public :: i = 1\n"
+        "    contains\n"
+        "      procedure, private :: test_code\n"
         "      procedure, private :: test_code_private\n"
         "      procedure, public :: test_code_public\n"
         "  end type test_type\n" in result)

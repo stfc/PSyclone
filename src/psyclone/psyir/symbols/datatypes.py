@@ -956,8 +956,9 @@ class StructureType(DataType):
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility,
             Optional[:py:class:`psyclone.psyir.symbols.DataNode`]
             ]]]
-        :param extends: the type that this new type extends.
-        :type extends: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+        :param extends: the type that this new type extends (if any).
+        :type extends: Optional[
+            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
 
         :returns: the new type object.
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
@@ -995,7 +996,7 @@ class StructureType(DataType):
     @property
     def procedure_components(self):
         '''
-        :returns: Ordered dictionary of the procedure components of this type.
+        :returns: The procedure components of this type.
         :rtype: :py:class:`collections.OrderedDict`
         '''
         return self._procedure_components
@@ -1079,7 +1080,7 @@ class StructureType(DataType):
 
     def lookup_component(self, name):
         '''
-        :returns: the ComponentType tuple describing the named member of this
+        :returns: the ComponentType describing the named member of this
                   StructureType.
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
         '''
@@ -1104,10 +1105,10 @@ class StructureType(DataType):
         :raises TypeError: if any of the supplied values are of the wrong type.
 
         '''
-        # This import must be placed here to avoid circular
-        # dependencies.
+        # These imports must be placed here to avoid circular dependencies.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import DataNode
+        from psyclone.psyir.symbols import RoutineSymbol
+        from psyclone.psyir.nodes import Reference
         if not isinstance(name, str):
             raise TypeError(
                 f"The name of a procedure component of a StructureType must "
@@ -1116,29 +1117,31 @@ class StructureType(DataType):
             raise TypeError(
                 f"The type of a procedure component of a StructureType must "
                 f"be a 'DataType' but got '{type(datatype).__name__}'")
-        if isinstance(datatype, StructureType):
-            # A procedure component cannot be of type StructureType
-            raise TypeError(
-                f"The type of a procedure component of a StructureType cannot "
-                f"be a 'StructureType' but got '{type(datatype).__name__}'")
         if not isinstance(visibility, Symbol.Visibility):
             raise TypeError(
                 f"The visibility of a procedure component of a StructureType "
                 f"must be an instance of 'Symbol.Visibility' but got "
                 f"'{type(visibility).__name__}'")
         if (initial_value is not None and
-                not isinstance(initial_value, DataNode)):
+                not isinstance(initial_value, Reference)):
             raise TypeError(
                 f"The initial value of a procedure component of a "
-                f"StructureType must be None or an instance of 'DataNode', "
+                f"StructureType must be None or an instance of 'Reference' "
                 f"but got '{type(initial_value).__name__}'.")
+        if isinstance(initial_value, Reference):
+            if not isinstance(initial_value.symbol, RoutineSymbol):
+                raise TypeError(
+                    f"The initial value of a procedure component of a "
+                    f"StructureType must be None or a Reference to a "
+                    f"RoutineSymbol but got a Reference to a "
+                    f"'{type(initial_value.symbol).__name__}'.")
 
         self._procedure_components[name] = self.ComponentType(
             name, datatype, visibility, initial_value)
 
     def lookup_procedure_component(self, name):
         '''
-        :returns: the ComponentType tuple describing the named procedure
+        :returns: the ComponentType describing the named procedure
                   member of this StructureType.
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
         '''

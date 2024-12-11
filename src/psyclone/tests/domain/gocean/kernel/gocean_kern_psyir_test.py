@@ -54,7 +54,6 @@ from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import SymbolTable, REAL_TYPE, StructureType
-from psyclone.psyir.backend.fortran import FortranWriter
 
 METADATA = ("TYPE, EXTENDS(kernel_type) :: compute_cu\n"
             "  TYPE(go_arg), DIMENSION(4) :: meta_args = (/ &\n"
@@ -393,7 +392,7 @@ def test_getproperty_error():
             "EXTENDS(kernel_type)" in str(info.value))
 
 
-def test_getproperty(fortran_reader):
+def test_getproperty(fortran_reader, fortran_writer):
     '''Test utility function that takes metadata in an fparser2 tree and
     returns the value associated with the supplied property name.
 
@@ -403,10 +402,9 @@ def test_getproperty(fortran_reader):
         "compute_cu")
     datatype = datatype_symbol.datatype
     metadata = GOceanKernelMetadata()
-    # reader = FortranStringReader(datatype.declaration)
 
     assert isinstance(datatype, StructureType)
-    type_declaration = FortranWriter().gen_typedecl(datatype_symbol)
+    type_declaration = fortran_writer.gen_typedecl(datatype_symbol)
     reader = FortranStringReader(type_declaration)
 
     spec_part = Fortran2003.Derived_Type_Def(reader)

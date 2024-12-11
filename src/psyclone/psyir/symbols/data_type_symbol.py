@@ -52,6 +52,8 @@ class DataTypeSymbol(Symbol):
     :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
     :param interface: the interface to this symbol.
     :type interface: :py:class:`psyclone.psyir.symbols.SymbolInterface`
+    :param bool is_class: whether this symbol is used in a 'class' or 'type'
+                          declaration.
 
     '''
     def __init__(self, name, datatype,
@@ -125,7 +127,7 @@ class DataTypeSymbol(Symbol):
     def is_class(self, value):
         ''' Setter for DataTypeSymbol is_class.
 
-        :param bool value: whether this DataTypeSymbol is a 'class' \
+        :param bool value: whether this DataTypeSymbol is a 'class'
                            declaration, i.e. not a 'type' one.
 
         :raises TypeError: if value is not a bool.
