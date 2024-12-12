@@ -574,6 +574,11 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         read_var = f"{psy_data.name}%ReadVariable"
         mod_man = ModuleManager.get()
 
+        # Construct a set of the names of all LFRic kind parameters.
+        const = LFRicConstants()
+        all_kind_names = set(
+            [val["kind"] for val in const.DATA_TYPE_MAP.values()])
+
         # First handle variables that are read:
         # -------------------------------------
         for module_name, signature in read_write_info.read_list:
@@ -583,6 +588,11 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
             sig_str = self._flatten_signature(signature)
+
+            # Work-around for the fact that we want to exclude kind parameters.
+            if sig_str in all_kind_names:
+                continue
+
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
                 orig_sym = mod_info.get_symbol(signature[0])

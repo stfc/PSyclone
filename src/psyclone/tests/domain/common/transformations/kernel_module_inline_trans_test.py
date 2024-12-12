@@ -179,6 +179,11 @@ def test_validate_no_inline_global_var(parser):
     block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
     kernels[0].get_kernel_schedule().pop_all_children()
     kernels[0].get_kernel_schedule().addchild(block)
+    table = kernels[0].get_kernel_schedule().symbol_table
+    # Remove symbols that refer to 'go_wp' in outer scope.
+    table._symbols.pop("field_old")
+    table._symbols.pop("field_new")
+    table._symbols.pop("field")
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kernels[0])
     assert ("Kernel 'kernel_with_global_code' contains accesses to 'unknown' "
