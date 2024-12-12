@@ -39,7 +39,7 @@
 import pytest
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.psyir.nodes import (
-    Schedule, Assignment, Reference, Container, IntrinsicCall, Loop, Literal,
+    Schedule, Assignment, Reference, Container, Loop, Literal,
     Routine, ArrayReference)
 from psyclone.psyir.symbols import (
     ArrayType, ArgumentInterface, DataSymbol, DataTypeSymbol, INTEGER_TYPE,
@@ -295,17 +295,17 @@ def test_scoping_node_reference_accesses():
     assert not vai.all_signatures
     # Add another Symbol that references the first one in its precision.
     new_type = ScalarType(ScalarType.Intrinsic.REAL, prsym)
-    var1 = table.new_symbol("var1", symbol_type=DataSymbol, datatype=new_type)
+    _ = table.new_symbol("var1", symbol_type=DataSymbol, datatype=new_type)
     sched.reference_accesses(vai)
     assert vai.all_signatures == [Signature("r_def")]
     # Add a Symbol with initialisation.
     idef = table.new_symbol("i_def", symbol_type=DataSymbol,
                             datatype=INTEGER_TYPE)
     int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
-    var2 = table.new_symbol("var2", symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE,
-                            is_constant=True,
-                            initial_value=Literal("100", int_type))
+    _ = table.new_symbol("var2", symbol_type=DataSymbol,
+                         datatype=INTEGER_TYPE,
+                         is_constant=True,
+                         initial_value=Literal("100", int_type))
     vai2 = VariablesAccessInfo()
     sched.reference_accesses(vai2)
     assert len(vai2.all_signatures) == 2
@@ -355,12 +355,10 @@ def test_reference_accesses_array():
     int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
     real_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
     var2 = table.new_symbol("var2", symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE,
-                            is_constant=True,
+                            datatype=INTEGER_TYPE, is_constant=True,
                             initial_value=Literal("100", int_type))
     atype = ArrayType(real_type, [Reference(var2)])
-    var3 = table.new_symbol("var3", symbol_type=DataSymbol,
-                            datatype=atype)
+    _ = table.new_symbol("var3", symbol_type=DataSymbol, datatype=atype)
     vai = VariablesAccessInfo()
     sched.reference_accesses(vai)
     assert Signature("i_def") in vai.all_signatures
