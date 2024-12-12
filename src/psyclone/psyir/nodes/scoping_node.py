@@ -39,7 +39,7 @@
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import (
-    DataType, DataTypeSymbol, RoutineSymbol, StructureType, Symbol,
+    ArrayType, DataType, DataTypeSymbol, RoutineSymbol, StructureType, Symbol,
     SymbolError, SymbolTable)
 
 
@@ -158,10 +158,10 @@ class ScopingNode(Node):
                 pass
 
         super(ScopingNode, self)._refine_copy(other)
-        # pylint: disable=protected-access
 
         # Add any routine tags back
         for tag in removed_tags.keys():
+            # pylint: disable-next=protected-access
             self._symbol_table._tags[tag] = self._symbol_table.lookup(
                     removed_tags[tag].name)
 
@@ -193,20 +193,26 @@ class ScopingNode(Node):
             :param info: the VariablesAccessInfo instance in which to store
                          information.
             '''
-            if isinstance(dtype, DataTypeSymbol):
-                info.add_access(Signature(dtype.name),
-                                AccessType.READ, self)
-            elif (hasattr(dtype, "precision") and
-                  isinstance(dtype.precision, Symbol)):
+            if (hasattr(dtype, "precision") and isinstance(dtype.precision,
+                                                           Symbol)):
                 access_info.add_access(
                     Signature(dtype.precision.name),
                     AccessType.READ, self)
+
+            if isinstance(dtype, DataTypeSymbol):
+                info.add_access(Signature(dtype.name),
+                                AccessType.READ, self)
             elif isinstance(dtype, StructureType):
-                for cmpt in sym.datatype.components:
+                for cmpt in sym.datatype.components.values():
                     # Recurse for members of a StructureType
                     _get_accesses(cmpt.datatype, info)
                     if cmpt.initial_value:
                         cmpt.initial_value.reference_accesses(info)
+            elif isinstance(dtype, ArrayType):
+                for dim in dtype.shape:
+                    if isinstance(dim, ArrayType.ArrayBounds):
+                        dim.lower.reference_accesses(access_info)
+                        dim.upper.reference_accesses(access_info)
 
         # Examine the datatypes and initial values of all DataSymbols.
         for sym in self._symbol_table.datasymbols:
@@ -214,6 +220,10 @@ class ScopingNode(Node):
 
             if sym.initial_value:
                 sym.initial_value.reference_accesses(access_info)
+
+        # Examine the definition of each DataTypeSymbol.
+        for sym in self._symbol_table.datatypesymbols:
+            _get_accesses(sym.datatype, access_info)
 
         super().reference_accesses(access_info)
 

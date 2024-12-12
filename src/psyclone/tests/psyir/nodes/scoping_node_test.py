@@ -42,8 +42,8 @@ from psyclone.psyir.nodes import (
     Schedule, Assignment, Reference, Container, IntrinsicCall, Loop, Literal,
     Routine, ArrayReference)
 from psyclone.psyir.symbols import (
-    DataSymbol, ArrayType, INTEGER_TYPE,
-    ArgumentInterface, ScalarType, SymbolTable, REAL_TYPE)
+    ArrayType, ArgumentInterface, DataSymbol, DataTypeSymbol, INTEGER_TYPE,
+    ScalarType, StructureType, Symbol, SymbolTable, REAL_TYPE)
 from psyclone.tests.utilities import Compile
 
 
@@ -304,11 +304,65 @@ def test_scoping_node_reference_accesses():
     int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
     var2 = table.new_symbol("var2", symbol_type=DataSymbol,
                             datatype=INTEGER_TYPE,
+                            is_constant=True,
                             initial_value=Literal("100", int_type))
     vai2 = VariablesAccessInfo()
     sched.reference_accesses(vai2)
     assert len(vai2.all_signatures) == 2
     assert Signature("i_def") in vai2.all_signatures
-    # A StructureType.
-    # stype = StructureType.create()
-    # Dimensions of an ArrayType.
+
+
+def test_reference_accesses_struct():
+    '''Test reference_accesses() when the associated SymbolTable contains
+    a StructureType.
+
+    '''
+    sched = Schedule()
+    table = sched.symbol_table
+    idef = table.new_symbol("i_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
+    real_type = ScalarType(ScalarType.Intrinsic.INTEGER, rdef)
+    stype = StructureType.create([
+        ("iflag", int_type, Symbol.Visibility.PRIVATE, None),
+        ("rmask", real_type, Symbol.Visibility.PUBLIC,
+         Literal("100", real_type))])
+    ssym = DataTypeSymbol("my_type", stype)
+    table.add(ssym)
+    vai3 = VariablesAccessInfo()
+    sched.reference_accesses(vai3)
+    assert len(vai3.all_signatures) == 2
+    assert Signature("i_def") in vai3.all_signatures
+    assert Signature("r_def") in vai3.all_signatures
+    table.new_symbol("var4", symbol_type=DataSymbol, datatype=ssym)
+    vai4 = VariablesAccessInfo()
+    sched.reference_accesses(vai4)
+
+
+def test_reference_accesses_array():
+    '''Test reference_accesses() with the associated SymbolTable contains
+    an array with dimensions that make reference to another Symbol.
+
+    '''
+    sched = Schedule()
+    table = sched.symbol_table
+    idef = table.new_symbol("i_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    int_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
+    real_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
+    var2 = table.new_symbol("var2", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE,
+                            is_constant=True,
+                            initial_value=Literal("100", int_type))
+    atype = ArrayType(real_type, [Reference(var2)])
+    var3 = table.new_symbol("var3", symbol_type=DataSymbol,
+                            datatype=atype)
+    vai = VariablesAccessInfo()
+    sched.reference_accesses(vai)
+    assert Signature("i_def") in vai.all_signatures
+    assert Signature("r_def") in vai.all_signatures
+    assert Signature("var2") in vai.all_signatures
