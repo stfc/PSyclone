@@ -230,7 +230,7 @@ def enhance_tree_information(schedule):
                 reference.symbol.name.startswith('nf90_')):
             if len(reference.children) >= 1:
                 # Thigs with no children are already properly classified
-                break
+                continue
             if reference.symbol.is_import or reference.symbol.is_unresolved:
                 # The parser gets these wrong, they are Calls not ArrayRefs
                 if not isinstance(reference.symbol, RoutineSymbol):
