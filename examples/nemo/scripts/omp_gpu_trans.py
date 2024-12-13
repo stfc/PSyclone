@@ -37,6 +37,7 @@
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
+import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
     enhance_tree_information, PASSTHROUGH_ISSUES, PARALLELISATION_ISSUES)
@@ -50,20 +51,24 @@ PROFILING_ENABLED = False
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = PASSTHROUGH_ISSUES + [
-    "lib_mpp.f90",  # Compiler Error: Illegal substring expression
-    "prtctl.f90",   # Compiler Error: Illegal substring expression
-    "sbcblk.f90",   # Compiler Error: Vector expression used where scalar
+    "iom.f90",
+    "iom_nf90.f90",
+    "iom_def.f90",
+    "timing.f90",   # Compiler error: Subscript, substring, or argument illegal
+    "lbcnfd.f90",   # Illegal address during kernel execution - line 1012: lbc_nfd_dp
+    "lib_mpp.f90",  # Compiler error: Illegal substring expression
+    "prtctl.f90",   # Compiler error: Illegal substring expression
+    "sbcblk.f90",   # Compiler error: Vector expression used where scalar
                     # expression required
-    "diadct.f90",   # Compiler Error: Wrong number of arguments in reshape
-    "stpctl.f90",
-    "lbcnfd.f90",
-    "flread.f90",
 ]
 
 OFFLOADING_ISSUES = [
-    "tranxt.f90", # String comparison not allowed inside omp teams (this worked fine with omp loop)
-    "trazdf.f90", # String comparison not allowed inside omp teams (this worked fine with omp loop)
-    "crsdom.f90", # String comparison not allowed inside omp teams (this worked fine with omp loop)
+    "trcrad.f90",  # Illegal address during kernel execution, unless the dimensions are small
+    "tranxt.f90",  # String comparison not allowed inside omp teams (this worked fine with omp loop)
+    "trazdf.f90",  # String comparison not allowed inside omp teams (this worked fine with omp loop)
+    "crsdom.f90",  # String comparison not allowed inside omp teams (this worked fine with omp loop)
+    "zdftke.f90",  # returned error 700 (CUDA_ERROR_ILLEGAL_ADDRESS): Illegal address during kernel execution
+    "dynzdf.f90",  # returned error 700 (CUDA_ERROR_ILLEGAL_ADDRESS): Illegal address during kernel execution
 ]
 
 PRIVATISATION_ISSUES = [
@@ -79,9 +84,13 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    # if psyir.name not in (os.environ['ONLY_FILE'], "lib_fortran.f90"):
+    #     return
     omp_target_trans = OMPTargetTrans()
-    omp_loop_trans = OMPLoopTrans(omp_schedule="none")
-    omp_loop_trans.omp_directive = "teamsdistributeparalleldo"
+    omp_gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
+    omp_gpu_loop_trans.omp_directive = "teamsdistributeparalleldo"
+    omp_cpu_loop_trans = OMPLoopTrans(omp_schedule="static")
+    omp_cpu_loop_trans.omp_directive = "paralleldo"
 
     # Many of the obs_ files have problems to be offloaded to the GPU
     if psyir.name.startswith("obs_"):
@@ -129,7 +138,7 @@ def trans(psyir):
                 if loop.ancestor(Directive):
                     continue
                 try:
-                    omp_loop_trans.apply(loop, options={"force": True})
+                    omp_gpu_loop_trans.apply(loop, options={"force": True})
                 except TransformationError:
                     continue
                 omp_target_trans.apply(loop.parent.parent)
@@ -147,7 +156,14 @@ def trans(psyir):
             insert_explicit_loop_parallelism(
                     subroutine,
                     region_directive_trans=omp_target_trans,
-                    loop_directive_trans=omp_loop_trans,
+                    loop_directive_trans=omp_gpu_loop_trans,
                     collapse=True,
+                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
+            )
+        elif psyir.name not in PARALLELISATION_ISSUES:
+            # This have issues offloading, but we can still do OpenMP threading
+            insert_explicit_loop_parallelism(
+                    subroutine,
+                    loop_directive_trans=omp_cpu_loop_trans,
                     privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
             )

@@ -2116,6 +2116,8 @@ class OMPDoDirective(OMPRegionDirective):
                         f"'{self}' has a collapse={self._collapse} and the "
                         f"nested body at depth {depth} cannot be "
                         f"collapsed.")
+                if len(cursor.loop_body.children) == 0:
+                    break
                 cursor = cursor.loop_body.children[0]
 
     def _validate_single_loop(self):
