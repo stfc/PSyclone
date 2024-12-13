@@ -249,7 +249,7 @@ def test_init_fields_random_vector(type_map):
     '''
     table = LFRicSymbolTable()
     idef_sym = table.add_lfric_precision_symbol("i_def")
-    idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
+    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef_sym)
 
     fld_type = DataTypeSymbol(type_map["field"]["type"],
                               datatype=UnresolvedType())
