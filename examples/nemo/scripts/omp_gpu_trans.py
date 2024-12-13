@@ -37,7 +37,7 @@
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
-import os
+# import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
     enhance_tree_information, PASSTHROUGH_ISSUES, PARALLELISATION_ISSUES)
@@ -55,7 +55,8 @@ FILES_TO_SKIP = PASSTHROUGH_ISSUES + [
     "iom_nf90.f90",
     "iom_def.f90",
     "timing.f90",   # Compiler error: Subscript, substring, or argument illegal
-    "lbcnfd.f90",   # Illegal address during kernel execution - line 1012: lbc_nfd_dp
+    "lbcnfd.f90",   # Illegal address during kernel execution
+                    # - line 1012: lbc_nfd_dp
     "lib_mpp.f90",  # Compiler error: Illegal substring expression
     "prtctl.f90",   # Compiler error: Illegal substring expression
     "sbcblk.f90",   # Compiler error: Vector expression used where scalar
@@ -63,17 +64,21 @@ FILES_TO_SKIP = PASSTHROUGH_ISSUES + [
 ]
 
 OFFLOADING_ISSUES = [
-    "trcrad.f90",  # Illegal address during kernel execution, unless the dimensions are small
-    "tranxt.f90",  # String comparison not allowed inside omp teams (this worked fine with omp loop)
-    "trazdf.f90",  # String comparison not allowed inside omp teams (this worked fine with omp loop)
-    "crsdom.f90",  # String comparison not allowed inside omp teams (this worked fine with omp loop)
-    "zdftke.f90",  # returned error 700 (CUDA_ERROR_ILLEGAL_ADDRESS): Illegal address during kernel execution
-    "dynzdf.f90",  # returned error 700 (CUDA_ERROR_ILLEGAL_ADDRESS): Illegal address during kernel execution
+    "trcrad.f90",  # Illegal address during kernel execution, unless the
+                   # dimensions are small
+    "tranxt.f90",  # String comparison not allowed inside omp teams
+                   # (this worked fine with omp loop)
+    "trazdf.f90",  # String comparison not allowed inside omp teams
+    "crsdom.f90",  # String comparison not allowed inside omp teams
+    "zdftke.f90",  # returned error 700 (CUDA_ERROR_ILLEGAL_ADDRESS):
+                   # Illegal address during kernel execution
+    "dynzdf.f90",  # returned error 700 (CUDA_ERROR_ILLEGAL_ADDRESS)
 ]
 
 PRIVATISATION_ISSUES = [
     "ldftra.f90",  # Wrong runtime results
 ]
+
 
 def trans(psyir):
     ''' Add OpenMP Target and Loop directives to all loops, including the

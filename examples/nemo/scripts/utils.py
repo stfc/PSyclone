@@ -100,7 +100,7 @@ NEMO_FUNCTIONS = [
     'gamma_moist', 'gamma_moist_sclr', 'gamma_moist_vctr', 'get_unit',
     'grt_cir_dis', 'grt_cir_dis_saa', 'icb_alloc', 'icb_utl_bilin',
     'icb_utl_bilin_2d_h', 'icb_utl_bilin_3d_h', 'icb_utl_bilin_e',
-    'icb_utl_bilin_h', 'icb_utl_bilin_x',' icb_utl_count', 'icb_utl_heat',
+    'icb_utl_bilin_h', 'icb_utl_bilin_x', 'icb_utl_count', 'icb_utl_heat',
     'icb_utl_mass', 'icb_utl_yearday', 'ice1D_alloc', 'ice_alloc',
     'ice_dia_alloc', 'ice_dyn_rdgrft_alloc', 'ice_perm_eff',
     'ice_thd_pnd_alloc', 'ice_update_alloc', 'ice_var_sshdyn', 'in_hdom',
@@ -227,9 +227,10 @@ def enhance_tree_information(schedule):
                 reference.symbol.name.startswith('glob_') or
                 reference.symbol.name.startswith('SIGN_') or
                 reference.symbol.name.startswith('netcdf_') or
-                (reference.symbol.name.startswith('nf90_') and not
-                 reference.symbol.name in ['nf90_64bit_offset', 'nf90_short',
-                                           'nf90_clobber'])):
+                (reference.symbol.name.startswith('nf90_') and
+                 reference.symbol.name not in ['nf90_64bit_offset',
+                                               'nf90_short',
+                                               'nf90_clobber'])):
             if reference.symbol.is_import or reference.symbol.is_unresolved:
                 # The parser gets these wrong, they are Calls not ArrayRefs
                 if not isinstance(reference.symbol, RoutineSymbol):
