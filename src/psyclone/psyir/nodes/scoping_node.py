@@ -177,7 +177,7 @@ class ScopingNode(Node):
         '''
         Get all variable access information. This specialisation is required
         to query the SymbolTable associated with a Scoping node and ensure
-        that any Symbols appearing in precision specifications or
+        that any Symbols appearing in precision specifications, array shapes or
         initialisation expressions are captured.
 
         :param var_accesses: VariablesAccessInfo instance that stores the
