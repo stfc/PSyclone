@@ -142,20 +142,6 @@ def enhance_tree_information(schedule):
     for reference in schedule.walk(Reference):
         if reference.symbol.name in are_integers:
             _it_should_be(reference.symbol, ScalarType, INTEGER_TYPE)
-        elif reference.symbol.name in ('rn_avt_rnf', ):
-            _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
-        elif isinstance(reference.symbol.interface, ImportInterface) and \
-                reference.symbol.interface.container_symbol.name == "phycst":
-            if not isinstance(reference.symbol, RoutineSymbol):
-                # Every datasymbol imported from phycst is a REAL
-                _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
-        elif reference.symbol.name == 'tmask':
-            if reference.ancestor(Container).name == "dom_oce":
-                continue  # Do not update the original declaration
-            _it_should_be(reference.symbol, ArrayType, ArrayType(REAL_TYPE, [
-                        ArrayType.Extent.ATTRIBUTE,
-                        ArrayType.Extent.ATTRIBUTE,
-                        ArrayType.Extent.ATTRIBUTE]))
         elif reference.symbol.name in NEMO_FUNCTIONS:
             if reference.symbol.is_import or reference.symbol.is_unresolved:
                 # The parser gets these wrong, they are Calls not ArrayRefs
