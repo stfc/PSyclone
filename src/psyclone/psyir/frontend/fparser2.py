@@ -850,8 +850,11 @@ class Fparser2Reader():
     convert the nodes to PSyIR.
 
     :param resolve_modules: Whether to resolve modules while parsing a file,
-        for more precie control it also accepts a list of modules names.
+        for more precise control it also accepts a list of module names.
         Defaults to False.
+
+    :raises TypeError: if the constructor argument is not of the expected type.
+
     '''
 
     unary_operators = OrderedDict([
@@ -943,7 +946,7 @@ class Fparser2Reader():
         elif (isinstance(resolve_modules, Iterable) and
               all(isinstance(x, str) for x in resolve_modules)):
             self._resolve_all_modules = False
-            self._modules_to_resolve = resolve_modules
+            self._modules_to_resolve = [n.lower() for n in resolve_modules]
         else:
             raise TypeError(
                 f"The 'resolve_modules' argument must be a boolean or an "
@@ -1549,7 +1552,7 @@ class Fparser2Reader():
                 raise NotImplementedError(f"Found unsupported USE statement: "
                                           f"'{decl}'")
 
-            # Import symbols information from module/container (if enabled)
+            # Import symbol information from module/container (if enabled)
             if (self._resolve_all_modules or
                     container.name.lower() in self._modules_to_resolve):
                 parent.symbol_table.resolve_imports([container])

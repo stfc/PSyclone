@@ -86,7 +86,7 @@ def test_gis_specialise():
     # Specialise symbols without routines
     symbol = Symbol("no_routines")
     symbol.specialise(GenericInterfaceSymbol)
-    assert symbol.routines == []  # It now has a routine attribute
+    assert symbol.routines == []  # It now has a routines attribute
 
     symbol = Symbol("has_routines")
     impl1 = RoutineSymbol("impl1")

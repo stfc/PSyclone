@@ -107,7 +107,7 @@ def load_script(
     :param is_optional: whether the function is optional or not. Defaults to
         False.
 
-    :returns: callable recipe, list of files to skip, whether to resolved
+    :returns: callable recipe, list of files to skip, whether to resolve
         modules (or which ones).
 
     :raises IOError: if the file is not found.

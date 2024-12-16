@@ -917,7 +917,8 @@ def trans(psyir):
           ("1", "True", "result = 1 + 1"),
           ("2", "[\"module1\"]", "result = 1 + b"),
           ("3", "[\"module2\"]", "result = a + 1"),
-          ("4", "[\"module1\",\"module2\"]", "result = 1 + 1")])
+          # Now change both with case insensitive names
+          ("4", "[\"mOdule1\",\"moduLe2\"]", "result = 1 + 1")])
 def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
                                              idx, value, output):
     ''' Test that applying recipes in the code-transformation mode follows the
@@ -970,7 +971,7 @@ def trans(psyir):
     main(["code.f90", "-s", recipe_name])
     captured = capsys.readouterr()
 
-    # Since we only resolved "module1" the result should be:
+    # Compare the generated output to the parametrised expected output
     assert output in str(captured), str(captured)
 
 

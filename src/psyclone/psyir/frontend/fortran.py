@@ -56,7 +56,7 @@ class FortranReader():
     or a file into PSyIR using the fparser2 utilities.
 
     :param resolve_modules: Whether to resolve modules while parsing a file,
-        for more precie control it also accepts a list of modules names.
+        for more precise control it also accepts a list of module names.
         Defaults to False.
 
     '''

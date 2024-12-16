@@ -53,7 +53,7 @@ performance monitoring.
 PSyclone User Scripts
 ---------------------
 
-A convinient way to apply transformations to a codebase is through the
+A convenient way to apply transformations to a codebase is through the
 :ref:`psyclone_command` tool, which has the optional ``-s <SCRIPT_NAME>``
 flag that allows users to specify a script file to programatically modify
 input code::
@@ -82,7 +82,7 @@ code (as a FileConatainer):
     def trans(psyir):
         # ...
 
-The example below adds OpenMP directive to a specific PSyKAL kernel:
+The example below adds an OpenMP directive to a specific PSyKAL kernel:
 
 .. code-block:: python
 
@@ -94,9 +94,20 @@ The example below adds OpenMP directive to a specific PSyKAL kernel:
                 ol = OMPParallelLoopTrans()
                 ol.apply(subroutine.children[0])
 
-In addition to this method, there are special global variables that can be set
-to control some of the behaviours of the front-end (before the psyclone script
-executes). These are:
+
+The script may apply as many transformations as is required for the intended
+optimisation, and may also apply transformations to all the routines (i.e. invokes
+and/or kernels) contained within the provided tree.
+The :ref:`examples section<examples>` provides a list of psyclone user scripts
+and associated usage instructions for multiple applications.
+
+
+Script Global Variables
++++++++++++++++++++++++
+
+In addition to the ``trans`` function, there are special global variables that can be set
+to control some of the behaviours of the front-end (before the optimisation function
+is applied). These are:
 
 .. code-block:: python
 
@@ -112,9 +123,14 @@ executes). These are:
         # ...
 
 
-In the gocean API (and in the future the lfric API) an optional **trans_alg**
-function may also be supplied. This function accepts **PSyIR** (representing
-the algorithm layer) as an argument and returns **PSyIR** i.e.:
+PSyKAl algorithm code transformations
++++++++++++++++++++++++++++++++++++++
+
+When using PSyKAl, the ``trans`` functions is used to transform the PSy-layer (the
+layer in charge of the Parallel-System and Loops traversal orders), however, a
+second optional transformation entry point ``trans_alg`` can be provided to
+directly transform the Algorithm-layer (this is currently only implemented for
+GOcean, but in the future it will also affect the LFRic DSL).
 
 .. code-block:: python
 
@@ -124,24 +140,13 @@ the algorithm layer) as an argument and returns **PSyIR** i.e.:
 As with the `trans()` function it is up to the script what it does with
 the algorithm PSyIR. Note that the `trans_alg()` script is applied to
 the algorithm layer before the PSy-layer is generated so any changes
-applied to the algorithm layer will be reflected in the **PSy** object
-that is passed to the `trans()` function.
+applied to the algorithm layer will be reflected in the PSy-layer PSyIR tree
+object that is passed to the `trans()` function.
 
 For example, if the `trans_alg()` function in the script merged two
-`invoke` calls into one then the **Alg** object passed to the
-`trans()` function of the script would only contain one schedule
+`invoke` calls into one then the PSyIR node passed to the
+`trans()` function of the script would only contain one Routine
 associated with the merged invoke.
-
-Of course the script may apply as many transformations as is required
-for a particular algorithm and/or schedule and may apply
-transformations to all the schedules (i.e. invokes and/or kernels)
-contained within the PSy layer.
-
-Examples of the use of transformation scripts can be found in many of
-the examples, such as examples/lfric/eg3 and
-examples/lfric/scripts. Please read the examples/lfric/README file
-first as it explains how to run the examples (and see also the
-examples/check_examples script).
 
 An example of the use of a script making use of the `trans_alg()`
 function can be found in examples/gocean/eg7.

@@ -1716,7 +1716,7 @@ def test_process_use_stmts_resolving_external_imports(
         # If value is false, the symbol information is not resolved, e.g.
         # unused public symbols will not be present
         assert "unused_array" not in symtab
-        return  # The rest of the asserts requiere this information
+        return  # The rest of the asserts require this information
 
     # The container, and all its public symbols are now in the table with
     # the right symbol kind and datatype
