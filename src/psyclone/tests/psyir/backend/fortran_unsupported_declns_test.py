@@ -231,8 +231,6 @@ def test_fw_preceding_and_inline_comment(fortran_writer):
     symbol.inline_comment = "This is an inline comment"
     expected = ("! This is a preceding comment\n"
                 "integer :: var ! This is an inline comment")
-    assert (not isinstance(symbol, RoutineSymbol)
-            and not symbol.name.startswith("_PSYCLONE_INTERNAL"))
     assert expected in fortran_writer.gen_vardecl(symbol)
 
     # include_visibility=True case

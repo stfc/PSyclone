@@ -559,14 +559,8 @@ class FortranWriter(LanguageWriter):
                     # blocks appearing in SAVE statements.
                     decln = add_accessibility_to_unsupported_declaration(
                                 symbol)
-                    result += f"{self._nindent}{decln}"
-                    if symbol.inline_comment != "":
-                        result += (f" {self._COMMENT_PREFIX}"
-                                   f"{symbol.inline_comment}")
-                    result += "\n"
-                    return result
-
-                decln = symbol.datatype.declaration
+                else:
+                    decln = symbol.datatype.declaration
                 result += f"{self._nindent}{decln}"
                 if symbol.inline_comment != "":
                     result += (f" {self._COMMENT_PREFIX}"

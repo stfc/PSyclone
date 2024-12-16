@@ -303,12 +303,25 @@ def test_gen_decls_comments(fortran_writer):
     when the symbol has a description.
 
     '''
-    sym = DataSymbol("v1", datatype=INTEGER_TYPE)
+    sym = DataSymbol("v1", datatype=INTEGER_TYPE,
+                     initial_value=Literal("1", INTEGER_TYPE),
+                     is_constant=True)
     sym.preceding_comment = "Preceding comment"
     sym.inline_comment = "Inline comment"
     result = fortran_writer.gen_vardecl(sym)
     expected = ("! Preceding comment\n"
-                "integer :: v1 ! Inline comment")
+                "integer, parameter :: v1 = 1 ! Inline comment")
+    assert expected in result
+
+    sym2 = DataSymbol("v2", datatype=INTEGER_TYPE,
+                      initial_value=Literal("2", INTEGER_TYPE),
+                      is_constant=True)
+    sym2.preceding_comment = "Preceding comment\nwith newline"
+    sym2.inline_comment = "Inline comment"
+    result = fortran_writer.gen_vardecl(sym2)
+    expected = ("! Preceding comment\n"
+                "! with newline\n"
+                "integer, parameter :: v2 = 2 ! Inline comment")
     assert expected in result
 
 

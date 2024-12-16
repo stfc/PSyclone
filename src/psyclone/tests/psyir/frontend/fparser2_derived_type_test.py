@@ -48,7 +48,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     KernelSchedule, CodeBlock, Assignment, ArrayOfStructuresReference,
     StructureReference, Member, StructureMember, ArrayOfStructuresMember,
-    ArrayMember, Literal, Reference, Range, IntrinsicCall)
+    ArrayMember, Literal, Reference, Range, IntrinsicCall, Container)
 from psyclone.psyir.symbols import (
     SymbolError, UnresolvedType, StructureType, DataTypeSymbol, ScalarType,
     RoutineSymbol, Symbol, ArrayType, UnsupportedFortranType, DataSymbol,
@@ -242,39 +242,36 @@ def test_existing_symbol_derived_type_def(f2008_parser):
 def test_preceding_comments(f2008_parser):
     ''' Check that the frontend correctly handles comments that precede
     a derived type definition. '''
-    fake_parent = KernelSchedule.create("dummy_schedule")
+    fake_parent = Container("dummy_container")
     processor = Fparser2Reader()
-    comment = Fortran2003.Comment(
-        FortranStringReader("! This is a comment\n",
-                            ignore_comments=False))
-    other = Fortran2003.Comment(
-        FortranStringReader("! This is another comment\n",
-                            ignore_comments=False))
     fparser2spec = f2008_parser(FortranStringReader("subroutine my_sub\n"
+                                                    "! This is a comment\n"
+                                                    "! This is another comment\n"
                                                     "type :: my_type\n"
                                                     "  integer :: flag\n"
-                                                    "end type my_type\n"
-                                                    "end subroutine my_sub\n"))
-    type_decl = walk(fparser2spec, types=Fortran2003.Derived_Type_Def)
-    typ = processor._process_derived_type_decln(fake_parent, type_decl[0],
-                                                dict(),
-                                                preceding_comments=[comment,
-                                                                    other])
+                                                    "end type my_type ! Inline comment\n"
+                                                    "end subroutine my_sub\n",
+                                                    ignore_comments=False))
+    sub_decl = walk(fparser2spec, types=Fortran2003.Subroutine_Subprogram)
+    sub = processor._subroutine_handler(sub_decl[0], fake_parent)
+    typ = sub.symbol_table.lookup("my_type")
     assert typ.preceding_comment == ("This is a comment\n"
                                      "This is another comment")
+    assert typ.inline_comment == "Inline comment"
 
-    fake_parent = KernelSchedule.create("dummy_schedule")
+    fake_parent = Container("dummy_container")
     processor = Fparser2Reader()
     fparser2spec = f2008_parser(FortranStringReader("subroutine my_sub\n"
                                                     "type :: my_type\n"
                                                     "  integer :: flag\n"
                                                     "end type my_type\n"
-                                                    "end subroutine my_sub\n"))
-    type_decl = walk(fparser2spec, types=Fortran2003.Derived_Type_Def)
-    typ = processor._process_derived_type_decln(fake_parent, type_decl[0],
-                                                dict(),
-                                                preceding_comments=None)
+                                                    "end subroutine my_sub\n",
+                                                    ignore_comments=False))
+    sub_decl = walk(fparser2spec, types=Fortran2003.Subroutine_Subprogram)
+    sub = processor._subroutine_handler(sub_decl[0], fake_parent)
+    typ = sub.symbol_table.lookup("my_type")
     assert typ.preceding_comment == ""
+    assert typ.inline_comment == ""
 
 
 @pytest.mark.usefixtures("f2008_parser")

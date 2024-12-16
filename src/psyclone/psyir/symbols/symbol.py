@@ -167,8 +167,6 @@ class Symbol(CommentableMixin):
             raise TypeError(f"Argument should be of type 'Symbol' but "
                             f"found '{type(symbol_in).__name__}'.")
         self._interface = symbol_in.interface
-        self.preceding_comment = symbol_in.preceding_comment
-        self.inline_comment = symbol_in.inline_comment
 
     def specialise(self, subclass, **kwargs):
         '''Specialise this symbol so that it becomes an instance of the class
