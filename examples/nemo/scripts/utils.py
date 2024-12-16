@@ -37,11 +37,10 @@
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Assignment, Loop, Directive, Container, Reference, CodeBlock,
+    Assignment, Loop, Directive, Reference, CodeBlock,
     Call, Return, IfBlock, Routine, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ScalarType,
-    RoutineSymbol, ImportInterface)
+    DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
@@ -126,10 +125,13 @@ def _it_should_be(symbol, of_type, instance):
 
 def enhance_tree_information(schedule):
     ''' Manually fix some PSyIR issues produced by not having enough symbol
-    information from external modules.
+    information from external modules. Setting NEMO_MODULES_TO_IMPORT above
+    improve the situation but its not complete (not all symbols are imported)
+    and it is not transitive (imports that inside import other symbols).
 
     :param schedule: the PSyIR Schedule to transform.
     :type schedule: :py:class:`psyclone.psyir.nodes.node`
+
     '''
     are_integers = ('jpi', 'jpim1', 'jpj', 'jpjm1', 'jp_tem', 'jp_sal',
                     'jpkm1', 'jpiglo', 'jpni', 'jpk', 'jpiglo_crs',
@@ -137,10 +139,10 @@ def enhance_tree_information(schedule):
                     'jpts', 'jpvor_bev', 'nleapy', 'nn_ctls', 'jpmxl_npc',
                     'jpmxl_zdfp', 'npti')
 
-    # Manually set the datatype of some integer and real variables that are
-    # important for performance
     for reference in schedule.walk(Reference):
         if reference.symbol.name in are_integers:
+            # Manually set the datatype of some integer scalars that are
+            # important for performance
             _it_should_be(reference.symbol, ScalarType, INTEGER_TYPE)
         elif reference.symbol.name in NEMO_FUNCTIONS:
             if reference.symbol.is_import or reference.symbol.is_unresolved:
