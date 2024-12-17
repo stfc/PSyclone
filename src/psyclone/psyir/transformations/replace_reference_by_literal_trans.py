@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author: H. Brunie, University of Grenoble Alpes
 
-"""Module providing a transformation that replace PsyIR Node static const Reference 
-with a Literal node when possible. """
+"""Module providing a transformation that replace PsyIR Node static const 
+Reference with a Literal node when possible. """
 
 from psyclone.psyir.symbols import (
     DataSymbol,
@@ -78,7 +78,10 @@ class ReplaceReferenceByLiteralTrans(Transformation):
     """
 
     def __str__(self):
-        return "Replaces all static const Reference by its Literal in a subroutine."
+        return (
+            "Replaces all static const Reference"
+            + " by its Literal in a subroutine."
+        )
 
     def _update_param_table(
         self, param_table: Dict[str, Literal], symbol_table: SymbolTable
@@ -95,7 +98,8 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                     )
                 if not isinstance(sym.initial_value, Literal):
                     raise TransformationError(
-                        f"DataSymbol {sym_name} initial value is not a Literal {type(sym.initial_value)}."
+                        f"DataSymbol {sym_name} initial value is not "
+                        + f"a Literal {type(sym.initial_value)}."
                     )
                 new_literal = sym.initial_value.copy().detach()
                 param_table[sym_name] = new_literal
@@ -152,7 +156,9 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                 )
 
                 if not isinstance(sym.datatype, UnsupportedFortranType):
-                    new_shape = self._replace_bounds(sym.shape, param_table)
+                    new_shape: List[Union[Literal, Reference]] = (
+                        self._replace_bounds(sym.shape, param_table)
+                    )
                     sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
         ## For debug and triggering raise Error.
         self._param_table = param_table
