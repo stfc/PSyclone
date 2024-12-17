@@ -79,7 +79,8 @@ contains
                                           ndf_w3, undf_w3, map_w3)
     use constants_mod, only: eps, i_def, r_def
     use module_with_var_mod, only: module_subroutine, module_var_a, &
-                                   module_function, module_const
+                                   module_function, module_const,   &
+                                   user_var
 
     implicit none
 
@@ -99,7 +100,9 @@ contains
     real(kind=r_def) :: tmp
 
     ! Also test handling of intrinsics
-    tmp = fld2(1)*fld3(1)*fld4(1) + sqrt(ascalar)
+    tmp = fld2(1)*fld3(1)*fld4(1) + sqrt(ascalar) + user_var%member_read
+    user_var%member_write = 1
+    user_var%member_read_write = user_var%member_read_write + 1
     fld1(1) = eps * nlayers + tmp
     dummy_module_variable = 1 + dummy_constant + local_func(1) + module_const
     fld1(1) = module_function()
