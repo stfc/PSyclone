@@ -234,29 +234,20 @@ class SingleVariableAccessInfo():
         return len(self._accesses) > 0 and \
             (self._accesses[0].access_type == AccessType.WRITE)
 
-    def is_read_only(self, include_calls: bool = False) -> bool:
+    def is_read_only(self) -> bool:
         '''Checks if this variable is always read, and never
         written.
 
-        :param include_calls: whether to consider Calls as READs.
-
         :returns: True if this variable is read only.
         '''
-        read_accesses = [AccessType.READ]
-        if include_calls:
-            read_accesses.append(AccessType.CALL)
-        return all(access_info.access_type in read_accesses
+        return all(access_info.access_type == AccessType.READ
                    for access_info in self._accesses)
 
-    def is_read(self, include_calls: bool = False) -> bool:
+    def is_read(self) -> bool:
         '''
-        :param include_calls: whether to consider Calls as READs.
-
         :returns: True if this variable is read (at least once).
         '''
         read_accesses = AccessType.all_read_accesses()
-        if include_calls:
-            read_accesses.append(AccessType.CALL)
         return any(access_info.access_type in read_accesses
                    for access_info in self._accesses)
 

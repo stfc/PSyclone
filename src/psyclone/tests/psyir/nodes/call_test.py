@@ -379,10 +379,8 @@ def test_call_reference_accesses():
     call1.reference_accesses(var_info)
     # Check that the current location number is increased after the call:
     assert var_info._location == 1
-    # The Routine symbol is not considered 'read' by default.
+    # The Routine symbol is not considered 'read'.
     assert not var_info.is_read(Signature("trillian"))
-    # But it is if we include CALL accesses.
-    assert var_info.is_read(Signature("trillian"), include_calls=True)
     assert var_info.is_called(Signature("trillian"))
     dsym = DataSymbol("beta", INTEGER_TYPE)
     # Simple argument passed by reference.

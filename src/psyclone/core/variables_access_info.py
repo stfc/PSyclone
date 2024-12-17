@@ -344,12 +344,11 @@ class VariablesAccessInfo(dict):
         var_access_info = self[signature]
         return var_access_info.is_written()
 
-    def is_read(self, signature, include_calls=False) -> bool:
+    def is_read(self, signature) -> bool:
         '''Checks if the specified variable signature is at least read once.
 
         :param signature: signature of the variable
         :type signature: :py:class:`psyclone.core.Signature`
-        :param include_calls: whether to consider CALL accesses as reads.
 
         :returns: True if the specified variable name is read (at least
             once).
@@ -357,7 +356,7 @@ class VariablesAccessInfo(dict):
         :raises: KeyError if the signature cannot be found.'''
 
         var_access_info = self[signature]
-        return var_access_info.is_read(include_calls=include_calls)
+        return var_access_info.is_read()
 
     def has_read_write(self, signature):
         '''Checks if the specified variable signature has at least one
