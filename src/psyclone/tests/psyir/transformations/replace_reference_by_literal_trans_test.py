@@ -179,3 +179,79 @@ def test_rrbl_array_shape(fortran_reader, fortran_writer):
     written_code = fortran_writer(routine_testfalse)
     assert "a(i) = 2 + (i + 3)" in written_code
     assert "if (.false.) then" in written_code
+
+
+def test_array_type_extend(fortran_reader, fortran_writer):
+    source = """subroutine foo()
+    integer, parameter ::  a = 3
+    integer, dimension(:,a:) :: x
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(source)
+    foo: Routine = psyir.walk(Routine)[0]
+    rbbl = ReplaceReferenceByLiteralTrans()
+    rbbl.apply(foo)
+    written_code = fortran_writer(foo)
+
+    assert "integer, dimension(:,3:)" in written_code
+
+
+def test_raise_transformation_error_symbol_table_is_none(
+    fortran_reader, fortran_writer
+):
+    source = """subroutine foo()
+    integer, parameter ::  a = 3
+    integer :: x
+    x = a
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(source)
+    foo: Routine = psyir.walk(Routine)[0]
+    foo._symbol_table = None
+    rbbl = ReplaceReferenceByLiteralTrans()
+    error_str = ""
+    try:
+        rbbl.apply(foo)
+    except TransformationError as e:
+        error_str = e.__str__()
+    assert "SymbolTable is None" in error_str
+
+
+def test_raise_transformation_error(fortran_reader, fortran_writer):
+    source = """subroutine foo()
+    integer, parameter ::  a = 3
+    integer :: x
+    x = a
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(source)
+    foo: Routine = psyir.walk(Routine)[0]
+    rbbl = ReplaceReferenceByLiteralTrans()
+    rbbl.apply(foo)
+    error_str = ""
+    try:
+        rbbl._update_param_table(rbbl._param_table, foo.symbol_table)
+    except TransformationError as e:
+        error_str = e.__str__()
+    assert "Symbol already found" in error_str
+
+
+def test_raise_transformation_error_initial_value(
+    fortran_reader, fortran_writer
+):
+    source = """subroutine foo()
+    character(len=4), parameter ::  a = "toto"
+    character(len=4):: x
+    x = a
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(source)
+    foo: Routine = psyir.walk(Routine)[0]
+    assert foo.symbol_table is not None
+    from psyclone.psyir.symbols import DataSymbol
+
+    sym_a: DataSymbol = foo.symbol_table.find_or_create("a")
+    assert not sym_a.is_constant
+    rbbl = ReplaceReferenceByLiteralTrans()
+    error_str = ""
+    try:
+        rbbl.apply(foo)
+    except TransformationError as e:
+        error_str = e.__str__()
+    assert not "initial value is not a Literal" in error_str

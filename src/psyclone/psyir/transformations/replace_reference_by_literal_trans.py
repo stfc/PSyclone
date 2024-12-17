@@ -154,6 +154,8 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                 if not isinstance(sym.datatype, UnsupportedFortranType):
                     new_shape = self._replace_bounds(sym.shape, param_table)
                     sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
+        ## For debug and triggering raise Error.
+        self._param_table = param_table
 
     # ------------------------------------------------------------------------
     def validate(self, node, options=None):
