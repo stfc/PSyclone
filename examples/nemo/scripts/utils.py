@@ -38,7 +38,7 @@
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Container, Reference, CodeBlock,
-    Call, Return, IfBlock, Routine, IntrinsicCall)
+    Call, Return, IfBlock, Routine, IntrinsicCall, ArrayReference)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ScalarType,
     RoutineSymbol, ImportInterface)
@@ -222,27 +222,30 @@ def enhance_tree_information(schedule):
                         ArrayType.Extent.ATTRIBUTE,
                         ArrayType.Extent.ATTRIBUTE,
                         ArrayType.Extent.ATTRIBUTE]))
-        elif (reference.symbol.name in NEMO_FUNCTIONS or
-                reference.symbol.name.startswith('local_') or
-                reference.symbol.name.startswith('glob_') or
-                reference.symbol.name.startswith('SIGN_') or
-                reference.symbol.name.startswith('netcdf_') or
-                reference.symbol.name.startswith('nf90_')):
-            if len(reference.children) >= 1:
-                # Thigs with no children are already properly classified
-                continue
-            if reference.symbol.is_import or reference.symbol.is_unresolved:
-                # The parser gets these wrong, they are Calls not ArrayRefs
-                if not isinstance(reference.symbol, RoutineSymbol):
-                    # We need to specialise the generic Symbol to a Routine
-                    reference.symbol.specialise(RoutineSymbol)
-                if not (isinstance(reference.parent, Call) and
-                        reference.parent.routine is reference):
-                    # We also need to replace the Reference node with a Call
-                    call = Call.create(reference.symbol)
-                    for child in reference.children[:]:
-                        call.addchild(child.detach())
-                    reference.replace_with(call)
+        elif (
+            # If its an ArrayReference ...
+            isinstance(reference, ArrayReference) and
+            # ... with the following name ...
+            (reference.symbol.name in NEMO_FUNCTIONS or
+             reference.symbol.name.startswith('local_') or
+             reference.symbol.name.startswith('glob_') or
+             reference.symbol.name.startswith('SIGN_') or
+             reference.symbol.name.startswith('netcdf_') or
+             reference.symbol.name.startswith('nf90_')) and
+            # ... and the symbol is unresolved
+            (reference.symbol.is_import or reference.symbol.is_unresolved)
+        ):
+            # The parser gets these wrong, they are Calls not ArrayRefs
+            if not isinstance(reference.symbol, RoutineSymbol):
+                # We need to specialise the generic Symbol to a Routine
+                reference.symbol.specialise(RoutineSymbol)
+            if not (isinstance(reference.parent, Call) and
+                    reference.parent.routine is reference):
+                # We also need to replace the Reference node with a Call
+                call = Call.create(reference.symbol)
+                for child in reference.children[:]:
+                    call.addchild(child.detach())
+                reference.replace_with(call)
 
 
 def inline_calls(schedule):
