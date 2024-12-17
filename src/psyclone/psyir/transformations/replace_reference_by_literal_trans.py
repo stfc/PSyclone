@@ -36,9 +36,16 @@
 """Module providing a transformation that replace PsyIR Node static const Reference 
 with a Literal node when possible. """
 
-from psyclone.psyir.symbols import DataSymbol, Symbol, SymbolTable
+from psyclone.psyir.symbols import (
+    DataSymbol,
+    Symbol,
+    SymbolTable,
+    ArrayType,
+    DataType,
+)
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
+    DataNode,
     Routine,
     Reference,
     Literal,
@@ -48,11 +55,13 @@ from psyclone.psyir.transformations.transformation_error import (
     TransformationError,
 )
 
-from typing import Dict
+from typing import Dict, List, Union
 
 
 class ReplaceReferenceByLiteralTrans(Transformation):
-    """Replace Reference by Literal. For example:
+    """Replace Reference by Literal if the corresponding symbol from
+    the symbol table is constant. That is to say this is a Fortran parameter.
+    For example:
 
     TODO: shoule we make it also for the module symbol table parameter?
 
@@ -92,6 +101,32 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                 param_table[sym_name] = new_literal
         return param_table
 
+    def _replace_bounds(
+        self,
+        current_shape: List[Union[Literal, Reference]],
+        param_table: Dict[str, Literal],
+    ) -> List[Union[Literal, Reference]]:
+        new_shape = []
+        for dim in current_shape:
+            if isinstance(dim, ArrayType.ArrayBounds):
+                dim_upper = dim.upper.copy()
+                dim_lower = dim.lower.copy()
+                ref: DataNode = dim.upper
+                if isinstance(ref, Reference) and ref.name in param_table:
+                    literal: Literal = param_table[ref.name]
+                    dim_upper = literal.copy()
+                ref = dim.lower
+                if isinstance(ref, Reference) and ref.name in param_table:
+                    literal: Literal = param_table[ref.name]
+                    dim_lower = literal.copy()
+                new_bounds = ArrayType.ArrayBounds(dim_lower, dim_upper)
+                new_shape.append(new_bounds)
+            else:
+                # This dimension is specified with an ArrayType.Extent
+                # so no need to copy.
+                new_shape.append(dim)
+        return new_shape
+
     # ------------------------------------------------------------------------
     def apply(self, node: Routine, options=None):
         self.validate(node, options)
@@ -106,8 +141,19 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         for ref in node.walk(Reference):
             ref: Reference
             if ref.name in param_table:
-                literal = param_table[ref.name]
+                literal: Literal = param_table[ref.name]
                 ref.replace_with(literal.copy())
+
+        for sym in node.symbol_table.symbols:
+            sym: Symbol
+            if isinstance(sym, DataSymbol) and sym.is_array:
+                from psyclone.psyir.symbols.datatypes import (
+                    UnsupportedFortranType,
+                )
+
+                if not isinstance(sym.datatype, UnsupportedFortranType):
+                    new_shape = self._replace_bounds(sym.shape, param_table)
+                    sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
 
     # ------------------------------------------------------------------------
     def validate(self, node, options=None):

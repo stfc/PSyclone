@@ -133,3 +133,49 @@ def test_rrbl_module_defined_parameter(fortran_reader, fortran_writer):
     out = fortran_writer(routine)
 
     assert "a(ic1) = 1 + (ic1 + 2) * ic1 * 3" in out
+
+
+def test_rrbl_array_shape(fortran_reader, fortran_writer):
+    """Tests if subroutine parameters are replaced as expected."""
+    source = """subroutine testtrue()
+                logical, parameter :: x=.true., y=.false.
+                integer, parameter :: u=3, size=10
+                integer :: i
+
+                real, dimension(size) :: a
+                if (x) then
+                    do i = 1, size
+                            a(i) = 2+(i+u)
+                    end do
+                endif
+                endsubroutine
+
+                subroutine testfalse()
+                logical, parameter :: x=.true., y=.false.
+                integer, parameter :: u=3,size=10
+                integer :: i
+
+                real, dimension(size) :: a
+                    do i = 1, size
+                        if (y) then
+                            a(i) = 2+(i+u)
+                        endif
+                    end do
+                end subroutine
+                """
+    psyir = fortran_reader.psyir_from_source(source)
+    # The first child is the assignment to 'invariant'
+    mainprog = psyir.walk(Routine)[0]
+    routine_testfalse = psyir.walk(Routine)[1]
+    rrbl = ReplaceReferenceByLiteralTrans()
+    rrbl.apply(mainprog)
+    written_code = fortran_writer(mainprog)
+
+    assert "a(i) = 2 + (i + 3)" in written_code
+    assert "if (.true.) then" in written_code
+    assert "real, dimension(10) :: a" in written_code
+    assert "do i = 1, 10, 1" in written_code
+    rrbl.apply(routine_testfalse)
+    written_code = fortran_writer(routine_testfalse)
+    assert "a(i) = 2 + (i + 3)" in written_code
+    assert "if (.false.) then" in written_code
