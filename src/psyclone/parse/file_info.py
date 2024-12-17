@@ -52,8 +52,6 @@ from psyclone.psyir.nodes import FileContainer
 from psyclone.errors import PSycloneError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
-from typing import Union
-
 
 class FileInfoFParserError(PSycloneError):
     """Triggered when generation of FParser tree failed"""
