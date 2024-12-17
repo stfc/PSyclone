@@ -208,6 +208,14 @@ class SingleVariableAccessInfo():
         '''
         return str(self._signature)
 
+    def is_called(self) -> bool:
+        '''
+        :returns: whether or not any accesses of this variable
+                  represent a call.
+        '''
+        return any(info.access_type == AccessType.CALL for
+                   info in self._accesses)
+
     def is_written(self):
         ''':returns: True if this variable is written (at least once).
         :rtype: bool
@@ -226,21 +234,30 @@ class SingleVariableAccessInfo():
         return len(self._accesses) > 0 and \
             (self._accesses[0].access_type == AccessType.WRITE)
 
-    def is_read_only(self):
+    def is_read_only(self, include_calls: bool = False) -> bool:
         '''Checks if this variable is always read, and never
         written.
 
+        :param include_calls: whether to consider Calls as READs.
+
         :returns: True if this variable is read only.
-        :rtype: bool
         '''
-        return all(access_info.access_type == AccessType.READ
+        read_accesses = [AccessType.READ]
+        if include_calls:
+            read_accesses.append(AccessType.CALL)
+        return all(access_info.access_type in read_accesses
                    for access_info in self._accesses)
 
-    def is_read(self):
-        ''':returns: True if this variable is read (at least once).
-        :rtype: bool
+    def is_read(self, include_calls: bool = False) -> bool:
         '''
-        return any(access_info.access_type in AccessType.all_read_accesses()
+        :param include_calls: whether to consider Calls as READs.
+
+        :returns: True if this variable is read (at least once).
+        '''
+        read_accesses = AccessType.all_read_accesses()
+        if include_calls:
+            read_accesses.append(AccessType.CALL)
+        return any(access_info.access_type in read_accesses
                    for access_info in self._accesses)
 
     def has_read_write(self):

@@ -379,12 +379,17 @@ def test_call_reference_accesses():
     call1.reference_accesses(var_info)
     # Check that the current location number is increased after the call:
     assert var_info._location == 1
-    assert not var_info.all_signatures
+    # The Routine symbol is not considered 'read' by default.
+    assert not var_info.is_read(Signature("trillian"))
+    # But it is if we include CALL accesses.
+    assert var_info.is_read(Signature("trillian"), include_calls=True)
+    assert var_info.is_called(Signature("trillian"))
     dsym = DataSymbol("beta", INTEGER_TYPE)
     # Simple argument passed by reference.
     call2 = Call.create(rsym, [Reference(dsym)])
     call2.reference_accesses(var_info)
     assert var_info.has_read_write(Signature("beta"))
+    assert not var_info.is_called(Signature("beta"))
     # Array access argument. The array should be READWRITE, any variable in
     # the index expression should be READ.
     idx_sym = DataSymbol("ji", INTEGER_TYPE)
@@ -416,6 +421,31 @@ def test_call_reference_accesses():
     call6.reference_accesses(var_info)
     assert var_info.is_read(Signature("beta"))
     assert not var_info.is_written(Signature("beta"))
+
+
+def test_type_bound_call_reference_accesses(fortran_reader):
+    '''Test the reference_accesses() method for a call to a type-bound
+    procedure.'''
+    code = '''\
+    subroutine my_sub
+      use some_mod, only: my_grid
+      integer :: i, j, k
+      call my_grid(k)%update(i,j)
+    end subroutine my_sub
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    vai = VariablesAccessInfo()
+    call.reference_accesses(vai)
+    # The type-bound procedure is called.
+    assert vai.is_called(Signature("my_grid%update"))
+    # All of the indices are marked as read.
+    for var in ["i", "j", "k"]:
+        assert vai.is_read(Signature(var))
+    # Only the arguments to the call are marked as read-write.
+    assert vai.has_read_write(Signature("i"))
+    assert vai.has_read_write(Signature("j"))
+    assert not vai.has_read_write(Signature("k"))
 
 
 def test_call_argumentnames_after_removearg():

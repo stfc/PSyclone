@@ -192,7 +192,8 @@ class CallTreeUtils():
             # parameter and does not need to be saved. Note that loop variables
             # have a WRITE before a READ access, so they will be ignored
             # automatically.
-            if not variables_info[signature].is_written_first():
+            if (not variables_info[signature].is_written_first() and
+                    not variables_info[signature].is_called()):
                 read_write_info.add_read(signature)
 
     # -------------------------------------------------------------------------

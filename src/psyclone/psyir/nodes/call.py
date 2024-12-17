@@ -39,7 +39,7 @@
 from collections.abc import Iterable
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
+from psyclone.core import AccessType, Signature
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.statement import Statement
@@ -315,10 +315,14 @@ class Call(Statement, DataNode):
             # We conservatively default to READWRITE otherwise (TODO #446).
             default_access = AccessType.READWRITE
 
-        # TODO #2271: This may skip references in inner expressions of
-        # structure calls, but to implement properly we new a new kind of
-        # AccessType that represents being called (USED but not READ, maybe
-        # the same that we need for INQUIRY type attributes?)
+        # The RoutineSymbol has a CALL access.
+        sig, indices_list = self.routine.get_signature_and_indices()
+        var_accesses.add_access(sig, AccessType.CALL, self.routine)
+        # Any symbols referenced in any index expressions are READ.
+        for indices in indices_list:
+            for idx in indices:
+                idx.reference_accesses(var_accesses)
+
         for arg in self.arguments:
             if isinstance(arg, Reference):
                 # This argument is pass-by-reference.
@@ -373,12 +377,13 @@ class Call(Statement, DataNode):
     @property
     def is_pure(self):
         '''
-        :returns: whether the routine being called is pure (guaranteed to \
-            return the same result when provided with the same argument \
+        :returns: whether the routine being called is pure (guaranteed to
+            return the same result when provided with the same argument
             values).  If this information is not known then it returns None.
         :rtype: NoneType | bool
         '''
-        if self.routine and self.routine.symbol:
+        if (self.routine and self.routine.symbol and
+                isinstance(self.routine.symbol, RoutineSymbol)):
             return self.routine.symbol.is_pure
         return None
 
