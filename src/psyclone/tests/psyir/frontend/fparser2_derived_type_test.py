@@ -244,14 +244,15 @@ def test_preceding_comments(f2008_parser):
     a derived type definition. '''
     fake_parent = Container("dummy_container")
     processor = Fparser2Reader()
-    fparser2spec = f2008_parser(FortranStringReader("subroutine my_sub\n"
-                                                    "! This is a comment\n"
-                                                    "! This is another comment\n"
-                                                    "type :: my_type\n"
-                                                    "  integer :: flag\n"
-                                                    "end type my_type ! Inline comment\n"
-                                                    "end subroutine my_sub\n",
-                                                    ignore_comments=False))
+    fparser2spec = f2008_parser(
+        FortranStringReader("subroutine my_sub\n"
+                            "! This is a comment\n"
+                            "! This is another comment\n"
+                            "type :: my_type\n"
+                            "  integer :: flag\n"
+                            "end type my_type ! Inline comment\n"
+                            "end subroutine my_sub\n",
+                            ignore_comments=False))
     sub_decl = walk(fparser2spec, types=Fortran2003.Subroutine_Subprogram)
     sub = processor._subroutine_handler(sub_decl[0], fake_parent)
     typ = sub.symbol_table.lookup("my_type")

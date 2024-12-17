@@ -44,7 +44,7 @@ from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003, pattern_tools
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
-from fparser.two.utils import NoMatchError, walk
+from fparser.two.utils import NoMatchError
 from psyclone.configuration import Config
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Schedule, Assignment, Routine
@@ -55,14 +55,32 @@ class FortranReader():
     ''' PSyIR Fortran frontend. This frontend translates Fortran from a string
     or a file into PSyIR using the fparser2 utilities.
 
+    :param free_form: If parsing free-form code or not (default True).
+    :param ignore_comments: If comments should be ignored or not
+                            (default True).
+    :param ignore_directives: If directives should be ignored or not
+                            (default True). Only has an effect
+                            if ignore_comments is False.
+    :param last_comments_as_codeblocks: If the last comments in the
+                                        a given block (e.g. subroutine,
+                                        do, if-then body, etc.) should
+                                        be kept as code blocks or lost
+                                        (default False).
+                                        Only has an effect if ignore_comments
+                                        is False.
     '''
     # Save parser object across instances to reduce the initialisation time
     _parser = None
 
-    def __init__(self):
+    def __init__(self, free_form: bool = True, ignore_comments: bool = True,
+                 ignore_directives: bool = True,
+                 last_comments_as_codeblocks: bool = False):
         if not self._parser:
             self._parser = ParserFactory().create(std="f2008")
-        self._processor = Fparser2Reader()
+        self._free_form = free_form
+        self._ignore_comments = ignore_comments
+        self._processor = Fparser2Reader(ignore_directives,
+                                         last_comments_as_codeblocks)
         SYMBOL_TABLES.clear()
 
     @staticmethod
@@ -85,26 +103,11 @@ class FortranReader():
             raise ValueError(
                 f"Invalid Fortran name '{name}' found.")
 
-    def psyir_from_source(self, source_code: str, free_form: bool = True,
-                          ignore_comments: bool = True,
-                          ignore_directives: bool = True,
-                          last_comments_as_codeblocks: bool = False):
+    def psyir_from_source(self, source_code: str):
         ''' Generate the PSyIR tree representing the given Fortran source code.
 
-        :param source_code: text representation of the code to be parsed.
-        :param free_form: If parsing free-form code or not (default True).
-        :param ignore_comments: If comments should be ignored or not
-                                (default True).
-        :param ignore_directives: If directives should be ignored or not
-                                  (default True). Only has an effect
-                                  if ignore_comments is False.
-        :param last_comments_as_codeblocks: If the last comments in the
-                                            a given block (e.g. subroutine,
-                                            do, if-then body, etc.) should
-                                            be kept as code blocks or lost
-                                            (default False).
-                                            Only has an effect if
-                                            ignore_comments is False.
+        :param str source_code: text representation of the code to be parsed.
+
         :returns: PSyIR representing the provided Fortran source code.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -112,15 +115,10 @@ class FortranReader():
         SYMBOL_TABLES.clear()
         string_reader = FortranStringReader(
             source_code, include_dirs=Config.get().include_paths,
-            ignore_comments=ignore_comments)
+            ignore_comments=self._ignore_comments)
         # Set reader to free format.
-        string_reader.set_format(FortranFormat(free_form, False))
+        string_reader.set_format(FortranFormat(self._free_form, False))
         parse_tree = self._parser(string_reader)
-
-        if (not ignore_comments) and ignore_directives:
-            self._strip_directives(parse_tree)
-        self._processor.last_comments_as_codeblocks\
-            = last_comments_as_codeblocks
 
         psyir = self._processor.generate_psyir(parse_tree)
         return psyir
@@ -215,33 +213,11 @@ class FortranReader():
         self._processor.process_nodes(fake_parent, exec_part.children)
         return fake_parent[0].detach()
 
-    def psyir_from_file(self, file_path, free_form=True,
-                        ignore_comments: bool = True,
-                        ignore_directives: bool = True,
-                        last_comments_as_codeblocks: bool = False):
+    def psyir_from_file(self, file_path):
         ''' Generate the PSyIR tree representing the given Fortran file.
 
         :param file_path: path of the file to be read and parsed.
         :type file_path: str or any Python Path format.
-
-        :param free_form: If parsing free-form code or not (default True).
-        :type free_form: bool
-
-        :param ignore_comments: If comments should be ignored or not
-                                (default True).
-        :type ignore_comments: bool
-        :param ignore_directives: If directives should be ignored or not
-                                  (default True). Only has an effect
-                                  if ignore_comments is False.
-        :type ignore_directives: bool
-        :param last_comments_as_codeblocks: If the last comments in the
-                                            a given block (e.g. subroutine,
-                                            do, if-then body, etc.) should
-                                            be kept as code blocks or lost
-                                            (default False).
-                                            Only has an effect if
-                                            ignore_comments is False.
-        :type last_comments_as_codeblocks: bool
 
         :returns: PSyIR representing the provided Fortran file.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -258,28 +234,13 @@ class FortranReader():
         # fparser to keep the filename information in the tree
         reader = FortranFileReader(file_path,
                                    include_dirs=Config.get().include_paths,
-                                   ignore_comments=ignore_comments)
-        reader.set_format(FortranFormat(free_form, False))
+                                   ignore_comments=self._ignore_comments)
+        reader.set_format(FortranFormat(self._free_form, False))
         parse_tree = self._parser(reader)
         _, filename = os.path.split(file_path)
 
-        if (not ignore_comments) and ignore_directives:
-            self._strip_directives(parse_tree)
-        self._processor.last_comments_as_codeblocks\
-            = last_comments_as_codeblocks
-
         psyir = self._processor.generate_psyir(parse_tree, filename)
         return psyir
-
-    def _strip_directives(self, node):
-        '''Remove all '!$' directives from the comments in the fparser tree.
-
-        :param node: the fparser node to process.
-        '''
-        for comment in walk(node, Fortran2003.Comment):
-            if comment.tostr().startswith("!$"):
-                comment.items[0] = ""
-        return node
 
 
 # For Sphinx AutoAPI documentation generation

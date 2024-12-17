@@ -1029,3 +1029,36 @@ def test_structuretype_replace_symbols():
     table.add(newtsymbol)
     stype.replace_symbols_using(table)
     assert stype.components["barry"].datatype is newtsymbol
+
+
+def test_structuretype_componenttype_eq():
+    '''Test that the equality operator of StructureType.ComponentType does
+    not take the preceding_comment and inline_comment into account.
+    '''
+    comp1 = StructureType.ComponentType("fred", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None)
+    comp2 = StructureType.ComponentType("fred", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None)
+    assert comp1 == comp2
+
+    comp1 = StructureType.ComponentType("fred", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None,
+                                        preceding_comment="A comment")
+    comp2 = StructureType.ComponentType("fred", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None,
+                                        preceding_comment="Another comment")
+    assert comp1 == comp2
+
+    comp1 = StructureType.ComponentType("fred", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None,
+                                        inline_comment="A comment")
+    comp2 = StructureType.ComponentType("fred", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None,
+                                        inline_comment="Another comment")
+    assert comp1 == comp2
+
+    comp1 = StructureType.ComponentType("fred", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None)
+    comp2 = StructureType.ComponentType("george", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None)
+    assert comp1 != comp2

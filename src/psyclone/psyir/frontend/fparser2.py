@@ -851,6 +851,17 @@ class Fparser2Reader():
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
     convert the nodes to PSyIR.
+
+    :param ignore_directives: If directives should be ignored or not
+                              (default True). Only has an effect
+                              if comments were not ignored.
+    :param last_comments_as_codeblocks: If the last comments in the
+                                        a given block (e.g. subroutine,
+                                        do, if-then body, etc.) should
+                                        be kept as code blocks or lost
+                                        (default False).
+                                        Only has an effect if comments were
+                                        not ignored.
     '''
 
     unary_operators = OrderedDict([
@@ -935,7 +946,8 @@ class Fparser2Reader():
         num_clauses: int = -1
         default_idx: int = -1
 
-    def __init__(self):
+    def __init__(self, ignore_directives: bool = True,
+                 last_comments_as_codeblocks: bool = False):
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
             Fortran2003.Allocate_Stmt: self._allocate_handler,
@@ -981,34 +993,10 @@ class Fparser2Reader():
         }
         # Used to attach inline comments to the PSyIR symbols and nodes
         self._last_psyir_parsed_and_span = None
-        self._last_comments_as_codeblocks = False
-
-    @property
-    def last_comments_as_codeblocks(self):
-        '''
-        :returns: whether the last comments in a given block (e.g. subroutine,
-                  do, if-then body, etc.) should be kept as code blocks or lost
-                  (default False).
-                  Only has an effect if the fparser2 parse tree has comments.
-        '''
-        return self._last_comments_as_codeblocks
-
-    @last_comments_as_codeblocks.setter
-    def last_comments_as_codeblocks(self, value):
-        '''Setter for the last_comments_as_codeblocks property.
-
-        :param value: whether the last comments in a given block (e.g.
-                      subroutine, do, if-then body, etc.) should be kept as
-                      code blocks or lost.
-                      Only has an effect if the fparser2 parse tree has
-                      comments.
-        :type value: bool
-        '''
-        if not isinstance(value, bool):
-            raise TypeError(
-                f"The value of the last_comments_as_codeblocks property must "
-                f"be a boolean but found '{type(value).__name__}'.")
-        self._last_comments_as_codeblocks = value
+        # Whether to ignore directives when processing the fparser2 AST
+        self._ignore_directives = ignore_directives
+        # Whether to keep the last comments in a given block as code blocks
+        self._last_comments_as_codeblocks = last_comments_as_codeblocks
 
     @staticmethod
     def nodes_to_code_block(parent, fp2_nodes, message=None):
@@ -2048,8 +2036,6 @@ class Fparser2Reader():
 
             preceding_comments = []
             for child in decl.children:
-                if isinstance(child, Fortran2003.Derived_Type_Stmt):
-                    continue
                 if isinstance(child, Fortran2003.Comment):
                     self.process_comment(child, preceding_comments)
                     continue
@@ -2057,7 +2043,7 @@ class Fparser2Reader():
                     for component in walk(child,
                                           Fortran2003.Data_Component_Def_Stmt):
                         csym = self._process_decln(parent, local_table,
-                                                  component)
+                                                   component)
                         csym.preceding_comment = self._comments_list_to_string(
                             preceding_comments)
                         preceding_comments = []
@@ -2428,8 +2414,8 @@ class Fparser2Reader():
             elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
                 try:
                     tsym = self._process_decln(parent, parent.symbol_table,
-                                              node, visibility_map,
-                                              statics_list)
+                                               node, visibility_map,
+                                               statics_list)
                     tsym.preceding_comment = self._comments_list_to_string(
                         preceding_comments)
                     preceding_comments = []
@@ -2849,7 +2835,8 @@ class Fparser2Reader():
                     if isinstance(psy_child, CommentableMixin):
                         if child.item is not None:
                             self._last_psyir_parsed_and_span = (psy_child,
-                                                               child.item.span)
+                                                                child.item.span
+                                                                )
                         # If the fparser2 node has no span, try to build one
                         # from the spans of the first and last children.
                         elif (len(child.children) != 0
@@ -2859,14 +2846,16 @@ class Fparser2Reader():
                                    and child.children[-1].item is not None)):
                             span = (child.children[0].item.span[0],
                                     child.children[-1].item.span[1])
-                            self._last_psyir_parsed_and_span = (psy_child, span)
+                            self._last_psyir_parsed_and_span = (psy_child,
+                                                                span)
                     parent.addchild(psy_child)
                 # If psy_child is not initialised but it didn't produce a
                 # NotImplementedError, it means it is safe to ignore it.
+
         # Complete any unfinished code-block
         self.nodes_to_code_block(parent, code_block_nodes, message)
 
-        if self.last_comments_as_codeblocks and len(preceding_comments) != 0:
+        if self._last_comments_as_codeblocks and len(preceding_comments) != 0:
             self.nodes_to_code_block(parent, preceding_comments)
 
     def _create_child(self, child, parent=None):
@@ -5334,7 +5323,6 @@ class Fparser2Reader():
                 arg_list = []
             self.process_declarations(routine, decl_list, arg_list)
 
-            # TODO: fparser issue
             # fparser puts comments at the end of the declarations
             # whereas as preceding comments they belong in the execution part
             # except if it's an inline comment on the last declaration.
@@ -5442,7 +5430,6 @@ class Fparser2Reader():
                 # valid.
                 pass
             else:
-                # TODO: fparser issue
                 # Put the comments from the end of the declarations part
                 # at the start of the execution part manually
                 self.process_nodes(routine, lost_comments + sub_exec.content)
@@ -5635,6 +5622,8 @@ class Fparser2Reader():
 
         '''
         if len(comment.tostr()) == 0:
+            return
+        if self._ignore_directives and comment.tostr().startswith("!$"):
             return
         if self._last_psyir_parsed_and_span is not None:
             last_psyir, last_span = self._last_psyir_parsed_and_span

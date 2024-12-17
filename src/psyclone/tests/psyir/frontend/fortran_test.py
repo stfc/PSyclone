@@ -112,9 +112,8 @@ def test_fortran_psyir_from_source_fixed_form():
     Test we parse also fixed-form fortran code when enabling the right
     option.
     '''
-    fortran_reader = FortranReader()
-    file_container = fortran_reader.psyir_from_source(FIXED_FORM_CODE,
-                                                      free_form=False)
+    fortran_reader = FortranReader(free_form=False)
+    file_container = fortran_reader.psyir_from_source(FIXED_FORM_CODE)
     assert isinstance(file_container, FileContainer)
     subroutine = file_container.children[0]
     assert isinstance(subroutine, Routine)
@@ -252,8 +251,8 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
 
     # Check that comments can be preserved, and that directives are still
     # ignored by default
-    file_container = fortran_reader.psyir_from_file(
-        filename, ignore_comments=False)
+    fortran_reader = FortranReader(ignore_comments=False)
+    file_container = fortran_reader.psyir_from_file(filename)
     assert isinstance(file_container, FileContainer)
     for node in file_container.walk(CommentableMixin):
         if isinstance(node, Loop):
@@ -264,8 +263,9 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
             assert node.preceding_comment == ""
 
     # Check that directives can be preserved
-    file_container = fortran_reader.psyir_from_file(
-        filename, ignore_comments=False, ignore_directives=False)
+    fortran_reader = FortranReader(ignore_comments=False,
+                                   ignore_directives=False)
+    file_container = fortran_reader.psyir_from_file(filename)
     assert isinstance(file_container, FileContainer)
     for node in file_container.walk(CommentableMixin):
         if isinstance(node, Loop):

@@ -151,20 +151,6 @@ def test_get_arg_names(parser):
 
 # Class Fparser2Reader
 
-def test_last_comments_as_codeblocks():
-    '''Test that the last_comments_as_codeblocks property and setter works as
-    expected.'''
-    processor = Fparser2Reader()
-    # Default value
-    assert not processor.last_comments_as_codeblocks
-    # Setter expects a boolean
-    with pytest.raises(TypeError) as error:
-        processor.last_comments_as_codeblocks = "false"
-    assert ("The value of the last_comments_as_codeblocks property must "
-            "be a boolean but found 'str'." in str(error.value))
-    processor.last_comments_as_codeblocks = True
-    assert processor.last_comments_as_codeblocks
-
 
 def test_get_routine_schedules_wrong_module(parser):
     '''Test that get_routine_schedules() raises the expected errors if there

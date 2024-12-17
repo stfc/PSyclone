@@ -48,6 +48,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.symbol import Symbol
+from psyclone.psyir.commentable_mixin import CommentableMixin
 
 
 class DataType(metaclass=abc.ABCMeta):
@@ -909,7 +910,7 @@ class StructureType(DataType):
 
     '''
     @dataclass(frozen=True)
-    class ComponentType:
+    class ComponentType(CommentableMixin):
         '''
         Represents a member of a StructureType.
 
@@ -929,8 +930,20 @@ class StructureType(DataType):
         datatype: Union[DataType, DataTypeSymbol]
         visibility: Symbol.Visibility
         initial_value: Any
-        preceding_comment: str = ""
-        inline_comment: str = ""
+
+        def __init__(self, name: str,
+                     datatype: Union[DataType, DataTypeSymbol],
+                     visibility: Symbol.Visibility, initial_value: Any = None,
+                     preceding_comment: str = "", inline_comment: str = ""):
+            # pylint: disable=too-many-arguments
+            # Using object.__setattr__ due to frozen=True in dataclass, which
+            # prevents setting attributes directly.
+            object.__setattr__(self, 'name', name)
+            object.__setattr__(self, 'datatype', datatype)
+            object.__setattr__(self, 'visibility', visibility)
+            object.__setattr__(self, 'initial_value', initial_value)
+            object.__setattr__(self, '_preceding_comment', preceding_comment)
+            object.__setattr__(self, '_inline_comment', inline_comment)
 
     def __init__(self):
         self._components = OrderedDict()

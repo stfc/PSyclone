@@ -160,10 +160,10 @@ def test_no_comments():
 @pytest.mark.parametrize("last_comments_as_codeblocks", [True, False])
 def test_comments_and_codeblocks(last_comments_as_codeblocks):
     """Test that the FortranReader is able to read comments"""
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(
-        CODE, ignore_comments=False,
+    reader = FortranReader(
+        ignore_comments=False,
         last_comments_as_codeblocks=last_comments_as_codeblocks)
+    psyir = reader.psyir_from_source(CODE)
 
     module = psyir.children[0]
     assert (
@@ -458,11 +458,12 @@ end module test_mod
 @pytest.mark.parametrize("last_comments_as_codeblocks", [True, False])
 def test_write_comments(last_comments_as_codeblocks):
     """Test that the comments are written back to the code"""
-    reader = FortranReader()
+    reader = FortranReader(
+        ignore_comments=False,
+        last_comments_as_codeblocks=last_comments_as_codeblocks
+    )
     writer = FortranWriter()
-    psyir = reader.psyir_from_source(
-        CODE, ignore_comments=False,
-        last_comments_as_codeblocks=last_comments_as_codeblocks)
+    psyir = reader.psyir_from_source(CODE)
     generated_code = writer(psyir)
     if last_comments_as_codeblocks:
         assert generated_code == EXPECTED_WITH_COMMENTS_AND_CODEBLOCKS
@@ -485,10 +486,8 @@ end subroutine test_sub
 
 def test_no_directives():
     """Test that the FortranReader is without directives by default"""
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(
-        CODE_WITH_DIRECTIVE, ignore_comments=False
-    )
+    reader = FortranReader(ignore_comments=False)
+    psyir = reader.psyir_from_source(CODE_WITH_DIRECTIVE)
 
     loop = psyir.walk(Loop)[0]
     assert loop.preceding_comment == "Comment on loop 'do i = 1, 10'"
@@ -496,10 +495,8 @@ def test_no_directives():
 
 def test_directives():
     """Test that the FortranReader is able to read directives"""
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(
-        CODE_WITH_DIRECTIVE, ignore_comments=False, ignore_directives=False
-    )
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(CODE_WITH_DIRECTIVE)
 
     loop = psyir.walk(Loop)[0]
     assert (
@@ -528,11 +525,9 @@ end subroutine test_sub
 )
 def test_write_directives():
     """Test that the directives are written back to the code"""
-    reader = FortranReader()
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
     writer = FortranWriter()
-    psyir = reader.psyir_from_source(
-        CODE_WITH_DIRECTIVE, ignore_comments=False, ignore_directives=False
-    )
+    psyir = reader.psyir_from_source(CODE_WITH_DIRECTIVE)
     generated_code = writer(psyir)
     assert generated_code == EXPECTED_WITH_DIRECTIVES
 
@@ -552,10 +547,8 @@ end subroutine test_sub
 
 def test_inline_comment():
     """Test that the FortranReader is able to read inline comments"""
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(
-        CODE_WITH_INLINE_COMMENT, ignore_comments=False
-    )
+    reader = FortranReader(ignore_comments=False)
+    psyir = reader.psyir_from_source(CODE_WITH_INLINE_COMMENT)
 
     routine = psyir.walk(Routine)[0]
     sym_a = routine.symbol_table.lookup("a")
