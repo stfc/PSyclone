@@ -64,8 +64,7 @@ NOT_PERFORMANT = [
 ]
 
 # If routine names contain these substrings then we do not profile them
-PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
-                    "macho", "mpp_", "nemo_gcm",
+PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm",
                     # These are small functions that the addition of profiling
                     # prevents from being in-lined (and then breaks any attempt
                     # to create OpenACC regions with calls to them)

@@ -81,6 +81,7 @@ OFFLOADING_ISSUES = [
                    # Illegal address during kernel execution
     "dynzdf.f90",  # returned error 700 (CUDA_ERROR_ILLEGAL_ADDRESS)
     "traatf_qco.f90",  # Runtime: Failed to find device function
+    "lbclnk.f90",  # Improve performance until #2751
 ]
 
 PRIVATISATION_ISSUES = [
@@ -114,6 +115,13 @@ def trans(psyir):
         return
 
     for subroutine in psyir.walk(Routine):
+
+        # Skip things from the initialisation
+        if (subroutine.name.endswith('_alloc') or
+                subroutine.name.endswith('_init') or
+                subroutine.name.startswith('Agrif') or
+                subroutine.name == 'dom_msk'):
+            continue
 
         if PROFILING_ENABLED:
             add_profiling(subroutine.children)

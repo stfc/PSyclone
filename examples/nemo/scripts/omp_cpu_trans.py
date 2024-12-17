@@ -59,6 +59,9 @@ NEMOV5 = os.environ.get('NEMOV5', False)
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = PASSTHROUGH_ISSUES
 
+if PROFILING_ENABLED:
+    # Fails with profiling enabled. issue #2723
+    FILES_TO_SKIP.append("mppini.f90")
 
 def trans(psyir):
     ''' Add OpenMP Parallel and Do directives to all loops, including the
