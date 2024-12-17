@@ -39,7 +39,7 @@
 from collections.abc import Iterable
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType, Signature
+from psyclone.core import AccessType
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.statement import Statement
