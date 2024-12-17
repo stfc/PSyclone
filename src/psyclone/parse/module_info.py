@@ -48,7 +48,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, PSycloneError, GenerationError
-from psyclone.psyir.nodes import Container
+from psyclone.psyir.nodes import Container, Node
 from psyclone.psyir.symbols import Symbol
 from psyclone.parse import FileInfo, FileInfoFParserError
 
@@ -98,8 +98,8 @@ class ModuleInfo:
     def __init__(
         self,
         module_name: str,
-        file_info: FileInfo = None,
-        psyir_root_node: Container = None,
+        file_info: FileInfo,
+        psyir_root_node: Node = None
     ):
         self._name = module_name.lower()
 
@@ -117,7 +117,7 @@ class ModuleInfo:
 
         # This is a dictionary containing the sets of symbols imported from
         # each module, indexed by the module names: dict[str, set[str]].
-        self._used_symbols_from_module_name: Dict[str, set[str]] = None
+        self._map_module_name_to_used_symbols: Dict[str, set[str]] = None
 
     # ------------------------------------------------------------------------
     @property
@@ -170,7 +170,7 @@ class ModuleInfo:
 
         except FileInfoFParserError as err:
             raise ModuleInfoError(
-                f"Error to get fparser tree of file '{self.filename}'"
+                f"Error(s) getting fparser tree of file '{self.filename}'"
                 f" for module '{self.name}':\n"
                 + str(err)) from err
 
@@ -185,7 +185,7 @@ class ModuleInfo:
 
         # Initialise the caches
         self._used_module_names = []
-        self._used_symbols_from_module_name = {}
+        self._map_module_name_to_used_symbols = {}
 
         parse_tree = self.get_fparser_tree()
 
@@ -207,7 +207,7 @@ class ModuleInfo:
                 for symbol in only_list.children:
                     all_symbols.add(str(symbol))
 
-            self._used_symbols_from_module_name[mod_name] = all_symbols
+            self._map_module_name_to_used_symbols[mod_name] = all_symbols
 
     # ------------------------------------------------------------------------
     def get_used_modules(self) -> List[str]:
@@ -238,10 +238,10 @@ class ModuleInfo:
         :rtype: dict[str, set[str]]
 
         '''
-        if self._used_symbols_from_module_name is None:
+        if self._map_module_name_to_used_symbols is None:
             self._extract_import_information()
 
-        return self._used_symbols_from_module_name
+        return self._map_module_name_to_used_symbols
 
     def get_psyir(self):
         '''Returns the PSyIR representation of this module. This is based

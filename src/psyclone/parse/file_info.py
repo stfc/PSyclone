@@ -52,6 +52,8 @@ from psyclone.psyir.nodes import FileContainer
 from psyclone.errors import PSycloneError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
+from typing import Union
+
 
 class FileInfoFParserError(PSycloneError):
     """Triggered when generation of FParser tree failed"""
@@ -84,7 +86,8 @@ class FileInfo:
     - it will construct the PSyIR (depends on TODO #2786 "and cache it")
 
     :param filepath: Path to the file that this
-        object holds information on.
+        object holds information on. Can also be set to 'None' in case of
+        providing fparser / PSyIR node in a different way.
     :param use_caching: Use caching of intermediate representations
 
     """
@@ -351,7 +354,7 @@ class FileInfo:
         """Returns the fparser Fortran2003.Program representation of the
         source code (including Fortran2008).
 
-        :param save_to_cache: Cache is updated if fparser was
+        :param save_to_cache_if_cache_active: Cache is updated if fparser was
             not loaded from cache.
         :param verbose: Produce some verbose output
 
