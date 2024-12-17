@@ -86,6 +86,8 @@ def main(args):
         '-v', '--verbose', help='increase the verbosity of the output',
         action='store_true')
     parser.add_argument(
+        '-c', '--config', help='config file with PSyclone specific options')
+    parser.add_argument(
         '-t', '--gen-test',
         help='generate a standalone unit test for the adjoint code',
         action='store_true')

@@ -196,6 +196,8 @@ def test_main_h_option(capsys):
     expected3 = (
         "                        names of active variables\n"
         "  -v, --verbose         increase the verbosity of the output\n"
+        "  -c CONFIG, --config CONFIG\n"
+        "                        config file with PSyclone specific options\n"
         "  -t, --gen-test        generate a standalone unit test for the "
         "adjoint code\n"
         "  -api API              the PSyclone API that the TL kernel conforms "
