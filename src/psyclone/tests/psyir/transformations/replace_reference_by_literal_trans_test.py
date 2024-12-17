@@ -279,4 +279,4 @@ def test_raise_transformation_error_initial_value(
         rbbl.apply(foo)
     except TransformationError as e:
         error_str = e.__str__()
-    assert "initial value is not a Literal" not in error_str
+    assert "initial value is not a Literal" in error_str

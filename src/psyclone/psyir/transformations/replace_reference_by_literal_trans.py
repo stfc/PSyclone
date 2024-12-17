@@ -56,6 +56,7 @@ from psyclone.psyir.transformations.transformation_error import (
 
 from typing import Dict, List, Union
 
+
 class ReplaceReferenceByLiteralTrans(Transformation):
     """Replace Reference by Literal if the corresponding symbol from
     the symbol table is constant. That is to say this is a Fortran parameter.
