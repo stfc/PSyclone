@@ -55,7 +55,8 @@ def test_rrbl_general():
 
     assert (
         str(rrbl)
-        == "Replaces all static const Reference by its Literal in a subroutine."
+        == "Replaces all static const Reference "
+        + "by its Literal in a subroutine."
     )
     assert rrbl.name == "ReplaceReferenceByLiteralTrans"
 
@@ -116,7 +117,7 @@ def test_rrbl_module_defined_parameter(fortran_reader, fortran_writer):
     source = """module test
                 integer, parameter :: x=1, y=2, z=3
                 real, dimension(10) :: a
-                contains 
+                contains
                 subroutine foo()
                 integer i,ic1
                 do i = 1, 10, 5
@@ -246,7 +247,6 @@ def test_raise_transformation_error_initial_value_not_literal(
     psyir = fortran_reader.psyir_from_source(source)
     foo: Routine = psyir.walk(Routine)[0]
     assert foo.symbol_table is not None
-    from psyclone.psyir.symbols import DataSymbol
 
     rbbl = ReplaceReferenceByLiteralTrans()
     error_str = ""
@@ -279,4 +279,4 @@ def test_raise_transformation_error_initial_value(
         rbbl.apply(foo)
     except TransformationError as e:
         error_str = e.__str__()
-    assert not "initial value is not a Literal" in error_str
+    assert "initial value is not a Literal" not in error_str

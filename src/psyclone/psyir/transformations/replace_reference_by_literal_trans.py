@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: H. Brunie, University of Grenoble Alpes
 
-"""Module providing a transformation that replace PsyIR Node static const 
+"""Module providing a transformation that replace PsyIR Node static const
 Reference with a Literal node when possible. """
 
 from psyclone.psyir.symbols import (
@@ -41,7 +41,6 @@ from psyclone.psyir.symbols import (
     Symbol,
     SymbolTable,
     ArrayType,
-    DataType,
 )
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
@@ -56,7 +55,6 @@ from psyclone.psyir.transformations.transformation_error import (
 )
 
 from typing import Dict, List, Union
-
 
 class ReplaceReferenceByLiteralTrans(Transformation):
     """Replace Reference by Literal if the corresponding symbol from
