@@ -233,11 +233,36 @@ def test_raise_transformation_error(fortran_reader, fortran_writer):
     assert "Symbol already found" in error_str
 
 
+def test_raise_transformation_error_initial_value_not_literal(
+    fortran_reader, fortran_writer
+):
+    """TODO: use sympy maybe to simplify expression before applying
+    transformation"""
+    source = """subroutine foo()
+    integer, parameter ::  b = 3+2
+    integer :: x
+    x = b
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(source)
+    foo: Routine = psyir.walk(Routine)[0]
+    assert foo.symbol_table is not None
+    from psyclone.psyir.symbols import DataSymbol
+
+    rbbl = ReplaceReferenceByLiteralTrans()
+    error_str = ""
+    try:
+        rbbl.apply(foo)
+    except TransformationError as e:
+        error_str = e.__str__()
+    assert "initial value is not a Literal" in error_str
+
+
 def test_raise_transformation_error_initial_value(
     fortran_reader, fortran_writer
 ):
     source = """subroutine foo()
     character(len=4), parameter ::  a = "toto"
+    integer, parameter ::  b = 3+2
     character(len=4):: x
     x = a
     end subroutine"""
