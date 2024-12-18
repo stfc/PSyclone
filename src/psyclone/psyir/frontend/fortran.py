@@ -38,7 +38,7 @@
 
 import os
 
-from typing import Optional
+from typing import Optional, Union, List
 from fparser.common.readfortran import FortranStringReader, FortranFileReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003, pattern_tools
@@ -55,14 +55,18 @@ class FortranReader():
     ''' PSyIR Fortran frontend. This frontend translates Fortran from a string
     or a file into PSyIR using the fparser2 utilities.
 
+    :param resolve_modules: Whether to resolve modules while parsing a file,
+        for more precise control it also accepts a list of module names.
+        Defaults to False.
+
     '''
     # Save parser object across instances to reduce the initialisation time
     _parser = None
 
-    def __init__(self):
+    def __init__(self, resolve_modules: Union[bool, List[str]] = False):
         if not self._parser:
             self._parser = ParserFactory().create(std="f2008")
-        self._processor = Fparser2Reader()
+        self._processor = Fparser2Reader(resolve_modules)
         SYMBOL_TABLES.clear()
 
     @staticmethod
