@@ -43,13 +43,31 @@ from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import GenerationError
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import (
-    ArrayReference, Assignment, BinaryOperation, Call, CodeBlock, Literal,
-    Node, Reference, Routine, Schedule)
-from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
+    ArrayReference,
+    Assignment,
+    BinaryOperation,
+    Call,
+    CodeBlock,
+    Literal,
+    Node,
+    Reference,
+    Routine,
+    Schedule,
+)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
-    ArrayType, INTEGER_TYPE, DataSymbol, NoType, RoutineSymbol, REAL_TYPE,
-    SymbolError, UnsupportedFortranType)
+    ArrayType,
+    INTEGER_TYPE,
+    DataSymbol,
+    NoType,
+    RoutineSymbol,
+    REAL_TYPE,
+    SymbolError,
+    UnsupportedFortranType,
+)
+
+from psyclone.psyir.tools.call_routine_matcher import (
+    CallMatchingArgumentsNotFoundError)
 
 
 class SpecialCall(Call):
@@ -737,10 +755,13 @@ end module some_mod'''
     call_foo: Call = routine_main.walk(Call)[0]
     assert call_foo.routine.name == "foo"
 
-    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+    with pytest.raises(CallMatchingArgumentsNotFoundError) as err:
         call_foo.get_callee()
 
-    assert "No matching routine found for" in str(err.value)
+    assert (
+        "Found routines, but no routine with matching arguments found"
+        in str(err.value)
+    )
 
 
 def test_call_get_callee_3c_trigger_error(fortran_reader):
@@ -1184,7 +1205,7 @@ def test_call_get_callee_6_interfaces_3_0_mismatch(fortran_reader):
     call_foo_optional: Call = routine_main.walk(Call)[8]
     assert call_foo_optional.routine.name == "foo"
 
-    with pytest.raises(CallMatchingArgumentsNotFound) as einfo:
+    with pytest.raises(CallMatchingArgumentsNotFoundError) as einfo:
         call_foo_optional.get_callee()
 
     assert "Argument partial type mismatch of call argument" in (
@@ -1221,11 +1242,12 @@ end module some_mod'''
 
     call_foo: Call = routine_main.walk(Call)[0]
 
-    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+    with pytest.raises(CallMatchingArgumentsNotFoundError) as err:
         call_foo.get_callee()
 
-    assert "No matching routine found for 'call foo(e, f, d=g)" in str(
-        err.value
+    assert (
+        "Found routines, but no routine with matching arguments found"
+        in str(err.value)
     )
 
 
@@ -1260,10 +1282,13 @@ end module some_mod'''
 
     call_foo: Call = routine_main.walk(Call)[0]
 
-    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+    with pytest.raises(CallMatchingArgumentsNotFoundError) as err:
         call_foo.get_callee()
 
-    assert "No matching routine found for 'call foo(e, f)" in str(err.value)
+    assert (
+        "Found routines, but no routine with matching arguments found"
+        in str(err.value)
+    )
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")

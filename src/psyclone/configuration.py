@@ -449,8 +449,17 @@ class Config:
         if not within_virtual_env():
             # 4. <python-installation-base>/share/psyclone/
             _file_paths.append(share_dir)
+
         # 5. <psyclone-installation-base>/share/psyclone/
         _file_paths.extend(pkg_share_dir)
+
+        # 6. <psyclone-src-base>/config/
+        # Search for configuration file relative to this source file
+        dev_path_list = os.path.split(
+                            os.path.abspath(__file__))[:-1]+(
+                                "..", "..", "config")
+        dev_path = os.path.abspath(os.path.join(*dev_path_list))
+        _file_paths.append(dev_path)
 
         for cfile in [os.path.join(cdir, _FILE_NAME) for cdir in _file_paths]:
             if os.path.isfile(cfile):
