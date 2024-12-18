@@ -2025,13 +2025,17 @@ class Fparser2Reader():
                         if type(extends_symbol) is Symbol:
                             extends_symbol.specialise(DataTypeSymbol)
                             extends_symbol.datatype = StructureType()
-                    # If it is not in the symbol table, create a new
-                    # DataTypeSymbol for it.
-                    # NOTE: this should *not* be added to the symbol table
-                    # as it might be defined somewhere else if it was imported.
                     else:
-                        extends_symbol = DataTypeSymbol(extends_name,
-                                                        StructureType())
+                        # If it is not in the symbol table, create a new
+                        # DataTypeSymbol with an UnresolvedInterface for it,
+                        # meaning that we know it exists somewhere but we don't
+                        # know how it is brought into scope, and add it to the
+                        # symbol table.
+                        extends_symbol = DataTypeSymbol(
+                            extends_name,
+                            StructureType(),
+                            interface=UnresolvedInterface())
+                        parent.symbol_table.add(extends_symbol)
                     # Set it as the extended type of the new type.
                     dtype.extends = extends_symbol
                 else:
