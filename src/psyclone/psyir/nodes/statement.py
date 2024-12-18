@@ -37,7 +37,7 @@
 ''' This module contains the Statement abstract node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
+from psyclone.psyir.commentable_mixin import CommentableMixin
 
 
 class Statement(Node, CommentableMixin):
