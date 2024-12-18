@@ -66,6 +66,32 @@ def test_datatype():
     assert ("__str__" in msg)
 
 
+def test_datatype_is_pointer_is_target():
+    '''Test that the is_pointer and is_target attributes raise the expected
+    exceptions when instantiating (a subclass of) DataType.'''
+    with pytest.raises(TypeError) as excinfo:
+        _ = UnresolvedType(is_pointer="true", is_target=False)
+    assert ("Expected 'is_pointer' to be a bool but got 'str'" in
+            str(excinfo.value))
+    with pytest.raises(TypeError) as excinfo:
+        _ = UnresolvedType(is_pointer=True, is_target="false")
+    assert ("Expected 'is_target' to be a bool but got 'str'" in
+            str(excinfo.value))
+    # Impossible combination
+    with pytest.raises(ValueError) as excinfo:
+        _ = UnresolvedType(is_pointer=True, is_target=True)
+    assert ("A DataType cannot be both a pointer and a target." in
+            str(excinfo.value))
+    # Possible combinations
+    _ = UnresolvedType(is_pointer=False, is_target=False)
+    _ = UnresolvedType(is_pointer=True, is_target=False)
+    _ = UnresolvedType(is_pointer=False, is_target=True)
+    # Default values
+    dtype = UnresolvedType()
+    assert not dtype.is_pointer
+    assert not dtype.is_target
+
+
 # UnresolvedType class
 
 def test_unresolvedtype():
@@ -822,7 +848,7 @@ def test_unsupported_fortran_type_copy(fortran_reader):
     subroutine test
       use some_mod, only: some_type, start, stop
       integer, parameter :: nelem = 4
-      type(some_type), pointer :: var(nelem), var2(start:stop)
+      type(some_type), asynchronous :: var(nelem), var2(start:stop)
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)

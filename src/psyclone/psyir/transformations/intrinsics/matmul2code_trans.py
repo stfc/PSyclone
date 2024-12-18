@@ -285,7 +285,9 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             operation is not an assignment.
         :raises TransformationError: if the matmul arguments are not in
             the required form.
-        :raises TransformationError: if sub-sections of an array are present
+        :raises TransformationError: if any of the arrays are potentially \
+            aliased.
+        :raises TransformationError: if sub-sections of an array are present \
             in the arguments.
 
         '''
@@ -330,6 +332,15 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                 f"Expected result and operands of MATMUL IntrinsicCall to "
                 f"be references to arrays but found '{result.symbol}', "
                 f"'{matrix1.symbol}' and '{matrix2.symbol}'.")
+
+        # The arrays must not be potentially aliased
+        if any(var.symbol.is_potentially_aliased for var in
+               [matrix1, matrix2, result]):
+            raise TransformationError(
+                f"Expected result and operands of MATMUL IntrinsicCall to "
+                f"be references to arrays that are not potentially aliased "
+                f"but found '{result.symbol}', '{matrix1.symbol}' and "
+                f"'{matrix2.symbol}'.")
 
         # The first child (matrix1) should be declared as an array
         # with at least 2 dimensions.

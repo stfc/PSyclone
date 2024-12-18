@@ -51,7 +51,26 @@ from psyclone.psyir.symbols.symbol import Symbol
 
 
 class DataType(metaclass=abc.ABCMeta):
-    '''Abstract base class from which all types are derived.'''
+    '''Abstract base class from which all types are derived.
+
+    :param bool is_pointer: whether this datatype is a pointer.
+    :param bool is_target: whether this datatype is a target.
+
+    :raises TypeError: if is_pointer or is_target are not of type bool.
+    :raises ValueError: if is_pointer and is_target are both True.
+    '''
+    def __init__(self, is_pointer=False, is_target=False):
+        if not isinstance(is_pointer, bool):
+            raise TypeError(f"Expected 'is_pointer' to be a bool but got "
+                            f"'{type(is_pointer).__name__}'")
+        if not isinstance(is_target, bool):
+            raise TypeError(f"Expected 'is_target' to be a bool but got "
+                            f"'{type(is_target).__name__}'")
+        if is_pointer and is_target:
+            raise ValueError("A DataType cannot be both a pointer and a "
+                             "target.")
+        self._is_pointer = is_pointer
+        self._is_target = is_target
 
     @abc.abstractmethod
     def __str__(self):
@@ -68,7 +87,25 @@ class DataType(metaclass=abc.ABCMeta):
         :returns: whether this type is equal to the 'other' type.
         :rtype: bool
         '''
-        return type(other) is type(self)
+        return (type(other) is type(self)
+                and self.is_pointer == other.is_pointer
+                and self.is_target == other.is_target)
+
+    @property
+    def is_pointer(self):
+        '''
+        :returns: whether this datatype is a pointer.
+        :rtype: bool
+        '''
+        return self._is_pointer
+
+    @property
+    def is_target(self):
+        '''
+        :returns: whether this datatype is a target.
+        :rtype: bool
+        '''
+        return self._is_target
 
     def copy(self):
         '''
@@ -118,7 +155,8 @@ class UnsupportedType(DataType, metaclass=abc.ABCMeta):
     :raises TypeError: if the supplied declaration_txt is not a str.
 
     '''
-    def __init__(self, declaration_txt):
+    def __init__(self, declaration_txt, is_pointer=False, is_target=False):
+        super().__init__(is_pointer, is_target)
         if not isinstance(declaration_txt, str):
             raise TypeError(
                 f"UnsupportedType constructor expects the original variable "
@@ -155,8 +193,9 @@ class UnsupportedFortranType(UnsupportedType):
         :py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
 
     '''
-    def __init__(self, declaration_txt, partial_datatype=None):
-        super().__init__(declaration_txt)
+    def __init__(self, declaration_txt, partial_datatype=None,
+                 is_pointer=False, is_target=False):
+        super().__init__(declaration_txt, is_pointer, is_target)
         # This will hold the Fortran type specification (as opposed to
         # the whole declaration).
         self._type_text = ""
@@ -331,7 +370,9 @@ class ScalarType(DataType):
         Intrinsic.BOOLEAN: bool,
         Intrinsic.REAL: float}
 
-    def __init__(self, intrinsic, precision):
+    def __init__(self, intrinsic, precision, is_pointer=False,
+                 is_target=False):
+        super().__init__(is_pointer, is_target)
         if not isinstance(intrinsic, ScalarType.Intrinsic):
             raise TypeError(
                 f"ScalarType expected 'intrinsic' argument to be of type "
@@ -498,7 +539,8 @@ class ArrayType(DataType):
         lower: Any
         upper: Any
 
-    def __init__(self, datatype, shape):
+    def __init__(self, datatype, shape, is_pointer=False, is_target=False):
+        super().__init__(is_pointer, is_target)
 
         # This import must be placed here to avoid circular dependencies.
         # pylint: disable-next=import-outside-toplevel
@@ -849,7 +891,9 @@ class ArrayType(DataType):
                 # This dimension is specified with an ArrayType.Extent
                 # so no need to copy.
                 new_shape.append(dim)
-        return ArrayType(self.datatype, new_shape)
+        array_copy = ArrayType(self.datatype, new_shape, self.is_pointer,
+                               self.is_target)
+        return array_copy
 
     def replace_symbols_using(self, table):
         '''
@@ -926,6 +970,7 @@ class StructureType(DataType):
         initial_value: Any
 
     def __init__(self):
+        super().__init__(is_pointer=False, is_target=False)
         self._components = OrderedDict()
 
     def __str__(self):
@@ -943,7 +988,7 @@ class StructureType(DataType):
             :py:class:`psyclone.psyir.symbols.DataType` |
             :py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility`,
-            Optional[:py:class:`psyclone.psyir.symbols.DataNode`]
+            Optional[:py:class:`psyclone.psyir.symbols.DataNode`],
             ]]
 
         :returns: the new type object.
@@ -973,7 +1018,8 @@ class StructureType(DataType):
         Create a component with the supplied attributes and add it to
         this StructureType.
 
-        :param str name: the name of the new component.
+        :param str name: the name of the new component., is_pointer=False,
+            is_target=False
         :param datatype: the type of the new component.
         :type datatype: :py:class:`psyclone.psyir.symbols.DataType` |
             :py:class:`psyclone.psyir.symbols.DataTypeSymbol`

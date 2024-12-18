@@ -47,7 +47,7 @@ from psyclone.psyir.symbols import (
     RoutineSymbol, ScalarType, Symbol, SymbolTable, UnresolvedType,
     StructureType, ImportInterface, UnresolvedInterface, ArgumentInterface,
     INTEGER_TYPE, REAL_TYPE, StaticInterface, PreprocessorInterface,
-    CHARACTER_TYPE)
+    CHARACTER_TYPE, ArrayType)
 
 
 def test_gen_param_decls_dependencies(fortran_writer):
@@ -207,6 +207,65 @@ def test_gen_decls(fortran_writer):
             "from a module and there are no wildcard "
             "imports which could be bringing them into scope: "
             "'unknown'" in str(excinfo.value))
+
+
+def test_gen_decls_pointer_target(fortran_writer):
+    '''Test that the gen_decls method correctly handles symbols with
+    is_pointer=True xor is_target=True attributes in their datatypes.
+    '''
+    symbol_table = SymbolTable()
+
+    # Test with is_pointer=True on a scalar
+    int_ptr_type = ScalarType(ScalarType.Intrinsic.INTEGER,
+                              ScalarType.Precision.UNDEFINED,
+                              is_pointer=True)
+    pointer_symbol = DataSymbol("ptr_var", int_ptr_type)
+    symbol_table.add(pointer_symbol)
+    result = fortran_writer.gen_decls(symbol_table)
+    assert "integer, pointer :: ptr_var" in result
+
+    # Test with is_target=True on a scalar
+    int_tgt_type = ScalarType(ScalarType.Intrinsic.INTEGER,
+                              ScalarType.Precision.UNDEFINED,
+                              is_target=True)
+    target_symbol = DataSymbol("tgt_var", int_tgt_type)
+    symbol_table.add(target_symbol)
+    result = fortran_writer.gen_decls(symbol_table)
+    assert "integer, target :: tgt_var" in result
+
+    # Test with is_pointer=True on an array
+    array_ptr_type = ArrayType(ScalarType(ScalarType.Intrinsic.INTEGER,
+                                          ScalarType.Precision.UNDEFINED),
+                               [ArrayType.Extent.ATTRIBUTE],
+                               is_pointer=True)
+    pointer_symbol = DataSymbol("ptr_array", array_ptr_type)
+    symbol_table.add(pointer_symbol)
+    result = fortran_writer.gen_decls(symbol_table)
+    assert "integer, dimension(:), pointer :: ptr_array" in result
+
+    # Test with is_target=True on an array
+    array_tgt_type = ArrayType(ScalarType(ScalarType.Intrinsic.INTEGER,
+                                          ScalarType.Precision.UNDEFINED),
+                               [ArrayType.Extent.ATTRIBUTE],
+                               is_target=True)
+    target_symbol = DataSymbol("tgt_array", array_tgt_type)
+    symbol_table.add(target_symbol)
+    result = fortran_writer.gen_decls(symbol_table)
+    assert "integer, dimension(:), target :: tgt_array" in result
+
+    # Test with is_pointer=True on a derived type
+    dtypesym = DataTypeSymbol("dtype", StructureType(), is_pointer=True)
+    dtype_ptr_sym = DataSymbol("dtype_ptr", dtypesym)
+    symbol_table.add(dtype_ptr_sym)
+    result = fortran_writer.gen_decls(symbol_table)
+    assert "type(dtype), pointer :: dtype_ptr" in result
+
+    # Test with is_target=True on a derived type
+    dtypesym = DataTypeSymbol("dtype", StructureType(), is_target=True)
+    dtype_tgt_sym = DataSymbol("dtype_tgt", dtypesym)
+    symbol_table.add(dtype_tgt_sym)
+    result = fortran_writer.gen_decls(symbol_table)
+    assert "type(dtype), target :: dtype_tgt" in result
 
 
 def test_gen_decls_nested_scope(fortran_writer):

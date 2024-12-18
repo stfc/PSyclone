@@ -51,6 +51,35 @@ def test_create_datatypesymbol():
     assert isinstance(sym.datatype, UnresolvedType)
     assert str(sym) == "my_type: DataTypeSymbol"
 
+    with pytest.raises(TypeError) as err:
+        _ = DataTypeSymbol("my_type", UnresolvedType(), is_pointer="true",
+                           is_target=False)
+    assert ("is_pointer should be a boolean but found 'str'" in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        _ = DataTypeSymbol("my_type", UnresolvedType(), is_pointer=True,
+                           is_target="false")
+    assert ("is_target should be a boolean but found 'str'" in str(err.value))
+
+    # Impossible combination of is_pointer and is_target
+    with pytest.raises(ValueError) as err:
+        _ = DataTypeSymbol("my_type", UnresolvedType(), is_pointer=True,
+                           is_target=True)
+    assert ("A symbol cannot be both a pointer and a target" in str(err.value))
+
+    # Possible combinations of is_pointer and is_target
+    _ = DataTypeSymbol("my_type", UnresolvedType(), is_pointer=True,
+                       is_target=False)
+    _ = DataTypeSymbol("my_type", UnresolvedType(), is_pointer=False,
+                       is_target=True)
+    _ = DataTypeSymbol("my_type", UnresolvedType(), is_pointer=False,
+                       is_target=False)
+
+    # Default values of is_pointer and is_target
+    sym = DataTypeSymbol("my_type", UnresolvedType())
+    assert not sym.is_pointer
+    assert not sym.is_target
+
 
 def test_create_datatypesymbol_wrong_datatype():
     ''' Check that attempting to specify the type of a DataTypeSymbol with an

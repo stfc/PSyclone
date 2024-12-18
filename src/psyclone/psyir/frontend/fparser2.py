@@ -1707,10 +1707,21 @@ class Fparser2Reader():
         decln_access_spec = None
         # 6) Whether this declaration has the SAVE attribute.
         has_save_attr = False
+        # 7) Whether this declaration has the POINTER or TARGET attribute.
+        has_pointer_attr = False
+        has_target_attr = False
         if attr_specs:
             for attr in attr_specs.items:
-                if isinstance(attr, (Fortran2003.Attr_Spec,
-                                     Fortran2003.Component_Attr_Spec)):
+                # NOTE: for a routine declaration, 'POINTER' or 'TARGET' is
+                # an Attr_Spec, but in a derived type declaration component
+                # it is not.
+                normalized_string = str(attr).lower().replace(' ', '')
+                if normalized_string == "pointer":
+                    has_pointer_attr = True
+                elif normalized_string == "target":
+                    has_target_attr = True
+                elif isinstance(attr, (Fortran2003.Attr_Spec,
+                                       Fortran2003.Component_Attr_Spec)):
                     normalized_string = str(attr).lower().replace(' ', '')
                     if normalized_string == "save":
                         if interface is not None:
@@ -1753,8 +1764,9 @@ class Fparser2Reader():
                             f"{err.value}") from err
                 else:
                     raise NotImplementedError(
-                        f"Could not process declaration '{decl}'. Unrecognised"
-                        f" attribute type '{type(attr).__name__}'.")
+                        f"Could not process declaration '{decl}'. "
+                        f"Unrecognised attribute type "
+                        f"'{type(attr).__name__}'.")
 
             # There are some combinations of attributes that are not valid
             # Fortran but fparser does not check, so we need to check for them
@@ -1763,6 +1775,16 @@ class Fparser2Reader():
             if has_save_attr and has_constant_value:
                 raise GenerationError(
                     f"SAVE and PARAMETER attributes are not compatible but "
+                    f"found:\n {decl}")
+
+            # TODO check these are needed
+            if has_pointer_attr and has_target_attr:
+                raise GenerationError(
+                    f"POINTER and TARGET attributes are not compatible but "
+                    f"found:\n {decl}")
+            if has_pointer_attr and has_constant_value:
+                raise GenerationError(
+                    f"POINTER and PARAMETER attributes are not compatible but "
                     f"found:\n {decl}")
 
             # Now we've checked for save and parameter existing
@@ -1775,6 +1797,10 @@ class Fparser2Reader():
             if allocatable and has_constant_value:
                 raise GenerationError(
                     f"ALLOCATABLE and PARAMETER attributes are not compatible "
+                    f"but found:\n {decl}")
+            if allocatable and has_pointer_attr:
+                raise GenerationError(
+                    f"ALLOCATABLE and POINTER attributes are not compatible "
                     f"but found:\n {decl}")
             if isinstance(interface, ArgumentInterface) and has_constant_value:
                 raise GenerationError(
@@ -1868,9 +1894,13 @@ class Fparser2Reader():
 
             if entity_shape:
                 # array
-                datatype = ArrayType(base_type, entity_shape)
+                datatype = ArrayType(base_type, entity_shape,
+                                     is_pointer=has_pointer_attr,
+                                     is_target=has_target_attr)
             else:
                 # scalar
+                base_type._is_pointer = has_pointer_attr
+                base_type._is_target = has_target_attr
                 datatype = base_type
 
             # Make sure the declared symbol exists in the SymbolTable.
@@ -2083,7 +2113,7 @@ class Fparser2Reader():
         orig_entity_decl_children = list(entity_decl.children[:])
 
         # 2: Remove any unsupported attributes
-        unsupported_attribute_names = ["pointer", "target", "optional"]
+        unsupported_attribute_names = ["asynchronous", "volatile", "optional"]
         attr_spec_list = node.children[1]
         orig_node_children = list(node.children[:])
         orig_attr_spec_list_children = (list(node.children[1].children[:])

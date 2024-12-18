@@ -62,6 +62,43 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         super(TypedSymbol, self).__init__(name)
         self._process_arguments(datatype=datatype, **kwargs)
 
+    @property
+    def is_unsupported(self):
+        '''
+        :returns: whether the datatype of the Symbol is an UnsupportedType.
+        :rtype: bool
+        '''
+        # Import here to avoid circular dependencies
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import UnsupportedType
+        return isinstance(self.datatype, UnsupportedType)
+
+    @property
+    def is_potentially_aliased(self):
+        '''
+        :returns: whether the Symbol is potentially aliased, i.e. it is a \
+                  pointer, target, unresolved or unsupported.
+        :rtype: bool
+        '''
+        return (self.datatype.is_pointer or self.datatype.is_target
+                or self.is_unresolved or self.is_unsupported)
+
+    @property
+    def is_pointer(self):
+        '''
+        :returns: whether the Symbol is a pointer.
+        :rtype: bool
+        '''
+        return self.datatype.is_pointer
+
+    @property
+    def is_target(self):
+        '''
+        :returns: whether the Symbol is a target.
+        :rtype: bool
+        '''
+        return self.datatype.is_target
+
     def _process_arguments(self, **kwargs):
         ''' Process the arguments for the constructor and the specialise
         methods. In this case the datatype argument.

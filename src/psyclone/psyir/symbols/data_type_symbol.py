@@ -52,16 +52,34 @@ class DataTypeSymbol(Symbol):
     :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
     :param interface: the interface to this symbol.
     :type interface: :py:class:`psyclone.psyir.symbols.SymbolInterface`
+    :param is_pointer: whether this is a pointer symbol.
+    :type is_pointer: bool
+    :param is_target: whether this is a target symbol.
+    :type is_target: bool
 
     '''
     def __init__(self, name, datatype,
                  visibility=Symbol.DEFAULT_VISIBILITY,
-                 interface=None):
+                 interface=None,
+                 is_pointer=False,
+                 is_target=False):
+        if not isinstance(is_pointer, bool):
+            raise TypeError(f"is_pointer should be a boolean but found "
+                            f"'{type(is_pointer).__name__}'.")
+        if not isinstance(is_target, bool):
+            raise TypeError(f"is_target should be a boolean but found "
+                            f"'{type(is_target).__name__}'.")
+        if is_pointer and is_target:
+            raise ValueError("A symbol cannot be both a pointer and a target.")
+
         super(DataTypeSymbol, self).__init__(name, visibility, interface)
 
         # The following attribute has a setter method (with error checking)
         self._datatype = None
         self.datatype = datatype
+
+        self._is_pointer = is_pointer
+        self._is_target = is_target
 
     def copy(self):
         '''Create and return a copy of this object. Any references to the
@@ -74,7 +92,9 @@ class DataTypeSymbol(Symbol):
 
         '''
         return type(self)(self.name, self.datatype, visibility=self.visibility,
-                          interface=self.interface.copy())
+                          interface=self.interface.copy(),
+                          is_pointer=self.is_pointer,
+                          is_target=self.is_target)
 
     def __str__(self):
         return f"{self.name}: {type(self).__name__}"
@@ -123,6 +143,24 @@ class DataTypeSymbol(Symbol):
                             f"found '{type(symbol_in).__name__}'.")
         super(DataTypeSymbol, self).copy_properties(symbol_in)
         self._datatype = symbol_in.datatype
+        self._is_pointer = symbol_in.is_pointer
+        self._is_target = symbol_in.is_target
+
+    @property
+    def is_pointer(self):
+        '''
+        :returns: True if this symbol is a pointer.
+        :rtype: bool
+        '''
+        return self._is_pointer
+
+    @property
+    def is_target(self):
+        '''
+        :returns: True if this symbol is a target.
+        :rtype: bool
+        '''
+        return self._is_target
 
 
 # For automatic documentation generation
