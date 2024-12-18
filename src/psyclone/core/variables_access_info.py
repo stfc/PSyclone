@@ -319,6 +319,14 @@ class VariablesAccessInfo(dict):
         # locations just merged in
         self._location = self._location + max_new_location
 
+    def is_called(self, signature: Signature) -> bool:
+        '''
+        :param signature: signature of the variable.
+
+        :returns: True if the specified variable is called at least once.
+        '''
+        return self[signature].is_called()
+
     def is_written(self, signature):
         '''Checks if the specified variable signature is at least
         written once.
@@ -336,15 +344,14 @@ class VariablesAccessInfo(dict):
         var_access_info = self[signature]
         return var_access_info.is_written()
 
-    def is_read(self, signature):
+    def is_read(self, signature) -> bool:
         '''Checks if the specified variable signature is at least read once.
 
         :param signature: signature of the variable
         :type signature: :py:class:`psyclone.core.Signature`
 
-        :returns: True if the specified variable name is read (at least \
+        :returns: True if the specified variable name is read (at least
             once).
-        :rtype: bool
 
         :raises: KeyError if the signature cannot be found.'''
 

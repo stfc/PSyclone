@@ -36,8 +36,11 @@
 
 ''' This module contains the ScopingNode implementation.'''
 
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import RoutineSymbol, SymbolError, SymbolTable
+from psyclone.psyir.symbols import (
+    ArrayType, DataType, DataTypeSymbol, RoutineSymbol, StructureType, Symbol,
+    SymbolError, SymbolTable)
 
 
 class ScopingNode(Node):
@@ -155,10 +158,10 @@ class ScopingNode(Node):
                 pass
 
         super(ScopingNode, self)._refine_copy(other)
-        # pylint: disable=protected-access
 
         # Add any routine tags back
         for tag in removed_tags.keys():
+            # pylint: disable-next=protected-access
             self._symbol_table._tags[tag] = self._symbol_table.lookup(
                     removed_tags[tag].name)
 
@@ -169,6 +172,60 @@ class ScopingNode(Node):
         # a performance issue we could keep track of the depth of the recursive
         # call to _refine_copy and only do this call when that depth is zero.
         self.replace_symbols_using(self._symbol_table)
+
+    def reference_accesses(self, access_info: VariablesAccessInfo):
+        '''
+        Get all variable access information. This specialisation is required
+        to query the SymbolTable associated with a Scoping node and ensure
+        that any Symbols appearing in precision specifications, array shapes or
+        initialisation expressions are captured.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the
+            information about variable accesses.
+
+        '''
+        def _get_accesses(dtype: DataType, info: VariablesAccessInfo):
+            '''
+            Store information on any symbols referenced within the supplied
+            datatype.
+
+            :param dtype: the datatype to query.
+            :param info: the VariablesAccessInfo instance in which to store
+                         information.
+            '''
+            if (hasattr(dtype, "precision") and isinstance(dtype.precision,
+                                                           Symbol)):
+                access_info.add_access(
+                    Signature(dtype.precision.name),
+                    AccessType.READ, self)
+
+            if isinstance(dtype, DataTypeSymbol):
+                info.add_access(Signature(dtype.name),
+                                AccessType.READ, self)
+            elif isinstance(dtype, StructureType):
+                for cmpt in sym.datatype.components.values():
+                    # Recurse for members of a StructureType
+                    _get_accesses(cmpt.datatype, info)
+                    if cmpt.initial_value:
+                        cmpt.initial_value.reference_accesses(info)
+            elif isinstance(dtype, ArrayType):
+                for dim in dtype.shape:
+                    if isinstance(dim, ArrayType.ArrayBounds):
+                        dim.lower.reference_accesses(access_info)
+                        dim.upper.reference_accesses(access_info)
+
+        # Examine the datatypes and initial values of all DataSymbols.
+        for sym in self._symbol_table.datasymbols:
+            _get_accesses(sym.datatype, access_info)
+
+            if sym.initial_value:
+                sym.initial_value.reference_accesses(access_info)
+
+        # Examine the definition of each DataTypeSymbol.
+        for sym in self._symbol_table.datatypesymbols:
+            _get_accesses(sym.datatype, access_info)
+
+        super().reference_accesses(access_info)
 
     def replace_symbols_using(self, table):
         '''
