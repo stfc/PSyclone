@@ -50,8 +50,8 @@ PSYDATA_LIB_DIR ?= ./..
 
 # The read-only verification library is implemented for int, real and
 # double scalars and 2-dimension arrays
-PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
-		       -dims=2
+PROCESS_ARGS = -prefix=read_only_verify_ -types=char,int,logical,real,double \
+		       -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
 default: read_only_base.o psy_data_base.o
