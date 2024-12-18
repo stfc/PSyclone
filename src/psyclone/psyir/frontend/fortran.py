@@ -38,7 +38,7 @@
 
 import os
 
-from typing import Optional
+from typing import Optional, Union, List
 from fparser.common.readfortran import FortranStringReader, FortranFileReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003, pattern_tools
@@ -68,19 +68,25 @@ class FortranReader():
                                         (default False).
                                         Only has an effect if ignore_comments
                                         is False.
+    :param resolve_modules: Whether to resolve modules while parsing a file,
+        for more precise control it also accepts a list of module names.
+        Defaults to False.
+
     '''
     # Save parser object across instances to reduce the initialisation time
     _parser = None
 
     def __init__(self, free_form: bool = True, ignore_comments: bool = True,
                  ignore_directives: bool = True,
-                 last_comments_as_codeblocks: bool = False):
+                 last_comments_as_codeblocks: bool = False,
+                 resolve_modules: Union[bool, List[str]] = False):
         if not self._parser:
             self._parser = ParserFactory().create(std="f2008")
         self._free_form = free_form
         self._ignore_comments = ignore_comments
         self._processor = Fparser2Reader(ignore_directives,
-                                         last_comments_as_codeblocks)
+                                         last_comments_as_codeblocks,
+                                         resolve_modules)
         SYMBOL_TABLES.clear()
 
     @staticmethod
