@@ -36,7 +36,6 @@
 
 '''This module tests AccessType.'''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
@@ -76,7 +75,8 @@ def test_api_specific_name():
     assert set(AccessType.all_read_accesses()) == set([AccessType.READ,
                                                        AccessType.READWRITE,
                                                        AccessType.READINC,
-                                                       AccessType.INC])
+                                                       AccessType.INC,
+                                                       AccessType.SUM])
     # Clean up the Config instance
     Config._instance = None
 
@@ -116,7 +116,7 @@ def test_all_read_accesses():
 
     all_read_accesses = AccessType.all_read_accesses()
     assert isinstance(all_read_accesses, list)
-    assert len(all_read_accesses) == 4
+    assert len(all_read_accesses) == 5
     assert (len(all_read_accesses) ==
             len(set(all_read_accesses)))
     assert all(isinstance(read_access, AccessType)
