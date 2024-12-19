@@ -766,7 +766,6 @@ class Call(Statement, DataNode):
         '''
 
         routine_list = self.get_callees()
-        assert len(routine_list) != 0
 
         err_info_list = []
 

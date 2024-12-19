@@ -37,11 +37,10 @@
 '''Module containing py.test tests for the ModuleManager.'''
 
 import os
-
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.parse import ModuleManager
+from psyclone.parse import ModuleInfo, ModuleManager
 
 
 # ----------------------------------------------------------------------------
@@ -117,7 +116,7 @@ def test_mod_manager_precedence_preprocessed():
 
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
-    mod_info = mod_man.get_module_info("a_mod")
+    mod_info: ModuleInfo = mod_man.get_module_info("a_mod")
     # Make sure we get the lower case filename:
     assert mod_info.filename == "d1/a_mod.f90"
 
@@ -199,7 +198,8 @@ def test_mod_manager_get_module_info():
     mod_info = mod_man.get_module_info("b_mod")
     assert mod_info.filename == "d1/d3/b_mod.F90"
     assert list(mod_man._remaining_search_paths) == ["d2", "d2/d4"]
-    assert set(mod_man._modules.keys()) == set(["a_mod", "b_mod"])
+    assert set(mod_man._modules.keys()) == \
+        set(["a_mod", "b_mod"])
 
     # Then locate the e_mod, which should remove two paths from
     # the search path:
@@ -213,8 +213,8 @@ def test_mod_manager_get_module_info():
                                                       "d2/d4/e_mod.F90",
                                                       "d2/g_mod.F90",
                                                       "d2/error_mod.F90"])
-    assert set(mod_man._modules.keys()) == set(["a_mod", "b_mod",
-                                                "e_mod"])
+    assert set(mod_man._modules.keys()) == \
+        set(["a_mod", "b_mod", "e_mod"])
 
     with pytest.raises(FileNotFoundError) as err:
         mod_man.get_module_info("does_not_exist")
