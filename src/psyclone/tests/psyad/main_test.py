@@ -181,7 +181,7 @@ def test_main_h_option(capsys):
     expected2 = (
         "[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
         "[-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] "
-        "-a ACTIVE [ACTIVE ...] -- filename\n\n"
+        "[-c CONFIG] -a ACTIVE [ACTIVE ...] -- filename\n\n"
         "Run the PSyclone adjoint code generator on a tangent-linear "
         "kernel file\n\n"
         "positional arguments:\n"
@@ -234,7 +234,7 @@ def test_main_no_args(capsys):
     expected1 = "usage: "
     expected2 = ("[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
                  "[-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] "
-                 "-a ACTIVE [ACTIVE ...] -- filename")
+                 "[-c CONFIG] -a ACTIVE [ACTIVE ...] -- filename")
     expected3 = ("error: the following arguments are required: "
                  "-a/--active, filename\n")
     assert expected1 in error
