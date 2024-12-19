@@ -46,7 +46,6 @@ import pytest
 
 from psyclone.psyad import main
 
-
 TEST_PROG = (
     "program test\n"
     "real :: a\n"
@@ -182,7 +181,7 @@ def test_main_h_option(capsys):
     expected2 = (
         "[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
         "[-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] "
-        "-a ACTIVE [ACTIVE ...] -- filename\n\n"
+        "[-c CONFIG] -a ACTIVE [ACTIVE ...] -- filename\n\n"
         "Run the PSyclone adjoint code generator on a tangent-linear "
         "kernel file\n\n"
         "positional arguments:\n"
@@ -193,8 +192,13 @@ def test_main_h_option(capsys):
     assert ("  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
             in output or
             "  -a, --active ACTIVE [ACTIVE ...]\n" in output)
+    assert ("                        names of active variables\n"
+            in output)
+    assert ("  -c CONFIG, --config CONFIG\n"
+            "                        config file with PSyclone specific "
+            "options\n" in output or " -c, --config CONFIG   config file"
+            " with PSyclone specific options\n" in output)
     expected3 = (
-        "                        names of active variables\n"
         "  -v, --verbose         increase the verbosity of the output\n"
         "  -t, --gen-test        generate a standalone unit test for the "
         "adjoint code\n"
@@ -230,7 +234,7 @@ def test_main_no_args(capsys):
     expected1 = "usage: "
     expected2 = ("[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
                  "[-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] "
-                 "-a ACTIVE [ACTIVE ...] -- filename")
+                 "[-c CONFIG] -a ACTIVE [ACTIVE ...] -- filename")
     expected3 = ("error: the following arguments are required: "
                  "-a/--active, filename\n")
     assert expected1 in error
