@@ -337,7 +337,7 @@ class ModuleInfo:
 
         if trigger_exception:
             if routine_found is None:
-                raise Exception(f"Subroutine '{routine_name}' not found")
+                raise ModuleInfoError(f"Subroutine '{routine_name}' not found")
 
         return routine_found
 
