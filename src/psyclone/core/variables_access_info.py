@@ -480,7 +480,7 @@ class VariablesAccessInfo(dict):
                 # access to a(i) as part of the readwrite is conditional. But
                 # since there is only one accesses for the readwrite, we can't
                 # mark it as both conditional and unconditional
-                is_conditional = True
+                conditional_in_if = True
 
                 for mode in [AccessType.READ, AccessType.WRITE]:
                     for access in if_accesses:
@@ -490,12 +490,18 @@ class VariablesAccessInfo(dict):
                         if mode is AccessType.WRITE and not access.is_written:
                             continue
                         if not access.conditional:
-                            is_conditional = False
+                            conditional_in_if = False
                             break
-                    # If an access is unconditional in the if branch, then we
-                    # need to check the if branch
-                    if not is_conditional:
-                        for access in if_accesses:
+
+                    overall_conditional = conditional_in_if
+                    # If there is no conditional access in the if branch, there
+                    # might still be one in the else branch, making the whole
+                    # access conditional:
+                    if not conditional_in_if:
+                        # Assume that there is a conditional access in the else
+                        # branch, unless we find an unconditional one
+                        overall_conditional = True
+                        for access in else_accesses:
                             # Ignore read or write accesses depending on mode
                             if mode is AccessType.READ and not access.is_read:
                                 continue
@@ -503,7 +509,9 @@ class VariablesAccessInfo(dict):
                                     not access.is_written:
                                 continue
                             if not access.conditional:
-                                is_conditional = False
+                                # We have an unconditional access, so know now
+                                # that the access is unconditional:
+                                overall_conditional = False
                                 break
 
                     # If the access to this equivalence class is conditional,
@@ -515,9 +523,10 @@ class VariablesAccessInfo(dict):
                         if mode is AccessType.WRITE and \
                                 not access.is_written:
                             continue
-                        access.conditional = is_conditional
-                        print("conditional" if is_conditional
+                        access.conditional = overall_conditional
+                        print(f"conditional" if overall_conditional
                               else "unconditional",
+                              mode,
                               sig.to_language(component_indices=comp_index))
                 print("-----------------------------")
         self.merge(var_if)

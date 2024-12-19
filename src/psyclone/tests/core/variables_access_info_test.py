@@ -542,3 +542,25 @@ def test_variables_access_info_array_conditional(fortran_reader):
     vai = VariablesAccessInfo(node1, options={"FLATTEN": True})
 
     print(vai)
+
+    code = '''module test
+        contains
+        subroutine tmp(i)
+          integer :: cond_var, i
+          integer, dimension(10) :: array, my_val
+          do i = 1, 10
+            if (array(i) > 3) then
+                my_val(1) = 1
+                array(i) = my_val(1)
+            else
+                array(i) = my_val(1)
+            endif
+          end do
+
+        end subroutine tmp
+        end module test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    node1 = psyir.walk(IfBlock)[0]
+
+    # By default, array shape accesses are not reads.
+    vai = VariablesAccessInfo(node1, options={"FLATTEN": True})
