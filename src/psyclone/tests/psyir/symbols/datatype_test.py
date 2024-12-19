@@ -1142,21 +1142,51 @@ def test_replace_procedure_component_initial_value():
     stype = StructureType()
     unsupported_type = UnsupportedFortranType("procedure, code => routine",
                                               None)
-    stype.add_procedure_component("proc", unsupported_type,
+    stype.add_procedure_component("code", unsupported_type,
                                   Symbol.Visibility.PUBLIC)
     new_routine_symbol = RoutineSymbol("new_routine")
     new_ref = Reference(new_routine_symbol)
     stype.replace_procedure_component_initial_value("routine", new_ref)
-    assert (stype.lookup_procedure_component("proc").datatype.declaration
+    assert (stype.lookup_procedure_component("code").datatype.declaration
             == "procedure, code => new_routine")
 
     # Other datatype
     stype = StructureType()
     routine_symbol = RoutineSymbol("routine")
     old_ref = Reference(routine_symbol)
-    stype.add_procedure_component("proc", UnresolvedType(),
+    stype.add_procedure_component("code", UnresolvedType(),
                                   Symbol.Visibility.PUBLIC, old_ref)
     new_routine_symbol = RoutineSymbol("new_routine")
     new_ref = Reference(new_routine_symbol)
     stype.replace_procedure_component_initial_value("routine", new_ref)
-    assert stype.lookup_procedure_component("proc").initial_value == new_ref
+    assert stype.lookup_procedure_component("code").initial_value == new_ref
+
+    # Multiple procedure components of any type with same initial value
+    stype = StructureType()
+    unsupported_type_0 = UnsupportedFortranType("procedure, code_0 => routine",
+                                                None)
+    stype.add_procedure_component("code_0", unsupported_type_0,
+                                  Symbol.Visibility.PUBLIC)
+    unsupported_type_1 = UnsupportedFortranType("procedure, code_1 => routine",
+                                                None)
+    stype.add_procedure_component("code_1", unsupported_type_1,
+                                  Symbol.Visibility.PUBLIC)
+    routine_symbol = RoutineSymbol("routine")
+    stype.add_procedure_component("code_2", UnresolvedType(),
+                                  Symbol.Visibility.PUBLIC,
+                                  Reference(routine_symbol))
+    stype.add_procedure_component("code_3", UnresolvedType(),
+                                  Symbol.Visibility.PUBLIC,
+                                  Reference(routine_symbol))
+    new_routine_symbol = RoutineSymbol("new_routine")
+    stype.replace_procedure_component_initial_value(
+        "routine",
+        Reference(new_routine_symbol))
+    assert (stype.lookup_procedure_component("code_0").datatype.declaration
+            == "procedure, code_0 => new_routine")
+    assert (stype.lookup_procedure_component("code_1").datatype.declaration
+            == "procedure, code_1 => new_routine")
+    assert (stype.lookup_procedure_component("code_2").initial_value.symbol
+            == new_routine_symbol)
+    assert (stype.lookup_procedure_component("code_3").initial_value.symbol
+            == new_routine_symbol)

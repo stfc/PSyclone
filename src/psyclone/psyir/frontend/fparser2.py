@@ -1957,6 +1957,7 @@ class Fparser2Reader():
         # Look for any private-components-stmt (R447) within the type
         # decln. In the absence of this, the default visibility of type
         # components is public.
+        # This only concerns data components, i.e. not procedure ones.
         private_stmts = walk(decl, Fortran2003.Private_Components_Stmt)
         if private_stmts:
             default_compt_visibility = Symbol.Visibility.PRIVATE
@@ -2090,69 +2091,73 @@ class Fparser2Reader():
         :param tsymbol: the DataTypeSymbol representing the derived-type.
         :type tsymbol: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
-        :returns: None
-
         '''
-
         contains_blocks = walk(decl, Fortran2003.Type_Bound_Procedure_Part)
-        if contains_blocks:
-            # Get it.
-            contains = contains_blocks[0]
-            # Get all procedures in the CONTAINS section.
-            procedures = walk(contains, Fortran2003.Specific_Binding)
+        if not contains_blocks:
+            return
 
-            # Process each procedure.
-            for procedure in procedures:
-                supported = True
-                # We do not support interfaces.
-                if procedure.items[0] is not None:
-                    supported = False
-                # We do not support 'pass', 'nopass', 'deferred', etc.
-                if procedure.items[1] is not None:
-                    supported = False
+        # Get it.
+        contains = contains_blocks[0]
 
-                # Get the name, look it up in the symbol table and
-                # get its datatype or create it if it does not exist.
-                procedure_name = procedure.items[3].string
-                procedure_symbol = parent.symbol_table.lookup(
-                    procedure_name,
-                    otherwise=None)
-                if procedure_symbol and supported:
-                    procedure_datatype = procedure_symbol.datatype
-                else:
-                    procedure_datatype = UnsupportedFortranType(
-                                            procedure.string,
-                                            None)
+        # Look for any binding-private-stmt (R449) within the
+        # Specific_Binding part of decln. In the absence of this, the default
+        # visibility of procedure components is public.
+        # This only concerns procedure components, i.e. not data ones.
+        private_stmts = walk(contains, Fortran2003.Binding_Private_Stmt)
+        if private_stmts:
+            default_proc_visibility = Symbol.Visibility.PRIVATE
+        else:
+            default_proc_visibility = Symbol.Visibility.PUBLIC
 
-                # Get the visibility of the procedure.
-                procedure_vis = tsymbol.visibility
-                if procedure.items[1] is not None:
-                    access_spec = walk(procedure.items[1],
-                                       Fortran2003.Access_Spec)
-                    if access_spec:
-                        procedure_vis = _process_access_spec(
-                            access_spec[0])
+        # Get all procedures in the CONTAINS section.
+        procedures = walk(contains, Fortran2003.Specific_Binding)
 
-                # Deal with the optional initial value.
-                # This could be, e.g., `null` in `procedure, name => null()` or
-                # `testkern_code` in `procedure :: code => testkern_code`
-                if procedure.items[4] is not None:
-                    initial_value_name = procedure.items[4].string
-                    initial_value_symbol = parent.symbol_table.lookup(
-                        initial_value_name, otherwise=None)
-                    if not initial_value_symbol:
-                        initial_value_symbol = RoutineSymbol(
-                            initial_value_name,
-                            UnresolvedType())
-                    initial_value = Reference(initial_value_symbol)
-                else:
-                    initial_value = None
+        # Process each procedure.
+        for procedure in procedures:
+            supported = True
+            # We do not support interfaces.
+            if procedure.items[0] is not None:
+                supported = False
+            # We do not support 'pass', 'nopass', 'deferred', etc.
+            if procedure.items[1] is not None:
+                supported = False
 
-                # Add this procedure as a component of the derived type
-                tsymbol.datatype.add_procedure_component(procedure_name,
-                                                         procedure_datatype,
-                                                         procedure_vis,
-                                                         initial_value)
+            # Get the name, look it up in the symbol table and
+            # get its datatype or create it if it does not exist.
+            procedure_name = procedure.items[3].string
+            procedure_symbol = parent.symbol_table.lookup(procedure_name,
+                                                          otherwise=None)
+            if procedure_symbol and supported:
+                procedure_datatype = procedure_symbol.datatype
+            else:
+                procedure_datatype = UnsupportedFortranType(procedure.string,
+                                                            None)
+
+            # Get the visibility of the procedure.
+            procedure_vis = default_proc_visibility
+            if procedure.items[1] is not None:
+                access_spec = walk(procedure.items[1],
+                                   Fortran2003.Access_Spec)
+                if access_spec:
+                    procedure_vis = _process_access_spec(access_spec[0])
+
+            # Deal with the optional initial value.
+            # This could be, e.g., `null` in `procedure, name => null()` or
+            # `testkern_code` in `procedure :: code => testkern_code`
+            if procedure.items[4] is not None:
+                initial_value_name = procedure.items[4].string
+                initial_value_symbol = parent.symbol_table.find_or_create(
+                    initial_value_name, allow_renaming=False,
+                    symbol_type=RoutineSymbol, datatype=UnresolvedType())
+                initial_value = Reference(initial_value_symbol)
+            else:
+                initial_value = None
+
+            # Add this procedure as a component of the derived type
+            tsymbol.datatype.add_procedure_component(procedure_name,
+                                                     procedure_datatype,
+                                                     procedure_vis,
+                                                     initial_value)
 
     def _get_partial_datatype(self, node, scope, visibility_map):
         '''Try to obtain partial datatype information from node by removing
@@ -3395,8 +3400,6 @@ class Fparser2Reader():
             (e.g. a routine argument or an imported symbol).
 
         '''
-        # pylint: disable=import-outside-toplevel
-
         try:
             symbol = table.lookup(var_name)
         except KeyError as err:
@@ -3426,6 +3429,7 @@ class Fparser2Reader():
             # in order to add the 'TARGET' attribute to the declaration.
 
             # Import here to avoid circular dependencies.
+            # pylint: disable-next=import-outside-toplevel
             from psyclone.psyir.backend.fortran import FortranWriter
             dummy_code = (
                 f"subroutine dummy()\n"

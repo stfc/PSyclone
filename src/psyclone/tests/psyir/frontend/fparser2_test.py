@@ -2661,14 +2661,11 @@ def test_declarations_with_initialisations_errors(parser):
     assert "error to propagate" in str(err.value)
 
 
-def test_structures(fortran_reader, fortran_writer):
+def test_structures_component_init(fortran_reader,
+                                   fortran_writer):
     '''Test that Fparser2Reader parses Fortran types correctly when there
-    is a type declaration with one of the members being initialised,
-    when there is a type declaration with an additional attribute
-    (e.g. one that extends an existing type), when there is a type
-    declaration that contains procedures and when there is a type
-    declaration that both has an additional attribute and contains
-    procedures.
+    is a type declaration with one of the members being initialised, with
+    visibility of the derived type either inline or separate.
 
     '''
     # derived-type with initial value (StructureType) and in-line visibility
@@ -2711,6 +2708,13 @@ def test_structures(fortran_reader, fortran_writer):
         "    integer, public :: i = 1\n"
         "    integer, public :: j\n"
         "  end type my_type\n" in result)
+
+
+def test_structures_extends(fortran_reader, fortran_writer):
+    '''Test that Fparser2Reader parses Fortran types correctly when there
+    is a type declaration with one of the members being initialised,
+    and a type declaration with an additional extends attribute, either
+    know or unknown.'''
 
     # type that extends another type, known in the symbol table
     # (StructureType)
@@ -2757,6 +2761,12 @@ def test_structures(fortran_reader, fortran_writer):
     # Check that kernel_type is not declared in the module
     assert ":: kernel_type" not in result
 
+
+def test_structures_with_procedure(fortran_reader, fortran_writer):
+    '''Test that Fparser2Reader parses Fortran types correctly when there
+    is a type declaration with one of the members being initialised,
+    and that contains procedures.'''
+
     # type that contains a procedure (StructureType)
     test_code = (
         "module test_mod\n"
@@ -2782,6 +2792,10 @@ def test_structures(fortran_reader, fortran_writer):
         "      procedure, nopass :: test_code\n"
         "  end type test_type\n" in result)
 
+
+def test_structures_abstract(fortran_reader, fortran_writer):
+    '''Test that Fparser2Reader parses Fortran types correctly when there
+    is a type declaration with an abstract keyword.'''
     # abstract type (UnsupportedFortranType)
     test_code = (
         "module test_mod\n"
@@ -2826,6 +2840,11 @@ def test_structures(fortran_reader, fortran_writer):
         "  PROCEDURE, NOPASS :: test_code\n"
         "END TYPE test_type\n" in result)
 
+
+def test_structures_type_with_inline_procedures_visibility(fortran_reader,
+                                                           fortran_writer):
+    '''Test that Fparser2Reader parses Fortran types correctly when there
+    is a type declaration with inline visibilities on procedure components.'''
     # public type that contains procedures
     test_code = (
         "module test_mod\n"
@@ -2862,7 +2881,7 @@ def test_structures(fortran_reader, fortran_writer):
         "  end type test_type\n" in result)
 
     # private type that contains procedures
-    # the `test_code` procedure should thus become private
+    # the `test_code` procedure and `i` component should stay public
     test_code = (
         "module test_mod\n"
         "  use kernel_mod, only : parent_type\n"
@@ -2892,11 +2911,100 @@ def test_structures(fortran_reader, fortran_writer):
         "  type, extends(parent_type), private :: test_type\n"
         "    integer, public :: i = 1\n"
         "    contains\n"
+        "      procedure, public :: test_code\n"
+        "      procedure, private :: test_code_private\n"
+        "      procedure, public :: test_code_public\n"
+        "  end type test_type\n" in result)
+
+
+def test_structures_type_with_standalone_procedures_visibility(fortran_reader,
+                                                               fortran_writer):
+    '''Test that Fparser2Reader parses Fortran types correctly when there
+    is a type declaration with standalone visibilities on procedure or data
+    components.'''
+    # type that contains procedures and a private statement in the contains
+    # section
+    # the `test_code` procedure should thus become private
+    # but `i` should stay public
+    test_code = (
+        "module test_mod\n"
+        "  use kernel_mod, only : parent_type\n"
+        "  type, extends(parent_type) :: test_type\n"
+        "    integer :: i = 1\n"
+        "    contains\n"
+        "      private\n"
+        "      procedure :: test_code\n"
+        "      procedure, private :: test_code_private\n"
+        "      procedure, public :: test_code_public\n"
+        "  end type test_type\n"
+        "  contains\n"
+        "  subroutine test_code()\n"
+        "  end subroutine\n"
+        "  subroutine test_code_private()\n"
+        "  end subroutine\n"
+        "  subroutine test_code_public()\n"
+        "  end subroutine\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].symbol_table
+    symbol = sym_table.lookup("test_type")
+    assert isinstance(symbol, DataTypeSymbol)
+    assert isinstance(symbol.datatype, StructureType)
+    assert len(symbol.datatype.procedure_components) == 3
+    result = fortran_writer(psyir)
+    assert (
+        "  type, extends(parent_type), public :: test_type\n"
+        "    integer, public :: i = 1\n"
+        "    contains\n"
         "      procedure, private :: test_code\n"
         "      procedure, private :: test_code_private\n"
         "      procedure, public :: test_code_public\n"
         "  end type test_type\n" in result)
 
+    # type that contains procedures and a private statement outside of the
+    # contains section
+    # the `i` component should become private
+    # but the `test_code` procedure should stay public
+    test_code = (
+        "module test_mod\n"
+        "  use kernel_mod, only : parent_type\n"
+        "  type, extends(parent_type) :: test_type\n"
+        "    private\n"
+        "    integer :: i = 1\n"
+        "    contains\n"
+        "      procedure :: test_code\n"
+        "      procedure, private :: test_code_private\n"
+        "      procedure, public :: test_code_public\n"
+        "  end type test_type\n"
+        "  contains\n"
+        "  subroutine test_code()\n"
+        "  end subroutine\n"
+        "  subroutine test_code_private()\n"
+        "  end subroutine\n"
+        "  subroutine test_code_public()\n"
+        "  end subroutine\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].symbol_table
+    symbol = sym_table.lookup("test_type")
+    assert isinstance(symbol, DataTypeSymbol)
+    assert isinstance(symbol.datatype, StructureType)
+    assert len(symbol.datatype.procedure_components) == 3
+    result = fortran_writer(psyir)
+    assert (
+        "  type, extends(parent_type), public :: test_type\n"
+        "    integer, private :: i = 1\n"
+        "    contains\n"
+        "      procedure, public :: test_code\n"
+        "      procedure, private :: test_code_private\n"
+        "      procedure, public :: test_code_public\n"
+        "  end type test_type\n" in result)
+
+
+def test_structures_type_with_procedure_interface(fortran_reader,
+                                                  fortran_writer):
+    '''Test that Fparser2Reader parses Fortran types correctly when there
+    is a type declaration with a procedure component having an interface.'''
     # type that contains a procedure with an interface name
     test_code = (
         "module test_mod\n"
@@ -2926,6 +3034,12 @@ def test_structures(fortran_reader, fortran_writer):
         "      procedure (my_interface) :: test_code\n"
         "  end type test_type\n" in result)
 
+
+def test_structures_type_with_procedure_unsupported_attributes(fortran_reader,
+                                                               fortran_writer):
+    '''Test that Fparser2Reader parses Fortran types correctly when there
+    is a type declaration with procedure components having unsupported
+    attributes.'''
     # type that contains procedures with pass, nopass and deferred
     test_code = (
         "module test_mod\n"

@@ -546,6 +546,7 @@ TL_CODE = (
     "  use kinds_mod, only: i_def, r_def\n"
     "  use kernel_mod, only: kernel_type, arg_type, gh_field, gh_real, "
     "gh_write, w3, cell_column\n"
+    "  use argument_mod, only: func_type, gh_quadrature_xyoz\n"
     "  type, extends(kernel_type) :: testkern_type\n"
     "     type(arg_type), dimension(2) :: meta_args =          & \n"
     "          (/ arg_type(gh_scalar, gh_real, gh_read),       & \n"
@@ -619,8 +620,6 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
             "    inner2 = inner2 + field_field_input_inner_prod\n" in gen)
 
 
-@pytest.mark.xfail(reason="func_type and gh_quadrature_xyoz are neither "
-                          "declared nor imported in the TL code.")
 def test_generate_lfric_adj_test_quadrature(fortran_reader):
     '''Check that input copies of quadrature arguments are not created.'''
     # Change the metadata so that it requires quadrature.

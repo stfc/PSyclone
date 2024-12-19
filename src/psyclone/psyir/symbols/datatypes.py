@@ -1150,7 +1150,7 @@ class StructureType(DataType):
     def replace_procedure_component_initial_value(self, old_value_name,
                                                   new_value):
         '''
-        Replace the initial value of the procedure component with
+        Replace the initial values of the procedure components with
         "old_value_name" as initial value with the supplied new value.
 
         :param str old_value_name: the name of the initial value to replace.
@@ -1160,8 +1160,6 @@ class StructureType(DataType):
         :raises TypeError: if the name is not a string.
         :raises TypeError: if the new value is not a Reference to a
                            RoutineSymbol.
-
-        :returns: None
 
         '''
         # pylint: disable=import-outside-toplevel
@@ -1201,7 +1199,6 @@ class StructureType(DataType):
                     new_datatype,
                     procedure_component.visibility,
                     new_value)
-                return
 
             # Or it is enough to replace the initial value.
             if (not procedure_component.initial_value
@@ -1213,7 +1210,6 @@ class StructureType(DataType):
                 procedure_component.datatype,
                 procedure_component.visibility,
                 new_value)
-            return
 
     def __eq__(self, other):
         '''

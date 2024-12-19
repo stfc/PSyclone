@@ -668,9 +668,8 @@ def test_codedkern__rename_psyir_unsupported_procedure_datatype():
     ''' Check that the CodedKern rename method renames the kernel in the PSyIR
     tree. '''
     # pylint: disable=protected-access, too-many-statements
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
+    psy, _ = get_invoke("1_single_invoke.f90", "lfric",
+                        idx=0, dist_mem=False)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
     assert isinstance(kern, CodedKern)
@@ -713,9 +712,8 @@ def test_codedkern__rename_psyir_supported_procedure_datatype():
     ''' Check that the CodedKern rename method renames the kernel in the PSyIR
     tree. '''
     # pylint: disable=protected-access, too-many-statements
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
+    psy, _ = get_invoke("1_single_invoke.f90", "lfric",
+                        idx=0, dist_mem=False)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
     assert isinstance(kern, CodedKern)
@@ -738,9 +736,8 @@ def test_codedkern__rename_psyir_supported_procedure_datatype():
                       UnsupportedFortranType)
 
     # Make the procedure component of the structure type be of a supported type
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
+    psy, _ = get_invoke("1_single_invoke.f90", "lfric",
+                        idx=0, dist_mem=False)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
     assert isinstance(kern, CodedKern)
@@ -786,9 +783,8 @@ def test_codedkern__rename_psyir_unsupported_datatypesymbol_datatype():
     ''' Check that the CodedKern rename method renames the kernel in the PSyIR
     tree. '''
     # pylint: disable=protected-access, too-many-statements
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
+    psy, _ = get_invoke("1_single_invoke.f90", "lfric",
+                        idx=0, dist_mem=False)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
     assert isinstance(kern, CodedKern)
@@ -811,9 +807,8 @@ def test_codedkern__rename_psyir_unsupported_datatypesymbol_datatype():
                       UnsupportedFortranType)
 
     # Make the DataTypeSymbol be of UnsupportedFortranType
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
+    psy, _ = get_invoke("1_single_invoke.f90", "lfric",
+                        idx=0, dist_mem=False)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
     assert isinstance(kern, CodedKern)

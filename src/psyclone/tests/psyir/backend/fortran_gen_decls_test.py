@@ -47,7 +47,7 @@ from psyclone.psyir.symbols import (
     RoutineSymbol, ScalarType, Symbol, SymbolTable, UnresolvedType,
     StructureType, ImportInterface, UnresolvedInterface, ArgumentInterface,
     INTEGER_TYPE, REAL_TYPE, StaticInterface, PreprocessorInterface,
-    CHARACTER_TYPE)
+    CHARACTER_TYPE, UnsupportedFortranType)
 
 
 def test_gen_param_decls_dependencies(fortran_writer):
@@ -364,3 +364,71 @@ def test_gen_interfacedecl(fortran_writer):
   procedure :: sub1
 end interface subx
 ''')
+
+
+def test_fw_gen_proceduredecl(fortran_writer):
+    '''Test the FortranWriter class gen_proceduredecl method produces the
+    expected declarations and raises the expected exceptions.
+    '''
+    with pytest.raises(VisitorError) as err:
+        fortran_writer.gen_proceduredecl(None)
+    assert ("gen_proceduredecl() expects a 'DataSymbol' or "
+            "'StructureType.ComponentType' as its first "
+            "argument but got 'NoneType'" in str(err.value))
+
+    # A DataSymbol of UnupportedFortranType
+    symbol = DataSymbol("my_sub", UnsupportedFortranType(
+        "procedure, private :: my_unsupported_procedure"))
+    assert (fortran_writer.gen_proceduredecl(symbol) ==
+            "procedure, private :: my_unsupported_procedure\n")
+
+    # A StructureType.ComponentType with 'public' visibility and no initial
+    # value
+    dtype = StructureType.ComponentType("my_procedure", REAL_TYPE,
+                                        Symbol.Visibility.PUBLIC, None)
+    assert (fortran_writer.gen_proceduredecl(dtype) ==
+            "procedure, public :: my_procedure\n")
+
+    # A StructureType.ComponentType with 'public' visibility and an initial
+    # value
+    dtype = StructureType.ComponentType("my_procedure", REAL_TYPE,
+                                        Symbol.Visibility.PUBLIC,
+                                        Reference(RoutineSymbol("other",
+                                                                REAL_TYPE)))
+    assert (fortran_writer.gen_proceduredecl(dtype) ==
+            "procedure, public :: my_procedure => other\n")
+
+    # A StructureType.ComponentType with 'private' visibility and no initial
+    # value
+    dtype = StructureType.ComponentType("my_procedure", REAL_TYPE,
+                                        Symbol.Visibility.PRIVATE, None)
+    assert fortran_writer.gen_proceduredecl(dtype) == (
+        "procedure, private :: my_procedure\n")
+
+    # A StructureType.ComponentType with 'private' visibility and an initial
+    # value
+    dtype = StructureType.ComponentType("my_procedure", REAL_TYPE,
+                                        Symbol.Visibility.PRIVATE,
+                                        Reference(RoutineSymbol("other",
+                                                                REAL_TYPE)))
+    assert fortran_writer.gen_proceduredecl(dtype) == (
+        "procedure, private :: my_procedure => other\n")
+
+    # Check that visibility is not included in the output if include_visibility
+    # is False
+    dtype = StructureType.ComponentType("my_procedure", REAL_TYPE,
+                                        Symbol.Visibility.PUBLIC, None)
+    assert (fortran_writer.gen_proceduredecl(dtype, include_visibility=False)
+            == ("procedure :: my_procedure\n"))
+    dtype = StructureType.ComponentType("my_procedure", REAL_TYPE,
+                                        Symbol.Visibility.PRIVATE, None)
+    assert (fortran_writer.gen_proceduredecl(dtype, include_visibility=False)
+            == ("procedure :: my_procedure\n"))
+
+    # Check exception is raised if visibility is not 'public' or 'private'
+    dtype = StructureType.ComponentType("my_procedure", REAL_TYPE,
+                                        "wrong", None)
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_proceduredecl(dtype)
+    assert ("A Symbol must be either public or private but symbol "
+            "'my_procedure' has visibility 'wrong'" in str(err.value))
