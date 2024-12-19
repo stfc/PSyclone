@@ -74,7 +74,7 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.while_loop import WhileLoop
-from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
+from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType, DataSymbol
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -1539,7 +1539,7 @@ class OMPParallelDirective(OMPRegionDirective):
 
         This method analyses the directive body and automatically classifies
         each symbol using the following rules:
-        - All arrays are shared.
+        - All arrays are shared unless listed in the explicitly private list.
         - Scalars that are accessed only once are shared.
         - Scalars that are read-only or written outside a loop are shared.
         - Scalars written in multiple iterations of a loop are private, unless:
@@ -1576,8 +1576,9 @@ class OMPParallelDirective(OMPRegionDirective):
 
         # TODO #598: Improve the handling of scalar variables, there are
         # remaining issues when we have accesses after the parallel region
-        # of variables that we currently declare as private. This should be
-        # lastprivate.
+        # of variables that we currently declare as private. We could use
+        # the DefinitionUseChain to prove that there are no more uses after
+        # the loop.
         # e.g:
         # !$omp parallel do <- will set private(ji, my_index)
         # do ji = 1, jpk
@@ -1596,7 +1597,28 @@ class OMPParallelDirective(OMPRegionDirective):
         self.reference_accesses(var_accesses)
         for signature in var_accesses.all_signatures:
             accesses = var_accesses[signature].all_accesses
-            # Ignore variables that have indices, we only look at scalars
+            # TODO #2094: var_name only captures the top-level
+            # component in the derived type accessor. If the attributes
+            # only apply to a sub-component, this won't be captured
+            # appropriately.
+            name = signature.var_name
+            symbol = accesses[0].node.scope.symbol_table.lookup(
+                name, otherwise=None)
+
+            # If it is manually marked as a local symbol, add it to private or
+            # firstprivate set
+            if (isinstance(symbol, DataSymbol) and
+                    isinstance(self.dir_body[0], Loop) and
+                    symbol in self.dir_body[0].explicitly_private_symbols):
+                if any(ref.symbol is symbol for ref in self.preceding()
+                       if isinstance(ref, Reference)):
+                    # If it's used before the loop, make it firstprivate
+                    fprivate.add(symbol)
+                else:
+                    private.add(symbol)
+                continue
+
+            # All arrays not explicitly marked as threadprivate are shared
             if accesses[0].is_array():
                 continue
 
