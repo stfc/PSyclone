@@ -60,7 +60,8 @@ from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
                                     UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
                                     RoutineSymbol, Symbol)
-from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
+from psyclone.psyir.symbols.datatypes import (UnsupportedFortranType,
+                                              StructureType)
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -1753,6 +1754,8 @@ class CodedKern(Kern):
         # the kernel metadata.
         container_table = container.symbol_table
         for sym in container_table.datatypesymbols:
+            # Either the DataTypeSymbol is of UnsupportedFortranType,
+            # in which case we replace in its whole declaration.
             if isinstance(sym.datatype, UnsupportedFortranType):
                 new_declaration = sym.datatype.declaration.replace(
                     orig_kern_name, new_kern_name)
@@ -1761,6 +1764,15 @@ class CodedKern(Kern):
                     new_declaration,
                     partial_datatype=sym.datatype.partial_datatype)
                 # pylint: enable=protected-access
+            # Or the DataTypeSymbol is a StructureType, in which case we
+            # replace the "code" procedure component initial value.
+            elif isinstance(sym.datatype, StructureType):
+                new_kernel_symbol = container_table.lookup(new_kern_name)
+                new_initial_value = Reference(new_kernel_symbol)
+                sym.datatype.replace_procedure_component_initial_value(
+                    orig_kern_name,
+                    new_initial_value
+                )
 
     @property
     def modified(self):

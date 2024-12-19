@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     ArrayType, DataType, UnresolvedType, ScalarType, UnsupportedFortranType,
     DataSymbol, StructureType, NoType, INTEGER_TYPE, REAL_TYPE, Symbol,
-    DataTypeSymbol, SymbolTable)
+    DataTypeSymbol, SymbolTable, RoutineSymbol)
 
 
 # Abstract DataType class
@@ -890,43 +890,80 @@ def test_unsupported_fortran_type_replace_symbols():
 # StructureType tests
 
 def test_structure_type():
-    ''' Check the StructureType constructor and that we can add components. '''
+    ''' Check the StructureType constructor and that we can add components
+    and procedure_components. '''
     stype = StructureType()
     assert str(stype) == "StructureType<>"
     assert not stype.components
-    stype.add("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)
-    flag = stype.lookup("flag")
+    stype.add_component("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)
+    flag = stype.lookup_component("flag")
     assert not flag.initial_value
     assert isinstance(flag, StructureType.ComponentType)
-    stype.add("flag2", INTEGER_TYPE, Symbol.Visibility.PUBLIC,
-              Literal("1", INTEGER_TYPE))
-    flag2 = stype.lookup("flag2")
+    stype.add_component("flag2", INTEGER_TYPE, Symbol.Visibility.PUBLIC,
+                        Literal("1", INTEGER_TYPE))
+    flag2 = stype.lookup_component("flag2")
     assert isinstance(flag2, StructureType.ComponentType)
     assert flag2.initial_value.value == "1"
     with pytest.raises(TypeError) as err:
-        stype.add(1, "hello", "hello", None)
+        stype.add_component(1, "hello", "hello", None)
     assert ("name of a component of a StructureType must be a 'str' but got "
             "'int'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", "hello", "hello", None)
+        stype.add_component("hello", "hello", "hello", None)
     assert ("type of a component of a StructureType must be a 'DataType' "
             "or 'DataTypeSymbol' but got 'str'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", INTEGER_TYPE, "hello", None)
+        stype.add_component("hello", INTEGER_TYPE, "hello", None)
     assert ("visibility of a component of a StructureType must be an instance "
             "of 'Symbol.Visibility' but got 'str'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", INTEGER_TYPE, Symbol.Visibility.PUBLIC, "Hello")
+        stype.add_component("hello", INTEGER_TYPE, Symbol.Visibility.PUBLIC,
+                            "Hello")
     assert ("The initial value of a component of a StructureType must be "
             "None or an instance of 'DataNode', but got 'str'."
             in str(err.value))
     with pytest.raises(KeyError):
-        stype.lookup("missing")
+        stype.lookup_component("missing")
     # Cannot have a recursive type definition
     with pytest.raises(TypeError) as err:
-        stype.add("hello", stype, Symbol.Visibility.PUBLIC, None)
+        stype.add_component("hello", stype, Symbol.Visibility.PUBLIC, None)
     assert ("attempting to add component 'hello' - a StructureType definition "
             "cannot be recursive" in str(err.value))
+
+    # Add a procedure component
+    stype.add_procedure_component("proc1", INTEGER_TYPE,
+                                  Symbol.Visibility.PUBLIC,
+                                  None)
+    proc1 = stype.lookup_procedure_component("proc1")
+    assert not proc1.initial_value
+    assert isinstance(proc1, StructureType.ComponentType)
+    with pytest.raises(TypeError) as err:
+        stype.add_procedure_component(None, None, None, None)
+    assert ("The name of a procedure component of a StructureType must "
+            "be a 'str' but got 'NoneType'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add_procedure_component("proc2", None, None, None)
+    assert ("The type of a procedure component of a StructureType must "
+            "be a 'DataType' but got 'NoneType'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add_procedure_component("proc3", INTEGER_TYPE, None, None)
+    assert ("The visibility of a procedure component of a StructureType must "
+            "be an instance of 'Symbol.Visibility' but got 'NoneType'"
+            in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add_procedure_component("proc4", INTEGER_TYPE,
+                                      Symbol.Visibility.PUBLIC, "Hello")
+    assert ("The initial value of a procedure component of a StructureType "
+            "must be None or an instance of 'Reference' but got 'str'."
+            in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add_procedure_component("proc5", INTEGER_TYPE,
+                                      Symbol.Visibility.PUBLIC,
+                                      Reference(DataSymbol("not_a_routine",
+                                                           INTEGER_TYPE)))
+    assert ("The initial value of a procedure component of a StructureType "
+            "must be None or a Reference to a RoutineSymbol but got a "
+            "Reference to a 'DataSymbol'." in str(err.value))
 
 
 def test_create_structuretype():
@@ -939,13 +976,13 @@ def test_create_structuretype():
          Literal("1.0", REAL_TYPE)),
         ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
     assert len(stype.components) == 3
-    george = stype.lookup("george")
+    george = stype.lookup_component("george")
     assert isinstance(george, StructureType.ComponentType)
     assert george.name == "george"
     assert george.datatype == REAL_TYPE
     assert george.visibility == Symbol.Visibility.PRIVATE
     assert george.initial_value.value == "1.0"
-    barry = stype.lookup("barry")
+    barry = stype.lookup_component("barry")
     assert isinstance(barry, StructureType.ComponentType)
     assert barry.datatype is tsymbol
     assert barry.visibility == Symbol.Visibility.PUBLIC
@@ -957,6 +994,36 @@ def test_create_structuretype():
     assert ("Each component must be specified using a 4-tuple of (name, "
             "type, visibility, initial_value) but found a tuple with 2 "
             "members: ('george', " in str(err.value))
+
+    stype = StructureType.create([],
+                                 [("procedure1", INTEGER_TYPE,
+                                   Symbol.Visibility.PUBLIC, None),
+                                  ("procedure2", REAL_TYPE,
+                                   Symbol.Visibility.PRIVATE,
+                                   Reference(RoutineSymbol("my_routine",
+                                                           REAL_TYPE)))])
+    assert len(stype.procedure_components) == 2
+    proc1 = stype.lookup_procedure_component("procedure1")
+    assert isinstance(proc1, StructureType.ComponentType)
+    assert proc1.name == "procedure1"
+    assert proc1.datatype == INTEGER_TYPE
+    assert proc1.visibility == Symbol.Visibility.PUBLIC
+    assert not proc1.initial_value
+    proc2 = stype.lookup_procedure_component("procedure2")
+    assert isinstance(proc2, StructureType.ComponentType)
+    assert proc2.name == "procedure2"
+    assert proc2.datatype == REAL_TYPE
+    assert proc2.visibility == Symbol.Visibility.PRIVATE
+    assert isinstance(proc2.initial_value, Reference)
+    assert proc2.initial_value.symbol.name == "my_routine"
+    with pytest.raises(TypeError) as err:
+        StructureType.create([],
+                             [("procedure1", INTEGER_TYPE,
+                               Symbol.Visibility.PUBLIC, None),
+                              ("procedure2", REAL_TYPE)])
+    assert ("Each procedure component must be specified using a 4-tuple of "
+            "(name, type, visibility, initial_value) but found a tuple with 2 "
+            "members: ('procedure2', " in str(err.value))
 
 
 def test_structuretype_eq():
@@ -996,6 +1063,20 @@ def test_structuretype_eq():
         ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
          Literal("1.0", REAL_TYPE)),
         ("roger", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
+    # Different number of procedure components.
+    assert stype != StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE))], [
+        ("procedure1", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
+    # Different procedure components.
+    stype.add_procedure_component("procedure2", INTEGER_TYPE,
+                                  Symbol.Visibility.PUBLIC, None)
+    assert stype != StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE))], [
+        ("procedure1", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
 
 
 def test_structuretype_replace_symbols():
@@ -1017,3 +1098,95 @@ def test_structuretype_replace_symbols():
     table.add(newtsymbol)
     stype.replace_symbols_using(table)
     assert stype.components["barry"].datatype is newtsymbol
+
+
+def test_structuretype_extends():
+    '''Test the StructureType.extends setter.'''
+    parent_datatype = DataTypeSymbol("parent_type", StructureType())
+    structure_type = StructureType.create([('a', INTEGER_TYPE,
+                                            Symbol.Visibility.PUBLIC, None)],
+                                          extends=parent_datatype)
+    assert structure_type.extends is parent_datatype
+    assert structure_type.extends.name == "parent_type"
+
+    with pytest.raises(TypeError) as err:
+        structure_type.extends = "invalid"
+    assert ("The type that a StructureType extends must be a "
+            "DataTypeSymbol but got 'str'." in str(err.value))
+
+
+def test_replace_procedure_component_initial_value():
+    '''Test the replace_procedure_component_initial_value method of
+    StructureType.'''
+    stype = StructureType()
+    with pytest.raises(TypeError) as excinfo:
+        stype.replace_procedure_component_initial_value(123, None)
+    assert ("The name of the procedure component to replace must be a string"
+            in str(excinfo.value))
+
+    stype = StructureType()
+    with pytest.raises(TypeError) as excinfo:
+        stype.replace_procedure_component_initial_value("old_value", 123)
+    assert ("The new value for the procedure component must be a Reference"
+            in str(excinfo.value))
+
+    stype = StructureType()
+    symbol = Symbol("dummy")
+    ref = Reference(symbol)
+    with pytest.raises(TypeError) as excinfo:
+        stype.replace_procedure_component_initial_value("old_value", ref)
+    assert ("The new value for the procedure component must be a Reference to "
+            "a RoutineSymbol" in str(excinfo.value))
+
+    # UnsupportedFortranType
+    stype = StructureType()
+    unsupported_type = UnsupportedFortranType("procedure, code => routine",
+                                              None)
+    stype.add_procedure_component("code", unsupported_type,
+                                  Symbol.Visibility.PUBLIC)
+    new_routine_symbol = RoutineSymbol("new_routine")
+    new_ref = Reference(new_routine_symbol)
+    stype.replace_procedure_component_initial_value("routine", new_ref)
+    assert (stype.lookup_procedure_component("code").datatype.declaration
+            == "procedure, code => new_routine")
+
+    # Other datatype
+    stype = StructureType()
+    routine_symbol = RoutineSymbol("routine")
+    old_ref = Reference(routine_symbol)
+    stype.add_procedure_component("code", UnresolvedType(),
+                                  Symbol.Visibility.PUBLIC, old_ref)
+    new_routine_symbol = RoutineSymbol("new_routine")
+    new_ref = Reference(new_routine_symbol)
+    stype.replace_procedure_component_initial_value("routine", new_ref)
+    assert stype.lookup_procedure_component("code").initial_value == new_ref
+
+    # Multiple procedure components of any type with same initial value
+    stype = StructureType()
+    unsupported_type_0 = UnsupportedFortranType("procedure, code_0 => routine",
+                                                None)
+    stype.add_procedure_component("code_0", unsupported_type_0,
+                                  Symbol.Visibility.PUBLIC)
+    unsupported_type_1 = UnsupportedFortranType("procedure, code_1 => routine",
+                                                None)
+    stype.add_procedure_component("code_1", unsupported_type_1,
+                                  Symbol.Visibility.PUBLIC)
+    routine_symbol = RoutineSymbol("routine")
+    stype.add_procedure_component("code_2", UnresolvedType(),
+                                  Symbol.Visibility.PUBLIC,
+                                  Reference(routine_symbol))
+    stype.add_procedure_component("code_3", UnresolvedType(),
+                                  Symbol.Visibility.PUBLIC,
+                                  Reference(routine_symbol))
+    new_routine_symbol = RoutineSymbol("new_routine")
+    stype.replace_procedure_component_initial_value(
+        "routine",
+        Reference(new_routine_symbol))
+    assert (stype.lookup_procedure_component("code_0").datatype.declaration
+            == "procedure, code_0 => new_routine")
+    assert (stype.lookup_procedure_component("code_1").datatype.declaration
+            == "procedure, code_1 => new_routine")
+    assert (stype.lookup_procedure_component("code_2").initial_value.symbol
+            == new_routine_symbol)
+    assert (stype.lookup_procedure_component("code_3").initial_value.symbol
+            == new_routine_symbol)

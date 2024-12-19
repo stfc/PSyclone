@@ -122,11 +122,15 @@ def gen_datatype(datatype, name):
     '''
     if isinstance(datatype, DataTypeSymbol):
         # Symbol is of derived type
+        if datatype.is_class:
+            return f"class({datatype.name})"
         return f"type({datatype.name})"
 
     if (isinstance(datatype, ArrayType) and
             isinstance(datatype.intrinsic, DataTypeSymbol)):
         # Symbol is an array of derived types
+        if datatype.intrinsic.is_class:
+            return f"class({datatype.intrinsic.name})"
         return f"type({datatype.intrinsic.name})"
 
     try:
@@ -488,6 +492,54 @@ class FortranWriter(LanguageWriter):
 
         return f"{self._nindent}use{intrinsic_str}{symbol.name}\n"
 
+    def gen_proceduredecl(self, symbol, include_visibility=True):
+        '''Create and return the Fortran procedure declaration for this Symbol.
+
+        :param symbol: the symbol instance.
+        :type symbol: Union[:py:class:`psyclone.psyir.symbols.DataSymbol`,
+                            :py:class:`psyclone.psyir.symbols.datatypes.
+                                            StructureType.ComponentType`]
+        :param bool include_visibility: whether to include the visibility of
+            the symbol in the generated declaration (default True).
+
+        :returns: the Fortran procedure declaration as a string.
+        :rtype: str
+
+        :raises VisitorError: if the symbol is not a RoutineSymbol or a
+                              StructureType.ComponentType.
+        :raises InternalError: if the visibility is to be included but is
+                               neither PUBLIC nor PRIVATE.
+        '''
+        if not isinstance(symbol, (DataSymbol, StructureType.ComponentType)):
+            raise VisitorError(
+                f"gen_proceduredecl() expects a 'DataSymbol' or "
+                f"'StructureType.ComponentType' as its first "
+                f"argument but got '{type(symbol).__name__}'")
+
+        if isinstance(symbol.datatype, UnsupportedFortranType):
+            return f"{self._nindent}{symbol.datatype.declaration}\n"
+
+        result = f"{self._nindent}procedure"
+
+        if include_visibility:
+            if symbol.visibility == Symbol.Visibility.PRIVATE:
+                result += ", private"
+            elif symbol.visibility == Symbol.Visibility.PUBLIC:
+                result += ", public"
+            else:
+                raise InternalError(
+                    f"A Symbol must be either public or private but symbol "
+                    f"'{symbol.name}' has visibility '{symbol.visibility}'")
+
+        # Specify name
+        result += f" :: {symbol.name}"
+
+        # Specify initialisation expression
+        if symbol.initial_value:
+            result += " => " + self._visit(symbol.initial_value)
+
+        return result + "\n"
+
     def gen_vardecl(self, symbol, include_visibility=False):
         '''Create and return the Fortran variable declaration for this Symbol
         or derived-type member.
@@ -696,7 +748,16 @@ class FortranWriter(LanguageWriter):
                 f"Fortran backend cannot generate code for symbol "
                 f"'{symbol.name}' of type '{type(symbol.datatype).__name__}'")
 
+        if not isinstance(symbol.datatype, StructureType):
+            raise VisitorError(
+                f"gen_typedecl expects a DataTypeSymbol with a StructureType "
+                f"as its datatype but got: '{type(symbol.datatype).__name__}'")
+
         result = f"{self._nindent}type"
+
+        if symbol.datatype.extends:
+            # This is a component of a derived type
+            result += f", extends({symbol.datatype.extends.name})"
 
         if include_visibility:
             if symbol.visibility == Symbol.Visibility.PRIVATE:
@@ -710,12 +771,6 @@ class FortranWriter(LanguageWriter):
                     f"type '{type(symbol.visibility).__name__}'")
         result += f" :: {symbol.name}\n"
 
-        if isinstance(symbol.datatype, UnresolvedType):
-            raise VisitorError(
-                f"Local Symbol '{symbol.name}' is of UnresolvedType and "
-                f"therefore no declaration can be created for it. Should it "
-                f"have an ImportInterface?")
-
         self._depth += 1
 
         for member in symbol.datatype.components.values():
@@ -724,6 +779,14 @@ class FortranWriter(LanguageWriter):
             # part of a module.
             result += self.gen_vardecl(member,
                                        include_visibility=include_visibility)
+        if len(symbol.datatype.procedure_components) > 0:
+            result += f"{self._nindent}contains\n"
+            self._depth += 1
+            for procedure in symbol.datatype.procedure_components.values():
+                result += self.gen_proceduredecl(procedure,
+                                                 include_visibility)
+            self._depth -= 1
+
         self._depth -= 1
 
         result += f"{self._nindent}end type {symbol.name}\n"
@@ -936,6 +999,9 @@ class FortranWriter(LanguageWriter):
                 all_symbols.remove(sym)
             # We ignore all symbols with a PreprocessorInterface
             if isinstance(sym.interface, PreprocessorInterface):
+                all_symbols.remove(sym)
+            # We remove the '*' symbol used in 'class(*) :: var'
+            if sym.name == "*":
                 all_symbols.remove(sym)
 
         # If the symbol table contains any symbols with an

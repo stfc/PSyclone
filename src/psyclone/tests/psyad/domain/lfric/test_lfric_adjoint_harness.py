@@ -546,6 +546,7 @@ TL_CODE = (
     "  use kinds_mod, only: i_def, r_def\n"
     "  use kernel_mod, only: kernel_type, arg_type, gh_field, gh_real, "
     "gh_write, w3, cell_column\n"
+    "  use argument_mod, only: func_type, gh_quadrature_xyoz\n"
     "  type, extends(kernel_type) :: testkern_type\n"
     "     type(arg_type), dimension(2) :: meta_args =          & \n"
     "          (/ arg_type(gh_scalar, gh_real, gh_read),       & \n"

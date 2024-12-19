@@ -1612,13 +1612,12 @@ class Fparser2Reader():
 
         elif isinstance(type_spec, Fortran2003.Declaration_Type_Spec):
             # This is a variable of derived type
-            if type_spec.children[0].lower() != "type":
-                # We don't yet support declarations that use 'class'
-                # TODO #1504 extend the PSyIR for this variable type.
-                raise NotImplementedError(
-                    f"Could not process {type_spec} - declarations "
-                    f"other than 'type' are not yet supported.")
-            type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
+            if isinstance(type_spec.items[1], Fortran2003.Type_Name):
+                type_name = str(type_spec.items[1].string).lower()
+            else:
+                # If we are processing a `class(*) :: var` declaration, the
+                # type name is not a Type_Name but a string.
+                type_name = type_spec.items[1].lower()
             # Do we already have a Symbol for this derived type?
             type_symbol = _find_or_create_unresolved_symbol(parent, type_name)
             # pylint: disable=unidiomatic-typecheck
@@ -1636,6 +1635,8 @@ class Fparser2Reader():
                     f"Search for a DataTypeSymbol named '{type_name}' "
                     f"(required by specification '{type_spec}') found a "
                     f"'{type(type_symbol).__name__}' instead.")
+            if type_spec.children[0].lower() == "class":
+                type_symbol.is_class = True
             base_type = type_symbol
 
         else:
@@ -1956,6 +1957,7 @@ class Fparser2Reader():
         # Look for any private-components-stmt (R447) within the type
         # decln. In the absence of this, the default visibility of type
         # components is public.
+        # This only concerns data components, i.e. not procedure ones.
         private_stmts = walk(decl, Fortran2003.Private_Components_Stmt)
         if private_stmts:
             default_compt_visibility = Symbol.Visibility.PRIVATE
@@ -2002,21 +2004,48 @@ class Fparser2Reader():
         # Populate this StructureType by processing the components of
         # the derived type
         try:
-            # We don't support derived-types with additional
-            # attributes e.g. "extends" or "abstract". Note, we do
+            # We support derived-types with additional attribute "extends"
+            # only.
+            # We do not support "abstract". Note, we do
             # support public/private attributes but these are stored
             # as Access_Spec, not Type_Attr_Spec.
             derived_type_stmt = decl.children[0]
-            if walk(derived_type_stmt, Fortran2003.Type_Attr_Spec):
-                raise NotImplementedError(
-                    "Derived-type definition contains unsupported attributes.")
+            type_attr_spec_list = walk(derived_type_stmt,
+                                       Fortran2003.Type_Attr_Spec)
 
-            # We don't yet support derived-type definitions with a CONTAINS
-            # section.
-            contains = walk(decl, Fortran2003.Contains_Stmt)
-            if contains:
-                raise NotImplementedError(
-                    "Derived-type definition has a CONTAINS statement.")
+            for type_attr_spec in type_attr_spec_list:
+                # Deal with 'EXTENDS(parent_type)'.
+                if type_attr_spec.items[0] == "EXTENDS":
+                    extends_name = type_attr_spec.items[1].string
+                    # Look up the extended type in the symbol table
+                    # and specialise the symbol if needed.
+                    extends_symbol = parent.symbol_table.lookup(
+                        extends_name, otherwise=None)
+                    if extends_symbol:
+                        # pylint: disable=unidiomatic-typecheck
+                        if type(extends_symbol) is Symbol:
+                            extends_symbol.specialise(DataTypeSymbol)
+                            extends_symbol.datatype = StructureType()
+                    else:
+                        # If it is not in the symbol table, create a new
+                        # DataTypeSymbol with an UnresolvedInterface for it,
+                        # meaning that we know it exists somewhere but we don't
+                        # know how it is brought into scope, and add it to the
+                        # symbol table.
+                        extends_symbol = DataTypeSymbol(
+                            extends_name,
+                            StructureType(),
+                            interface=UnresolvedInterface())
+                        parent.symbol_table.add(extends_symbol)
+                    # Set it as the extended type of the new type.
+                    dtype.extends = extends_symbol
+                else:
+                    raise NotImplementedError("Derived-type definition "
+                                              "contains unsupported "
+                                              "attributes.")
+
+            # We support derived-type definitions with a CONTAINS section.
+            self._process_derived_type_contains_block(parent, decl, tsymbol)
 
             # Re-use the existing code for processing symbols. This needs to
             # be able to find any symbols declared in an outer scope but
@@ -2038,8 +2067,8 @@ class Fparser2Reader():
                 else:
                     datatype = symbol.datatype
                     initial_value = symbol.initial_value
-                    dtype.add(symbol.name, datatype, symbol.visibility,
-                              initial_value)
+                    dtype.add_component(symbol.name, datatype,
+                                        symbol.visibility, initial_value)
 
             # Update its type with the definition we've found
             tsymbol.datatype = dtype
@@ -2049,6 +2078,86 @@ class Fparser2Reader():
             # set the datatype of the DataTypeSymbol to UnsupportedFortranType.
             tsymbol.datatype = UnsupportedFortranType(str(decl))
             tsymbol.interface = UnknownInterface()
+
+    def _process_derived_type_contains_block(self, parent, decl, tsymbol):
+        '''
+        Process the supplied fparser2 parse tree for a the CONTAINS section of
+        a derived-type declaration to add any procedures to the DataTypeSymbol.
+
+        :param parent: PSyIR node in which to insert the symbols found.
+        :type parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
+        :param decl: fparser2 parse tree of declaration to process.
+        :type decl: :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
+        :param tsymbol: the DataTypeSymbol representing the derived-type.
+        :type tsymbol: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+
+        '''
+        contains_blocks = walk(decl, Fortran2003.Type_Bound_Procedure_Part)
+        if not contains_blocks:
+            return
+
+        # Get it.
+        contains = contains_blocks[0]
+
+        # Look for any binding-private-stmt (R449) within the
+        # Specific_Binding part of decln. In the absence of this, the default
+        # visibility of procedure components is public.
+        # This only concerns procedure components, i.e. not data ones.
+        private_stmts = walk(contains, Fortran2003.Binding_Private_Stmt)
+        if private_stmts:
+            default_proc_visibility = Symbol.Visibility.PRIVATE
+        else:
+            default_proc_visibility = Symbol.Visibility.PUBLIC
+
+        # Get all procedures in the CONTAINS section.
+        procedures = walk(contains, Fortran2003.Specific_Binding)
+
+        # Process each procedure.
+        for procedure in procedures:
+            supported = True
+            # We do not support interfaces.
+            if procedure.items[0] is not None:
+                supported = False
+            # We do not support 'pass', 'nopass', 'deferred', etc.
+            if procedure.items[1] is not None:
+                supported = False
+
+            # Get the name, look it up in the symbol table and
+            # get its datatype or create it if it does not exist.
+            procedure_name = procedure.items[3].string
+            procedure_symbol = parent.symbol_table.lookup(procedure_name,
+                                                          otherwise=None)
+            if procedure_symbol and supported:
+                procedure_datatype = procedure_symbol.datatype
+            else:
+                procedure_datatype = UnsupportedFortranType(procedure.string,
+                                                            None)
+
+            # Get the visibility of the procedure.
+            procedure_vis = default_proc_visibility
+            if procedure.items[1] is not None:
+                access_spec = walk(procedure.items[1],
+                                   Fortran2003.Access_Spec)
+                if access_spec:
+                    procedure_vis = _process_access_spec(access_spec[0])
+
+            # Deal with the optional initial value.
+            # This could be, e.g., `null` in `procedure, name => null()` or
+            # `testkern_code` in `procedure :: code => testkern_code`
+            if procedure.items[4] is not None:
+                initial_value_name = procedure.items[4].string
+                initial_value_symbol = parent.symbol_table.find_or_create(
+                    initial_value_name, allow_renaming=False,
+                    symbol_type=RoutineSymbol, datatype=UnresolvedType())
+                initial_value = Reference(initial_value_symbol)
+            else:
+                initial_value = None
+
+            # Add this procedure as a component of the derived type
+            tsymbol.datatype.add_procedure_component(procedure_name,
+                                                     procedure_datatype,
+                                                     procedure_vis,
+                                                     initial_value)
 
     def _get_partial_datatype(self, node, scope, visibility_map):
         '''Try to obtain partial datatype information from node by removing
@@ -3303,14 +3412,31 @@ class Fparser2Reader():
                 f"be resolved and a DataSymbol")
 
         datatype = symbol.datatype
-        # Create Fortran text for the supplied datatype from the
-        # supplied UnsupportedFortranType text, then parse this into an
-        # fparser2 tree and store the fparser2 representation of the
-        # datatype in type_decl_stmt.
-        dummy_code = (
-            f"subroutine dummy()\n"
-            f"  {datatype.declaration}\n"
-            f"end subroutine\n")
+        if isinstance(datatype, UnsupportedFortranType):
+            # If this is of UnsupportedFortranType,
+            # create Fortran text for the supplied datatype from the
+            # supplied UnsupportedFortranType text, then parse this into an
+            # fparser2 tree and store the fparser2 representation of the
+            # datatype in type_decl_stmt.
+            dummy_code = (
+                f"subroutine dummy()\n"
+                f"  {datatype.declaration}\n"
+                f"end subroutine\n")
+        else:
+            # If not, this is a supported derived type so we can use the
+            # backend to generate the Fortran text for the datatype.
+            # But we need to turn its datatype into an UnsupportedFortranType
+            # in order to add the 'TARGET' attribute to the declaration.
+
+            # Import here to avoid circular dependencies.
+            # pylint: disable-next=import-outside-toplevel
+            from psyclone.psyir.backend.fortran import FortranWriter
+            dummy_code = (
+                f"subroutine dummy()\n"
+                f"  {FortranWriter().gen_vardecl(symbol)}\n"
+                f"end subroutine\n")
+            datatype = UnsupportedFortranType("", datatype)
+            symbol._datatype = datatype
         parser = ParserFactory().create(std="f2008")
         reader = FortranStringReader(dummy_code)
         fp2_ast = parser(reader)
