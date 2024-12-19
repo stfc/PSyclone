@@ -405,11 +405,9 @@ def test_module_info_viewtree(tmpdir, monkeypatch):
         fout.write(SOURCE_DUMMY)
 
     # We create a dummy
-    node = Container("Dummy")
     module_info: ModuleInfo = ModuleInfo(
             "my_mod",
-            FileInfo(filename),
-            node
+            FileInfo(filename)
         )
 
     module_info.view_tree()
@@ -422,11 +420,9 @@ def test_module_info_coverage_source_node_found(tmpdir, monkeypatch):
     - Check for raised Exception
     """
 
-    node = Container("Dummy")
     module_info: ModuleInfo = ModuleInfo(
             "my_mod",
-            FileInfo("/tmp/source_not_found.f90"),
-            node
+            FileInfo("/tmp/source_not_found.f90")
         )
 
     with pytest.raises(ModuleInfoError) as einfo:
@@ -447,9 +443,8 @@ def test_module_info_coverage_fparser_error(tmpdir, monkeypatch):
     with open(filename, "w", encoding='utf-8') as fout:
         fout.write(SOURCE_DUMMY)
 
-    node = Container("Dummy")
     module_info: ModuleInfo = ModuleInfo(
-            "my_mod", FileInfo(filename), node)
+            "my_mod", FileInfo(filename))
 
     module_info.get_fparser_tree()
 
@@ -459,9 +454,8 @@ def test_module_info_coverage_fparser_error(tmpdir, monkeypatch):
     with open(filename, "w", encoding='utf-8') as fout:
         fout.write(SOURCE_DUMMY+"\ncreate some error")
 
-    node = Container("Dummy")
     module_info: ModuleInfo = ModuleInfo(
-            "my_mod", FileInfo(filename), node)
+            "my_mod", FileInfo(filename))
 
     with pytest.raises(ModuleInfoError) as einfo:
         module_info.get_fparser_tree()
@@ -476,9 +470,8 @@ def test_module_info_coverage_file_not_found(tmpdir, monkeypatch):
     - Test for raised Exception if file was not found
     """
 
-    node = Container("Dummy")
     module_info: ModuleInfo = ModuleInfo(
-            "my_mod", FileInfo("/I_dont_exist/psyclone/asdf"), node)
+            "my_mod", FileInfo("/I_dont_exist/psyclone/asdf"))
 
     with pytest.raises(ModuleInfoError) as einfo:
         module_info.get_fparser_tree()

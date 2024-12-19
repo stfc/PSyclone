@@ -113,10 +113,18 @@ class FileInfo:
         (path, ext) = os.path.splitext(self._filename)
         self._filepath_cache = path + ".psycache"
 
-        # Cache to load data from
+        # This reference to `_CacheFileInfo` is created when loading
+        # cached information from a cache file.
+        # In case the checksums mismatch, no object will be referenced.
+        # Consequently, this object will always have a checksum matching
+        # the one from the source code.
         self._cache_data_load: _CacheFileInfo = None
 
-        # Cache to store data
+        # This reference is used whenever writing cache data to the
+        # persistent storage.
+        # It will also be partly updated if the `psyir` or
+        # `fparser tree` was created in the meantime and a cache update
+        # is requested.
         self._cache_data_save: _CacheFileInfo = None
 
     @property

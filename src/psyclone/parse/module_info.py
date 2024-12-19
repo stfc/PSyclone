@@ -48,7 +48,7 @@ from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, PSycloneError, GenerationError
-from psyclone.psyir.nodes import Container, Node
+from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import Symbol
 from psyclone.parse import FileInfo, FileInfoFParserError
 
@@ -90,16 +90,12 @@ class ModuleInfo:
     :param file_info: FileInfo object. The fparser tree, PSyIR
         and module information will be loaded from this file if it's
         not yet available.
-    :param psyir_root_node: The psyir container as an alternative to
-        loading the PSyIR from FileInfo.
-        This allows using a PSyIR without loading it from a file.
 
     '''
     def __init__(
         self,
         module_name: str,
-        file_info: FileInfo,
-        psyir_root_node: Node = None
+        file_info: FileInfo
     ):
         self._name = module_name.lower()
 
@@ -107,7 +103,7 @@ class ModuleInfo:
         self._file_info: FileInfo = file_info
 
         # The PSyIR representation
-        self._psyir_container_node: Container = psyir_root_node
+        self._psyir_container_node: Container = None
 
         # A cache for the module dependencies: this is just a set
         # of all modules USEd by this module.
