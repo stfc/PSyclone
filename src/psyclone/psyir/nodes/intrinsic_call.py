@@ -42,6 +42,7 @@ from collections import namedtuple
 from collections.abc import Iterable
 from enum import Enum
 
+from psyclone.core import AccessType, Signature
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
