@@ -68,6 +68,13 @@ def test_statement_comment_properties():
     assert "The inline_comment must be a string but found 'int'." \
         in str(err.value)
 
+    # Check that inline_comment cannot contain '\n'
+    with pytest.raises(ValueError) as err:
+        statement.inline_comment = "My inline\ncomment"
+    assert ("The inline_comment must be a single line but "
+            "found a newline character in 'My inline\ncomment'."
+            in str(err.value))
+
     # Check the append_preceding_comment method
     statement._preceding_comment = None  # Uninitialised preceding_comment
     with pytest.raises(TypeError) as err:
