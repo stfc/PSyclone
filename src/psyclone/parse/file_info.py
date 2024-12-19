@@ -158,7 +158,7 @@ class FileInfo:
             return self._cache_filename
 
         # Cache path was specified.
-        # We assume this path is shared amongst many 
+        # We assume this path is shared amongst many
         (path, _) = os.path.split(self._filename)
         return (
             path + self._source_code_hash_sum[:55] + ".psycache"
