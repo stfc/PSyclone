@@ -49,8 +49,10 @@ import abc
 from psyclone.core import Signature
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
-                                              ACCCopyOutClause)
+from psyclone.psyir.nodes.acc_clauses import (
+    ACCAsyncQueueClause, ACCCopyClause, ACCCopyInClause,
+    ACCCopyOutClause)
+from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.codeblock import CodeBlock
@@ -60,7 +62,6 @@ from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.symbols import ScalarType
@@ -237,9 +238,8 @@ class ACCEnterDataDirective(ACCStandaloneDirective, ACCAsyncMixin):
         directive as a child.
     :param async_queue: Enable async support and attach it to the given queue.
         Can use False to disable, True to enable on default
-        stream. Int to attach to the given stream ID or use a
-        variable Signature to say at runtime what stream to be
-        used.
+        stream. Int to attach to the given stream ID or use a PSyIR
+        expression to say at runtime what stream to be used.
 
     '''
     def __init__(
@@ -249,6 +249,12 @@ class ACCEnterDataDirective(ACCStandaloneDirective, ACCAsyncMixin):
                 async_queue: Union[bool, int, Reference, None] = None
             ):
         super().__init__(children=children, parent=parent)
+        if async_queue is not None:
+            # TODO - convert async_queue value to PSyIR if necessary and
+            # add as child of clause.
+            clause = ACCAsyncQueueClause()
+            self.addchild(clause)
+
         ACCAsyncMixin.__init__(self, async_queue)
         self._acc_dirs = None  # List of parallel directives
 
