@@ -53,6 +53,7 @@ from fparser.two.utils import walk, BlockBase, StmtBase, Base
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
+from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes import (
     ArrayMember, ArrayOfStructuresReference, ArrayReference, Assignment,
     BinaryOperation, Call, CodeBlock, Container, Directive, FileContainer,
@@ -60,7 +61,6 @@ from psyclone.psyir.nodes import (
     Reference, Return, Routine, Schedule, StructureReference, UnaryOperation,
     WhileLoop)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, AutomaticInterface, CHARACTER_TYPE,
     CommonBlockInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,

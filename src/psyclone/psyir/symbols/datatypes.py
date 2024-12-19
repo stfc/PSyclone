@@ -45,10 +45,10 @@ from enum import Enum
 from typing import Any, Union
 
 from psyclone.errors import InternalError
+from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.symbol import Symbol
-from psyclone.psyir.commentable_mixin import CommentableMixin
 
 
 class DataType(metaclass=abc.ABCMeta):
@@ -919,11 +919,6 @@ class StructureType(DataType):
         :param visibility: whether this member is public or private.
         :param initial_value: the initial value of this member (if any).
         :type initial_value: Optional[:py:class:`psyclone.psyir.nodes.Node`]
-        :param preceding_comment: a comment that precedes this component.
-        :type preceding_comment: Optional[str]
-        :param inline_comment: a comment that follows this component on the
-                               same line.
-        :type inline_comment: Optional[str]
         '''
         name: str
         # Use Union for compatibility with Python < 3.10
@@ -931,25 +926,23 @@ class StructureType(DataType):
         visibility: Symbol.Visibility
         initial_value: Any
 
-        def __init__(self, name: str,
-                     datatype: Union[DataType, DataTypeSymbol],
-                     visibility: Symbol.Visibility, initial_value: Any = None,
-                     preceding_comment: str = "", inline_comment: str = ""):
-            # pylint: disable=too-many-arguments
-            # Using object.__setattr__ due to frozen=True in dataclass, which
-            # prevents setting attributes directly.
-            object.__setattr__(self, 'name', name)
-            object.__setattr__(self, 'datatype', datatype)
-            object.__setattr__(self, 'visibility', visibility)
-            object.__setattr__(self, 'initial_value', initial_value)
-            object.__setattr__(self, '_preceding_comment', preceding_comment)
-            object.__setattr__(self, '_inline_comment', inline_comment)
-
     def __init__(self):
         self._components = OrderedDict()
 
     def __str__(self):
         return "StructureType<>"
+
+    def __copy__(self):
+        '''
+        :returns: a copy of this StructureType.
+        :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
+        '''
+        new = StructureType()
+        for name, component in self.components.items():
+            new.add(name, component.datatype, component.visibility,
+                    component.initial_value, component.preceding_comment,
+                    component.inline_comment)
+        return new
 
     @staticmethod
     def create(components):
@@ -1057,9 +1050,15 @@ class StructureType(DataType):
                 f"be a 'str' but got "
                 f"'{type(inline_comment).__name__}'")
 
-        self._components[name] = self.ComponentType(
-            name, datatype, visibility, initial_value, preceding_comment,
-            inline_comment)
+        self._components[name] = self.ComponentType(name, datatype, visibility,
+                                                    initial_value)
+        # Use object.__setattr__ due to the frozen nature of ComponentType
+        object.__setattr__(self._components[name],
+                           "_preceding_comment",
+                           preceding_comment)
+        object.__setattr__(self._components[name],
+                           "_inline_comment",
+                           inline_comment)
 
     def lookup(self, name):
         '''

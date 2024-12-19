@@ -541,6 +541,10 @@ subroutine test_sub()
   a = 1 ! Inline comment on 'a = 1'
   ! Preceding comment on 'i = 1'
   i = 1 ! Inline comment on 'i = 1'
+
+  a = & ! First line of inline comment
+    i & ! Second line of inline comment
+    + 1 ! Third line of inline comment
 end subroutine test_sub
 """
 
@@ -567,3 +571,13 @@ def test_inline_comment():
     assert "i = 1" in assignment.debug_string()
     assert assignment.preceding_comment == "Preceding comment on 'i = 1'"
     assert assignment.inline_comment == "Inline comment on 'i = 1'"
+
+    # When processing
+    # a = & ! First line of inline comment
+    # i & ! Second line of inline comment
+    # + 1 ! Third line of inline comment
+    # only the third comment is kept as inline comment
+    assignment = routine.walk(Assignment)[2]
+    assert "a = i + 1" in assignment.debug_string()
+    assert assignment.preceding_comment == ""
+    assert assignment.inline_comment == "Third line of inline comment"
