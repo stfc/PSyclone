@@ -195,13 +195,17 @@ class ScopingNode(Node):
             '''
             if (hasattr(dtype, "precision") and isinstance(dtype.precision,
                                                            Symbol)):
+                # The use of a Symbol to specify precision does not constitute
+                # a read (since it is resolved at compile time).
                 access_info.add_access(
                     Signature(dtype.precision.name),
-                    AccessType.READ, self)
+                    AccessType.COMPILE_TIME, self)
 
             if isinstance(dtype, DataTypeSymbol):
+                # The use of a DataTypeSymbol in a declaration is a compile-
+                # time access.
                 info.add_access(Signature(dtype.name),
-                                AccessType.READ, self)
+                                AccessType.COMPILE_TIME, self)
             elif isinstance(dtype, StructureType):
                 for cmpt in sym.datatype.components.values():
                     # Recurse for members of a StructureType

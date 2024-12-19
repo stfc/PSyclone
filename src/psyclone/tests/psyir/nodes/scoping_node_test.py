@@ -298,6 +298,8 @@ def test_scoping_node_reference_accesses():
     _ = table.new_symbol("var1", symbol_type=DataSymbol, datatype=new_type)
     sched.reference_accesses(vai)
     assert vai.all_signatures == [Signature("r_def")]
+    assert not vai[Signature("r_def")].is_queried()
+    assert not vai[Signature("r_def")].has_data_access()
     # Add a Symbol with initialisation.
     idef = table.new_symbol("i_def", symbol_type=DataSymbol,
                             datatype=INTEGER_TYPE)
@@ -310,6 +312,7 @@ def test_scoping_node_reference_accesses():
     sched.reference_accesses(vai2)
     assert len(vai2.all_signatures) == 2
     assert Signature("i_def") in vai2.all_signatures
+    assert not vai2[Signature("i_def")].has_data_access()
 
 
 def test_reference_accesses_struct():

@@ -51,6 +51,7 @@ def test_str():
     assert str(AccessType.READINC) == "READINC"
     assert str(AccessType.SUM) == "SUM"
     assert str(AccessType.CALL) == "CALL"
+    assert str(AccessType.INQUIRY) == "INQUIRY"
 
 
 def test_api_specific_name():
@@ -66,6 +67,7 @@ def test_api_specific_name():
     assert AccessType.READINC.api_specific_name() == "gh_readinc"
     assert AccessType.SUM.api_specific_name() == "gh_sum"
     assert AccessType.CALL.api_specific_name() == "call"
+    assert AccessType.INQUIRY.api_specific_name() == "inquiry"
     assert AccessType.get_valid_reduction_modes() == [AccessType.SUM]
     assert AccessType.get_valid_reduction_names() == ["gh_sum"]
     # Use set to make this independent of the order:

@@ -182,7 +182,7 @@ class Literal(DataNode):
         '''
         if isinstance(self.datatype.precision, Symbol):
             access_info.add_access(Signature(self.datatype.precision.name),
-                                   AccessType.READ, self)
+                                   AccessType.COMPILE_TIME, self)
 
     def replace_symbols_using(self, table):
         '''

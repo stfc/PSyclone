@@ -177,23 +177,18 @@ class CallTreeUtils():
             which will also be used when creating the VariablesAccessInfo
             instance if required.
         :type param: Optional[dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is
-            set to a True value, arrays used as first parameter to the
-            PSyIR operators lbound, ubound, or size will be reported as
-            'read'. Otherwise, these accesses will be ignored.
 
         '''
         # Collect the information about all variables used:
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list, options=options)
 
-        for signature in variables_info.all_signatures:
+        for signature in variables_info.all_data_accesses:
             # If the first access is a write, the variable is not an input
             # parameter and does not need to be saved. Note that loop variables
             # have a WRITE before a READ access, so they will be ignored
             # automatically.
-            if (not variables_info[signature].is_written_first() and
-                    not variables_info[signature].is_called()):
+            if not variables_info[signature].is_written_first():
                 read_write_info.add_read(signature)
 
     # -------------------------------------------------------------------------

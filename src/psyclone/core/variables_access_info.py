@@ -40,6 +40,8 @@
 '''This module provides management of variable access information.'''
 
 
+from typing import List
+
 from psyclone.core.component_indices import ComponentIndices
 from psyclone.core.signature import Signature
 from psyclone.core.single_variable_access_info import SingleVariableAccessInfo
@@ -81,14 +83,10 @@ class VariablesAccessInfo(dict):
     # List of valid options and their default values. Note that only the
     # options method checks this, since it is convenient to pass in options
     # from the DependencyTools that might contain options for these tools.
-    # COLLECT-ARRAY-SHAPE-READS: controls if access to the shape of an array
-    #     (e.g. ``ubound(a)`` are reported as read or not at all. Defaults
-    #     to True.
     # USE-ORIGINAL-NAMES: if set this will report the original names of any
     #     symbol that is being renamed (``use mod, renamed_a=>a``). Defaults
     #     to False.
-    _DEFAULT_OPTIONS = {"COLLECT-ARRAY-SHAPE-READS": False,
-                        "USE-ORIGINAL-NAMES": False}
+    _DEFAULT_OPTIONS = {"USE-ORIGINAL-NAMES": False}
 
     def __init__(self, nodes=None, options=None):
         # This dictionary stores the mapping of signatures to the
@@ -277,11 +275,23 @@ class VariablesAccessInfo(dict):
     def all_signatures(self):
         ''':returns: all signatures contained in this instance, sorted (in \
                      order to make test results reproducible).
-        :rtype: List[:py:class:`psyclone.core.signature`]
+        :rtype: List[:py:class:`psyclone.core.Signature`]
         '''
         list_of_vars = list(self.keys())
         list_of_vars.sort()
         return list_of_vars
+
+    @property
+    def all_data_accesses(self) -> List[Signature]:
+        '''
+        :returns: all Signatures in this instance that have a data access (i.e.
+                  the data associated with them is read or written).
+        '''
+        result = []
+        for sig in self.all_signatures:
+            if self[sig].has_data_access():
+                result.append(sig)
+        return result
 
     def merge(self, other_access_info):
         '''Merges data from a VariablesAccessInfo instance to the

@@ -58,6 +58,12 @@ class AccessType(Enum):
     UNKNOWN = 7
     # A symbol representing a routine is called.
     CALL = 8
+    # The property/ies of a symbol is/are queried but the data it
+    # represents is not accessed (e.g. 'var' in SIZE(var, dim=1)).
+    INQUIRY = 9
+    # The symbol is only accessed at compile time - e.g. precision
+    # of a literal or a type definition.
+    COMPILE_TIME = 10
 
     def __str__(self):
         '''Convert to a string representation, returning just the
@@ -130,6 +136,15 @@ class AccessType(Enum):
         '''
         return [access.api_specific_name() for access in
                 AccessType.get_valid_reduction_modes()]
+
+    @staticmethod
+    def non_data_accesses():
+        '''
+        :returns: all access types that do not touch any data associated with
+                  a symbol.
+        :rtype: list[:py:class:`psyclone.core.AccessType`]
+        '''
+        return [AccessType.CALL, AccessType.COMPILE_TIME, AccessType.INQUIRY]
 
 
 # ---------- Documentation utils -------------------------------------------- #

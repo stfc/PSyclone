@@ -216,6 +216,14 @@ class SingleVariableAccessInfo():
         return any(info.access_type == AccessType.CALL for
                    info in self._accesses)
 
+    def is_queried(self) -> bool:
+        '''
+        :returns: whether or not there are any queries/use of the *properties*
+            of this variable.
+        '''
+        return any(info.access_type == AccessType.INQUIRY for
+                   info in self._accesses)
+
     def is_written(self):
         ''':returns: True if this variable is written (at least once).
         :rtype: bool
@@ -259,6 +267,14 @@ class SingleVariableAccessInfo():
         '''
         return any(access_info.access_type == AccessType.READWRITE
                    for access_info in self._accesses)
+
+    def has_data_access(self):
+        '''
+        '''
+        for info in self._accesses:
+            if info.access_type not in AccessType.non_data_accesses():
+                return True
+        return False
 
     def __getitem__(self, index):
         ''':return: the access information for the specified index.
