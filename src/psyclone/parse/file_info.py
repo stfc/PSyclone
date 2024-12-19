@@ -58,7 +58,7 @@ class FileInfoFParserError(PSycloneError):
 
     def __init__(self, value: str):
         super().__init__(value)
-        self.value = "FParser Error: " + str(value)
+        self.value = "FileInfoFParserError: " + str(value)
 
 
 class _CacheFileInfo:
@@ -84,8 +84,9 @@ class FileInfo:
     - it will construct the PSyIR (depends on TODO #2786 "and cache it")
 
     :param filepath: Path to the file that this
-        object holds information on.
-    :param cache_active: Use caching of intermediate representations
+        object holds information on. Can also be set to 'None' in case of
+        providing fparser / PSyIR node in a different way.
+    :param use_caching: Use caching of intermediate representations
 
     """
     def __init__(self,
@@ -118,10 +119,18 @@ class FileInfo:
         # Filepath to cache
         self._cache_filename = None
 
-        # Cache to load data from
+        # This reference to `_CacheFileInfo` is created when loading
+        # cached information from a cache file.
+        # In case the checksums mismatch, no object will be referenced.
+        # Consequently, this object will always have a checksum matching
+        # the one from the source code.
         self._cache_data_load: _CacheFileInfo = None
 
-        # Cache to store data
+        # This reference is used whenever writing cache data to the
+        # persistent storage.
+        # It will also be partly updated if the `psyir` or
+        # `fparser tree` was created in the meantime and a cache update
+        # is requested.
         self._cache_data_save: _CacheFileInfo = None
 
     def _get_filepath_cache(self):
@@ -256,11 +265,6 @@ class FileInfo:
         # This also fills in the hash sum
         self.get_source_code()
 
-        assert self._source_code_hash_sum is not None, (
-            "Source code needs to be loaded before fparser or psyir "
-            "representation is loaded."
-        )
-
         # Check whether cache was already loaded
         if self._cache_data_load is not None:
             return self._cache_data_load
@@ -307,9 +311,6 @@ class FileInfo:
                 )
             return None
 
-        for key in ["_source_code_hash_sum", "_fparser_tree", "_psyir_node"]:
-            assert key in cache.__dict__.keys()  # internal check
-
         self._cache_data_load = cache
 
     def _cache_save(
@@ -339,16 +340,13 @@ class FileInfo:
             self._cache_data_save._source_code_hash_sum = (
                 self._source_code_hash_sum)
 
-        assert self._cache_data_save._source_code_hash_sum == (
-                    self._source_code_hash_sum)  # Sanity check
-
         if (
             self._cache_data_save._fparser_tree is None
             and self._fparser_tree is not None
         ):
             # No fparser tree was loaded so far into the cache object
             # AND
-            # an fparser tree was loaded in Fileinfo.
+            # an fparser tree was loaded and stored to Fileinfo.
             #
             # Consequently, we cache the fparser tree to the cache file.
             # We create a deepcopy of this fparser tree to ensure that we cache
@@ -425,7 +423,7 @@ class FileInfo:
         """Returns the fparser Fortran2003.Program representation of the
         source code (including Fortran2008).
 
-        :param save_to_cache: Cache is updated if fparser was
+        :param save_to_cache_if_cache_active: Cache is updated if fparser was
             not loaded from cache.
         :param verbose: Produce some verbose output
 
@@ -440,8 +438,11 @@ class FileInfo:
             # TODO #11: Use logging for this
             print(f"- Source file '{self._filename}': " f"Running fparser")
 
-        source_code = self.get_source_code()
-        assert self._source_code_hash_sum is not None   # Internal sanity check
+        try:
+            source_code = self.get_source_code()
+        except FileNotFoundError as err:
+            raise FileInfoFParserError(
+                f"File '{self._filename}' not found:\n{str(err)}")
 
         # Check for cache
         self._cache_load(verbose=verbose)

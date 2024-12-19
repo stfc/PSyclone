@@ -148,11 +148,6 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation assumes that the ABS Intrinsic acts on
-             PSyIR Real scalar data and does not check that this is
-             not the case. Once issue #658 is on master then this
-             limitation can be fixed.
-
 ####
 
 .. autoclass:: psyclone.transformations.ACCDataTrans
@@ -460,11 +455,6 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.Sign2CodeTrans
       :members: apply
       :noindex:
-
-.. warning:: This transformation assumes that the SIGN Intrinsic acts
-             on PSyIR Real scalar data and does not check whether or not
-             this is the case. Once issue #658 is on master then this
-             limitation can be fixed.
 
 ####
 
@@ -844,9 +834,13 @@ transformations currently supported allow the addition of:
 
 The generic versions of these transformations (i.e. ones that
 theoretically work for all APIs) were given in the
-:ref:`sec_transformations_available` section. The API-specific versions
-of these transformations are described in the API-specific sections of
-this document.
+:ref:`sec_transformations_available` section. Examples of their use,
+for both CPU and offload to GPU, may be found in the
+``PSyclone/examples/nemo/scripts/omp_?pu_trans.py`` transformation scripts.
+
+The API-specific versions of these transformations are described in the
+API-specific sections of this document. Examples for the LFRic API may
+be found in ``PSyclone/examples/lfric/scripts``.
 
 .. _openmp-reductions:
 

@@ -344,7 +344,7 @@ def test_file_info_source_with_bugs(tmpdir):
     with pytest.raises(FileInfoFParserError) as einfo:
         file_info.get_psyir(verbose=True)
 
-    assert "FParser Error: Failed to get fparser tree: at line 5" in (
+    assert "FileInfoFParserError: Failed to get fparser tree: at line 5" in (
         str(einfo.value))
 
 

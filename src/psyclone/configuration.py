@@ -415,6 +415,7 @@ class Config:
         - ${HOME}/.local/share/psyclone/
         - <system-install-prefix>/share/psyclone/
         - <psyclone-installation-base>/share/psyclone/
+        - <psyclone-src-base>/config/
 
         :returns: the fully-qualified path to the configuration file
         :rtype: str

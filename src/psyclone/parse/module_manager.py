@@ -54,7 +54,10 @@ class ModuleManager:
     '''This class implements a singleton that manages module
     dependencies.
 
+    :param use_caching: Whether to use (`True`) or
+        disable (`False`) caching
     '''
+
     # Class variable to store the singleton instance
     _instance = None
 
@@ -86,6 +89,7 @@ class ModuleManager:
                 cache_active: bool = None,
                 cache_path: str = None
             ):
+
         if ModuleManager._instance is not None:
             raise InternalError("You need to use 'ModuleManager.get()' "
                                 "to get the singleton instance.")
