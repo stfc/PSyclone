@@ -192,11 +192,12 @@ def test_main_h_option(capsys):
     assert ("  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
             in output or
             "  -a, --active ACTIVE [ACTIVE ...]\n" in output)
-    assert ("                        names of active variables\n" in output)
-    assert (("  -c CONFIG, --config CONFIG\n"
-             "                        config file with PSyclone specific "
-             "options\n") in output or " -c, --config CONFIG   config file"
-              " with PSyclone specific options\n" in output)
+    assert ("                        names of active variables\n"
+            in output)
+    assert ("  -c CONFIG, --config CONFIG\n"
+            "                        config file with PSyclone specific "
+            "options\n" in output or " -c, --config CONFIG   config file"
+            " with PSyclone specific options\n" in output)
     expected3 = (
         "  -v, --verbose         increase the verbosity of the output\n"
         "  -t, --gen-test        generate a standalone unit test for the "
