@@ -46,7 +46,6 @@ import pytest
 
 from psyclone.psyad import main
 
-
 TEST_PROG = (
     "program test\n"
     "real :: a\n"
@@ -174,6 +173,8 @@ def test_main_h_option(capsys):
         main(["-h", "filename"])
     assert str(info.value) == "0"
     output, error = capsys.readouterr()
+    print(output)
+    print(type(output))
     assert error == ""
     # Python usage messages have seen slight tweaks over the years, e.g.,
     # Python >= 3.13 tweaks the usage message to avoid repeating the args
