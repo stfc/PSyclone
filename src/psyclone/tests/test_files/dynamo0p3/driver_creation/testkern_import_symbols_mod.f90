@@ -72,15 +72,15 @@ contains
   local_func = 1
   end function
 
-  subroutine testkern_import_symbols_code(nlayers, ascalar,        &
-                                          fld1, fld2, fld3, fld4,  &
-                                          ndf_w1, undf_w1, map_w1, &
-                                          ndf_w2, undf_w2, map_w2, &
+  subroutine testkern_import_symbols_code(nlayers, ascalar,             &
+                                          fld1, fld2, fld3, fld4,       &
+                                          ndf_w1, undf_w1, map_w1,      &
+                                          ndf_w2, undf_w2, map_w2,      &
                                           ndf_w3, undf_w3, map_w3)
     use constants_mod, only: eps, i_def, r_def
-    use module_with_var_mod, only: module_subroutine, module_var_a, &
-                                   module_function, module_const,   &
-                                   user_var
+    use module_with_var_mod, only: module_subroutine, module_var_a,     &
+                                   module_function, module_const,       &
+                                   subroutine_taking_user_type, user_var
 
     implicit none
 
@@ -109,6 +109,7 @@ contains
     call module_subroutine()
     call local_subroutine()
     call unknown_subroutine()
+    call subroutine_taking_user_type(user_var)
     module_var_a = 1
 
   end subroutine testkern_import_symbols_code
