@@ -83,10 +83,10 @@ def main(args):
         '-a', '--active', nargs='+', help='names of active variables',
         required=True)
     parser.add_argument(
+        '-c', '--config', help='config file with PSyclone specific options')
+    parser.add_argument(
         '-v', '--verbose', help='increase the verbosity of the output',
         action='store_true')
-    parser.add_argument(
-        '-c', '--config', help='config file with PSyclone specific options')
     parser.add_argument(
         '-t', '--gen-test',
         help='generate a standalone unit test for the adjoint code',

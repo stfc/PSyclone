@@ -173,8 +173,6 @@ def test_main_h_option(capsys):
         main(["-h", "filename"])
     assert str(info.value) == "0"
     output, error = capsys.readouterr()
-    print(output)
-    print(type(output))
     assert error == ""
     # Python usage messages have seen slight tweaks over the years, e.g.,
     # Python >= 3.13 tweaks the usage message to avoid repeating the args
@@ -194,11 +192,13 @@ def test_main_h_option(capsys):
     assert ("  -a ACTIVE [ACTIVE ...], --active ACTIVE [ACTIVE ...]\n"
             in output or
             "  -a, --active ACTIVE [ACTIVE ...]\n" in output)
+    assert ("                        names of active variables\n" in output)
+    assert (("  -c CONFIG, --config CONFIG\n"
+             "                        config file with PSyclone specific "
+             "options\n") in output or " -c, --config CONFIG   config file"
+              " with PSyclone specific options\n" in output)
     expected3 = (
-        "                        names of active variables\n"
         "  -v, --verbose         increase the verbosity of the output\n"
-        "  -c CONFIG, --config CONFIG\n"
-        "                        config file with PSyclone specific options\n"
         "  -t, --gen-test        generate a standalone unit test for the "
         "adjoint code\n"
         "  -api API              the PSyclone API that the TL kernel conforms "
