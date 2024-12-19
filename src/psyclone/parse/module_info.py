@@ -95,7 +95,8 @@ class ModuleInfo:
     def __init__(
         self,
         module_name: str,
-        file_info: FileInfo
+        file_info: FileInfo,
+        psyir_container_node: Container = None
     ):
         self._name = module_name.lower()
 
@@ -103,7 +104,7 @@ class ModuleInfo:
         self._file_info: FileInfo = file_info
 
         # The PSyIR representation
-        self._psyir_container_node: Container = None
+        self._psyir_container_node: Container = psyir_container_node
 
         # A cache for the module dependencies: this is just a set
         # of all modules USEd by this module.

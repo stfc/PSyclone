@@ -252,8 +252,6 @@ class ModuleManager:
 
         if isinstance(filepaths, str):
             filepaths = [filepaths]
-        elif isinstance(filepaths, set):
-            filepaths = list(filepaths)
 
         for filepath in filepaths:
             if filepath in self._filepath_to_file_info:
@@ -342,10 +340,10 @@ class ModuleManager:
             self._filepath_to_module_info[filepath] = module_info_in_file
 
     def get_all_module_infos(self) -> List[ModuleInfo]:
-        return self._modules.values()
+        return list(self._modules.values())
 
     def get_all_file_infos(self) -> List[FileInfo]:
-        return self._filepath_to_file_info.values()
+        return list(self._filepath_to_file_info.values())
 
     def get_module_info(self, module_name: str) -> ModuleInfo:
         '''This function returns the ModuleInfo for the specified
@@ -427,7 +425,21 @@ class ModuleManager:
         verbose: bool = False,
         indent: str = "",
     ) -> List[ModuleInfo]:
+        """This function collects all modules which are recursively used
+        by the specified module. It returns a list of module infos in the
+        order of dependencies, i.e. a module which is used by another module
+        is listed before the module which uses it.
 
+        :param module_info: the module info for which to collect all
+            recursively used modules.
+        :param bool verbose: whether to print some information about
+            the modules being processed.
+        :param str indent: the current indentation level for printing.
+
+        :returns: a list of all modules used by the specified module in
+            order of dependencies.
+
+        """
         assert type(module_info) is ModuleInfo
 
         # List of module infos which still need to be traversed.

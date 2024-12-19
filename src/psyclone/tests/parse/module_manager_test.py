@@ -344,3 +344,91 @@ def test_mod_manager_add_ignore_modules():
     # Just in case verify that other modules are not affected
     mod_info = mod_man.get_module_info("b_mod")
     assert mod_info.filename == "d1/d3/b_mod.F90"
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_mod_manager_add_files_and_more():
+    '''Fixture will create the following files
+
+    d1/a_mod.f90
+    d1/d3/b_mod.F90
+    d1/d3/c_mod.x90
+    d2/d_mod.X90
+    d2/d4/e_mod.F90
+
+    We will check through some further ModuleManager functions.
+    '''
+    mod_man = ModuleManager.get()
+
+    #
+    # Test add_files(...)
+    #
+    mod_man.add_files("d1/a_mod.f90")
+
+    # Add same file again
+    mod_man.add_files("d1/a_mod.f90")
+
+    #
+    # Test various other functions
+    #
+    mod_man.load_all_source_codes()
+    mod_man.load_all_fparser_trees()
+    mod_man.load_all_psyir_nodes()
+    mod_man.get_all_file_infos()
+    mod_man.load_all_module_infos(verbose=True)
+    all_mods = mod_man.get_all_module_infos()
+
+    # Should raise an error that the first module to be processed
+    # was already processed
+    with pytest.raises(KeyError) as einfo:
+        mod_man.load_all_module_infos(verbose=True)
+
+    assert "Module 'a_mod' already processed" in str(einfo.value)
+
+    mod_man.get_all_recursively_used_module_infos(all_mods[0])
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_mod_manager_load_all_module_infos_trigger_error_module_read_twice():
+    '''
+    Make particular check for load_all_module_infos():
+    - Reading in the same module twice is triggering an error.
+    '''
+    mod_man = ModuleManager.get()
+
+    #
+    # Test add_files(...)
+    #
+    mod_man.add_files("d1/a_mod.f90")
+
+    mod_man.load_all_module_infos(verbose=True)
+
+    # Should raise an error that the first module to be processed
+    # was already processed
+    with pytest.raises(KeyError) as einfo:
+        mod_man.load_all_module_infos(verbose=True)
+
+    assert "Module 'a_mod' already processed" in str(einfo.value)
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
+def test_mod_manager_load_all_module_infos_trigger_error_file_read_twice():
+    '''
+    Make particular check for load_all_module_infos():
+    - Reading in the same file twice is triggering an error.
+    '''
+    mod_man = ModuleManager.get()
+
+    with open("t_mod.F90", "w", encoding="utf-8") as f_out:
+        f_out.write("\n")   # Just an empty file
+
+    mod_man.add_files("t_mod.F90")
+    mod_man.load_all_module_infos(verbose=True)
+
+    # Should raise an error that the file was already processed
+    with pytest.raises(KeyError) as einfo:
+        mod_man.load_all_module_infos(verbose=True)
+
+    assert "File 't_mod.F90' already processed" in str(einfo.value)
