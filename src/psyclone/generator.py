@@ -426,11 +426,11 @@ def main(arguments):
     # Common options
     parser.add_argument('filename', help='input source code')
     parser.add_argument(
-        '--version', '-v', action='version',
+        '-v', '--version', action='version',
         version=f'PSyclone version: {__VERSION__}',
         help='display version information')
-    parser.add_argument("--config", "-c", help="config file with "
-                        "PSyclone specific options")
+    parser.add_argument('-c', '--config', help='config file with '
+                        'PSyclone specific options')
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation recipe')
     parser.add_argument(
@@ -444,7 +444,7 @@ def main(arguments):
         'output Fortran. Use \'output\' to apply line-length limit to output '
         'Fortran only.')
     parser.add_argument(
-        '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
+        '-p', '--profile', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="add profiling hooks for 'kernels', 'invokes' or 'routines'")
     parser.add_argument(
         '--backend', dest='backend',
