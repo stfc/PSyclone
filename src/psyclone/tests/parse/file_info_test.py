@@ -374,6 +374,33 @@ def test_file_info_cachefile_not_accessible(tmpdir):
     assert isinstance(psyir_node, Node)
 
 
+def test_file_info_cachefile_not_writable(tmpdir):
+    '''
+    Check if cachefile is not writable
+
+    '''
+
+    filename = os.path.join(tmpdir, "testfile_e.f90")
+
+    try:
+        os.remove(filename)
+    except FileNotFoundError:
+        pass
+    with open(filename, "w", encoding='utf-8') as fout:
+        fout.write(SOURCE_DUMMY)
+
+    file_info: FileInfo = FileInfo(filename, cache_active=True)
+
+    # Set buggy cache file
+    file_info._cache_path = "/I_DONT_EXIST/FILE/cache.psycache"
+
+    source_code = file_info.get_source_code(verbose=True)
+    assert source_code == SOURCE_DUMMY
+
+    psyir_node = file_info.get_psyir(verbose=True)
+    assert isinstance(psyir_node, Node)
+
+
 def test_file_info_cachefile_pickle_load_exception(tmpdir, monkeypatch):
     '''
     Check pickle exceptions work

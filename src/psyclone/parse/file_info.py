@@ -136,8 +136,13 @@ class FileInfo:
     def _get_filepath_cache(self):
         """Return the filepath of the cache.
 
-        This can't be done in the constructor since the hashcode
-        of the source code is required first.
+        This also supports having a shared caching directory,
+        e.g., in `$HOME/.cache/psyclone/`.
+
+        This sets up unique cache file names based on the
+        hashcode. Consequently, this can't be done in the
+        constructor since the hashcode of the source code
+        is required first.
         """
 
         assert self._source_code_hash_sum is not None
@@ -158,10 +163,10 @@ class FileInfo:
             return self._cache_filename
 
         # Cache path was specified.
-        # We assume this path is shared amongst many
-        (path, _) = os.path.split(self._filename)
-        return (
-            path + self._source_code_hash_sum[:55] + ".psycache"
+        # We assume this path is shared amongst many.
+        # Therefore, we associate each cache file to a hashsum.
+        return os.path.join(
+            self._cache_path, self._source_code_hash_sum[:55] + ".psycache"
         )
 
     @property
