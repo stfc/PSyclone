@@ -208,6 +208,22 @@ class SingleVariableAccessInfo():
         '''
         return str(self._signature)
 
+    def is_called(self) -> bool:
+        '''
+        :returns: whether or not any accesses of this variable
+                  represent a call.
+        '''
+        return any(info.access_type == AccessType.CALL for
+                   info in self._accesses)
+
+    def is_queried(self) -> bool:
+        '''
+        :returns: whether or not there are any queries/use of the *properties*
+            of this variable.
+        '''
+        return any(info.access_type == AccessType.INQUIRY for
+                   info in self._accesses)
+
     def is_written(self):
         ''':returns: True if this variable is written (at least once).
         :rtype: bool
@@ -226,21 +242,21 @@ class SingleVariableAccessInfo():
         return len(self._accesses) > 0 and \
             (self._accesses[0].access_type == AccessType.WRITE)
 
-    def is_read_only(self):
+    def is_read_only(self) -> bool:
         '''Checks if this variable is always read, and never
         written.
 
         :returns: True if this variable is read only.
-        :rtype: bool
         '''
         return all(access_info.access_type == AccessType.READ
                    for access_info in self._accesses)
 
-    def is_read(self):
-        ''':returns: True if this variable is read (at least once).
-        :rtype: bool
+    def is_read(self) -> bool:
         '''
-        return any(access_info.access_type in AccessType.all_read_accesses()
+        :returns: True if this variable is read (at least once).
+        '''
+        read_accesses = AccessType.all_read_accesses()
+        return any(access_info.access_type in read_accesses
                    for access_info in self._accesses)
 
     def has_read_write(self):
@@ -251,6 +267,14 @@ class SingleVariableAccessInfo():
         '''
         return any(access_info.access_type == AccessType.READWRITE
                    for access_info in self._accesses)
+
+    def has_data_access(self):
+        '''
+        '''
+        for info in self._accesses:
+            if info.access_type not in AccessType.non_data_accesses():
+                return True
+        return False
 
     def __getitem__(self, index):
         ''':return: the access information for the specified index.

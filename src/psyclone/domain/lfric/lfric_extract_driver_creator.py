@@ -583,6 +583,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
             sig_str = self._flatten_signature(signature)
+
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
                 orig_sym = mod_info.get_symbol(signature[0])
@@ -592,6 +593,10 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                           f"'{module_name}'.")
             else:
                 orig_sym = original_symbol_table.lookup(signature[0])
+
+            if orig_sym and isinstance(orig_sym, DataTypeSymbol):
+                # We don't want symbols representing data types.
+                continue
 
             if orig_sym and orig_sym.is_array and _sym_is_field(orig_sym):
                 # This is a field vector, so add all individual fields
