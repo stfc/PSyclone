@@ -253,10 +253,8 @@ class SingleVariableAccessInfo():
             return True
         return False
 
-
     def is_read_only(self) -> bool:
-        '''Checks if this variable is always read, and never
-        written.
+        '''Checks if this variable is always read, and never written.
 
         :returns: True if this variable is read only.
         '''
@@ -372,7 +370,6 @@ class SingleVariableAccessInfo():
             raise InternalError(
                 f"Trying to change variable '{self._signature}' to 'WRITE' but"
                 f" it has {read_count} 'READ' access (expected exactly 1).")
-
 
     def is_array(self, index_variable=None):
         '''Checks if the variable is used as an array, i.e. if it has
