@@ -353,23 +353,27 @@ class SingleVariableAccessInfo():
         :raises InternalError: if there is an access that is not READ or
                                INQUIRY or there is > 1 READ access.
         '''
-        read_count = 0
+        read_access = None
         for acc in self._accesses:
 
             if acc.access_type == AccessType.READ:
-                acc.change_read_to_write()
-                read_count += 1
+                if read_access:
+                    raise InternalError(
+                        f"Trying to change variable '{self._signature}' to "
+                        f"'WRITE' but it has more than one 'READ' access.")
+                read_access = acc
 
             elif acc.access_type not in AccessType.non_data_accesses():
                 raise InternalError(
                     f"Variable '{self._signature}' has a '{acc.access_type}' "
                     f"access. change_read_to_write() expects only inquiry "
-                    f"accesses and a single read access.")
+                    f"accesses and a single 'READ' access.")
 
-        if read_count != 1:
+        if not read_access:
             raise InternalError(
                 f"Trying to change variable '{self._signature}' to 'WRITE' but"
-                f" it has {read_count} 'READ' access (expected exactly 1).")
+                f" it does not have a 'READ' access.")
+        read_access.change_read_to_write()
 
     def is_array(self, index_variable=None):
         '''Checks if the variable is used as an array, i.e. if it has
