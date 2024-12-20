@@ -77,13 +77,16 @@ class LFRicCellIterators(LFRicCollection):
             return
 
         # Each kernel that operates on either the domain or cell-columns needs
-        # an 'nlayers' obtained from the first written field/operator argument.
+        # an 'nlayers' obtained from the first field/operator argument.
         for kern in self._invoke.schedule.walk(LFRicKern):
             if kern.iterates_over != "dof":
-                arg = kern.arguments.iteration_space_arg()
-                self._nlayers_names[self.symtab.find_or_create_tag(
+                # arg = kern.arguments.iteration_space_arg()
+                # self._nlayers_names[self.symtab.find_or_create_tag(
+                arg = kern.arguments.first_field_or_operator
+                sym = self.symtab.find_or_create_tag(
                     f"nlayers_{arg.name}",
-                    symbol_type=LFRicTypes("MeshHeightDataSymbol")).name] = arg
+                    symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+                self._nlayers_names[sym.name] = arg
 
         first_var = None
         for var in self._invoke.psy_unique_vars:

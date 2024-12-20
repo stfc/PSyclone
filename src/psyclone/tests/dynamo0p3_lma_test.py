@@ -59,7 +59,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir import symbols
 
-# constants
+# Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
@@ -998,7 +998,7 @@ def test_stub_operator_different_spaces(fortran_writer):
     kernel.load_meta(metadata)
     result = fortran_writer(kernel.gen_stub)
     assert "(cell, nlayers, op_1_ncell_3d, op_1, ndf_w0, ndf_w1)" in result
-    assert "dimension(ndf_w0,ndf_w1,op_1_ncell_3d)" in result
+    assert "dimension(op_1_ncell_3d,ndf_w0,ndf_w1)" in result
     # Check for discontinuous to- and from- spaces
     code = OPERATOR_DIFFERENT_SPACES.replace(
         "(gh_operator, gh_real, gh_write, w0, w1)",
@@ -1010,7 +1010,7 @@ def test_stub_operator_different_spaces(fortran_writer):
     result = fortran_writer(kernel.gen_stub)
     assert ("(cell, nlayers, op_1_ncell_3d, op_1, ndf_w3, ndf_adspc2_op_1)"
             in result)
-    assert "dimension(ndf_w3,ndf_adspc2_op_1,op_1_ncell_3d)" in result
+    assert "dimension(op_1_ncell_3d,ndf_w3,ndf_adspc2_op_1)" in result
     field_descriptor = metadata.arg_descriptors[0]
     result = str(field_descriptor)
     assert "function_space_to[3]='w3'" in result

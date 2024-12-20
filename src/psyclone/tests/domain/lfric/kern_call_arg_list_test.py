@@ -110,7 +110,7 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
     assert Signature("cell_map_field2") in vai
 
     assert create_arg_list._arglist == [
-        'nlayers_field2', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
+        'nlayers_field1', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
         'ncpc_field1_field2_y', 'ncell_field1', 'field1_data',
         'field2_data', 'ndf_w1', 'undf_w1', 'map_w1', 'undf_w2',
         'map_w2(:,cell)']

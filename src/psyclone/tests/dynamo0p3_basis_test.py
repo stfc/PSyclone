@@ -1146,7 +1146,7 @@ def test_two_eval_op_to_space(tmpdir):
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "    enddo\n"
         "    do cell = loop11_start, loop11_stop, 1\n"
-        "      call testkern_eval_op_to_code(cell, nlayers_f2, "
+        "      call testkern_eval_op_to_code(cell, nlayers_op1, "
         "op1_proxy%ncell_3d, op1_local_stencil, f2_data, "
         "ndf_w2, basis_w2_on_w3, diff_basis_w2_on_w3, ndf_w0, ndf_w3, "
         "undf_w3, map_w3(:,cell), diff_basis_w3_on_w3)\n"
@@ -1238,7 +1238,7 @@ def test_eval_diff_nodal_space(tmpdir):
 
     expected_kern_call = (
         "    do cell = loop12_start, loop12_stop, 1\n"
-        "      call testkern_eval_op_to_code(cell, nlayers_f1, "
+        "      call testkern_eval_op_to_code(cell, nlayers_op2, "
         "op2_proxy%ncell_3d, op2_local_stencil, f1_data, "
         "ndf_w2, basis_w2_on_w3, diff_basis_w2_on_w3, ndf_w0, ndf_w3, "
         "undf_w3, map_w3(:,cell), diff_basis_w3_on_w3)\n"
@@ -1829,7 +1829,6 @@ def test_diff_basis(fortran_writer):
     assert ("real(kind=r_def), dimension(np_z_qr_xyoz), intent(in) "
             ":: weights_z_qr_xyoz" in code)
 
-
 # Metadata for a kernel that requires differential basis functions
 # evaluated only on W2 (the to-space of the operator that this kernel
 # writes to).
@@ -1988,7 +1987,6 @@ diff_basis_w2vtrace_on_w2
     real(kind=r_def), dimension(3,ndf_w2htrace,ndf_w2), intent(in) :: \
 diff_basis_w2htrace_on_w2
 """ in generated_code
-
 
 def test_2eval_stubgen(fortran_writer):
     ''' Check that we generate the correct kernel stub when an evaluator is

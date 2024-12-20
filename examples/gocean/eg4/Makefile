@@ -40,7 +40,7 @@ include ../../common.mk
 # variable.
 #
 # export F90=nvfortran
-# export F90FLAGS = -Minfo -acc -ta=tesla:cc70
+# export F90FLAGS = -Minfo -acc -gpu=cc70
 # export LDFLAGS=""
 # Currently only compatible with F90=nvfortran
 

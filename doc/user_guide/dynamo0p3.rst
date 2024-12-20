@@ -1938,7 +1938,7 @@ conventions, are:
 2) Include ``nlayers``, the number of layers in a column. ``nlayers``
    is an ``integer`` of kind ``i_def`` and has intent ``in``. PSyclone
    will obtain the value of ``nlayers`` to use for a particular kernel
-   from the first field (in the argument list) that is written to.
+   from the first field or operator in the argument list.
 3) For each scalar/field/vector_field/operator in the order specified by
    the meta_args metadata:
 
@@ -1989,11 +1989,10 @@ conventions, are:
       is a rank-3, ``real`` array. Its precision (kind) depends on how
       it is defined in the algorithm layer, see the
       :ref:`lfric-mixed-precision` section for more details. The
-      extents of the first two dimensions are the local degrees of
+      extent of the first dimension is ``<operator_name>"_ncell_3d"``,
+      and of the second and third dimension are the local degrees of
       freedom for the ``to`` and ``from`` function spaces,
-      respectively, and that of the third is
-      ``<operator_name>"_ncell_3d"``. The name of the operator is
-      ``"op_"<argument_position>``. Again the intent is determined
+      respectively. Again the intent is determined
       from the metadata (see :ref:`lfric-api-meta-args`).
 
 4) For each function space in the order they appear in the metadata arguments
@@ -2255,10 +2254,10 @@ as the number of DoFs for each of the dofmaps. The full set of rules is:
 5) For each argument in the ``meta_args`` metadata array:
 
    1) If it is a LMA operator, include a ``real``, 3-dimensional
-      array. The first two dimensions are the local degrees of freedom
-      for the ``to`` and ``from`` spaces, respectively. The third
-      dimension is ``ncell_3d``. The precision of the array depends on
-      how it is defined in the algorithm layer, see the
+      array. The first dimension is ``ncell_3d``. The second and third
+      dimension are the local degrees of freedom for the ``to`` and
+      ``from`` spaces, respectively.  The precision of the array depends
+      on how it is defined in the algorithm layer, see the
       :ref:`lfric-mixed-precision` section for more details;
 
    2) If it is a CMA operator, include a ``real``, 3-dimensional array

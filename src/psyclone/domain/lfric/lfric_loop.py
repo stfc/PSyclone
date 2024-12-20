@@ -50,10 +50,9 @@ from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import (
     Loop, Literal, Schedule, Reference, ArrayReference, ACCRegionDirective,
     OMPRegionDirective, Routine, StructureReference, Call, BinaryOperation,
-    ArrayOfStructuresReference, Directive, DataNode, Node)
+    ArrayOfStructuresReference, Directive, DataNode)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, UnresolvedType, UnresolvedInterface)
-from psyclone.psyir.backend.fortran import FortranWriter
 
 
 class LFRicLoop(PSyLoop):
@@ -946,7 +945,7 @@ class LFRicLoop(PSyLoop):
             # Now set appropriate parts of the halo clean where redundant
             # computation has been performed or a kernel is written to operate
             # on halo cells.
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
             clean_depth = hwa.clean_depth
             if clean_depth:
                 if field.vector_size > 1:

@@ -196,7 +196,7 @@ class PSyFactory():
         # implementation.
         # pylint: disable=import-outside-toplevel
         if self._type in LFRIC_API_NAMES:
-            from psyclone.dynamo0p3 import DynamoPSy as PSyClass
+            from psyclone.domain.lfric import LFRicPSy as PSyClass
         elif self._type in GOCEAN_API_NAMES:
             from psyclone.gocean1p0 import GOPSy as PSyClass
         else:

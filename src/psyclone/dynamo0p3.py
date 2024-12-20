@@ -56,12 +56,12 @@ from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (
     FunctionSpace, KernCallAccArgList, KernCallArgList, LFRicCollection,
     LFRicConstants, LFRicSymbolTable, LFRicKern,
-    LFRicInvokes, LFRicTypes, LFRicLoop)
+    LFRicTypes, LFRicLoop)
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
+from psyclone.psyGen import (InvokeSchedule, Arguments,
                              KernelArgument, HaloExchange, GlobalSum,
                              DataAccess)
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -364,96 +364,6 @@ class MeshPropertiesMetaData():
 # --------------------------------------------------------------------------- #
 
 # ---------- Classes -------------------------------------------------------- #
-
-
-class DynamoPSy(PSy):
-    '''
-    The LFRic-specific PSy class. This creates an LFRic-specific
-    Invokes object (which controls all the required invocation calls).
-    It also overrides the PSy gen method so that we generate
-    LFRic-specific PSy module code.
-
-    :param invoke_info: object containing the required invocation information \
-                        for code optimisation and generation.
-    :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
-
-    '''
-    def __init__(self, invoke_info):
-        # Make sure the scoping node creates LFRicSymbolTables
-        # TODO #1954: Remove the protected access using a factory
-        ScopingNode._symbol_table_class = LFRicSymbolTable
-        Config.get().api = "lfric"
-        PSy.__init__(self, invoke_info)
-
-        # Add a common "constants_mod" import at the Container level
-        const = LFRicConstants()
-        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        self.container.symbol_table.add(
-            ContainerSymbol(const_mod, wildcard_import=True))
-
-        # Then initialise the Invokes
-        self._invokes = LFRicInvokes(invoke_info.calls, self)
-
-    @property
-    def name(self):
-        '''
-        :returns: a name for the PSy layer. This is used as the PSy module \
-                  name. We override the default value as the Met Office \
-                  prefer "_psy" to be appended, rather than prepended.
-        :rtype: str
-
-        '''
-        return self._name + "_psy"
-
-    @property
-    def orig_name(self):
-        '''
-        :returns: the unmodified PSy-layer name.
-        :rtype: str
-
-        '''
-        return self._name
-
-    @property
-    def gen(self):
-        '''
-        Generate PSy code for the LFRic API.
-
-        :returns: the generated Fortran source.
-        :rtype: str
-
-        '''
-
-        # Before the backend we need to add the Invoke initialisations and
-        # declarations, this modifies the PSyIR tree, so we operate on a
-        # copy of the tree.
-        original_container = self.container
-        new_container = self.container.copy()
-        self._container = new_container
-        for invsch in self.container.walk(InvokeSchedule):
-            invsch.invoke.schedule = invsch
-
-        # Now do the declarations/initialisation on the copied tree
-        for invoke in self.invokes.invoke_list:
-            invoke.declare()
-
-        # import pdb; pdb.set_trace()
-        invoke.schedule.view()
-        # Use the PSyIR Fortran backend to generate Fortran code of the
-        # supplied PSyIR tree.
-        from psyclone.psyir.backend.fortran import FortranWriter
-        config = Config.get()
-        fortran_writer = FortranWriter(
-            check_global_constraints=config.backend_checks_enabled,
-            disable_copy=True)
-        result = fortran_writer(new_container)
-
-        # Restore original container
-        self._container = original_container
-        for invsch in self.container.walk(InvokeSchedule):
-            invsch.invoke.schedule = invsch
-
-        return result
 
 
 class LFRicMeshProperties(LFRicCollection):
@@ -1695,6 +1605,16 @@ class DynLMAOperators(LFRicCollection):
                                     arg.function_space_to.ndf_name)
             ndf_name_from = self.symtab.lookup(
                                     arg.function_space_from.ndf_name)
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    intent="in", entity_decls=[size]))
+            # ndf_name_to = arg.function_space_to.ndf_name
+            # ndf_name_from = arg.function_space_from.ndf_name
+            # parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
+            #                    dimension=",".join([size, ndf_name_to,
+            #                                        ndf_name_from]),
+            #                    intent=arg.intent,
+            #                    entity_decls=[arg.name]))
 
             # Create the PSyIR intrinsic DataType
             kind_sym = self.symtab.find_or_create(
@@ -2335,14 +2255,15 @@ class DynMeshes():
                 self._invoke.schedule.addchild(Assignment.create(
                     lhs=Reference(depth_sym),
                     rhs=Call.create(StructureReference.create(
-                        mesh_sym,["get_halo_depth"]))),
+                        mesh_sym, ["get_halo_depth"]))),
                     cursor)
                 cursor += 1
             if self._needs_colourmap or self._needs_colourmap_halo:
                 # Look-up variable names for colourmap and number of colours
-                cmap = self._invoke.schedule.symbol_table.find_or_create_tag("cmap")
-                ncolour = \
-                    self._invoke.schedule.symbol_table.find_or_create_tag("ncolour")
+                cmap = self._invoke.schedule.symbol_table\
+                    .find_or_create_tag("cmap")
+                ncolour = self._invoke.schedule.symbol_table\
+                    .find_or_create_tag("ncolour")
                 # Get the number of colours
                 assignment = Assignment.create(
                         lhs=Reference(ncolour),
@@ -2369,10 +2290,10 @@ class DynMeshes():
         for dig in self.intergrid_kernels:
             # We need pointers to both the coarse and the fine mesh as well
             # as the maximum halo depth for each.
-            fine_mesh = self._invoke.schedule.symbol_table.find_or_create_tag(
-                f"mesh_{dig.fine.name}")
-            coarse_mesh = self._invoke.schedule.symbol_table.find_or_create_tag(
-                f"mesh_{dig.coarse.name}")
+            fine_mesh = self._invoke.schedule.symbol_table\
+                .find_or_create_tag(f"mesh_{dig.fine.name}")
+            coarse_mesh = self._invoke.schedule.symbol_table\
+                .find_or_create_tag(f"mesh_{dig.coarse.name}")
             if fine_mesh not in initialised:
                 initialised.append(fine_mesh)
                 assignment = Assignment.create(
@@ -2426,7 +2347,8 @@ class DynMeshes():
             # Cell map. This is obtained from the mesh map.
             if dig.cell_map not in initialised:
                 initialised.append(dig.cell_map)
-                digcellmap = self._invoke.schedule.symbol_table.lookup(dig.cell_map)
+                digcellmap = self._invoke.schedule.symbol_table\
+                    .lookup(dig.cell_map)
                 assignment = Assignment.create(
                         lhs=Reference(digcellmap),
                         rhs=Call.create(StructureReference.create(
@@ -5406,6 +5328,24 @@ class DynKernelArguments(Arguments):
         specified in the kernel metadata) '''
         return self._unique_fs_names
 
+    @property
+    def first_field_or_operator(self):
+        '''
+        :returns: the first field or operator argument in the list.
+        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :raises InternalError: if no field or operator argument is found.
+
+        '''
+        for arg in self._args:
+            arg: DynKernelArgument
+            if arg.is_field or arg.is_operator:
+                return arg
+
+        raise InternalError(
+            f"Invalid LFRic kernel: failed to find a DynKernelArgument that is"
+            f" a field or operator in '{self.names}'.")
+
     def iteration_space_arg(self):
         '''
         Returns an argument we can use to dereference the iteration
@@ -5608,7 +5548,8 @@ class DynKernelArgument(KernelArgument):
         # already set up)
         self._complete_init(arg_info)
 
-    def generate_method_call(self, method, function_space=None, use_proxy=True):
+    def generate_method_call(self, method, function_space=None,
+                             use_proxy=True):
         '''
         Generate a PSyIR call to the given method of this object.
 
@@ -5621,7 +5562,8 @@ class DynKernelArgument(KernelArgument):
         '''
 
         # Go through invoke.schedule in case the link has bee updated
-        symtab = self._call.ancestor(InvokeSchedule).invoke.schedule.symbol_table
+        symtab = self._call.ancestor(InvokeSchedule).invoke.schedule\
+            .symbol_table
         if use_proxy:
             symbol = symtab.lookup(self.proxy_name)
         else:
@@ -6435,7 +6377,6 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 # documentation for. (See https://psyclone-ref.readthedocs.io)
 __all__ = [
     'DynFuncDescriptor03',
-    'DynamoPSy',
     'DynFunctionSpaces',
     'DynProxies',
     'DynLMAOperators',

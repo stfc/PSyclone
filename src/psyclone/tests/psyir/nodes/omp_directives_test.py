@@ -693,7 +693,78 @@ def test_directiveinfer_sharing_attributes_lfric():
             "not 'shared'." in str(excinfo.value))
 
 
-def test_directiveinfer_sharing_attributes(fortran_reader):
+def test_infer_sharing_attributes_with_explicitly_private_symbols(
+        fortran_reader):
+    ''' Tests the infer_sharing_attributes() method when some of the loops have
+    explictly declared private symbols.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, j, scalar1, scalar2
+            real, dimension(10) :: array
+            do j = 1, 10
+               do i = 1, 10
+                   array(i) = scalar2
+               enddo
+            enddo
+        end subroutine''')
+    omplooptrans = OMPLoopTrans()
+    omplooptrans.omp_directive = "paralleldo"
+    loop = psyir.walk(Loop)[0]
+    routine = psyir.walk(Routine)[0]
+    omplooptrans.apply(loop, options={'force': True})
+    directive = psyir.walk(OMPParallelDoDirective)[0]
+
+    # If no symbols are explicitly local, the infer sharing
+    # attributes uses its default rules
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
+    assert len(pvars) == 2
+    assert len(fpvars) == 0
+    assert len(sync) == 0
+    assert "i" in [x.name for x in pvars]
+    assert "j" in [x.name for x in pvars]
+
+    # If the loop has some explict locals, these are listed when getting
+    # the infer_sharing_attributes
+    array_symbol = routine.symbol_table.lookup("array")
+    loop.explicitly_private_symbols.add(array_symbol)
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
+    assert len(pvars) == 3
+    assert len(fpvars) == 0
+    assert len(sync) == 0
+    assert "i" in [x.name for x in pvars]
+    assert "j" in [x.name for x in pvars]
+    assert "array" in [x.name for x in pvars]
+
+    # Scalar symbols can also be set as explicitly local
+    scalar_symbol = routine.symbol_table.lookup("scalar2")
+    loop.explicitly_private_symbols.add(scalar_symbol)
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
+    assert len(pvars) == 4
+    assert len(fpvars) == 0
+    assert len(sync) == 0
+    assert "i" in [x.name for x in pvars]
+    assert "j" in [x.name for x in pvars]
+    assert "array" in [x.name for x in pvars]
+    assert "scalar2" in [x.name for x in pvars]
+
+    # If this have a value before the loop (used in any way), they
+    # are firstprivate
+    routine.addchild(Assignment.create(
+        lhs=Reference(array_symbol),
+        rhs=Reference(scalar_symbol)
+    ), 0)
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
+    assert len(pvars) == 2
+    assert len(fpvars) == 2
+    assert len(sync) == 0
+    assert "i" in [x.name for x in pvars]
+    assert "j" in [x.name for x in pvars]
+    assert "array" in [x.name for x in fpvars]
+    assert "scalar2" in [x.name for x in fpvars]
+
+
+def test_infer_sharing_attributes(fortran_reader):
     ''' Tests for the infer_sharing_attributes() method of OpenMP directives
     with generic code inside the directive body.
     '''
