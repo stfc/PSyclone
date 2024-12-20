@@ -39,7 +39,7 @@
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.tools import DependencyTools, DTCode
@@ -356,9 +356,18 @@ def test_array_access_pairs_1_var(lhs, rhs, distance, fortran_reader):
     assign = psyir.children[0].children[0]
 
     sig = Signature("a1")
-    # Get all access info for the expression to 'a1'
-    access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
-    access_info_rhs = VariablesAccessInfo(assign.rhs)[sig][0]
+    # Get the READ access to 'a1' for expression (this is complicated by the
+    # presence of 'inquiry' accesses for the array bounds in some cases).
+    a1vinfo = VariablesAccessInfo(assign.lhs)[sig]
+    for access in a1vinfo.all_accesses:
+        if access.access_type == AccessType.READ:
+            access_info_lhs = access
+            break
+    a1vinfo_rh = VariablesAccessInfo(assign.rhs)[sig]
+    for access in a1vinfo.all_accesses:
+        if access.access_type == AccessType.READ:
+            access_info_rhs = access
+            break
     subscript_lhs = access_info_lhs.component_indices[(0, 0)]
     subscript_rhs = access_info_rhs.component_indices[(0, 0)]
 

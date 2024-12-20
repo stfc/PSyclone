@@ -160,7 +160,8 @@ class CallTreeUtils():
 
     # -------------------------------------------------------------------------
     def get_input_parameters(self, read_write_info, node_list,
-                             variables_info=None, options=None):
+                             variables_info=None,
+                             include_non_data_accesses=False):
         '''Adds all variables that are input parameters (i.e. are read before
         potentially being written) to the read_write_info object.
 
@@ -173,22 +174,24 @@ class CallTreeUtils():
             can be used to avoid repeatedly collecting this information.
         :type variables_info:
             :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
-        :param options: a dictionary with options for the CallTreeUtils
-            which will also be used when creating the VariablesAccessInfo
-            instance if required.
-        :type param: Optional[dict[str, Any]]
 
         '''
         # Collect the information about all variables used:
         if not variables_info:
-            variables_info = VariablesAccessInfo(node_list, options=options)
+            variables_info = VariablesAccessInfo(node_list)
 
-        for signature in variables_info.all_data_accesses:
+        if include_non_data_accesses:
+            all_accesses = variables_info.all_signatures
+        else:
+            all_accesses = variables_info.all_data_accesses
+
+        for signature in all_accesses:
             # If the first access is a write, the variable is not an input
             # parameter and does not need to be saved. Note that loop variables
             # have a WRITE before a READ access, so they will be ignored
             # automatically.
-            if not variables_info[signature].is_written_first():
+            if (variables_info[signature].is_read_only() or
+                    not variables_info[signature].is_written_first()):
                 read_write_info.add_read(signature)
 
     # -------------------------------------------------------------------------
@@ -226,7 +229,7 @@ class CallTreeUtils():
 
     # -------------------------------------------------------------------------
     def get_in_out_parameters(self, node_list, collect_non_local_symbols=False,
-                              options=None):
+                              include_non_data_accesses=False):
         '''Returns a ReadWriteInfo object that contains all variables that are
         input and output parameters to the specified node list. This function
         calls `get_input_parameter` and `get_output_parameter`, but avoids the
@@ -260,9 +263,11 @@ class CallTreeUtils():
         :rtype: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
-        variables_info = VariablesAccessInfo(node_list, options=options)
+        variables_info = VariablesAccessInfo(node_list)
         read_write_info = ReadWriteInfo()
-        self.get_input_parameters(read_write_info, node_list, variables_info)
+        self.get_input_parameters(
+            read_write_info, node_list, variables_info,
+            include_non_data_accesses=include_non_data_accesses)
         self.get_output_parameters(read_write_info, node_list, variables_info)
         if collect_non_local_symbols:
             self.get_non_local_read_write_info(node_list, read_write_info)

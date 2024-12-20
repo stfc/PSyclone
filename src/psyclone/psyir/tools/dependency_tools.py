@@ -610,6 +610,9 @@ class DependencyTools():
             # including itself (to detect write-write race conditions:
             # a((i-2)**2) = b(i): i=1 and i=3 would write to a(1))
             for other_access in var_info:
+                if not other_access.is_data_access:
+                    # Not a data access so can ignore.
+                    continue
                 if not self._is_loop_carried_dependency(loop_variables,
                                                         write_access,
                                                         other_access):

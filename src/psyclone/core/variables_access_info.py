@@ -157,6 +157,9 @@ class VariablesAccessInfo(dict):
                         mode = "READ"
                 elif self.is_written(signature):
                     mode = "WRITE"
+                else:
+                    # The data associated with this signature is not accessed.
+                    mode = "INQUIRY"
             output_list.append(f"{signature}: {mode}")
         return ", ".join(output_list)
 

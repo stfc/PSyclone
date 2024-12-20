@@ -920,8 +920,11 @@ class IntrinsicCall(Call):
             # If this is an inquiry access (which doesn't actually access the
             # value) then make sure we use the correct access type for the
             # inquired variable, which is always the first argument.
-            var_accesses.add_access(Signature(self.arguments[0]),
-                                    AccessType.INQUIRY, self)
+            sig, indices = self.arguments[0].get_signature_and_indices()
+            var_accesses.add_access(sig, AccessType.INQUIRY, self.arguments[0])
+            for idx_list in indices:
+                for idx in idx_list:
+                    idx.reference_accesses(var_accesses)
         elif self.arguments:
             self.arguments[0].reference_accesses(var_accesses)
 

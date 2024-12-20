@@ -105,8 +105,8 @@ class Directive(Statement, metaclass=abc.ABCMeta):
             node = vinfo.all_accesses[0].node
             sym = table.lookup(sig.var_name)
 
-            if var_info.is_called(sig):
-                # Ignore accesses that are calls.
+            if not vinfo.has_data_access():
+                # Ignore references that don't correspond to data accesses.
                 continue
 
             if isinstance(sym.datatype, ScalarType):
