@@ -369,7 +369,6 @@ def test_mod_manager_add_files_and_more():
     # Add same file again, will be silently ignored
     mod_man.add_files("d1/a_mod.f90")
 
-
     #
     # Test various other functions
     #
@@ -378,7 +377,7 @@ def test_mod_manager_add_files_and_more():
     mod_man.load_all_psyir_nodes()
     mod_man.get_all_file_infos()
     mod_man.load_all_module_infos(verbose=True)
-    all_mods = mod_man.get_all_module_infos()
+    mod_man.get_all_module_infos()
 
     # Should raise an error that the first module to be processed
     # was already processed
@@ -433,9 +432,8 @@ def test_mod_manager_load_all_module_infos_trigger_error_file_read_twice():
     assert "File 't_mod.f90' already processed" in str(einfo.value)
 
 
-
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
-def test_mod_manager_get_all_recursively_used_module_infos():
+def test_mod_manager_get_all_rec_used_mod_infos():
     '''
     Make particular check for get_all_recursively_used_module_infos():
     - Reading in the same file twice is triggering an error.
@@ -467,7 +465,7 @@ def test_mod_manager_get_all_recursively_used_module_infos():
 
 
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
-def test_mod_manager_get_all_recursively_used_module_infos_missing_a(capsys):
+def test_mod_manager_get_all_rec_used_mod_infos_missing_a(capsys):
     '''
     Make particular check for get_all_recursively_used_module_infos():
     - Create files for modules 'c' and 'b'
@@ -500,7 +498,7 @@ def test_mod_manager_get_all_recursively_used_module_infos_missing_a(capsys):
 
 
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
-def test_mod_manager_get_all_recursively_used_module_infos_missing_a_ver2(capsys):
+def test_mod_manager_get_all_rec_used_mod_infos_missing_a_ver2(capsys):
     '''
     Make particular check for get_all_recursively_used_module_infos():
     - Create files for modules 'c' and 'b'
@@ -532,7 +530,7 @@ def test_mod_manager_get_all_recursively_used_module_infos_missing_a_ver2(capsys
 
 
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
-def test_mod_manager_get_all_recursively_used_module_infos_missing_b(capsys):
+def test_mod_manager_get_all_rec_used_mod_infos_missing_b(capsys):
     '''
     Make particular check for get_all_recursively_used_module_infos():
     - Create files for modules 'c'
@@ -556,7 +554,7 @@ def test_mod_manager_get_all_recursively_used_module_infos_missing_b(capsys):
 
 
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
-def test_mod_manager_get_all_recursively_used_module_infos_missing_first_module(capsys):
+def test_mod_manager_get_all_rec_used_mod_infos_missing_first_module(capsys):
     '''
     Make particular check for get_all_recursively_used_module_infos():
     - Create no files for modules
@@ -572,11 +570,11 @@ def test_mod_manager_get_all_recursively_used_module_infos_missing_first_module(
 
 
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
-def test_mod_manager_get_all_recursively_used_module_infos_ignore_module(capsys):
+def test_mod_manager_get_all_rec_used_mod_infos_ignore_module(capsys):
     '''
     Make particular check for get_all_recursively_used_module_infos():
-    - This will trigger one particular execution path if `add_ignore_module`
-      is used
+    - This will trigger one particular execution path if
+      `add_ignore_module` is used
     '''
     mod_man = ModuleManager.get()
 
