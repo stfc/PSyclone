@@ -364,7 +364,7 @@ def test_array_access_pairs_1_var(lhs, rhs, distance, fortran_reader):
             access_info_lhs = access
             break
     a1vinfo_rh = VariablesAccessInfo(assign.rhs)[sig]
-    for access in a1vinfo.all_accesses:
+    for access in a1vinfo_rh.all_accesses:
         if access.access_type == AccessType.READ:
             access_info_rhs = access
             break
