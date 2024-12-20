@@ -326,6 +326,8 @@ class ModuleInfo:
             return None
 
     def view_tree(self, indent=""):
+        """
+        """
         retstr = ""
         retstr += f"{indent}- name: '{self.name}'\n"
         retstr += f"{indent}- used_module_names: {self.get_used_modules()}\n"

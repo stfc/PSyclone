@@ -106,6 +106,10 @@ class FileInfo:
         # Fparser node
         self._fparser_tree: Fortran2003.Program = None
 
+        # Flag indicating that, based on a previous attempt,
+        # the fparser tree can't be generated due to an error
+        self._fparser_tree_triggers_error: bool = False
+
         # Psyir node
         self._psyir_node: FileContainer = None
 
@@ -183,7 +187,7 @@ class FileInfo:
                 self._source_code = file_in.read()
         except FileNotFoundError as err:
             raise FileNotFoundError(
-                f"No such file or directory '{self._filename}'."
+                f"FileInfo: No such file or directory '{self._filename}'."
             ) from err
 
         # Compute hash sum which will be used to check cache of fparser tree
@@ -371,6 +375,13 @@ class FileInfo:
         if self._fparser_tree is not None:
             return self._fparser_tree
 
+        if self._fparser_tree_triggers_error:
+            # Raises an exception if we were not able to load the
+            # fparser tree before.
+            raise FileInfoFParserError(
+                "Failed to get fparser tree (previous attempt failed)"
+            )
+
         if verbose:
             # TODO #11: Use logging for this
             print(f"- Source file '{self._filename}': " f"Running fparser")
@@ -405,6 +416,7 @@ class FileInfo:
             self._fparser_tree = parser(reader)
 
         except Exception as err:
+            self._fparser_tree_triggers_error = True
             raise FileInfoFParserError(
                 "Failed to get fparser tree: " + str(err)
             ) from err

@@ -410,7 +410,11 @@ def test_module_info_viewtree(tmpdir, monkeypatch):
             FileInfo(filename)
         )
 
-    module_info.view_tree()
+    output = module_info.view_tree()
+    assert """\
+- name: 'my_mod'
+- used_module_names: []
+""" == output
 
 
 def test_module_info_coverage_source_node_found(tmpdir, monkeypatch):
@@ -463,8 +467,15 @@ def test_module_info_coverage_fparser_error(tmpdir, monkeypatch):
     assert ("ModuleInfoError: Error(s) getting fparser tree of file"
             in str(einfo.value))
 
+    with pytest.raises(ModuleInfoError) as einfo:
+        module_info.get_fparser_tree()
 
-def test_module_info_coverage_file_not_found(tmpdir, monkeypatch):
+    assert ("Failed to get fparser tree "
+            "(previous attempt failed)" in
+            str(einfo.value))
+
+
+def test_minfo_get_fparser_tree_missing_file(tmpdir, monkeypatch):
     """
     Coverage test:
     - Test for raised Exception if file was not found
