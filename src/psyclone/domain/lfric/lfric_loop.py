@@ -49,7 +49,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import (
     Loop, Literal, Schedule, Reference, ArrayReference, ACCRegionDirective,
-    OMPRegionDirective, Routine, StructureReference, Call, BinaryOperation,
+    OMPRegionDirective, StructureReference, Call, BinaryOperation,
     ArrayOfStructuresReference, Directive, DataNode)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, UnresolvedType, UnresolvedInterface)
@@ -188,7 +188,6 @@ class LFRicLoop(PSyLoop):
                     f"{self.view()}")
             lowered_node = self.loop_body[0].detach()
             self.replace_with(lowered_node)
-
 
         if self.ancestor((ACCRegionDirective, OMPRegionDirective)):
             # We cannot include calls to set halos dirty/clean within OpenACC
@@ -493,9 +492,7 @@ class LFRicLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        inv_sched = self.ancestor(Routine)
-        sym_table = inv_sched.symbol_table
-
+        # inv_sched = self.ancestor(Routine)
         # if self._loop_type == "colour":
         #     # If this loop is over all cells of a given colour then we must
         #     # lookup the loop bound as it depends on the current colour.
@@ -891,7 +888,6 @@ class LFRicLoop(PSyLoop):
                     # or not
                     self._add_halo_exchange(halo_field)
 
-
     def gen_mark_halos_clean_dirty(self):
         '''
         Generates the necessary code to mark halo regions for all modified
@@ -915,10 +911,11 @@ class LFRicLoop(PSyLoop):
             try:
                 field_symbol = sym_table.lookup(field.proxy_name)
             except KeyError:
-                field_symbol = sym_table.new_symbol(field.proxy_name,
-                                                    symbol_type=DataSymbol,
-                                                    datatype=UnresolvedType(),
-                                                    interface=UnresolvedInterface())
+                field_symbol = sym_table.new_symbol(
+                                    field.proxy_name,
+                                    symbol_type=DataSymbol,
+                                    datatype=UnresolvedType(),
+                                    interface=UnresolvedInterface())
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
             from psyclone.dynamo0p3 import HaloWriteAccess
@@ -975,7 +972,6 @@ class LFRicLoop(PSyLoop):
             insert_loc[init_cursor + 1].preceding_comment = (
                 "Set halos dirty/clean for fields modified in the above "
                 "loop(s)")
-
 
     def independent_iterations(self,
                                test_all_variables=False,

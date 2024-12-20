@@ -233,8 +233,9 @@ def test_lower_to_language_normal_loop():
                            dist_mem=False, idx=0)
     sched = invoke.schedule
     loop1 = sched.children[1]
-    return  # FIXME: NOT_INITIALISED -> loop_bound symbol reference now happens
-            # dureing LFRicBound lowering in psy.gen, maybe this is wrong?
+    # FIXME: NOT_INITIALISED -> loop_bound symbol reference now happens
+    # dureing LFRicBound lowering in psy.gen, maybe this is wrong?
+    return
     assert loop1.start_expr.symbol.name == "loop1_start"
 
     # Now remove loop 0, and verify that the start variable symbol has changed

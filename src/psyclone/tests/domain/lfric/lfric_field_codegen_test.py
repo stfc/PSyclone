@@ -280,9 +280,9 @@ def test_field_deref(tmpdir, dist_mem):
             "    do cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
     output = (
-        "      call testkern_code(nlayers_f1, a, f1_data, est_f2_data, m1_data,"
-        " est_m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
+        "      call testkern_code(nlayers_f1, a, f1_data, est_f2_data, "
+        "m1_data, est_m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, "
+        "undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
         "    enddo\n")
     assert output in generated_code
     if dist_mem:
@@ -315,7 +315,8 @@ module single_invoke_fs_psy
   public
 
   contains
-  subroutine invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, m3, m4, f5, f6, m5, m6, m7)
+  subroutine invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, m3, m4, f5, \
+f6, m5, m6, m7)
     use mesh_mod, only : mesh_type
     use testkern_fs_mod, only : testkern_fs_code
     type(field_type), intent(in) :: f1
@@ -892,7 +893,8 @@ def test_int_field_fs(tmpdir):
         "undf_adspc1_m7, map_adspc1_m7(:,cell))\n"
         "    enddo\n"
         "\n"
-        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
+        "    ! Set halos dirty/clean for fields modified in the above "
+        "loop(s)\n"
         "    call f2_proxy%set_dirty()\n"
         "    call f3_proxy%set_dirty()\n"
         "    call f3_proxy%set_clean(1)\n"

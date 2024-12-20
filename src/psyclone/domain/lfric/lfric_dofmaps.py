@@ -50,7 +50,6 @@ LFRicDofmaps is used in the LFRicInvoke module.
 from collections import OrderedDict
 
 from psyclone import psyGen
-from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicCollection, LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import Assignment, Reference, StructureReference

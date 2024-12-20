@@ -50,6 +50,7 @@ from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyir.symbols import (
     ContainerSymbol, ImportInterface, SymbolTable, DataTypeSymbol,
     UnresolvedType, DataSymbol, UnsupportedFortranType)
+from psyclone.psyGen import Kern
 from psyclone.tests.utilities import get_base_path, get_invoke
 
 

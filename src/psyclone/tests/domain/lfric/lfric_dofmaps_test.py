@@ -42,9 +42,7 @@ test file. '''
 import os
 import pytest
 
-from psyclone.domain.lfric import LFRicDofmaps
-from psyclone.errors import GenerationError, InternalError
-from psyclone.f2pygen import ModuleGen
+from psyclone.errors import GenerationError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory

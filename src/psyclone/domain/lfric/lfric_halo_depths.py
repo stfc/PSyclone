@@ -43,7 +43,7 @@ into the halo cells.
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.psyir.nodes import Literal, Reference
-from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import ArgumentInterface, DataSymbol
 
 
 class LFRicHaloDepths(LFRicCollection):

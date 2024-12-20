@@ -38,11 +38,10 @@
 '''This module tests the LFRicPSy class found in the LFRic domain.
 '''
 
-from collections import OrderedDict
 import os
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicPSy, LFRicConstants, LFRicInvokes
+from psyclone.domain.lfric import LFRicPSy, LFRicInvokes
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSy
 
@@ -92,7 +91,7 @@ def test_lfricpsy_kind():
         invoke_info.calls[0].kcalls[0].args[1]._datatype = ("real", kind_name)
         lfric_psy = LFRicPSy(invoke_info)
         result = str(lfric_psy.gen).lower()
-        assert f"use constants_mod\n" in result
+        assert "use constants_mod\n" in result
         assert f"f1_data(df) = 0.0_{kind_name}" in result
 
 
@@ -172,7 +171,8 @@ def test_lfricpsy_gen(monkeypatch):
         "map_w3(:,cell))\n"
         "    enddo\n"
         "\n"
-        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
+        "    ! Set halos dirty/clean for fields modified in the above "
+        "loop(s)\n"
         "    call f1_proxy%set_dirty()\n"
         "    do df = loop1_start, loop1_stop, 1\n"
         "      ! Built-in: setval_c (set a real-valued field to a real "

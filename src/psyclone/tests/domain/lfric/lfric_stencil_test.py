@@ -1583,7 +1583,7 @@ def test_stencils_same_field_literal_direct(dist_mem, tmpdir):
     assert ("integer(kind=i_def), pointer, dimension(:) :: f2_stencil_size_1 "
             "=> null()\n" in result)
     assert ("type(stencil_dofmap_type), pointer :: f2_stencil_map_1 "
-             "=> null()\n" in result)
+            "=> null()\n" in result)
     assert ("integer(kind=i_def), pointer, dimension(:) :: f2_stencil_size"
             " => null()\n" in result)
     assert ("type(stencil_dofmap_type), pointer :: f2_stencil_map "

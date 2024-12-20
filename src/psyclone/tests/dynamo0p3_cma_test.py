@@ -1408,8 +1408,8 @@ cbanded_map_aspc2_op_2
     real(kind=r_def), dimension(undf_aspc1_field_1), intent(in) :: \
 field_1_aspc1_field_1
     integer(kind=i_def), intent(in) :: op_2_ncell_3d
-    real(kind=r_def), dimension(ndf_aspc1_field_1,ndf_aspc2_op_2,op_2_ncell_3d)\
-, intent(in) :: op_2
+    real(kind=r_def), dimension(ndf_aspc1_field_1,ndf_aspc2_op_2,\
+op_2_ncell_3d), intent(in) :: op_2
     real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_3_cma_matrix \
 => null()
 

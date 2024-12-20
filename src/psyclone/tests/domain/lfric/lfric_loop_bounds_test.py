@@ -40,7 +40,6 @@ class. '''
 import os
 
 from psyclone.domain.lfric import LFRicLoopBounds
-from psyclone.f2pygen import SubroutineGen, ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import symbols

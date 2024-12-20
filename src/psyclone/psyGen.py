@@ -48,8 +48,6 @@ import abc
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.f2pygen import (AllocateGen, AssignGen, CommentGen,
-                              DeclGen, DeallocateGen, DoGen, UseGen, PSyIRGen)
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
@@ -60,7 +58,7 @@ from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
                                     ContainerSymbol, DataSymbol,
                                     UnresolvedType, REAL_TYPE,
                                     ImportInterface, INTEGER_TYPE,
-                                    RoutineSymbol, Symbol)
+                                    RoutineSymbol)
 from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -275,6 +273,7 @@ class PSy():
 
         # Use the PSyIR Fortran backend to generate Fortran code of the
         # supplied PSyIR tree.
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.fortran import FortranWriter
         config = Config.get()
         fortran_writer = FortranWriter(
@@ -803,7 +802,6 @@ class HaloExchange(Statement):
         self._check_dirty = check_dirty
         self._vector_index = vector_index
 
-
     @property
     def symtab(self):
         isched = self.ancestor(InvokeSchedule)
@@ -1172,16 +1170,16 @@ class Kern(Statement):
         '''
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
-        # A non-reproducible reduction requires a single-valued argument
-        local_var_ref = self._reduction_reference().name
-        # A reproducible reduction requires multi-valued argument stored
-        # as a padded array separately for each thread
-        if self.reprod_reduction:
-            local_var_ref = FortranWriter().arrayreference_node(
-                self._reduction_reference())
+        # # A non-reproducible reduction requires a single-valued argument
+        # local_var_ref = self._reduction_reference().name
+        # # A reproducible reduction requires multi-valued argument stored
+        # # as a padded array separately for each thread
+        # if self.reprod_reduction:
+        #     local_var_ref = FortranWriter().arrayreference_node(
+        #         self._reduction_reference())
         reduction_access = self._reduction_arg.access
         try:
-            reduction_operator = REDUCTION_OPERATOR_MAPPING[reduction_access]
+            _ = REDUCTION_OPERATOR_MAPPING[reduction_access]
         except KeyError as err:
             api_strings = [access.api_specific_name()
                            for access in REDUCTION_OPERATOR_MAPPING]
@@ -1193,7 +1191,8 @@ class Kern(Statement):
         symtab = self.scope.symbol_table
         thread_idx = symtab.lookup_with_tag("omp_thread_index")
         nthreads = symtab.lookup_with_tag("omp_num_threads")
-        do_loop = Loop.create(thread_idx,
+        do_loop = Loop.create(
+                    thread_idx,
                     start=Literal("1", INTEGER_TYPE),
                     stop=Reference(nthreads),
                     step=Literal("1", INTEGER_TYPE),
@@ -1207,8 +1206,9 @@ class Kern(Statement):
            rhs=BinaryOperation.create(
                BinaryOperation.Operator.ADD,
                Reference(var_symbol),
-               ArrayReference.create(local_symbol,[Literal("1", INTEGER_TYPE),
-                                                   Reference(thread_idx)]))))
+               ArrayReference.create(local_symbol,
+                                     [Literal("1", INTEGER_TYPE),
+                                      Reference(thread_idx)]))))
         do_loop.append_preceding_comment(
                     "sum the partial results sequentially")
         do_loop.parent.addchild(

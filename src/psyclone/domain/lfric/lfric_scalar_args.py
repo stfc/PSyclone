@@ -47,7 +47,6 @@ from collections import OrderedDict, Counter
 
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants, LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.f2pygen import DeclGen
 from psyclone.psyGen import FORTRAN_INTENT_NAMES
 from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
 
@@ -196,8 +195,6 @@ class LFRicScalarArgs(LFRicCollection):
             self._kernel are set.
 
         '''
-        const_mod_uses = None
-
         # Real scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
@@ -269,4 +266,3 @@ class LFRicScalarArgs(LFRicCollection):
 # The list of module members that we wish AutoAPI to generate
 # documentation for. (See https://psyclone-ref.readthedocs.io)
 __all__ = ['LFRicScalarArgs']
-   

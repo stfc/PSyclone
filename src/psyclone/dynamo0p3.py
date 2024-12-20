@@ -66,7 +66,7 @@ from psyclone.psyGen import (InvokeSchedule, Arguments,
                              DataAccess)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Reference, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
+    Reference, ACCEnterDataDirective, ArrayOfStructuresReference,
     StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall,
     Assignment, ArrayReference, Loop, Container, Schedule)
 from psyclone.psyir.symbols import (
@@ -413,13 +413,13 @@ class LFRicMeshProperties(LFRicCollection):
             elif name_lower == "adjacent_face":
                 self.symtab.find_or_create(
                     name_lower, symbol_type=DataSymbol,
-                    datatype = UnsupportedFortranType(
+                    datatype=UnsupportedFortranType(
                         "integer(kind=i_def), pointer :: adjacent_face(:,:) "
                         "=> null()"
                     ),
                     tag=name_lower)
             else:
-                raise InternalError()
+                raise InternalError("error")
 
     def kern_args(self, stub=False, var_accesses=None,
                   kern_call_arg_list=None):
@@ -472,11 +472,12 @@ class LFRicMeshProperties(LFRicCollection):
                             append_integer_reference("nfaces_re_h")
                         name = sym.name
                     else:
+                        lisdt = LFRicTypes("LFRicIntegerScalarDataType")()
                         name = self.symtab.\
                             find_or_create(
                                 "nfaces_re_h", tag="nfaces_re_h",
                                 symbol_type=DataSymbol,
-                                datatype=LFRicTypes("LFRicIntegerScalarDataType")()
+                                datatype=lisdt
                             ).name
                     arg_list.append(name)
                     if var_accesses is not None:
@@ -2110,8 +2111,8 @@ class DynMeshes():
                 base_name,
                 symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
-                    f"integer(kind=i_def), pointer, dimension(:,:) :: {base_name}"
-                    f" => null()"),
+                    f"integer(kind=i_def), pointer, dimension(:,:) :: "
+                    f"{base_name} => null()"),
                 tag=base_name)
             # No. of colours
             base_name = "ncolour_" + carg_name
@@ -2832,7 +2833,8 @@ class DynBasisFunctions(LFRicCollection):
                 var, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             if arg not in self.symtab.argument_list:
-                arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+                arg.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
                 self.symtab.append_argument(arg)
         for basis in basis_arrays:
             dims = []
@@ -3281,8 +3283,8 @@ class DynBasisFunctions(LFRicCollection):
                 symtab.new_symbol(
                     name+"_"+qr_arg_name, symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
-                        f"{dtype}(kind={kind}), pointer :: {name}_{qr_arg_name}"
-                        f"(:) => null()"))
+                        f"{dtype}(kind={kind}), pointer :: "
+                        f"{name}_{qr_arg_name}(:) => null()"))
 
             # Get the quadrature proxy
             proxy_symbol = symtab.lookup(qr_arg_name + "_proxy")
@@ -3707,7 +3709,8 @@ class DynBoundaryConditions(LFRicCollection):
                 name,
                 symbol_type=DataSymbol,
                 datatype=dtype,
-                interface = ArgumentInterface(ArgumentInterface.Access.READ)
+                interface=ArgumentInterface(
+                    ArgumentInterface.Access.READ)
             )
             self.symtab.append_argument(new_symbol)
         return cursor
@@ -3808,6 +3811,7 @@ class DynGlobalSum(GlobalSum):
             rhs=Call.create(StructureReference.create(sum_name, ["get_sum"]))
         )
         return self.replace_with(assign2)
+
 
 def _create_depth_list(halo_info_list, parent):
     '''Halo exchanges may have more than one dependency. This method
@@ -5588,7 +5592,8 @@ class DynKernelArgument(KernelArgument):
         '''
 
         # Go through invoke.schedule in case the link has bee updated
-        symtab = self._call.ancestor(InvokeSchedule).invoke.schedule.symbol_table
+        symtab = self._call.ancestor(InvokeSchedule).invoke\
+            .schedule.symbol_table
         symbol = symtab.lookup(self.proxy_name)
 
         if self._vector_size > 1:

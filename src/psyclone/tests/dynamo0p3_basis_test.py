@@ -1829,6 +1829,7 @@ def test_diff_basis(fortran_writer):
     assert ("real(kind=r_def), dimension(np_z_qr_xyoz), intent(in) "
             ":: weights_z_qr_xyoz" in code)
 
+
 # Metadata for a kernel that requires differential basis functions
 # evaluated only on W2 (the to-space of the operator that this kernel
 # writes to).
@@ -1987,6 +1988,7 @@ diff_basis_w2vtrace_on_w2
     real(kind=r_def), dimension(3,ndf_w2htrace,ndf_w2), intent(in) :: \
 diff_basis_w2htrace_on_w2
 """ in generated_code
+
 
 def test_2eval_stubgen(fortran_writer):
     ''' Check that we generate the correct kernel stub when an evaluator is

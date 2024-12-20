@@ -51,7 +51,7 @@ from psyclone.domain.lfric.metadata_to_arguments_rules import (
     MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import ScalarType, DataSymbol, ArrayType
+from psyclone.psyir.symbols import DataSymbol, ArrayType
 
 
 class ArgOrdering:

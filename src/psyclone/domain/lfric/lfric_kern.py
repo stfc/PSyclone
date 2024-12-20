@@ -50,7 +50,6 @@ from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
-from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import Arg, KernelCall
@@ -358,7 +357,7 @@ class LFRicKern(CodedKern):
             symtab = self.ancestor(InvokeSchedule).symbol_table
         else:
             symtab = self._stub_symbol_table
-            
+
         start_value = -len(qr_shapes)
         if self._halo_depth:
             start_value -= 1

@@ -39,7 +39,6 @@
 ''' This module implements the stencil information and code generation
     associated with a PSy-layer routine or Kernel stub in the LFRic API.  '''
 
-from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicTypes
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
@@ -328,7 +327,6 @@ class LFRicStencils(LFRicCollection):
         :rtype: int
 
         '''
-        table = self.symtab
 
         if self._unique_extent_vars:
             if self._kernel:
@@ -522,7 +520,7 @@ class LFRicStencils(LFRicCollection):
                             f"{str(const.STENCIL_MAPPING)}") from err
 
                     rhs = arg.generate_method_call("get_stencil_dofmap")
-                    rhs.addchild(Reference(symtab.lookup(stencil_name))) 
+                    rhs.addchild(Reference(symtab.lookup(stencil_name)))
                     rhs.addchild(self.extent_value(arg))
                     self._invoke.schedule.addchild(
                         Assignment.create(

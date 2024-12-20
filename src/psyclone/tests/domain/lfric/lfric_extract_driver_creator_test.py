@@ -273,36 +273,37 @@ def test_lfric_driver_simple_test():
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
-    for line in ["if (ALLOCATED(psydata_filename)) then",
-                 "call extract_psy_data % OpenReadFileName(psydata_filename)",
-                 "else",
-                 "call extract_psy_data % OpenReadModuleRegion('field', 'test')",
-                 "end if",
-                 "call extract_psy_data % ReadVariable('a', a)",
-                 # "call extract_psy_data % ReadVariable('loop0_start', "
-                 # "loop0_start)",
-                 # "call extract_psy_data % ReadVariable('loop0_stop', "
-                 # "loop0_stop)",
-                 "call extract_psy_data % ReadVariable('m1_data', m1_data)",
-                 "call extract_psy_data % ReadVariable('m2_data', m2_data)",
-                 "call extract_psy_data % ReadVariable('map_w1', map_w1)",
-                 "call extract_psy_data % ReadVariable('map_w2', map_w2)",
-                 "call extract_psy_data % ReadVariable('map_w3', map_w3)",
-                 "call extract_psy_data % ReadVariable('ndf_w1', ndf_w1)",
-                 "call extract_psy_data % ReadVariable('ndf_w2', ndf_w2)",
-                 "call extract_psy_data % ReadVariable('ndf_w3', ndf_w3)",
-                 "call extract_psy_data%ReadVariable('nlayers_x_ptr_vector', "
-                 "nlayers_x_ptr_vector)",
-                 "call extract_psy_data % ReadVariable('"
-                 "self_vec_type_vector_data', self_vec_type_vector_data)",
-                 "call extract_psy_data % ReadVariable('undf_w1', undf_w1)",
-                 "call extract_psy_data % ReadVariable('undf_w2', undf_w2)",
-                 "call extract_psy_data % ReadVariable('undf_w3', undf_w3)",
-                 "call extract_psy_data % ReadVariable('x_ptr_vector_data', "
-                 "x_ptr_vector_data)",
-                 "call extract_psy_data % ReadVariable('cell_post', cell_post)"]:
-        # assert line in driver.lower(), line
-        pass
+    for line in [
+        "if (ALLOCATED(psydata_filename)) then",
+        "call extract_psy_data % OpenReadFileName(psydata_filename)",
+        "else",
+        "call extract_psy_data % OpenReadModuleRegion('field', 'test')",
+        "end if",
+        "call extract_psy_data % ReadVariable('a', a)",
+        # "call extract_psy_data % ReadVariable('loop0_start', "
+        # "loop0_start)",
+        # "call extract_psy_data % ReadVariable('loop0_stop', "
+        # "loop0_stop)",
+        "call extract_psy_data % ReadVariable('m1_data', m1_data)",
+        "call extract_psy_data % ReadVariable('m2_data', m2_data)",
+        "call extract_psy_data % ReadVariable('map_w1', map_w1)",
+        "call extract_psy_data % ReadVariable('map_w2', map_w2)",
+        "call extract_psy_data % ReadVariable('map_w3', map_w3)",
+        "call extract_psy_data % ReadVariable('ndf_w1', ndf_w1)",
+        "call extract_psy_data % ReadVariable('ndf_w2', ndf_w2)",
+        "call extract_psy_data % ReadVariable('ndf_w3', ndf_w3)",
+        "call extract_psy_data%ReadVariable('nlayers_x_ptr_vector', "
+        "nlayers_x_ptr_vector)",
+        "call extract_psy_data % ReadVariable('"
+        "self_vec_type_vector_data', self_vec_type_vector_data)",
+        "call extract_psy_data % ReadVariable('undf_w1', undf_w1)",
+        "call extract_psy_data % ReadVariable('undf_w2', undf_w2)",
+        "call extract_psy_data % ReadVariable('undf_w3', undf_w3)",
+        "call extract_psy_data % ReadVariable('x_ptr_vector_data', "
+        "x_ptr_vector_data)",
+        "call extract_psy_data % ReadVariable('cell_post', cell_post)"
+    ]:
+        assert line in driver.lower(), line
 
     # A read-write/inc variable should not be allocated (since it will
     # be allocated as part of reading in its value):
@@ -414,7 +415,6 @@ def test_lfric_driver_operator():
     # Check the structure members that are added for operators:
     assert ("ProvideVariable(\"mm_w3_local_stencil\", "
             "mm_w3_local_stencil)" in out)
-    return
     assert ("ProvideVariable(\"mm_w3_proxy%ncell_3d\", "
             "mm_w3_proxy%ncell_3d)" in out)
     assert "ProvideVariable(\"coord_post\", coord)" in out
@@ -495,7 +495,7 @@ def test_lfric_driver_extract_some_kernels_only():
     when TODO #1731 is done.'''
 
     psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", API,
-                           dist_mem=False, idx=0)
+                             dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[2],
@@ -506,10 +506,10 @@ def test_lfric_driver_extract_some_kernels_only():
     # We only extract the third loop, which uses the index '2' for
     # loop boundaries. So none of the previous loop indices should
     # be in the extract code:
-    # assert "PreDeclareVariable(\"loop0_start\", loop0_start)" not in code
-    # assert "PreDeclareVariable(\"loop1_start\", loop1_start)" not in code
-    # assert "PreDeclareVariable(\"loop2_start\", loop2_start)" in code
-    # assert "PreDeclareVariable(\"loop2_stop\", loop2_stop)" in code
+    assert "PreDeclareVariable(\"loop0_start\", loop0_start)" not in code
+    assert "PreDeclareVariable(\"loop1_start\", loop1_start)" not in code
+    assert "PreDeclareVariable(\"loop2_start\", loop2_start)" in code
+    assert "PreDeclareVariable(\"loop2_stop\", loop2_stop)" in code
 
     filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
@@ -517,10 +517,10 @@ def test_lfric_driver_extract_some_kernels_only():
 
     # Make sure the driver does not have any information about other
     # kernels added, and that it uses index 2 for loop boundaries.
-    # assert "loop0_start" not in driver
-    # assert "loop1_start" not in driver
-    # assert "ReadVariable('loop2_start', loop2_start)" in driver
-    # assert "ReadVariable('loop2_stop', loop2_stop)" in driver
+    assert "loop0_start" not in driver
+    assert "loop1_start" not in driver
+    assert "ReadVariable('loop2_start', loop2_start)" in driver
+    assert "ReadVariable('loop2_stop', loop2_stop)" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "testkern_any_space_2_mod"]:
@@ -539,7 +539,7 @@ def test_lfric_driver_field_array_write():
     '''Test the handling of arrays of fields which are written.'''
 
     psy, invoke = get_invoke("10.7_operator_read.f90", API,
-                           dist_mem=False, idx=0)
+                             dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],

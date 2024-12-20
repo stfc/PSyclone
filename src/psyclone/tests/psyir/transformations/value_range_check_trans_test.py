@@ -194,8 +194,10 @@ def test_value_range_check_lfric():
         'CALL value_range_check_psy_data % PreStart("multi_invoke_psy", '
         '"invoke_0-r0", 20, 2)',
         'CALL value_range_check_psy_data % PreDeclareVariable("a", a)',
-        'CALL value_range_check_psy_data % ProvideVariable("m1_data", m1_data)',
-        'CALL value_range_check_psy_data % ProvideVariable("f1_data", f1_data)']
+        'CALL value_range_check_psy_data % ProvideVariable("m1_data", '
+        'm1_data)',
+        'CALL value_range_check_psy_data % ProvideVariable("f1_data", '
+        'f1_data)']
 
     for line in expected:
         assert line in code

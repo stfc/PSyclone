@@ -40,7 +40,6 @@ import pytest
 
 from psyclone.domain.lfric import LFRicCellIterators
 from psyclone.errors import GenerationError
-from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.domain.lfric import LFRicKern

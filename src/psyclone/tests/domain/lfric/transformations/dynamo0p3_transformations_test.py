@@ -2627,8 +2627,8 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "    asum = 0.0\n"
             "\n"
             "    ! Call kernels\n"
-            "    !$omp parallel do reduction(+:asum) default(shared), private(df), "
-            "schedule(static)\n"
+            "    !$omp parallel do reduction(+:asum) default(shared), "
+            "private(df), schedule(static)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      asum = asum + f1_data(df) * f2_data(df)\n"
@@ -3691,7 +3691,6 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 "    enddo\n"
                 "    DEALLOCATE(" + names["lvar"] + ")\n")
             assert expected in code
-
 
 
 def test_reprod_view(monkeypatch, annexed, dist_mem):
@@ -6991,7 +6990,8 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
         "      call m2_proxy%halo_exchange_finish(depth=2)\n"
         "    end if\n") in result
     assert (
-        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
+        "    ! Set halos dirty/clean for fields modified in the above "
+        "loop(s)\n"
         "    call m2_proxy%set_dirty()\n"
         "    call m2_proxy%set_clean(2)\n") in result
 
@@ -7010,7 +7010,8 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
         "      call m2_proxy%halo_exchange_finish(depth=2)\n"
         "    end if\n") in result
     assert (
-        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
+        "    ! Set halos dirty/clean for fields modified in the above "
+        "loop(s)\n"
         "    call m2_proxy%set_dirty()\n"
         "    call m2_proxy%set_clean(2)\n") in result
 
@@ -7030,7 +7031,8 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
         "      call m2_proxy%halo_exchange_finish(depth=3)\n"
         "    end if\n") in result
     assert (
-        "    ! Set halos dirty/clean for fields modified in the above loop(s)\n"
+        "    ! Set halos dirty/clean for fields modified in the above "
+        "loop(s)\n"
         "    call m2_proxy%set_dirty()\n"
         "    call m2_proxy%set_clean(3)\n") in result
 
