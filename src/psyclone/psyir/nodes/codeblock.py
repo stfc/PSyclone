@@ -41,6 +41,7 @@
 from enum import Enum
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 
@@ -174,8 +175,28 @@ class CodeBlock(Statement, DataNode):
                                  Fortran2003.End_If_Stmt)):
                 # We don't want labels associated with loop or branch control.
                 result.append(node.string)
-
+        # Precision on literals requires special attention since they are just
+        # stored in the tree as str (fparser/#456).
+        for node in walk(parse_tree, (Fortran2003.Int_Literal_Constant,
+                                      Fortran2003.Real_Literal_Constant)):
+            if node.items[1]:
+                result.append(node.items[1])
         return result
+
+    def reference_accesses(self, var_accesses: VariablesAccessInfo):
+        '''
+        Get all variable access information. Since this is a CodeBlock we
+        only know the names of symbols accessed within it but not how they
+        are accessed. Therefore we err on the side of caution and mark
+        them all as READWRITE.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the
+            information about variable accesses.
+
+        '''
+        for name in self.get_symbol_names():
+            var_accesses.add_access(Signature(name), AccessType.READWRITE,
+                                    self)
 
     def __str__(self):
         return f"CodeBlock[{len(self._fp2_nodes)} nodes]"

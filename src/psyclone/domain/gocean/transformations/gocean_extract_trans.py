@@ -161,7 +161,8 @@ class GOceanExtractTrans(ExtractTrans):
         my_options["region_name"] = region_name
         my_options["prefix"] = my_options.get("prefix", "extract")
 
-        read_write_info = ctu.get_in_out_parameters(nodes, options=my_options)
+        read_write_info = ctu.get_in_out_parameters(
+            nodes, include_non_data_accesses=True)
         # Determine a unique postfix to be used for output variables
         # that avoid any name clashes
         postfix = ExtractTrans.determine_postfix(read_write_info,

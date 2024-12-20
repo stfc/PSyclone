@@ -388,33 +388,24 @@ def test_variables_access_info_options():
     '''Test handling of options for VariablesAccessInfo.
     '''
     vai = VariablesAccessInfo()
-    assert vai.options("COLLECT-ARRAY-SHAPE-READS") is False
     assert vai.options("USE-ORIGINAL-NAMES") is False
-
-    vai = VariablesAccessInfo(options={'COLLECT-ARRAY-SHAPE-READS': True})
-    assert vai.options("COLLECT-ARRAY-SHAPE-READS") is True
-    assert vai.options("USE-ORIGINAL-NAMES") is False
-    assert vai.options() == {"COLLECT-ARRAY-SHAPE-READS": True,
-                             "USE-ORIGINAL-NAMES": False}
 
     vai = VariablesAccessInfo(options={'USE-ORIGINAL-NAMES': True})
-    assert vai.options("COLLECT-ARRAY-SHAPE-READS") is False
     assert vai.options("USE-ORIGINAL-NAMES") is True
-    assert vai.options() == {"COLLECT-ARRAY-SHAPE-READS": False,
-                             "USE-ORIGINAL-NAMES": True}
+    assert vai.options() == {"USE-ORIGINAL-NAMES": True}
 
     with pytest.raises(InternalError) as err:
         vai.options("invalid")
     assert ("Option key 'invalid' is invalid, it must be one of "
-            "['COLLECT-ARRAY-SHAPE-READS', 'USE-ORIGINAL-NAMES']."
-            in str(err.value))
+            "['USE-ORIGINAL-NAMES']." in str(err.value))
 
 
 # -----------------------------------------------------------------------------
 @pytest.mark.parametrize("function", ["size", "lbound", "ubound"])
 def test_variables_access_info_shape_bounds(fortran_reader, function):
-    '''Test that access to an array using shape, or lbound/ubound can be
-    disables using options
+    '''Test that access to an array using shape, or lbound/ubound is marked
+    as 'inquiry'.
+
     '''
     code = f'''module test
         contains
@@ -427,19 +418,9 @@ def test_variables_access_info_shape_bounds(fortran_reader, function):
     psyir = fortran_reader.psyir_from_source(code)
     node1 = psyir.walk(Assignment)[0]
 
-    # By default, array shape accesses are not reads.
+    # Array-shape accesses are 'inquiry'
     vai = VariablesAccessInfo(node1)
-    assert str(vai) == "n: WRITE"
-
-    # Check that explicitly disabling array shape reads works:
-    vai = VariablesAccessInfo(node1,
-                              options={"COLLECT-ARRAY-SHAPE-READS": False})
-    assert str(vai) == "n: WRITE"
-
-    # Check that we can enable collection of array shape reads:
-    vai = VariablesAccessInfo(node1,
-                              options={"COLLECT-ARRAY-SHAPE-READS": True})
-    assert str(vai) == "a: READ, n: WRITE"
+    assert str(vai) == "a: INQUIRY, n: WRITE"
 
 
 # -----------------------------------------------------------------------------
@@ -448,12 +429,14 @@ def test_variables_access_info_domain_loop():
     structure, so especially the loop variable is not defined) work as
     expected.
     '''
-    _, invoke = get_invoke("25.1_kern_two_domain.f90", "lfric", idx=0)
+    psy, invoke = get_invoke("25.1_kern_two_domain.f90", "lfric", idx=0)
     vai = VariablesAccessInfo(invoke.schedule)
-    assert str(vai) == ("a: READ, b: READ, f1_data: READWRITE, f2_data: "
-                        "READWRITE, map_w3: READ, ncell_2d_no_halos: READ, "
-                        "ndf_w3: READ, nlayers_f1: READ, nlayers_f2: READ, "
-                        "undf_w3: READ")
+    assert str(vai) == (
+        "a: READ, b: READ, f1_data: READWRITE, f2_data: "
+        "READWRITE, field_type: INQUIRY, i_def: INQUIRY, "
+        "map_w3: READ, mesh_type: INQUIRY, ncell_2d_no_halos: "
+        "READ, ndf_w3: READ, nlayers_f1: READ, nlayers_f2: READ, "
+        "r_def: INQUIRY, undf_w3: READ")
 
 
 # -----------------------------------------------------------------------------
@@ -468,12 +451,13 @@ def test_lfric_access_info():
     vai = VariablesAccessInfo(schedule)
 
     # Make sure a literal (1.0_r_def in this example) is not reported as a
-    # variable in the access list:
-    assert ("basis_w1_qr: READ, basis_w3_qr: READ, cell: READ+WRITE, "
-            "diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, f1_data: "
-            "READ+WRITE, f2_data: READ, loop0_start: READ, loop0_stop: READ, "
-            "m1_data: READ, m2_data: READ, map_w1: READ, map_w2: READ, map_w3:"
-            " READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, nlayers_f1: "
-            "READ, np_xy_qr: READ, np_z_qr: READ, undf_w1: READ, undf_w2: "
-            "READ, undf_w3: READ, weights_xy_qr: READ, weights_z_qr: READ"
-            == str(vai))
+    # variable in the access list (but that the precision is):
+    assert (
+        "basis_w1_qr: READ, basis_w3_qr: READ, cell: READ+WRITE, "
+        "diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, f1_data: "
+        "READ+WRITE, f2_data: READ, field_type: INQUIRY, i_def: INQUIRY, "
+        "loop0_start: READ, loop0_stop: READ, m1_data: READ, m2_data: READ, "
+        "map_w1: READ, map_w2: READ, map_w3: READ, ndf_w1: READ, "
+        "ndf_w2: READ, ndf_w3: READ, nlayers_f1: READ, np_xy_qr: READ, "
+        "np_z_qr: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ, "
+        "weights_xy_qr: READ, weights_z_qr: READ" == str(vai))
