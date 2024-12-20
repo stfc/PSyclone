@@ -421,7 +421,7 @@ class ModuleManager:
 
     def get_all_recursively_used_module_infos(
         self,
-        module_info: ModuleInfo,
+        module_info_name: str,
         verbose: bool = False,
         indent: str = "",
     ) -> List[ModuleInfo]:
@@ -430,8 +430,8 @@ class ModuleManager:
         order of dependencies, i.e. a module which is used by another module
         is listed before the module which uses it.
 
-        :param module_info: the module info for which to collect all
-            recursively used modules.
+        :param module_info_name: the module info name for which to collect
+            all recursively used modules.
         :param bool verbose: whether to print some information about
             the modules being processed.
         :param str indent: the current indentation level for printing.
@@ -440,11 +440,10 @@ class ModuleManager:
             order of dependencies.
 
         """
-        assert type(module_info) is ModuleInfo
 
         # List of module infos which still need to be traversed.
         # We start with the current module
-        todo_module_name_list: List[str] = [module_info.name]
+        todo_module_name_list: List[str] = [module_info_name]
 
         # List of modules infos in order of uses.
         # After a module info was processed from the TODO list,
@@ -464,18 +463,13 @@ class ModuleManager:
                     todo_module_name
                 )
                 assert type(todo_module_info) is ModuleInfo
-            except ModuleNotFoundError:
+            except (ModuleNotFoundError, FileNotFoundError):
                 if verbose:
-                    print(f"{indent}- Module not found: '{todo_module_name}'")
-                continue
-
-            except FileNotFoundError:
-                if verbose:
-                    print(f"{indent}- File not found: '{todo_module_name}'")
+                    print(f"{indent}- Module '{todo_module_name}' not found")
                 continue
 
             if verbose:
-                print(f"{indent}- Module found: '{todo_module_name}'")
+                print(f"{indent}- Module '{todo_module_name}' found")
 
             # Add to return list of modules
             ret_module_info_list.append(todo_module_info)
@@ -498,17 +492,10 @@ class ModuleManager:
                     if used_module_info is None:
                         continue
 
-                except ModuleNotFoundError:
+                except (ModuleNotFoundError, FileNotFoundError):
                     if verbose:
                         print(
-                            f"{indent}- Module not found: '{used_module_name}'"
-                        )
-                    continue
-
-                except FileNotFoundError:
-                    if verbose:
-                        print(
-                            f"{indent}- File not found: '{used_module_name}'"
+                            f"{indent}- Module '{used_module_name}' not found"
                         )
                     continue
 
