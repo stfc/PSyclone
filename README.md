@@ -2,7 +2,7 @@
   <img width="460" src="doc/logo/psyclone_v1.0.png">
 </p>
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11190458.svg)](https://doi.org/10.5281/zenodo.11190458)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11190457.svg)](https://doi.org/10.5281/zenodo.11190457)
 ![Build Status](https://github.com/stfc/PSyclone/workflows/PSyclone%20tests%20and%20examples/badge.svg)
 [![codecov](https://codecov.io/gh/stfc/PSyclone/branch/master/graph/badge.svg)](https://codecov.io/gh/stfc/PSyclone)
 
@@ -49,6 +49,10 @@ Alternatively, you can install the latest upstream version of psyclone by
 cloning this repository and using:
 
     $ pip install .
+
+or in developer (editable) mode using
+
+    $ pip install -e .
 
 For more information about the installation process see
 [this section of the User Guide](https://psyclone.readthedocs.io/en/latest/system_specific_setup.html).

@@ -65,7 +65,7 @@ from psyclone.psyGen import InvokeSchedule
 
 # Specify the Kernel name as it appears in the Kernel calls
 # (ending with "_code")
-KERNEL_NAME = "dg_matrix_vector_kernel_code"
+KERNEL_NAME = "dg_matrix_vector_code"
 # Specify the name of Invoke containing the Kernel call. If the name
 # does not correspond to Invoke names in the Algorithm file no Kernels
 # will be extracted.

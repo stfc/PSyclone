@@ -737,6 +737,68 @@ def test_gocean_parallel():
             in str(dep_tools.get_all_messages()[0]))
 
 
+def test_dependency_on_scalar_non_exhaustive_write_write(fortran_reader):
+    '''Tests can_loop_be_parallelised finds the loop-carried use of a scalar
+    when a write happends on only some iterations of a loop.'''
+    source = '''program test
+                integer :: i, my_val
+                real, dimension(10) :: array
+
+                do i = 1, 10
+                  if (array(i) > 3) then
+                    my_val = array(i)
+                    array(i) = my_val
+                  else
+                    array(i) = my_val
+                  endif
+                end do
+
+                end program test'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    loop = psyir.children[0].children[0]
+    dep_tools = DependencyTools()
+    parallel = dep_tools.can_loop_be_parallelised(loop)
+    if parallel is True:
+        pytest.xfail(reason="TODO #2727: DA misses this case")
+    assert parallel is False
+
+
+def test_dependency_on_array_non_exhaustive_write_write(fortran_reader):
+    '''Tests can_loop_be_parallelised finds the loop-carried use of an array
+    element when a write happends on only some iterations of a loop.'''
+    source = '''program test
+                integer :: i
+                integer, dimension(10) :: my_val
+                integer, dimension(10) :: array
+
+                    do i = 1, 10
+                      if (array(i) > 3) then
+                        my_val(1) = 1
+                        array(i) = my_val(1)
+                      else
+                        array(i) = my_val(1)
+                      endif
+                    end do
+
+                end program test'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    loop = psyir.children[0].children[0]
+    dep_tools = DependencyTools()
+
+    parallel = dep_tools.can_loop_be_parallelised(loop)
+    assert parallel is False
+    msg = dep_tools.get_all_messages()[0]
+    if "my_val(1)' causes a write-write race condition." in str(msg):
+        pytest.xfail(reason="TODO #2727: DA message should be improved")
+    # For arrays, the dependency is properly detected, but the reason is
+    # a write-write, it would be convinient to differenciate it from a
+    # exhaustive write-write as those can be solved by "privatisation" while
+    # non-exhaustive can not.
+    assert "my_val(1)' causes a write-write race condition." not in str(msg)
+
+
 def test_fuse_different_variables_with_access(fortran_reader):
     '''Test that fusing loops with different variables is disallowed when
     either loop uses the other loop's variable for any reason.'''

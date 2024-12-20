@@ -49,6 +49,8 @@ import os
 import sys
 import traceback
 import importlib
+import shutil
+from typing import Union, Callable, List, Tuple
 
 from fparser.api import get_reader
 from fparser.two import Fortran2003
@@ -92,18 +94,21 @@ from psyclone.version import __VERSION__
 LFRIC_TESTING = False
 
 
-def load_script(script_name, function_name="trans", is_optional=False):
+def load_script(
+        script_name: str, function_name: str = "trans",
+        is_optional: bool = False
+) -> Tuple[Callable, List[str], Union[bool, List[str]]]:
     ''' Loads the specified script containing a psyclone recipe. We also
     prepend the script path to the sys.path, so that the script itself and
     any imports that it has from the same directory can be found.
 
-    :param str script_name: name of the script to load.
-    :param str function_name: the name of the function to call in the script.
-    :param bool is_optional: whether the function is optional or
-        not. Defaults to False.
+    :param script_name: name of the script to load.
+    :param function_name: the name of the function to call in the script.
+    :param is_optional: whether the function is optional or not. Defaults to
+        False.
 
-    :returns: callable recipe and list of files to skip.
-    :rtype: Tuple[Callable, List[str]]
+    :returns: callable recipe, list of files to skip, whether to resolve
+        modules (or which ones).
 
     :raises IOError: if the file is not found.
     :raises GenerationError: if the file does not have .py extension.
@@ -138,13 +143,18 @@ def load_script(script_name, function_name="trans", is_optional=False):
     else:
         files_to_skip = []
 
+    if hasattr(recipe_module, "RESOLVE_IMPORTS"):
+        imports_to_resolve = recipe_module.RESOLVE_IMPORTS
+    else:
+        imports_to_resolve = []
+
     if hasattr(recipe_module, function_name):
         transformation_recipe = getattr(recipe_module, function_name)
         if callable(transformation_recipe):
             # Everything is good, return recipe and files_to_skip
-            return transformation_recipe, files_to_skip
+            return transformation_recipe, files_to_skip, imports_to_resolve
     elif is_optional:
-        return None, files_to_skip
+        return None, files_to_skip, imports_to_resolve
     raise GenerationError(
         f"generator: attempted to use specified PSyclone "
         f"transformation module '{module_name}' but it does not "
@@ -248,7 +258,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             .create(invoke_info)
         if script_name is not None:
             # Apply provided recipe to PSyIR
-            recipe, _ = load_script(script_name)
+            recipe, _, _ = load_script(script_name)
             recipe(psy.container.root)
         alg_gen = None
 
@@ -288,7 +298,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
-            recipe, _ = load_script(script_name, "trans_alg", is_optional=True)
+            recipe, _, _ = load_script(script_name, "trans_alg",
+                                       is_optional=True)
             if recipe:
                 recipe(psyir)
 
@@ -376,7 +387,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
         if script_name is not None:
             # Call the optimisation script for psy-layer optimisations
-            recipe, _ = load_script(script_name)
+            recipe, _, _ = load_script(script_name)
             recipe(psy.container.root)
 
     # TODO issue #1618 remove Alg class and tests from PSyclone
@@ -698,9 +709,9 @@ def code_transformation_mode(input_file, recipe_file, output_file,
     '''
     # Load recipe file
     if recipe_file:
-        transformation_recipe, files_to_skip = load_script(recipe_file)
+        trans_recipe, files_to_skip, resolve_mods = load_script(recipe_file)
     else:
-        transformation_recipe, files_to_skip = (None, [])
+        trans_recipe, files_to_skip, resolve_mods = (None, [], False)
 
     _, filename = os.path.split(input_file)
     if filename not in files_to_skip:
@@ -717,11 +728,11 @@ def code_transformation_mode(input_file, recipe_file, output_file,
                     sys.exit(1)
 
         # Parse file
-        psyir = FortranReader().psyir_from_file(input_file)
+        psyir = FortranReader(resolve_mods).psyir_from_file(input_file)
 
         # Modify file
-        if transformation_recipe:
-            transformation_recipe(psyir)
+        if trans_recipe:
+            trans_recipe(psyir)
 
         # Add profiling if automatic profiling has been requested
         for routine in psyir.walk(Routine):
@@ -734,13 +745,16 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         # Fix line_length if requested
         if line_length in ("output", "all"):
             output = fll.process(output)
+
+        if output_file:
+            with open(output_file, mode='w', encoding="utf8") as ofile:
+                ofile.write(output)
+        else:
+            print(output, file=sys.stdout)
     else:
         # Skip parsing and transformation and copy contents of file directly
-        with open(input_file, mode='r', encoding="utf8") as ifile:
-            output = ifile.read()
-
-    if output_file:
-        with open(output_file, mode='w', encoding="utf8") as ofile:
-            ofile.write(output)
-    else:
-        print(output, file=sys.stdout)
+        if output_file:
+            shutil.copyfile(input_file, output_file)
+        else:
+            print(f"File '{input_file}' skipped because it is listed in "
+                  "FILES_TO_SKIP.", file=sys.stdout)
