@@ -45,7 +45,7 @@ from fparser.two.utils import walk
 
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
+from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol

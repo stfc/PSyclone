@@ -728,7 +728,8 @@ def code_transformation_mode(input_file, recipe_file, output_file,
                     sys.exit(1)
 
         # Parse file
-        psyir = FortranReader(resolve_mods).psyir_from_file(input_file)
+        psyir = FortranReader(resolve_modules=resolve_mods)\
+            .psyir_from_file(input_file)
 
         # Modify file
         if trans_recipe:
