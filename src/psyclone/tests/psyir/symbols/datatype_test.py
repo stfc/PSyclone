@@ -1062,3 +1062,17 @@ def test_structuretype_componenttype_eq():
     comp2 = StructureType.ComponentType("george", INTEGER_TYPE,
                                         Symbol.Visibility.PUBLIC, None)
     assert comp1 != comp2
+
+
+def test_structuretype___copy__():
+    '''Test the __copy__ method of StructureType.'''
+    stype = StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE))])
+    copied = stype.__copy__()
+    assert copied == stype
+    assert copied is not stype
+    # The components should be the same objects
+    assert copied.components["nancy"] == stype.components["nancy"]
+    assert copied.components["peggy"] == stype.components["peggy"]
