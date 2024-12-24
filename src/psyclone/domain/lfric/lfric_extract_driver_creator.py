@@ -59,7 +59,7 @@ from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
-                                    UnsupportedFortranType)
+                                    StructureType, UnsupportedFortranType)
 from psyclone.psyir.transformations import ExtractTrans
 
 
@@ -346,9 +346,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             if isinstance(datatype, DataTypeSymbol):
                 # This is a structure. We need to create a flattened name
                 # and fine the base type of the member involved
-                datatype = datatype.datatype
                 for member in signature[1:]:
-                    datatype = datatype.components[member].datatype
+                    datatype = datatype.datatype.components[member].datatype
             post_sym = symbol_table.new_symbol(post_name,
                                                symbol_type=DataSymbol,
                                                datatype=datatype)
@@ -385,6 +384,79 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                          Literal("0", INTEGER_TYPE))
             program.addchild(set_zero)
         return (sym, post_sym, signature)
+
+    # -------------------------------------------------------------------------
+    def _replace_all_structures(self, symbol_table, mod_sig_list):
+        '''This function return a copy of a module_signature list, in which
+        all full user-defined-type accesses are replaced with accesses to all
+        individual members. For example, an access to `my_type` might get
+        replaced with `my_type%member1`, `my_type%member2` etc. All entries
+        that are not user-defined types will just be copied.
+
+        If a symbol is not found in the module that it is supposed to be in,
+        its information will simply copied, error handling is done later.
+
+        :param symbol_table: the symbol table to be used for symbols that do
+            not come from a module.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param mod_sig_list: a list of 2-tuples containing module name and
+            a signature. If the signature is contained in the local program
+            unit, its type will be looked up in the specified symbol table.
+        '''
+
+        def expand_structure(signature, data, indx=None):
+            '''This function does the actual recursive expansion. Given a
+            signature, e.g. `a%b`, it will expand all user-defined types that
+            are not part of the signature: e.g. `a` itself will not be
+            expanded (since `b` is specified), but if `b` is a user-defined
+            type, it will create `a%b%member1`, `a%b%member2`, ...
+
+            '''
+            if indx is None:
+                indx = 1
+            result = []
+            # Check if we have a user-defined type:
+            if (isinstance(data, DataTypeSymbol) and
+                    isinstance(data.datatype, StructureType)):
+                if len(signature) > indx:
+                    # The signature might itself be a user-defined type,
+                    # e.g. a%b is specified - in this case we don't need
+                    # to add all members of a, but we might still have to
+                    # expand all members of a%b.
+
+                    comp = data.datatype.components[signature[indx]]
+                    result.extend(expand_structure(signature, comp.datatype,
+                                                   indx + 1))
+                else:
+                    for comp_name, components in \
+                            data.datatype.components.items():
+                        new_sig = Signature(signature, Signature(comp_name))
+                        result.extend(
+                            expand_structure(new_sig, components.datatype,
+                                             indx + 1))
+                return result
+
+            return [signature]
+
+        mod_man = ModuleManager.get()
+        result = []
+        for module_name, signature in mod_sig_list:
+            if module_name:
+                mod_info = mod_man.get_module_info(module_name)
+                symbol = mod_info.get_symbol(signature[0])
+                if not symbol:
+                    # TODO 2120: We likely couldn't parse the module.
+                    print(f"Error finding symbol '{signature[0]}' in "
+                          f"'{module_name}'.")
+                    result.append((module_name, signature))
+                    continue
+            else:
+                symbol = symbol_table.lookup(signature[0])
+
+            unpickled = expand_structure(signature, symbol.datatype)
+            for i in unpickled:
+                result.append((module_name, i))
+        return result
 
     # -------------------------------------------------------------------------
     def _create_read_in_code(self, program, psy_data, original_symbol_table,
@@ -794,6 +866,17 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         psy_data = program_symbol_table.new_symbol(root_name=root_name,
                                                    symbol_type=DataSymbol,
                                                    datatype=psy_data_type)
+
+        # Replace all full structure accesses in the read- and write-list
+        # with a list of all members in these structures.
+        new_read_list = \
+            self._replace_all_structures(original_symbol_table,
+                                         read_write_info.read_list)
+        read_write_info._read_list = new_read_list
+        new_write_list = \
+            self._replace_all_structures(original_symbol_table,
+                                         read_write_info.write_list)
+        read_write_info._write_list = new_write_list
 
         self._add_command_line_handler(program, psy_data, module_name,
                                        local_name)
