@@ -40,7 +40,6 @@ This module contains pytest tests for the LFRicHaloDepths class.
 import pytest
 
 from psyclone.domain.lfric import LFRicHaloDepths, LFRicKern
-from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.psyir.nodes import BinaryOperation, Literal
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.tests.utilities import get_invoke
@@ -84,17 +83,18 @@ def test_lfric_halo_depth_invoke_declns():
     _, invoke3 = get_invoke("1.4.2_multi_into_halos_invoke.f90", API,
                             dist_mem=False, idx=0)
     hdepths3 = LFRicHaloDepths(invoke3)
-    mymod = ModuleGen("test_mod")
-    mysub = SubroutineGen(mymod, name="test_sub")
-    hdepths3._invoke_declarations(mysub)
-    assert not mysub.children
+    hdepths3._invoke_declarations(0)
+    args = [x.name for x in invoke3.schedule.symbol_table.argument_datasymbols]
+    assert "depth" not in args
+
     # Now with distributed memory - should have two halo-depth arguments.
     _, invoke4 = get_invoke("1.4.2_multi_into_halos_invoke.f90", API,
                             dist_mem=True, idx=0)
     hdepths4 = LFRicHaloDepths(invoke4)
-    hdepths4._invoke_declarations(mysub)
-    assert ("integer, intent(in) :: hdepth, other_depth"
-            in str(mysub.root).lower())
+    hdepths4._invoke_declarations(0)
+    args = [x.name for x in invoke4.schedule.symbol_table.argument_datasymbols]
+    assert "hdepth" in args
+    assert "other_depth" in args
 
 
 def test_lfric_halo_depth_no_stub_gen():

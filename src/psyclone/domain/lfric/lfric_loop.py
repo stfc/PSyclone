@@ -954,14 +954,14 @@ class LFRicLoop(PSyLoop):
                                 field_symbol,
                                 [Literal(str(index), INTEGER_TYPE)],
                                 ["set_clean"]))
-                        set_clean.addchild(clean_depth)
+                        set_clean.addchild(clean_depth.copy())
                         cursor += 1
                         insert_loc.addchild(set_clean, cursor)
                 else:
                     set_clean = Call.create(
                         StructureReference.create(
                             field_symbol, ["set_clean"]))
-                    set_clean.addchild(clean_depth)
+                    set_clean.addchild(clean_depth.copy())
                     cursor += 1
                     insert_loc.addchild(set_clean, cursor)
 

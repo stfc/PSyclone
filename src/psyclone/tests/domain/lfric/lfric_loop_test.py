@@ -187,7 +187,8 @@ def test_lower_bound_psyir_3(monkeypatch, name, index, output):
     # checks for valid input
     monkeypatch.setattr(my_loop, "_lower_bound_name", value=name)
     monkeypatch.setattr(my_loop, "_lower_bound_index", value=index)
-    assert my_loop.lower_bound_psyir() == "mesh%get_last_" + output + "+1"
+    expected = "mesh%get_last_" + output + " + 1"
+    assert my_loop.lower_bound_psyir().debug_string() == expected
 
 
 def test_mesh_name():

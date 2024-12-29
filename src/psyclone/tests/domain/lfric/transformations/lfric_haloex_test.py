@@ -667,4 +667,4 @@ def test_stencil_with_redundant_comp_trans(monkeypatch, tmpdir, annexed):
     # redundant computation.
     for fidx in range(2, 5):
         assert f'''if (f{fidx}_proxy%is_dirty(depth=f{fidx}_extent + 2)) then
-        call f{fidx}_proxy%halo_exchange(depth=f{fidx}_extent + 2)''' in result
+      call f{fidx}_proxy%halo_exchange(depth=f{fidx}_extent + 2)''' in result

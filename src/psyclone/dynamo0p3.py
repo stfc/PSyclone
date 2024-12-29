@@ -3974,7 +3974,6 @@ class LFRicHaloExchange(HaloExchange):
             psyir = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.MAX,
                 [depth.psyir_expression() for depth in depth_info_list])
-        return psyir
 
         # Simplify the resulting expression. We need to create a fake
         # Assignment to temporarily host the expression.
