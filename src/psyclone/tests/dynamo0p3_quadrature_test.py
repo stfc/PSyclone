@@ -50,6 +50,7 @@ from psyclone.dynamo0p3 import DynBasisFunctions, qr_basis_alloc_args
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import KernelCall, parse
 from psyclone.psyGen import CodedKern, PSyFactory
+from psyclone.psyir.symbols import Symbol
 from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
@@ -664,9 +665,12 @@ def test_dynbasisfns_initialise(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
+    # We need some pre-declared symbol in order to call the initialise directly
+    for name in ["quadrature_xyoz_proxy_type", "qr_proxy", "f1_proxy",
+                 "f2_proxy", "m2_proxy"]:
+        psy.container.children[0].symbol_table.add(Symbol(name))
     # Break the shape of the first basis function
     dinf._basis_fns[0]["shape"] = "not-a-shape"
-    return  # FIXME: This are now KeyErrors
     with pytest.raises(InternalError) as err:
         dinf.initialise(0)
     assert ("Unrecognised evaluator shape: 'not-a-shape'. Should be "

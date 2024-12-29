@@ -48,7 +48,6 @@ from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
                                    LFRicKernMetadata, LFRicStencils)
 from psyclone.dynamo0p3 import DynKernelArguments
 from psyclone.errors import GenerationError, InternalError
-from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
@@ -1871,11 +1870,10 @@ def test_lfricstencils_err():
     stencils = LFRicStencils(invoke)
     # Break internal state
     stencils._kern_args[0].descriptor.stencil['type'] = "not-a-type"
-    return  # FIXME
+    with pytest.raises(GenerationError) as err:
+        stencils._declare_maps_invoke(0)
+    assert "Unsupported stencil type 'not-a-type' supplied. Supported " \
+        "mappings are" in str(err.value)
     with pytest.raises(GenerationError) as err:
         stencils.initialise(0)
     assert "Unsupported stencil type 'not-a-type' supplied." in str(err.value)
-    with pytest.raises(GenerationError) as err:
-        stencils._declare_maps_invoke(ModuleGen(name="testmodule"))
-    assert "Unsupported stencil type 'not-a-type' supplied. Supported " \
-        "mappings are" in str(err.value)

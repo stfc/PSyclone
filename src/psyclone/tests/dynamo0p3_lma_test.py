@@ -752,9 +752,8 @@ def test_operator_bc_kernel(tmpdir):
     output1 = (
         "integer(kind=i_def), pointer :: boundary_dofs_op_a(:,:) => null()")
     assert output1 in generated_code
-    output2 = "boundary_dofs_op_a => op_a_proxy%fs_to%get_boundary_dofs()"
-    return  # FIXME: why it has fs_from instead of fs_to?
-    assert output2 == generated_code
+    output2 = "boundary_dofs_op_a => op_a_proxy%fs_from%get_boundary_dofs()"
+    assert output2 in generated_code
     output3 = (
         "call enforce_operator_bc_code(cell, nlayers_op_a, "
         "op_a_proxy%ncell_3d, op_a_local_stencil, ndf_aspc1_op_a, "
@@ -764,7 +763,6 @@ def test_operator_bc_kernel(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-@pytest.mark.xfail(reason="FIXME")
 def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     ''' Test that we reject the recognised operator boundary conditions
     kernel if its argument is not an operator '''
@@ -780,8 +778,11 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     # Monkeypatch the argument object so that it thinks it is a
     # field rather than an operator
     monkeypatch.setattr(arg, "_argument_type", value="gh_field")
-    # We have to add a tag to the Symbol table to get to the desired error.
+    # We have to populate the Symbol table to get to the desired error.
     schedule.symbol_table.find_or_create_tag("op_a:data")
+    schedule.symbol_table.find_or_create("undf_aspc1_op_a",
+                                         symbol_type=symbols.DataSymbol,
+                                         datatype=symbols.UnresolvedType())
     with pytest.raises(VisitorError) as excinfo:
         _ = psy.gen
     assert ("Expected an LMA operator from which to look-up boundary dofs "
@@ -789,7 +790,6 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
         in str(excinfo.value)
 
 
-@pytest.mark.xfail(reason="FIXME")
 def test_operator_bc_kernel_multi_args_err(dist_mem):
     ''' Test that we reject the recognised operator boundary conditions
     kernel if it has more than one argument '''
@@ -802,6 +802,11 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
     loop = schedule.children[0]
     call = loop.loop_body[0]
     arg = call.arguments.args[0]
+    # We have to populate the Symbol table to get to the desired error.
+    schedule.symbol_table.find_or_create_tag("op_a:data")
+    schedule.symbol_table.find_or_create("undf_aspc1_op_a",
+                                         symbol_type=symbols.DataSymbol,
+                                         datatype=symbols.UnresolvedType())
     # Make the list of arguments invalid by duplicating (a copy of)
     # this argument. We take a copy because otherwise, when we change
     # the type of arg 1 below, we change it for both.
@@ -812,8 +817,6 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
             "should only have 1 (an LMA operator)") in str(excinfo.value)
     # And again but make the second argument a field this time
     call.arguments.args[1]._argument_type = "gh_field"
-    # We have to add a tag to the Symbol table to get to the desired error.
-    schedule.symbol_table.find_or_create_tag("op_a:data")
     with pytest.raises(VisitorError) as excinfo:
         _ = psy.gen
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "

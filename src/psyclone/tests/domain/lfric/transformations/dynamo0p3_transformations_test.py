@@ -3252,7 +3252,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "    DEALLOCATE(l_asum)\n") in code
 
 
-@pytest.mark.xfail(reason="FIXME")
+@pytest.mark.xfail(reason="FIXME: remove gen_code")
 def test_no_global_sum_in_parallel_region():
     '''test that we raise an error if we try to put a parallel region
     around loops with a global sum. '''
