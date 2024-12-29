@@ -147,10 +147,10 @@ class LFRicKern(CodedKern):
         '''
         # Use the KernelCallArgList class, which can also provide variable
         # access information:
+        create_arg_list = KernCallArgList(self)
         # KernCallArgList creates symbols (sometimes with wrong type), we don't
         # want those to be kept in the SymbolTable, so we copy the symbol table
         tmp_symtab = self.ancestor(InvokeSchedule).symbol_table.deep_copy()
-        create_arg_list = KernCallArgList(self)
         create_arg_list._forced_symtab = tmp_symtab
         create_arg_list.generate(var_accesses)
 
@@ -362,21 +362,6 @@ class LFRicKern(CodedKern):
         if self._halo_depth:
             start_value -= 1
         for idx, shape in enumerate(qr_shapes, start_value):
-
-            # qr_arg = args[idx]
-
-            # # Use the InvokeSchedule symbol_table to create a unique symbol
-            # # name for the whole Invoke.
-            # if qr_arg.varname:
-            #     tag = "AlgArgs_" + qr_arg.text
-            #     qr_name = table.find_or_create_integer_symbol(qr_arg.varname,
-            #                                                   tag=tag).name
-            # else:
-            #     # If we don't have a name then we must be doing kernel-stub
-            #     # generation so create a suitable name.
-            #     # TODO #719 we don't yet have a symbol table to prevent
-            #     # clashes.
-            #     qr_name = "qr_"+shape.split("_")[-1]
 
             # LFRic api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
@@ -672,8 +657,8 @@ class LFRicKern(CodedKern):
         '''
         Create the PSyIR for a kernel stub.
 
-        :returns: root of fparser1 AST for the stub routine.
-        :rtype: :py:class:`fparser.one.block_statements.Module`
+        :returns: the kernel stub root Container.
+        :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         :raises GenerationError: if the supplied kernel stub does not operate
             on a supported subset of the domain (currently only those that

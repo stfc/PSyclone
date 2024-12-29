@@ -80,8 +80,6 @@ class LFRicCellIterators(LFRicCollection):
         # an 'nlayers' obtained from the first field/operator argument.
         for kern in self._invoke.schedule.walk(LFRicKern):
             if kern.iterates_over != "dof":
-                # arg = kern.arguments.iteration_space_arg()
-                # self._nlayers_names[self.symtab.find_or_create_tag(
                 arg = kern.arguments.first_field_or_operator
                 sym = self.symtab.find_or_create_tag(
                     f"nlayers_{arg.name}",
@@ -97,18 +95,6 @@ class LFRicCellIterators(LFRicCollection):
             raise GenerationError(
                 "Cannot create an Invoke with no field/operator arguments.")
         self._first_var = first_var
-
-    def _invoke_declarations(self, cursor):
-        '''
-        Declare entities required for iterating over cells in the Invoke.
-
-        :param int cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
-        :rtype: int
-
-        '''
-        return cursor
 
     def _stub_declarations(self, cursor):
         '''

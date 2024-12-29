@@ -804,6 +804,10 @@ class HaloExchange(Statement):
 
     @property
     def symtab(self):
+        '''
+        :returns: associated symbol table.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
         isched = self.ancestor(InvokeSchedule)
         if isched:
             return isched.symbol_table
@@ -1102,10 +1106,8 @@ class Kern(Statement):
         # to the initial reduction value
         if var_arg.precision:
             kind_type = var_arg.precision
-            # zero_sum_init_val = "_".join([data_value, kind_type])
         else:
             kind_type = ""
-            # zero_sum_init_val = data_value
         variable = self.scope.symbol_table.lookup(variable_name)
         from psyclone.domain.common.psylayer import PSyLoop
         insert_loc = self.ancestor(PSyLoop)
@@ -1119,8 +1121,6 @@ class Kern(Statement):
                         rhs=Literal(data_value, data_type))
         insert_loc.addchild(new_node, cursor)
         cursor += 1
-        # parent.add(AssignGen(parent, lhs=var_name, rhs=zero_sum_variable),
-        #            position=position)
 
         if self.reprod_reduction:
             local_var = self.scope.symbol_table.find_or_create_tag(
@@ -1131,10 +1131,6 @@ class Kern(Statement):
                 ))
             nthreads = \
                 self.scope.symbol_table.lookup_with_tag("omp_num_threads")
-        #     parent.add(DeclGen(parent, datatype=var_data_type,
-        #                        entity_decls=[local_var_name],
-        #                        allocatable=True, kind=kind_type,
-        #                        dimension=":,:"))
             if Config.get().reprod_pad_size < 1:
                 raise GenerationError(
                     f"REPROD_PAD_SIZE in {Config.get().filename} should be a "
@@ -1153,11 +1149,6 @@ class Kern(Statement):
                 rhs=Literal(data_value, data_type)
             )
             insert_loc.addchild(assign, cursor)
-        #     parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
-        #                            "," + nthreads + ")"), position=position)
-
-        #     parent.add(AssignGen(parent, lhs=local_var_name,
-        #                          rhs=zero_sum_variable), position=position)
         return new_node
 
     def reduction_sum_loop(self):
@@ -1170,13 +1161,6 @@ class Kern(Statement):
         '''
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
-        # # A non-reproducible reduction requires a single-valued argument
-        # local_var_ref = self._reduction_reference().name
-        # # A reproducible reduction requires multi-valued argument stored
-        # # as a padded array separately for each thread
-        # if self.reprod_reduction:
-        #     local_var_ref = FortranWriter().arrayreference_node(
-        #         self._reduction_reference())
         reduction_access = self._reduction_arg.access
         try:
             _ = REDUCTION_OPERATOR_MAPPING[reduction_access]

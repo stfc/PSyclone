@@ -48,7 +48,6 @@ from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernMetadata
 from psyclone.dynamo0p3 import DynBasisFunctions, qr_basis_alloc_args
 from psyclone.errors import InternalError
-from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import KernelCall, parse
 from psyclone.psyGen import CodedKern, PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
@@ -665,18 +664,17 @@ def test_dynbasisfns_initialise(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
-    mod = ModuleGen(name="testmodule")
     # Break the shape of the first basis function
     dinf._basis_fns[0]["shape"] = "not-a-shape"
     return  # FIXME: This are now KeyErrors
     with pytest.raises(InternalError) as err:
-        dinf.initialise(mod)
+        dinf.initialise(0)
     assert ("Unrecognised evaluator shape: 'not-a-shape'. Should be "
             "one of " in str(err.value))
     # Break the internal list of basis functions
     monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
     with pytest.raises(InternalError) as err:
-        dinf.initialise(mod)
+        dinf.initialise(0)
     assert ("Unrecognised type of basis function: 'not-a-type'. Should be "
             "either 'basis' or 'diff-basis'" in str(err.value))
 
@@ -690,18 +688,17 @@ def test_dynbasisfns_compute(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
-    mod = ModuleGen(name="testmodule")
     # First supply an invalid shape for one of the basis functions
     dinf._basis_fns[0]["shape"] = "not-a-shape"
     with pytest.raises(InternalError) as err:
-        dinf._compute_basis_fns(mod)
+        dinf._compute_basis_fns(0)
     assert ("Unrecognised shape 'not-a-shape' specified for basis function. "
             "Should be one of: ['gh_quadrature_xyoz', "
             in str(err.value))
     # Now supply an invalid type for one of the basis functions
     monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
     with pytest.raises(InternalError) as err:
-        dinf._compute_basis_fns(mod)
+        dinf._compute_basis_fns(0)
     assert ("Unrecognised type of basis function: 'not-a-type'. Expected "
             "one of 'basis' or 'diff-basis'" in str(err.value))
 
@@ -718,11 +715,10 @@ def test_dynbasisfns_dealloc(monkeypatch):
     call = sched.children[0].loop_body[0]
     assert isinstance(call, LFRicKern)
     dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
-    mod = ModuleGen(name="testmodule")
     # Supply an invalid type for one of the basis functions
     monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
     with pytest.raises(InternalError) as err:
-        dinf.deallocate(mod)
+        dinf.deallocate()
     assert ("Unrecognised type of basis function: 'not-a-type'. Should be "
             "one of 'basis' or 'diff-basis'" in str(err.value))
 

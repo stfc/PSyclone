@@ -225,6 +225,7 @@ class LFRicDofmaps(LFRicCollection):
         :rtype: int
 
         '''
+        # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
             if dmap not in self.symtab:
                 dmap_sym = DataSymbol(
@@ -233,6 +234,7 @@ class LFRicDofmaps(LFRicCollection):
                         f"=> null()"))
                 self.symtab.add(dmap_sym, tag=dmap)
 
+        # Column-banded dofmaps
         for dmap in sorted(self._unique_cbanded_maps):
             if dmap not in self.symtab:
                 dmap_sym = DataSymbol(

@@ -49,21 +49,9 @@ class LFRicLoopBounds(LFRicCollection):
     an LFRic PSy-layer routine.
     '''
 
-    def _invoke_declarations(self, cursor):
-        '''
-        Only needed because method is virtual in parent class.
-
-        :param int cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
-        :rtype: int
-
-        '''
-        return cursor
-
     def initialise(self, cursor):
         '''
-        Updates the f2pygen AST so that all of the variables holding the lower
+        Updates the PSyIR so that all of the variables holding the lower
         and upper bounds of all loops in an Invoke are initialised.
 
         :param int cursor: position where to add the next initialisation
@@ -83,7 +71,7 @@ class LFRicLoopBounds(LFRicCollection):
         for idx, loop in enumerate(loops):
 
             if type(loop) is Loop or loop.loop_type == "null":
-                # 'null' loops don't need any bounds.
+                # Generic or 'null' loops don't need any bounds updates.
                 continue
 
             # Set the lower bound

@@ -492,38 +492,10 @@ class LFRicLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        # inv_sched = self.ancestor(Routine)
-        # if self._loop_type == "colour":
-        #     # If this loop is over all cells of a given colour then we must
-        #     # lookup the loop bound as it depends on the current colour.
-        #     parent_loop = self.ancestor(Loop)
-        #     colour_var = parent_loop.variable
+        sym_tab = self.ancestor(InvokeSchedule).symbol_table
 
-        #     asym = self.kernel.last_cell_all_colours_symbol
-        #     const = LFRicConstants()
-
-        #     if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
-        #         if self._upper_bound_halo_depth:
-        #             # TODO: #696 Add kind (precision) once the
-        #             # LFRicInvokeSchedule constructor has been extended to
-        #             # create the necessary symbols.
-        #             halo_depth = self._upper_bound_halo_depth
-        #         else:
-        #             # We need to go to the full depth of the halo.
-        #             root_name = "mesh"
-        #             if self.kernels()[0].is_intergrid:
-        #                 root_name += f"_{self._field_name}"
-        #             depth_sym = sym_table.lookup_with_tag(
-        #                 f"max_halo_depth_{root_name}")
-        #             halo_depth = Reference(depth_sym)
-
-        #         return ArrayReference.create(asym, [Reference(colour_var),
-        #                                             halo_depth])
-        #     return ArrayReference.create(asym, [Reference(colour_var)])
-        # pylint: disable=too-many-branches, too-many-return-statements
         # precompute halo_index as a string as we use it in more than
         # one of the if clauses
-        sym_tab = self.ancestor(InvokeSchedule).symbol_table
         halo_index = ""
         if self._upper_bound_halo_depth:
             halo_index = self._upper_bound_halo_depth
@@ -552,7 +524,6 @@ class LFRicLoop(PSyLoop):
                 root_name += "_" + self._field_name
             sym = sym_tab.find_or_create_tag(root_name)
             colour = sym_tab.lookup_with_tag("colours_loop_idx")
-            # FIXME with DM?
             return ArrayReference.create(sym, [Reference(colour)])
         if self._upper_bound_name == "colour_halo":
             # Loop over cells of a particular colour when DM is enabled. The
@@ -942,7 +913,6 @@ class LFRicLoop(PSyLoop):
             # Now set appropriate parts of the halo clean where redundant
             # computation has been performed or a kernel is written to operate
             # on halo cells.
-            # import pdb; pdb.set_trace()
             clean_depth = hwa.clean_depth
             if clean_depth:
                 if field.vector_size > 1:

@@ -108,8 +108,6 @@ class LFRicHaloDepths(LFRicCollection):
                 sym.interface = ArgumentInterface(
                                         ArgumentInterface.Access.READ)
                 self.symtab.append_argument(sym)
-            # parent.add(DeclGen(parent, datatype="integer",
-            #                    entity_decls=var_names, intent="in"))
         return cursor
 
 

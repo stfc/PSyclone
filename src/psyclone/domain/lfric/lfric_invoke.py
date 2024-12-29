@@ -336,7 +336,7 @@ class LFRicInvoke(Invoke):
                 "Call kernels")
 
         # Deallocate any basis arrays
-        cursor = self.evaluators.deallocate(cursor)
+        cursor = self.evaluators.deallocate()
 
 
 # ---------- Documentation utils -------------------------------------------- #

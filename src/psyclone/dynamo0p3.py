@@ -621,7 +621,7 @@ class LFRicMeshProperties(LFRicCollection):
 
     def initialise(self, cursor):
         '''
-        Creates the f2pygen nodes for the initialisation of properties of
+        Creates the PSyIR nodes for the initialisation of properties of
         the mesh.
 
         :param int cursor: position where to add the next initialisation
@@ -1012,7 +1012,7 @@ class DynReferenceElement(LFRicCollection):
 
     def initialise(self, cursor):
         '''
-        Creates the f2pygen nodes representing the necessary initialisation
+        Creates the PSyIR nodes representing the necessary initialisation
         code for properties of the reference element.
 
         :param int cursor: position where to add the next initialisation
@@ -1606,16 +1606,6 @@ class DynLMAOperators(LFRicCollection):
                                     arg.function_space_to.ndf_name)
             ndf_name_from = self.symtab.lookup(
                                     arg.function_space_from.ndf_name)
-            # parent.add(DeclGen(parent, datatype="integer",
-            #                    kind=api_config.default_kind["integer"],
-            #                    intent="in", entity_decls=[size]))
-            # ndf_name_to = arg.function_space_to.ndf_name
-            # ndf_name_from = arg.function_space_from.ndf_name
-            # parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
-            #                    dimension=",".join([size, ndf_name_to,
-            #                                        ndf_name_from]),
-            #                    intent=arg.intent,
-            #                    entity_decls=[arg.name]))
 
             # Create the PSyIR intrinsic DataType
             kind_sym = self.symtab.find_or_create(
@@ -2023,6 +2013,10 @@ class DynMeshes():
 
     @property
     def symtab(self):
+        '''
+        :returns: associated symbol table.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
         return self._invoke.schedule.symbol_table
 
     def _add_mesh_symbols(self, mesh_tags):
@@ -2813,8 +2807,10 @@ class DynBasisFunctions(LFRicCollection):
         Insert the variable declarations required by the basis functions into
         the Kernel stub.
 
-        :param parent: the f2pygen node representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises InternalError: if an unsupported quadrature shape is found.
 
@@ -3366,8 +3362,6 @@ class DynBasisFunctions(LFRicCollection):
 
         for qr_arg_name in self._qr_vars[quadrature_name]:
 
-            # This doent feel the right place, but at this point this is
-            # not yet in the argument list
             arg_symbol = symbol_table.lookup(qr_arg_name)
             arg_symbol.interface = ArgumentInterface(
                                     ArgumentInterface.Access.READ)
@@ -3565,16 +3559,12 @@ class DynBasisFunctions(LFRicCollection):
                     f"{const.VALID_EVALUATOR_SHAPES}")
         return cursor
 
-    def deallocate(self, cursor):
+    def deallocate(self):
         '''
-        Add code to deallocate all basis/diff-basis function arrays
+        Add code (at the end of the Invoke Schedule) to deallocate all
+        basis/diff-basis function arrays.
 
-        :param int cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
-        :rtype: int
-
-        :raises InternalError: if an unrecognised type of basis function \
+        :raises InternalError: if an unrecognised type of basis function
                                is encountered.
         '''
         symtab = self._invoke.schedule.symbol_table
@@ -3609,8 +3599,6 @@ class DynBasisFunctions(LFRicCollection):
             if first:
                 dealloc.preceding_comment = "Deallocate basis arrays"
             self._invoke.schedule.children.append(dealloc)
-            cursor += 1
-        return cursor
 
 
 class DynBoundaryConditions(LFRicCollection):

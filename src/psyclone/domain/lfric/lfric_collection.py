@@ -107,17 +107,16 @@ class LFRicCollection():
 
     def declarations(self, cursor):
         '''
-        Insert declarations for all necessary variables into the AST of
-        the generated code. Simply calls either '_invoke_declarations()' or
-        '_stub_declarations()' depending on whether we're handling an Invoke
-        or a Kernel stub.
+        Insert declarations for all necessary variables into the PSyIR. Simply
+        calls either '_invoke_declarations()' or'_stub_declarations()'
+        depending on whether we're handling an Invoke or a Kernel stub.
 
         :param int cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
         :rtype: int
 
-        :raises InternalError: if neither 'self._invoke' nor 'self._kernel' \
+        :raises InternalError: if neither 'self._invoke' nor 'self._kernel'
                                are set.
 
         '''
@@ -140,11 +139,13 @@ class LFRicCollection():
         :rtype: int
 
         '''
+        return cursor
 
-    @abc.abstractmethod
     def _invoke_declarations(self, cursor):
         '''
-        Add all necessary declarations for an Invoke.
+        Add necessary Invoke declarations for this Collection.
+        We do nothing by default - it is up to the sub-class to override
+        this method if declarations are required.
 
         :param int cursor: position where to add the next initialisation
             statements.
@@ -152,11 +153,13 @@ class LFRicCollection():
         :rtype: int
 
         '''
+        return cursor
 
     def _stub_declarations(self, cursor):
         '''
-        Add all necessary declarations for a Kernel stub. Not abstract because
-        not all entities need representing within a Kernel.
+        Add necessary Kernel Stub declarations for this collection.
+        We do nothing by default - it is up to the sub-class to override
+        this method if declarations are required.
 
         :param int cursor: position where to add the next initialisation
             statements.
@@ -164,6 +167,7 @@ class LFRicCollection():
         :rtype: int
 
         '''
+        return cursor
 
 
 # ---------- Documentation utils -------------------------------------------- #

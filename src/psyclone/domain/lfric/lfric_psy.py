@@ -69,7 +69,8 @@ class LFRicPSy(PSy):
         Config.get().api = "lfric"
         PSy.__init__(self, invoke_info)
 
-        # Add a common "constants_mod" import at the Container level
+        # Add a wildcard "constants_mod" import at the Container level
+        # since kinds are often disconnected.
         const = LFRicConstants()
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
         self.container.symbol_table.add(
@@ -81,8 +82,8 @@ class LFRicPSy(PSy):
     @property
     def name(self):
         '''
-        :returns: a name for the PSy layer. This is used as the PSy module \
-                  name. We override the default value as the Met Office \
+        :returns: a name for the PSy layer. This is used as the PSy module
+                  name. We override the default value as the Met Office
                   prefer "_psy" to be appended, rather than prepended.
         :rtype: str
 
