@@ -532,7 +532,7 @@ class LFRicLoop(PSyLoop):
             if halo_index:
                 # The colouring API provides a 2D array that holds the last
                 # halo cell for a given colour and halo depth.
-                depth = halo_index
+                depth = halo_index.copy()
             else:
                 # If no depth is specified then we go to the full halo depth
                 depth = Reference(sym_tab.find_or_create_tag(

@@ -101,7 +101,7 @@ class LFRicLoopBounds(LFRicCollection):
                 cursor += 1
                 loop.children[1] = Reference(ubound)
             else:
-                # If it needs a color loop-up, it has to be in-place
+                # If it needs a color look-up, it has to be in-place
                 loop.children[1] = loop.upper_bound_psyir()
 
         return cursor

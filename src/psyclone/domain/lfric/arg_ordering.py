@@ -208,7 +208,8 @@ class ArgOrdering:
         self.psyir_append(Reference(sym))
         return sym
 
-    def get_array_reference(self, array_name, indices, tag=None, symbol=None):
+    def get_array_reference(self, array_name, indices, intrinsic_type=None,
+                            tag=None, symbol=None):
         # pylint: disable=too-many-arguments
         '''This function creates an array reference. If there is no symbol
         with the given tag, a new array symbol will be defined using the given
@@ -219,6 +220,10 @@ class ArgOrdering:
         :param indices: the indices to be used in the PSyIR reference. It \
             must either be ":", or a PSyIR node.
         :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
+        :param intrinsic_type: the intrinsic type of the array. Defaults to
+            LFRicIntegerScalarDataType.
+        :type intrinsic_type: \
+            :py:class:`psyclone.psyir.symbols.datatypes.ScalarType`
         :param tag: optional tag for the symbol.
         :type tag: Optional[str]
         :param symbol: optional the symbol to use.
@@ -228,15 +233,18 @@ class ArgOrdering:
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
 
         '''
-        if not tag:
+        if tag is None:
             tag = array_name
-        if not symbol:
+        if intrinsic_type is None:
             # pylint: disable=import-outside-toplevel
             from psyclone.domain.lfric import LFRicTypes
+            intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
+
+        if not symbol:
             symbol = self._symtab.find_or_create(
                 array_name, tag=tag, symbol_type=DataSymbol,
                 datatype=ArrayType(
-                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                    intrinsic_type,
                     [ArrayType.Extent.DEFERRED for _ in indices]))
         else:
             if symbol.name != array_name:
@@ -252,8 +260,8 @@ class ArgOrdering:
             ref = ArrayReference.create(symbol, indices)
         return ref
 
-    def append_array_reference(self, array_name, indices, tag=None,
-                               symbol=None):
+    def append_array_reference(self, array_name, indices, intrinsic_type=None,
+                               tag=None, symbol=None):
         # pylint: disable=too-many-arguments
         '''This function adds an array reference. If there is no symbol with
         the given tag, a new array symbol will be defined using the given
@@ -278,7 +286,7 @@ class ArgOrdering:
 
         '''
 
-        ref = self.get_array_reference(array_name, indices,
+        ref = self.get_array_reference(array_name, indices, intrinsic_type,
                                        tag=tag, symbol=symbol)
         self.psyir_append(ref)
         return ref.symbol

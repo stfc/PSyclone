@@ -40,8 +40,6 @@
     base class for managing the declaration and initialisation of a group of
     related entities within an Invoke or Kernel stub.'''
 
-# Imports
-import abc
 from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.errors import InternalError

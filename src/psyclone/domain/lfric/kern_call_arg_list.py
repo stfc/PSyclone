@@ -691,7 +691,10 @@ class KernCallArgList(ArgOrdering):
         '''
         for rule in self._kern.qr_rules.values():
             basis_name = function_space.get_basis_name(qr_var=rule.psy_name)
-            sym = self.append_array_reference(basis_name, [":", ":", ":", ":"])
+            sym = self.append_array_reference(
+                    basis_name, [":", ":", ":", ":"],
+                    LFRicTypes("LFRicRealScalarDataType")()
+                )
             self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -723,8 +726,11 @@ class KernCallArgList(ArgOrdering):
         for rule in self._kern.qr_rules.values():
             diff_basis_name = function_space.get_diff_basis_name(
                 qr_var=rule.psy_name)
-            sym = self.append_array_reference(diff_basis_name,
-                                              [":", ":", ":", ":"])
+            sym = self.append_array_reference(
+                    diff_basis_name,
+                    [":", ":", ":", ":"],
+                    LFRicTypes("LFRicRealScalarDataType")()
+            )
             self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -737,8 +743,10 @@ class KernCallArgList(ArgOrdering):
                 fspace = self._kern.eval_targets[fs_name][0]
                 diff_basis_name = function_space.get_diff_basis_name(
                     on_space=fspace)
-                sym = self.append_array_reference(diff_basis_name,
-                                                  [":", ":", ":"])
+                sym = self.append_array_reference(
+                                  diff_basis_name,
+                                  [":", ":", ":"],
+                                  LFRicTypes("LFRicRealScalarDataType")())
                 self.append(sym.name, var_accesses)
 
     def field_bcs_kernel(self, function_space, var_accesses=None):
@@ -864,11 +872,15 @@ class KernCallArgList(ArgOrdering):
                 elif generic_name in ["weights_xy", "weights_z"]:
                     # 1d arrays:
                     # TODO # 1910: These should be pointers
-                    self.append_array_reference(arg, [":"])
+                    self.append_array_reference(
+                                  arg, [":"],
+                                  LFRicTypes("LFRicRealScalarDataType")())
                 elif generic_name in ["weights_xyz"]:
                     # 2d arrays:
                     # TODO #1910: These should be pointers
-                    self.append_array_reference(arg, [":", ":"])
+                    self.append_array_reference(
+                                  arg, [":", ":"],
+                                  LFRicTypes("LFRicRealScalarDataType")())
                 else:
                     raise InternalError(f"Found invalid kernel argument "
                                         f"'{arg}'.")

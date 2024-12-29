@@ -492,8 +492,7 @@ class LFRicMeshProperties(LFRicCollection):
                         kern_call_arg_list.cell_ref_name(var_accesses)
                     adj_face_sym = kern_call_arg_list. \
                         append_array_reference(adj_face,
-                                               [":", cell_ref],
-                                               ScalarType.Intrinsic.INTEGER)
+                                               [":", cell_ref])
                     # Update the name in case there was a clash
                     adj_face = adj_face_sym.name
                     if var_accesses:
