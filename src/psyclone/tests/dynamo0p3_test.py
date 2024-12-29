@@ -62,7 +62,7 @@ from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
 from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
-                                  Reference, Routine, Container)
+                                  Reference, Routine, Container, Schedule)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
 from psyclone.tests.lfric_build import LFRicBuild
@@ -3363,11 +3363,11 @@ def test_HaloReadAccess_input_field():
     object as input. If this is not the case an exception is raised. This
     test checks that this exception is raised correctly.'''
     with pytest.raises(GenerationError) as excinfo:
-        _ = HaloReadAccess(None, None)
+        _ = HaloReadAccess(None, Schedule())
     assert (
         f"Generation Error: HaloInfo class expects an argument of type "
         f"DynArgument, or equivalent, on initialisation, but found, "
-        f"'{type(None)}'" in str(excinfo.value))
+        f"'{type(None)}'" == str(excinfo.value))
 
 
 def test_HaloReadAccess_field_in_call():
@@ -3384,7 +3384,7 @@ def test_HaloReadAccess_field_in_call():
     halo_exchange = schedule.children[0]
     field = halo_exchange.field
     with pytest.raises(GenerationError) as excinfo:
-        _ = HaloReadAccess(field, None)
+        _ = HaloReadAccess(field, Schedule())
     assert ("field 'f1' should be from a call but found "
             "<class 'psyclone.dynamo0p3.LFRicHaloExchange'>"
             in str(excinfo.value))
@@ -3406,7 +3406,7 @@ def test_HaloReadAccess_field_not_reader():
     kernel = loop.loop_body[0]
     argument = kernel.arguments.args[0]
     with pytest.raises(GenerationError) as excinfo:
-        _ = HaloReadAccess(argument, None)
+        _ = HaloReadAccess(argument, Schedule())
     assert (
         "In HaloInfo class, field 'f1' should be one of ['gh_read', "
         "'gh_readwrite', 'gh_inc', 'gh_readinc'], but found 'gh_write'"
@@ -3449,7 +3449,7 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
     loop = schedule.children[0]
     kernel = loop.loop_body[0]
     arg = kernel.arguments.args[1]
-    halo_access = HaloReadAccess(arg, schedule.symbol_table)
+    halo_access = HaloReadAccess(arg, schedule)
     assert not halo_access.max_depth
     assert halo_access.var_depth is None
     assert halo_access.stencil_type is None

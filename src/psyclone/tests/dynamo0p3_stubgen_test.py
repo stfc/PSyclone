@@ -542,7 +542,7 @@ def test_enforce_op_bc_kernel_stub_gen(fortran_writer):
         "    integer(kind=i_def), intent(in) :: cell\n"
         "    integer(kind=i_def), intent(in) :: op_1_ncell_3d\n"
         "    real(kind=r_def), dimension("
-        "ndf_aspc1_op_1,ndf_aspc2_op_1,op_1_ncell_3d), intent(inout) :: op_1\n"
+        "op_1_ncell_3d,ndf_aspc1_op_1,ndf_aspc2_op_1), intent(inout) :: op_1\n"
         "    integer(kind=i_def), "
         "dimension(ndf_aspc1_op_1,2), intent(in) :: boundary_dofs_op_1\n"
         "\n"

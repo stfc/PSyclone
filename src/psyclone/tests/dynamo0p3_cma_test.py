@@ -840,7 +840,7 @@ def test_cma_asm(tmpdir, dist_mem):
             "=> null()") in code
     assert "ncell_2d = mesh%get_ncells_2d" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
-    assert ("call columnwise_op_asm_kernel_code(cell, nlayers_cma_op1, "
+    assert ("call columnwise_op_asm_kernel_code(cell, nlayers_lma_op1, "
             "ncell_2d, lma_op1_proxy%ncell_3d, lma_op1_local_stencil, "
             "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, cma_op1_ncol, "
             "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
@@ -1349,7 +1349,7 @@ cbanded_map_adspc2_op_1
     integer(kind=i_def), dimension(cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d)\
 , intent(in) :: cma_op_2
     integer(kind=i_def), intent(in) :: op_1_ncell_3d
-    real(kind=r_def), dimension(ndf_adspc1_op_1,ndf_adspc2_op_1,op_1_ncell_3d)\
+    real(kind=r_def), dimension(op_1_ncell_3d,ndf_adspc1_op_1,ndf_adspc2_op_1)\
 , intent(in) :: op_1
     real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_2_cma_matrix \
 => null()
@@ -1408,8 +1408,8 @@ cbanded_map_aspc2_op_2
     real(kind=r_def), dimension(undf_aspc1_field_1), intent(in) :: \
 field_1_aspc1_field_1
     integer(kind=i_def), intent(in) :: op_2_ncell_3d
-    real(kind=r_def), dimension(ndf_aspc1_field_1,ndf_aspc2_op_2,\
-op_2_ncell_3d), intent(in) :: op_2
+    real(kind=r_def), dimension(op_2_ncell_3d,ndf_aspc1_field_1,\
+ndf_aspc2_op_2), intent(in) :: op_2
     real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_3_cma_matrix \
 => null()
 
@@ -1463,7 +1463,7 @@ cbanded_map_aspc2_op_1
     real(kind=r_def), dimension(undf_aspc1_op_1), intent(in) :: \
 field_2_aspc1_op_1
     integer(kind=i_def), intent(in) :: op_1_ncell_3d
-    real(kind=r_def), dimension(ndf_aspc1_op_1,ndf_aspc2_op_1,op_1_ncell_3d)\
+    real(kind=r_def), dimension(op_1_ncell_3d,ndf_aspc1_op_1,ndf_aspc2_op_1)\
 , intent(in) :: op_1
     real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_3_cma_matrix \
 => null()

@@ -922,44 +922,44 @@ ndf_aspc1_op_12, ndf_adspc1_op_13)
     integer(kind=i_def), intent(in) :: ndf_adspc1_op_13
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: op_1_ncell_3d
-    real(kind=r_def), dimension(ndf_w0,ndf_w0,op_1_ncell_3d), intent(inout) \
+    real(kind=r_def), dimension(op_1_ncell_3d,ndf_w0,ndf_w0), intent(inout) \
 :: op_1
     integer(kind=i_def), intent(in) :: op_2_ncell_3d
-    real(kind=r_def), dimension(ndf_w1,ndf_w1,op_2_ncell_3d), intent(inout) \
+    real(kind=r_def), dimension(op_2_ncell_3d,ndf_w1,ndf_w1), intent(inout) \
 :: op_2
     integer(kind=i_def), intent(in) :: op_3_ncell_3d
-    real(kind=r_def), dimension(ndf_w2,ndf_w2,op_3_ncell_3d), intent(in) \
+    real(kind=r_def), dimension(op_3_ncell_3d,ndf_w2,ndf_w2), intent(in) \
 :: op_3
     integer(kind=i_def), intent(in) :: op_4_ncell_3d
-    real(kind=r_def), dimension(ndf_w2h,ndf_w2h,op_4_ncell_3d), intent(in) \
+    real(kind=r_def), dimension(op_4_ncell_3d,ndf_w2h,ndf_w2h), intent(in) \
 :: op_4
     integer(kind=i_def), intent(in) :: op_5_ncell_3d
-    real(kind=r_def), dimension(ndf_w2v,ndf_w2v,op_5_ncell_3d), \
+    real(kind=r_def), dimension(op_5_ncell_3d,ndf_w2v,ndf_w2v), \
 intent(inout) :: op_5
     integer(kind=i_def), intent(in) :: op_6_ncell_3d
-    real(kind=r_def), dimension(ndf_w2broken,ndf_w2broken,op_6_ncell_3d), \
+    real(kind=r_def), dimension(op_6_ncell_3d,ndf_w2broken,ndf_w2broken), \
 intent(inout) :: op_6
     integer(kind=i_def), intent(in) :: op_7_ncell_3d
-    real(kind=r_def), dimension(ndf_w2trace,ndf_w2trace,op_7_ncell_3d), \
+    real(kind=r_def), dimension(op_7_ncell_3d,ndf_w2trace,ndf_w2trace), \
 intent(in) :: op_7
     integer(kind=i_def), intent(in) :: op_8_ncell_3d
-    real(kind=r_def), dimension(ndf_w2htrace,ndf_w2htrace,op_8_ncell_3d), \
+    real(kind=r_def), dimension(op_8_ncell_3d,ndf_w2htrace,ndf_w2htrace), \
 intent(in) :: op_8
     integer(kind=i_def), intent(in) :: op_9_ncell_3d
-    real(kind=r_def), dimension(ndf_w2vtrace,ndf_w2vtrace,op_9_ncell_3d), \
+    real(kind=r_def), dimension(op_9_ncell_3d,ndf_w2vtrace,ndf_w2vtrace), \
 intent(inout) :: op_9
     integer(kind=i_def), intent(in) :: op_10_ncell_3d
-    real(kind=r_def), dimension(ndf_w3,ndf_w3,op_10_ncell_3d), intent(inout) \
+    real(kind=r_def), dimension(op_10_ncell_3d,ndf_w3,ndf_w3), intent(inout) \
 :: op_10
     integer(kind=i_def), intent(in) :: op_11_ncell_3d
-    real(kind=r_def), dimension(ndf_wtheta,ndf_wtheta,\
-op_11_ncell_3d), intent(inout) :: op_11
+    real(kind=r_def), dimension(op_11_ncell_3d,ndf_wtheta,ndf_wtheta\
+), intent(inout) :: op_11
     integer(kind=i_def), intent(in) :: op_12_ncell_3d
-    real(kind=r_def), dimension(ndf_aspc1_op_12,ndf_aspc1_op_12,\
-op_12_ncell_3d), intent(in) :: op_12
+    real(kind=r_def), dimension(op_12_ncell_3d,ndf_aspc1_op_12,\
+ndf_aspc1_op_12), intent(in) :: op_12
     integer(kind=i_def), intent(in) :: op_13_ncell_3d
-    real(kind=r_def), dimension(ndf_adspc1_op_13,ndf_adspc1_op_13,\
-op_13_ncell_3d), intent(in) :: op_13
+    real(kind=r_def), dimension(op_13_ncell_3d,ndf_adspc1_op_13,\
+ndf_adspc1_op_13), intent(in) :: op_13
 
 
   end subroutine dummy_code

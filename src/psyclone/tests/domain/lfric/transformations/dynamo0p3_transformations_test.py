@@ -224,7 +224,7 @@ def test_colour_trans(tmpdir, dist_mem):
             "    do colour = loop0_start, loop0_stop, 1\n"
             "      do cell = loop1_start, "
             "last_edge_cell_all_colours(colour), 1\n")
-    assert output == gen
+    assert output in gen
 
     # Check that we're using the colour map when getting the cell dof maps
     assert (
@@ -1289,7 +1289,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
     assert "loop0_stop = ncolour" in code
 
     if dist_mem:
-        lookup = "last_halo_cell_all_colours(colour, 1)"
+        lookup = "last_halo_cell_all_colours(colour,1)"
     else:
         lookup = "last_edge_cell_all_colours(colour)"
 
@@ -4185,9 +4185,9 @@ def test_rc_continuous_no_depth():
     assert "do cell = loop0_start, loop0_stop" in result
     assert ("    call f1_proxy%set_dirty()\n"
             "    call f1_proxy%set_clean(max_halo_depth_mesh - 1)") in result
-    assert "DO cell = loop0_start, loop0_stop" in result
-    assert ("      CALL f1_proxy%set_dirty()\n"
-            "      CALL f1_proxy%set_clean(max_halo_depth_mesh - 1)") in result
+    assert "do cell = loop0_start, loop0_stop" in result
+    assert ("    call f1_proxy%set_dirty()\n"
+            "    call f1_proxy%set_clean(max_halo_depth_mesh - 1)") in result
 
 
 def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
@@ -5588,7 +5588,7 @@ def test_rc_colour(tmpdir):
             "mesh%get_last_halo_cell_all_colours()" in result)
     assert (
         "    do colour = loop0_start, loop0_stop, 1\n"
-        "      do cell = loop1_start, last_halo_cell_all_colours(colour,2)"
+        "      do cell = loop1_start, last_halo_cell_all_colours(colour,2), 1"
         in result)
 
     # We've requested redundant computation out to the level 2 halo

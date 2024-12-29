@@ -1244,7 +1244,7 @@ def test_eval_diff_nodal_space(tmpdir):
         "undf_w3, map_w3(:,cell), diff_basis_w3_on_w3)\n"
         "    enddo\n"
         "    do cell = loop13_start, loop13_stop, 1\n"
-        "      call testkern_eval_op_to_w0_code(cell, nlayers_f2, "
+        "      call testkern_eval_op_to_w0_code(cell, nlayers_op1, "
         "op1_proxy%ncell_3d, op1_local_stencil, f0_data, "
         "f2_data, ndf_w2, basis_w2_on_w0, diff_basis_w2_on_w0, "
         "ndf_w0, undf_w0, map_w0(:,cell), ndf_w3, undf_w3, map_w3(:,cell), "
@@ -1563,23 +1563,23 @@ def test_basis_evaluator(fortran_writer):
             ":: field_11_w2vtrace" in code)
     assert "integer(kind=i_def), intent(in) :: cell" in code
     assert "integer(kind=i_def), intent(in) :: op_2_ncell_3d" in code
-    assert ("real(kind=r_def), dimension(ndf_w1,ndf_w1,op_2_ncell_3d), "
+    assert ("real(kind=r_def), dimension(op_2_ncell_3d,ndf_w1,ndf_w1), "
             "intent(in) :: op_2" in code)
     assert "integer(kind=i_def), intent(in) :: op_4_ncell_3d" in code
-    assert ("real(kind=r_def), dimension(ndf_w3,ndf_w3,op_4_ncell_3d), "
+    assert ("real(kind=r_def), dimension(op_4_ncell_3d,ndf_w3,ndf_w3), "
             "intent(in) :: op_4" in code)
     assert "integer(kind=i_def), intent(in) :: op_6_ncell_3d" in code
-    assert ("real(kind=r_def), dimension(ndf_w2h,ndf_w2h,op_6_ncell_3d), "
+    assert ("real(kind=r_def), dimension(op_6_ncell_3d,ndf_w2h,ndf_w2h), "
             "intent(in) :: op_6" in code)
     assert "integer(kind=i_def), intent(in) :: op_8_ncell_3d" in code
-    assert ("real(kind=r_def), dimension(ndf_w2broken,ndf_w2broken,"
-            "op_8_ncell_3d), intent(in) :: op_8" in code)
+    assert ("real(kind=r_def), dimension(op_8_ncell_3d,ndf_w2broken,"
+            "ndf_w2broken), intent(in) :: op_8" in code)
     assert "integer(kind=i_def), intent(in) :: op_10_ncell_3d" in code
-    assert ("real(kind=r_def), dimension(ndf_w2trace,ndf_w2trace,"
-            "op_10_ncell_3d), intent(in) :: op_10" in code)
+    assert ("real(kind=r_def), dimension(op_10_ncell_3d,ndf_w2trace,"
+            "ndf_w2trace), intent(in) :: op_10" in code)
     assert "integer(kind=i_def), intent(in) :: op_12_ncell_3d" in code
-    assert ("real(kind=r_def), dimension(ndf_w2htrace,ndf_w2htrace,"
-            "op_12_ncell_3d), intent(in) :: op_12" in code)
+    assert ("real(kind=r_def), dimension(op_12_ncell_3d,ndf_w2htrace,"
+            "ndf_w2htrace), intent(in) :: op_12" in code)
     assert ("real(kind=r_def), dimension(1,ndf_w0,ndf_w0), intent(in) "
             ":: basis_w0_on_w0" in code)
     assert ("real(kind=r_def), dimension(3,ndf_w1,ndf_w0), intent(in) "
@@ -1781,23 +1781,23 @@ def test_diff_basis(fortran_writer):
             ":: field_11_w2htrace" in code)
     assert "integer(kind=i_def), intent(in) :: cell" in code
     assert "integer(kind=i_def), intent(in) :: op_2_ncell_3d" in code
-    assert ("real(kind=r_def), dimension(ndf_w1,ndf_w1,"
-            "op_2_ncell_3d), intent(inout) :: op_2" in code)
+    assert ("real(kind=r_def), dimension(op_2_ncell_3d,ndf_w1,ndf_w1"
+            "), intent(inout) :: op_2" in code)
     assert "integer(kind=i_def), intent(in) :: op_4_ncell_3d" in code
-    assert ("real(kind=r_def), dimension(ndf_w3,ndf_w3,op_4_ncell_3d), "
+    assert ("real(kind=r_def), dimension(op_4_ncell_3d,ndf_w3,ndf_w3), "
             "intent(inout) :: op_4" in code)
     assert "integer(kind=i_def), intent(in) :: op_6_ncell_3d" in code
-    assert ("real(kind=r_def), dimension(ndf_w2h,ndf_w2h,op_6_ncell_3d), "
+    assert ("real(kind=r_def), dimension(op_6_ncell_3d,ndf_w2h,ndf_w2h), "
             "intent(inout) :: op_6" in code)
     assert "integer(kind=i_def), intent(in) :: op_8_ncell_3d" in code
-    assert ("real(kind=r_def), dimension(ndf_w2broken,ndf_w2broken,"
-            "op_8_ncell_3d), intent(inout) :: op_8" in code)
+    assert ("real(kind=r_def), dimension(op_8_ncell_3d,ndf_w2broken,"
+            "ndf_w2broken), intent(inout) :: op_8" in code)
     assert "integer(kind=i_def), intent(in) :: op_10_ncell_3d" in code
-    assert ("real(kind=r_def), dimension(ndf_w2trace,ndf_w2trace,"
-            "op_10_ncell_3d), intent(inout) :: op_10" in code)
+    assert ("real(kind=r_def), dimension(op_10_ncell_3d,ndf_w2trace,"
+            "ndf_w2trace), intent(inout) :: op_10" in code)
     assert "integer(kind=i_def), intent(in) :: op_12_ncell_3d" in code
-    assert ("real(kind=r_def), dimension(ndf_w2vtrace,ndf_w2vtrace,"
-            "op_12_ncell_3d), intent(in) :: op_12" in code)
+    assert ("real(kind=r_def), dimension(op_12_ncell_3d,ndf_w2vtrace,"
+            "ndf_w2vtrace), intent(in) :: op_12" in code)
     assert "integer(kind=i_def), intent(in) :: np_xy_qr_xyoz" in code
     assert "integer(kind=i_def), intent(in) :: np_z_qr_xyoz" in code
     assert ("real(kind=r_def), dimension(3,ndf_w0,np_xy_qr_xyoz,"
@@ -1946,22 +1946,22 @@ def test_diff_basis_eval(fortran_writer):
     real(kind=r_def), dimension(undf_w2vtrace), intent(in) :: field_11_w2vtrace
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: op_2_ncell_3d
-    real(kind=r_def), dimension(ndf_w2,ndf_w1,op_2_ncell_3d), intent(inout) \
+    real(kind=r_def), dimension(op_2_ncell_3d,ndf_w2,ndf_w1), intent(inout) \
 :: op_2
     integer(kind=i_def), intent(in) :: op_4_ncell_3d
-    real(kind=r_def), dimension(ndf_w3,ndf_w3,op_4_ncell_3d), intent(in) \
+    real(kind=r_def), dimension(op_4_ncell_3d,ndf_w3,ndf_w3), intent(in) \
 :: op_4
     integer(kind=i_def), intent(in) :: op_6_ncell_3d
-    real(kind=r_def), dimension(ndf_w2h,ndf_w2h,op_6_ncell_3d), intent(in) \
+    real(kind=r_def), dimension(op_6_ncell_3d,ndf_w2h,ndf_w2h), intent(in) \
 :: op_6
     integer(kind=i_def), intent(in) :: op_8_ncell_3d
-    real(kind=r_def), dimension(ndf_w2broken,ndf_w2broken,op_8_ncell_3d), \
+    real(kind=r_def), dimension(op_8_ncell_3d,ndf_w2broken,ndf_w2broken), \
 intent(in) :: op_8
     integer(kind=i_def), intent(in) :: op_10_ncell_3d
-    real(kind=r_def), dimension(ndf_w2trace,ndf_w2trace,op_10_ncell_3d), \
+    real(kind=r_def), dimension(op_10_ncell_3d,ndf_w2trace,ndf_w2trace), \
 intent(in) :: op_10
     integer(kind=i_def), intent(in) :: op_12_ncell_3d
-    real(kind=r_def), dimension(ndf_w2htrace,ndf_w2htrace,op_12_ncell_3d), \
+    real(kind=r_def), dimension(op_12_ncell_3d,ndf_w2htrace,ndf_w2htrace), \
 intent(in) :: op_12
     real(kind=r_def), dimension(3,ndf_w0,ndf_w2), intent(in) :: \
 diff_basis_w0_on_w2
@@ -2064,22 +2064,22 @@ def test_2eval_stubgen(fortran_writer):
     real(kind=r_def), dimension(undf_w2vtrace), intent(in) :: field_11_w2vtrace
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: op_2_ncell_3d
-    real(kind=r_def), dimension(ndf_w2,ndf_w1,op_2_ncell_3d), intent(inout) \
+    real(kind=r_def), dimension(op_2_ncell_3d,ndf_w2,ndf_w1), intent(inout) \
 :: op_2
     integer(kind=i_def), intent(in) :: op_4_ncell_3d
-    real(kind=r_def), dimension(ndf_w3,ndf_w3,op_4_ncell_3d), intent(in) \
+    real(kind=r_def), dimension(op_4_ncell_3d,ndf_w3,ndf_w3), intent(in) \
 :: op_4
     integer(kind=i_def), intent(in) :: op_6_ncell_3d
-    real(kind=r_def), dimension(ndf_w2h,ndf_w2h,op_6_ncell_3d), intent(in) \
+    real(kind=r_def), dimension(op_6_ncell_3d,ndf_w2h,ndf_w2h), intent(in) \
 :: op_6
     integer(kind=i_def), intent(in) :: op_8_ncell_3d
-    real(kind=r_def), dimension(ndf_w2broken,ndf_w2broken,op_8_ncell_3d), \
+    real(kind=r_def), dimension(op_8_ncell_3d,ndf_w2broken,ndf_w2broken), \
 intent(in) :: op_8
     integer(kind=i_def), intent(in) :: op_10_ncell_3d
-    real(kind=r_def), dimension(ndf_w2trace,ndf_w2trace,op_10_ncell_3d), \
+    real(kind=r_def), dimension(op_10_ncell_3d,ndf_w2trace,ndf_w2trace), \
 intent(in) :: op_10
     integer(kind=i_def), intent(in) :: op_12_ncell_3d
-    real(kind=r_def), dimension(ndf_w2htrace,ndf_w2htrace,op_12_ncell_3d), \
+    real(kind=r_def), dimension(op_12_ncell_3d,ndf_w2htrace,ndf_w2htrace), \
 intent(in) :: op_12
     real(kind=r_def), dimension(3,ndf_w0,ndf_w2h), intent(in) :: \
 diff_basis_w0_on_w2h

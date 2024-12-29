@@ -337,7 +337,7 @@ def test_single_node_dynamo0p3():
     CALL extract_psy_data % ProvideVariable("ndf_w1", ndf_w1)
     CALL extract_psy_data % ProvideVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % ProvideVariable("ndf_w3", ndf_w3)
-    CALL extract_psy_data % ProvideVariable("nlayers", nlayers)
+    CALL extract_psy_data % ProvideVariable("nlayers_f1", nlayers_f1)
     CALL extract_psy_data % ProvideVariable("undf_w1", undf_w1)
     CALL extract_psy_data % ProvideVariable("undf_w2", undf_w2)
     CALL extract_psy_data % ProvideVariable("undf_w3", undf_w3)
@@ -390,7 +390,7 @@ def test_node_list_dynamo0p3():
     CALL extract_psy_data % ProvideVariable("f3_data", f3_data)
     CALL extract_psy_data % ProvideVariable("map_w2", map_w2)
     CALL extract_psy_data % ProvideVariable("ndf_w2", ndf_w2)
-    CALL extract_psy_data % ProvideVariable("nlayers", nlayers)
+    CALL extract_psy_data % ProvideVariable("nlayers_f3", nlayers_f3)
     CALL extract_psy_data % ProvideVariable("undf_w2", undf_w2)
     CALL extract_psy_data % PreEnd
     do df = loop0_start, loop0_stop, 1
@@ -644,8 +644,8 @@ def test_extract_colouring_omp_dynamo0p3(fortran_writer):
 
     code = str(psy.gen)
     output = ("""
-    CALL extract_psy_data % PreStart("multikernel_invokes_7_psy",\
-invoke_0-ru_code-r0", 26, 3)
+    CALL extract_psy_data % PreStart("multikernel_invokes_7_psy", \
+"invoke_0-ru_code-r0", 26, 3)
     CALL extract_psy_data % PreDeclareVariable("a_data", a_data)
     CALL extract_psy_data % PreDeclareVariable("b_data", b_data)
     CALL extract_psy_data % PreDeclareVariable("basis_w0_qr", basis_w0_qr)

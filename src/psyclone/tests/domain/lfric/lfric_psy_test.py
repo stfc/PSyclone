@@ -107,18 +107,6 @@ def test_lfricpsy_names():
     assert lfric_psy.orig_name == supplied_name
 
 
-def test_lfricpsy_inf_modules():
-    '''Check that the infrastructure_modules() method of LFRicPSy (which
-    is implemented as a property) behaves as expected. In this case we
-    check that it returns the values set up in the initialisation of
-    an instance of LFRicPSy.
-
-    '''
-    lfric_psy = LFRicPSy(DummyInvokeInfo())
-    assert (lfric_psy.infrastructure_modules is
-            lfric_psy._infrastructure_modules)
-
-
 def test_lfricpsy_gen_no_invoke():
     '''Check that the gen() method of LFRicPSy behaves as expected for a
     minimal psy-layer when the algorithm layer does not contain any

@@ -691,7 +691,7 @@ def test_fine_halo_read():
     assert hexch._compute_halo_depth().value == '2'
     call = schedule.children[6]
     field = call.args[1]
-    hra = HaloReadAccess(field, schedule.symbol_table)
+    hra = HaloReadAccess(field, schedule)
     assert hra._var_depth.debug_string() == "2 * 1"
 
 

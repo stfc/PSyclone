@@ -867,22 +867,22 @@ np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)
 field_11_w2htrace
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: op_2_ncell_3d
-    real(kind=r_def), dimension(ndf_w1,ndf_w1,op_2_ncell_3d), intent(inout) \
+    real(kind=r_def), dimension(op_2_ncell_3d,ndf_w1,ndf_w1), intent(inout) \
 :: op_2
     integer(kind=i_def), intent(in) :: op_4_ncell_3d
-    real(kind=r_def), dimension(ndf_w3,ndf_w3,op_4_ncell_3d), intent(inout) \
+    real(kind=r_def), dimension(op_4_ncell_3d,ndf_w3,ndf_w3), intent(inout) \
 :: op_4
     integer(kind=i_def), intent(in) :: op_6_ncell_3d
-    real(kind=r_def), dimension(ndf_w2h,ndf_w2h,op_6_ncell_3d), intent(inout) \
+    real(kind=r_def), dimension(op_6_ncell_3d,ndf_w2h,ndf_w2h), intent(inout) \
 :: op_6
     integer(kind=i_def), intent(in) :: op_8_ncell_3d
-    real(kind=r_def), dimension(ndf_w2broken,ndf_w2broken,op_8_ncell_3d), \
+    real(kind=r_def), dimension(op_8_ncell_3d,ndf_w2broken,ndf_w2broken), \
 intent(inout) :: op_8
     integer(kind=i_def), intent(in) :: op_10_ncell_3d
-    real(kind=r_def), dimension(ndf_w2trace,ndf_w2trace,op_10_ncell_3d), \
+    real(kind=r_def), dimension(op_10_ncell_3d,ndf_w2trace,ndf_w2trace), \
 intent(inout) :: op_10
     integer(kind=i_def), intent(in) :: op_12_ncell_3d
-    real(kind=r_def), dimension(ndf_w2vtrace,ndf_w2vtrace,op_12_ncell_3d), \
+    real(kind=r_def), dimension(op_12_ncell_3d,ndf_w2vtrace,ndf_w2vtrace), \
 intent(in) :: op_12
     integer(kind=i_def), intent(in) :: np_xy_qr_xyoz
     integer(kind=i_def), intent(in) :: np_z_qr_xyoz

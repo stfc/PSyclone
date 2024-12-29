@@ -643,73 +643,113 @@ def test_int_field_fs(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     generated_code = str(psy.gen)
-    output = (
-        "  MODULE single_invoke_fs_int_field_psy\n"
-        "    USE constants_mod, ONLY: i_def\n"
-        "    USE integer_field_mod, ONLY: integer_field_type, "
-        "integer_field_proxy_type\n"
-        "    IMPLICIT NONE\n"
-        "    CONTAINS\n"
-        "    SUBROUTINE invoke_0_testkern_fs_int_field_type(f1, f2, m1, m2, "
-        "f3, f4, m3, m4, f5, f6, m5, m6, f7, f8, m7)\n"
-        "      USE testkern_fs_int_field_mod, ONLY: "
-        "testkern_fs_int_field_code\n"
-        "      USE mesh_mod, ONLY: mesh_type\n"
-        "      TYPE(integer_field_type), intent(in) :: f1, f2, m1, m2, f3, "
-        "f4, m3, m4, f5, f6, m5, m6, f7, f8, m7\n"
-        "      INTEGER(KIND=i_def) cell\n"
-        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers_f1\n"
-        "      INTEGER(KIND=i_def), pointer, dimension(:) :: m7_data => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f8_data => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f7_data => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer, dimension(:) :: m6_data => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer, dimension(:) :: m5_data => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f6_data => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f5_data => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer, dimension(:) :: m4_data => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer, dimension(:) :: m3_data => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f4_data => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f3_data => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer, dimension(:) :: m2_data => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer, dimension(:) :: m1_data => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f2_data => "
-        "null()\n"
-        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f1_data => "
-        "null()\n"
-        "      TYPE(integer_field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
-        "m2_proxy, f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, "
-        "f6_proxy, m5_proxy, m6_proxy, f7_proxy, f8_proxy, m7_proxy\n"
-        "      INTEGER(KIND=i_def), pointer :: map_adspc1_m7(:,:) => null(), "
-        "map_any_w2(:,:) => null(), map_aspc1_f8(:,:) => null(), "
-        "map_w0(:,:) => null(), map_w1(:,:) => null(), map_w2(:,:) => "
-        "null(), map_w2broken(:,:) => null(), map_w2h(:,:) => null(), "
-        "map_w2htrace(:,:) => null(), map_w2trace(:,:) => null(), "
-        "map_w2v(:,:) => null(), map_w2vtrace(:,:) => null(), map_w3(:,:) "
-        "=> null(), map_wchi(:,:) => null(), map_wtheta(:,:) => null()\n"
-        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w0, "
-        "undf_w0, ndf_w3, undf_w3, ndf_wtheta, undf_wtheta, ndf_w2h, "
-        "undf_w2h, ndf_w2v, undf_w2v, ndf_w2broken, undf_w2broken, "
-        "ndf_w2trace, undf_w2trace, ndf_w2htrace, undf_w2htrace, "
-        "ndf_w2vtrace, undf_w2vtrace, ndf_wchi, undf_wchi, ndf_any_w2, "
-        "undf_any_w2, ndf_aspc1_f8, undf_aspc1_f8, ndf_adspc1_m7, "
-        "undf_adspc1_m7\n"
-        "      INTEGER(KIND=i_def) max_halo_depth_mesh\n"
-        "      TYPE(mesh_type), pointer :: mesh => null()\n")
-    assert output in generated_code
+    # print(generated_code)
+    assert """module single_invoke_fs_int_field_psy
+  use constants_mod
+  use integer_field_mod, only : integer_field_proxy_type, integer_field_type
+  implicit none
+  public
+
+  contains
+  subroutine invoke_0_testkern_fs_int_field_type(f1, f2, m1, m2, f3, f4, m3, \
+m4, f5, f6, m5, m6, f7, f8, m7)
+    use mesh_mod, only : mesh_type
+    use testkern_fs_int_field_mod, only : testkern_fs_int_field_code
+    type(integer_field_type), intent(in) :: f1
+    type(integer_field_type), intent(in) :: f2
+    type(integer_field_type), intent(in) :: m1
+    type(integer_field_type), intent(in) :: m2
+    type(integer_field_type), intent(in) :: f3
+    type(integer_field_type), intent(in) :: f4
+    type(integer_field_type), intent(in) :: m3
+    type(integer_field_type), intent(in) :: m4
+    type(integer_field_type), intent(in) :: f5
+    type(integer_field_type), intent(in) :: f6
+    type(integer_field_type), intent(in) :: m5
+    type(integer_field_type), intent(in) :: m6
+    type(integer_field_type), intent(in) :: f7
+    type(integer_field_type), intent(in) :: f8
+    type(integer_field_type), intent(in) :: m7
+    integer(kind=i_def) :: cell
+    type(mesh_type), pointer :: mesh => null()
+    integer(kind=i_def) :: max_halo_depth_mesh
+    integer(kind=i_def), pointer, dimension(:) :: f1_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: f2_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: m1_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: m2_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: f3_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: f4_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: m3_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: m4_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: f5_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: f6_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: m5_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: m6_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: f7_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: f8_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: m7_data => null()
+    integer(kind=i_def) :: nlayers_f1
+    integer(kind=i_def) :: ndf_w1
+    integer(kind=i_def) :: undf_w1
+    integer(kind=i_def) :: ndf_w2
+    integer(kind=i_def) :: undf_w2
+    integer(kind=i_def) :: ndf_w0
+    integer(kind=i_def) :: undf_w0
+    integer(kind=i_def) :: ndf_w3
+    integer(kind=i_def) :: undf_w3
+    integer(kind=i_def) :: ndf_wtheta
+    integer(kind=i_def) :: undf_wtheta
+    integer(kind=i_def) :: ndf_w2h
+    integer(kind=i_def) :: undf_w2h
+    integer(kind=i_def) :: ndf_w2v
+    integer(kind=i_def) :: undf_w2v
+    integer(kind=i_def) :: ndf_w2broken
+    integer(kind=i_def) :: undf_w2broken
+    integer(kind=i_def) :: ndf_w2trace
+    integer(kind=i_def) :: undf_w2trace
+    integer(kind=i_def) :: ndf_w2htrace
+    integer(kind=i_def) :: undf_w2htrace
+    integer(kind=i_def) :: ndf_w2vtrace
+    integer(kind=i_def) :: undf_w2vtrace
+    integer(kind=i_def) :: ndf_wchi
+    integer(kind=i_def) :: undf_wchi
+    integer(kind=i_def) :: ndf_any_w2
+    integer(kind=i_def) :: undf_any_w2
+    integer(kind=i_def) :: ndf_aspc1_f8
+    integer(kind=i_def) :: undf_aspc1_f8
+    integer(kind=i_def) :: ndf_adspc1_m7
+    integer(kind=i_def) :: undf_adspc1_m7
+    integer(kind=i_def), pointer :: map_adspc1_m7(:,:) => null()
+    integer(kind=i_def), pointer :: map_any_w2(:,:) => null()
+    integer(kind=i_def), pointer :: map_aspc1_f8(:,:) => null()
+    integer(kind=i_def), pointer :: map_w0(:,:) => null()
+    integer(kind=i_def), pointer :: map_w1(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2broken(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2h(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2htrace(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2trace(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2v(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2vtrace(:,:) => null()
+    integer(kind=i_def), pointer :: map_w3(:,:) => null()
+    integer(kind=i_def), pointer :: map_wchi(:,:) => null()
+    integer(kind=i_def), pointer :: map_wtheta(:,:) => null()
+    type(integer_field_proxy_type) :: f1_proxy
+    type(integer_field_proxy_type) :: f2_proxy
+    type(integer_field_proxy_type) :: m1_proxy
+    type(integer_field_proxy_type) :: m2_proxy
+    type(integer_field_proxy_type) :: f3_proxy
+    type(integer_field_proxy_type) :: f4_proxy
+    type(integer_field_proxy_type) :: m3_proxy
+    type(integer_field_proxy_type) :: m4_proxy
+    type(integer_field_proxy_type) :: f5_proxy
+    type(integer_field_proxy_type) :: f6_proxy
+    type(integer_field_proxy_type) :: m5_proxy
+    type(integer_field_proxy_type) :: m6_proxy
+    type(integer_field_proxy_type) :: f7_proxy
+    type(integer_field_proxy_type) :: f8_proxy
+    type(integer_field_proxy_type) :: m7_proxy
+    """ in generated_code
     output = (
         "    ! Initialise field and/or operator proxies\n"
         "    f1_proxy = f1%get_proxy()\n"
@@ -744,7 +784,7 @@ def test_int_field_fs(tmpdir):
         "    m7_data => m7_proxy%data\n"
         "\n"
         "    ! Initialise number of layers\n"
-        "    nlayers_f2 = f2_proxy%vspace%get_nlayers()\n"
+        "    nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
         "\n"
         "    ! Create a mesh object\n"
         "    mesh => f1_proxy%vspace%get_mesh()\n"
@@ -875,7 +915,7 @@ def test_int_field_fs(tmpdir):
         "      call m7_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
         "    do cell = loop0_start, loop0_stop, 1\n"
-        "      call testkern_fs_int_field_code(nlayers_f2, f1_data, "
+        "      call testkern_fs_int_field_code(nlayers_f1, f1_data, "
         "f2_data, m1_data, m2_data, f3_data, "
         "f4_data, m3_data, m4_data, f5_data, "
         "f6_data, m5_data, m6_data, f7_data, "
@@ -1164,5 +1204,5 @@ def test_int_real_field_fs(dist_mem, tmpdir):
             "    call f1_proxy%set_dirty()\n"
             "    call f3_proxy%set_dirty()\n"
             "    call f3_proxy%set_clean(1)\n")
-        assert halo1_flags == generated_code
+        assert halo1_flags in generated_code
         assert halo2_flags in generated_code

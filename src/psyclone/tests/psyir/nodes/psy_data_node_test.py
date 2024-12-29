@@ -551,13 +551,13 @@ def test_psy_data_node_lfric_inside_of_loop():
 
     # This regex checks that the type is imported, the variable is declared,
     # and that the psydata area is indeed inside of the loop
-    correct_re = (r"USE psy_data_mod, ONLY: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
-                  r"DO cell = .*"
-                  r"CALL psy_data % PreStart.*"
-                  r"CALL testkern_code.*"
-                  r"CALL psy_data % PostEnd.*"
-                  r"END DO")
+    correct_re = (r"use psy_data_mod, only : PSyDataType.*"
+                  r"type\(PSyDataType\), save, target :: psy_data.*"
+                  r"do cell = .*"
+                  r"call psy_data % PreStart.*"
+                  r"call testkern_code.*"
+                  r"call psy_data % PostEnd.*"
+                  r"enddo")
     assert re.search(correct_re, code, re.I) is not None
 
 

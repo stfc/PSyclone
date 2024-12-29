@@ -68,7 +68,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Reference, ACCEnterDataDirective, ArrayOfStructuresReference,
     StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall,
-    Assignment, ArrayReference, Loop, Container, Schedule)
+    Assignment, ArrayReference, Loop, Container, Schedule, Node)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, DataSymbol, ScalarType, UnresolvedType, DataTypeSymbol,
     ContainerSymbol, ImportInterface, StructureType,
@@ -1637,10 +1637,11 @@ class DynLMAOperators(LFRicCollection):
 
             arg_sym = self.symtab.find_or_create(
                 arg.name, symbol_type=DataSymbol,
-                datatype=ArrayType(intr_type,
-                                   [Reference(ndf_name_to),
-                                    Reference(ndf_name_from),
-                                    Reference(size_sym)]))
+                datatype=ArrayType(intr_type, [
+                    Reference(size_sym),
+                    Reference(ndf_name_to),
+                    Reference(ndf_name_from),
+                ]))
             arg_sym.interface = ArgumentInterface(intent)
             self.symtab.append_argument(arg_sym)
         return cursor
@@ -4009,7 +4010,6 @@ class LFRicHaloExchange(HaloExchange):
 
         '''
         # get our halo information
-        # import pdb; pdb.set_trace()
         halo_info_list = self._compute_halo_read_info(ignore_hex_dep)
         # use the halo information to generate depth information
         depth_info_list = _create_depth_list(halo_info_list, self)
@@ -4514,6 +4514,11 @@ class HaloDepth():
         # variables holding the maximum halo depth.
         # TODO #2503: This can become invalid if the HaloExchange
         # containing this HaloDepth changes its ancestors.
+        if not isinstance(parent, Node):
+            raise TypeError(
+                f"The HaloDepth parent argument must be a Node, but found: "
+                f"{type(parent).__name__}"
+            )
         self._parent = parent
 
     @property
@@ -4588,7 +4593,7 @@ class HaloDepth():
         # have to create a fake Assignment and temporarily graft it into the
         # tree.
         fake_assign = Assignment.create(
-            Reference(DataSymbol("tmp", INTEGER_TYPE)), var_depth.detach())
+            Reference(DataSymbol("tmp", INTEGER_TYPE)), var_depth.copy())
         sched = self._parent.ancestor(Schedule, include_self=True)
         sched.addchild(fake_assign)
 
@@ -4797,9 +4802,6 @@ class HaloReadAccess(HaloDepth):
 
     '''
     def __init__(self, field, parent=None):
-        from psyclone.psyir.nodes import Node
-        if not isinstance(parent, Node):
-            raise TypeError()
         super().__init__(parent)
         self._stencil_type = None
         self._needs_clean_outer = None
