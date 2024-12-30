@@ -47,7 +47,7 @@ from psyclone.psyir.nodes.array_of_structures_member import (
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
 from psyclone.psyir.nodes.structure_member import StructureMember
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataType, Symbol,
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataType,
                                     DataTypeSymbol, UnresolvedType, ScalarType,
                                     StructureType, UnsupportedType)
 
@@ -116,10 +116,7 @@ class StructureReference(Reference, StructureAccessorMixin):
         :raises TypeError: if the supplied symbol is not a DataSymbol.
 
         '''
-        dt = None
-        if isinstance(symbol, DataSymbol):
-            dt = symbol.datatype
-        elif not isinstance(symbol, Symbol):
+        if not isinstance(symbol, DataSymbol):
             raise TypeError(
                 f"The 'symbol' argument to StructureReference.create() "
                 f"should be a DataSymbol but found '{type(symbol).__name__}'.")
@@ -131,7 +128,7 @@ class StructureReference(Reference, StructureAccessorMixin):
                 f"'{type(symbol).__name__}'.")
 
         return StructureReference.\
-            _create(symbol, dt, members, parent=parent,
+            _create(symbol, symbol.datatype, members, parent=parent,
                     overwrite_datatype=overwrite_datatype)
 
     @classmethod
@@ -177,14 +174,12 @@ class StructureReference(Reference, StructureAccessorMixin):
             do not have full type information available.
 
         '''
-        name = symbol.name if hasattr(symbol, "name") else "unknown"
-        if (symbol_type is not None and not
-                isinstance(symbol_type, (StructureType, DataTypeSymbol,
-                                         UnresolvedType, UnsupportedType))):
+        if not isinstance(symbol_type, (StructureType, DataTypeSymbol,
+                                        UnresolvedType, UnsupportedType)):
             raise TypeError(
                 f"A StructureReference must refer to a symbol that is (or "
-                f"could be) a structure, has been given a '{symbol_type}'"
-                f" with name: '{name}'")
+                f"could be) a structure, however symbol '{symbol.name}' has "
+                f"type '{symbol_type}'.")
         if not isinstance(members, list):
             raise TypeError(
                 f"The 'members' argument to StructureReference._create() "
@@ -193,7 +188,7 @@ class StructureReference(Reference, StructureAccessorMixin):
             raise ValueError(
                 f"A StructureReference must include one or more structure "
                 f"'members' that are being accessed but got an empty list for "
-                f"symbol '{name}'")
+                f"symbol '{symbol.name}'")
 
         # Create the base reference to the symbol that is a structure
         ref = cls(symbol, parent=parent)
@@ -211,7 +206,7 @@ class StructureReference(Reference, StructureAccessorMixin):
                 f"The list of 'members' passed to StructureType._create() "
                 f"must consist of either 'str' or 2-tuple entries but found "
                 f"'{type(members[-1]).__name__}' in the last entry while "
-                f"attempting to create reference to symbol '{name}'")
+                f"attempting to create reference to symbol '{symbol.name}'")
 
         # Now do the remaining entries in the members list. Since we know that
         # each of these forms part of a structure they must be either a
@@ -231,7 +226,7 @@ class StructureReference(Reference, StructureAccessorMixin):
                     f"The list of 'members' passed to StructureType._create() "
                     f"must consist of either 'str' or 2-tuple entries but "
                     f"found '{type(component).__name__}' while attempting to "
-                    f"create reference to symbol '{name}'")
+                    f"create reference to symbol '{symbol.name}'")
             child_member = subref
         # Finally, add this chain to the top-level reference
         ref.addchild(child_member)

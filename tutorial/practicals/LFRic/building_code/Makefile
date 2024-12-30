@@ -49,4 +49,4 @@ transform compile run clean allclean:
 	${MAKE} -C 1_simple_kernels/part2/solutions $@
 	${MAKE} -C 2_built_ins/solutions $@
 	${MAKE} -C 3_time_evolution/solutions $@
-	# ${MAKE} -C 4_psydata $@
+	${MAKE} -C 4_psydata $@

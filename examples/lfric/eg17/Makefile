@@ -36,7 +36,6 @@
 # This makefile triggers the corresponding make targets in all
 # subdirectories.
 
-# EXAMPLES=$(wildcard full_example*)
-EXAMPLES=full_example
+EXAMPLES=$(wildcard full_example*)
 
 include ../../top_level.mk

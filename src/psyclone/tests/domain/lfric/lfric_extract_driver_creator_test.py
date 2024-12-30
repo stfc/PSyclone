@@ -678,8 +678,7 @@ def test_lfric_driver_external_symbols_name_clash():
     code = psy.gen
 
     # Make sure the imported, clashing symbol 'f1_data' is renamed:
-    return
-    assert "USE module_with_name_clash_mod, ONLY: f1_data_1=>f1_data" in code
+    assert "use module_with_name_clash_mod, only : f1_data_1=>f1_data" in code
     assert ('CALL extract_psy_data%PreDeclareVariable("f1_data@'
             'module_with_name_clash_mod", f1_data_1)' in code)
     assert ('CALL extract_psy_data%ProvideVariable("f1_data@'

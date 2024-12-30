@@ -54,7 +54,7 @@ from psyclone.psyir.symbols import (
     GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
     RoutineSymbol, ScalarType, StructureType, Symbol, SymbolTable,
     UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
-    UnsupportedType, )
+    UnsupportedType, TypedSymbol)
 
 
 # Mapping from PSyIR types to Fortran data types. Simply reverse the
@@ -517,8 +517,9 @@ class FortranWriter(LanguageWriter):
 
         '''
         # pylint: disable=too-many-branches
-        # if not isinstance(symbol, DataSymbol):
-        #     raise VisitorError(f"Symbol '{symbol.name}' is not a DataSymbol")
+        if not isinstance(symbol, (TypedSymbol, StructureType.ComponentType)):
+            raise VisitorError(f"Symbol '{symbol.name}' must be a symbol with"
+                               f" a datatype in order to use 'gen_vardecl'.")
         if isinstance(symbol.datatype, UnresolvedType):
             raise VisitorError(f"Symbol '{symbol.name}' has a UnresolvedType "
                                f"and we can not generate a declaration for "
