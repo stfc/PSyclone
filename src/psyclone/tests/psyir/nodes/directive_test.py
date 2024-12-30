@@ -39,16 +39,15 @@
 ''' Performs py.test tests on the PSyIR Directive node. '''
 
 import os
-import pytest
 from collections import OrderedDict
+import pytest
 
-from psyclone import f2pygen
 from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.transformations import ACCDataTrans, DynamoOMPParallelLoopTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(

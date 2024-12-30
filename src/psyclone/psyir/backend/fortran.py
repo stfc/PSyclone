@@ -41,7 +41,7 @@ from a PSyIR tree. '''
 
 # pylint: disable=too-many-lines
 from psyclone.core import Signature
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import (

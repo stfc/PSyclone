@@ -504,7 +504,7 @@ class PSyDataNode(Statement):
                         symbol_table.tags_dict[tag] = var_symbol
                     elif symbol_table.tags_dict[tag] is not var_symbol:
                         raise ValueError("Already used tag")
-                except:
+                except KeyError:
                     print(f"Missing {signature.var_name}")
                     continue
                 unique_sig = Signature(var_symbol.name, signature[1:])

@@ -45,7 +45,7 @@ nodes.'''
 import abc
 
 from psyclone.core import Signature
-from psyclone.f2pygen import DirectiveGen, CommentGen
+from psyclone.f2pygen import DirectiveGen
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
                                               ACCCopyOutClause)

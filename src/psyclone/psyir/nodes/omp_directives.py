@@ -51,8 +51,6 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.errors import (GenerationError,
                              UnresolvedDependencyError)
-from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
-                              CommentGen)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.assignment import Assignment
@@ -2166,6 +2164,7 @@ class OMPTargetDirective(OMPRegionDirective):
 
         '''
         return "omp end target"
+
 
 class OMPLoopDirective(OMPRegionDirective):
     ''' Class for the !$OMP LOOP directive that specifies that the iterations
