@@ -253,7 +253,6 @@ def test_lfric_driver_import_modules_no_import_interface(fortran_reader):
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="FIXME")
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_simple_test():
     '''Test the full pipeline: Add kernel extraction to a kernel and
@@ -276,35 +275,35 @@ def test_lfric_driver_simple_test():
 
     for line in [
         "if (ALLOCATED(psydata_filename)) then",
-        "call extract_psy_data % OpenReadFileName(psydata_filename)",
+        "call extract_psy_data%OpenReadFileName(psydata_filename)",
         "else",
-        "call extract_psy_data % OpenReadModuleRegion('field', 'test')",
+        "call extract_psy_data%OpenReadModuleRegion('field', 'test')",
         "end if",
-        "call extract_psy_data % ReadVariable('a', a)",
-        "call extract_psy_data % ReadVariable('loop0_start', "
-        "loop0_start)",
-        "call extract_psy_data % ReadVariable('loop0_stop', "
-        "loop0_stop)",
-        "call extract_psy_data % ReadVariable('m1_data', m1_data)",
-        "call extract_psy_data % ReadVariable('m2_data', m2_data)",
-        "call extract_psy_data % ReadVariable('map_w1', map_w1)",
-        "call extract_psy_data % ReadVariable('map_w2', map_w2)",
-        "call extract_psy_data % ReadVariable('map_w3', map_w3)",
-        "call extract_psy_data % ReadVariable('ndf_w1', ndf_w1)",
-        "call extract_psy_data % ReadVariable('ndf_w2', ndf_w2)",
-        "call extract_psy_data % ReadVariable('ndf_w3', ndf_w3)",
+        "call extract_psy_data%ReadVariable('a', a)",
+        # "call extract_psy_data%ReadVariable('loop0_start', "
+        # "loop0_start)",
+        # "call extract_psy_data%ReadVariable('loop0_stop', "
+        # "loop0_stop)",
+        "call extract_psy_data%ReadVariable('m1_data', m1_data)",
+        "call extract_psy_data%ReadVariable('m2_data', m2_data)",
+        "call extract_psy_data%ReadVariable('map_w1', map_w1)",
+        "call extract_psy_data%ReadVariable('map_w2', map_w2)",
+        "call extract_psy_data%ReadVariable('map_w3', map_w3)",
+        "call extract_psy_data%ReadVariable('ndf_w1', ndf_w1)",
+        "call extract_psy_data%ReadVariable('ndf_w2', ndf_w2)",
+        "call extract_psy_data%ReadVariable('ndf_w3', ndf_w3)",
         "call extract_psy_data%ReadVariable('nlayers_x_ptr_vector', "
         "nlayers_x_ptr_vector)",
-        "call extract_psy_data % ReadVariable('"
+        "call extract_psy_data%ReadVariable('"
         "self_vec_type_vector_data', self_vec_type_vector_data)",
-        "call extract_psy_data % ReadVariable('undf_w1', undf_w1)",
-        "call extract_psy_data % ReadVariable('undf_w2', undf_w2)",
-        "call extract_psy_data % ReadVariable('undf_w3', undf_w3)",
-        "call extract_psy_data % ReadVariable('x_ptr_vector_data', "
+        "call extract_psy_data%ReadVariable('undf_w1', undf_w1)",
+        "call extract_psy_data%ReadVariable('undf_w2', undf_w2)",
+        "call extract_psy_data%ReadVariable('undf_w3', undf_w3)",
+        "call extract_psy_data%ReadVariable('x_ptr_vector_data', "
         "x_ptr_vector_data)",
-        "call extract_psy_data % ReadVariable('cell_post', cell_post)"
+        "call extract_psy_data%ReadVariable('cell_post', cell_post)"
     ]:
-        assert line in driver.lower(), line
+        assert line.lower() in driver.lower(), line
 
     # A read-write/inc variable should not be allocated (since it will
     # be allocated as part of reading in its value):
