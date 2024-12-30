@@ -852,17 +852,13 @@ class Fparser2Reader():
     Class to encapsulate the functionality for processing the fparser2 AST and
     convert the nodes to PSyIR.
 
-    :param ignore_directives: If directives should be ignored or not
-                              (default True). Only has an effect
-                              if comments were not ignored.
-    :param last_comments_as_codeblocks: If the last comments in the
-                                        a given block (e.g. subroutine,
-                                        do, if-then body, etc.) should
-                                        be kept as code blocks or lost
-                                        (default False).
-                                        Only has an effect if comments were
-                                        not ignored.
-
+    :param ignore_directives: Whether directives should be ignored or not
+        (default True). Only has an effect if comments were not ignored when
+        creating the fparser2 AST.
+    :param last_comments_as_codeblocks: Whether the last comments in the a
+        given block (e.g. subroutine, do, if-then body, etc.) should be kept as
+        CodeBlocks or lost (default False). Only has an effect if comments
+        were not ignored when creating the fparser2 AST.
     :param resolve_modules: Whether to resolve modules while parsing a file,
         for more precise control it also accepts a list of module names.
         Defaults to False.
@@ -870,7 +866,6 @@ class Fparser2Reader():
     :raises TypeError: if the constructor argument is not of the expected type.
 
     '''
-
     unary_operators = OrderedDict([
         ('+', UnaryOperation.Operator.PLUS),
         ('-', UnaryOperation.Operator.MINUS),
@@ -955,7 +950,7 @@ class Fparser2Reader():
 
     def __init__(self, ignore_directives: bool = True,
                  last_comments_as_codeblocks: bool = False,
-                 resolve_modules=False):
+                 resolve_modules: bool = False):
         if isinstance(resolve_modules, bool):
             self._resolve_all_modules = resolve_modules
             self._modules_to_resolve = []
@@ -1015,7 +1010,7 @@ class Fparser2Reader():
         self._last_psyir_parsed_and_span = None
         # Whether to ignore directives when processing the fparser2 AST
         self._ignore_directives = ignore_directives
-        # Whether to keep the last comments in a given block as code blocks
+        # Whether to keep the last comments in a given block as CodeBlocks
         self._last_comments_as_codeblocks = last_comments_as_codeblocks
 
     @staticmethod
