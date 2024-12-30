@@ -418,8 +418,6 @@ class LFRicMeshProperties(LFRicCollection):
                         "=> null()"
                     ),
                     tag=name_lower)
-            else:
-                raise InternalError("error")
 
     def kern_args(self, stub=False, var_accesses=None,
                   kern_call_arg_list=None):

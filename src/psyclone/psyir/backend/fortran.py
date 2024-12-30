@@ -1472,15 +1472,7 @@ class FortranWriter(LanguageWriter):
             body += self._visit(child)
         self._depth -= 1
 
-        # A generation error is raised if variable is not defined. This
-        # happens in LFRic kernel that iterate over a domain.
-        try:
-            variable_name = node.variable.name
-        except GenerationError:
-            # If a kernel iterates over a domain - there is
-            # no loop. But the loop node is maintained since it handles halo
-            # exchanges. So just return the body in this case
-            return body
+        variable_name = node.variable.name
 
         return (
             f"{self._nindent}do {variable_name} = {start}, {stop}, {step}\n"

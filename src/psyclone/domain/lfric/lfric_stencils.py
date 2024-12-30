@@ -256,20 +256,6 @@ class LFRicStencils(LFRicCollection):
                 unique, root_name=root_name, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
-    def _unique_max_branch_length_vars(self):
-        '''
-        :returns: list of all the unique max stencil extent argument names in
-                  this kernel call for CROSS2D stencils.
-        :rtype: list of str
-
-        '''
-        names = []
-        for arg in self._kern_args:
-            if arg.descriptor.stencil['type'] == "cross2d":
-                names.append(arg.name + "_max_branch_length")
-
-        return names
-
     @staticmethod
     def direction_name(symtab, arg):
         '''

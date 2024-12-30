@@ -463,13 +463,6 @@ class Invoke():
         return self._psy_unique_vars
 
     @property
-    def psy_unique_var_names(self):
-        names = []
-        for var in self._psy_unique_vars:
-            names.append(var.name)
-        return names
-
-    @property
     def schedule(self):
         return self._schedule
 
@@ -801,17 +794,6 @@ class HaloExchange(Statement):
         self._halo_depth = None
         self._check_dirty = check_dirty
         self._vector_index = vector_index
-
-    @property
-    def symtab(self):
-        '''
-        :returns: associated symbol table.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        '''
-        isched = self.ancestor(InvokeSchedule)
-        if isched:
-            return isched.symbol_table
-        raise InternalError("Could not find associated symbol table")
 
     @property
     def vector_index(self):

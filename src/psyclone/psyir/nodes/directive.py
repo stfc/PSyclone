@@ -239,36 +239,6 @@ class RegionDirective(Directive):
             return self.children[1:]
         return []
 
-    def gen_post_region_code(self, parent):
-        '''
-        Generates any code that must be executed immediately after the end of
-        the region defined by this directive.
-
-        TODO #1648 this method is only used by the gen_code() code-generation
-        path and should be replaced by functionality in a
-        'lower_to_language_level' method in an LFRic-specific subclass
-        of the appropriate directive.
-
-        :param parent: where to add new f2pygen nodes.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        if not Config.get().distributed_memory or self.ancestor(Loop):
-            return
-        # Have to import PSyLoop here to avoid a circular dependence.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.common.psylayer import PSyLoop
-
-        commented = False
-        for loop in self.walk(PSyLoop):
-            if not isinstance(loop.parent, Loop):
-                loop.gen_mark_halos_clean_dirty(parent)
-                if not commented and loop.unique_modified_args("gh_field"):
-                    loop.parent[loop.position + 1].preceeding_comment = (
-                        "Set halos dirty/clean for fields modified in the "
-                        "above loops(s)")
-                    commented = True
-
 
 class StandaloneDirective(Directive):
     '''
