@@ -65,7 +65,7 @@ def test_run_default_mode(capsys):
                              "test_files", "dynamo0p3", "testkern_w0_mod.f90")
     kernel_tools.run([str(kern_file), "-api", "lfric"])
     out, err = capsys.readouterr()
-    assert "Kernel-stub code:\n   MODULE testkern_w0_mod\n" in out
+    assert "Kernel-stub code:\n module testkern_w0_mod\n" in out
     assert not err
 
 
@@ -79,7 +79,7 @@ def test_run(capsys, tmpdir):
                       "-gen", "stub"])
     result, _ = capsys.readouterr()
     assert "Kernel-stub code:" in result
-    assert "MODULE testkern_w0_mod" in result
+    assert "module testkern_w0_mod" in result
 
     # Test without --limit, but with -o:
     psy_file = tmpdir.join("psy.f90")
@@ -90,7 +90,7 @@ def test_run(capsys, tmpdir):
     # Now read output file into a string and check:
     with psy_file.open("r") as psy:
         output = psy.read()
-    assert "MODULE testkern_w0_mod" in str(output)
+    assert "module testkern_w0_mod" in str(output)
 
 
 def test_run_version(capsys):

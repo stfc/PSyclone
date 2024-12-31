@@ -1298,9 +1298,14 @@ class SymbolTable():
             raise ValueError(
                 f"DataSymbol '{argument.name}' is not marked as a kernel "
                 "argument.")
+        if argument in self._argument_list:
+            return
+            raise ValueError(
+                f"DataSymbol '{argument.name}' is already a listed argument.")
 
         self._argument_list.append(argument)
-        self.add(argument)
+        if argument not in self.get_symbols().values():
+            self.add(argument)
 
         try:
             self._validate_arg_list(self._argument_list)

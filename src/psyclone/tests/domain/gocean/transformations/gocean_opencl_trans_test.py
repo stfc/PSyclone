@@ -258,12 +258,14 @@ def test_invoke_opencl_initialisation(kernel_outputdir, fortran_writer):
     call initialise_device_buffer(cu_fld)
     call initialise_device_buffer(p_fld)
     call initialise_device_buffer(u_fld)
+
     ! do a set_args now so subsequent writes place the data appropriately
     cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
     p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
     u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)
     call compute_cu_code_set_args(kernel_compute_cu_code, cu_fld_cl_mem, \
 p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
+
     ! write data to the device'''
     assert expected in generated_code
 
@@ -369,6 +371,7 @@ c_sizeof(field%grid%area_t(1,1))'''
       xstop = out_fld%internal%xstop
       ystart = out_fld%internal%ystart
       ystop = out_fld%internal%ystop
+
       ! initialise opencl runtime, kernels and buffers
       if (first_time) then
         call psy_init
@@ -379,6 +382,7 @@ c_sizeof(field%grid%area_t(1,1))'''
         call initialise_device_buffer(in_fld)
         call initialise_device_buffer(dx)
         call initialise_grid_device_buffers(in_fld)
+
         ! do a set_args now so subsequent writes place the data appropriately
         out_fld_cl_mem = transfer(out_fld%device_ptr, out_fld_cl_mem)
         in_out_fld_cl_mem = transfer(in_out_fld%device_ptr, in_out_fld_cl_mem)
@@ -389,6 +393,7 @@ c_sizeof(field%grid%area_t(1,1))'''
 out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, \
 in_fld%grid%dx, gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, \
 ystop - 1)
+
         ! write data to the device'''
     assert expected in generated_code
 
@@ -726,7 +731,8 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
       CALL compute_cu_code_set_args(kernel_compute_cu_code, \
 cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, \
 xstart - 1, xstop - 1, \
-ystart - 1, ystop - 1)'''
+ystart - 1, ystop - 1)
+'''
 
     expected += '''
       ! Launch the kernel

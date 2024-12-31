@@ -122,42 +122,26 @@ def test_argordering_get_array_reference():
 
     # First test access using an index, e.g. `array(1)`
     one = Literal("1", INTEGER_TYPE)
-    ref = arg_list.get_array_reference("array1", [one],
-                                       ScalarType.Intrinsic.REAL)
+    ref = arg_list.get_array_reference("array1", [one])
     assert isinstance(ref, ArrayReference)
-    ref = arg_list.get_array_reference("array2", [":"],
-                                       ScalarType.Intrinsic.INTEGER)
+    ref = arg_list.get_array_reference("array2", [":"])
     assert not isinstance(ref, ArrayReference)
 
     # Now test access using ":" only, e.g. `array(:)` -> this should
     # be returned just a reference to `array`
-    ref = arg_list.get_array_reference("array3", [":", ":"],
-                                       ScalarType.Intrinsic.REAL)
+    ref = arg_list.get_array_reference("array3", [":", ":"])
     assert isinstance(ref, Reference)
     assert not isinstance(ref, ArrayReference)
-    ref = arg_list.get_array_reference("array4", [":", ":"],
-                                       ScalarType.Intrinsic.INTEGER)
+    ref = arg_list.get_array_reference("array4", [":", ":"])
     assert isinstance(ref, Reference)
     assert not isinstance(ref, ArrayReference)
 
     # Now specify a symbol, but an incorrect array name:
     with pytest.raises(InternalError) as err:
         arg_list.get_array_reference("wrong-name", [":", ":"],
-                                     ScalarType.Intrinsic.INTEGER,
                                      symbol=ref.symbol)
     assert ("Specified symbol 'array4' has a different name than the "
             "specified array name 'wrong-name'" in str(err.value))
-
-    with pytest.raises(TypeError) as err:
-        arg_list.get_array_reference("does-not-exist", [":"], "invalid")
-    assert ("Unsupported data type 'invalid' in find_or_create_array"
-            in str(err.value))
-
-    with pytest.raises(TypeError) as err:
-        arg_list.get_array_reference("array4", [":"],
-                                     ScalarType.Intrinsic.INTEGER)
-    assert ("Array 'array4' already exists, but has 2 dimensions, not 1."
-            in str(err.value))
 
 
 def test_argordering_extend():

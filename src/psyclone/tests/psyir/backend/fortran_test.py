@@ -1576,7 +1576,7 @@ def test_fw_codeblock_1(fortran_reader, fortran_writer, tmpdir):
     # Generate Fortran from the PSyIR
     result = fortran_writer(psyir)
     assert (
-        "    a = 1\n"
+        "    a = 1\n\n"
         "    ! PSyclone CodeBlock (unsupported code) reason:\n"
         "    !  - Unsupported statement: Print_Stmt\n"
         "    !  - Unsupported statement: Print_Stmt\n"
@@ -1906,7 +1906,7 @@ def test_fw_comments(fortran_writer):
         "  ! My routine preceding comment\n"
         "  subroutine my_routine()\n\n"
         "    ! My statement with a preceding comment\n"
-        "    return\n"
+        "    return\n\n"
         "    ! My statement with a\n"
         "    ! multi-line comment.\n"
         "    return  ! ... and an inline comment\n"

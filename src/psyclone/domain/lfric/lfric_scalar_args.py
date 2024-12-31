@@ -45,10 +45,11 @@ an Invoke or a Kernel stub.
 # Imports
 from collections import OrderedDict, Counter
 
-from psyclone.domain.lfric import LFRicCollection, LFRicConstants
+from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
+from psyclone.domain.lfric import LFRicCollection, LFRicConstants, LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.f2pygen import DeclGen
 from psyclone.psyGen import FORTRAN_INTENT_NAMES
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
 
 # pylint: disable=too-many-lines
 # pylint: disable=too-many-locals
@@ -81,14 +82,14 @@ class LFRicScalarArgs(LFRicCollection):
             self._integer_scalars[intent] = []
             self._logical_scalars[intent] = []
 
-    def _invoke_declarations(self, parent):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''
         Create argument lists and declarations for all scalar arguments
         in an Invoke.
 
-        :param parent: the f2pygen node representing the PSy-layer routine \
-                       to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
 
         :raises InternalError: for unsupported argument intrinsic types.
         :raises GenerationError: if the same scalar argument has different \
@@ -142,16 +143,16 @@ class LFRicScalarArgs(LFRicCollection):
                     f"different kernels. This is invalid.")
 
         # Create declarations
-        self._create_declarations(parent)
+        return self._create_declarations(cursor)
 
-    def _stub_declarations(self, parent):
+    def _stub_declarations(self, cursor: int) -> int:
         '''
         Create and add declarations for all scalar arguments in
         a Kernel stub.
 
-        :param parent: node in the f2pygen AST representing the Kernel stub \
-                       to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
 
         :raises InternalError: for an unsupported argument data type.
 
@@ -179,25 +180,20 @@ class LFRicScalarArgs(LFRicCollection):
                         f"are {const.VALID_SCALAR_DATA_TYPES}.")
 
         # Create declarations
-        self._create_declarations(parent)
+        return self._create_declarations(cursor)
 
-    def _create_declarations(self, parent):
+    def _create_declarations(self, cursor):
         '''Add declarations for the scalar arguments.
 
-        :param parent: the f2pygen node in which to insert declarations \
-                       (Invoke or Kernel).
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
-        :raises InternalError: if neither self._invoke nor \
+        :raises InternalError: if neither self._invoke nor
             self._kernel are set.
 
         '''
-        const = LFRicConstants()
-        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        const_mod_uses = None
-        if self._invoke:
-            const_mod_uses = self._invoke.invokes.psy.infrastructure_modules[
-                const_mod]
         # Real scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
@@ -215,65 +211,39 @@ class LFRicScalarArgs(LFRicCollection):
                 # Declare scalars
                 for real_scalar_kind, real_scalars_list in \
                         real_scalars_precision_map.items():
-                    real_scalar_type = real_scalars_list[0].intrinsic_type
-                    real_scalar_names = [arg.declaration_name for arg
-                                         in real_scalars_list]
-                    parent.add(
-                        DeclGen(parent, datatype=real_scalar_type,
-                                kind=real_scalar_kind,
-                                entity_decls=real_scalar_names,
-                                intent=intent))
-                    if self._invoke:
-                        const_mod_uses.add(real_scalar_kind)
-                    elif self._kernel:
-                        self._kernel.argument_kinds.add(real_scalar_kind)
-                    else:
-                        raise InternalError(
-                            "Expected the declaration of real scalar kernel "
-                            "arguments to be for either an invoke or a "
-                            "kernel stub, but it is neither.")
+                    for arg in real_scalars_list:
+                        symbol = self.symtab.find_or_create(
+                            arg.declaration_name,
+                            symbol_type=DataSymbol,
+                            datatype=LFRicTypes("LFRicRealScalarDataType")())
+                        symbol.interface = ArgumentInterface(
+                                            INTENT_MAPPING[intent])
+                        self.symtab.append_argument(symbol)
 
         # Integer scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._integer_scalars[intent]:
-                dtype = self._integer_scalars[intent][0].intrinsic_type
-                dkind = self._integer_scalars[intent][0].precision
-                integer_scalar_names = [arg.declaration_name for arg
-                                        in self._integer_scalars[intent]]
-                parent.add(
-                    DeclGen(parent, datatype=dtype, kind=dkind,
-                            entity_decls=integer_scalar_names,
-                            intent=intent))
-                if self._invoke:
-                    const_mod_uses.add(dkind)
-                elif self._kernel:
-                    self._kernel.argument_kinds.add(dkind)
-                else:
-                    raise InternalError(
-                        "Expected the declaration of integer scalar kernel "
-                        "arguments to be for either an invoke or a "
-                        "kernel stub, but it is neither.")
+                for arg in self._integer_scalars[intent]:
+                    symbol = self.symtab.find_or_create(
+                        arg.declaration_name,
+                        symbol_type=DataSymbol,
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                    symbol.interface = ArgumentInterface(
+                                        INTENT_MAPPING[intent])
+                    self.symtab.append_argument(symbol)
 
         # Logical scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._logical_scalars[intent]:
-                dtype = self._logical_scalars[intent][0].intrinsic_type
-                dkind = self._logical_scalars[intent][0].precision
-                logical_scalar_names = [arg.declaration_name for arg
-                                        in self._logical_scalars[intent]]
-                parent.add(
-                    DeclGen(parent, datatype=dtype, kind=dkind,
-                            entity_decls=logical_scalar_names,
-                            intent=intent))
-                if self._invoke:
-                    const_mod_uses.add(dkind)
-                elif self._kernel:
-                    self._kernel.argument_kinds.add(dkind)
-                else:
-                    raise InternalError(
-                        "Expected the declaration of logical scalar kernel "
-                        "arguments to be for either an invoke or a "
-                        "kernel stub, but it is neither.")
+                for arg in self._logical_scalars[intent]:
+                    symbol = self.symtab.find_or_create(
+                        arg.declaration_name,
+                        symbol_type=DataSymbol,
+                        datatype=LFRicTypes("LFRicLogicalScalarDataType")())
+                    symbol.interface = ArgumentInterface(
+                                        INTENT_MAPPING[intent])
+                    self.symtab.append_argument(symbol)
+        return cursor
 
 
 # ---------- Documentation utils -------------------------------------------- #

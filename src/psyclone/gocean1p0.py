@@ -59,7 +59,7 @@ from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
 from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
 from psyclone.f2pygen import (
-    DeclGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen)
+    UseGen, ModuleGen, PSyIRGen)
 from psyclone.parse.algorithm import Arg
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
@@ -225,84 +225,6 @@ class GOInvoke(Invoke):
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
 
-    @property
-    def unique_args_arrays(self):
-        ''' find unique arguments that are arrays (defined as those that are
-            field objects as opposed to scalars or properties of the grid). '''
-        result = []
-        for call in self._schedule.kernels():
-            for arg in call.arguments.args:
-                if arg.argument_type == 'field' and arg.name not in result:
-                    result.append(arg.name)
-        return result
-
-    @property
-    def unique_args_iscalars(self):
-        '''
-        :returns: the unique arguments that are scalars of type integer \
-                  (defined as those that are i_scalar 'space').
-        :rtype: list of str.
-
-        '''
-        result = []
-        for call in self._schedule.kernels():
-            for arg in args_filter(call.arguments.args, arg_types=["scalar"],
-                                   include_literals=False):
-                if arg.space.lower() == "go_i_scalar" and \
-                   arg.name not in result:
-                    result.append(arg.name)
-        return result
-
-    def gen_code(self, parent):
-        # pylint: disable=too-many-locals
-        '''
-        Generates GOcean specific invocation code (the subroutine called
-        by the associated invoke call in the algorithm layer). This
-        consists of the PSy invocation subroutine and the declaration of
-        its arguments.
-
-        :param parent: the node in the generated AST to which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
-
-        '''
-        # TODO 1010: GOcean doesn't use this method anymore and it can be
-        # deleted, but some tests still call it directly.
-
-        # Create the subroutine
-        invoke_sub = SubroutineGen(parent, name=self.name,
-                                   args=self.psy_unique_var_names)
-        parent.add(invoke_sub)
-
-        # Generate the code body of this subroutine
-        self.schedule.gen_code(invoke_sub)
-
-        # Add the subroutine argument declarations for fields
-        if self.unique_args_arrays:
-            my_decl_arrays = TypeDeclGen(invoke_sub, datatype="r2d_field",
-                                         intent="inout",
-                                         entity_decls=self.unique_args_arrays)
-            invoke_sub.add(my_decl_arrays)
-
-        # Add the subroutine argument declarations for integer and real scalars
-        i_args = []
-        for argument in self.schedule.symbol_table.argument_datasymbols:
-            if argument.name in self.unique_args_iscalars:
-                i_args.append(argument.name)
-
-        if i_args:
-            my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
-                                       intent="inout",
-                                       entity_decls=i_args)
-            invoke_sub.add(my_decl_iscalars)
-
-        # Add remaining local scalar symbols using the symbol table
-        for symbol in self.schedule.symbol_table.automatic_datasymbols:
-            if isinstance(symbol.datatype, ScalarType):
-                invoke_sub.add(DeclGen(
-                    invoke_sub,
-                    datatype=symbol.datatype.intrinsic.name,
-                    entity_decls=[symbol.name]))
-
 
 class GOInvokeSchedule(InvokeSchedule):
     ''' The GOcean specific InvokeSchedule sub-class. We call the base class
@@ -315,9 +237,6 @@ class GOInvokeSchedule(InvokeSchedule):
                       layer.
     :type alg_calls: Optional[list of
                               :py:class:`psyclone.parse.algorithm.KernelCall`]
-    :param reserved_names: optional list of names that are not allowed in the \
-                           new InvokeSchedule SymbolTable.
-    :type reserved_names: list of str
     :param parent: the parent of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -325,14 +244,12 @@ class GOInvokeSchedule(InvokeSchedule):
     # Textual description of the node.
     _text_name = "GOInvokeSchedule"
 
-    def __init__(self, symbol, alg_calls=None, reserved_names=None,
-                 parent=None, **kwargs):
+    def __init__(self, symbol, alg_calls=None, parent=None, **kwargs):
         if not alg_calls:
             alg_calls = []
         InvokeSchedule.__init__(self, symbol, GOKernCallFactory,
-                                GOBuiltInCallFactory,
-                                alg_calls, reserved_names, parent=parent,
-                                **kwargs)
+                                GOBuiltInCallFactory, alg_calls,
+                                parent=parent, **kwargs)
 
 
 # pylint: disable=too-many-instance-attributes

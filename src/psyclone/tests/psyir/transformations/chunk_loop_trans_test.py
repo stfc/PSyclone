@@ -37,7 +37,6 @@
 
 '''This module contains the unit tests for the ChunkLoopTrans module'''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 

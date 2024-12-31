@@ -38,7 +38,6 @@
 ''' This module contains the implementation of the ArrayOfStructuresMember
     node.'''
 
-from __future__ import absolute_import
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin

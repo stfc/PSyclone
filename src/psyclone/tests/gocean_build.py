@@ -37,8 +37,6 @@
 ''' Module containing configuration required to build code generated
 for the GOcean1.0 API '''
 
-from __future__ import absolute_import, print_function
-
 import os
 import subprocess
 import sys

@@ -40,11 +40,9 @@
     base class for managing the declaration and initialisation of a group of
     related entities within an Invoke or Kernel stub.'''
 
-# Imports
 import abc
 from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
 from psyclone.domain.lfric.lfric_kern import LFRicKern
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.errors import InternalError
 
 
@@ -67,18 +65,12 @@ class LFRicCollection():
             # We are handling declarations/initialisations for an Invoke
             self._invoke = node
             self._kernel = None
-            self._symbol_table = self._invoke.schedule.symbol_table
             # The list of Kernel calls we are responsible for
-            self._calls = node.schedule.kernels()
         elif isinstance(node, LFRicKern):
             # We are handling declarations for a Kernel stub
             self._invoke = None
             self._kernel = node
-            # TODO #719 The symbol table is not connected to other parts of
-            # the Stub generation.
-            self._symbol_table = LFRicSymbolTable()
             # We only have a single Kernel call in this case
-            self._calls = [node]
         else:
             raise InternalError(f"LFRicCollection takes only an LFRicInvoke "
                                 f"or an LFRicKern but got: {type(node)}")
@@ -90,62 +82,88 @@ class LFRicCollection():
         else:
             self._dofs_only = False
 
-    def declarations(self, parent):
+    @property
+    def symtab(self):
         '''
-        Insert declarations for all necessary variables into the AST of
-        the generated code. Simply calls either '_invoke_declarations()' or
-        '_stub_declarations()' depending on whether we're handling an Invoke
-        or a Kernel stub.
+        :returns: associated symbol table.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
+        if self._invoke:
+            return self._invoke.schedule.symbol_table
+        # Otherwise it is a kernel
+        return self._kernel._stub_symbol_table
 
-        :param parent: the node in the f2pygen AST representing the routine \
-                       in which to insert the declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+    @property
+    def _calls(self):
+        '''
+        :returns: associated kernels.
+        :rtype: List[:py:class:`psyclone.psyGen.kern`]
+        '''
+        if self._invoke:
+            return self._invoke.schedule.kernels()
+        # Otherwise it is a kernel
+        return [self._kernel]
 
-        :raises InternalError: if neither 'self._invoke' nor 'self._kernel' \
+    def declarations(self, cursor):
+        '''
+        Insert declarations for all necessary variables into the PSyIR. Simply
+        calls either '_invoke_declarations()' or'_stub_declarations()'
+        depending on whether we're handling an Invoke or a Kernel stub.
+
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
+
+        :raises InternalError: if neither 'self._invoke' nor 'self._kernel'
                                are set.
 
         '''
         if self._invoke:
-            self._invoke_declarations(parent)
-        elif self._kernel:
-            self._stub_declarations(parent)
-        else:
-            raise InternalError("LFRicCollection has neither a Kernel "
-                                "nor an Invoke - should be impossible.")
+            return self._invoke_declarations(cursor)
+        if self._kernel:
+            return self._stub_declarations(cursor)
+        raise InternalError("LFRicCollection has neither a Kernel "
+                            "nor an Invoke - should be impossible.")
 
-    def initialise(self, parent):
+    @abc.abstractmethod
+    def initialise(self, cursor: int) -> int:
         '''
         Add code to initialise the entities being managed by this class.
         We do nothing by default - it is up to the sub-class to override
         this method if initialisation is required.
 
-        :param parent: the node in the f2pygen AST to which to add \
-                       initialisation code.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
 
         '''
 
-    @abc.abstractmethod
-    def _invoke_declarations(self, parent):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''
-        Add all necessary declarations for an Invoke.
+        Add necessary Invoke declarations for this Collection.
+        We do nothing by default - it is up to the sub-class to override
+        this method if declarations are required.
 
-        :param parent: node in the f2pygen AST representing the Invoke to \
-                       which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-
-    def _stub_declarations(self, parent):
-        '''
-        Add all necessary declarations for a Kernel stub. Not abstract because
-        not all entities need representing within a Kernel.
-
-        :param parent: node in the f2pygen AST representing the Kernel stub \
-                       to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
 
         '''
+        return cursor
+
+    def _stub_declarations(self, cursor: int) -> int:
+        '''
+        Add necessary Kernel Stub declarations for this collection.
+        We do nothing by default - it is up to the sub-class to override
+        this method if declarations are required.
+
+        :param cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+
+        '''
+        return cursor
 
 
 # ---------- Documentation utils -------------------------------------------- #

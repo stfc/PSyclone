@@ -36,7 +36,6 @@
 
 '''This module tests AccessType.'''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType

@@ -98,7 +98,7 @@ Take a look at the generated psy-layer Fortran code:
 As you will see, there is quite a bit of lookup code generated which
 extracts the appropriate values from the infrastructure and the data
 objects passed from the algorithm layer, however, the code performing
-the looping (after the `Call our kernels` comment) is relatively short
+the looping (after the `Call kernels` comment) is relatively short
 and concise.
 
 You should see that the upper bound for the builtin kernel loop is the
@@ -186,20 +186,16 @@ loops.
 
 ```fortran
       ! Call kernels and communication routines
-      !
-      DO df=1,grad_p_proxy%vspace%get_last_dof_owned()
+      do df=1,grad_p_proxy%vspace%get_last_dof_owned()
         grad_p_proxy%data(df) = 0.0_r_def
-      END DO
-      !
+      enddo
+
       ! Set halos dirty/clean for fields modified in the above loop
-      !
-      CALL grad_p_proxy%set_dirty()
-      !
-      CALL grad_p_proxy%halo_exchange(depth=1)
-      !
-      IF (p_proxy%is_dirty(depth=1)) THEN
-        CALL p_proxy%halo_exchange(depth=1)
-      END IF
+      call grad_p_proxy%set_dirty()
+      call grad_p_proxy%halo_exchange(depth=1)
+      if (p_proxy%is_dirty(depth=1)) then
+        call p_proxy%halo_exchange(depth=1)
+      end if
       ...
 ```
 

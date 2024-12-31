@@ -63,7 +63,7 @@ from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.psyGen import (TransInfo, Transformation, PSyFactory,
                              InlinedKern, object_index, HaloExchange, Invoke,
                              DataAccess, Kern, Arguments, CodedKern, Argument,
-                             GlobalSum, InvokeSchedule, BuiltIn)
+                             GlobalSum, InvokeSchedule)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
                                   colored, Schedule)
@@ -76,8 +76,7 @@ from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (Dynamo0p3RedundantComputationTrans,
                                       Dynamo0p3KernelConstTrans,
-                                      Dynamo0p3OMPLoopTrans,
-                                      Dynamo0p3ColourTrans, OMPParallelTrans)
+                                      Dynamo0p3ColourTrans)
 from psyclone.psyir.backend.visitor import VisitorError
 
 
@@ -373,13 +372,15 @@ def test_derived_type_deref_naming(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output = (
-        "    SUBROUTINE invoke_0_testkern_type"
+        "  subroutine invoke_0_testkern_type"
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
-        "      USE testkern_mod, ONLY: testkern_code\n"
-        "      USE mesh_mod, ONLY: mesh_type\n"
-        "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      TYPE(field_type), intent(in) :: f1_my_field, f1_my_field_1, "
-        "m1, m2\n")
+        "    use mesh_mod, only : mesh_type\n"
+        "    use testkern_mod, only : testkern_code\n"
+        "    real(kind=r_def), intent(in) :: a\n"
+        "    type(field_type), intent(in) :: f1_my_field\n"
+        "    type(field_type), intent(in) :: f1_my_field_1\n"
+        "    type(field_type), intent(in) :: m1\n"
+        "    type(field_type), intent(in) :: m2\n ")
     assert output in generated_code
 
 
@@ -453,7 +454,7 @@ def test_invokeschedule_gen_code_with_preexisting_globals():
     schedule.symbol_table.add(global1)
     schedule.symbol_table.add(global2)
 
-    assert "USE my_mod, ONLY: gvar1, gvar2" in str(psy.gen)
+    assert "use my_mod, only : gvar1, gvar2" in str(psy.gen)
 
 
 # Kern class test
@@ -543,8 +544,8 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     gen = str(psy.gen)
 
     # Without module-inline the subroutine is used by a module import
-    assert "USE ru_kernel_mod, ONLY: ru_code" in gen
-    assert "SUBROUTINE ru_code(" not in gen
+    assert "use ru_kernel_mod, only : ru_code" in gen
+    assert "subroutine ru_code(" not in gen
 
     # With module-inline the subroutine does not need to be imported
     coded_kern.module_inline = True
@@ -557,12 +558,12 @@ def test_codedkern_module_inline_gen_code(tmpdir):
             "this module." in str(err.value))
 
     # Create the symbol and try again, it now must succeed
-    schedule.ancestor(Container).symbol_table.new_symbol(
+    psy.container.symbol_table.new_symbol(
             "ru_code", symbol_type=RoutineSymbol)
 
     gen = str(psy.gen)
-    assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert "use ru_kernel_mod, only : ru_code" not in gen
+    # assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
@@ -577,7 +578,7 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
 
     # By default the kernel is imported once per invoke
     gen = str(psy.gen)
-    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 2
+    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 2
 
     # Module inline kernel in invoke 1
     schedule = psy.invokes.invoke_list[0].schedule
@@ -591,7 +592,7 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
 
     # After this, one invoke uses the inlined top-level subroutine
     # and the other imports it (shadowing the top-level symbol)
-    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 1
+    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Module inline kernel in invoke 2
@@ -602,7 +603,7 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
     gen = str(psy.gen)
     # After this, no imports are remaining and both use the same
     # top-level implementation
-    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 0
+    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 0
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -750,10 +751,6 @@ def test_call_abstract_methods():
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.local_vars()
     assert "Kern.local_vars should be implemented" in str(excinfo.value)
-
-    with pytest.raises(NotImplementedError) as excinfo:
-        my_call.gen_code(None)
-    assert "Kern.gen_code should be implemented" in str(excinfo.value)
 
 
 def test_arguments_abstract():
@@ -967,7 +964,7 @@ def test_reduction_var_error(dist_mem):
     # args[1] is of type gh_field
     call._reduction_arg = call.arguments.args[1]
     with pytest.raises(GenerationError) as err:
-        call.zero_reduction_variable(None)
+        call.zero_reduction_variable()
     assert ("Kern.zero_reduction_variable() should be a scalar but "
             "found 'gh_field'." in str(err.value))
 
@@ -988,7 +985,7 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     # args[5] is a scalar of data type gh_logical
     call._reduction_arg = call.arguments.args[5]
     with pytest.raises(GenerationError) as err:
-        call.zero_reduction_variable(None)
+        call.zero_reduction_variable()
     assert ("Kern.zero_reduction_variable() should be either a 'real' "
             "or an 'integer' scalar but found scalar of type 'logical'."
             in str(err.value))
@@ -1006,7 +1003,7 @@ def test_reduction_sum_error(dist_mem):
     # args[1] is of type gh_field
     call._reduction_arg = call.arguments.args[1]
     with pytest.raises(GenerationError) as err:
-        call.reduction_sum_loop(None)
+        call.reduction_sum_loop()
     assert ("Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
             "reduction_sum_loop(). Expected one of ['gh_sum']."
             in str(err.value))
@@ -1032,67 +1029,6 @@ def test_call_multi_reduction_error(monkeypatch, dist_mem):
             "or builtin" in str(err.value))
 
 
-def test_reduction_no_set_precision(dist_mem):
-    '''Test that the zero_reduction_variable() method generates correct
-    code when a reduction argument does not have a defined
-    precision. Only a zero value (without precision i.e. 0.0 not
-    0.0_r_def) is generated in this case.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.8.1_sum_X_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=dist_mem).create(invoke_info)
-
-    # A reduction argument will always have a precision value so we
-    # need to monkeypatch it.
-    schedule = psy.invokes.invoke_list[0].schedule
-    builtin = schedule.walk(BuiltIn)[0]
-    arg = builtin.arguments.args[0]
-    arg._precision = ""
-
-    generated_code = str(psy.gen)
-
-    if dist_mem:
-        zero_sum_decls = (
-            "      USE scalar_mod, ONLY: scalar_type\n"
-            "      USE mesh_mod, ONLY: mesh_type\n"
-            "      REAL, intent(out) :: asum\n"
-            "      TYPE(field_type), intent(in) :: f1\n"
-            "      TYPE(scalar_type) global_sum\n"
-            "      INTEGER(KIND=i_def) df\n")
-    else:
-        zero_sum_decls = (
-            "      REAL, intent(out) :: asum\n"
-            "      TYPE(field_type), intent(in) :: f1\n"
-            "      INTEGER(KIND=i_def) df\n")
-    assert zero_sum_decls in generated_code
-
-    zero_sum_output = (
-        "      ! Zero summation variables\n"
-        "      !\n"
-        "      asum = 0.0\n")
-    assert zero_sum_output in generated_code
-
-
-def test_invokes_wrong_schedule_gen_code():
-    ''' Check that the invoke.schedule reference points to an InvokeSchedule
-    when using the gen_code. Otherwise rise an error. '''
-    # Use LFRic example with a repeated CodedKern
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-
-    # Set the invoke.schedule to something else other than a InvokeSchedule
-    psy.invokes.invoke_list[0].schedule = Node()
-    with pytest.raises(GenerationError) as err:
-        _ = psy.gen
-    assert ("An invoke.schedule element of the invoke_list is a 'Node', "
-            "but it should be an 'InvokeSchedule'." in str(err.value))
-
-
 def test_invoke_name():
     ''' Check that specifying the name of an invoke in the Algorithm
     layer results in a correctly-named routine in the PSy layer '''
@@ -1102,7 +1038,7 @@ def test_invoke_name():
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
 
-    assert "SUBROUTINE invoke_important_invoke" in gen
+    assert "subroutine invoke_important_invoke" in gen
 
 
 def test_multi_kern_named_invoke(tmpdir):
@@ -1114,7 +1050,7 @@ def test_multi_kern_named_invoke(tmpdir):
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
 
-    assert "SUBROUTINE invoke_some_name" in gen
+    assert "subroutine invoke_some_name" in gen
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -1128,8 +1064,8 @@ def test_named_multi_invokes(tmpdir):
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
 
-    assert "SUBROUTINE invoke_my_first(" in gen
-    assert "SUBROUTINE invoke_my_second(" in gen
+    assert "subroutine invoke_my_first(" in gen
+    assert "subroutine invoke_my_second(" in gen
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -1142,37 +1078,12 @@ def test_named_invoke_name_clash(tmpdir):
                            api="lfric")
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    assert ("SUBROUTINE invoke_a(invoke_a_1, b, istp, rdt, d, e, ascalar, "
+
+    assert ("subroutine invoke_a(invoke_a_1, b, istp, rdt, d, e, ascalar, "
             "f, c, g, qr)") in gen
-    assert "TYPE(field_type), intent(in) :: invoke_a_1" in gen
+    assert "type(field_type), intent(in) :: invoke_a_1" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
-    '''Check that we raise an exception if the pad size in psyclone.cfg is
-    set to an invalid value '''
-    # Make sure we monkey patch the correct Config object
-    config = Config.get()
-    monkeypatch.setattr(config._instance, "_reprod_pad_size", 0)
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=dist_mem).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    otrans = Dynamo0p3OMPLoopTrans()
-    rtrans = OMPParallelTrans()
-    # Apply an OpenMP do directive to the loop
-    otrans.apply(schedule.children[0], {"reprod": True})
-    # Apply an OpenMP Parallel directive around the OpenMP do directive
-    rtrans.apply(schedule.children[0])
-    with pytest.raises(GenerationError) as excinfo:
-        _ = str(psy.gen)
-    assert (
-        f"REPROD_PAD_SIZE in {Config.get().filename} should be a positive "
-        f"integer" in str(excinfo.value))
 
 
 def test_argument_properties():

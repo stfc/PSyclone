@@ -356,21 +356,6 @@ class Compile():
         :rtype: bool
 
         '''
-        modules = set()
-        # Get the names of all the imported modules as these are dependencies
-        # that will need to be compiled first
-        for invoke in psy_ast.invokes.invoke_list:
-            # Get any module that is imported in the PSyIR tree
-            for scope in invoke.schedule.root.walk(ScopingNode):
-                for symbol in scope.symbol_table.containersymbols:
-                    modules.add(symbol.name)
-
-            # Not everything is captured by PSyIR yet (some API PSy-layers are
-            # fully or partially f2pygen), in these cases we still need to
-            # import the kernel modules used in these PSy-layers.
-            # By definition, built-ins do not have associated Fortran modules.
-            for call in invoke.schedule.coded_kernels():
-                modules.add(call.module_name)
 
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
@@ -384,6 +369,24 @@ class Compile():
                 psy_file.write(fll.process(str(psy_ast.gen)))
 
             success = True
+            modules = set()
+            # import pdb; pdb.set_trace()
+            # Get the names of all the imported modules as these are
+            # dependencies that will need to be compiled first
+            for invoke in psy_ast.invokes.invoke_list:
+                # Get any module that is imported in the PSyIR tree
+                for scope in invoke.schedule.root.walk(ScopingNode):
+                    for symbol in scope.symbol_table.containersymbols:
+                        # external = symbol.find_container_psyir()
+                        modules.add(symbol.name)
+
+                # Not everything is captured by PSyIR yet (some API PSy-layers
+                # are fully or partially f2pygen), in these cases we still
+                # need to import the kernel modules used in these PSy-layers.
+                # By definition, built-ins do not have associated Fortran
+                # modules.
+                for call in invoke.schedule.coded_kernels():
+                    modules.add(call.module_name)
 
             build_list = []
             # We must ensure that we build any dependencies first and in
@@ -393,7 +396,7 @@ class Compile():
             # Then add the modules we found on the tree
             for module in modules:
                 if module not in build_list:
-                    build_list.append(module)
+                    build_list.insert(0, module)
 
             # Build the dependencies and then the kernels. We allow kernels
             # to also be located in the temporary directory that we have
