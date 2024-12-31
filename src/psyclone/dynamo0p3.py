@@ -528,15 +528,14 @@ class LFRicMeshProperties(LFRicCollection):
 
         return arg_list
 
-    def _invoke_declarations(self, cursor):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''
         Creates the necessary declarations for variables needed in order to
         provide mesh properties to a kernel call.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         :raises InternalError: if this class has been instantiated for a \
                                kernel instead of an invoke.
@@ -573,15 +572,14 @@ class LFRicMeshProperties(LFRicCollection):
                     f"Enum are permitted ({list(MeshProperty)}).")
         return cursor
 
-    def _stub_declarations(self, cursor):
+    def _stub_declarations(self, cursor: int) -> int:
         '''
         Creates the necessary declarations for the variables needed in order
         to provide properties of the mesh in a kernel stub.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         :raises InternalError: if the class has been instantiated for an \
                                invoke and not a kernel.
@@ -616,15 +614,14 @@ class LFRicMeshProperties(LFRicCollection):
                     f"MeshProperty Enum are permitted ({list(MeshProperty)})")
         return cursor
 
-    def initialise(self, cursor):
+    def initialise(self, cursor: int) -> int:
         '''
         Creates the PSyIR nodes for the initialisation of properties of
         the mesh.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         :raises InternalError: if an unsupported mesh property is encountered.
 
@@ -929,15 +926,14 @@ class DynReferenceElement(LFRicCollection):
         nfaces = list(OrderedDict.fromkeys(argdict.values()))
         return nfaces + list(argdict.keys())
 
-    def _invoke_declarations(self, cursor):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''
         Create the necessary declarations for the variables needed in order
         to provide properties of the reference element in a Kernel call.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         if not self._properties and not self._nfaces_h_required:
@@ -963,15 +959,14 @@ class DynReferenceElement(LFRicCollection):
 
         return cursor
 
-    def _stub_declarations(self, cursor):
+    def _stub_declarations(self, cursor: int) -> int:
         '''
         Create the necessary declarations for the variables needed in order
         to provide properties of the reference element in a Kernel stub.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         if not (self._properties or self._nfaces_h_required):
@@ -1155,14 +1150,13 @@ class DynFunctionSpaces(LFRicCollection):
                     function_space.field_on_space(self._kernel.arguments):
                 self._var_list.append(function_space.undf_name)
 
-    def _stub_declarations(self, cursor):
+    def _stub_declarations(self, cursor: int) -> int:
         '''
         Add function-space-related declarations to a Kernel stub.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         for var in self._var_list:
@@ -1173,14 +1167,13 @@ class DynFunctionSpaces(LFRicCollection):
             self.symtab.append_argument(arg)
         return cursor
 
-    def _invoke_declarations(self, cursor):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''
         Add function-space-related declarations to a PSy-layer routine.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         for var in self._var_list:
@@ -1190,14 +1183,13 @@ class DynFunctionSpaces(LFRicCollection):
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
         return cursor
 
-    def initialise(self, cursor):
+    def initialise(self, cursor: int) -> int:
         '''
         Create the code that initialises function-space quantities.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         symtab = self._invoke.schedule.symbol_table
@@ -1362,14 +1354,13 @@ class DynProxies(LFRicCollection):
             # existing tag may occur which we can safely ignore.
             pass
 
-    def _invoke_declarations(self, cursor):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''
         Insert declarations of all proxy-related quantities into the PSy layer.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         const = LFRicConstants()
@@ -1464,14 +1455,13 @@ class DynProxies(LFRicCollection):
                                  datatype=op_datatype_symbol)
         return cursor
 
-    def initialise(self, cursor):
+    def initialise(self, cursor: int) -> int:
         '''
         Insert code into the PSy layer to initialise all necessary proxies.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         :raises InternalError: if a kernel argument of an unrecognised type
             is encountered.
@@ -1571,14 +1561,13 @@ class DynLMAOperators(LFRicCollection):
     '''
     Handles all entities associated with Local-Matrix-Assembly Operators.
     '''
-    def _stub_declarations(self, cursor):
+    def _stub_declarations(self, cursor: int) -> int:
         '''
         Declare all LMA-related quantities in a Kernel stub.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         lma_args = psyGen.args_filter(
@@ -1633,7 +1622,7 @@ class DynLMAOperators(LFRicCollection):
             self.symtab.append_argument(arg_sym)
         return cursor
 
-    def _invoke_declarations(self, cursor):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''
         Declare all LMA-related quantities in a PSy-layer routine.
         Note: PSy layer in LFRic does not modify the LMA operator objects.
@@ -1641,10 +1630,9 @@ class DynLMAOperators(LFRicCollection):
         kernels is only pointed to from the LMA operator object and is thus
         not a part of the object).
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         table = self.symtab
@@ -1751,16 +1739,15 @@ class DynCMAOperators(LFRicCollection):
                     symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
-    def initialise(self, cursor):
+    def initialise(self, cursor: int) -> int:
         '''
         Generates the calls to the LFRic infrastructure that look-up
         the various components of each CMA operator. Adds these as
         children of the supplied parent node.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         # If we have no CMA operators then we do nothing
@@ -1809,7 +1796,7 @@ class DynCMAOperators(LFRicCollection):
                 cursor += 1
         return cursor
 
-    def _invoke_declarations(self, cursor):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''
         Generate the necessary PSy-layer declarations for all column-wise
         operators and their associated parameters.
@@ -1818,10 +1805,9 @@ class DynCMAOperators(LFRicCollection):
         kernels is only pointed to from the column-wise operator object and is
         thus not a part of the object).
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         # If we have no CMA operators then we do nothing
@@ -1845,15 +1831,14 @@ class DynCMAOperators(LFRicCollection):
                 param_names.append(sym.name)
         return cursor
 
-    def _stub_declarations(self, cursor):
+    def _stub_declarations(self, cursor: int) -> int:
         '''
         Generate all necessary declarations for CMA operators being passed to
         a Kernel stub.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         # If we have no CMA operators then we do nothing
@@ -1868,8 +1853,7 @@ class DynCMAOperators(LFRicCollection):
             "cell", symbol_type=DataSymbol,
             datatype=LFRicTypes("LFRicIntegerScalarDataType")())
         symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
-        if symbol not in symtab._argument_list:
-            symtab.append_argument(symbol)
+        symtab.append_argument(symbol)
         symbol = symtab.find_or_create(
             "ncell_2d", symbol_type=DataSymbol,
             datatype=LFRicTypes("LFRicIntegerScalarDataType")())
@@ -2172,14 +2156,13 @@ class DynMeshes():
                             [ArrayType.Extent.DEFERRED]*1),
                     tag="last_edge_cell_all_colours")
 
-    def declarations(self, cursor):
+    def declarations(self, cursor: int) -> int:
         '''
         Declare variables specific to mesh objects.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         # pylint: disable=too-many-locals, too-many-statements
@@ -2211,14 +2194,13 @@ class DynMeshes():
                     "last_edge_cell_all_colours")
         return cursor
 
-    def initialise(self, cursor):
+    def initialise(self, cursor: int) -> int:
         '''
         Initialise parameters specific to inter-grid kernels.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         # pylint: disable=too-many-branches
@@ -2799,15 +2781,14 @@ class DynBasisFunctions(LFRicCollection):
                     diff_entry["type"] = "diff-basis"
                     self._basis_fns.append(diff_entry)
 
-    def _stub_declarations(self, cursor):
+    def _stub_declarations(self, cursor: int) -> int:
         '''
         Insert the variable declarations required by the basis functions into
         the Kernel stub.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         :raises InternalError: if an unsupported quadrature shape is found.
 
@@ -2913,14 +2894,13 @@ class DynBasisFunctions(LFRicCollection):
                                         ArgumentInterface.Access.READ)
                 self.symtab.append_argument(sym)
 
-    def _invoke_declarations(self, cursor):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''
         Add basis-function declarations to the PSy layer.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         const = LFRicConstants()
@@ -2954,32 +2934,20 @@ class DynBasisFunctions(LFRicCollection):
                     datatype=UnresolvedType(),
                     interface=ImportInterface(module))
 
-        # Create a single declaration for each quadrature type
-        for shape in const.VALID_QUADRATURE_SHAPES:
-            if shape in self._qr_vars and self._qr_vars[shape]:
-                # The PSy-layer routine is passed objects of
-                # quadrature_* type
-                dt_symbol = self.symtab.lookup(
-                    const.QUADRATURE_TYPE_MAP[shape]["type"])
-                dtp_symbol = self.symtab.lookup(
-                    const.QUADRATURE_TYPE_MAP[shape]["proxy_type"])
-                for name in self._qr_vars[shape]:
-                    new_arg = self.symtab.find_or_create(
-                        name, symbol_type=DataSymbol, datatype=dt_symbol,
-                    )
-                    new_arg.interface = ArgumentInterface(
-                        ArgumentInterface.Access.READ)
-                    self.symtab.append_argument(new_arg)
+        for shape in self._qr_vars.keys():
+            # The PSy-layer routine is passed objects of
+            # quadrature_* type
+            dt_symbol = self.symtab.lookup(
+                const.QUADRATURE_TYPE_MAP[shape]["type"])
+            for name in self._qr_vars[shape]:
+                new_arg = self.symtab.find_or_create(
+                    name, symbol_type=DataSymbol, datatype=dt_symbol,
+                )
+                new_arg.interface = ArgumentInterface(
+                    ArgumentInterface.Access.READ)
+                self.symtab.append_argument(new_arg)
 
-                # For each of these we'll need a corresponding proxy, use
-                # the symbol_table to avoid clashes...
-                for var in self._qr_vars[shape]:
-                    self.symtab.find_or_create(
-                        var, symbol_type=DataSymbol, datatype=dt_symbol)
-                    self.symtab.find_or_create(
-                        var+"_proxy", symbol_type=DataSymbol,
-                        datatype=dtp_symbol)
-            return cursor
+        return cursor
 
     def initialise(self, cursor):
         '''
@@ -3281,7 +3249,11 @@ class DynBasisFunctions(LFRicCollection):
                         f"{name}_{qr_arg_name}(:) => null()"))
 
             # Get the quadrature proxy
-            proxy_symbol = symtab.lookup(qr_arg_name + "_proxy")
+            dtp_symbol = self.symtab.lookup(
+                const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["proxy_type"])
+            proxy_symbol = self.symtab.find_or_create(
+                    qr_arg_name+"_proxy", symbol_type=DataSymbol,
+                    datatype=dtp_symbol)
             symbol = symtab.lookup(qr_arg_name)
 
             assignment = Assignment.create(

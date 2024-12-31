@@ -301,16 +301,15 @@ class LFRicStencils(LFRicCollection):
                                 "impossible.")
         return names
 
-    def _declare_unique_extent_vars(self, cursor):
+    def _declare_unique_extent_vars(self, cursor: int) -> int:
         '''
         Declare all unique extent arguments as integers with intent 'in' and
         add the declaration as a child of the parent argument passed
         in.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
 
@@ -361,16 +360,15 @@ class LFRicStencils(LFRicCollection):
                 names.append(self.direction_name(self.symtab, arg).name)
         return names
 
-    def _declare_unique_direction_vars(self, cursor):
+    def _declare_unique_direction_vars(self, cursor: int) -> int:
         '''
         Declare all unique direction arguments as integers with intent 'in'
         and add the declaration as a child of the parent argument
         passed in.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         for var in self._unique_direction_vars:
@@ -395,15 +393,14 @@ class LFRicStencils(LFRicCollection):
         '''
         return self._unique_extent_vars + self._unique_direction_vars
 
-    def _invoke_declarations(self, cursor):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''
         Declares all stencil maps, extent and direction arguments passed into
         the PSy layer.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         cursor = self._declare_unique_extent_vars(cursor)
@@ -411,14 +408,13 @@ class LFRicStencils(LFRicCollection):
         cursor = self._declare_maps_invoke(cursor)
         return cursor
 
-    def _stub_declarations(self, cursor):
+    def _stub_declarations(self, cursor: int) -> int:
         '''
         Declares all stencil-related quanitites for a Kernel stub.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         cursor = self._declare_unique_extent_vars(cursor)
@@ -426,14 +422,13 @@ class LFRicStencils(LFRicCollection):
         cursor = self._declare_maps_stub(cursor)
         return cursor
 
-    def initialise(self, cursor):
+    def initialise(self, cursor: int) -> int:
         '''
         Adds in the code to initialise stencil dofmaps to the PSy layer.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         :raises GenerationError: if an unsupported stencil type is encountered.
 
@@ -553,14 +548,13 @@ class LFRicStencils(LFRicCollection):
                 "Initialise stencil dofmaps")
         return cursor
 
-    def _declare_maps_invoke(self, cursor):
+    def _declare_maps_invoke(self, cursor: int) -> int:
         '''
         Declare all stencil maps in the PSy layer.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         :raises GenerationError: if an unsupported stencil type is encountered.
 
@@ -666,17 +660,15 @@ class LFRicStencils(LFRicCollection):
 
         return cursor
 
-    def _declare_maps_stub(self, cursor):
+    def _declare_maps_stub(self, cursor: int) -> int:
         '''
         Add declarations for all stencil maps to a kernel stub.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
-
         symtab = self.symtab
         for arg in self._kern_args:
             symbol = self.dofmap_symbol(symtab, arg)
@@ -703,10 +695,9 @@ class LFRicStencils(LFRicCollection):
                         LFRicTypes("LFRicIntegerScalarDataType")(),
                         [Reference(symtab.lookup(arg.function_space.ndf_name)),
                          Reference(size_symbol)])
-            if symbol not in symtab.argument_list:
-                symbol.interface = ArgumentInterface(
-                            ArgumentInterface.Access.READ)
-                symtab.append_argument(symbol)
+            symbol.interface = ArgumentInterface(
+                        ArgumentInterface.Access.READ)
+            symtab.append_argument(symbol)
         return cursor
 
 

@@ -116,7 +116,6 @@ def test_field_xyoz(tmpdir):
     integer(kind=i_def), pointer :: map_w1(:,:) => null()
     integer(kind=i_def), pointer :: map_w2(:,:) => null()
     integer(kind=i_def), pointer :: map_w3(:,:) => null()
-    type(quadrature_xyoz_proxy_type) :: qr_proxy
     type(field_proxy_type) :: f1_proxy
     type(field_proxy_type) :: f2_proxy
     type(field_proxy_type) :: m1_proxy
@@ -125,6 +124,7 @@ def test_field_xyoz(tmpdir):
     integer(kind=i_def) :: np_z_qr
     real(kind=r_def), pointer :: weights_xy_qr(:) => null()
     real(kind=r_def), pointer :: weights_z_qr(:) => null()
+    type(quadrature_xyoz_proxy_type) :: qr_proxy
     integer(kind=i_def) :: dim_w1
     integer(kind=i_def) :: diff_dim_w2
     integer(kind=i_def) :: dim_w3

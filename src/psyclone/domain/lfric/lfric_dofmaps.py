@@ -156,14 +156,13 @@ class LFRicDofmaps(LFRicCollection):
                             "argument": cma_args[0],
                             "direction": "from"}
 
-    def initialise(self, cursor):
+    def initialise(self, cursor: int) -> int:
         '''
         Add code to initialise the entities being managed by this class.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         first = True
@@ -214,15 +213,14 @@ class LFRicDofmaps(LFRicCollection):
             cursor += 1
         return cursor
 
-    def _invoke_declarations(self, cursor):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''
         Declare all unique function space dofmaps in the PSy layer as pointers
         to integer arrays of rank 2.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         # Function space dofmaps
@@ -254,14 +252,13 @@ class LFRicDofmaps(LFRicCollection):
 
         return cursor
 
-    def _stub_declarations(self, cursor):
+    def _stub_declarations(self, cursor: int) -> int:
         '''
         Add dofmap-related declarations to a Kernel stub.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         # Function space dofmaps

@@ -40,6 +40,7 @@
     base class for managing the declaration and initialisation of a group of
     related entities within an Invoke or Kernel stub.'''
 
+import abc
 from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.errors import InternalError
@@ -125,44 +126,41 @@ class LFRicCollection():
         raise InternalError("LFRicCollection has neither a Kernel "
                             "nor an Invoke - should be impossible.")
 
-    def initialise(self, cursor):
+    @abc.abstractmethod
+    def initialise(self, cursor: int) -> int:
         '''
         Add code to initialise the entities being managed by this class.
         We do nothing by default - it is up to the sub-class to override
         this method if initialisation is required.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
-        return cursor
 
-    def _invoke_declarations(self, cursor):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''
         Add necessary Invoke declarations for this Collection.
         We do nothing by default - it is up to the sub-class to override
         this method if declarations are required.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         return cursor
 
-    def _stub_declarations(self, cursor):
+    def _stub_declarations(self, cursor: int) -> int:
         '''
         Add necessary Kernel Stub declarations for this collection.
         We do nothing by default - it is up to the sub-class to override
         this method if declarations are required.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         return cursor

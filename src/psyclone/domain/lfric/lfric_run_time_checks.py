@@ -60,14 +60,13 @@ class LFRicRunTimeChecks(LFRicCollection):
 
     '''
 
-    def _invoke_declarations(self, cursor):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''Insert declarations of all data and functions required by the
         run-time checks code into the PSy layer.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         if Config.get().api_conf("lfric").run_time_checks:
@@ -89,7 +88,7 @@ class LFRicRunTimeChecks(LFRicCollection):
             )
         return cursor
 
-    def _check_field_fs(self, cursor):
+    def _check_field_fs(self, cursor: int) -> int:
         '''
         Internal method that adds run-time checks to make sure that the
         field's function space is consistent with the appropriate
@@ -190,7 +189,7 @@ class LFRicRunTimeChecks(LFRicCollection):
                     first = False
         return cursor
 
-    def _check_field_ro(self, cursor):
+    def _check_field_ro(self, cursor: int) -> int:
         '''
         Internal method that adds runtime checks to make sure that if the
         field is on a read-only function space then the associated
@@ -207,10 +206,9 @@ class LFRicRunTimeChecks(LFRicCollection):
         not be picked up where the error occured. Therefore adding
         checks here is still useful.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         symtab = self._invoke.schedule.symbol_table
@@ -249,17 +247,16 @@ class LFRicRunTimeChecks(LFRicCollection):
                 first = False
         return cursor
 
-    def initialise(self, cursor):
+    def initialise(self, cursor: int) -> int:
         '''Add runtime checks to make sure that the arguments being passed
         from the algorithm layer are consistent with the metadata
         specified in the associated kernels. Currently checks are
         limited to ensuring that field function spaces are consistent
         with the associated kernel function-space metadata.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         if not Config.get().api_conf("lfric").run_time_checks:

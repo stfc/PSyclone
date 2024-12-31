@@ -49,15 +49,14 @@ class LFRicLoopBounds(LFRicCollection):
     an LFRic PSy-layer routine.
     '''
 
-    def initialise(self, cursor):
+    def initialise(self, cursor: int) -> int:
         '''
         Updates the PSyIR so that all of the variables holding the lower
         and upper bounds of all loops in an Invoke are initialised.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         loops = self._invoke.schedule.loops()
@@ -89,6 +88,7 @@ class LFRicLoopBounds(LFRicCollection):
                     "Set-up all of the loop bounds")
                 first = False
 
+            # Set the upper bound
             if loop.loop_type != "colour":
                 root_name = f"loop{idx}_stop"
                 ubound = sym_table.find_or_create_integer_symbol(root_name,

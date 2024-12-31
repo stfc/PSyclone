@@ -60,7 +60,7 @@ class LFRicFields(LFRicCollection):
     or Kernel stub.
 
     '''
-    def _invoke_declarations(self, cursor):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''
         Add field-related declarations to the PSy-layer routine.
         Note: PSy layer in LFRic does not modify the field objects. Hence,
@@ -68,10 +68,9 @@ class LFRicFields(LFRicCollection):
         is only pointed to from the field object and is thus not a part of
         the object).
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         :raises InternalError: for unsupported intrinsic types of field
                                argument data.
@@ -126,14 +125,13 @@ class LFRicFields(LFRicCollection):
 
         return cursor
 
-    def _stub_declarations(self, cursor):
+    def _stub_declarations(self, cursor: int) -> int:
         '''
         Add field-related declarations to a Kernel stub.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         :raises InternalError: for an unsupported data type of field
                                argument data.
@@ -165,8 +163,7 @@ class LFRicFields(LFRicCollection):
                 intr = ScalarType(ScalarType.Intrinsic.REAL, kind_sym)
             elif fld.intrinsic_type == "integer":
                 intr = ScalarType(ScalarType.Intrinsic.INTEGER, kind_sym)
-            else:
-                raise NotImplementedError()
+
             undf_sym = self.symtab.find_or_create(undf_name)
             datatype = ArrayType(intr, [Reference(undf_sym)])
 
@@ -174,8 +171,6 @@ class LFRicFields(LFRicCollection):
                 intent = ArgumentInterface.Access.READ
             elif fld.intent == "inout":
                 intent = ArgumentInterface.Access.READWRITE
-            else:
-                raise NotImplementedError()
 
             if fld.vector_size > 1:
                 for idx in range(1, fld.vector_size+1):

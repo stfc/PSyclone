@@ -533,13 +533,13 @@ null()
     integer(kind=i_def) :: ndf_w0
     integer(kind=i_def) :: undf_w0
     integer(kind=i_def), pointer :: map_w0(:,:) => null()
-    type(quadrature_xyoz_proxy_type) :: qr_proxy
     type(field_proxy_type), dimension(3) :: coord_proxy
     type(operator_proxy_type) :: mapping_proxy
     integer(kind=i_def) :: np_xy_qr
     integer(kind=i_def) :: np_z_qr
     real(kind=r_def), pointer :: weights_xy_qr(:) => null()
     real(kind=r_def), pointer :: weights_z_qr(:) => null()
+    type(quadrature_xyoz_proxy_type) :: qr_proxy
     integer(kind=i_def) :: diff_dim_w0
     integer(kind=i_def) :: dim_w3
     integer(kind=i_def) :: diff_dim_w2

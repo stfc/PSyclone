@@ -223,7 +223,7 @@ class ArgOrdering:
         :param intrinsic_type: the intrinsic type of the array. Defaults to
             LFRicIntegerScalarDataType.
         :type intrinsic_type: \
-            :py:class:`psyclone.psyir.symbols.datatypes.ScalarType`
+            Optional[:py:class:`psyclone.psyir.symbols.datatypes.ScalarType`]
         :param tag: optional tag for the symbol.
         :type tag: Optional[str]
         :param symbol: optional the symbol to use.
@@ -233,7 +233,7 @@ class ArgOrdering:
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
 
         '''
-        if tag is None:
+        if not tag:
             tag = array_name
         if intrinsic_type is None:
             # pylint: disable=import-outside-toplevel
@@ -275,7 +275,7 @@ class ArgOrdering:
         :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
         :param intrinsic_type: the intrinsic type of the array.
         :type intrinsic_type: \
-            :py:class:`psyclone.psyir.symbols.datatypes.ScalarType.Intrinsic`
+            Optional[:py:class:`psyclone.psyir.symbols.datatypes.ScalarType`]
         :param tag: optional tag for the symbol.
         :type tag: Optional[str]
         :param symbol: optional the symbol to use.

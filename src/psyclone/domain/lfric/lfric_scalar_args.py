@@ -45,6 +45,7 @@ an Invoke or a Kernel stub.
 # Imports
 from collections import OrderedDict, Counter
 
+from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants, LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import FORTRAN_INTENT_NAMES
@@ -81,15 +82,14 @@ class LFRicScalarArgs(LFRicCollection):
             self._integer_scalars[intent] = []
             self._logical_scalars[intent] = []
 
-    def _invoke_declarations(self, cursor):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''
         Create argument lists and declarations for all scalar arguments
         in an Invoke.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         :raises InternalError: for unsupported argument intrinsic types.
         :raises GenerationError: if the same scalar argument has different \
@@ -145,15 +145,14 @@ class LFRicScalarArgs(LFRicCollection):
         # Create declarations
         return self._create_declarations(cursor)
 
-    def _stub_declarations(self, cursor):
+    def _stub_declarations(self, cursor: int) -> int:
         '''
         Create and add declarations for all scalar arguments in
         a Kernel stub.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         :raises InternalError: for an unsupported argument data type.
 
@@ -217,14 +216,9 @@ class LFRicScalarArgs(LFRicCollection):
                             arg.declaration_name,
                             symbol_type=DataSymbol,
                             datatype=LFRicTypes("LFRicRealScalarDataType")())
-                        if intent == "out":
-                            symbol.interface = ArgumentInterface(
-                                ArgumentInterface.Access.WRITE)
-                        elif intent == "in":
-                            symbol.interface = ArgumentInterface(
-                                ArgumentInterface.Access.READ)
-                        if symbol not in self.symtab._argument_list:
-                            self.symtab.append_argument(symbol)
+                        symbol.interface = ArgumentInterface(
+                                            INTENT_MAPPING[intent])
+                        self.symtab.append_argument(symbol)
 
         # Integer scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
@@ -234,14 +228,9 @@ class LFRicScalarArgs(LFRicCollection):
                         arg.declaration_name,
                         symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                    if intent == "out":
-                        symbol.interface = ArgumentInterface(
-                            ArgumentInterface.Access.WRITE)
-                    elif intent == "in":
-                        symbol.interface = ArgumentInterface(
-                            ArgumentInterface.Access.READ)
-                    if symbol not in self.symtab._argument_list:
-                        self.symtab.append_argument(symbol)
+                    symbol.interface = ArgumentInterface(
+                                        INTENT_MAPPING[intent])
+                    self.symtab.append_argument(symbol)
 
         # Logical scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
@@ -251,14 +240,9 @@ class LFRicScalarArgs(LFRicCollection):
                         arg.declaration_name,
                         symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicLogicalScalarDataType")())
-                    if intent == "out":
-                        symbol.interface = ArgumentInterface(
-                            ArgumentInterface.Access.WRITE)
-                    elif intent == "in":
-                        symbol.interface = ArgumentInterface(
-                            ArgumentInterface.Access.READ)
-                    if symbol not in self.symtab._argument_list:
-                        self.symtab.append_argument(symbol)
+                    symbol.interface = ArgumentInterface(
+                                        INTENT_MAPPING[intent])
+                    self.symtab.append_argument(symbol)
         return cursor
 
 

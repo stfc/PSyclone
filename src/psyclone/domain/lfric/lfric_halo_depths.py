@@ -84,19 +84,19 @@ class LFRicHaloDepths(LFRicCollection):
                     depth_names.add(name)
                     self._halo_depth_vars.add(kern.halo_depth.symbol)
 
-    def _invoke_declarations(self, cursor):
+    def _invoke_declarations(self, cursor: int) -> int:
         '''
         Creates the declarations for the depths to which any 'halo'
         kernels iterate into the halos.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         # Add the Invoke subroutine argument declarations for the
         # different halo depths. They are declared as intent "in".
+        # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicTypes
         if self._halo_depth_vars:
             var_names = [sym.name for sym in self._halo_depth_vars]

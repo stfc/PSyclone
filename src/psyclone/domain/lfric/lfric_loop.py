@@ -48,9 +48,8 @@ from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import (
-    Loop, Literal, Schedule, Reference, ArrayReference, ACCRegionDirective,
-    OMPRegionDirective, StructureReference, Call, BinaryOperation,
-    ArrayOfStructuresReference, Directive, DataNode)
+    Loop, Literal, Schedule, Reference, ArrayReference, StructureReference,
+    Call, BinaryOperation, ArrayOfStructuresReference, Directive, DataNode)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, UnresolvedType, UnresolvedInterface)
 
@@ -189,22 +188,7 @@ class LFRicLoop(PSyLoop):
             lowered_node = self.loop_body[0].detach()
             self.replace_with(lowered_node)
 
-        if self.ancestor((ACCRegionDirective, OMPRegionDirective)):
-            # We cannot include calls to set halos dirty/clean within OpenACC
-            # or OpenMP regions. This is handled by the appropriate Directive
-            # class instead.
-            # TODO #1755 can this check be made more general (e.g. to include
-            # Extraction regions)?
-            return lowered_node
-
         return lowered_node
-
-    def validate_global_constraints(self):
-        # Check that we're not within an OpenMP parallel region if
-        # we are a loop over colours.
-        if self._loop_type == "colours" and self.is_openmp_parallel():
-            raise GenerationError("Cannot have a loop over colours within an "
-                                  "OpenMP parallel region.")
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this loop node. We override this

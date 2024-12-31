@@ -568,10 +568,6 @@ class SymbolTable():
         if not isinstance(new_symbol, Symbol):
             raise InternalError(f"Symbol '{new_symbol}' is not a symbol, but "
                                 f"'{type(new_symbol).__name__}'.'")
-        # if new_symbol.name in ("dummy_var1", ):
-        #      import pdb; pdb.set_trace()
-        # if tag == "cma_op1:alpha:cma_matrix":
-        #     import pdb; pdb.set_trace()
 
         key = self._normalize(new_symbol.name)
         if key in self._symbols:
@@ -964,8 +960,6 @@ class SymbolTable():
             raise TypeError(
                 f"Expected the name argument to the lookup() method to be "
                 f"a str but found '{type(name).__name__}'.")
-        # if name in ("colour", ):
-        #      import pdb; pdb.set_trace()
 
         try:
             symbol = self.get_symbols(scope_limit)[self._normalize(name)]
@@ -1022,8 +1016,6 @@ class SymbolTable():
             raise TypeError(
                 f"Expected the tag argument to the lookup_with_tag() method "
                 f"to be a str but found '{type(tag).__name__}'.")
-        # if tag == "colours_loop_idx":
-        #     import pdb; pdb.set_trace()
 
         try:
             return self.get_tags(scope_limit)[tag]
@@ -1298,8 +1290,6 @@ class SymbolTable():
         :raises ValueError: if the supplied argument is not marked as a
                             kernel argument.
         '''
-        # if argument.name == "qr_face":
-        #     import pdb; pdb.set_trace()
         if not isinstance(argument, DataSymbol):
             raise TypeError(
                 f"Expected a DataSymbol for the argument to insert but found "
