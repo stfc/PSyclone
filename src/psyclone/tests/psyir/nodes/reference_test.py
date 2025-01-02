@@ -250,7 +250,6 @@ def test_reference_next_accesses(fortran_reader):
     a_before_loop = routine.children[0].lhs
     loop = routine.children[1]
     b = loop.loop_body.children[0].lhs
-    a_in_loop = loop.loop_body.children[0].rhs
     assert len(a_before_loop.next_accesses()) == 1
     assert a_before_loop.next_accesses()[0] is loop
     assert len(b.next_accesses()) == 1
