@@ -72,8 +72,8 @@ the same time as checking that read-only values are indeed not modified,
 different module names and data types must be used.
 
 PSyData divides its application into different classes. For example,
-the class "profile" is used for all profiling tools (e.g. TAU, DrHook or the
-NVIDIA profiling tools). This class name is used as a prefix for
+the class "profile" is used for all profiling tools (e.g. TAU, Vernier,
+DrHook, or the NVIDIA profiling tools). This class name is used as a prefix for
 the module name, the ``PSyDataType`` and functions. So if a profiling application
 is linked the above code will actually look like this::
 
@@ -101,7 +101,7 @@ The class prefixes supported at the moment are:
 Class Prefix            Description
 ======================= =======================================================
 profile                 All libraries related to profiling tools like TAU,
-                        DrHook, NVIDIA's profiling tools etc. See
+                        DrHook, NVIDIA's profiling tools, Vernier etc. See
                         :ref:`user_guide:profiling` for details.
 extract                 For libraries used for kernel data extraction. See
                         :ref:`user_guide:psyke` for details.
@@ -970,7 +970,7 @@ by storing pointers to the profiling data to be able to
 print all results in a ProfileFinalise() subroutine.
 Some of the wrapper libraries use the PSyData base class (e.g. dl_timer,
 simple_timing, template), others do not (e.g. NVIDIA profiling, TAU,
-DrHook wrapper).
+Vernier, DrHook wrapper).
 
 .. _psyke:
 
