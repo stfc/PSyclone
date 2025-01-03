@@ -9,6 +9,10 @@
 	frontend to chase down some (or all) module imports when constructing
 	the PSyIR for existing code.
 
+	4) PR #2821 for #1247. Adds support for parsing comments from the fparser2
+	AST tree. There are two new FortranReader arguments to select the behaviour
+	for comments and directives (by default they are not parsed).
+
 release 3.0.0 6th of December 2024
 
 	1) PR #2477 for #2463. Add support for Fortran Namelist statements.
