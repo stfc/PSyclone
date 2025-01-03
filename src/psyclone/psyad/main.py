@@ -73,7 +73,7 @@ def main(args):
         '''Function to overide the argpass usage message'''
         return ("psyad [-h] [-oad OAD] [-v] [-t] [-api API] "
                 "[-coord-arg COORD_ARG] [-panel-id-arg PANEL_ID_ARG] "
-                "[-otest TEST_FILENAME] "
+                "[-otest TEST_FILENAME] [-c CONFIG] "
                 "-a ACTIVE [ACTIVE ...] -- filename")
 
     parser = argparse.ArgumentParser(
@@ -82,6 +82,8 @@ def main(args):
     parser.add_argument(
         '-a', '--active', nargs='+', help='names of active variables',
         required=True)
+    parser.add_argument(
+        '-c', '--config', help='config file with PSyclone specific options')
     parser.add_argument(
         '-v', '--verbose', help='increase the verbosity of the output',
         action='store_true')
