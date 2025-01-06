@@ -39,6 +39,8 @@
 ''' This module contains the CodeBlock node implementation.'''
 
 from enum import Enum
+from typing import List
+
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
@@ -151,7 +153,7 @@ class CodeBlock(Statement, DataNode):
         return (f"{self.coloured_name(colour)}["
                 f"{list(map(type, self._fp2_nodes))}]")
 
-    def get_symbol_names(self) -> list[str]:
+    def get_symbol_names(self) -> List[str]:
         '''
         Analyses the fparser2 parse tree associated with this CodeBlock and
         returns the names of all symbols accessed within it. Since, by
