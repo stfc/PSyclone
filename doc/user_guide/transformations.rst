@@ -47,8 +47,113 @@ in the PSyKAl DSLs, for a particular architecture. However, transformations
 could be added for other reasons, such as to aid debugging or for
 performance monitoring.
 
-Finding
--------
+
+.. _sec_transformations_script:
+
+PSyclone User Scripts
+---------------------
+
+A convenient way to apply transformations to a codebase is through the
+:ref:`psyclone_command` tool, which has the optional ``-s <SCRIPT_NAME>``
+flag that allows users to specify a script file to programatically modify
+input code::
+
+    > psyclone -s optimise.py input_source.f90
+
+In this case, the current directory is prepended to the Python search path
+**PYTHONPATH** which will then be used to try to find the script file. Thus,
+the search begins in the current directory and continues over any pre-existing
+directories in the search path, failing if the file cannot be found.
+
+Alternatively, script files may be specified with a path. In this case
+the file must exist in the specified location. This location is then added to
+the Python search path **PYTHONPATH** as before. For example::
+
+    > psyclone -s ./optimise.py input_source.f90
+    > psyclone -s ../scripts/optimise.py input_source.f90
+    > psyclone -s /home/me/PSyclone/scripts/optimise.py input_source.f90
+
+A valid PSyclone user script file must contain a **trans** function which accepts
+a :ref:`PSyIR node<psyir-ug>` representing the root of the psy-layer
+code (as a FileConatainer):
+
+.. code-block:: python
+
+    def trans(psyir):
+        # ...
+
+The example below adds an OpenMP directive to a specific PSyKAL kernel:
+
+.. code-block:: python
+
+    def trans(psyir):
+        from psyclone.transformations import OMPParallelLoopTrans
+        from psyclone.psyir.node import Routine
+        for subroutine in psyir.walk(Routine):
+            if subroutine.name == 'invoke_0_v3_kernel_type':
+                ol = OMPParallelLoopTrans()
+                ol.apply(subroutine.children[0])
+
+
+The script may apply as many transformations as is required for the intended
+optimisation, and may also apply transformations to all the routines (i.e. invokes
+and/or kernels) contained within the provided tree.
+The :ref:`examples section<examples>` provides a list of psyclone user scripts
+and associated usage instructions for multiple applications.
+
+
+Script Global Variables
++++++++++++++++++++++++
+
+In addition to the ``trans`` function, there are special global variables that can be set
+to control some of the behaviours of the front-end (before the optimisation function
+is applied). These are:
+
+.. code-block:: python
+
+    # List of all files that psyclone will skip processing
+    FILES_TO_SKIP = ["boken_file1.f90", "boken_file2.f90"]
+
+    # Boolean to decide whether PSyclone should chase external modules while
+    # creating a PSyIR tree in order to obtain better external symbol information.
+    # It can also be a list of module names for more precise control
+    RESOLVE_IMPORTS = ["relevant_module1.f90", "relevant_module2.f90"]
+
+    def trans(psyir):
+        # ...
+
+
+PSyKAl algorithm code transformations
++++++++++++++++++++++++++++++++++++++
+
+When using PSyKAl, the ``trans`` functions is used to transform the PSy-layer (the
+layer in charge of the Parallel-System and Loops traversal orders), however, a
+second optional transformation entry point ``trans_alg`` can be provided to
+directly transform the Algorithm-layer (this is currently only implemented for
+GOcean, but in the future it will also affect the LFRic DSL).
+
+.. code-block:: python
+
+   def trans_alg(psyir):
+       # ...
+
+As with the `trans()` function it is up to the script what it does with
+the algorithm PSyIR. Note that the `trans_alg()` script is applied to
+the algorithm layer before the PSy-layer is generated so any changes
+applied to the algorithm layer will be reflected in the PSy-layer PSyIR tree
+object that is passed to the `trans()` function.
+
+For example, if the `trans_alg()` function in the script merged two
+`invoke` calls into one then the PSyIR node passed to the
+`trans()` function of the script would only contain one Routine
+associated with the merged invoke.
+
+An example of the use of a script making use of the `trans_alg()`
+function can be found in examples/gocean/eg7.
+
+
+Finding transformations
+-----------------------
 
 Transformations can be imported directly, but the user needs to know
 what transformations are available. A helper class **TransInfo** is
@@ -64,15 +169,14 @@ provided to show the available transformations
 .. autoclass:: psyclone.psyGen.TransInfo
     :members:
 
-.. _sec_transformations_available:
 
-Standard Functionality
-----------------------
+Validating and Applying transformations
+---------------------------------------
 Each transformation must provide at least two functions for the
 user: one for validation, i.e. to verify that a certain transformation
 can be applied, and one to actually apply the transformation. They are
 described in detail in the
-:ref:`overview of all transformations<available_trans>`,
+:ref:`overview of all transformations<sec_transformations_available>`,
 but the following general guidelines apply.
 
 Validation
@@ -116,7 +220,7 @@ provided this way. A simple example::
 
 The same ``options`` dictionary will be used when calling ``validate``.
 
-.. _available_trans:
+.. _sec_transformations_available:
 
 Available transformations
 -------------------------
@@ -147,11 +251,6 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.psyir.transformations.Abs2CodeTrans
       :members: apply
       :noindex:
-
-.. warning:: This transformation assumes that the ABS Intrinsic acts on
-             PSyIR Real scalar data and does not check that this is
-             not the case. Once issue #658 is on master then this
-             limitation can be fixed.
 
 ####
 
@@ -461,11 +560,6 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation assumes that the SIGN Intrinsic acts
-             on PSyIR Real scalar data and does not check whether or not
-             this is the case. Once issue #658 is on master then this
-             limitation can be fixed.
-
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Sum2LoopTrans
@@ -625,207 +719,6 @@ applied to either or both the PSy-layer and Kernel-layer PSyIR.
 
 .. note:: This transformation is only supported by the GOcean 1.0 API.
 
-
-Applying
---------
-
-Transformations can be applied either interactively or through a
-script.
-
-.. _sec_transformations_interactive:
-
-Interactive
-+++++++++++
-
-To apply a transformation interactively we first parse and analyse the
-code. This allows us to generate a "vanilla" PSy layer. For example::
-
-    >>> from fparser.common.readfortran import FortranStringReader
-    >>> from psyclone.parse.algorithm import Parser
-    >>> from psyclone.psyGen import PSyFactory
-    >>> from fparser.two.parser import ParserFactory
-
-    >>> example_str = (
-    ...     "program example\n"
-    ...     "  use field_mod, only: field_type\n"
-    ...     "  type(field_type) :: field\n"
-    ...     "  call invoke(setval_c(field, 0.0))\n"
-    ...     "end program example\n")
-
-    >>> parser = ParserFactory().create(std="f2008")
-    >>> reader = FortranStringReader(example_str)
-    >>> ast = parser(reader)
-    >>> invoke_info = Parser().invoke_info(ast)
-
-    # This example uses the LFRic API
-    >>> api = "lfric"
-
-    # Create the PSy-layer object using the invokeInfo
-    >>> psy = PSyFactory(api, distributed_memory=False).create(invoke_info)
-
-    # Optionally generate the vanilla PSy layer fortran
-    >>> print(psy.gen)
-      MODULE example_psy
-        USE constants_mod, ONLY: r_def, i_def
-        USE field_mod, ONLY: field_type, field_proxy_type
-        IMPLICIT NONE
-        CONTAINS
-        SUBROUTINE invoke_0(field)
-          TYPE(field_type), intent(in) :: field
-          INTEGER(KIND=i_def) df
-          INTEGER(KIND=i_def) loop0_start, loop0_stop
-          TYPE(field_proxy_type) field_proxy
-          INTEGER(KIND=i_def) undf_aspc1_field
-          !
-          ! Initialise field and/or operator proxies
-          !
-          field_proxy = field%get_proxy()
-          !
-          ! Initialise number of DoFs for aspc1_field
-          !
-          undf_aspc1_field = field_proxy%vspace%get_undf()
-          !
-          ! Set-up all of the loop bounds
-          !
-          loop0_start = 1
-          loop0_stop = undf_aspc1_field
-          !
-          ! Call our kernels
-          !
-          DO df=loop0_start,loop0_stop
-            field_proxy%data(df) = 0.0
-          END DO
-          !
-        END SUBROUTINE invoke_0
-      END MODULE example_psy
-
-We then extract the particular schedule we are interested
-in. For example::
-
-    # List the various invokes that the PSy layer contains
-    >>> print(psy.invokes.names)
-    dict_keys(['invoke_0'])
-
-    # Get the required invoke
-    >>> invoke = psy.invokes.get('invoke_0')
-
-    # Get the schedule associated with the required invoke
-    > schedule = invoke.schedule
-    > print(schedule.view())
-    InvokeSchedule[invoke='invoke_0', dm=True]
-        0: Loop[type='dof', field_space='any_space_1', it_space='dof', upper_bound='ndofs']
-            Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
-            Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
-            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-            Schedule[]
-                0: BuiltIn setval_c(field,0.0)
-
-Now we have the schedule we can create and apply a transformation to
-it to create a new schedule and then replace the original schedule
-with the new one. For example::
-
-    # Create an OpenMPParallelLoopTrans
-    > from psyclone.transformations import OMPParallelLoopTrans
-    > ol = OMPParallelLoopTrans()
-
-    # Apply it to the loop schedule of the selected invoke
-    > ol.apply(schedule.children[0])
-    > print(schedule.view())
-
-    # Generate the Fortran code for the new PSy layer
-    > print(psy.gen)
-
-.. _sec_transformations_script:
-
-Script
-++++++
-
-PSyclone provides a Python script (**psyclone**) that can be used from
-the command line to generate PSy layer code and to modify algorithm
-layer code appropriately. By default this script will generate
-"vanilla" (unoptimised) PSy-layer and algorithm layer code. For
-example::
-
-    > psyclone algspec.f90
-    > psyclone -oalg alg.f90 -opsy psy.f90 -api lfric algspec.f90
-
-The **psyclone** script has an optional **-s** flag which allows the
-user to specify a script file to modify the PSy layer as
-required. Script files may be specified without a path. For
-example::
-
-    > psyclone -s opt.py algspec.f90
-
-In this case, the current directory is prepended to the Python search path
-**PYTHONPATH** which will then be used to try to find the script file. Thus,
-the search begins in the current directory and continues over any pre-existing
-directories in the search path, failing if the file cannot be found.
-
-Alternatively, script files may be specified with a path. In this case
-the file must exist in the specified location. This location is then added to
-the Python search path **PYTHONPATH** as before. For example::
-
-    > psyclone -s ./opt.py algspec.f90
-    > psyclone -s ../scripts/opt.py algspec.f90
-    > psyclone -s /home/me/PSyclone/scripts/opt.py algspec.f90
-
-PSyclone also provides the same functionality via a function (which is
-what the **psyclone** script calls internally).
-
-A valid script file must contain a **trans** function which accepts a
-:ref:`PSyIR node<psyir-ug>` representing the root of the psy-layer
-code (as a FileConatainer)::
-
-    >>> def trans(psyir):
-    ...     # ...
-
-It is up to the script how to modify the PSyIR representation of the code.
-The example below does the same thing as the example in the
-:ref:`sec_transformations_interactive` section.
-::
-
-    >>> def trans(psyir):
-    ...     from psyclone.transformations import OMPParallelLoopTrans
-    ...     from psyclone.psyir.node import Routine
-    ...     for subroutine in psyir.walk(Routine):
-    ...         if subroutine.name == 'invoke_0_v3_kernel_type':
-    ...             ol = OMPParallelLoopTrans()
-    ...             ol.apply(subroutine.children[0])
-
-In the gocean API (and in the future the lfric API) an
-optional **trans_alg** function may also be supplied. This function
-accepts **PSyIR** (representing the algorithm layer) as an argument and
-returns **PSyIR** i.e.:
-::
-
-   >>> def trans_alg(psyir):
-   ...     # ...
-
-As with the `trans()` function it is up to the script what it does with
-the algorithm PSyIR. Note that the `trans_alg()` script is applied to
-the algorithm layer before the PSy-layer is generated so any changes
-applied to the algorithm layer will be reflected in the **PSy** object
-that is passed to the `trans()` function.
-
-For example, if the `trans_alg()` function in the script merged two
-`invoke` calls into one then the **Alg** object passed to the
-`trans()` function of the script would only contain one schedule
-associated with the merged invoke.
-
-Of course the script may apply as many transformations as is required
-for a particular algorithm and/or schedule and may apply
-transformations to all the schedules (i.e. invokes and/or kernels)
-contained within the PSy layer.
-
-Examples of the use of transformation scripts can be found in many of
-the examples, such as examples/lfric/eg3 and
-examples/lfric/scripts. Please read the examples/lfric/README file
-first as it explains how to run the examples (and see also the
-examples/check_examples script).
-
-An example of the use of a script making use of the `trans_alg()`
-function can be found in examples/gocean/eg7.
-
 OpenMP
 ------
 
@@ -844,9 +737,13 @@ transformations currently supported allow the addition of:
 
 The generic versions of these transformations (i.e. ones that
 theoretically work for all APIs) were given in the
-:ref:`sec_transformations_available` section. The API-specific versions
-of these transformations are described in the API-specific sections of
-this document.
+:ref:`sec_transformations_available` section. Examples of their use,
+for both CPU and offload to GPU, may be found in the
+``PSyclone/examples/nemo/scripts/omp_?pu_trans.py`` transformation scripts.
+
+The API-specific versions of these transformations are described in the
+API-specific sections of this document. Examples for the LFRic API may
+be found in ``PSyclone/examples/lfric/scripts``.
 
 .. _openmp-reductions:
 
@@ -1039,9 +936,9 @@ porting and/or debugging of an OpenACC application as it provides
 explicit control over what data is present on a device for a given
 (part of an) Invoke routine.
 
-The PGI compiler provides an alternative approach to controlling data
-movement through its 'unified memory' option
-(``-ta=tesla:managed``). When this is enabled the compiler itself takes
+The NVIDIA compiler compiler provides an alternative approach to controlling
+data movement through its 'managed memory' option
+(``-gpu=mem:managed``). When this is enabled the compiler itself takes
 on the task of ensuring that data is copied to/from the GPU when
 required. (Note that this approach can struggle with Fortran code
 containing derived types however.)

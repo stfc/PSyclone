@@ -313,7 +313,7 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
 
     assert (
         "          CALL columnwise_op_asm_field_kernel_code(cmap(colour,"
-        "cell), nlayers_cma_op1, ncell_2d, afield_data, "
+        "cell), nlayers_afield, ncell_2d, afield_data, "
         "lma_op1_proxy%ncell_3d, lma_op1_local_stencil, "
         "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, "
@@ -1381,7 +1381,7 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "      cma_op1_gamma_p = cma_op1_proxy%gamma_p\n"
     ) in code
     assert (
-        "CALL columnwise_op_asm_field_kernel_code(cell, nlayers_cma_op1, "
+        "CALL columnwise_op_asm_field_kernel_code(cell, nlayers_afield, "
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
@@ -6365,7 +6365,7 @@ def test_intergrid_colour(dist_mem, trans_class, tmpdir):
             "(colour), 1\n")
     assert expected in gen
     expected = (
-        "          call prolong_test_kernel_code(nlayers_fld_m, cell_map_fld_m"
+        "          call prolong_test_kernel_code(nlayers_fld_f, cell_map_fld_m"
         "(:,:,cmap_fld_m(colour,cell)), ncpc_fld_f_fld_m_x, "
         "ncpc_fld_f_fld_m_y, ncell_fld_f, fld_f_data, fld_m_data, "
         "ndf_w1, undf_w1, map_w1, undf_w2, "
@@ -6479,7 +6479,7 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
             f"        !$omp parallel default(shared), private(cell)\n"
             f"        !$omp do schedule(static)\n"
             f"        DO cell = loop1_start, {upper_bound}, 1\n"
-            f"          CALL prolong_test_kernel_code(nlayers_cmap_fld_c, "
+            f"          CALL prolong_test_kernel_code(nlayers_fld_m, "
             f"cell_map_cmap_fld_c(:,:,cmap_cmap_fld_c(colour,cell)), "
             f"ncpc_fld_m_cmap_fld_c_x, ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, "
             f"fld_m_data, cmap_fld_c_data, ndf_w1, undf_w1, "

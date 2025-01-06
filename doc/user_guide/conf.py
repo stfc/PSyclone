@@ -40,6 +40,7 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
               'sphinx.ext.intersphinx', 'sphinx.ext.coverage',
               'sphinx.ext.imgmath', 'sphinx.ext.viewcode',
               'sphinxcontrib.bibtex', 'sphinx_tabs.tabs',
+              'sphinx_autodoc_typehints',
               'apilinks',
               ]
 bibtex_bibfiles = ['../bibliography/references.bib']
@@ -245,9 +246,10 @@ latex_elements = {
 # (source start file, target name, title, author,
 #  documentclass [howto/manual]).
 latex_documents = [
-    ('index', 'psyclone.tex', 'PSyclone Documentation',
-     'Andrew Coughtrie, Rupert Ford, Joerg Henrichs, Iva Kavcic,\\\\ '
-     'Andrew Porter, Sergi Siso and Joseph Wallwork', 'manual'),
+    ('index', 'psyclone.tex', 'PSyclone User Guide',
+     'Oakley Brunt, Andrew Coughtrie, Rupert Ford, \\\\ '
+     'Joerg Henrichs, Iva Kavcic, Andrew Porter, Sergi Siso \\\ '
+     'and Joseph Wallwork', 'manual'),
 ]
 
 # Set maximum depth for the nested lists to prevent LaTeX

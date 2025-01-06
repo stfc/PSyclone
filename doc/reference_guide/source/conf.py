@@ -62,6 +62,7 @@ extensions = [
     'sphinx.ext.githubpages',
     'sphinx.ext.autodoc',
     'sphinx.ext.inheritance_diagram',
+    'sphinx_autodoc_typehints',
     'autoapi.sphinx'
 ]
 

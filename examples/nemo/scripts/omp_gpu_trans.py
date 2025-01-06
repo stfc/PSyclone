@@ -39,14 +39,18 @@ directives into Nemo code. '''
 
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT)
+    enhance_tree_information, NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
     Loop, Routine, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import OMPDeclareTargetTrans, TransformationError
 
-PROFILING_ENABLED = True
+PROFILING_ENABLED = False
+
+# List of all module names that PSyclone will chase during the creation of the
+# PSyIR tree in order to use the symbol information from those modules
+RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = NOT_PERFORMANT

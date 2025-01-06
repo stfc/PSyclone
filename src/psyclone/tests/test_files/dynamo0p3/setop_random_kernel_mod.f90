@@ -63,7 +63,7 @@ contains
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_3d
     integer(kind=i_def), intent(in) :: ndf_aspc1, ndf_aspc2
-    real(kind=r_def), intent(inout), dimension(ndf_aspc1,ndf_aspc2,ncell_3d) :: local_stencil
+    real(kind=r_def), intent(inout), dimension(ncell_3d,ndf_aspc1,ndf_aspc2) :: local_stencil
     ! local variables
     integer(kind=i_def) :: k, ik
 
