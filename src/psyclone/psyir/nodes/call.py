@@ -318,7 +318,7 @@ class Call(Statement, DataNode):
         # The RoutineSymbol has a CALL access.
         sig, indices_list = self.routine.get_signature_and_indices()
         var_accesses.add_access(sig, AccessType.CALL, self.routine)
-        # Any symbols referenced in any index expressions are READ.
+        # Continue processing references in any index expressions.
         for indices in indices_list:
             for idx in indices:
                 idx.reference_accesses(var_accesses)
@@ -328,7 +328,7 @@ class Call(Statement, DataNode):
                 # This argument is pass-by-reference.
                 sig, indices_list = arg.get_signature_and_indices()
                 var_accesses.add_access(sig, default_access, arg)
-                # Any symbols referenced in any index expressions are READ.
+                # Continue processing references in any index expressions.
                 for indices in indices_list:
                     for idx in indices:
                         idx.reference_accesses(var_accesses)

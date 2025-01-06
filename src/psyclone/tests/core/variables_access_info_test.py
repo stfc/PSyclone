@@ -429,7 +429,7 @@ def test_variables_access_info_domain_loop():
     structure, so especially the loop variable is not defined) work as
     expected.
     '''
-    psy, invoke = get_invoke("25.1_kern_two_domain.f90", "lfric", idx=0)
+    _, invoke = get_invoke("25.1_kern_two_domain.f90", "lfric", idx=0)
     vai = VariablesAccessInfo(invoke.schedule)
     assert str(vai) == (
         "a: READ, b: READ, f1_data: READWRITE, f2_data: "
@@ -450,8 +450,9 @@ def test_lfric_access_info():
     schedule = psy.invokes.invoke_list[0].schedule
     vai = VariablesAccessInfo(schedule)
 
-    # Make sure a literal (1.0_r_def in this example) is not reported as a
-    # variable in the access list (but that the precision is):
+    # Make sure literals (e.g. 1_i_def or 2.0_r_def in this example) are not
+    # reported as variables in the access list (but that the associated
+    # precisions are):
     assert (
         "basis_w1_qr: READ, basis_w3_qr: READ, cell: READ+WRITE, "
         "diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, f1_data: "
@@ -459,5 +460,5 @@ def test_lfric_access_info():
         "loop0_start: READ, loop0_stop: READ, m1_data: READ, m2_data: READ, "
         "map_w1: READ, map_w2: READ, map_w3: READ, ndf_w1: READ, "
         "ndf_w2: READ, ndf_w3: READ, nlayers_f1: READ, np_xy_qr: READ, "
-        "np_z_qr: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ, "
+        "np_z_qr: READ, r_def: INQUIRY, undf_w1: READ, undf_w2: READ, undf_w3: READ, "
         "weights_xy_qr: READ, weights_z_qr: READ" == str(vai))

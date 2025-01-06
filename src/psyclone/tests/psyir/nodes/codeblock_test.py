@@ -140,6 +140,9 @@ def test_codeblock_ref_accesses(parser):
     vai = VariablesAccessInfo()
     reader = FortranStringReader('''
     subroutine mytest
+      that_is_true = .TRUE._bool_kind
+      hello_str = char_kind_"hello"
+      my_cmplx = (1.0_c_def, 1.0_b_def)
       myloop: DO i = 1, 10_i_def
         a = b + sqrt(c) + 1.0_r_def
         myifblock: IF(this_is_true)THEN
@@ -160,7 +163,11 @@ def test_codeblock_ref_accesses(parser):
     assert "i" in all_names
     assert "i_def" in all_names
     assert "r_def" in all_names
-    # All signatures should be marked as READWRITE access.
+    assert "bool_kind" in all_names
+    assert "char_kind" in all_names
+    assert "c_def" in all_names
+    assert "b_def" in all_names
+   # All signatures should be marked as READWRITE access.
     assert all(vai.has_read_write(sig) for sig in all_sigs)
 
 

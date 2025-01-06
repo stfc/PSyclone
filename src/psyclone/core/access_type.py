@@ -65,7 +65,7 @@ class AccessType(Enum):
     # of a literal or a type definition.
     COMPILE_TIME = 10
 
-    def __str__(self):
+    def __str__(self) -> str:
         '''Convert to a string representation, returning just the
         enum (e.g. 'WRITE').
         '''
@@ -93,7 +93,7 @@ class AccessType(Enum):
         :returns: Corresponding AccessType enum.
         :rtype: :py:class:`psyclone.core.access_type.AccessType`
 
-        :raises: ValueError if access_string is not a valid access type.
+        :raises ValueError: if access_string is not a valid access type.
         '''
         for access in AccessType:
             if access.name == access_string.upper():

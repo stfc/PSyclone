@@ -151,10 +151,9 @@ class CodeBlock(Statement, DataNode):
         return (f"{self.coloured_name(colour)}["
                 f"{list(map(type, self._fp2_nodes))}]")
 
-    def get_symbol_names(self):
+    def get_symbol_names(self) -> list[str]:
         '''
-        :returns: the list of symbol names used inside the CodeBock.
-        :rtype: list[str]
+        :returns: the symbol names used inside the CodeBock.
         '''
         parse_tree = self.get_ast_nodes
         result = []
@@ -178,9 +177,18 @@ class CodeBlock(Statement, DataNode):
         # Precision on literals requires special attention since they are just
         # stored in the tree as str (fparser/#456).
         for node in walk(parse_tree, (Fortran2003.Int_Literal_Constant,
-                                      Fortran2003.Real_Literal_Constant)):
+                                      Fortran2003.Real_Literal_Constant,
+                                      Fortran2003.Logical_Literal_Constant,
+                                      Fortran2003.Char_Literal_Constant)):
             if node.items[1]:
                 result.append(node.items[1])
+        # Complex literals require even more special attention.
+        for node in walk(parse_tree, Fortran2003.Complex_Literal_Constant):
+            # A complex literal constant has a real part and an imaginary part.
+            # Each of these can have a kind.
+            for part in node.items:
+                if part.items[1]:
+                    result.append(part.items[1])
         return result
 
     def reference_accesses(self, var_accesses: VariablesAccessInfo):
