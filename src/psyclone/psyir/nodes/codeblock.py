@@ -161,10 +161,10 @@ class CodeBlock(Statement, DataNode):
         be called).
 
         Note that the names of any Fortran intrinsics are *not* included in the
-        result. If the original code has unwisely overridden a Fortran intrinsic
-        then fparser *may* incorrectly identify the use of such a variable/
-        routine as still being an intrinsic call and, as such, it will be
-        omitted from the names returned by this method.
+        result. If the original code has unwisely overridden a Fortran
+        intrinsic then fparser *may* incorrectly identify the use of such a
+        variable/routine as still being an intrinsic call and, as such, it will
+        be omitted from the names returned by this method.
 
         :returns: the symbol names used inside the CodeBock.
         '''
