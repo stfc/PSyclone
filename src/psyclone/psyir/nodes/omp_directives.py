@@ -1312,9 +1312,9 @@ class OMPParallelDirective(OMPRegionDirective):
             omp_get_thread_num = self.scope.symbol_table.find_or_create(
                 "omp_get_thread_num", symbol_type=RoutineSymbol,
                 interface=ImportInterface(omp_lib))
-            thread_idx = self.scope.symbol_table.find_or_create(
-                "th_idx", symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE)
+            thread_idx = self.scope.symbol_table.find_or_create_tag(
+                "omp_thread_index", root_name="th_idx",
+                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
             assignment = Assignment.create(
                 lhs=Reference(thread_idx),
                 rhs=BinaryOperation.create(

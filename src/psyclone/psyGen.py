@@ -1134,8 +1134,16 @@ class Kern(Statement):
                 f"LFRicBuiltIn:reduction_sum_loop(). Expected one of "
                 f"{api_strings}.") from err
         symtab = self.scope.symbol_table
-        thread_idx = symtab.lookup_with_tag("omp_thread_index")
-        nthreads = symtab.lookup_with_tag("omp_num_threads")
+        thread_idx = symtab.find_or_create_tag(
+                                "omp_thread_index",
+                                root_name="th_idx",
+                                symbol_type=DataSymbol,
+                                datatype=INTEGER_TYPE)
+        nthreads = symtab.find_or_create_tag(
+                                "omp_num_threads",
+                                root_name="nthreads",
+                                symbol_type=DataSymbol,
+                                datatype=INTEGER_TYPE)
         do_loop = Loop.create(
                     thread_idx,
                     start=Literal("1", INTEGER_TYPE),

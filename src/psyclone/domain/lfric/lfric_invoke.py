@@ -46,7 +46,7 @@ from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.psyGen import Invoke
 from psyclone.psyir.nodes import Assignment, Reference, Call, Literal
 from psyclone.psyir.symbols import (
-    ContainerSymbol, RoutineSymbol, ImportInterface)
+    ContainerSymbol, RoutineSymbol, ImportInterface, DataSymbol, INTEGER_TYPE)
 
 
 class LFRicInvoke(Invoke):
@@ -311,7 +311,11 @@ class LFRicInvoke(Invoke):
             # We have at least one reproducible reduction so we need
             # to know the number of OpenMP threads
             symtab = self.schedule.symbol_table
-            nthreads = symtab.lookup_with_tag("omp_num_threads")
+            nthreads = symtab.find_or_create_tag(
+                            "omp_num_threads",
+                            root_name="nthreads",
+                            symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
             omp_lib = symtab.find_or_create("omp_lib",
                                             symbol_type=ContainerSymbol)
             omp_get_max_threads = symtab.find_or_create(
