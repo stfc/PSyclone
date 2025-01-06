@@ -54,7 +54,7 @@ from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (ArrayReference, Call, Container, Literal,
                                   Loop, Node, OMPDoDirective, Reference,
-                                  Routine, Schedule, Statement)
+                                  Routine, Schedule, Statement, FileContainer)
 from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
                                     ContainerSymbol, DataSymbol,
                                     UnresolvedType,
@@ -194,7 +194,7 @@ class PSyFactory():
         # implementation.
         # pylint: disable=import-outside-toplevel
         if self._type in LFRIC_API_NAMES:
-            from psyclone.dynamo0p3 import DynamoPSy as PSyClass
+            from psyclone.domain.lfric import LFRicPSy as PSyClass
         elif self._type in GOCEAN_API_NAMES:
             from psyclone.gocean1p0 import GOPSy as PSyClass
         else:
@@ -230,9 +230,11 @@ class PSy():
     def __init__(self, invoke_info):
         self._name = invoke_info.name
         self._invokes = None
-        # create an empty PSy layer container
+        # Create an empty PSy layer PSyIR file with a Container (module) inside
         # TODO 1010: Alternatively the PSy object could be a Container itself
-        self._container = Container(self.name)
+        module = Container(self.name)
+        FileContainer(self.name, children=[module])
+        self._container = module
 
     @property
     def container(self):
@@ -407,8 +409,11 @@ class Invoke():
         if self.invokes:
             container = self.invokes.psy.container
 
-        # create the schedule
-        self._schedule = schedule_class(self._name, alg_invocation.kcalls,
+        # create the schedule (Routine sub-class). Routines use a
+        # symbol input argument.
+        schedule_symbol = RoutineSymbol(self._name)
+        self._schedule = schedule_class(schedule_symbol,
+                                        alg_invocation.kcalls,
                                         reserved_names, parent=container)
 
         # Add the new Schedule to the top-level PSy Container
@@ -668,7 +673,8 @@ class InvokeSchedule(Routine):
     >>> schedule = invoke.schedule
     >>> print(schedule.view())
 
-    :param str name: name of the Invoke.
+    :param symbol: RoutineSymbol representing the invoke.
+    :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
     :param type KernFactory: class instance of the factory to use when \
      creating Kernels. e.g. \
      :py:class:`psyclone.domain.lfric.LFRicKernCallFactory`.
@@ -684,9 +690,9 @@ class InvokeSchedule(Routine):
     # Textual description of the node.
     _text_name = "InvokeSchedule"
 
-    def __init__(self, name, KernFactory, BuiltInFactory, alg_calls=None,
+    def __init__(self, symbol, KernFactory, BuiltInFactory, alg_calls=None,
                  reserved_names=None, **kwargs):
-        super().__init__(name, **kwargs)
+        super().__init__(symbol, **kwargs)
 
         self._invoke = None
 
@@ -1733,14 +1739,8 @@ class CodedKern(Kern):
         kern_schedule.name = new_kern_name[:]
         container.name = new_mod_name[:]
 
-        # Change the name of the symbol
-        try:
-            kern_symbol = kern_schedule.symbol_table.lookup(orig_kern_name)
-            container.symbol_table.rename_symbol(kern_symbol, new_kern_name)
-        except KeyError:
-            # TODO #1013. Right now not all tests have PSyIR symbols because
-            # some only expect f2pygen generation.
-            pass
+        # Change the name of the Kernel Schedule
+        kern_schedule.name = new_kern_name
 
         # Ensure the metadata points to the correct procedure now. Since this
         # routine is general purpose, we won't always have a domain-specific

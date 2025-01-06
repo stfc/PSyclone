@@ -37,6 +37,8 @@
 
 ''' This module contains the FileContainer node implementation.'''
 
+import sys
+from psyclone.alg_gen import NoInvokesError
 from psyclone.psyir.nodes.container import Container
 
 
@@ -54,6 +56,46 @@ class FileContainer(Container):
 
     def __str__(self):
         return f"FileContainer[name='{self.name}']\n"
+
+    @property
+    def invokes(self):
+        ''' Return the Invokes object associated to this FileContainer.
+        This is for compatibility with old psyclone transformation scripts.
+        Previously, the entry point was PSy, and the script had to find the
+        list of InvokeSchedules, now the entry point is the root FileContainer:
+
+        before: PSy -> Invokes -> Invoke -> InvokeSchedule
+        now:                FileContainer --^
+
+        This method creates a shortcut:
+            PSy -> Invokes -> Invoke -> InvokeSchedule
+                   ^--- FileContainer --^
+
+        So that previous:
+            def trans(psy):
+                psy.invokes.get_invoke('name').schedule
+
+        still work as expected. However, it exposes the PSy hierachy to
+        users scripts, so this will eventually be deprecated.
+
+        :return: the associated Invokes object.
+        :rtype: :py:class:`psyclone.psyGen.Invokes`
+
+        :raises NoInvokesError: if no InvokeSchedule was found.
+
+        '''
+        print("Deprecation warning: PSyclone script uses the legacy "
+              "transformation signature 'def trans(psy)', please update the "
+              "script to receive the root psyir node as argument.",
+              file=sys.stderr)
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyGen import InvokeSchedule
+        invokes = self.walk(InvokeSchedule, stop_type=InvokeSchedule)
+        if not invokes:
+            raise NoInvokesError(
+                f"No InvokeSchedule found in '{self.name}', does it come from"
+                f" a PSyKAl file that conforms to the GOcean or LFRic API?")
+        return invokes[0].invoke.invokes
 
 
 # For AutoAPI documentation generation

@@ -3,7 +3,7 @@
 System-specific Developer Set-up
 ================================
 
-Section :ref:`user_guide:system_specific_setup` in the PSyclone User Guide
+Section :ref:`user_guide:getting-going-download` in the PSyclone User Guide
 describes the setup for a user of PSyclone. It includes all steps necessary
 to be able to use PSyclone. And while you could obviously do
 some development, none of the required tools for testing or
@@ -12,7 +12,7 @@ documentation creation will be installed.
 This section adds software that is used to develop and test
 PSyclone. It includes all packages for testing and creation of
 documentation in html and pdf. We assume you have already installed
-the software described in the :ref:`user_guide:system_specific_setup` section.
+the software described in the :ref:`user_guide:getting-going-download` section.
 
 It contains detailed instructions for Ubuntu 16.04.2 and 
 OpenSUSE 42.2 - if you are working with a different Linux
@@ -64,11 +64,11 @@ Installing Documentation Tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Install Sphinx along with bibtex support for creating PSyclone documentation::
 
-   > sudo pip install sphinx sphinxcontrib.bibtex
+   > pip install .[doc]
 
-You can now build html documentation::
+You can now build html documentation. E.g., for the developer documentation::
 
-   > cd doc
+   > cd doc/developer_guide/
    > make html
 
 The latex package is required to create the pdf documentation
@@ -180,19 +180,3 @@ Verifying the pylint standards is done with::
 
 
 OK, you're all set up.
-
-Installing Tools for PSyData Wrapper Libraries
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-If you intend to compile the PSyData wrapper libraries or develop new libraries,
-you might need to install Jinja2 (most wrapper libraries require Jinja2 though
-some, like the NVIDIA GPU profiling wrapper, do not need it). You can install
-the necessary dependencies to create all PSyData wrapper libraries with::
-
-    > pip install psyclone[psydata]
-
-or when using the git version::
-
-    > pip install .[psydata]
-
-
-Check :ref:`psy_data` and especially the section :ref:`jinja` for more details.

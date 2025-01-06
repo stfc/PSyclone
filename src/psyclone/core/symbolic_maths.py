@@ -38,7 +38,7 @@
 ''' This module provides access to sympy-based symbolic maths
 functions.'''
 
-
+from enum import Enum
 from sympy import (Complexes, ConditionSet, core, EmptySet, expand, FiniteSet,
                    ImageSet, simplify, solvers, Union)
 
@@ -65,6 +65,16 @@ class SymbolicMaths:
     # available, or None otherwise.
     _instance = None
 
+    class Fuzzy(Enum):
+        '''
+        Enumeration used as a return value for situations where we need to
+        support 'true', 'false' and 'maybe'.
+
+        '''
+        FALSE = 0
+        TRUE = 1
+        MAYBE = 2
+
     # -------------------------------------------------------------------------
     @staticmethod
     def get():
@@ -82,18 +92,20 @@ class SymbolicMaths:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def equal(exp1, exp2, assume=None):
+    def equal(exp1, exp2, identical_variables=None):
         '''Test if the two PSyIR expressions are symbolically equivalent.
-        The optional assume dictionary can contain information which variables
-        are known to be the same. For example, if `assume={'i': 'j'}`, then
-        'i+1' and 'j+1' will be considered equal.
+        The optional identical_variables dictionary can contain information
+        about variables which are known to be the same. For example, if
+        `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
+        considered equal.
 
         :param exp1: the first expression to be compared.
         :type exp1: :py:class:`psyclone.psyir.nodes.Node`
         :param exp2: the second expression to be compared.
         :type exp2: :py:class:`psyclone.psyir.nodes.Node`
-        :param assume: which variable names are known to be identical
-        :type assume: dict[str, str]
+        :param identical_variables: which variable names are known to be
+            identical
+        :type identical_variables: Optional[dict[str, str]]
 
         :returns: whether the two expressions are mathematically \
             identical.
@@ -104,7 +116,8 @@ class SymbolicMaths:
         if exp1 is None or exp2 is None:
             return exp1 == exp2
 
-        diff = SymbolicMaths._subtract(exp1, exp2, assume=assume)
+        diff = SymbolicMaths._subtract(exp1, exp2,
+                                       identical_variables=identical_variables)
         # For ranges all values (start, stop, step) must be equal, meaning
         # each index of the difference must evaluate to 0:
         if isinstance(diff, list):
@@ -169,21 +182,30 @@ class SymbolicMaths:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _subtract(exp1, exp2, assume=None):
+    def _subtract(exp1, exp2, identical_variables=None,
+                  all_variables_positive=None):
         '''Subtracts two PSyIR expressions and returns the simplified result
         of this operation. An expression might result in multiple SymPy
         expressions - for example, a `Range` node becomes a 3-tuple (start,
         stop, step). In this case, each of the components will be handled
         individually, and a list will be returned.
 
+        The optional identical_variables dictionary can contain information
+        about variables which are known to be the same. For example, if
+        `identical_variables={'i': 'j'}`, then 'i+1' and 'j+1' will be
+        considered equal.
+
         :param exp1: the first expression to be compared.
         :type exp1: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         :param exp2: the second expression to be compared.
         :type exp2: Optional[:py:class:`psyclone.psyir.nodes.Node`]
-        :param assume: which variable names are known to be identical
-        :type assume: dict[str, str]
+        :param identical_variables: which variable names are known to be
+            identical
+        :type identical_variables: Optional[dict[str, str]]
+        :param Optional[bool] all_variables_positive: whether or not to assume
+            that all variables are positive definite.
 
-        :returns: the sympy expression resulting from subtracting exp2 \
+        :returns: the sympy expression resulting from subtracting exp2
             from exp1.
         :rtype: Union[:py:class:`sympy.core.basic.Basic`,
                       List[:py:class:`sympy.core.basic.Basic`]]
@@ -196,7 +218,10 @@ class SymbolicMaths:
         # Use the SymPyWriter to convert the two expressions to
         # SymPy expressions:
         writer = SymPyWriter()
-        sympy_expressions = writer([exp1, exp2], assume=assume)
+        sympy_expressions = writer(
+            [exp1, exp2],
+            identical_variables=identical_variables,
+            all_variables_positive=all_variables_positive)
 
         # If an expression is a range node, then the corresponding SymPy
         # expression will be a tuple:
@@ -210,6 +235,39 @@ class SymbolicMaths:
         # Simplify triggers a set of SymPy algorithms to simplify
         # the expression.
         return simplify(sympy_expressions[0] - sympy_expressions[1])
+
+    @staticmethod
+    def greater_than(exp1, exp2, all_variables_positive=None):
+        '''
+        Determines whether exp1 is, or might be, numerically greater than exp2.
+
+        :param exp1: the first expression for the comparison.
+        :type exp1: :py:class:`psyclone.psyir.nodes.Node`
+        :param exp1: the second expression for the comparison.
+        :type exp1: :py:class:`psyclone.psyir.nodes.Node`
+        :param Optional[bool] all_variables_positive: whether or not to assume
+            that all variables appearing in either expression are positive
+            definite. Default is not to make this assumption.
+
+        :returns: whether exp1 is, or might be, numerically greater than exp2.
+        :rtype: :py:class:`psyclone.core.symbolic_maths.Fuzzy`
+
+        '''
+        diff_val = SymbolicMaths._subtract(
+            exp1, exp2,
+            all_variables_positive=all_variables_positive)
+        if isinstance(diff_val, core.numbers.Integer):
+            if diff_val.is_zero or diff_val.is_negative:
+                return SymbolicMaths.Fuzzy.FALSE
+            return SymbolicMaths.Fuzzy.TRUE
+
+        # We have some sort of symbolic result
+        result = diff_val.is_positive
+        if result is None:
+            return SymbolicMaths.Fuzzy.MAYBE
+        if result:
+            return SymbolicMaths.Fuzzy.TRUE
+        return SymbolicMaths.Fuzzy.FALSE
 
     # -------------------------------------------------------------------------
     @staticmethod

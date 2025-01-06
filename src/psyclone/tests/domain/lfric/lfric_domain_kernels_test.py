@@ -298,8 +298,8 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     else:
         expected = "      ! call our kernels\n"
     assert (expected + "      !\n"
-            "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
-            "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
+            "      call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, "
+            "b, f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -319,7 +319,7 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
         kern.lower_to_language_level()
     # Now call the loop handling method directly.
     out = fortran_writer.loop_node(schedule.children[0])
-    assert ("call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
+    assert ("call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, b, "
             "f1_data, ndf_w3, undf_w3, map_w3)" in out)
 
 
@@ -346,7 +346,7 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
             "      call f2_proxy%set_dirty()\n"
             "      !\n")
     expected += (
-        "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
+        "      call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, b, "
         "f1_data, ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
@@ -372,8 +372,8 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     assert gen_code.count("ncell_2d_no_halos = mesh%get_last_edge_cell()") == 1
 
     expected = ("      !\n"
-                "      call testkern_domain_code(nlayers, ncell_2d_no_halos, "
-                "b, f1_data, ndf_w3, undf_w3, map_w3)\n")
+                "      call testkern_domain_code(nlayers_f1, "
+                "ncell_2d_no_halos, b, f1_data, ndf_w3, undf_w3, map_w3)\n")
     if dist_mem:
         assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in gen_code
         expected += ("      !\n"
@@ -408,7 +408,7 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
             "      call f1_proxy%set_dirty()\n"
             "      !\n")
     expected += (
-        "      call testkern_domain_code(nlayers, ncell_2d_no_halos, c, "
+        "      call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, c, "
         "f1_data, ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
@@ -439,9 +439,9 @@ def test_domain_plus_cma_kernels(dist_mem, tmpdir):
     assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code
     assert "ncell_2d = mesh%get_ncells_2d()" in gen_code
     assert "ncell_2d_no_halos = mesh%get_last_edge_cell()" in gen_code
-    assert ("call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
+    assert ("call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, b, "
             "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
-    assert ("call columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
-            "lma_op1_proxy%ncell_3d," in gen_code)
+    assert ("call columnwise_op_asm_kernel_code(cell, nlayers_lma_op1, "
+            "ncell_2d, lma_op1_proxy%ncell_3d," in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)

@@ -67,7 +67,7 @@ END TYPE
     real(kind=r_def), dimension(undf_chi), intent(in) :: chi2
     real(kind=r_def), dimension(undf_chi), intent(in) :: chi3
     real(kind=r_def), dimension(undf_pid), intent(in) :: panel_id
-    real(kind=r_def), dimension(ndf_w3,ndf_w3,ncell_3d), intent(in) :: m3_inv
+    real(kind=r_def), dimension(ncell_3d,ndf_w3,ndf_w3), intent(in) :: m3_inv
     real(kind=r_def), dimension(nqp_h), intent(in) :: wqp_h
     real(kind=r_def), dimension(nqp_v), intent(in) :: wqp_v
     integer(kind=i_def) :: df
@@ -127,7 +127,7 @@ END TYPE
       enddo
       do i = ndf_w3, 1, -1
         do j = ndf_w3, 1, -1
-          r_exner(j) = r_exner(j) + m3_inv(i,j,ik) * exner_e(i)
+          r_exner(j) = r_exner(j) + m3_inv(ik,i,j) * exner_e(i)
         enddo
         exner_e(i) = 0.0
       enddo

@@ -46,7 +46,7 @@ from sympy.parsing.sympy_parser import parse_expr
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Literal
+from psyclone.psyir.nodes import Assignment, Literal, Node
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
                                     INTEGER_TYPE)
 
@@ -567,7 +567,7 @@ def test_sym_writer_reserved_names(fortran_reader, expression):
                                          ("a-0*b", "b"),
                                          ("a+b+c", "2*b + c"),
                                          ])
-def test_sym_writer_assume_vars(fortran_reader, expressions):
+def test_sym_writer_identical_variables(fortran_reader, expressions):
     '''Test that we can indicate that certain variables are identical,
     in which case the sympy expression will replace one variable with
     the other. For example, if a=b --> a-b = b-b = 0
@@ -580,10 +580,32 @@ def test_sym_writer_assume_vars(fortran_reader, expressions):
                 x = {expressions[0]}
                 end program test_prog '''
     psyir = fortran_reader.psyir_from_source(source)
-    # psyir is a FileContainer, its first child the program, and its
-    # first child the assignment, of which we take the right hand side
-    expr = psyir.children[0].children[0].rhs
+    # Take the right-hand-side of the assignment:
+    expr = psyir.walk(Assignment)[0].rhs
 
     sympy_writer = SymPyWriter()
-    assume = {'a': 'b'}
-    assert str(sympy_writer(expr, assume=assume)) == expressions[1]
+    identical_variables = {'a': 'b'}
+    assert (str(sympy_writer(expr, identical_variables=identical_variables))
+            == expressions[1])
+
+
+def test_sym_writer_identical_variables_errors():
+    '''Test that we raise appropriate errors if identical_variables is or
+    contains unexpected types.
+    '''
+
+    sympy_writer = SymPyWriter()
+    with pytest.raises(TypeError) as err:
+        sympy_writer(Node(), identical_variables=1)
+    assert ("Expected identical_variables to be a dictionary, but got "
+            "<class 'int'>" in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        sympy_writer(Node(), identical_variables={1: 1})
+    assert ("Dictionary identical_variables contains a non-string key or "
+            "value" in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        sympy_writer(Node(), identical_variables={"var": 1})
+    assert ("Dictionary identical_variables contains a non-string key or "
+            "value" in str(err.value))

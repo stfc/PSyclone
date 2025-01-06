@@ -38,7 +38,7 @@
 !! variable values are within a certain range. It is based on the
 !! ValueRangeCheckBaseType (from which it inherits the handling of the
 !! basic Fortran data types and 2d-arrays, as specified in the Makefile).
-!!It adds the support for the dl_esm_inf-specific field type.
+!! It adds the support for the dl_esm_inf-specific field type.
 
 
 module value_range_check_psy_data_mod

@@ -39,10 +39,13 @@
 
 import abc
 import copy
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict
+from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Union
 
 from psyclone.errors import InternalError
+from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.symbol import Symbol
@@ -276,6 +279,17 @@ class UnsupportedFortranType(UnsupportedType):
         if self.partial_datatype:
             self.partial_datatype.replace_symbols_using(table)
 
+    @property
+    def intrinsic(self):
+        '''
+        :returns: the intrinsic used by this type (this is often recoverable
+            from the partial datatype).
+        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
+        '''
+        if self.partial_datatype:
+            return self.partial_datatype.intrinsic
+        return None
+
 
 class ScalarType(DataType):
     '''Describes a scalar datatype (and its precision).
@@ -309,6 +323,14 @@ class ScalarType(DataType):
         SINGLE = 1
         DOUBLE = 2
         UNDEFINED = 3
+
+    #: Mapping from PSyIR scalar data types to intrinsic Python types
+    #: ignoring precision.
+    TYPE_MAP_TO_PYTHON = {
+        Intrinsic.INTEGER: int,
+        Intrinsic.CHARACTER: str,
+        Intrinsic.BOOLEAN: bool,
+        Intrinsic.REAL: float}
 
     def __init__(self, intrinsic, precision):
         if not isinstance(intrinsic, ScalarType.Intrinsic):
@@ -463,13 +485,24 @@ class ArrayType(DataType):
             '''
             return copy.copy(self)
 
-    #: namedtuple used to store lower and upper limits of an array dimension
-    ArrayBounds = namedtuple("ArrayBounds", ["lower", "upper"])
+    @dataclass(frozen=True)
+    class ArrayBounds:
+        '''
+        Class to store lower and upper limits of an array dimension.
+
+        :param lower: the lower bound of the array dimension.
+        :type lower: :py:class:`psyclone.psyir.nodes.DataNode`
+        :param upper: the upper bound of the array dimension.
+        :type upper: :py:class:`psyclone.psyir.nodes.DataNode`
+        '''
+        # Have to use Any here as using DataNode causes a circular dependence.
+        lower: Any
+        upper: Any
 
     def __init__(self, datatype, shape):
 
         # This import must be placed here to avoid circular dependencies.
-        # pylint: disable=import-outside-toplevel
+        # pylint: disable-next=import-outside-toplevel
         from psyclone.psyir.nodes import Literal, DataNode, Assignment
 
         def _node_from_int(var):
@@ -699,6 +732,9 @@ class ArrayType(DataType):
                         f"'{dimension}' has {len(dimension)} entries.")
                 _validate_data_node(dimension[0], is_lower_bound=True)
                 _validate_data_node(dimension[1])
+            elif isinstance(dimension, ArrayType.ArrayBounds):
+                _validate_data_node(dimension.lower, is_lower_bound=True)
+                _validate_data_node(dimension.upper)
             else:
                 _validate_data_node(dimension)
 
@@ -716,7 +752,9 @@ class ArrayType(DataType):
             for dim in extents:
                 if not (dim == ArrayType.Extent.ATTRIBUTE or
                         (isinstance(dim, tuple) and
-                         dim[-1] == ArrayType.Extent.ATTRIBUTE)):
+                         dim[-1] == ArrayType.Extent.ATTRIBUTE) or
+                        (isinstance(dim, ArrayType.ArrayBounds) and
+                         dim.upper == ArrayType.Extent.ATTRIBUTE)):
                     raise TypeError(
                         f"An assumed-shape array must have every "
                         f"dimension unspecified (either as 'ATTRIBUTE' or "
@@ -802,7 +840,8 @@ class ArrayType(DataType):
 
         '''
         new_shape = []
-        for dim in self.shape:
+        current_shape = self.shape
+        for dim in current_shape:
             if isinstance(dim, ArrayType.ArrayBounds):
                 new_bounds = ArrayType.ArrayBounds(dim.lower.copy(),
                                                    dim.upper.copy())
@@ -850,7 +889,7 @@ class ArrayType(DataType):
         # Update any Symbols referenced in the array shape
         for dim in self.shape:
             if isinstance(dim, ArrayType.ArrayBounds):
-                exprns = dim
+                exprns = [dim.lower, dim.upper]
             else:
                 exprns = [dim]
             for bnd in exprns:
@@ -870,10 +909,22 @@ class StructureType(DataType):
     SymbolTable functionality then this decision could be revisited.
 
     '''
-    # Each member of a StructureType is represented by a ComponentType
-    # (named tuple).
-    ComponentType = namedtuple("ComponentType", [
-        "name", "datatype", "visibility", "initial_value"])
+    @dataclass(frozen=True)
+    class ComponentType(CommentableMixin):
+        '''
+        Represents a member of a StructureType.
+
+        :param name: the name of the member.
+        :param datatype: the type of the member.
+        :param visibility: whether this member is public or private.
+        :param initial_value: the initial value of this member (if any).
+        :type initial_value: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
+        name: str
+        # Use Union for compatibility with Python < 3.10
+        datatype: Union[DataType, DataTypeSymbol]
+        visibility: Symbol.Visibility
+        initial_value: Any
 
     def __init__(self):
         self._components = OrderedDict()
@@ -881,19 +932,34 @@ class StructureType(DataType):
     def __str__(self):
         return "StructureType<>"
 
+    def __copy__(self):
+        '''
+        :returns: a copy of this StructureType.
+        :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
+        '''
+        new = StructureType()
+        for name, component in self.components.items():
+            new.add(name, component.datatype, component.visibility,
+                    component.initial_value, component.preceding_comment,
+                    component.inline_comment)
+        return new
+
     @staticmethod
     def create(components):
         '''
         Creates a StructureType from the supplied list of properties.
 
         :param components: the name, type, visibility (whether public or
-            private) and initial value (if any) of each component.
+            private), initial value (if any), preceding comment (if any)
+            and inline comment (if any) of each component.
         :type components: List[tuple[
             str,
             :py:class:`psyclone.psyir.symbols.DataType` |
             :py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility`,
-            Optional[:py:class:`psyclone.psyir.symbols.DataNode`]
+            Optional[:py:class:`psyclone.psyir.symbols.DataNode`],
+            Optional[str],
+            Optional[str]
             ]]
 
         :returns: the new type object.
@@ -902,10 +968,11 @@ class StructureType(DataType):
         '''
         stype = StructureType()
         for component in components:
-            if len(component) != 4:
+            if len(component) not in (4, 5, 6):
                 raise TypeError(
-                    f"Each component must be specified using a 4-tuple of "
-                    f"(name, type, visibility, initial_value) but found a "
+                    f"Each component must be specified using a 4 to 6-tuple "
+                    f"of (name, type, visibility, initial_value, "
+                    f"preceding_comment, inline_comment) but found a "
                     f"tuple with {len(component)} members: {component}")
             stype.add(*component)
         return stype
@@ -918,7 +985,8 @@ class StructureType(DataType):
         '''
         return self._components
 
-    def add(self, name, datatype, visibility, initial_value):
+    def add(self, name, datatype, visibility, initial_value,
+            preceding_comment="", inline_comment=""):
         '''
         Create a component with the supplied attributes and add it to
         this StructureType.
@@ -932,6 +1000,11 @@ class StructureType(DataType):
         :param initial_value: the initial value of the new component.
         :type initial_value: Optional[
             :py:class:`psyclone.psyir.nodes.DataNode`]
+        :param preceding_comment: a comment that precedes this component.
+        :type preceding_comment: Optional[str]
+        :param inline_comment: a comment that follows this component on the
+                               same line.
+        :type inline_comment: Optional[str]
 
         :raises TypeError: if any of the supplied values are of the wrong type.
 
@@ -966,9 +1039,26 @@ class StructureType(DataType):
                 f"The initial value of a component of a StructureType must "
                 f"be None or an instance of 'DataNode', but got "
                 f"'{type(initial_value).__name__}'.")
+        if not isinstance(preceding_comment, str):
+            raise TypeError(
+                f"The preceding_comment of a component of a StructureType "
+                f"must be a 'str' but got "
+                f"'{type(preceding_comment).__name__}'")
+        if not isinstance(inline_comment, str):
+            raise TypeError(
+                f"The inline_comment of a component of a StructureType must "
+                f"be a 'str' but got "
+                f"'{type(inline_comment).__name__}'")
 
-        self._components[name] = self.ComponentType(
-            name, datatype, visibility, initial_value)
+        self._components[name] = self.ComponentType(name, datatype, visibility,
+                                                    initial_value)
+        # Use object.__setattr__ due to the frozen nature of ComponentType
+        object.__setattr__(self._components[name],
+                           "_preceding_comment",
+                           preceding_comment)
+        object.__setattr__(self._components[name],
+                           "_inline_comment",
+                           inline_comment)
 
     def lookup(self, name):
         '''
@@ -1048,13 +1138,6 @@ BOOLEAN_TYPE = ScalarType(ScalarType.Intrinsic.BOOLEAN,
                           ScalarType.Precision.UNDEFINED)
 CHARACTER_TYPE = ScalarType(ScalarType.Intrinsic.CHARACTER,
                             ScalarType.Precision.UNDEFINED)
-
-# Mapping from PSyIR scalar data types to intrinsic Python types
-# ignoring precision.
-TYPE_MAP_TO_PYTHON = {ScalarType.Intrinsic.INTEGER: int,
-                      ScalarType.Intrinsic.CHARACTER: str,
-                      ScalarType.Intrinsic.BOOLEAN: bool,
-                      ScalarType.Intrinsic.REAL: float}
 
 
 # For automatic documentation generation

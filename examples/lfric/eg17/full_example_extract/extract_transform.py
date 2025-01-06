@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone via the -s option.
 It adds kernel extraction code to
@@ -40,40 +41,30 @@ the invokes. When the transformed program is compiled and run, it
 will create one NetCDF file for each of the two invokes. A separate
 driver program is also created for each invoke which can read the
 created NetCDF files, execute the invokes and then compare the results.
-At this stage it does not compile (TODO: #644), and the comparison is
-missing (TODO: #647)
 '''
 
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
 
-def trans(psy):
+def trans(psyir):
     '''
-    Take the supplied psy object, and add kernel extraction code.
+    Add kernel extraction code.
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     extract = LFRicExtractTrans()
 
-    # Show that it works on a builtin:
-    invoke = psy.invokes.get("invoke_initialise_fields")
-    schedule = invoke.schedule
-    extract.apply(schedule.children,
-                  {"create_driver": True,
-                   "region_name": ("main", "init")})
+    for subroutine in psyir.children[0].children:
+        # Show that it works on a builtin:
+        if subroutine.name == "invoke_initialise_fields":
+            extract.apply(subroutine.children,
+                          {"create_driver": True,
+                           "region_name": ("main", "init")})
 
-    invoke = psy.invokes.get("invoke_testkern_w0")
-    schedule = invoke.schedule
-
-    # Enclose everything in a extract region
-    extract.apply(schedule.children,
-                  {"create_driver": True,
-                   "region_name": ("main", "update")})
-
-    print(schedule.view())
-    return psy
+        # Enclose everything in a extract region
+        if subroutine.name == "invoke_testkern_w0":
+            extract.apply(subroutine.children,
+                          {"create_driver": True,
+                           "region_name": ("main", "update")})

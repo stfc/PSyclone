@@ -136,7 +136,7 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_lma_from,nlayers) :: column_banded_dofmap_to
     real(kind=r_solver), intent(inout), dimension(bandwidth,nrow,ncell_2d) :: columnwise_matrix
     real(kind=r_def), intent(in), dimension(undf_lma_to) :: field
-    real(kind=r_def), intent(in), dimension(ndf_lma_to,ndf_lma_from,ncell_3d) :: local_stencil
+    real(kind=r_def), intent(in), dimension(ncell_3d,ndf_lma_to,ndf_lma_from) :: local_stencil
 
     write (*,*) "Hello CMA World"
 

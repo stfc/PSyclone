@@ -48,7 +48,7 @@ from psyclone.tests.utilities import get_invoke
 
 @pytest.fixture(scope="function", autouse=True)
 def clear_config_instance():
-    '''The tests in this file all assume that the Nemo API is used.'''
+    '''The tests in this file all assume that no DSL API is used.'''
     Config.get().api = ""
 
 
@@ -738,9 +738,71 @@ def test_gocean_parallel():
             in str(dep_tools.get_all_messages()[0]))
 
 
+def test_dependency_on_scalar_non_exhaustive_write_write(fortran_reader):
+    '''Tests can_loop_be_parallelised finds the loop-carried use of a scalar
+    when a write happends on only some iterations of a loop.'''
+    source = '''program test
+                integer :: i, my_val
+                real, dimension(10) :: array
+
+                do i = 1, 10
+                  if (array(i) > 3) then
+                    my_val = array(i)
+                    array(i) = my_val
+                  else
+                    array(i) = my_val
+                  endif
+                end do
+
+                end program test'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    loop = psyir.children[0].children[0]
+    dep_tools = DependencyTools()
+    parallel = dep_tools.can_loop_be_parallelised(loop)
+    if parallel is True:
+        pytest.xfail(reason="TODO #2727: DA misses this case")
+    assert parallel is False
+
+
+def test_dependency_on_array_non_exhaustive_write_write(fortran_reader):
+    '''Tests can_loop_be_parallelised finds the loop-carried use of an array
+    element when a write happends on only some iterations of a loop.'''
+    source = '''program test
+                integer :: i
+                integer, dimension(10) :: my_val
+                integer, dimension(10) :: array
+
+                    do i = 1, 10
+                      if (array(i) > 3) then
+                        my_val(1) = 1
+                        array(i) = my_val(1)
+                      else
+                        array(i) = my_val(1)
+                      endif
+                    end do
+
+                end program test'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    loop = psyir.children[0].children[0]
+    dep_tools = DependencyTools()
+
+    parallel = dep_tools.can_loop_be_parallelised(loop)
+    assert parallel is False
+    msg = dep_tools.get_all_messages()[0]
+    if "my_val(1)' causes a write-write race condition." in str(msg):
+        pytest.xfail(reason="TODO #2727: DA message should be improved")
+    # For arrays, the dependency is properly detected, but the reason is
+    # a write-write, it would be convinient to differenciate it from a
+    # exhaustive write-write as those can be solved by "privatisation" while
+    # non-exhaustive can not.
+    assert "my_val(1)' causes a write-write race condition." not in str(msg)
+
+
 def test_fuse_different_variables_with_access(fortran_reader):
     '''Test that fusing loops with different variables is disallowed when
-    either loop uses the other loops variable for any reason.'''
+    either loop uses the other loop's variable for any reason.'''
     code = '''subroutine sub()
     integer :: ji, jj, n, jk
     integer, dimension(10, 10) :: s, t
@@ -765,6 +827,9 @@ def test_fuse_different_variables_with_access(fortran_reader):
             in str(msg))
     assert msg.var_names[0] == "ji"
 
+    # We provide the loops in the reverse order. The loop fusion
+    # transformation would reject this, but the dependency tools only
+    # check the dependencies, so this issue would not be raised here.
     assert not dep_tools.can_loops_be_fused(loops[2], loops[1])
     msg = dep_tools.get_all_messages()[0]
     assert ("First loop contains accesses to the second loop's variable: ji"
@@ -773,15 +838,11 @@ def test_fuse_different_variables_with_access(fortran_reader):
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_independent_array_stencil(fortran_reader):
-    '''Test that using arrays which are not dependent on the loop variable
-    are handled correctly. Example:
-    do j  ... a(1) = b(j) * c(j)
-    do j ...  d(j) = a(1)
+def test_fuse_inconsistent_array_indexing(fortran_reader):
+    '''Test that accessing an array with inconsistent index usage (e.g. s(i,j)
+    and s(j,i)) is detected.
     '''
 
-    # The first example can be merged, since 's' does not
-    # depend on the loop variable, and it is written and read.
     code = '''subroutine sub()
               integer :: ji, jj, n
               integer, dimension(10,10) :: s, t
@@ -809,15 +870,14 @@ def test_fuse_independent_array_stencil(fortran_reader):
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_independent_array(fortran_reader):
+def test_fuse_loop_independent_array_access(fortran_reader):
     '''Test that using arrays which are not dependent on the loop variable
     are handled correctly. Example:
     do j  ... a(1) = b(j) * c(j)
     do j ...  d(j) = a(1)
     '''
-
-    # The first example can be merged, since 's' does not
-    # depend on the loop variable, and it is written and read.
+    # In this example s(1,1) is used as a scalar (i.e. not dependent
+    # on the loop variable), and fusing is invalid
     code = '''subroutine sub()
               integer :: ji, jj, n
               integer, dimension(10,10) :: s, t
@@ -949,7 +1009,7 @@ def test_fuse_scalars(fortran_reader):
 
 # ----------------------------------------------------------------------------
 def test_fuse_dimension_change(fortran_reader):
-    '''Test that inconsistent use of dimemsions are detected, e.g.:
+    '''Test that inconsistent use of dimensions are detected, e.g.:
     loop1:  a(i,j)
     loop2:  a(j,i)
     when at least one operation is a write

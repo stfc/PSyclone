@@ -34,6 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
 #              L. Turner, Met Office
+#              T. Vockerodt, Met Office
 
 ''' pytest tests for the LFRic-specific algorithm-generation functionality. '''
 
@@ -74,7 +75,7 @@ def create_prog_fixture(parser):
     # The tests below sometime fail (depending of the number of parallel
     # jobs) if the LFRicSymbolTable has not been not set up.
     ScopingNode._symbol_table_class = LFRicSymbolTable
-    prog = Routine("test_prog", is_program=True)
+    prog = Routine.create("test_prog", is_program=True)
     mesh_mod = prog.symbol_table.new_symbol("mesh_mod",
                                             symbol_type=ContainerSymbol)
     prog.symbol_table.new_symbol("mesh", symbol_type=DataSymbol,
@@ -150,7 +151,9 @@ def test_create_function_spaces_invalid_space(prog):
 def test_create_function_spaces(prog, fortran_writer):
     ''' Check that a Routine is populated correctly when valid function-space
     names are supplied. '''
-    LFRicAlg()._create_function_spaces(prog, ["w3", "w1"])
+    # Using a set randomises ordering of fspaces, but function should
+    # produce consistent ordering in the algorithm.
+    LFRicAlg()._create_function_spaces(prog, set(["w3", "w1"]))
     fe_config_mod = prog.symbol_table.lookup("finite_element_config_mod")
     element_order = prog.symbol_table.lookup("element_order")
     assert element_order.interface.container_symbol == fe_config_mod
@@ -159,10 +162,15 @@ def test_create_function_spaces(prog, fortran_writer):
     for space in ["w1", "w3"]:
         sym = prog.symbol_table.lookup(space)
         assert sym.interface.container_symbol is fs_mod_sym
-        assert (f"TYPE(function_space_type), POINTER :: "
-                f"vector_space_{space}_ptr" in gen)
-        assert (f"vector_space_{space}_ptr => function_space_collection%"
-                f"get_fs(mesh,element_order,{space})" in gen)
+    # Checking function space ordering is consistent.
+    assert ("TYPE(function_space_type), POINTER :: "
+            "vector_space_w1_ptr\n  "
+            "TYPE(function_space_type), POINTER :: "
+            "vector_space_w3_ptr" in gen)
+    assert ("vector_space_w1_ptr => function_space_collection%"
+            "get_fs(mesh,element_order,w1)\n  "
+            "vector_space_w3_ptr => function_space_collection%"
+            "get_fs(mesh,element_order,w3)" in gen)
 
 
 def test_initialise_field(prog, fortran_writer):

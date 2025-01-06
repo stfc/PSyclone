@@ -87,16 +87,14 @@ def test_fw_unsupported_interface_decln(tmpdir, fortran_writer):
     code = fortran_writer(container)
     assert interface_code in code
     assert "private :: eos\n" in code
-    container.symbol_table.add(
-        RoutineSymbol("my_sub", visibility=Symbol.Visibility.PUBLIC))
     code = fortran_writer(container)
+    container.addchild(Routine.create("my_sub", SymbolTable(), []))
     assert "private :: eos\n" in code
     # Default visibility is public so there should be no explicit 'public ::'
     # statements.
     assert "public ::" not in code
-    # Add remaining structures so that we can generate compilable code
-    container.symbol_table.add(RoutineSymbol("eos1d"))
-    container.symbol_table.add(RoutineSymbol("eos2d"))
+    # Remove the my_sub RoutineSymbol before we readd it
+    container.symbol_table.remove(container.symbol_table.lookup("my_sub"))
     # We have to make the interfaces to the two 'module procedures' different
     # so we give 'eos1d' an integer argument.
     arg = DataSymbol("var1", datatype=INTEGER_TYPE,
@@ -104,9 +102,9 @@ def test_fw_unsupported_interface_decln(tmpdir, fortran_writer):
     eos1d_table = SymbolTable()
     eos1d_table.add(arg)
     eos1d_table.specify_argument_list([arg])
+    # Routines add their own symbols into the Container's symbol table
     container.addchild(Routine.create("eos1d", eos1d_table, []))
     container.addchild(Routine.create("eos2d", SymbolTable(), []))
-    container.addchild(Routine.create("my_sub", SymbolTable(), []))
     assert Compile(tmpdir).string_compiles(fortran_writer(container))
 
 
@@ -224,6 +222,22 @@ def test_fw_add_accessibility():
                       "  integer, private :: id\n"
                       "  integer, public :: flag\n"
                       "end type var")
+
+
+def test_fw_preceding_and_inline_comment(fortran_writer):
+    '''Test that comments are correctly added to the generated code'''
+    symbol = DataSymbol("var", UnsupportedFortranType("integer :: var"))
+    symbol.preceding_comment = "This is a preceding comment"
+    symbol.inline_comment = "This is an inline comment"
+    expected = ("! This is a preceding comment\n"
+                "integer :: var ! This is an inline comment")
+    assert expected in fortran_writer.gen_vardecl(symbol)
+
+    # include_visibility=True case
+    expected = ("! This is a preceding comment\n"
+                "integer, public :: var ! This is an inline comment")
+    assert expected in fortran_writer.gen_vardecl(symbol,
+                                                  include_visibility=True)
 
 
 def test_generating_unsupportedtype_routine_imports(

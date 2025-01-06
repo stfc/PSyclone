@@ -37,11 +37,10 @@
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Loop, Assignment, Directive, Container, Reference, CodeBlock, Call,
-    Return, IfBlock, Routine, IntrinsicCall)
+    Assignment, Loop, Directive, Reference, CodeBlock,
+    Call, Return, IfBlock, Routine, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ScalarType,
-    RoutineSymbol, ImportInterface)
+    DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
@@ -49,24 +48,19 @@ from psyclone.psyir.transformations import (
 from psyclone.transformations import TransformationError
 
 
-# Files that PSyclone could process but would reduce the performance.
-NOT_PERFORMANT = [
-    "bdydta.f90", "bdyvol.f90",
-    "fldread.f90",
-    "icbclv.f90", "icbthm.f90", "icbdia.f90", "icbini.f90",
-    "icbstp.f90",
-    "iom.f90", "iom_nf90.f90",
-    "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
-    "obs_types.f90", "obs_read_prof.f90", "obs_write.f90",
-    "tide_mod.f90", "zdfosm.f90",
+# USE statements to chase to gather additional symbol information.
+NEMO_MODULES_TO_IMPORT = [
+    "oce", "par_oce", "dom_oce", "phycst", "ice",
+    "obs_fbm", "flo_oce", "sbc_ice", "wet_dry"
 ]
 
-# Files that we won't touch at all, either because PSyclone actually fails
-# or because it produces incorrect Fortran.
-NOT_WORKING = [
-    # NEMOv4 bugs:
-    # TODO #717 - array accessed inside WHERE does not use array notation
-    "diurnal_bulk.f90",
+# Files that PSyclone could process but would reduce the performance.
+NOT_PERFORMANT = [
+    "bdydta.f90", "bdyvol.f90", "fldread.f90", "icbclv.f90", "icbthm.f90",
+    "icbdia.f90", "icbini.f90", "icbstp.f90", "iom.f90", "iom_nf90.f90",
+    "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
+    "obs_types.f90", "obs_read_prof.f90", "obs_write.f90", "tide_mod.f90",
+    "zdfosm.f90", "obs_read_surf.f90",
 ]
 
 # If routine names contain these substrings then we do not profile them
@@ -76,9 +70,41 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     # prevents from being in-lined (and then breaks any attempt
                     # to create OpenACC regions with calls to them)
                     "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
-                    "sum", "sign_", "ddpdd"]
+                    "sum", "sign_", "ddpdd", "psyclone_cmp_int",
+                    "psyclone_cmp_char", "psyclone_cmp_logical"]
 
-VERBOSE = False
+# Currently fparser has no way of distinguishing array accesses from
+# function calls if the symbol is imported from some other module.
+# We therefore work-around this by keeping a list of known NEMO functions.
+NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
+                  "eos_pt_from_ct", "gamma_moist", "l_vap", "q_air_rh",
+                  "sbc_dcy", "solfrac", "psi_h", "psi_m", "psi_m_coare",
+                  "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf", "q_sat",
+                  "rho_air", "visc_air", "sbc_dcy", "glob_sum",
+                  "glob_sum_full", "ptr_sj", "ptr_sjk", "interp1", "interp2",
+                  "interp3", "integ_spline", "nf90_put_var"]
+
+# Currently fparser has no way of distinguishing array accesses from statement
+# functions, the following subroutines contains known statement functions
+CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
+
+# These files change the results from baseline when psyclone processes them
+PASSTHROUGH_ISSUES = [
+    "ldfslp.f90",  # It has a '!dir$ NOVECTOR' that gets deleted by fparser
+]
+
+# These files change the results from the baseline when psyclone adds
+# parallelisation dirctives
+PARALLELISATION_ISSUES = [
+    "ldfc1d_c2d.f90",
+    "tramle.f90",
+    # These files get the same results when parallelised by: "nvfortran -O1
+    # -Kieee -nofma -Mnovect" but had to be excluded by other compiler/flags
+    # TODO #2787: May solve these issues.
+    "icedyn_rhg_evp.f90",
+    "domqco.f90",
+    "dynspg_ts.f90",
+]
 
 
 def _it_should_be(symbol, of_type, instance):
@@ -98,56 +124,39 @@ def _it_should_be(symbol, of_type, instance):
 
 
 def enhance_tree_information(schedule):
-    ''' Resolve imports in order to populate relevant datatype on the
-    tree symbol tables.
+    ''' Manually fix some PSyIR issues produced by not having enough symbol
+    information from external modules. Setting NEMO_MODULES_TO_IMPORT above
+    improve the situation but its not complete (not all symbols are imported)
+    and it is not transitive (imports that inside import other symbols).
 
     :param schedule: the PSyIR Schedule to transform.
     :type schedule: :py:class:`psyclone.psyir.nodes.node`
+
     '''
-
-    mod_sym_tab = schedule.ancestor(Container).symbol_table
-
-    modules_to_import = ("oce", "par_oce", "dom_oce", "phycst", "ice",
-                         "obs_fbm", "flo_oce", "sbc_ice", "wet_dry")
-
-    for module_name in modules_to_import:
-        if module_name in mod_sym_tab:
-            mod_symbol = mod_sym_tab.lookup(module_name)
-            mod_sym_tab.resolve_imports(container_symbols=[mod_symbol])
-
     are_integers = ('jpi', 'jpim1', 'jpj', 'jpjm1', 'jp_tem', 'jp_sal',
                     'jpkm1', 'jpiglo', 'jpni', 'jpk', 'jpiglo_crs',
                     'jpmxl_atf', 'jpmxl_ldf', 'jpmxl_zdf', 'jpnij',
                     'jpts', 'jpvor_bev', 'nleapy', 'nn_ctls', 'jpmxl_npc',
                     'jpmxl_zdfp', 'npti')
 
-    # Manually set the datatype of some integer and real variables that are
-    # important for performance
     for reference in schedule.walk(Reference):
         if reference.symbol.name in are_integers:
+            # Manually set the datatype of some integer scalars that are
+            # important for performance
             _it_should_be(reference.symbol, ScalarType, INTEGER_TYPE)
-        elif reference.symbol.name in ('rn_avt_rnf', ):
-            _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
-        elif isinstance(reference.symbol.interface, ImportInterface) and \
-                reference.symbol.interface.container_symbol.name == "phycst":
-            # Everything imported from phycst is a REAL
-            _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
-        elif reference.symbol.name == 'tmask':
-            if reference.ancestor(Container).name == "dom_oce":
-                continue  # Do not update the original declaration
-            _it_should_be(reference.symbol, ArrayType, ArrayType(REAL_TYPE, [
-                        ArrayType.Extent.ATTRIBUTE,
-                        ArrayType.Extent.ATTRIBUTE,
-                        ArrayType.Extent.ATTRIBUTE]))
-        elif reference.symbol.name == "sbc_dcy":
-            # The parser gets this wrong, it is a Call not an Array access
-            if not isinstance(reference.symbol, RoutineSymbol):
-                # We haven't already specialised this Symbol.
-                reference.symbol.specialise(RoutineSymbol)
-            call = Call.create(reference.symbol)
-            for child in reference.children:
-                call.addchild(child.detach())
-            reference.replace_with(call)
+        elif reference.symbol.name in NEMO_FUNCTIONS:
+            if reference.symbol.is_import or reference.symbol.is_unresolved:
+                # The parser gets these wrong, they are Calls not ArrayRefs
+                if not isinstance(reference.symbol, RoutineSymbol):
+                    # We need to specialise the generic Symbol to a Routine
+                    reference.symbol.specialise(RoutineSymbol)
+                if not (isinstance(reference.parent, Call) and
+                        reference.parent.routine is reference):
+                    # We also need to replace the Reference node with a Call
+                    call = Call.create(reference.symbol)
+                    for child in reference.children[:]:
+                        call.addchild(child.detach())
+                    reference.replace_with(call)
 
 
 def inline_calls(schedule):
@@ -225,10 +234,10 @@ def normalise_loops(
     :param bool hoist_expressions: whether to hoist bounds and loop invariant
         statements out of the loop nest.
     '''
-
-    # TODO #1902: NEMO4 mpi_ini.f90 has a HoistLocalArraysTrans bug
-    if hoist_local_arrays and schedule.root.name != "mpp_ini.f90":
-        # Apply the HoistLocalArraysTrans when possible
+    if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
+        # Apply the HoistLocalArraysTrans when possible, it cannot be applied
+        # to files with statement functions because it will attempt to put the
+        # allocate above it, which is not valid Fortran.
         try:
             HoistLocalArraysTrans().apply(schedule)
         except TransformationError:
@@ -236,7 +245,7 @@ def normalise_loops(
 
     if convert_array_notation:
         # Make sure all array dimensions are explicit
-        for reference in schedule.walk(Reference, stop_type=Reference):
+        for reference in schedule.walk(Reference):
             part_of_the_call = reference.ancestor(Call)
             if part_of_the_call:
                 if not part_of_the_call.is_elemental:
@@ -291,6 +300,7 @@ def insert_explicit_loop_parallelism(
         region_directive_trans=None,
         loop_directive_trans=None,
         collapse: bool = True,
+        privatise_arrays: bool = False,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
@@ -307,6 +317,8 @@ def insert_explicit_loop_parallelism(
         :py:class:`psyclone.transformation.Transformation`
     :param collapse: whether to attempt to insert the collapse clause to as
         many nested loops as possible.
+    :param privatise_arrays: whether to attempt to privatise arrays that cause
+        write-write race conditions.
 
     '''
     # Add the parallel directives in each loop
@@ -314,7 +326,8 @@ def insert_explicit_loop_parallelism(
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
-        opts = {"collapse": collapse, "verbose": True}
+        opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
+                "verbose": True}
 
         routine_name = loop.ancestor(Routine).name
 
