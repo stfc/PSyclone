@@ -232,16 +232,17 @@ class SingleVariableAccessInfo():
         return any(info.access_type == AccessType.INQUIRY for
                    info in self._accesses)
 
-    def is_written(self):
-        ''':returns: True if this variable is written (at least once).
-        :rtype: bool
+    def is_written(self) -> bool:
+        '''
+        :returns: True if this variable is written (at least once).
         '''
         return any(access_info.access_type in
                    AccessType.all_write_accesses()
                    for access_info in self._accesses)
 
     def is_written_first(self) -> bool:
-        ''':returns: True if this variable is written in the first data access
+        '''
+        :returns: True if this variable is written in the first data access
             (which indicates that this variable is not an input variable
             for a kernel).
         '''

@@ -153,6 +153,19 @@ class CodeBlock(Statement, DataNode):
 
     def get_symbol_names(self) -> list[str]:
         '''
+        Analyses the fparser2 parse tree associated with this CodeBlock and
+        returns the names of all symbols accessed within it. Since, by
+        definition, we do not understand the contents of a CodeBlock, we do not
+        attempt to analyse how these symbols are accessed - they are all marked
+        as being READWRITE (this includes the names of any routines that might
+        be called).
+
+        Note that the names of any Fortran intrinsics are *not* included in the
+        result. If the original code has unwisely overridden a Fortran intrinsic
+        then fparser *may* incorrectly identify the use of such a variable/
+        routine as still being an intrinsic call and, as such, it will be
+        omitted from the names returned by this method.
+
         :returns: the symbol names used inside the CodeBock.
         '''
         parse_tree = self.get_ast_nodes
@@ -196,7 +209,12 @@ class CodeBlock(Statement, DataNode):
         Get all variable access information. Since this is a CodeBlock we
         only know the names of symbols accessed within it but not how they
         are accessed. Therefore we err on the side of caution and mark
-        them all as READWRITE.
+        them all as READWRITE, unfortunately, this will include the names of
+        any routines that are called.
+
+        This method makes use of
+        :py:meth:`~psyclone.psyir.nodes.CodeBlock.get_symbol_names` and is
+        therefore subject to the same limitations as that method.
 
         :param var_accesses: VariablesAccessInfo instance that stores the
             information about variable accesses.

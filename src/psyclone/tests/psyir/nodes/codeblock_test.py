@@ -148,6 +148,7 @@ def test_codeblock_ref_accesses(parser):
         myifblock: IF(this_is_true)THEN
           EXIT myloop
         ELSE IF(that_is_true)THEN myifblock
+          call my_routine()
           write(*,*) "Bye"
         ELSE myifblock
           write(*,*) "hello"
@@ -161,12 +162,15 @@ def test_codeblock_ref_accesses(parser):
     all_names = [sig.var_name for sig in all_sigs]
     assert "a" in all_names
     assert "i" in all_names
+    # Check that the various precision symbols are included.
     assert "i_def" in all_names
     assert "r_def" in all_names
     assert "bool_kind" in all_names
     assert "char_kind" in all_names
     assert "c_def" in all_names
     assert "b_def" in all_names
+    # The target of a CALL is included.
+    assert "my_routine" in all_names
     # All signatures should be marked as READWRITE access.
     assert all(vai.has_read_write(sig) for sig in all_sigs)
 
