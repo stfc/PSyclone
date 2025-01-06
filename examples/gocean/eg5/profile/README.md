@@ -70,6 +70,10 @@ The location of the LFRic infrastructure library. It defaults to
 which is the small, stand-alone LFRic infrastructure library that
 is included in PSyclone. In spite of the dependence on LFRic, this
 profiling wrapper library can be used with with any application.
+### VERNIER_DIR
+The location of the Vernier library. It defaults to
+``../../../../../Vernier``, i.e. it is assumed that Vernier is
+installed next to PSyclone.
 
 The makefile here will invoke psyclone with the ``--profile invokes``
 flag, which will add profiling around the two invokes used in the example.

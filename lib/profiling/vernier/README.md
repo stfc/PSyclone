@@ -30,13 +30,13 @@ default to ``gfortran`` and the empty string.
 To compile the PSyclone wrapper library for Vernier, one of the following
 two ``Makefile`` variables must be set to specify the path to the Vernier
 installation:
-VERNIER_ROOT ?= ./../../../../vernier
+VERNIER_ROOT ?= ./../../../../Vernier
 
 - ``VERNIER_ROOT``, the path to the Vernier root directory in which
-  Vernier is compiled and installed. It defaults to ``./../../../../vernier``
+  Vernier is compiled and installed. It defaults to ``./../../../../Vernier``
   in the ``Makefile`` (i.e., it assumes Vernier is installed next to a PSyclone
   repository clone). This will set ``VERNIER_MODULES`` to
-  ``.../vernier/local/include``, so that the ``*.mod`` for Vernier
+  ``.../Vernier/local/include``, so that the ``*.mod`` for Vernier
   can be found.
 
 - ``VERNIER_MODULES``: Setting these environment

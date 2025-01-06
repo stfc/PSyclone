@@ -89,7 +89,7 @@ drhook:
 
 # Needs to additionally link with the Vernier library
 # As default assume Vernier is installed 'next' to PSyclone
-VERNIER_DIR?=$(ROOT_DIR)/../vernier
+VERNIER_DIR?=$(ROOT_DIR)/../Vernier
 vernier:
 	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/vernier"                \
 	        WRAPPER_NAME="vernier_psy"                          \

@@ -41,7 +41,7 @@ F90FLAGS ?=
 # Path to the Vernier installation. It defaults to the assumed location
 # of the Vernier directory next to a clone of PSyclone repository.
 # Overwrite for a custom location.
-VERNIER_ROOT ?= ./../../../../vernier
+VERNIER_ROOT ?= ./../../../../Vernier
 # Path to the Vernier "include" files. Overwrite for a custom location.
 VERNIER_MODULES ?= $(VERNIER_ROOT)/local/include
 # -----------------------------------------------------------------------------
