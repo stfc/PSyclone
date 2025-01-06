@@ -54,6 +54,7 @@ from psyclone.transformations import (
     ACCRoutineTrans, OMPDeclareTargetTrans, Dynamo0p3KernelConstTrans)
 
 from psyclone.tests.gocean_build import GOceanBuild
+from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
 
@@ -471,7 +472,7 @@ def test_1kern_trans(kernel_outputdir):
     first = code.find("call testkern_code(")
     second = code.find(f"call testkern{tag}_code(")
     assert first < second
-    # assert LFRicBuild(kernel_outputdir).code_compiles(psy)
+    assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_2kern_trans(kernel_outputdir):

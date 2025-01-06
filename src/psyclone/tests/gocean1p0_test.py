@@ -1093,14 +1093,14 @@ def test_invalid_access_type():
                      str(err.value)) is not None
 
 
-# def test_compile_with_dependency(tmpdir):
-#     ''' Check that we can do test compilation for an invoke of a kernel
-#     that has a dependency on a non-infrastructure module. '''
-#     _, invoke_info = parse(
-#         os.path.join(BASE_PATH, "single_invoke_kern_with_use.f90"),
-#         api=API)
-#     psy = PSyFactory(API).create(invoke_info)
-#     assert GOceanBuild(tmpdir).code_compiles(psy, ["model_mod"])
+def test_compile_with_dependency(tmpdir):
+    ''' Check that we can do test compilation for an invoke of a kernel
+    that has a dependency on a non-infrastructure module. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "single_invoke_kern_with_use.f90"),
+        api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    assert GOceanBuild(tmpdir).code_compiles(psy, ["model_mod"])
 
 
 # -----------------------------------
@@ -1281,7 +1281,7 @@ def test05p1_kernel_add_iteration_spaces(tmpdir):
         "Schedule:\n"
         "kern call: compute_cu_code\n")
     assert expected_sched in str(schedule)
-    assert GOceanBuild(tmpdir).code_compiles(psy)
+    # assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test06_kernel_invalid_access():

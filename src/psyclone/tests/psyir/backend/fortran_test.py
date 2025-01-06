@@ -702,6 +702,13 @@ def test_fw_gen_vardecl(fortran_writer):
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, save :: dummy3a = 10\n"
 
+    # Generic symbol
+    symbol = Symbol("dummy1")
+    with pytest.raises(VisitorError) as excinfo:
+        _ = fortran_writer.gen_vardecl(symbol)
+    assert ("Symbol 'dummy1' must be a symbol with a datatype in order to "
+            "use 'gen_vardecl'." in str(excinfo.value))
+
     # Use statement
     symbol = DataSymbol("dummy1", UnresolvedType(),
                         interface=ImportInterface(

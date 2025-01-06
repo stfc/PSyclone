@@ -356,6 +356,14 @@ class Compile():
         :rtype: bool
 
         '''
+        modules = set()
+        # Get the names of all the imported modules as these are dependencies
+        # that will need to be compiled first
+        for invoke in psy_ast.invokes.invoke_list:
+            # Get any module that is imported in the PSyIR tree
+            for scope in invoke.schedule.root.walk(ScopingNode):
+                for symbol in scope.symbol_table.containersymbols:
+                    modules.add(symbol.name)
 
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
@@ -366,27 +374,21 @@ class Compile():
                 # We limit the line lengths of the generated code so that
                 # we don't trip over compiler limits.
                 fll = FortLineLength()
-                psy_file.write(fll.process(str(psy_ast.gen)))
+                code = str(psy_ast.gen)
+                psy_file.write(fll.process(code))
+
+            # Not everything is captured by PSyIR as Symbols (e.g. PSyKAl
+            # coded kernels), in these cases we still need to import the
+            # kernel modules used in these PSy-layers, but we know they
+            # follow the '_mod' naming convention.
+            for name in code.split():
+                if name.endswith(('_mod', '_mod,')):
+                    # Delete the , if the case of 'use name, only ...'
+                    if name[-1] == ',':
+                        name = name[:-1]
+                    modules.add(name)
 
             success = True
-            modules = set()
-            # import pdb; pdb.set_trace()
-            # Get the names of all the imported modules as these are
-            # dependencies that will need to be compiled first
-            for invoke in psy_ast.invokes.invoke_list:
-                # Get any module that is imported in the PSyIR tree
-                for scope in invoke.schedule.root.walk(ScopingNode):
-                    for symbol in scope.symbol_table.containersymbols:
-                        # external = symbol.find_container_psyir()
-                        modules.add(symbol.name)
-
-                # Not everything is captured by PSyIR yet (some API PSy-layers
-                # are fully or partially f2pygen), in these cases we still
-                # need to import the kernel modules used in these PSy-layers.
-                # By definition, built-ins do not have associated Fortran
-                # modules.
-                for call in invoke.schedule.coded_kernels():
-                    modules.add(call.module_name)
 
             build_list = []
             # We must ensure that we build any dependencies first and in
@@ -396,7 +398,7 @@ class Compile():
             # Then add the modules we found on the tree
             for module in modules:
                 if module not in build_list:
-                    build_list.insert(0, module)
+                    build_list.append(module)
 
             # Build the dependencies and then the kernels. We allow kernels
             # to also be located in the temporary directory that we have
@@ -416,7 +418,7 @@ class Compile():
                 except IOError:
                     # Not all modules need to be found, for example API
                     # infrastructure modules will be provided already built.
-                    print(f"File {fort_file} not found for compilation.")
+                    print(f"File '{fort_file}' not found for compilation.")
                     paths = [self.base_path, str(self._tmpdir)]
                     print(f"It was searched in: {paths}")
                 except CompileError:
@@ -433,12 +435,12 @@ class Compile():
         return success
 
     def code_compiles(self, psy_ast, dependencies=None):
-        '''Attempts to build the Fortran code supplied as an AST of
-        f2pygen objects. Returns True for success, False otherwise.
+        '''Attempts to build the Fortran code supplied as a PSy object.
+        Returns True for success, False otherwise.
         If compilation is not enabled returns true. Uses _code_compiles
-        for the actual compilation. All files produced are deleted.
+        for the actual compilation.
 
-        :param psy_ast: The AST of the generated PSy layer.
+        :param psy_ast: The generated PSy layer.
         :type psy_ast: :py:class:`psyclone.psyGen.PSy`
         :param dependencies: optional module- or file-names on which \
                     one or more of the kernels/PSy-layer depend (and \

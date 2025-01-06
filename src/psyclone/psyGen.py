@@ -261,27 +261,6 @@ class PSy():
         '''
         return "psy_"+self._name
 
-    @property
-    def gen(self):
-        '''
-        Generate Fortran code for this PSy-layer.
-
-        :returns: the generated Fortran source.
-        :rtype: str
-
-        '''
-
-        # Use the PSyIR Fortran backend to generate Fortran code of the
-        # supplied PSyIR tree.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.fortran import FortranWriter
-        config = Config.get()
-        fortran_writer = FortranWriter(
-            check_global_constraints=config.backend_checks_enabled)
-        result = fortran_writer(self.container)
-
-        return result
-
 
 class Invokes():
     '''Manage the invoke calls.
@@ -1691,13 +1670,19 @@ class CodedKern(Kern):
         container_table = container.symbol_table
         for sym in container_table.datatypesymbols:
             if isinstance(sym.datatype, UnsupportedFortranType):
-                new_declaration = sym.datatype.declaration.replace(
-                    orig_kern_name, new_kern_name)
-                # pylint: disable=protected-access
-                sym._datatype = UnsupportedFortranType(
-                    new_declaration,
-                    partial_datatype=sym.datatype.partial_datatype)
-                # pylint: enable=protected-access
+                # If the DataTypeSymbol is a KernelMetadata Type, change its
+                # kernel code name
+                for line in sym.datatype.declaration.split('\n'):
+                    if "PROCEDURE," in line:
+                        newl = f"PROCEDURE, NOPASS :: code => {new_kern_name}"
+                        new_declaration = sym.datatype.declaration.replace(
+                                                            line, newl)
+                        # pylint: disable=protected-access
+                        sym._datatype = UnsupportedFortranType(
+                            new_declaration,
+                            partial_datatype=sym.datatype.partial_datatype)
+                        # pylint: enable=protected-access
+                        break  # There is only one such statement per type
 
     @property
     def modified(self):
