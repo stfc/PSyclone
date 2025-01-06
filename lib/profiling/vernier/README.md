@@ -74,7 +74,7 @@ $(F90) -o a.out ... -L <PATH-TO-PSYCLONE>/lib/profiling/vernier -lvernier_psy \
 ## Output
 
 An example output of the profiling report is below. Note that Vernier
-writes the output into rank-specific output files, the output is not
+writes the output into MPI-rank-specific output files, the output is not
 added to stdout:
 
 ```

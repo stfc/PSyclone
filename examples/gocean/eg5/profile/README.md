@@ -17,6 +17,7 @@ profile wrapper libraries:
 - drhook
 - lfric
 - tau
+- vernier
 
 By default (``make`` without an argument) the ``template`` library will 
 be used, which just prints the name of the regions called.
@@ -43,9 +44,9 @@ it yourself, and make sure that the ``tau_f90.sh`` compiler wrapper
 is in your path. The Makefile will automatically call ``tau_f90.sh``, there
 is no need to set ``$F90`` in this case.
 
-If you are using ``dl_timer`` or ``drhook``, you need to compile these
-libraries yourself first, and modify the ``Makefile`` in this directory
-to specify the required linking parameters. The ``Makefile``
+If you are using ``dl_timer``, ``vernier`` or ``drhook``, you need to
+compile these libraries yourself first, and modify the ``Makefile`` in
+this directory to specify the required linking parameters. The ``Makefile``
 supports the following environment variables that can be defined
 to find the various software packages:
 

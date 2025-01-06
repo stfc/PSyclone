@@ -41,8 +41,8 @@ F90 ?= gfortran
 F90FLAGS ?= -g
 # -----------------------------------------------------------------------------
 
-# We don't build dl_timer, drhook, nvidia, Vernier, and tau since they
-# require external libraries to be available.
+# We don't build dl_timer, drhook, nvidia, Vernier, and tau by default
+# since they require external libraries to be available.
 ALL_LIBS = lfric_timer simple_timing template
 
 .PHONY: default all $(ALL_LIBS) clean allclean \

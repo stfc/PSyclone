@@ -90,7 +90,7 @@ Example output:
 
 This wrapper library interfaces with UK Met Office's [Vernier library](
 https://github.com/MetOffice/Vernier). Detailed building and linking
-instructions are in [``veriner/README.md``](
+instructions are in [``vernier/README.md``](
 ./vernier/README.md).
 
 Note that Vernier writes the output to one file per MPI rank, called
