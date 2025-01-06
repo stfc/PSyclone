@@ -224,6 +224,22 @@ def test_fw_add_accessibility():
                       "end type var")
 
 
+def test_fw_preceding_and_inline_comment(fortran_writer):
+    '''Test that comments are correctly added to the generated code'''
+    symbol = DataSymbol("var", UnsupportedFortranType("integer :: var"))
+    symbol.preceding_comment = "This is a preceding comment"
+    symbol.inline_comment = "This is an inline comment"
+    expected = ("! This is a preceding comment\n"
+                "integer :: var ! This is an inline comment")
+    assert expected in fortran_writer.gen_vardecl(symbol)
+
+    # include_visibility=True case
+    expected = ("! This is a preceding comment\n"
+                "integer, public :: var ! This is an inline comment")
+    assert expected in fortran_writer.gen_vardecl(symbol,
+                                                  include_visibility=True)
+
+
 def test_generating_unsupportedtype_routine_imports(
         fortran_reader, tmpdir, monkeypatch, fortran_writer):
     ''' Tests that generating UnsupportedType imported RoutineSymbols (if their
