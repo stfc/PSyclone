@@ -1525,8 +1525,8 @@ class DynLMAOperators(LFRicCollection):
             ndf_name_to = arg.function_space_to.ndf_name
             ndf_name_from = arg.function_space_from.ndf_name
             parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
-                               dimension=",".join([ndf_name_to,
-                                                   ndf_name_from, size]),
+                               dimension=",".join([size, ndf_name_to,
+                                                   ndf_name_from]),
                                intent=arg.intent,
                                entity_decls=[arg.name]))
 
@@ -4992,6 +4992,24 @@ class DynKernelArguments(Arguments):
         arguments of this kernel. The names are unmangled (i.e. as
         specified in the kernel metadata) '''
         return self._unique_fs_names
+
+    @property
+    def first_field_or_operator(self):
+        '''
+        :returns: the first field or operator argument in the list.
+        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :raises InternalError: if no field or operator argument is found.
+
+        '''
+        for arg in self._args:
+            arg: DynKernelArgument
+            if arg.is_field or arg.is_operator:
+                return arg
+
+        raise InternalError(
+            f"Invalid LFRic kernel: failed to find a DynKernelArgument that is"
+            f" a field or operator in '{self.names}'.")
 
     def iteration_space_arg(self):
         '''

@@ -92,13 +92,13 @@ also currently raises a TransformationError for the same reason.
 Additionally, this example's Makefile has the necessary rules to compile
 the OpenAcc version of `alg_kern_use_var.f90`. This is done with the
 `compile-acc` target. Note that this requires an OpenACC compatible compiler
-(currently the Makefile only supports pgf90 - the build system flags will need
+(currently the Makefile only supports nvfortran - the build system flags will need
 to be updated to support other OpenACC compilers) and the infrastructure libraries
 must be built with the same compiler. To make sure the infrastructure and the
 generated files are compiled as described, we can do:
 
 ```sh
-export F90=pgf90
+export F90=nvfortran
 make allclean
 make compile-acc
 ```

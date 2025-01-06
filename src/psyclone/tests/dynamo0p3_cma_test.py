@@ -841,7 +841,7 @@ def test_cma_asm(tmpdir, dist_mem):
             "=> null(), cbanded_map_adspc2_lma_op1(:,:) => null()") in code
     assert "ncell_2d = mesh%get_ncells_2d" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
-    assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers_cma_op1, "
+    assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers_lma_op1, "
             "ncell_2d, lma_op1_proxy%ncell_3d, lma_op1_local_stencil, "
             "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, cma_op1_ncol, "
             "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
@@ -880,7 +880,7 @@ def test_cma_asm_field(tmpdir, dist_mem):
     assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     expected = (
-        "CALL columnwise_op_asm_field_kernel_code(cell, nlayers_cma_op1, "
+        "CALL columnwise_op_asm_field_kernel_code(cell, nlayers_afield, "
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
@@ -923,7 +923,7 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
     assert "ncell_2d = mesh%get_ncells_2d()" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     expected = ("CALL columnwise_op_asm_kernel_scalar_code(cell, "
-                "nlayers_cma_op1, ncell_2d, lma_op1_proxy%ncell_3d, "
+                "nlayers_lma_op1, ncell_2d, lma_op1_proxy%ncell_3d, "
                 "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), "
                 "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
                 "cma_op1_alpha_1, cma_op1_beta, cma_op1_gamma_m, "
@@ -974,7 +974,7 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
         assert "loop0_stop = cma_op1_proxy%fs_from%get_ncell()\n" in code
     assert "DO cell = loop0_start, loop0_stop, 1\n" in code
     expected = ("CALL columnwise_op_asm_same_fs_kernel_code(cell, "
-                "nlayers_cma_op1, ncell_2d, lma_op1_proxy%ncell_3d, "
+                "nlayers_lma_op1, ncell_2d, lma_op1_proxy%ncell_3d, "
                 "lma_op1_local_stencil, afield_data, "
                 "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, cma_op1_bandwidth, "
                 "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
@@ -1277,7 +1277,7 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
                 "      loop2_stop = cma_opc_proxy%fs_from%get_ncell()\n"
                 in code)
 
-    assert ("CALL columnwise_op_asm_field_kernel_code(cell, nlayers_cma_op1, "
+    assert ("CALL columnwise_op_asm_field_kernel_code(cell, nlayers_afield, "
             "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
             "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
             "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
@@ -1333,8 +1333,8 @@ def test_cma_asm_stub_gen(fortran_writer):
         "    integer(kind=i_def), intent(in) :: op_1_ncell_3d\n"
         "    integer(kind=i_def), intent(in) :: ndf_adspc1\n"
         "    integer(kind=i_def), intent(in) :: ndf_adspc2\n"
-        "    real(kind=r_def), dimension(ndf_adspc1,"
-        "ndf_adspc2,op_1_ncell_3d), intent(in) :: op_1\n"
+        "    real(kind=r_def), dimension(op_1_ncell_3d, ndf_adspc1,"
+        "ndf_adspc2), intent(in) :: op_1\n"
         "    integer(kind=i_def), intent(in) :: bandwidth_cma_op_2\n"
         "    integer(kind=i_def), intent(in) :: nrow_cma_op_2\n"
         # Should be r_solver TODO
@@ -1386,7 +1386,7 @@ def test_cma_asm_with_field_stub_gen(fortran_writer):
         "    integer(kind=i_def), intent(in) :: op_2_ncell_3d\n"
         "    integer(kind=i_def), intent(in) :: ndf_aspc1\n"
         "    integer(kind=i_def), intent(in) :: ndf_aspc2\n"
-        "    real(kind=r_def), dimension(ndf_aspc1,ndf_aspc2,op_2_ncell_3d), "
+        "    real(kind=r_def), dimension(op_2_ncell_3d,ndf_aspc1,ndf_aspc2), "
         "intent(in) :: op_2\n"
         "    integer(kind=i_def), intent(in) :: bandwidth_cma_op_3\n"
         "    integer(kind=i_def), intent(in) :: nrow_cma_op_3\n"
@@ -1448,8 +1448,8 @@ def test_cma_asm_same_fs_stub_gen():
         "      REAL(KIND=r_def), intent(in), dimension(undf_aspc1_op_1) :: "
         "field_2_aspc1_op_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_aspc1_op_1,"
-        "ndf_aspc2_op_1,op_1_ncell_3d) :: op_1\n")
+        "      REAL(KIND=r_def), intent(in), dimension(op_1_ncell_3d,"
+        "ndf_aspc1_op_1,ndf_aspc2_op_1) :: op_1\n")
     assert expected in str(result)
 
 

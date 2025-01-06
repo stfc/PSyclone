@@ -18,7 +18,7 @@ FFLAGS_SAFE_OPTIMISATION  = -O2
 FFLAGS_RISKY_OPTIMISATION = -O4
 FFLAGS_DEBUG              = -g -traceback
 FFLAGS_RUNTIME            = -Mchkptr -Mchkstk
-# Option for checking code meets Fortran standard (not available for PGI)
+# Option for checking code meets Fortran standard (not available for nvfortran)
 FFLAGS_FORTRAN_STANDARD   =
 
 # Flags for OpenMP threading / OpenMP offloading / OpenACC Offloading
