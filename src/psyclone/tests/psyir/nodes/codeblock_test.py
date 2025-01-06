@@ -167,7 +167,7 @@ def test_codeblock_ref_accesses(parser):
     assert "char_kind" in all_names
     assert "c_def" in all_names
     assert "b_def" in all_names
-   # All signatures should be marked as READWRITE access.
+    # All signatures should be marked as READWRITE access.
     assert all(vai.has_read_write(sig) for sig in all_sigs)
 
 
