@@ -336,6 +336,11 @@ contains
         character(*), intent(in)                      :: name
         {{type}}, intent(in)                          :: value
 
+        {% if name in ["Logical", "Char"] %}
+        ! We can't compare {{type}} values with a real, nor can
+        ! we check for non-finite values. So do nothing.
+        {% else %}
+        {# Now it's a floating point or integer value #}
         if (.not. is_enabled) return
 
         if (.not. this%env_var_have_been_read) then
@@ -343,8 +348,6 @@ contains
                                   name, this%has_checks(this%next_var_index), &
                                   this%value_ranges(this%next_var_index,:))
         endif
-
-        {% if name not in ["Logical", "Char"] %}
 
         if (this%has_checks(this%next_var_index) == has_min) then
             {# The spaces take care of proper indentation #}
@@ -379,9 +382,11 @@ contains
             {{indent}}                     this%value_ranges(this%next_var_index,2),"'."
             {{indent}}endif
         endif
-        {% endif %}
 
-        {% if name not in ["Int", "Char", "Logical"] %}
+        {% if name in ["Int", "Long"] %}
+        ! Variables of type {{type}} do not have NANs, and cannot usefully be
+        ! checked for non-finite values. So nothing to do here.
+        {% else -%}    {# floating point #}
         if (IEEE_SUPPORT_DATATYPE(value)) then
             if (.not. IEEE_IS_FINITE(value)) then
                 write(stderr, '(8G0)') "PSyData: Variable '", name,"' has invalid value ", &
@@ -389,10 +394,8 @@ contains
                                  "', region '", trim(this%region_name),"'."
             endif
         endif
-        {% else %}
-        ! Variables of type {{type}} do not have NANs, and cannot usefully be
-        !  checked for range. So nothing to do here.
-        {% endif %}
+        {% endif %}   {# floating point value #}
+        {% endif %}   {# floating point or integer #}
 
         call this%PSyDataBaseType%ProvideScalar{{name}}(name, value)
 
@@ -428,11 +431,15 @@ contains
         character(*), intent(in) :: name
         {{type}}, dimension({{DIMENSION}}), intent(in) :: value
 
-        {# IEEE_SUPPORT_DATATYPE does not even compile for int data types #}
-        {% if name not in ["Int", "Char", "Logical"] %}
         integer :: {{vars}}
 
+        {% if name in ["Logical", "Char"] %}
+        ! We can't compare {{type}} values with a real, nor can
+        ! we check for non-finite values. So do nothing.
+        {% else %}
+        {# Now it's a floating point or integer value #}
         if (.not. is_enabled) return
+
         if (.not. this%env_var_have_been_read) then
             call this%get_min_max(this%module_name, this%region_name,         &
                                   name, this%has_checks(this%next_var_index), &
@@ -494,6 +501,10 @@ contains
             {% endfor %}
         endif
 
+        {% if name in ["Int", "Long"] %}
+        ! Variables of type {{type}} do not have NANs, and cannot usefully be
+        ! checked for non-finite values. So nothing to do here.
+        {% else -%}    {# floating point #}
         if (IEEE_SUPPORT_DATATYPE(value)) then
             {# The spaces take care of proper indentation #}
             {% for j in range(dim, 0, -1) %}
@@ -510,10 +521,8 @@ contains
             {{" "*3*(j-1)}}enddo
             {% endfor %}
         endif
-        {% else %}
-        ! Variables of type {{type}} do not have NANs
-        ! So nothing to do here.
-        {% endif %}
+        {% endif %}   {# floating point value #}
+        {% endif %}   {# floating point or integer #}
 
         call this%PSyDataBaseType%ProvideArray{{dim}}d{{name}}(name, value)
 
