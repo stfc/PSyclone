@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified A. J. Voysey, Met Office
+# Modified A. J. Voysey and A. R. Pirrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 '''
@@ -439,10 +439,10 @@ def main(arguments):
     parser.add_argument(
         '-l', '--limit', dest='limit', default='off',
         choices=['off', 'all', 'output'],
-        help='limit the Fortran line length to 132 characters (default '
-        '\'%(default)s\'). Use \'all\' to apply limit to both input and '
-        'output Fortran. Use \'output\' to apply line-length limit to output '
-        'Fortran only.')
+        help="limit the Fortran line length to 132 characters (default "
+        "'%(default)s'). Use 'all' to apply limit to both input and "
+        "output Fortran. Use 'output' to apply line-length limit to output "
+        "Fortran only.")
     parser.add_argument(
         '-p', '--profile', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="add profiling hooks for 'kernels', 'invokes' or 'routines'")
