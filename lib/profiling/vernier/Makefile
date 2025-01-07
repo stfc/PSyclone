@@ -32,39 +32,38 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab,
-#             I. Kavcic, Met Office
+# Modified I. Kavcic, Met Office
 
 # ----------- Default "make" values, can be overwritten by the user -----------
 # Compiler and compiler flags
 F90 ?= gfortran
-F90FLAGS ?= -g
+F90FLAGS ?=
+# Path to the Vernier installation. It defaults to the assumed location
+# of the Vernier directory next to a clone of PSyclone repository.
+# Overwrite for a custom location.
+VERNIER_ROOT ?= ./../../../../Vernier
+# Path to the Vernier "include" files. Overwrite for a custom location.
+VERNIER_MODULES ?= $(VERNIER_ROOT)/local/include
 # -----------------------------------------------------------------------------
 
-# We don't build dl_timer, drhook, nvidia, Vernier, and tau by default
-# since they require external libraries to be available.
-ALL_LIBS = lfric_timer simple_timing template
+F90FLAGS += -I$(VERNIER_MODULES)
 
-.PHONY: default all $(ALL_LIBS) clean allclean \
-	dl_timer drhook nvidia tau vernier
+PSYDATA_LIB_NAME = vernier_psy
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
-default: all
+OBJS = vernier_psy.o
 
-all: $(ALL_LIBS)
+default: $(PSYDATA_LIB)
 
-# Invoke make in the corresponding subdirectory, and also support
-# the wrapper that need additional software to be installed
-$(ALL_LIBS) dl_timer drhook nvidia tau vernier:
-		$(MAKE) -C $@
+.PHONY: default clean allclean
+
+$(PSYDATA_LIB): $(OBJS)
+	ar rs $(PSYDATA_LIB) $(OBJS)
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) allclean; )
+	rm -f *.o *.mod $(PSYDATA_LIB)
 
 allclean: clean
-	# These libs are not cleaned by 'clean' (since they
-	# depend on external libraries)
-	$(MAKE) -C dl_timer clean
-	$(MAKE) -C drhook clean
-	$(MAKE) -C nvidia clean
-	$(MAKE) -C tau clean
-	$(MAKE) -C vernier clean
