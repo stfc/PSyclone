@@ -104,6 +104,7 @@ jobs:
     - run: cd doc/developer_guide; make html; make doctest
   build:
     if: ${{ github.repository != 'stfc/PSyclone-mirror' }}
+    # TODO 2837: Switch to ubuntu-latest once Python 3.7 support is removed.
     runs-on: ubuntu-22.04
     strategy:
       matrix:
