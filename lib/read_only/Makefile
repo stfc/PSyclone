@@ -48,8 +48,8 @@ F90FLAGS ?=
 PSYDATA_LIB_DIR ?= ./..
 # -----------------------------------------------------------------------------
 
-# The read-only verification library is implemented for int, real and
-# double scalars and 2-dimension arrays
+# The read-only verification library is implemented for int, logical,
+# characters, real, and double precision scalars and 1 to 4 dimensional arrays
 PROCESS_ARGS = -prefix=read_only_verify_ -types=char,int,logical,real,double \
 		       -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py

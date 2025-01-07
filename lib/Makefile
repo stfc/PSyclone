@@ -61,6 +61,12 @@ all:
 	$(MAKE) -C read_only all
 	$(MAKE) -C value_range_check all
 
+allclean:
+	$(MAKE) -C extract clean
+	$(MAKE) -C profiling clean
+	$(MAKE) -C read_only clean
+	$(MAKE) -C value_range_check clean
+
 %.f90:	%.jinja process.py
 	$$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py $< > $*.f90
 

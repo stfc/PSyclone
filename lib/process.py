@@ -102,12 +102,12 @@ args = parser.parse_args()
 # ---------------------------------------------------------
 # This is a mapping from the command line option name
 # to the tuple that is required for the jinja templates:
-TYPE_DATA = {"real": ("Real", "real(kind=real32)", 32),
-             "double": ("Double", "real(kind=real64)", 64),
-             "int": ("Int", "integer(kind=int32)", 32),
-             "char": ("Char", "character(*)", 8),
-             "logical": ("Logical", "Logical(kind=4)", 4),
-             "long": ("Long", "integer(kind=int64)", 64)}
+TYPE_DATA = {"real": ("Real", "real(kind=real32)"),
+             "double": ("Double", "real(kind=real64)"),
+             "int": ("Int", "integer(kind=int32)"),
+             "char": ("Char", "character(*)"),
+             "logical": ("Logical", "Logical(kind=4)"),
+             "long": ("Long", "integer(kind=int64)")}
 
 # ---------------------------------------------------------
 # Check type information:

@@ -29,16 +29,12 @@
 
 {# The types that are supported. The first entry of each tuple
    is the name used when naming subroutines and in user messages.
-   The second entry is the Fortran declaration. The third entry
-   is the number of bits. There is slightly different code
-   required for 32 and 64 bit values (due to the fact that the
-   Fortran transfer(value, mould) function leaves undefined bits
-   when mould is larger than value.) #}
+   The second entry is the Fortran declaration. #}
 
 {% if ALL_TYPES is not defined %}
-   {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
-                        ("Real",   "real(kind=real32)",   32),
-                        ("Int",    "integer(kind=int32)", 32) ] %}
+   {% set ALL_TYPES = [ ("Double", "real(kind=real64)"  ),
+                        ("Real",   "real(kind=real32)"  ),
+                        ("Int",    "integer(kind=int32)") ] %}
 {% endif %}
 
 ! -----------------------------------------------------------------------------
@@ -117,7 +113,7 @@ module read_only_base_mod
         {# Collect the various procedures for the same generic interface -#}
         {# ------------------------------------------------------------- -#}
         {% set all_provides=[] -%}
-        {%- for name, type, bits in ALL_TYPES %}
+        {%- for name, type in ALL_TYPES %}
         procedure :: ProvideScalar{{name}}
           {{- all_provides.append("ProvideScalar"~name) or "" }}
           {% for dim in ALL_DIMS %}
@@ -145,7 +141,7 @@ module read_only_base_mod
     {# Create a generic interface for all ComputeChecksum functions #}
     {# ------------------------------------------------------------ #}
     {% set all_compute = [] -%}
-    {% for name, type, bits in ALL_TYPES %}
+    {% for name, type in ALL_TYPES %}
       {% for dim in ALL_DIMS %}
         {{- all_compute.append("ComputeChecksum"~dim~"d"~name) or "" -}}
       {% endfor %}
@@ -265,7 +261,21 @@ contains
     LFRic which uses ComputeChecksum1dDouble)
 #}
 
-{% for name, type, bits in ALL_TYPES %}
+{% for name, type in ALL_TYPES %}
+    {# We need the number of bits since there is slightly different code
+       required for 32 and 64 bit values (due to the fact that the
+       Fortran transfer(value, mold) function leaves undefined bits
+       when mold is larger than value. #}
+    {% if name in ["Real", "Int", "Logical"] %}
+        {% set bits = 32 %}
+    {% elif name in ["Double", "Long"] %}
+        {% set bits = 64 %}
+    {% elif name in ["Char"] %}
+        {% set bits = 8 %}
+    {% else %}
+        ERROR - UNSUPPORTED BIT SIZE for {{name}}!
+    {% endif %}
+
 
     ! =========================================================================
     ! Implementation for all {{type}} types
