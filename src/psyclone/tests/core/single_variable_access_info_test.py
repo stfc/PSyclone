@@ -178,6 +178,11 @@ def test_variable_access_info():
     assert vai.is_read_only() is False
     assert vai.all_read_accesses == [vai[2]]
     assert vai.all_write_accesses == [vai[1], vai[3]]
+    # Check that we catch a case where there are no accesses at all.
+    vai = SingleVariableAccessInfo(Signature("var_name"))
+    with pytest.raises(InternalError) as err:
+        vai.change_read_to_write()
+    assert "but it does not have a 'READ' access" in str(err.value)
 
 
 # -----------------------------------------------------------------------------
