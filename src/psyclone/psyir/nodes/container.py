@@ -44,7 +44,7 @@ from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.symbols import (GenericInterfaceSymbol, RoutineSymbol,
                                     Symbol, SymbolTable)
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
+from psyclone.psyir.commentable_mixin import CommentableMixin
 
 
 class Container(ScopingNode, CommentableMixin):
