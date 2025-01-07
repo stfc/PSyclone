@@ -32,8 +32,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified A. J. Voysey and A. R. Pirrie, Met Office
+# Modified A. J. Voysey, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified A. R. Pirrie, Met Office
 
 '''
     This module provides the PSyclone 'main' routine which is intended
