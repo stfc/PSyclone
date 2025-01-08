@@ -59,6 +59,12 @@ def main(args):
                       been invoked with.
 
     '''
+
+    # Make sure we have the supported APIs defined in the Config singleton,
+    # but postpone loading the config file till the command line was parsed
+    # in case that the user specifies a different config file.
+    Config.get(do_not_load_file=True)
+
     # pylint: disable=too-many-statements, too-many-branches
     # TODO #1863 - expose line-length limiting as a command-line flag.
     line_length_limit = True
@@ -110,12 +116,12 @@ def main(args):
 
     args = parser.parse_args(args)
 
+    # If no config file name is specified, args.config is none
+    # and config will load the default config file.
+    Config.get().load(args.config)
+
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
-
-    # Create a config file so we don't trigger the 'LFRicConstants' created
-    # before config file was read exception
-    Config.get()
 
     # Specifying an output file for the test harness is taken to mean that
     # the user wants us to generate it.
