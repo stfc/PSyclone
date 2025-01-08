@@ -489,3 +489,19 @@ def test_minfo_get_fparser_tree_missing_file(tmpdir, monkeypatch):
 
     assert ("FileInfoFParserError: File '/I_dont_exist/psyclone/asdf'"
             " not found:" in str(einfo.value))
+
+
+def test_minfo_type_errors():
+    """
+    Trigger type errors in constructor of module info
+    """
+
+    with pytest.raises(TypeError) as einfo:
+        module_info: ModuleInfo = ModuleInfo(None, None)
+
+    assert ("Expected type 'str' for argument 'module_name'" in str(einfo.value))
+
+    with pytest.raises(TypeError) as einfo:
+        module_info: ModuleInfo = ModuleInfo("foo", None)
+
+    assert ("Expected type 'FileInfo' for argument 'file_info'" in str(einfo.value))

@@ -97,6 +97,12 @@ class ModuleInfo:
         module_name: str,
         file_info: FileInfo
     ):
+        if not isinstance(module_name, str):
+            raise TypeError("Expected type 'str' for argument 'module_name'")
+
+        if not isinstance(file_info, FileInfo):
+            raise TypeError("Expected type 'FileInfo' for argument 'file_info'")
+
         self._name = module_name.lower()
 
         # File handler including fparser and psyir representation
