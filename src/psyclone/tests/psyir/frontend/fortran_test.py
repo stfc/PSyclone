@@ -280,7 +280,7 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
     with pytest.raises(ValueError) as err:
         FortranReader(ignore_comments=True, ignore_directives=False)
     msg = (
-        "Setting ignore_directives to False will only have an effect if"
-        " ignore_comments is also set to False"
+        "Setting ignore_directives to False in the FortranReader will"
+        " only have an effect if ignore_comments is also set to False."
     )
     assert msg in str(err.value)
