@@ -13,6 +13,11 @@
 	AST tree. There are two new FortranReader arguments to select the behaviour
 	for comments and directives (by default they are not parsed).
 
+	5) PR #2836 for #2835. Reverts GHA to use Ubuntu 22.04 as python-3.7
+	not available in ubuntu-latest and linkspector is also broken.
+
+	6) PR #2820 for #2773. Adds support for the Vernier timing library.
+
 release 3.0.0 6th of December 2024
 
 	1) PR #2477 for #2463. Add support for Fortran Namelist statements.
