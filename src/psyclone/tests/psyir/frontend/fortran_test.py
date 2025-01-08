@@ -275,3 +275,12 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
             assert node.preceding_comment == "Comment on assignment"
         else:
             assert node.preceding_comment == ""
+
+    # Check that the following combination raises an error
+    with pytest.raises(ValueError) as err:
+        FortranReader(ignore_comments=True, ignore_directives=False)
+    msg = (
+        "Setting ignore_directives to False in the FortranReader will"
+        " only have an effect if ignore_comments is also set to False."
+    )
+    assert msg in str(err.value)
