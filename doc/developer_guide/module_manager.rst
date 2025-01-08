@@ -146,6 +146,7 @@ FileInfo
 FileInfo is a class that is used to store information about Fortran files.
 
 This information can include:
+
 - The source code itself
 - The fparser tree information
 - The PSyIR tree information

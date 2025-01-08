@@ -349,7 +349,7 @@ def test_module_info_extract_import_information_error():
 
     assert ("ModuleInfoError: Error(s) getting fparser tree of file"
             " 'd2/error_mod.F90' for module 'error_mod':\n"
-            "FileInfoFParserError: Failed to get fparser tree: at line 4"
+            "FileInfoFParserError: Failed to create fparser tree: at line 4"
             in str(einfo.value))
 
     # Make sure the internal attributes are set to not None to avoid
@@ -389,7 +389,7 @@ end module my_mod''')
     assert module_info.get_symbol("amos") is None
 
 
-def test_module_info_viewtree(tmpdir, monkeypatch):
+def test_module_info_viewtree(tmpdir):
     """
     Coverage test:
     - Set up ModuleInfo from FileInfo(filename)
@@ -417,7 +417,7 @@ def test_module_info_viewtree(tmpdir, monkeypatch):
 """ == output
 
 
-def test_module_info_get_source_code_missing_file(tmpdir, monkeypatch):
+def test_module_info_get_source_code_missing_file():
     """
     Coverage test:
     - Try to read from source file that doesn't exist
@@ -435,7 +435,7 @@ def test_module_info_get_source_code_missing_file(tmpdir, monkeypatch):
     assert "Could not find file" in str(einfo.value)
 
 
-def test_module_info_coverage_fparser_error(tmpdir, monkeypatch):
+def test_module_info_coverage_fparser_error(tmpdir):
     """
     Coverage test:
     - Create an .f90 file with wrong syntax
@@ -470,12 +470,12 @@ def test_module_info_coverage_fparser_error(tmpdir, monkeypatch):
     with pytest.raises(ModuleInfoError) as einfo:
         module_info.get_fparser_tree()
 
-    assert ("Failed to get fparser tree "
+    assert ("Failed to create fparser tree "
             "(previous attempt failed)" in
             str(einfo.value))
 
 
-def test_minfo_get_fparser_tree_missing_file(tmpdir, monkeypatch):
+def test_minfo_get_fparser_tree_missing_file():
     """
     Coverage test:
     - Test for raised Exception if file was not found
@@ -507,3 +507,16 @@ def test_minfo_type_errors():
 
     assert ("Expected type 'FileInfo' for argument"
             " 'file_info'" in str(einfo.value))
+
+
+def test_empty_container():
+    """
+    Test covers the case that `None` was returned as a container.
+    """
+
+    file_info = FileInfo("dummy")
+    module_info = ModuleInfo("dummy", file_info)
+
+    module_info.get_psyir = lambda: None
+
+    module_info.get_symbol("dummy")

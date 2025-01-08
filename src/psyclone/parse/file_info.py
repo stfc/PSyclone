@@ -376,10 +376,10 @@ class FileInfo:
             return self._fparser_tree
 
         if self._fparser_tree_triggers_error:
-            # Raises an exception if we were not able to load the
+            # Raises an exception if we were not able to create the
             # fparser tree before.
             raise FileInfoFParserError(
-                "Failed to get fparser tree (previous attempt failed)"
+                "Failed to create fparser tree (previous attempt failed)"
             )
 
         if verbose:
@@ -391,6 +391,9 @@ class FileInfo:
         except FileNotFoundError as err:
             raise FileInfoFParserError(
                 f"File '{self._filename}' not found:\n{str(err)}")
+
+        if self._source_code_hash_sum is None:
+            raise PSycloneError("Hash sum should be set after loading the source")
 
         # Check for cache
         self._cache_load(verbose=verbose)
@@ -418,7 +421,7 @@ class FileInfo:
         except Exception as err:
             self._fparser_tree_triggers_error = True
             raise FileInfoFParserError(
-                "Failed to get fparser tree: " + str(err)
+                "Failed to create fparser tree: " + str(err)
             ) from err
 
         # We directly call the cache saving routine here in case that the
@@ -473,3 +476,4 @@ class FileInfo:
         # self._cache_save(verbose=verbose)
 
         return self._psyir_node
+

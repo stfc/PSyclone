@@ -75,11 +75,10 @@ def test_file_info_missing_file():
     assert "'missing.txt'" in str(err.value)
 
 
-def test_file_info_content(tmpdir):
+def test_file_info_cached_source_code(tmpdir):
     '''
-    Check that FileInfo.content() successfully reads a file and that
-    the results are cached.
-
+    Check that the contents of the file have been cached
+    and that the cache was used if reading it a 2nd time.
     '''
     fname = os.path.join(tmpdir, "a_file.txt")
     content = "Just\nA\nTest"
@@ -91,6 +90,7 @@ def test_file_info_content(tmpdir):
     # Check that the contents have been cached.
     input2 = finfo.get_source_code()
     assert input2 is input1
+    assert finfo._source_code_hash_sum is not None
 
 
 def test_file_info_decode_error(tmpdir):
@@ -344,8 +344,12 @@ def test_file_info_source_with_bugs(tmpdir):
     with pytest.raises(FileInfoFParserError) as einfo:
         file_info.get_psyir(verbose=True)
 
-    assert "FileInfoFParserError: Failed to get fparser tree: at line 5" in (
+    assert "FileInfoFParserError: Failed to create fparser tree: at line 5" in (
         str(einfo.value))
+
+    # Call it a 2nd time for coverage of not attempting to create it a 2nd time
+    with pytest.raises(FileInfoFParserError) as einfo:
+        file_info.get_psyir(verbose=True)
 
 
 def test_file_info_cachefile_not_accessible(tmpdir):
@@ -457,3 +461,36 @@ def test_file_info_source_psyir_test(tmpdir):
 
     psyir_node2 = file_info.get_psyir(verbose=True)
     assert psyir_node is psyir_node2
+
+
+def test_no_caching():
+    file_info = FileInfo(filepath="dummy")
+
+    # Catch one if-branch returning if caching is disabled
+    file_info._cache_load(False)
+    file_info._cache_save(False)
+
+
+def test_fparser_error():
+    file_info = FileInfo(filepath="dummy")
+
+    # Catch special exception
+    from psyclone.parse.file_info import FileInfoFParserError
+    with pytest.raises(FileInfoFParserError) as einfo:
+        file_info.get_fparser_tree()
+
+
+def test_get_fparser_tree(monkeypatch):
+    file_info = FileInfo(filepath="dummy")
+
+    def get_source_code():
+        return "some dummy source code"
+
+    file_info.get_source_code = get_source_code
+
+    from psyclone.errors import PSycloneError
+    with pytest.raises(PSycloneError) as einfo:
+        file_info.get_fparser_tree()
+
+    assert "Hash sum should be set after loading the source" in str(einfo.value)
+

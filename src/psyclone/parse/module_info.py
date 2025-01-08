@@ -54,15 +54,6 @@ from psyclone.parse import FileInfo, FileInfoFParserError
 
 from fparser.two.Fortran2003 import Program
 
-
-class ModuleNotFoundError(PSycloneError):
-    """Triggered when the Fortran module was not found"""
-
-    def __init__(self, value):
-        PSycloneError.__init__(self, value)
-        self.value = "ModuleNotFoundError: " + str(value)
-
-
 class ModuleInfoError(PSycloneError):
     """
     PSyclone-specific exception for use when an error with the module manager

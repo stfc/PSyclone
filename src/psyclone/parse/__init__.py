@@ -38,7 +38,7 @@
 '''
 
 from psyclone.parse.file_info import FileInfo, FileInfoFParserError
-from psyclone.parse.module_info import ModuleInfo, ModuleInfoError, ModuleNotFoundError
+from psyclone.parse.module_info import ModuleInfo, ModuleInfoError
 from psyclone.parse.module_manager import ModuleManager
 
 
@@ -48,6 +48,5 @@ __all__ = [
         'FileInfoFParserError',
         'ModuleInfo',
         'ModuleInfoError',
-        'ModuleNotFoundError',
         'ModuleManager'
         ]
