@@ -54,6 +54,7 @@ from psyclone.parse import FileInfo, FileInfoFParserError
 
 from fparser.two.Fortran2003 import Program
 
+
 class ModuleInfoError(PSycloneError):
     """
     PSyclone-specific exception for use when an error with the module manager
@@ -332,5 +333,6 @@ class ModuleInfo:
         """
         retstr = ""
         retstr += f"{indent}- name: '{self.name}'\n"
-        retstr += f"{indent}- used_module_names: {self.get_used_modules()}\n"
+        retstr += (f"{indent}- used_module_names:"
+                   f" {self.get_used_modules()}\n")
         return retstr
