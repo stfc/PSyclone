@@ -18,6 +18,9 @@
 
 	6) PR #2820 for #2773. Adds support for the Vernier timing library.
 
+	7) PR #2840 for #2839. Raise error in FortranReader if ignore_directives
+	is True but ignore_comments is True.
+
 release 3.0.0 6th of December 2024
 
 	1) PR #2477 for #2463. Add support for Fortran Namelist statements.
