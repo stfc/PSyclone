@@ -1694,7 +1694,7 @@ def test_process_use_stmts_resolving_external_imports(
     # Add the path to the include_path and set up a frontend instance
     # witth the module_to_resolve names
     monkeypatch.setattr(Config.get(), '_include_paths', [tmpdir])
-    processor = Fparser2Reader(value)
+    processor = Fparser2Reader(resolve_modules=value)
     reader = FortranStringReader('''
     module test
         use other1

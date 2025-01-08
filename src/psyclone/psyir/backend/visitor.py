@@ -45,7 +45,7 @@ import inspect
 
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import Node, Schedule, Container
-from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
+from psyclone.psyir.commentable_mixin import CommentableMixin
 
 
 class VisitorError(PSycloneError):
