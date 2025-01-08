@@ -54,6 +54,7 @@ from psyclone.parse import FileInfo, FileInfoFParserError
 
 from fparser.two.Fortran2003 import Program
 
+
 class ModuleInfoError(PSycloneError):
     """
     PSyclone-specific exception for use when an error with the module manager

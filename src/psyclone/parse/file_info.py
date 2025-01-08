@@ -461,7 +461,8 @@ class FileInfo:
                 f"File '{self._filename}' not found:\n{str(err)}")
 
         if self._source_code_hash_sum is None:
-            raise PSycloneError("Hash sum should be set after loading the source")
+            raise PSycloneError(
+                    "Hash sum should be set after loading the source")
 
         # Check for cache
         self._cache_load(verbose=verbose)
@@ -549,4 +550,3 @@ class FileInfo:
         # self._cache_save(verbose=verbose)
 
         return self._psyir_node
-

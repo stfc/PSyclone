@@ -344,7 +344,8 @@ def test_file_info_source_with_bugs(tmpdir):
     with pytest.raises(FileInfoFParserError) as einfo:
         file_info.get_psyir(verbose=True)
 
-    assert "FileInfoFParserError: Failed to create fparser tree: at line 5" in (
+    assert ("FileInfoFParserError: Failed to create"
+            "fparser tree: at line 5") in (
         str(einfo.value))
 
     # Call it a 2nd time for coverage of not attempting to create it a 2nd time
@@ -503,7 +504,7 @@ def test_fparser_error():
 
     # Catch special exception
     from psyclone.parse.file_info import FileInfoFParserError
-    with pytest.raises(FileInfoFParserError) as einfo:
+    with pytest.raises(FileInfoFParserError):
         file_info.get_fparser_tree()
 
 
@@ -519,5 +520,5 @@ def test_get_fparser_tree(monkeypatch):
     with pytest.raises(PSycloneError) as einfo:
         file_info.get_fparser_tree()
 
-    assert "Hash sum should be set after loading the source" in str(einfo.value)
-
+    assert ("Hash sum should be set after loading"
+            " the source") in str(einfo.value)
