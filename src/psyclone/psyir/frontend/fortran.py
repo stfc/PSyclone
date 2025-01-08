@@ -72,6 +72,9 @@ class FortranReader():
         for more precise control it also accepts a list of module names.
         Defaults to False.
 
+    :raises ValueError: If ignore_directives is set to False but
+                        ignore_comments is set to True.
+
     '''
     # Save parser object across instances to reduce the initialisation time
     _parser = None
@@ -83,6 +86,11 @@ class FortranReader():
         if not self._parser:
             self._parser = ParserFactory().create(std="f2008")
         self._free_form = free_form
+        if ignore_comments and not ignore_directives:
+            raise ValueError(
+                "Setting ignore_directives to False in the FortranReader will"
+                " only have an effect if ignore_comments is also set to False."
+            )
         self._ignore_comments = ignore_comments
         self._processor = Fparser2Reader(ignore_directives,
                                          last_comments_as_codeblocks,
