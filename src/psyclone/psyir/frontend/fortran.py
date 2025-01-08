@@ -83,6 +83,11 @@ class FortranReader():
         if not self._parser:
             self._parser = ParserFactory().create(std="f2008")
         self._free_form = free_form
+        if ignore_comments and not ignore_directives:
+            raise ValueError(
+                "Setting ignore_directives to False will only have an effect if"
+                "ignore_comments is also set to False"
+            )
         self._ignore_comments = ignore_comments
         self._processor = Fparser2Reader(ignore_directives,
                                          last_comments_as_codeblocks,
