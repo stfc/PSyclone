@@ -1,3 +1,25 @@
+	1) PR #2827. Update Zenodo with release 3.0.0 and update link in
+	README.md.
+
+	2) PR #2759 for #2758. Fixes failure seen in compilation tests if
+	a previous build of infrastructure existed.
+
+	3) PR #2807 for #2806. Adds a new 'RESOLVE_IMPORTS' global variable
+	to transformation scripts which allows the user to instruct the
+	frontend to chase down some (or all) module imports when constructing
+	the PSyIR for existing code.
+
+	4) PR #2821 for #1247. Adds support for parsing comments from the fparser2
+	AST tree. There are two new FortranReader arguments to select the behaviour
+	for comments and directives (by default they are not parsed).
+
+	5) PR #2836 for #2835. Reverts GHA to use Ubuntu 22.04 as python-3.7
+	not available in ubuntu-latest and linkspector is also broken.
+
+	6) PR #2820 for #2773. Adds support for the Vernier timing library.
+
+release 3.0.0 6th of December 2024
+
 	1) PR #2477 for #2463. Add support for Fortran Namelist statements.
 
 	2) PR #2367 for #2296. Extends ModuleInfo so that it can be queried
@@ -225,8 +247,8 @@
 
 	77) PR #2708 for #2663. Add LFRic OpenACC in the integration tests.
 
-	78) PR #2678 for #2636. Alter LFRic PSy-layer to lookup nlevels for
-	each kernel
+	78) PR #2678 for #2636. Alter LFRic PSy-layer to lookup nlayers for
+	each kernel.
 
 	79) PR #2687 for #2684. Add support for WHERE constructs that contain
 	references without range-notation (and prevent some incorrect cases).
@@ -328,6 +350,12 @@
 
 	123) PR #2809 for #2737. Updates documentation on OpenMP to point to
 	examples of tranformations for CPU and GPU.
+
+	124) PR #2815 for #2636. Get nlayers from first field or operator
+	argument to each kernel in LFRic.
+
+	125) PR #2817 for #2816. Fix index type in initialisation of arrays
+	of fields in PSyAD test harness construction.
 
 release 2.5.0 14th of February 2024
 

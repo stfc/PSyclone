@@ -113,6 +113,10 @@ class FileInfo:
         # Fparser node
         self._fparser_tree: Fortran2003.Program = None
 
+        # Flag indicating that, based on a previous attempt,
+        # the fparser tree can't be generated due to an error
+        self._fparser_tree_triggers_error: bool = False
+
         # Psyir node
         self._psyir_node: FileContainer = None
 
@@ -225,7 +229,7 @@ class FileInfo:
                 self._source_code = file_in.read()
         except FileNotFoundError as err:
             raise FileNotFoundError(
-                f"No such file or directory '{self._filename}'."
+                f"FileInfo: No such file or directory '{self._filename}'."
             ) from err
 
         if verbose:
@@ -439,6 +443,13 @@ class FileInfo:
         if self._fparser_tree is not None:
             return self._fparser_tree
 
+        if self._fparser_tree_triggers_error:
+            # Raises an exception if we were not able to create the
+            # fparser tree before.
+            raise FileInfoFParserError(
+                "Failed to create fparser tree (previous attempt failed)"
+            )
+
         if verbose:
             # TODO #11: Use logging for this
             print(f"- Source file '{self._filename}': " f"Running fparser")
@@ -448,6 +459,9 @@ class FileInfo:
         except FileNotFoundError as err:
             raise FileInfoFParserError(
                 f"File '{self._filename}' not found:\n{str(err)}")
+
+        if self._source_code_hash_sum is None:
+            raise PSycloneError("Hash sum should be set after loading the source")
 
         # Check for cache
         self._cache_load(verbose=verbose)
@@ -473,8 +487,9 @@ class FileInfo:
             self._fparser_tree = parser(reader)
 
         except Exception as err:
+            self._fparser_tree_triggers_error = True
             raise FileInfoFParserError(
-                "Failed to get fparser tree: " + str(err)
+                "Failed to create fparser tree: " + str(err)
             ) from err
 
         # We directly call the cache saving routine here in case that the
@@ -534,3 +549,4 @@ class FileInfo:
         # self._cache_save(verbose=verbose)
 
         return self._psyir_node
+

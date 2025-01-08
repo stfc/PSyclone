@@ -54,15 +54,6 @@ from psyclone.parse import FileInfo, FileInfoFParserError
 
 from fparser.two.Fortran2003 import Program
 
-
-class ModuleNotFoundError(PSycloneError):
-    """Triggered when the Fortran module was not found"""
-
-    def __init__(self, value):
-        PSycloneError.__init__(self, value)
-        self.value = "ModuleNotFoundError: " + str(value)
-
-
 class ModuleInfoError(PSycloneError):
     """
     PSyclone-specific exception for use when an error with the module manager
@@ -98,6 +89,13 @@ class ModuleInfo:
         file_info: FileInfo,
         psyir_container_node: Container = None
     ):
+        if not isinstance(module_name, str):
+            raise TypeError("Expected type 'str' for argument 'module_name'")
+
+        if not isinstance(file_info, FileInfo):
+            raise TypeError("Expected type 'FileInfo' for"
+                            " argument 'file_info'")
+
         self._name = module_name.lower()
 
         # File handler including fparser and psyir representation
@@ -343,6 +341,12 @@ class ModuleInfo:
         return routine_found
 
     def view_tree(self, indent=""):
+        """
+        Show the module information with markdown style in a tree-like
+        structure supporting indentation.
+
+        :param str indent: the string to use for indentation.
+        """
         retstr = ""
         retstr += f"{indent}- name: '{self.name}'\n"
         retstr += (f"{indent}- used_module_names:"
