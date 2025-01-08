@@ -40,7 +40,7 @@ from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import (
     ArrayType, DataType, DataTypeSymbol, RoutineSymbol, StructureType, Symbol,
-    SymbolError, SymbolTable)
+    SymbolError, SymbolTable, UnsupportedFortranType)
 
 
 class ScopingNode(Node):
@@ -217,6 +217,10 @@ class ScopingNode(Node):
                     if isinstance(dim, ArrayType.ArrayBounds):
                         dim.lower.reference_accesses(access_info)
                         dim.upper.reference_accesses(access_info)
+            elif (isinstance(dtype, UnsupportedFortranType) and
+                  dtype.partial_datatype):
+                # Recurse to examine partial datatype information.
+                _get_accesses(dtype.partial_datatype, info)
 
         # Examine the datatypes and initial values of all DataSymbols.
         for sym in self._symbol_table.datasymbols:

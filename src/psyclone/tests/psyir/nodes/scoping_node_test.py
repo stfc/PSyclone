@@ -43,7 +43,8 @@ from psyclone.psyir.nodes import (
     Routine, ArrayReference)
 from psyclone.psyir.symbols import (
     ArrayType, ArgumentInterface, DataSymbol, DataTypeSymbol, INTEGER_TYPE,
-    ScalarType, StructureType, Symbol, SymbolTable, REAL_TYPE)
+    REAL_TYPE, ScalarType, StructureType, Symbol, SymbolTable,
+    UnsupportedFortranType)
 from psyclone.tests.utilities import Compile
 
 
@@ -345,7 +346,7 @@ def test_reference_accesses_struct():
 
 
 def test_reference_accesses_array():
-    '''Test reference_accesses() with the associated SymbolTable contains
+    '''Test reference_accesses() when the associated SymbolTable contains
     an array with dimensions that make reference to another Symbol.
 
     '''
@@ -367,3 +368,28 @@ def test_reference_accesses_array():
     assert Signature("i_def") in vai.all_signatures
     assert Signature("r_def") in vai.all_signatures
     assert Signature("var2") in vai.all_signatures
+
+
+def test_reference_accesses_unknown_type():
+    '''Test reference_accesses() when the symbol table contains a symbol
+    of UnsupportedFortranType but with partial type information.
+
+    '''
+    sched = Schedule()
+    table = sched.symbol_table
+    # Create partial type information - an array of specified precision
+    # with an extent specified by another symbol.
+    rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
+                            datatype=INTEGER_TYPE)
+    big_sym = table.new_symbol("big", symbol_type=DataSymbol,
+                               datatype=INTEGER_TYPE)
+    real_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
+    ptype = ArrayType(real_type, [Reference(big_sym)])
+    utype = UnsupportedFortranType(
+        "real(r_def), dimension(big), target :: array",
+        partial_datatype=ptype)
+    table.new_symbol("array", symbol_type=DataSymbol, datatype=utype)
+    vai = VariablesAccessInfo()
+    sched.reference_accesses(vai)
+    assert Signature("r_def") in vai.all_signatures
+    assert Signature("big") in vai.all_signatures
