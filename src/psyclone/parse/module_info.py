@@ -101,7 +101,8 @@ class ModuleInfo:
             raise TypeError("Expected type 'str' for argument 'module_name'")
 
         if not isinstance(file_info, FileInfo):
-            raise TypeError("Expected type 'FileInfo' for argument 'file_info'")
+            raise TypeError("Expected type 'FileInfo' for"
+                            " argument 'file_info'")
 
         self._name = module_name.lower()
 

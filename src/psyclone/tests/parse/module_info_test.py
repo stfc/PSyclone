@@ -497,11 +497,13 @@ def test_minfo_type_errors():
     """
 
     with pytest.raises(TypeError) as einfo:
-        module_info: ModuleInfo = ModuleInfo(None, None)
+        ModuleInfo(None, None)
 
-    assert ("Expected type 'str' for argument 'module_name'" in str(einfo.value))
+    assert ("Expected type 'str' for argument"
+            " 'module_name'" in str(einfo.value))
 
     with pytest.raises(TypeError) as einfo:
-        module_info: ModuleInfo = ModuleInfo("foo", None)
+        ModuleInfo("foo", None)
 
-    assert ("Expected type 'FileInfo' for argument 'file_info'" in str(einfo.value))
+    assert ("Expected type 'FileInfo' for argument"
+            " 'file_info'" in str(einfo.value))
