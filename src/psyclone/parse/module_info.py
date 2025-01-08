@@ -327,6 +327,10 @@ class ModuleInfo:
 
     def view_tree(self, indent=""):
         """
+        Show the module information with markdown style in a tree-like
+        structure supporting indentation.
+
+        :param str indent: the string to use for indentation.
         """
         retstr = ""
         retstr += f"{indent}- name: '{self.name}'\n"

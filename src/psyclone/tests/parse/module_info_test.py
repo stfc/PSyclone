@@ -417,7 +417,7 @@ def test_module_info_viewtree(tmpdir, monkeypatch):
 """ == output
 
 
-def test_module_info_coverage_source_node_found(tmpdir, monkeypatch):
+def test_module_info_get_source_code_missing_file(tmpdir, monkeypatch):
     """
     Coverage test:
     - Try to read from source file that doesn't exist
