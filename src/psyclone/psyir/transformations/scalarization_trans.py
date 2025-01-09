@@ -93,42 +93,47 @@ class ScalarizationTrans(LoopTrans):
     def _value_unused_after_loop(sig, node, var_accesses):
         # Find the last access of the signature
         last_access = var_accesses[sig].all_accesses[-1].node
-        # Find the next access to this symbol
-        next_access = last_access.next_access()
+        # Find the next accesses to this symbol
+        next_accesses = last_access.next_accesses()
         # If we don't use this again then this can be scalarized
-        if next_access is None:
+        if len(next_accesses) == 0:
             return True
 
         # If the next_access has an ancestor IfBlock and
         # that isn't an ancestor of the loop then its not valid since
         # we aren't tracking down what the condition-dependent next
         # use really is.
-        if_ancestor = next_access.ancestor(IfBlock)
-        # If abs_position of if_ancestor is > node.abs_position
-        # its not an ancestor of us.
-        # Handles:
-        # if (some_condition) then
-        #    x = next_access[i] + 1
-        if (if_ancestor is not None and
-                if_ancestor.abs_position > node.abs_position):
-            # Not a valid next_access pattern.
-            return False
+        for next_access in next_accesses:
+            # next_accesses looks backwards to the start of the loop,
+            # but we don't care about those accesses here.
+            if next_access.abs_position <= last_access.abs_position:
+                continue
+            if_ancestor = next_access.ancestor(IfBlock)
+            # If abs_position of if_ancestor is > node.abs_position
+            # its not an ancestor of us.
+            # Handles:
+            # if (some_condition) then
+            #    x = next_access[i] + 1
+            if (if_ancestor is not None and
+                    if_ancestor.abs_position > node.abs_position):
+                # Not a valid next_access pattern.
+                return False
 
-        # If next access is the RHS of an assignment then we need to
-        # skip it
-        # Handles:
-        # a = next_access[i] + 1
-        ancestor_assign = next_access.ancestor(Assignment)
-        if (ancestor_assign is not None and
-                ancestor_assign.lhs is not next_access):
-            return False
+            # If next access is the RHS of an assignment then we need to
+            # skip it
+            # Handles:
+            # a = next_access[i] + 1
+            ancestor_assign = next_access.ancestor(Assignment)
+            if (ancestor_assign is not None and
+                    ancestor_assign.lhs is not next_access):
+                return False
 
-        # If it has an ancestor that is a CodeBlock or Call or Kern
-        # then we can't guarantee anything, so we remove it.
-        # Handles: call my_func(next_access)
-        if (next_access.ancestor((CodeBlock, Call, Kern))
-                is not None):
-            return False
+            # If it has an ancestor that is a CodeBlock or Call or Kern
+            # then we can't guarantee anything, so we remove it.
+            # Handles: call my_func(next_access)
+            if (next_access.ancestor((CodeBlock, Call, Kern))
+                    is not None):
+                return False
 
         return True
 
