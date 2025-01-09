@@ -37,8 +37,8 @@
 ..          L. Turner, Met Office
 
 
-The PSyclone Internal Representation (PSyIR)
-############################################
+The PSyclone Intermediate Representation (PSyIR)
+################################################
 
 The PSyclone Intermediate Representation (PSyIR) is a language-independent
 Intermediate Representation that PSyclone uses to represent the PSy (Parallel
@@ -256,6 +256,24 @@ relationship.
 
 Methods like ``node.detach()``, ``node.copy()`` and ``node.pop_all_children()``
 can be used to move or replicate existing children into different nodes. 
+
+Tree Copying
+============
+
+The ability to create a deep-copy of a PSyIR tree is used heavily in PSyclone,
+primarily by the PSyIR backends. (This is because those backends often need
+to modify the tree while ensuring that the one provided by the caller remains
+unchanged.) As mentioned in the previous section, the ``node.copy()`` method
+provides this functionality:
+
+.. automethod:: psyclone.psyir.nodes.Node.copy
+
+As part of this copy operation, all Symbols referred to in the new tree must
+also be replaced with their equivalents from the symbol tables in the new tree.
+Since these symbol tables are associated with instances of ``ScopingNode``, it
+is ``ScopingNode._refine_copy`` which handles this:
+
+.. automethod:: psyclone.psyir.nodes.ScopingNode._refine_copy
 
 .. _update_signals_label:
 
@@ -579,6 +597,11 @@ IntrinsicCalls, like Calls, have properties to inform if the call is to a
 pure, elemental, inquiry (does not touch the first argument data) function
 or is available on a GPU device.
 
+`SUM`, `PRODUCT`, `LBOUND`, and `UBOUND` are not documented as having
+support on GPUs according to the current Nvidia documentation, however we
+have confirmed them experimentally and so PSyclone treats them as
+available on GPU devices.
+
 CodeBlock Node
 --------------
 
@@ -875,7 +898,7 @@ class, for example:
 
 .. code-block:: python
 
-    from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
+    from psyclone.psyir.commentable_mixin import CommentableMixin
 
     class MyNode(Node, CommentableMixin):
         ''' Example node '''
@@ -911,7 +934,7 @@ PSy-layer concepts
   sub-classed in all of the domains supported by PSyclone. This then allows
   the class to be configured with a list of valid loop 'types'. For instance,
   the GOcean sub-class, `GOLoop`, has "inner" and "outer" while the LFRic
-  (dynamo0.3) sub-class, `LFRicLoop`, has "dofs", "colours", "colour", ""
+  sub-class, `LFRicLoop`, has "dofs", "colours", "colour", ""
   and "null". The default loop type (iterating over cells) is here
   indicated by the empty string. The concept of a "null" loop type is
   currently required because the dependency analysis that determines the

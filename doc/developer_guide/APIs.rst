@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 .. Modified by I. Kavcic, L. Turner and O. Brunt, Met Office
 
 Generic Code
@@ -48,31 +48,29 @@ TBD
 
 .. Generating API-specific code
 .. ============================
-.. 
+..
 .. This section explains how to create a new API in PSyclone. PSyclone
-.. currently supports the following APIs: nemo, lfric (dynamo0.3)
-.. and gocean.
-.. 
+.. currently supports the following APIs: lfric and gocean.
+..
 .. config.py
 .. ---------
-.. 
+..
 .. The names of the supported APIs and the default API are specified in
 .. ``configuration.py``. When adding a new API you must add the name you would like
-.. to use to the ``_supported_api_list`` (and change the ``_default_api`` if
-.. required).
-.. 
+.. to use to the ``_supported_api_list``.
+..
 .. parse.py
 .. --------
-.. 
+..
 .. The parser reads the algorithm code and associated kernel metadata.
-.. 
+..
 .. The parser currently assumes that all APIs will use the ``invoke()``
 .. API for the algorithm-to-psy layer but that the content and structure
 .. of the metadata in the kernel code may differ. If the algorithm API
 .. differs, then the parser will need to be refactored. This is beyond
 .. the scope of this document and is currently not considered in the
 .. PSyclone software architecture.
-.. 
+..
 .. The kernel metadata however, will be different from one API to
 .. another. To parse this kernel-API-specific metadata a
 .. ``KernelTypeFactory`` is provided which should return the appropriate
@@ -81,7 +79,7 @@ TBD
 .. in the ``KernelTypeFactory`` class. If the kernel metadata happens to be
 .. the same as another existing API then the existing ``KernelType``
 .. subclass can be used for the new API.
-.. 
+..
 .. The ``KernelType`` subclass needs to specialise the class constructor
 .. and initialise the ``KernelType`` base class with the
 .. supplied arguments. The role of the ``KernelType`` subclass is to create
@@ -90,95 +88,95 @@ TBD
 .. this is appends the kernel-metadata-specific subclass instance is
 .. appended to the ``_arg_descriptors`` list provided by the ``KernelType``
 .. base class.
-.. 
+..
 .. TBC
-.. 
+..
 .. This information
-.. 
+..
 .. KernelType base class assumes kernel metadata stored as a type. Searches for that type.
 .. Checks whether the metadata is public (it should be ?)
 .. Assumes iterates_over variable.
 .. Binding to a procedure - assumes one of two styles.
 .. Assumes a meta_args type
 .. *What about our func_args type???*
-.. 
+..
 .. type x
 .. meta_args=
 .. *meta_func=*
 .. iterates_over=
 .. code => or code =
 .. end type x
-.. 
+..
 .. The descriptor class ...
-.. 
+..
 .. psyGen.py
 .. ---------
-.. 
+..
 .. factory
 .. +++++++
-.. 
+..
 .. A new file needs to be created and the following classes found in
 .. psyGen.py need to be subclassed.
-.. 
+..
 .. PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Arguments, Argument
 .. You may also choose to subclass the Inf class if required.
-.. 
+..
 .. The subclass of the PSy class then needs to be added as an option to
 .. the create method in the PSyFactory class.
-.. 
+..
 .. Initialisation
 .. ++++++++++++++
-.. 
+..
 .. The parser information passed to the PSy layer is used to create an
 .. invokes object which in turn creates a list of invoke objects. Each
 .. invoke object contains an InvokeSchedule which consists of loops and
 .. calls. Finally, a call contains an arguments object which itself
 .. contains a list of argument objects.
-.. 
+..
 .. To make sure the subclass versions of the above objects are created
 .. the __init__ methods of the subclasses must make sure they create
 .. the appropriate objects.
-.. 
+..
 .. Some of the baseclass constructors (__init__ methods) support the
 .. classname being provided. This allow them to instantiate the
 .. appropriate objects without knowing what they are.
-.. 
+..
 .. gen_code()
 .. ++++++++++
-.. 
+..
 .. All of the above classes (with the exception of PSy which supports a
 .. gen() method) have the gen_code() method. This method passes the
 .. parent of the generation tree and expect the object to add the code
 .. associated with the object as a child of the parent. The object is
 .. then expected to call any children. This approach is powerful as it
 .. lets each object concentrate on the code that it is responsible for.
-.. 
+..
 .. Adding code in gen_code()
 .. +++++++++++++++++++++++++
-.. 
+..
 .. The f2pygen classes have been developed to help create appropriate
 .. fortran code in the gen_code() method.
-.. 
+..
 .. When writing a gen_code() method for a particular object and API it is
 .. natural to add code as a child of the parent provided by the callee of
 .. the method. However, in some cases we do not want code to appear at
 .. the current position in the hierarchy.
-.. 
+..
 .. The add() method
 .. ++++++++++++++++
-.. 
+..
 .. PSyclone supports this via the add() method
-.. 
+..
 .. explicitly place at the appropriate place in the hierarchy. For example,
 .. parent.parent.add(...)
-.. 
+..
 .. optional argument. default is auto. This attempts to place code in the
 .. expected place. For example, specify a declaration. auto finds a
 .. correct place to put this code.
-.. 
+..
 .. Specify position explicitly
 .. "before", "after", "first", "last"
-.. 
+..
 .. Sometimes don't know exactly where to place. On example that is
 .. supported is when you want to add something before or after a loop
 .. nest. start_parent_loop(). This method recurses up until the parent is
@@ -189,10 +187,10 @@ TBD
 Existing APIs
 #############
 
-.. _dynamo0.3-developers:
+.. _lfric-developers:
 
-LFRic (Dynamo0.3)
-=================
+LFRic
+=====
 
 Mesh
 ----
@@ -225,8 +223,8 @@ indexed in the following way.
 .. image:: cells_global.png
 	   :width: 120
 
-When the distributed memory option is switched on in the Dynamo0.3 API
-(see the :ref:`distributed_memory` Section) the cells in the model are
+When the distributed memory option is switched on in the LFRic API
+(see the :ref:`psykal_usage` Section) the cells in the model are
 partitioned amongst processors and halo cells are added at the
 boundaries to a depth determined by the LFRic infrastructure. In this
 case the LFRic infrastructure maintains the global cell index and
@@ -237,7 +235,9 @@ An example for a depth-1 halo implementation with the earlier mesh
 split into 2 partitions is given below, with the halo cells being
 coloured red. An example local indexing scheme is also provided below
 the cells. Notice the local indexing scheme is set up such that owned
-cells have lower indices than halo cells.
+cells have lower indices than halo cells, the first halo cell starts
+immediately after the last owned cell, and the cell indices are
+contiguous.
 
 .. image:: cells_distributed.png
 	   :width: 200
@@ -276,8 +276,8 @@ index 2 and the cell above that contains dof index 3 etc.
 	   :width: 120
 
 As discussed in the previous section, when the distributed memory
-option is switched on in the Dynamo0.3 API (see the
-:ref:`distributed_memory` Section) the cells in the model are
+option is switched on in the LFRic API (see the
+:ref:`psykal_usage` Section) the cells in the model are
 partitioned amongst processors and halo cells are added at the
 boundaries to a depth determined by the LFRic infrastructure. This
 results in the dofs being replicated in the halo cells, leading to a
@@ -310,7 +310,7 @@ that contains dof index 3 etc.
 	   :width: 140
 
 As already explained, when the distributed memory option is switched
-on in the Dynamo0.3 API (see the :ref:`distributed_memory` Section)
+on in the LFRic API (see the :ref:`psykal_usage` Section)
 the cells in the model are partitioned amongst processors and halo
 cells are added at the boundaries.
 
@@ -322,7 +322,7 @@ replicated if fields on continuous dofs are going to be able to be
 computed locally on each partition. This concept is different to halos
 as there are no halo cells here, the fact that the cells are
 partitioned has meant that continuous dofs on the edge of the
-partition are replicated. The convention used in Dynamo0.3 is that the
+partition are replicated. The convention used in LFRic is that the
 cell with the lowest global id determines which partition owns a
 dof and which has the copy. Dofs which are copies are called
 ``annexed``. Annexed dofs are coloured blue in the example:
@@ -335,7 +335,7 @@ grey) then we get:
 
 .. image:: dofs_cont_halos.png
 	   :width: 230
-		   
+
 An example for a depth-1 halo implementation with the earlier mesh
 split into 2 partitions is given below, with the halo cells drawn in
 grey and halo dofs coloured red. An example local indexing scheme is
@@ -373,7 +373,7 @@ index of the last halo dof, to support PSyclone code generation.
 Multi-grid
 ----------
 
-The Dynamo 0.3 API supports kernels that map fields between meshes of
+The LFRic API supports kernels that map fields between meshes of
 different horizontal resolutions; these are termed "inter-grid"
 kernels. As indicated in :numref:`fig-multigrid` below, the change in
 resolution between each level is always a factor of two in both the
@@ -404,10 +404,10 @@ that of those on the coarse mesh.
 Loop iterators
 --------------
 
-In the current implementation of the Dynamo0.3 API it is possible to
-iterate (loop) either over cells or dofs. At the moment all coded
-kernels are written to iterate over cells and all Built-in kernels are
-written to iterate over dofs, but that does not have to be the case.
+In the current implementation of the LFRic API it is possible to
+iterate (loop) either over cells or dofs. At the moment coded
+kernels can be written to iterate over cells or dofs and all Built-in kernels
+are written to iterate over dofs, but that does not have to be the case.
 
 The loop iteration information is specified in the kernel metadata. In
 the case of Built-ins there is kernel metadata but it is part of
@@ -444,7 +444,7 @@ same, correct value written to them, independent of whether or not
 the current cell "owns" them, there is no need to perform redundant
 computation in this case.
 
-An alternative solution could have been adopted in Dynamo0.3 whereby
+An alternative solution could have been adopted in LFRic whereby
 no redundant computation is performed and partial-sum results are
 shared between processors in a communication pattern similar to halo
 exchanges. However, a decision was made to always perform redundant
@@ -490,7 +490,7 @@ Cell iterators: Discontinuous
 When a kernel is written to iterate over cells and modify a
 discontinuous field, PSyclone only needs to compute dofs on owned
 cells. Users can apply a redundant computation transformation (see the
-:ref:`dynamo0.3-api-transformations` section) to redundantly compute
+:ref:`lfric-api-transformations` section) to redundantly compute
 into the halo but this is not done by default.
 
 .. _annexed_dofs:
@@ -522,7 +522,7 @@ annexed dof. This iteration space will necessarily also include all
 owned dofs due to the ordering of dof indices discussed earlier.
 
 The configuration variable is called ``COMPUTE_ANNEXED_DOFS`` and is
-found in the ``dynamo0.3`` section of the ``psyclone.cfg``
+found in the ``lfric`` section of the ``psyclone.cfg``
 configuration file (see :ref:`configuration`). If it is ``true`` then
 annexed dofs are always computed in loops that iterate over dofs and
 if it is ``false`` then annexed dofs are not computed. The default in
@@ -916,7 +916,7 @@ Precision
 
 The different types (kinds) of precision for scalar, fields and
 operators are specified in the ``lfric_constants.py`` file. Adding a
-new precision (kind) name to PSyclone for the LFRic (Dynamo0.3) API
+new precision (kind) name to PSyclone for the LFRic API
 should simply be a case of adding the appropriate entry to this
 file. Doing this will provide a working version, but, of course, it
 ignores any additional tests, an example and updating the
@@ -996,7 +996,7 @@ If an application is being built in parallel then it is possible that
 different invocations of PSyclone will happen simultaneously and
 therefore we must take care to avoid race conditions when querying the
 filesystem. For this reason we use ``os.open``::
-  
+
     fd = os.open(<filename>, os.O_CREAT | os.O_WRONLY | os.O_EXCL)
 
 The ``os.O_CREATE`` and ``os.O_EXCL`` flags in combination mean that
@@ -1022,7 +1022,7 @@ of a given colour may be safely updated in parallel
 	   Example of the colouring of the horizontal cells used to
 	   ensure the thread-safe update of shared dofs (black
 	   circles).  (Courtesy of S. Mullerworth, Met Office.)
-	   
+
 The loop over colours must then be performed sequentially but the loop
 over cells of a given colour may be done in parallel. A loop that
 requires colouring may be transformed using the ``Dynamo0p3ColourTrans``
@@ -1208,13 +1208,13 @@ TBD
 
 .. OpenMP Support
 .. --------------
-.. 
+..
 .. Loop directives are treated as first class entities in the psyGen
 .. package. Therefore they can be added to psyGen's high level
 .. representation of the fortran code structure in the same way as calls
 .. and loops. Obviously it is only valid to add a loop directive outside
 .. of a loop.
-.. 
+..
 .. When adding a call inside a loop the placement of any additional calls
 .. or declarations must be specified correctly to ensure that they are
 .. placed at the correct location in the hierarchy. To avoid accidentally
@@ -1224,7 +1224,7 @@ TBD
 .. f2pygen*.  This method returns the location at the top of any loop
 .. hierarchy and before any comments immediately before the top level
 .. loop.
-.. 
+..
 .. The OpenMPLoopDirective object needs to know which variables are
 .. shared and which are private. In the current implementation default
 .. shared is used and private variables are listed. To determine the
@@ -1235,13 +1235,13 @@ TBD
 .. the directive and adds each calls list of private variables, returned
 .. with the local_vars() method. Therefore the OpenMPLoopDirective object
 .. relies on calls specifying which variables they require being local.
-.. 
+..
 .. Next ...
-.. 
+..
 .. Update transformation for colours
-.. 
-.. OpenMPLoop transformation in transformations.py. 
-.. 
+..
+.. OpenMPLoop transformation in transformations.py.
+..
 .. Create third transformation which goes over all loops in a schedule and
 .. applies the OpenMP loop transformation.
 
@@ -1261,34 +1261,16 @@ These scripts may be found in ``examples/nemo/scripts`` and their
 use is described in the ``README.md`` file in that directory.
 
 
-PSyIR Construction
-------------------
-
-Since NEMO is an existing code, the way it is handled in PSyclone is
-slightly different from those APIs that mandate a PSyKAl separation of
-concerns (LFRic and GOcean1.0).  As with the other APIs, fparser2 is
-used to parse the supplied Fortran source file and construct a parse
-tree (in ``psyclone.generator.generate``). This parse tree is then
-passed to the ``NemoPSy`` constructor which uses the ``fparser2`` PSyIR
-frontend to construct the equivalent PSyIR. (This PSyIR is
-'language-level' in that it does not contain any domain-specific
-constructs.) Finally, the PSyIR is passed to the ``NemoInvokes``
-constructor which applies various 'raising' transformations which
-raise the level of abstraction by introducing domain-specific
-information.
-
 Implicit Loops
 --------------
 
-When constructing the PSyIR of NEMO source code, PSyclone currently
-only considers explicit loops as candidates for being
-raised/transformed into ``NemoLoop`` instances. However, many of the
-loops in NEMO are written using Fortran array notation. Such use of
-array notation is encouraged in the NEMO Coding Conventions
+Many of the loops in NEMO are written using Fortran array notation. Such
+use of array notation is encouraged in the NEMO Coding Conventions
 :cite:`nemo_code_conv` and identifying these loops can be important
-when introducing, e.g. OpenMP. Currently these implicit loops are not
-automatically 'raised' into ``NemoLoop`` instances but can be done
-separately using the ``NemoAllArrayRange2LoopTrans`` transformation.
+when introducing, e.g. OpenMP. These implicit loops are not
+automatically represented as PSyIR Loop instances but can be converted
+to explicit loops using the ``ArrayAssignment2LoopsTrans``
+transformation.
 
 
 However, not all uses of Fortran array notation in NEMO imply a
@@ -1307,9 +1289,17 @@ Alternatively, a statement that assigns to an array must imply a loop::
   twodarray2(:,:) = bfunc(twodarray1(:,:))
 
 but it can only be converted into an explicit loop by PSyclone if the
-function ``bfunc`` returns a scalar. Since PSyclone does not currently
-attempt to fully resolve all symbols when parsing NEMO code, this
-information is not available and therefore such statements are not
-identified as loops (issue
-https://github.com/stfc/PSyclone/issues/286). This may then mean that
-opportunities for optimisation are missed.
+function ``bfunc`` returns a scalar.
+
+Since PSyclone does not currently attempt to fully resolve all symbols
+when parsing NEMO code, this information is not available and therefore
+such statements are not identified as loops.
+
+In order to improve the PSyclone capabilities to convert implicit loops,
+the details of externally declared symbols can be resolved by using the
+`resolve_imports` method of the symbol table:
+
+.. code-block:: python
+
+   import_symbol = symbol_table.lookup(module_name)
+   symbol_table.resolve_imports(container_symbols=[import_symbol])

@@ -35,7 +35,7 @@
 # Modified: I. Kavcic, Met Office
 # Modified: J. Henrichs, Bureau of Meteorology
 
-'''File containing a PSyclone transformation script for the dynamo0p3
+'''File containing a PSyclone transformation script for the LFRic
 API to apply loop fusion and then OpenMP parallelisation to an invoke
 with two Kernels. This can be applied via the -s option in the
 generator.py script.'''
@@ -45,18 +45,23 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.transformations import OMPParallelTrans, Dynamo0p3OMPLoopTrans
 
 
-def trans(psy):
-    ''' PSyclone transformation script for the dynamo0p3 API to apply
-    loop fusion and OpenMP for a particular example.'''
+def trans(psyir):
+    ''' PSyclone transformation script for the LFRic API to apply
+    loop fusion and OpenMP for a particular example.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     otrans = OMPParallelTrans()
     ltrans = Dynamo0p3OMPLoopTrans()
     ftrans = LFRicLoopFuseTrans()
 
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
+    # Get first invoke subroutine
+    schedule = psyir.children[0].children[0]
 
     config = Config.get()
-    if config.api_conf("dynamo0.3").compute_annexed_dofs and \
+    if config.api_conf("lfric").compute_annexed_dofs and \
        config.distributed_memory:
         # We can't loop fuse as the loop bounds differ so add
         # OpenMP parallel do directives to the loops
@@ -77,5 +82,3 @@ def trans(psy):
     # take a look at what we've done
     print(schedule.view())
     schedule.dag()
-
-    return psy

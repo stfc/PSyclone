@@ -32,11 +32,14 @@
 ! Author: J.Henrichs, Bureau of Meteorology
 ! Author: S. Siso, STFC Daresbury Lab
 
+! An example module containing some variables and a parameter so that we
+! can have test kernels that import them.
 module model_mod
   
     use kind_params_mod
 
     real(go_wp), parameter :: rdt = 1.0
+    real(go_wp) :: magic
     real(go_wp) :: cbfr
 
 end module model_mod

@@ -115,20 +115,22 @@ def test_containersymbol_specialise_and_process_arguments():
     # It could use the container import infrastructure (in this case it fails
     # because it does not exist)
     with pytest.raises(SymbolError) as error:
-        _ = sym1.container
+        _ = sym1.find_container_psyir()
     assert "not found" in str(error.value)
 
     # Now with a wildcard_import argument
     sym2 = Symbol("symbol1")
-    sym2.specialise(ContainerSymbol, wildcard_import=True)
+    sym2.specialise(ContainerSymbol, wildcard_import=True, is_intrinsic=True)
     assert isinstance(sym1, ContainerSymbol)
     assert sym2.wildcard_import is True
+    assert sym2.is_intrinsic is True
 
 
 def test_containersymbol_can_be_copied():
     '''Test that a ContainerSymbol instance can be copied. '''
     symbol = ContainerSymbol("my_mod")
     symbol.wildcard_import = True
+    symbol.is_intrinsic = True
     new_symbol = symbol.copy()
 
     assert new_symbol is not symbol
@@ -137,6 +139,7 @@ def test_containersymbol_can_be_copied():
     # Disable false positive no-member pylint error
     # pylint: disable=no-member
     assert new_symbol.wildcard_import is True
+    assert new_symbol.is_intrinsic is True
 
 
 def test_containersymbol_str():
@@ -150,25 +153,25 @@ def test_containersymbol_str():
 
 
 def test_containersymbol_resolve_external_container(monkeypatch):
-    '''Test that a ContainerSymbol uses its interface import_container method
+    '''Test that a ContainerSymbol uses its interface get_container method
     the first time its associated container reference is needed'''
 
     sym = ContainerSymbol("my_mod")
 
-    monkeypatch.setattr(sym._interface, "import_container",
+    monkeypatch.setattr(sym._interface, "get_container",
                         lambda x: "MockContainer")
 
     # At the beginning the reference is never resolved (lazy evaluation)
     assert not sym._reference
 
-    # When container is invoked the reference is resolved
-    assert sym.container == "MockContainer"
+    # When find_container_psyir is invoked, the reference is resolved
+    assert sym.find_container_psyir() == "MockContainer"
     assert sym._reference == "MockContainer"
 
     # Check that subsequent invocations do not update the container reference
-    monkeypatch.setattr(sym._interface, "import_container",
+    monkeypatch.setattr(sym._interface, "get_container",
                         staticmethod(lambda x: "OtherContainer"))
-    assert sym.container == "MockContainer"
+    assert sym.find_container_psyir() == "MockContainer"
 
 
 def test_containersymbol_generic_interface():
@@ -177,7 +180,7 @@ def test_containersymbol_generic_interface():
     abstractinterface = ContainerSymbolInterface
 
     with pytest.raises(NotImplementedError) as error:
-        abstractinterface.import_container("name")
+        abstractinterface.get_container("name")
     assert "Abstract method" in str(error.value)
 
 
@@ -191,22 +194,20 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     # Try with a non-existent module and no include path
     monkeypatch.setattr(Config.get(), "_include_paths", [])
     with pytest.raises(SymbolError) as error:
-        fminterface.import_container("fake_module")
-    assert ("Module 'fake_module' (expected to be found in "
-            "'fake_module.[f|F]90') not found in any of the include_paths "
+        fminterface.get_container("fake_module")
+    assert ("Module 'fake_module' not found in any of the include_paths "
             "directories []." in str(error.value))
 
     # Try with a non-existent module and an existing directory
     monkeypatch.setattr(Config.get(), '_include_paths', [path])
     with pytest.raises(SymbolError) as error:
-        fminterface.import_container("fake_module")
-    assert ("Module 'fake_module' (expected to be found in "
-            "'fake_module.[f|F]90') not found in any of the include_paths "
+        fminterface.get_container("fake_module")
+    assert ("Module 'fake_module' not found in any of the include_paths "
             "directories " in str(error.value))
 
     # Try importing an existing Fortran module
     create_dummy_module(path)
-    container = fminterface.import_container("dummy_module")
+    container = fminterface.get_container("dummy_module")
     assert isinstance(container, Container)
     assert container.name.lower() == "dummy_module"
 
@@ -214,12 +215,10 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     # F90 extension is also being imported as it does not produce a file
     # not found error.
     create_dummy_module(path, "different_name_module.F90")
-    with pytest.raises(ValueError) as error:
-        container = fminterface.import_container("different_name_module")
-    assert ("Error importing the Fortran module 'different_name_module' "
-            "into a PSyIR container. The file with filename "
-            "'different_name_module.F90' does not contain the expected "
-            "module." in str(error.value))
+    with pytest.raises(SymbolError) as error:
+        container = fminterface.get_container("different_name_module")
+    assert ("Module 'different_name_module' not found in any of the "
+            "include_paths directories [" in str(error.value))
 
 
 def test_containersymbol_wildcard_import():
@@ -231,3 +230,14 @@ def test_containersymbol_wildcard_import():
     with pytest.raises(TypeError) as err:
         csym.wildcard_import = "false"
     assert "wildcard_import must be a bool but got" in str(err.value)
+
+
+def test_container_symbol_is_intrinsic():
+    ''' Check the setter and getter for the is_intrinsic property. '''
+    csym = ContainerSymbol("my_mod")
+    assert not csym.is_intrinsic
+    csym.is_intrinsic = True
+    assert csym.is_intrinsic
+    with pytest.raises(TypeError) as err:
+        csym.is_intrinsic = "true"
+    assert "is_intrinsic must be a bool but got" in str(err.value)

@@ -33,16 +33,15 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
-'''A transformation script that seeks to apply OpenACC DATA and KERNELS
-directives to NEMO style code. In order to use it you must first install
-PSyclone. See README.md in the top-level directory.
+'''A transformation script that seeks to apply OpenACC KERNELS and optionally,
+OpenACC DATA directives to NEMO style code. In order to use it you must first
+install PSyclone. See README.md in the top-level directory.
 
 Once you have psyclone installed, this may be used by doing:
 
- $ psyclone -api nemo -s kernels_trans.py some_source_file.f90
+ $ psyclone -s kernels_trans.py some_source_file.f90
 
-This should produce a lot of output, ending with generated
-Fortran. Note that the Fortran source files provided to PSyclone must
+Note that the Fortran source files provided to PSyclone must
 have already been preprocessed (if required).
 
 The transformation script attempts to insert Kernels directives at the
@@ -58,19 +57,32 @@ Tested with the NVIDIA HPC SDK version 23.7.
 '''
 
 import logging
-from utils import add_profiling
+from utils import (add_profiling, enhance_tree_information, inline_calls,
+                   NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
 from psyclone.errors import InternalError
-from psyclone.nemo import NemoInvokeSchedule,  NemoLoop
 from psyclone.psyGen import TransInfo
-from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
-    ArrayReference, Assignment, BinaryOperation, Loop, WhileLoop, \
-    Literal, Return, Call, ACCLoopDirective
-from psyclone.psyir.transformations import TransformationError, ProfileTrans, \
-                                           ACCUpdateTrans
+from psyclone.psyir.nodes import (
+    IfBlock, ArrayReference, Assignment, BinaryOperation, Loop, Routine,
+    Literal, ACCLoopDirective)
+from psyclone.psyir.transformations import (ACCKernelsTrans, ACCUpdateTrans,
+                                            TransformationError, ProfileTrans)
 from psyclone.transformations import ACCEnterDataTrans
 
+# Set up some loop_type inference rules in order to reference useful domain
+# loop constructs by name
+Loop.set_loop_type_inference_rules({
+        "lon": {"variable": "ji"},
+        "lat": {"variable": "jj"},
+        "levels": {"variable": "jk"},
+        "tracers": {"variable": "jt"}
+})
+
+# List of all module names that PSyclone will chase during the creation of the
+# PSyIR tree in order to use the symbol information from those modules
+RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
+
 # Get the PSyclone transformations we will use
-ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
+ACC_KERN_TRANS = ACCKernelsTrans()
 ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
 ACC_ROUTINE_TRANS = TransInfo().get_trans_name('ACCRoutineTrans')
 ACC_EDATA_TRANS = ACCEnterDataTrans()
@@ -78,20 +90,15 @@ ACC_UPDATE_TRANS = ACCUpdateTrans()
 PROFILE_TRANS = ProfileTrans()
 
 # Whether or not to add profiling calls around unaccelerated regions
-PROFILE_NONACC = True
+# N.B. this can inhibit PSyclone's ability to inline!
+PROFILE_NONACC = False
 
 # Whether or not to add OpenACC enter data and update directives to explicitly
 # move data between host and device memory
 ACC_EXPLICIT_MEM_MANAGEMENT = False
 
-# If routine names contain these substrings then we do not profile them
-PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
-                    "macho", "mpp_", "nemo_gcm",
-                    # These are small functions that the addition of profiling
-                    # prevents from being in-lined (and then breaks any attempt
-                    # to create OpenACC regions with calls to them)
-                    "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
-                    "sum", "sign_"]
+# List of all files that psyclone will skip processing
+FILES_TO_SKIP = NOT_PERFORMANT
 
 # Routines we do not attempt to add any OpenACC to (because it breaks with
 # the Nvidia compiler or because it just isn't worth it)
@@ -105,18 +112,6 @@ ACC_IGNORE = ["day_mth",  # Just calendar operations
               "trc_bc_ini", "p2z_ini", "p4z_ini", "sto_par_init",
               "bdytide_init", "bdy_init", "bdy_segs", "sbc_cpl_init",
               "asm_inc_init", "dia_obs_init"]  # Str handling, init routine
-
-# Currently fparser has no way of distinguishing array accesses from
-# function calls if the symbol is imported from some other module.
-# We therefore work-around this by keeping a list of known NEMO
-# functions that must be excluded from within KERNELS regions.
-NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
-                  "eos_pt_from_ct", "gamma_moist", "l_vap",
-                  "sbc_dcy", "solfrac", "psi_h", "psi_m", "psi_m_coare",
-                  "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf", "q_sat",
-                  "rho_air", "visc_air", "sbc_dcy", "glob_sum",
-                  "glob_sum_full", "ptr_sj", "ptr_sjk", "interp1", "interp2",
-                  "interp3", "integ_spline"]
 
 
 class ExcludeSettings():
@@ -178,8 +173,19 @@ def valid_acc_kernel(node):
     :rtype: bool
 
     '''
-    # The Fortran routine which our parent Invoke represents
-    routine_name = node.ancestor(NemoInvokeSchedule).invoke.name
+    # The Fortran routine which our parent represents
+    routine_name = node.ancestor(Routine).name
+
+    try:
+        # Since we do this check on a node-by-node basis, we disable the
+        # check that the 'region' contains a loop.
+        ACC_KERN_TRANS.validate(node, options={"disable_loop_check":
+                                               True})
+    except TransformationError as err:
+        log_msg(routine_name,
+                f"Node rejected by ACCKernelTrans.validate: "
+                f"{err.value}", node)
+        return False
 
     # Allow for per-routine setting of what to exclude from within KERNELS
     # regions. This is because sometimes things work in one context but not
@@ -188,17 +194,10 @@ def valid_acc_kernel(node):
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_types = (CodeBlock, Return, Call, IfBlock, NemoLoop, WhileLoop)
+    excluded_types = (IfBlock, Loop)
     excluded_nodes = node.walk(excluded_types)
 
     for enode in excluded_nodes:
-        if isinstance(enode, Call) and enode.is_available_on_device():
-            continue
-
-        if isinstance(enode, (CodeBlock, Return, Call, WhileLoop)):
-            log_msg(routine_name,
-                    f"region contains {type(enode).__name__}", enode)
-            return False
 
         if isinstance(enode, IfBlock):
             # We permit IF blocks originating from WHERE constructs and
@@ -226,7 +225,7 @@ def valid_acc_kernel(node):
                         "IF references 1D arrays that may be static", enode)
                 return False
 
-        elif isinstance(enode, NemoLoop):
+        elif isinstance(enode, Loop):
             # Heuristic:
             # We don't want to put loops around 3D loops into KERNELS regions
             # and nor do we want to put loops over levels into KERNELS regions
@@ -253,28 +252,6 @@ def valid_acc_kernel(node):
                                     "other loops", enode)
                             return False
 
-    # For now we don't support putting *just* the implicit loop assignment in
-    # things like:
-    #    if(do_this)my_array(:,:) = 1.0
-    # inside a kernels region. Once we generate Fortran instead of modifying
-    # the fparser2 parse tree this will become possible.
-    if isinstance(node.parent, Schedule) and \
-       isinstance(node.parent.parent, IfBlock) and \
-       "was_single_stmt" in node.parent.parent.annotations:
-        log_msg(routine_name, "Would split single-line If statement", node)
-        return False
-
-    # Finally, check that we haven't got any 'array accesses' that are in
-    # fact function calls.
-    refs = node.walk(ArrayReference)
-    for ref in refs:
-        # Check if this reference has the name of a known function and if that
-        # reference appears outside said known function.
-        if ref.name.lower() in NEMO_FUNCTIONS and \
-           ref.name.lower() != routine_name.lower():
-            log_msg(routine_name,
-                    f"Loop contains function call: {ref.name}", ref)
-            return False
     return True
 
 
@@ -364,12 +341,12 @@ def try_kernels_trans(nodes):
                 # We put a COLLAPSE(2) clause on any perfectly-nested lat-lon
                 # loops that have a Literal value for their step. The latter
                 # condition is necessary to avoid compiler errors.
-                if loop.loop_type == "lat" and \
-                   isinstance(loop.step_expr, Literal) and \
-                   isinstance(loop.loop_body[0], Loop) and \
-                   loop.loop_body[0].loop_type == "lon" and \
-                   isinstance(loop.loop_body[0].step_expr, Literal) and \
-                   len(loop.loop_body.children) == 1:
+                if (loop.variable.name == "jj" and
+                        isinstance(loop.step_expr, Literal) and
+                        isinstance(loop.loop_body[0], Loop) and
+                        loop.loop_body[0].variable.name == "ji" and
+                        isinstance(loop.loop_body[0].step_expr, Literal) and
+                        len(loop.loop_body.children) == 1):
                     try:
                         ACC_LOOP_TRANS.apply(loop, {"collapse": 2})
                     except (TransformationError) as err:
@@ -383,58 +360,47 @@ def try_kernels_trans(nodes):
         return False
 
 
-def trans(psy):
-    '''A PSyclone-script compliant transformation function. Applies
-    OpenACC 'kernels' directives to NEMO code. Data movement can be
+def trans(psyir):
+    '''Applies OpenACC 'kernels' directives to NEMO code. Data movement can be
     handled manually or through CUDA's managed-memory functionality.
 
-    :param psy: The PSy layer object to apply transformations to.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
     logging.basicConfig(filename='psyclone.log', filemode='w',
                         level=logging.INFO)
 
-    invoke_list = "\n".join([str(name) for name in psy.invokes.names])
-    print(f"Invokes found:\n{invoke_list}\n")
+    for subroutine in psyir.walk(Routine):
+        print(f"Transforming subroutine: {subroutine.name}")
 
-    for invoke in psy.invokes.invoke_list:
-
-        sched = invoke.schedule
-        if not sched:
-            print(f"Invoke {invoke.name} has no Schedule! Skipping...")
-            continue
-
-        # In the lib_fortran file we annotate each routine that does not
-        # have a Loop or unsupported Calls with the OpenACC Routine Directive
-        if psy.name == "psy_lib_fortran_psy":
-            if not invoke.schedule.walk(Loop):
-                calls = invoke.schedule.walk(Call)
-                if all(call.is_available_on_device() for call in calls):
-                    # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
-                    # array notation. (TODO #717)
-                    ACC_ROUTINE_TRANS.apply(sched, options={"force": True})
-                    continue
+        # In the lib_fortran file we annotate each routine of the SIGN_*
+        # interface with the OpenACC Routine Directive
+        if psyir.name == "lib_fortran.f90":
+            if subroutine.name.lower().startswith("sign_"):
+                ACC_ROUTINE_TRANS.apply(subroutine)
+                continue
 
         # Attempt to add OpenACC directives unless we are ignoring this routine
-        if invoke.name.lower() not in ACC_IGNORE:
-            print(f"Transforming {invoke.name} with acc kernels")
-            have_kernels = add_kernels(sched.children)
+        if subroutine.name.lower() not in ACC_IGNORE:
+            print(f"Transforming {subroutine.name} with acc kernels")
+            enhance_tree_information(subroutine)
+            inline_calls(subroutine)
+            have_kernels = add_kernels(subroutine.children)
             if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
-                print(f"Transforming {invoke.name} with acc enter data")
-                ACC_EDATA_TRANS.apply(sched)
+                print(f"Transforming {subroutine.name} with acc enter data")
+                ACC_EDATA_TRANS.apply(subroutine)
         else:
-            print(f"Addition of OpenACC to routine {invoke.name} disabled!")
+            print(f"Addition of OpenACC to routine {subroutine.name} "
+                  f"disabled!")
 
         # Add required OpenACC update directives to every routine, including to
         # those with no device code and that execute exclusively on the host
         if ACC_EXPLICIT_MEM_MANAGEMENT:
-            print(f"Transforming {invoke.name} with acc update")
-            ACC_UPDATE_TRANS.apply(sched)
+            print(f"Transforming {subroutine.name} with acc update")
+            ACC_UPDATE_TRANS.apply(subroutine)
 
         # Add profiling instrumentation
         if PROFILE_NONACC:
-            print(f"Adding profiling to non-OpenACC regions in {invoke.name}")
-            add_profiling(sched.children)
-
-    return psy
+            print(f"Adding profiling to non-OpenACC regions in "
+                  f"{subroutine.name}")
+            add_profiling(subroutine.children)

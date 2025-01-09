@@ -45,6 +45,7 @@ from psyclone.psyir.symbols.interfaces import (
     AutomaticInterface, SymbolInterface, ArgumentInterface,
     UnresolvedInterface, ImportInterface, UnknownInterface,
     CommonBlockInterface, DefaultModuleInterface, StaticInterface)
+from psyclone.psyir.commentable_mixin import CommentableMixin
 
 
 class SymbolError(PSycloneError):
@@ -59,7 +60,7 @@ class SymbolError(PSycloneError):
         self.value = "PSyclone SymbolTable error: "+str(value)
 
 
-class Symbol():
+class Symbol(CommentableMixin):
     '''Generic Symbol item for the Symbol Table and PSyIR References.
     It has an immutable name label because it must always match with the
     key in the SymbolTable. If the symbol is private then it is only visible
@@ -146,8 +147,11 @@ class Symbol():
         '''
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
-        return type(self)(self.name, visibility=self.visibility,
+        copy = type(self)(self.name, visibility=self.visibility,
                           interface=self.interface.copy())
+        copy.preceding_comment = self.preceding_comment
+        copy.inline_comment = self.inline_comment
+        return copy
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
@@ -199,10 +203,10 @@ class Symbol():
         Looks-up and returns the Symbol referred to by this Symbol's
         Import Interface.
 
-        :raises SymbolError: if the module pointed to by the symbol interface \
-                             does not contain the symbol (or the symbol is \
+        :raises SymbolError: if the module pointed to by the symbol interface
+                             does not contain the symbol (or the symbol is
                              not public).
-        :raises NotImplementedError: if this symbol does not have an \
+        :raises NotImplementedError: if this symbol does not have an
                                      ImportInterface.
         '''
         if not self.is_import:
@@ -211,20 +215,27 @@ class Symbol():
                 f"the lazy evaluation of '{self.interface}' interfaces is "
                 f"not supported.")
 
-        module = self.interface.container_symbol
+        csym = self.interface.container_symbol
+
         try:
-            return module.container.symbol_table.lookup(
+            container = csym.find_container_psyir()
+            if not container:
+                raise SymbolError(
+                    f"Error trying to resolve the properties of symbol "
+                    f"'{self.name}'. The interface points to module "
+                    f"'{csym.name}' but could not obtain its PSyIR.")
+            return container.symbol_table.lookup(
                 self.name, visibility=self.Visibility.PUBLIC)
         except KeyError as kerr:
             raise SymbolError(
                 f"Error trying to resolve the properties of symbol "
                 f"'{self.name}'. The interface points to module "
-                f"'{module.name}' but could not find the definition of "
+                f"'{csym.name}' but could not find the definition of "
                 f"'{self.name}' in that module.") from kerr
         except SymbolError as err:
             raise SymbolError(
               f"Error trying to resolve the properties of symbol "
-              f"'{self.name}' in module '{module.name}': {err.value}") from err
+              f"'{self.name}' in module '{csym.name}': {err.value}") from err
 
     def resolve_type(self):
         '''
@@ -240,15 +251,22 @@ class Symbol():
         '''
         if self.is_import:
             extern_symbol = self.get_external_symbol()
-            init_value = None
-            if extern_symbol.initial_value:
-                init_value = extern_symbol.initial_value.copy()
-            # Specialise the existing Symbol in-place so that all References
-            # to it remain valid.
-            self.specialise(type(extern_symbol),
-                            datatype=extern_symbol.datatype,
-                            is_constant=extern_symbol.is_constant,
-                            initial_value=init_value)
+            from psyclone.psyir.symbols import RoutineSymbol
+            if isinstance(extern_symbol, RoutineSymbol):
+                # Specialise the existing Symbol in-place so that all
+                # References to it remain valid.
+                self.specialise(type(extern_symbol),
+                                datatype=extern_symbol.datatype)
+            else:
+                init_value = None
+                if extern_symbol.initial_value:
+                    init_value = extern_symbol.initial_value.copy()
+                # Specialise the existing Symbol in-place so that all
+                # References to it remain valid.
+                self.specialise(type(extern_symbol),
+                                datatype=extern_symbol.datatype,
+                                is_constant=extern_symbol.is_constant,
+                                initial_value=init_value)
         return self
 
     @property
@@ -455,16 +473,16 @@ class Symbol():
         set to `i`. If `loop_variable` is specified, `access_information`
         must be specified.
 
-        :param str index_variable: optional loop variable that is used to \
+        :param str index_variable: optional loop variable that is used to
             to determine if an access is an array access using this variable.
         :param access_info: variable access information, optional.
-        :type access_info: \
+        :type access_info:
             :py:class:`psyclone.core.SingleVariableAccessInfo`
 
-        :returns: if the variable is an array.
+        :returns: whether or not the variable is an array.
         :rtype bool:
 
-        :raises InternalError: if a loop_variable is specified, but no \
+        :raises InternalError: if a loop_variable is specified, but no
             access information is given.
 
         '''
@@ -507,3 +525,24 @@ class Symbol():
         # in this case.
         # TODO #1213: check for wildcard imports
         return self.is_array
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        if not isinstance(self.interface, ImportInterface):
+            return
+        name = self.interface.container_symbol.name
+        orig_name = self.interface.orig_name
+        try:
+            new_container = table.lookup(name)
+            self.interface = ImportInterface(new_container,
+                                             orig_name=orig_name)
+        except KeyError:
+            pass

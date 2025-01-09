@@ -87,7 +87,7 @@ def test_sm_constructor():
 
 def test_sm_node_str():
     ''' Check the node_str method of the StructureMember class.'''
-    kschedule = nodes.KernelSchedule("kname")
+    kschedule = nodes.KernelSchedule.create("kname")
     grid_var = create_structure_symbol(kschedule.symbol_table)
     assignment = nodes.Assignment(parent=kschedule)
     grid_ref = nodes.StructureReference.create(grid_var, ['area', 'nx'],
@@ -102,7 +102,7 @@ def test_sm_node_str():
 def test_sm_can_be_printed():
     '''Test that a StructureMember instance can always be printed
     (i.e. is initialised fully)'''
-    kschedule = nodes.KernelSchedule("kname")
+    kschedule = nodes.KernelSchedule.create("kname")
     grid_var = create_structure_symbol(kschedule.symbol_table)
     assignment = nodes.Assignment(parent=kschedule)
     grid_ref = nodes.StructureReference.create(grid_var, ['area', 'nx'],
@@ -130,7 +130,7 @@ def test_sm_child_validate():
 
 def test_sm_member_property():
     ''' Check the member property of StructureMember. '''
-    kschedule = nodes.KernelSchedule("kname")
+    kschedule = nodes.KernelSchedule.create("kname")
     grid_var = create_structure_symbol(kschedule.symbol_table)
     assignment = nodes.Assignment(parent=kschedule)
     grid_ref = nodes.StructureReference.create(grid_var, ['area', 'nx'],
@@ -143,5 +143,6 @@ def test_sm_member_property():
     smem_ref._children = ["wrong"]
     with pytest.raises(InternalError) as err:
         _ = smem_ref.member
-    assert ("StructureMember malformed or incomplete. The first child must "
-            "be an instance of Member, but found 'str'" in str(err.value))
+    assert ("StructureMember malformed or incomplete. It must have a first "
+            "child that must be a (sub-class of) Member, but found:"
+            in str(err.value))

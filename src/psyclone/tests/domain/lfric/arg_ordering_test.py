@@ -55,7 +55,7 @@ from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 def check_psyir_results(create_arg_list, fortran_writer):
@@ -255,7 +255,7 @@ def test_arg_ordering_generate_domain_kernel(dist_mem, fortran_writer):
     assert not create_arg_list._psyir_arglist
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers', 'ncell_2d_no_halos', 'b', 'f1_data', 'ndf_w3',
+        'nlayers_f1', 'ncell_2d_no_halos', 'b', 'f1_data', 'ndf_w3',
         'undf_w3', 'map_w3']
 
     check_psyir_results(create_arg_list, fortran_writer)
@@ -280,7 +280,7 @@ def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
     assert not create_arg_list._arglist
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'cell', 'nlayers', 'ncell_2d', 'lma_op1_proxy%ncell_3d',
+        'cell', 'nlayers_lma_op1', 'ncell_2d', 'lma_op1_proxy%ncell_3d',
         'lma_op1_local_stencil', 'cma_op1_cma_matrix', 'cma_op1_nrow',
         'cma_op1_ncol', 'cma_op1_bandwidth', 'cma_op1_alpha', 'cma_op1_beta',
         'cma_op1_gamma_m', 'cma_op1_gamma_p', 'ndf_adspc1_lma_op1',

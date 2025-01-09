@@ -86,7 +86,7 @@ def test_constants_mod():
     created correctly.
 
     '''
-    api_config = Config.get().api_conf("dynamo0.3")
+    api_config = Config.get().api_conf("lfric")
     module = LFRicTypes("constants_mod")
     assert isinstance(module, ContainerSymbol)
     symbol_list = list(api_config.precision_map.keys())

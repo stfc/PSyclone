@@ -50,18 +50,18 @@ class CodeBlock(Statement, DataNode):
     attempt to manipulate. As such it is a leaf in the PSyIR and therefore
     has no children.
 
-    :param fp2_nodes: list of fparser2 AST nodes representing the Fortran \
-                      code constituting the code block.
-    :type fp2_nodes: list of :py:class:`fparser.two.utils.Base`
-    :param structure: argument indicating whether this code block is a \
-    statement or an expression.
+    :param fp2_nodes: the fparser2 parse-tree nodes representing the
+        Fortran code constituting the code block.
+    :type fp2_nodes: list[:py:class:`fparser.two.utils.Base`]
+    :param structure: argument indicating whether this code block is a
+        statement or an expression.
     :type structure: :py:class:`psyclone.psyir.nodes.CodeBlock.Structure`
     :param parent: the parent node of this code block in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param annotations: tags that provide additional information about \
-        the node. The node should still be functionally correct when \
+    :param annotations: tags that provide additional information about
+        the node. The node should still be functionally correct when
         ignoring these tags.
-    :type annotations: list of str or NoneType
+    :type annotations: list[str | NoneType]
 
     '''
     #: Textual description of the node.
@@ -90,9 +90,9 @@ class CodeBlock(Statement, DataNode):
         # Store a list of the parser objects holding the code associated
         # with this block. We make a copy of the contents of the list because
         # the list itself is a temporary product of the process of converting
-        # from the fparser2 AST to the PSyIR.
+        # from the fparser2 parse tree to the PSyIR.
         self._fp2_nodes = fp2_nodes[:]
-        # Store references back into the fparser2 AST
+        # Store references back into the fparser2 parse tree.
         if fp2_nodes:
             self.ast = self._fp2_nodes[0]
             self.ast_end = self._fp2_nodes[-1]
@@ -131,10 +131,9 @@ class CodeBlock(Statement, DataNode):
     @property
     def get_ast_nodes(self):
         '''
-        :returns: the list of nodes associated with this code block in \
-        the original AST.
-        :rtype: list of subclass of \
-        `:py:classfparser.two.Fortran2003.Base`
+        :returns: the nodes associated with this code block in
+                  the original fparser2 parse tree.
+        :rtype: list[:py:class:`fparser.two.Fortran2003.Base`]
 
         '''
         return self._fp2_nodes
@@ -148,16 +147,35 @@ class CodeBlock(Statement, DataNode):
         :return: text description of this node.
         :rtype: str
         '''
-        return self.coloured_name(colour) + \
-            "[" + str(list(map(type, self._fp2_nodes))) + "]"
+        return (f"{self.coloured_name(colour)}["
+                f"{list(map(type, self._fp2_nodes))}]")
 
     def get_symbol_names(self):
         '''
         :returns: the list of symbol names used inside the CodeBock.
-        :rtype: list of str
+        :rtype: list[str]
         '''
         parse_tree = self.get_ast_nodes
-        return [node.string for node in walk(parse_tree, Fortran2003.Name)]
+        result = []
+        for node in walk(parse_tree, Fortran2003.Name):
+            if isinstance(node.parent, Fortran2003.Else_If_Stmt):
+                # Need to make sure we include any Symbol in the conditional
+                # part but not a label (which would be the second child in the
+                # parse tree). We cannot simply do
+                # `node.parent.children.index(node)` because of fparser #174.
+                if (len(node.parent.children) == 1 or
+                        node is node.parent.children[0]):
+                    result.append(node.string)
+            elif not isinstance(node.parent,
+                                (Fortran2003.Cycle_Stmt,
+                                 Fortran2003.End_Do_Stmt,
+                                 Fortran2003.Exit_Stmt,
+                                 Fortran2003.Else_Stmt,
+                                 Fortran2003.End_If_Stmt)):
+                # We don't want labels associated with loop or branch control.
+                result.append(node.string)
+
+        return result
 
     def __str__(self):
         return f"CodeBlock[{len(self._fp2_nodes)} nodes]"

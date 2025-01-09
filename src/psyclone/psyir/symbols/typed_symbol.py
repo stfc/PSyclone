@@ -124,15 +124,19 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         original will not be affected so the copy will not be referred
         to by any other object.
 
-        :returns: A symbol object with the same properties as this \
+        :returns: A symbol object with the same properties as this
                   symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.TypedSymbol`
 
         '''
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
-        return type(self)(self.name, self.datatype, visibility=self.visibility,
-                          interface=self.interface)
+        copy = type(self)(self.name, self.datatype.copy(),
+                          visibility=self.visibility,
+                          interface=self.interface.copy())
+        copy.preceding_comment = self.preceding_comment
+        copy.inline_comment = self.inline_comment
+        return copy
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
@@ -229,3 +233,24 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
                 return self._datatype.partial_datatype.shape
             return self._datatype.shape
         return []
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        super().replace_symbols_using(table)
+
+        from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
+        if isinstance(self.datatype, DataTypeSymbol):
+            try:
+                self._datatype = table.lookup(self.datatype.name)
+            except KeyError:
+                pass
+        else:
+            self._datatype.replace_symbols_using(table)

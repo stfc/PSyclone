@@ -36,7 +36,8 @@
 
 ''' This module contains the GenericInterfaceSymbol.'''
 
-from collections import namedtuple
+from dataclasses import dataclass
+
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 
 
@@ -45,20 +46,53 @@ class GenericInterfaceSymbol(RoutineSymbol):
     different callable routines.
 
     :param str name: name of the interface.
-    :param routines: the routines that this interface provides access to.
-    :type routines: list[:py:class:`psyclone.psyir.symbols.RoutineSymbol`]
+    :param routines: the routines that this interface provides access
+        to and whether or not each of them is a module procedure.
+    :type routines: list[tuple[
+                             :py:class:`psyclone.psyir.symbols.RoutineSymbol`,
+                             bool]]
     :param kwargs: additional keyword arguments provided by
                    :py:class:`psyclone.psyir.symbols.TypedSymbol`
     :type kwargs: unwrapped dict.
 
     '''
-    RoutineInfo = namedtuple("RoutineInfo", ["symbol", "from_container"])
+    @dataclass(frozen=True)
+    class RoutineInfo:
+        '''
+        Holds information on a single routine member of an interface.
+
+        :param symbol: the symbol representing the routine.
+        :param from_container: whether or not this routine is from a Container
+                               (i.e. a 'module procedure' in Fortran).
+        '''
+        symbol: RoutineSymbol
+        from_container: bool
 
     def __init__(self, name, routines, **kwargs):
         super().__init__(name, **kwargs)
-        # Use the setter for 'routines' as it performs checking.
         self._routines = []
-        self.routines = routines
+        self._process_arguments(routines=routines,
+                                **kwargs)
+
+    def _process_arguments(self, **kwargs):
+        ''' Process the arguments for the constructor and the specialise
+        methods. In this case the 'routines' argument.
+
+        :param kwargs: keyword arguments which can be:\n
+            :param routines: the routines that this interface provides access
+                to and whether or not each of them is a module procedure.
+            :type routines: list[tuple[
+                 :py:class:`psyclone.psyir.symbols.RoutineSymbol`,
+                 bool]]
+        '''
+
+        if "routines" in kwargs:
+            # Use the setter for 'routines' as it performs checking.
+            self.routines = kwargs.pop("routines")
+        else:
+            self._routines = []
+
+        super()._process_arguments(**kwargs)
 
     @property
     def routines(self):
@@ -147,9 +181,31 @@ class GenericInterfaceSymbol(RoutineSymbol):
         '''
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
-        return type(self)(self.name, self.routines, datatype=self.datatype,
+        rt_info = [(rt.symbol, rt.from_container) for rt in self.routines]
+        return type(self)(self.name, rt_info,
+                          datatype=self.datatype.copy(),
                           visibility=self.visibility,
-                          interface=self.interface)
+                          interface=self.interface.copy())
+
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        # Construct a new list of RoutineSymbols.
+        new_routines = []
+        for routine in self.routines:
+            try:
+                new_rt = table.lookup(routine.symbol.name)
+            except KeyError:
+                new_rt = routine.symbol
+            new_routines.append((new_rt, routine.from_container))
+        self.routines = new_routines
 
 
 # For Sphinx AutoAPI documentation generation

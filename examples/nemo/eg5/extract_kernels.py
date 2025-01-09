@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''A transformation script that applies kernel data extraction to a
 stand-alone version of one of the tracer-advection routines from the
@@ -42,7 +43,7 @@ This script is called for `tra_adv.F90` and applies the generic
 :py:class:`psyclone.psyir.transformations.ExtractTrans` to each
 invoke, as automatically identified by PSyclone.
 
-    $ psyclone -l output --config ../../../psyclone.cfg -l all -api "nemo" \
+    $ psyclone -l output --config ../../../psyclone.cfg -l all \
         -s ./extract_kernels.py -opsy psy.f90 ../code/tra_adv.F90
 
 You can inspect the output file `psy.f90` to see the instrumentation, e.g.:
@@ -67,33 +68,24 @@ been preprocessed (if required).
 
 '''
 
-from psyclone.nemo import NemoLoop
 from psyclone.transformations import TransformationError
 from psyclone.psyir.transformations import ExtractTrans
+from psyclone.psyir.nodes import Loop, Routine
 
 
-def trans(psy):
-    '''A PSyclone-script compliant transformation function. Applies
-    the kernel extraction to any invoke identified in the PSy layer object.
+def trans(psyir):
+    '''Applies the kernel extraction to every subroutine in the file.
 
-    :param psy: The PSy layer object to apply transformations to.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 
     extract = ExtractTrans()
 
-    print("Invokes found:\n" +
-          "\n".join([str(name) for name in psy.invokes.names]) + "\n")
-
-    for invoke in psy.invokes.invoke_list:
-
-        sched = invoke.schedule
-        if not sched:
-            print(f"Invoke {invoke.name} has no Schedule! Skipping...")
-            continue
-
-        for kern in sched.children:
-            if not isinstance(kern, NemoLoop):
+    for subroutine in psyir.walk(Routine):
+        print(f"Transforming subroutine: {subroutine.name}")
+        for kern in subroutine.children:
+            if not isinstance(kern, Loop):
                 continue
             try:
                 # TODO #2080: once this is fixed, the option can be removed

@@ -45,13 +45,14 @@ transformations and base classes.
 # produces an ImportError due to cyclic dependencies
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.psyir.transformations.acc_kernels_trans import ACCKernelsTrans
 from psyclone.psyir.transformations.acc_update_trans import ACCUpdateTrans
 from psyclone.psyir.transformations.allarrayaccess2loop_trans import \
     AllArrayAccess2LoopTrans
 from psyclone.psyir.transformations.arrayaccess2loop_trans import \
     ArrayAccess2LoopTrans
-from psyclone.psyir.transformations.arrayrange2loop_trans import \
-    ArrayRange2LoopTrans
+from psyclone.psyir.transformations.arrayassignment2loops_trans import \
+    ArrayAssignment2LoopsTrans
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
@@ -85,7 +86,8 @@ from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
 from psyclone.psyir.transformations.loop_tiling_2d_trans \
     import LoopTiling2DTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
-from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
+from psyclone.psyir.transformations.value_range_check_trans import (
+    ValueRangeCheckTrans)
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.omp_target_trans import OMPTargetTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
@@ -108,10 +110,11 @@ from psyclone.psyir.transformations.scalarization_trans import \
 
 
 # For AutoAPI documentation generation
-__all__ = ['ACCUpdateTrans',
+__all__ = ['ACCKernelsTrans',
+           'ACCUpdateTrans',
            'AllArrayAccess2LoopTrans',
            'ArrayAccess2LoopTrans',
-           'ArrayRange2LoopTrans',
+           'ArrayAssignment2LoopsTrans',
            'ChunkLoopTrans',
            'ExtractTrans',
            'FoldConditionalReturnExpressionsTrans',
@@ -132,7 +135,6 @@ __all__ = ['ACCUpdateTrans',
            'LoopTrans',
            'Maxval2LoopTrans',
            'Minval2LoopTrans',
-           'NanTestTrans',
            'OMPLoopTrans',
            'OMPTargetTrans',
            'OMPTaskTrans',
@@ -146,4 +148,5 @@ __all__ = ['ACCUpdateTrans',
            'RegionTrans',
            'ReplaceInductionVariablesTrans',
            'ScalarizationTrans',
-           'TransformationError']
+           'TransformationError',
+           'ValueRangeCheckTrans']

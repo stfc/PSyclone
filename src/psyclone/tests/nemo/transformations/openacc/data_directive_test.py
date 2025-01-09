@@ -42,16 +42,13 @@
 import os
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
-from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import ACCDataDirective, Schedule, Routine
-from psyclone.psyir.transformations import TransformationError
-from psyclone.tests.utilities import get_invoke, Compile
+from psyclone.psyir.transformations import TransformationError, ACCKernelsTrans
+from psyclone.tests.utilities import Compile
 
 
-# Constants
-API = "nemo"
 # Location of the Fortran files associated with these tests
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../../test_files")
@@ -72,19 +69,17 @@ EXPLICIT_DO = ("program explicit_do\n"
                "end program explicit_do\n")
 
 
-def test_explicit(parser):
+def test_explicit(fortran_reader, fortran_writer):
     '''
     Check code generation for enclosing a single explicit loop containing a
     kernel inside a data region.
 
     '''
-    reader = FortranStringReader(EXPLICIT_DO)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.get('explicit_do').schedule
+    psyir = fortran_reader.psyir_from_source(EXPLICIT_DO)
+    schedule = psyir.walk(Routine)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
-    gen_code = str(psy.gen).lower()
+    gen_code = fortran_writer(psyir)
 
     assert ("  real, dimension(jpi,jpj,jpk) :: umask\n"
             "\n"
@@ -97,23 +92,21 @@ def test_explicit(parser):
             "end program explicit_do") in gen_code
 
 
-def test_data_single_node(parser):
+def test_data_single_node(fortran_reader):
     ''' Check that the ACCDataTrans works if passed a single node rather
     than a list. '''
-    reader = FortranStringReader(EXPLICIT_DO)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.get('explicit_do').schedule
+    psyir = fortran_reader.psyir_from_source(EXPLICIT_DO)
+    schedule = psyir.walk(Routine)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule[0])
     assert isinstance(schedule[0], ACCDataDirective)
 
 
-def test_data_no_gen_code():
+def test_data_no_gen_code(fortran_reader):
     ''' Check that the ACCDataDirective.gen_code() method raises the
     expected InternalError as it should not be called. '''
-    _, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
+    psyir = fortran_reader.psyir_from_source(EXPLICIT_DO)
+    schedule = psyir.walk(Routine)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children[0:2])
     with pytest.raises(InternalError) as err:
@@ -122,20 +115,18 @@ def test_data_no_gen_code():
             "been called" in str(err.value))
 
 
-def test_explicit_directive(parser):
+def test_explicit_directive(fortran_reader, fortran_writer):
     '''Check code generation for a single explicit loop containing a
     kernel with a pre-existing (openacc kernels) directive.
 
     '''
-    reader = FortranStringReader(EXPLICIT_DO)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.get('explicit_do').schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    psyir = fortran_reader.psyir_from_source(EXPLICIT_DO)
+    schedule = psyir.walk(Routine)[0]
+    acc_trans = ACCKernelsTrans()
     acc_trans.apply(schedule.children, {"default_present": True})
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
-    gen_code = str(psy.gen).lower()
+    gen_code = fortran_writer(psyir)
 
     assert ("  real, dimension(jpi,jpj,jpk) :: umask\n"
             "\n"
@@ -150,16 +141,32 @@ def test_explicit_directive(parser):
             "end program explicit_do") in gen_code
 
 
-def test_array_syntax():
+def test_array_syntax(fortran_reader, fortran_writer):
     '''Check code generation for a mixture of loops and code blocks.'''
-    psy, invoke_info = get_invoke("array_syntax.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        SUBROUTINE tra_ldf_iso()
+          USE some_mod, only: dia_ptr_hst
+          INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+          INTEGER :: jn
+          INTEGER, PARAMETER :: wp=4
+          LOGICAL :: l_ptr
+          INTEGER, DIMENSION(jpi,jpj) :: tmask
+          REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw
+          zftv(:,:,:) = 0.0d0
+          IF( l_ptr )  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
+          CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
+          zftu(:,:,1) = 1.0d0
+          tmask(:,:) = jpi
+        end SUBROUTINE tra_ldf_iso
+        ''')
+    schedule = psyir.walk(Routine)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     # We do not permit arbitrary code blocks to be included in data
     # regions so just put two of the loops into regions.
     acc_trans.apply([schedule.children[0]])
     acc_trans.apply([schedule.children[-1]])
-    gen_code = str(psy.gen).lower()
+    gen_code = fortran_writer(psyir)
 
     assert ("  real(kind=wp), dimension(jpi,jpj,jpk) :: ztfw\n"
             "\n"
@@ -173,14 +180,15 @@ def test_array_syntax():
             "end subroutine tra_ldf_iso" in gen_code)
 
 
-def test_multi_data():
+def test_multi_data(fortran_reader, fortran_writer):
     '''Check code generation with multiple data directives.'''
-    psy, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
+    psyir = fortran_reader.psyir_from_file(
+                os.path.join(BASE_PATH, "imperfect_nest.f90"))
+    schedule = psyir.walk(Routine)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children[0].loop_body[0:2])
     acc_trans.apply(schedule.children[0].loop_body[1:3])
-    gen_code = str(psy.gen)
+    gen_code = fortran_writer(psyir)
 
     assert ("  do jk = 1, jpkm1, 1\n"
             "    !$acc data copyin(ptb,wmask), copyout(zdk1t,zdkt)\n"
@@ -198,24 +206,23 @@ def test_multi_data():
             "  enddo") in gen_code
 
 
-def test_replicated_loop(parser, tmpdir):
+def test_replicated_loop(fortran_reader, fortran_writer, tmpdir):
     '''Check code generation with two loops that have the same
     structure.
 
     '''
-    reader = FortranStringReader("subroutine replicate()\n"
-                                 "   INTEGER :: dummy\n"
-                                 "   REAL :: zwx(10,10)\n"
-                                 "   zwx(:,:) = 0.e0\n"
-                                 "   zwx(:,:) = 0.e0\n"
-                                 "END subroutine replicate\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.get('replicate').schedule
+    psyir = fortran_reader.psyir_from_source(
+                "subroutine replicate()\n"
+                "   INTEGER :: dummy\n"
+                "   REAL :: zwx(10,10)\n"
+                "   zwx(:,:) = 0.e0\n"
+                "   zwx(:,:) = 0.e0\n"
+                "END subroutine replicate\n")
+    schedule = psyir.walk(Routine)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children[0:1])
     acc_trans.apply(schedule.children[1:2])
-    gen_code = str(psy.gen)
+    gen_code = fortran_writer(psyir)
 
     assert ("  !$acc data copyout(zwx)\n"
             "  zwx(:,:) = 0.e0\n"
@@ -226,48 +233,45 @@ def test_replicated_loop(parser, tmpdir):
     assert Compile(tmpdir).string_compiles(gen_code)
 
 
-def test_data_ref(parser):
+def test_data_ref(fortran_reader, fortran_writer):
     '''Check code generation with an array accessed via a derived type.
 
     '''
-    reader = FortranStringReader('''subroutine data_ref()
-  use some_mod, only: prof_type
-  INTEGER, parameter :: n=16
-  INTEGER :: ji
-  real :: a(n), fconst
-  type(prof_type) :: prof
-  do ji = 1, n
-     prof%npind(ji) = 2.0*a(ji) + fconst
-  end do
-END subroutine data_ref
-''')
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+        '''subroutine data_ref()
+              use some_mod, only: prof_type
+              INTEGER, parameter :: n=16
+              INTEGER :: ji
+              real :: a(n), fconst
+              type(prof_type) :: prof
+              do ji = 1, n
+                 prof%npind(ji) = 2.0*a(ji) + fconst
+              end do
+          end subroutine data_ref''')
+    schedule = psyir.walk(Routine)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
-    gen_code = str(psy.gen)
+    gen_code = fortran_writer(psyir)
     assert "!$acc data copyin(a), copyout(prof,prof%npind)" in gen_code
 
 
-def test_data_ref_read(parser):
+def test_data_ref_read(fortran_reader, fortran_writer):
     ''' Check support for reading from derived types. '''
-    reader = FortranStringReader("program dtype_read\n"
-                                 "use field_mod, only: fld_type, wp\n"
-                                 "real(kind=wp) :: sto_tmp(5)\n"
-                                 "integer :: ji\n"
-                                 "integer, parameter :: jpj = 10\n"
-                                 "type(fld_type) :: fld\n"
-                                 "do ji = 1,jpj\n"
-                                 "sto_tmp(ji) = fld%data(ji) + 1._wp\n"
-                                 "end do\n"
-                                 "end program dtype_read\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program dtype_read\n"
+                "use field_mod, only: fld_type, wp\n"
+                "real(kind=wp) :: sto_tmp(5)\n"
+                "integer :: ji\n"
+                "integer, parameter :: jpj = 10\n"
+                "type(fld_type) :: fld\n"
+                "do ji = 1,jpj\n"
+                "sto_tmp(ji) = fld%data(ji) + 1._wp\n"
+                "end do\n"
+                "end program dtype_read\n")
+    schedule = psyir.walk(Routine)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
-    gen_code = str(psy.gen)
+    gen_code = fortran_writer(psyir)
     assert "copyin(fld,fld%data)" in gen_code
 
 
@@ -325,35 +329,46 @@ def test_multi_array_derived_type_error(fortran_reader):
             "one being iterated over." in str(err.value))
 
 
-def test_array_section():
+def test_array_section(fortran_reader, fortran_writer):
     '''Check code generation with a arrays accessed via an array section.
 
     '''
-    psy, invoke_info = get_invoke("array_section.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine array_section()
+          integer :: ji, dummy, n
+          real, dimension(:,:) :: a, b, c
+
+          a(:,:) = b(:,:) * c(:,:)
+
+          do ji = 1, n
+             a(ji,:) = b(ji,:) * c(ji,:)
+          end do
+
+        end subroutine array_section
+        ''')
+    schedule = psyir.walk(Schedule)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
-    gen_code = str(psy.gen).lower()
+    gen_code = fortran_writer(psyir)
     assert "!$acc data copyin(b,c), copyout(a)" in gen_code
 
 
-def test_kind_parameter(parser):
+def test_kind_parameter(fortran_reader, fortran_writer):
     ''' Check that we don't attempt to put kind parameters into the list
     of variables to copyin/out. '''
-    reader = FortranStringReader("program kind_param\n"
-                                 "use kind_params_mod\n"
-                                 "integer :: ji, jpj\n"
-                                 "real(kind=wp) :: sto_tmp(5)\n"
-                                 "do ji = 1,jpj\n"
-                                 "sto_tmp(ji) = 0._wp\n"
-                                 "end do\n"
-                                 "end program kind_param\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program kind_param\n"
+                "use kind_params_mod\n"
+                "integer :: ji, jpj\n"
+                "real(kind=wp) :: sto_tmp(5)\n"
+                "do ji = 1,jpj\n"
+                "sto_tmp(ji) = 0._wp\n"
+                "end do\n"
+                "end program kind_param\n")
+    schedule = psyir.walk(Schedule)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children[0:1])
-    gen_code = str(psy.gen)
+    gen_code = fortran_writer(psyir)
 
     assert "copyin(wp)" not in gen_code.lower()
 
@@ -380,53 +395,51 @@ def test_no_copyin_intrinsics(fortran_reader, fortran_writer):
         assert f"copyin({intrinsic[0:idx]})" not in gen_code.lower()
 
 
-def test_no_code_blocks(parser):
+def test_no_code_blocks(fortran_reader):
     ''' Check that we refuse to include CodeBlocks (i.e. code that we
     don't recognise) within a data region. '''
-    reader = FortranStringReader("program write_out\n"
-                                 "integer, parameter :: wp = kind(1.0)\n"
-                                 "integer :: ji, jpj\n"
-                                 "real(kind=wp) :: sto_tmp(5)\n"
-                                 "do ji = 1,jpj\n"
-                                 "read(*,*) sto_tmp(ji)\n"
-                                 "end do\n"
-                                 "do ji = 1,jpj\n"
-                                 "write(*,*) sto_tmp(ji)\n"
-                                 "end do\n"
-                                 "end program write_out\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program write_out\n"
+                "integer, parameter :: wp = kind(1.0)\n"
+                "integer :: ji, jpj\n"
+                "real(kind=wp) :: sto_tmp(5)\n"
+                "do ji = 1,jpj\n"
+                "read(*,*) sto_tmp(ji)\n"
+                "end do\n"
+                "do ji = 1,jpj\n"
+                "write(*,*) sto_tmp(ji)\n"
+                "end do\n"
+                "end program write_out\n")
+    schedule = psyir.walk(Routine)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children[0:1])
-    assert ("'CodeBlock' cannot be enclosed by a ACCDataTrans"
+    assert ("cannot be enclosed by a ACCDataTrans"
             in str(err.value))
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children[1:2])
-    assert ("'CodeBlock' cannot be enclosed by a ACCDataTrans"
+    assert ("cannot be enclosed by a ACCDataTrans"
             in str(err.value))
 
 
-def test_kernels_in_data_region(parser):
+def test_kernels_in_data_region(fortran_reader, fortran_writer):
     ''' Check that directives end up in the correct locations when enclosing
     a kernels region inside a data region. '''
-    reader = FortranStringReader("program one_loop\n"
-                                 "use kind_params_mod\n"
-                                 "integer :: ji, jpj\n"
-                                 "real(kind=wp) :: sto_tmp(5)\n"
-                                 "do ji = 1,jpj\n"
-                                 "  sto_tmp(ji) = 0.0\n"
-                                 "end do\n"
-                                 "end program one_loop\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program one_loop\n"
+                "use kind_params_mod\n"
+                "integer :: ji, jpj\n"
+                "real(kind=wp) :: sto_tmp(5)\n"
+                "do ji = 1,jpj\n"
+                "  sto_tmp(ji) = 0.0\n"
+                "end do\n"
+                "end program one_loop\n")
+    schedule = psyir.walk(Routine)[0]
     acc_dtrans = TransInfo().get_trans_name('ACCDataTrans')
-    acc_ktrans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_ktrans = ACCKernelsTrans()
     acc_ktrans.apply(schedule.children[:], {"default_present": True})
     acc_dtrans.apply(schedule.children[:])
-    new_code = str(psy.gen).lower()
+    new_code = fortran_writer(psyir)
     assert ("  !$acc data copyout(sto_tmp)\n"
             "  !$acc kernels default(present)\n"
             "  do ji = 1, jpj, 1\n" in new_code)
@@ -437,13 +450,11 @@ def test_kernels_in_data_region(parser):
             "end program one_loop" in new_code)
 
 
-def test_no_enter_data(parser):
+def test_no_enter_data(fortran_reader):
     ''' Check that we refuse to allow a data region to be created in a
     Schedule that has already had an Enter Data node added to it. '''
-    reader = FortranStringReader(EXPLICIT_DO)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.get('explicit_do').schedule
+    psyir = fortran_reader.psyir_from_source(EXPLICIT_DO)
+    schedule = psyir.walk(Routine)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     enter_data_trans = TransInfo().get_trans_name('ACCEnterDataTrans')
     enter_data_trans.apply(schedule)
@@ -453,53 +464,49 @@ def test_no_enter_data(parser):
             "contains an 'enter data' directive" in str(err.value))
 
 
-def test_array_access_in_ifblock(parser):
+def test_array_access_in_ifblock(fortran_reader, fortran_writer):
     ''' Check that we generate the necessary copyin clause when a data region
     contains an IF clause with an array access. '''
-    code = ("program ifclause\n"
-            "  use kind_params_mod\n"
-            "  real(kind=wp) :: zmask(8,8), zdta(8,8)\n"
-            "  integer :: ji, jj\n"
-            "  zmask(:,:) = 1.0\n"
-            "  do jj = 1, 8\n"
-            "    do ji = 1, 8\n"
-            "      if(zmask(ji,jj) < 0.0)then\n"
-            "        zdta(ji,jj) = 0.0\n"
-            "      end if\n"
-            "    end do\n"
-            "  end do\n"
-            "end program ifclause\n")
-    reader = FortranStringReader(code)
-    ptree = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(ptree)
-    schedule = psy.invokes.get('ifclause').schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program ifclause\n"
+                "  use kind_params_mod\n"
+                "  real(kind=wp) :: zmask(8,8), zdta(8,8)\n"
+                "  integer :: ji, jj\n"
+                "  zmask(:,:) = 1.0\n"
+                "  do jj = 1, 8\n"
+                "    do ji = 1, 8\n"
+                "      if(zmask(ji,jj) < 0.0)then\n"
+                "        zdta(ji,jj) = 0.0\n"
+                "      end if\n"
+                "    end do\n"
+                "  end do\n"
+                "end program ifclause\n")
+    schedule = psyir.walk(Routine)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     # Put the second loop nest inside a data region
     acc_trans.apply(schedule.children[1:])
-    gen_code = str(psy.gen).lower()
+    gen_code = fortran_writer(psyir)
     assert " copyin(zmask)" in gen_code
 
 
-def test_array_access_loop_bounds(parser):
+def test_array_access_loop_bounds(fortran_reader, fortran_writer):
     ''' Check that the correct data-movement statement is generated when
     the region contains a loop that has an array-access as one of its
     bounds. '''
-    code = ("program do_bound\n"
-            "  use kind_params_mod\n"
-            "  real(kind=wp) :: trim_width(8), zdta(8,8)\n"
-            "  integer :: ji, jj, dom\n"
-            "  do jj = 1, trim_width(dom)\n"
-            "    do ji = 1, 8\n"
-            "      zdta(ji,jj) = 0.0\n"
-            "    end do\n"
-            "  end do\n"
-            "end program do_bound\n")
-    reader = FortranStringReader(code)
-    ptree = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(ptree)
-    schedule = psy.invokes.get('do_bound').schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program do_bound\n"
+                "  use kind_params_mod\n"
+                "  real(kind=wp) :: trim_width(8), zdta(8,8)\n"
+                "  integer :: ji, jj, dom\n"
+                "  do jj = 1, trim_width(dom)\n"
+                "    do ji = 1, 8\n"
+                "      zdta(ji,jj) = 0.0\n"
+                "    end do\n"
+                "  end do\n"
+                "end program do_bound\n")
+    schedule = psyir.walk(Routine)[0]
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     # Put the second loop nest inside a data region
     acc_trans.apply(schedule.children)
-    gen_code = str(psy.gen).lower()
+    gen_code = fortran_writer(psyir)
     assert "copyin(trim_width)" in gen_code

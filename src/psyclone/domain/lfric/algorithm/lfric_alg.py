@@ -34,6 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Laboratory.
 # Modified by: R. W. Ford, STFC Daresbury Laboratory.
 #              L. Turner, Met Office
+#              T. Vockerodt, Met Office
 
 '''This module contains the LFRicAlg class which encapsulates tools for
    creating standalone LFRic algorithm-layer code.
@@ -190,7 +191,7 @@ class LFRicAlg:
         # pylint: disable=protected-access
         # TODO #1954 Remove the protected access using a factory
         ScopingNode._symbol_table_class = LFRicSymbolTable
-        alg_sub = Routine(name)
+        alg_sub = Routine.create(name)
         table = alg_sub.symbol_table
 
         # Create Container and Type Symbols for each of the modules/types that
@@ -270,7 +271,7 @@ class LFRicAlg:
         # Initialise the function spaces required by the kernel arguments.
         const = LFRicConstants()
 
-        for space in fspaces:
+        for space in sorted(fspaces):
 
             if space.lower() not in const.VALID_FUNCTION_SPACE_NAMES:
                 raise InternalError(
@@ -422,8 +423,8 @@ class LFRicAlg:
                             be found in the supplied parse tree.
         '''
         try:
-            ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
-                                                              name=kernel_name)
+            ktype = KernelTypeFactory(api="lfric").create(parse_tree,
+                                                          name=kernel_name)
         except ParseError as err:
             raise ValueError(
                 f"Failed to find kernel '{kernel_name}' in supplied "

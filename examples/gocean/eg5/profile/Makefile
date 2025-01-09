@@ -87,6 +87,16 @@ drhook:
 			PROFILE_LINK="-L $(DRHOOK_DIR)/build/lib -ldrhook" \
 	        drhook_lib $(NAME).drhook
 
+# Needs to additionally link with the Vernier library
+# As default assume Vernier is installed 'next' to PSyclone
+VERNIER_DIR?=$(ROOT_DIR)/../Vernier
+vernier:
+	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/vernier"                \
+	        WRAPPER_NAME="vernier_psy"                          \
+			PROFILE_LINK="-L $(VERNIER_DIR)/local/lib           \
+			-lvernier_f -lvernier_c -lvernier"                  \
+	        $(NAME).vernier
+
 TAU_DIR?=$(ROOT_DIR)/../tau
 # By adding the dependency to INF_LIB here, we will be invoking the original
 # compiler, not tau_f90.sh (since we don't want to instrument the whole
@@ -133,7 +143,7 @@ $(NAME).%: $(INF_LIB) $(WRAPPER_DIR)/lib$(WRAPPER_NAME).a $(KERNELS) psy.o alg.o
 		   $(PROFILE_LINK) $(INF_LIB)
 
 alg.f90 psy.f90: test.x90
-	${PSYCLONE} --profile invokes -api "gocean1.0" \
+	${PSYCLONE} --profile invokes -api "gocean" \
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
 # Make sure the infrastructure library is compiled, so the mods are found
@@ -145,6 +155,9 @@ $(INF_LIB):
 
 drhook_lib :
 	$(MAKE) DRHOOK_ROOT=$(DRHOOK_DIR) -C $(WRAPPER_DIR)
+
+vernier_lib :
+	$(MAKE) VERNIER_ROOT=$(VERNIER_DIR) -C $(WRAPPER_DIR)
 
 tau_lib :
 	$(MAKE) F90=tau_f90.sh TAU_ROOT=$(TAU_DIR) -C $(WRAPPER_DIR)

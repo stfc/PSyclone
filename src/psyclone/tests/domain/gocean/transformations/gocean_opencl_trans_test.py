@@ -63,8 +63,8 @@ def setup():
     the tests.'''
 
     Config._instance = None
-    filepath = get_base_path("gocean1.0")
-    Config.get().api = "gocean1.0"
+    filepath = get_base_path("gocean")
+    Config.get().api = "gocean"
     Config.get()._include_paths = [filepath]
     yield
     # At the end of every tests make sure that we wipe the Config object
@@ -74,7 +74,7 @@ def setup():
 
 
 # PSyclone API under test
-API = "gocean1.0"
+API = "gocean"
 
 
 # ----------------------------------------------------------------------------
@@ -114,7 +114,7 @@ def test_validate_unsupported_api():
     # instance to None we force it to be re-initialised with the API specified
     # in the call to get_invoke().
     Config._instance = None
-    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
+    _, invoke = get_invoke("1_single_invoke.f90", "lfric",
                            name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule
     trans = GOOpenCLTrans()
@@ -160,7 +160,7 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode,
                                     fortran_writer):
     ''' Test that generating code for OpenCL results in the correct
     module use statements and declarations. '''
-    api_config = Config.get().api_conf("gocean1.0")
+    api_config = Config.get().api_conf("gocean")
     monkeypatch.setattr(api_config, "_debug_mode", debug_mode)
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -341,8 +341,6 @@ c_sizeof(field%grid%'''
       integer(kind=c_intptr_t) cl_mem
       integer ierr
 
-      ! psyclone codeblock (unsupported code) reason:
-      !  - unsupported statement: pointer_assignment_stmt
       cmd_queues => get_cmd_queues()
       size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
 c_sizeof(field%grid%tmask(1,1))
@@ -446,8 +444,6 @@ def test_opencl_routines_initialisation(kernel_outputdir):
       integer i
 
       cl_mem = transfer(from, cl_mem)
-      ! psyclone codeblock (unsupported code) reason:
-      !  - unsupported statement: pointer_assignment_stmt
       cmd_queues => get_cmd_queues()
       if (nx < size(to, 1) / 2) then
         do i = starty, starty + ny, 1
@@ -496,8 +492,6 @@ offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
       integer i
 
       cl_mem = transfer(to, cl_mem)
-      ! psyclone codeblock (unsupported code) reason:
-      !  - unsupported statement: pointer_assignment_stmt
       cmd_queues => get_cmd_queues()
       if (nx < size(from, 1) / 2) then
         do i = starty, starty + ny, 1
@@ -538,9 +532,6 @@ c_sizeof(field%data(1,1))
         field%device_ptr = transfer(create_rw_buffer(size_in_bytes), \
 field%device_ptr)
         field%data_on_device = .true.
-        ! psyclone codeblock (unsupported code) reason:
-        !  - unsupported statement: pointer_assignment_stmt
-        !  - unsupported statement: pointer_assignment_stmt
         field%read_from_device_f => read_from_device
         field%write_to_device_f => write_to_device
       end if
@@ -688,7 +679,7 @@ def test_psy_init_with_options(kernel_outputdir):
 def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
     ''' Check that the Invoke OpenCL produce the expected kernel enqueue
     statement to launch OpenCL kernels. '''
-    api_config = Config.get().api_conf("gocean1.0")
+    api_config = Config.get().api_conf("gocean")
     monkeypatch.setattr(api_config, "_debug_mode", debug_mode)
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -1225,7 +1216,7 @@ def test_symtab_implementation_for_opencl():
     ''' Tests that the GOcean specialised Symbol Table implements the
     abstract properties needed to generate OpenCL.
     '''
-    kschedule = GOKernelSchedule('test')
+    kschedule = GOKernelSchedule.create('test')
 
     # Test symbol table without any kernel argument
     with pytest.raises(GenerationError) as err:
@@ -1298,5 +1289,5 @@ def test_opencl_kernel_with_use():
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched)
     assert ("'kernel_with_use_code' contains the following symbols with "
-            "'global' scope: ['rdt']. An OpenCL kernel cannot call other "
-            "kernels and all of the data" in str(err.value))
+            "'global' scope: ['rdt', 'magic']. An OpenCL kernel cannot call "
+            "other kernels and all of the data" in str(err.value))

@@ -35,18 +35,33 @@
 
 ''' Utilities file to parallelise Nemo code. '''
 
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Loop, Assignment, Directive, Container, Reference, CodeBlock, Call,
-    Return, IfBlock, Routine, IntrinsicCall)
+    Assignment, Loop, Directive, Reference, CodeBlock,
+    Call, Return, IfBlock, Routine, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ScalarType,
-    RoutineSymbol, ImportInterface)
+    DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
 from psyclone.psyir.transformations import (
-    HoistLoopBoundExprTrans, HoistTrans, ProfileTrans, HoistLocalArraysTrans,
-    Maxval2LoopTrans, Reference2ArrayRangeTrans)
-from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
+    ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
+    HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
+    Reference2ArrayRangeTrans)
 from psyclone.transformations import TransformationError
 
+
+# USE statements to chase to gather additional symbol information.
+NEMO_MODULES_TO_IMPORT = [
+    "oce", "par_oce", "dom_oce", "phycst", "ice",
+    "obs_fbm", "flo_oce", "sbc_ice", "wet_dry"
+]
+
+# Files that PSyclone could process but would reduce the performance.
+NOT_PERFORMANT = [
+    "bdydta.f90", "bdyvol.f90", "fldread.f90", "icbclv.f90", "icbthm.f90",
+    "icbdia.f90", "icbini.f90", "icbstp.f90", "iom.f90", "iom_nf90.f90",
+    "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
+    "obs_types.f90", "obs_read_prof.f90", "obs_write.f90", "tide_mod.f90",
+    "zdfosm.f90", "obs_read_surf.f90",
+]
 
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
@@ -55,9 +70,41 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     # prevents from being in-lined (and then breaks any attempt
                     # to create OpenACC regions with calls to them)
                     "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
-                    "sum", "sign_", "ddpdd"]
+                    "sum", "sign_", "ddpdd", "psyclone_cmp_int",
+                    "psyclone_cmp_char", "psyclone_cmp_logical"]
 
-VERBOSE = False
+# Currently fparser has no way of distinguishing array accesses from
+# function calls if the symbol is imported from some other module.
+# We therefore work-around this by keeping a list of known NEMO functions.
+NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
+                  "eos_pt_from_ct", "gamma_moist", "l_vap", "q_air_rh",
+                  "sbc_dcy", "solfrac", "psi_h", "psi_m", "psi_m_coare",
+                  "psi_h_coare", "psi_m_ecmwf", "psi_h_ecmwf", "q_sat",
+                  "rho_air", "visc_air", "sbc_dcy", "glob_sum",
+                  "glob_sum_full", "ptr_sj", "ptr_sjk", "interp1", "interp2",
+                  "interp3", "integ_spline", "nf90_put_var"]
+
+# Currently fparser has no way of distinguishing array accesses from statement
+# functions, the following subroutines contains known statement functions
+CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
+
+# These files change the results from baseline when psyclone processes them
+PASSTHROUGH_ISSUES = [
+    "ldfslp.f90",  # It has a '!dir$ NOVECTOR' that gets deleted by fparser
+]
+
+# These files change the results from the baseline when psyclone adds
+# parallelisation dirctives
+PARALLELISATION_ISSUES = [
+    "ldfc1d_c2d.f90",
+    "tramle.f90",
+    # These files get the same results when parallelised by: "nvfortran -O1
+    # -Kieee -nofma -Mnovect" but had to be excluded by other compiler/flags
+    # TODO #2787: May solve these issues.
+    "icedyn_rhg_evp.f90",
+    "domqco.f90",
+    "dynspg_ts.f90",
+]
 
 
 def _it_should_be(symbol, of_type, instance):
@@ -77,56 +124,90 @@ def _it_should_be(symbol, of_type, instance):
 
 
 def enhance_tree_information(schedule):
-    ''' Resolve imports in order to populate relevant datatype on the
-    tree symbol tables.
+    ''' Manually fix some PSyIR issues produced by not having enough symbol
+    information from external modules. Setting NEMO_MODULES_TO_IMPORT above
+    improve the situation but its not complete (not all symbols are imported)
+    and it is not transitive (imports that inside import other symbols).
 
     :param schedule: the PSyIR Schedule to transform.
     :type schedule: :py:class:`psyclone.psyir.nodes.node`
+
     '''
-
-    mod_sym_tab = schedule.ancestor(Container).symbol_table
-
-    modules_to_import = ("oce", "par_oce", "dom_oce", "phycst", "ice",
-                         "obs_fbm", "flo_oce", "sbc_ice", "wet_dry")
-
-    for module_name in modules_to_import:
-        if module_name in mod_sym_tab:
-            mod_symbol = mod_sym_tab.lookup(module_name)
-            mod_sym_tab.resolve_imports(container_symbols=[mod_symbol])
-
     are_integers = ('jpi', 'jpim1', 'jpj', 'jpjm1', 'jp_tem', 'jp_sal',
                     'jpkm1', 'jpiglo', 'jpni', 'jpk', 'jpiglo_crs',
                     'jpmxl_atf', 'jpmxl_ldf', 'jpmxl_zdf', 'jpnij',
                     'jpts', 'jpvor_bev', 'nleapy', 'nn_ctls', 'jpmxl_npc',
                     'jpmxl_zdfp', 'npti')
 
-    # Manually set the datatype of some integer and real variables that are
-    # important for performance
     for reference in schedule.walk(Reference):
         if reference.symbol.name in are_integers:
+            # Manually set the datatype of some integer scalars that are
+            # important for performance
             _it_should_be(reference.symbol, ScalarType, INTEGER_TYPE)
-        elif reference.symbol.name in ('rn_avt_rnf', ):
-            _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
-        elif isinstance(reference.symbol.interface, ImportInterface) and \
-                reference.symbol.interface.container_symbol.name == "phycst":
-            # Everything imported from phycst is a REAL
-            _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
-        elif reference.symbol.name == 'tmask':
-            if reference.ancestor(Container).name == "dom_oce":
-                continue  # Do not update the original declaration
-            _it_should_be(reference.symbol, ArrayType, ArrayType(REAL_TYPE, [
-                        ArrayType.Extent.ATTRIBUTE,
-                        ArrayType.Extent.ATTRIBUTE,
-                        ArrayType.Extent.ATTRIBUTE]))
-        elif reference.symbol.name == "sbc_dcy":
-            # The parser gets this wrong, it is a Call not an Array access
-            if not isinstance(reference.symbol, RoutineSymbol):
-                # We haven't already specialised this Symbol.
-                reference.symbol.specialise(RoutineSymbol)
-            call = Call.create(reference.symbol)
-            for child in reference.children:
-                call.addchild(child.detach())
-            reference.replace_with(call)
+        elif reference.symbol.name in NEMO_FUNCTIONS:
+            if reference.symbol.is_import or reference.symbol.is_unresolved:
+                # The parser gets these wrong, they are Calls not ArrayRefs
+                if not isinstance(reference.symbol, RoutineSymbol):
+                    # We need to specialise the generic Symbol to a Routine
+                    reference.symbol.specialise(RoutineSymbol)
+                if not (isinstance(reference.parent, Call) and
+                        reference.parent.routine is reference):
+                    # We also need to replace the Reference node with a Call
+                    call = Call.create(reference.symbol)
+                    for child in reference.children[:]:
+                        call.addchild(child.detach())
+                    reference.replace_with(call)
+
+
+def inline_calls(schedule):
+    '''
+    Looks for all Calls within the supplied Schedule and attempts to:
+
+      1. Find the source of the routine being called.
+      2. Insert that source into the same Container as the call site.
+      3. Replace the call to the routine with the body of the routine.
+
+    where each step is dependent upon the success of the previous one.
+
+    TODO #924 - this could be InlineAllCallsTrans.apply(schedule,
+                                                        excluding={})
+
+    :param schedule: the schedule in which to search for Calls.
+    :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
+
+    '''
+    excluding = ["ctl_stop", "ctl_warn", "eos", "iom_", "hist", "mpi_",
+                 "timing_", "oasis_"]
+    ignore_codeblocks = ["bdy_dyn3d_frs", "bdy_dyn3d_spe", "bdy_dyn3d_zro",
+                         "bdy_dyn3d_zgrad"]
+    mod_inline_trans = KernelModuleInlineTrans()
+    inline_trans = InlineTrans()
+    all_calls = schedule.walk(Call)
+    for call in all_calls:
+        if isinstance(call, IntrinsicCall):
+            continue
+        rsym = call.routine.symbol
+        name = rsym.name.lower()
+        if any(name.startswith(excl_name) for excl_name in excluding):
+            print(f"Inlining of routine '{name}' is disabled.")
+            continue
+        if rsym.is_import:
+            try:
+                mod_inline_trans.apply(call)
+                print(f"Module-inlined routine '{name}'")
+            except TransformationError as err:
+                print(f"Module inline of '{name}' failed:\n{err}")
+                continue
+        try:
+            options = {}
+            if name in ignore_codeblocks:
+                options["force"] = True
+                print(f"Forcing inlining of '{name}'")
+            inline_trans.apply(call, options=options)
+            print(f"Inlined routine '{name}'")
+        except TransformationError as err:
+            print(f"Inlining of '{name}' failed:\n{err}")
+            continue
 
 
 def normalise_loops(
@@ -153,9 +234,10 @@ def normalise_loops(
     :param bool hoist_expressions: whether to hoist bounds and loop invariant
         statements out of the loop nest.
     '''
-
-    if hoist_local_arrays:
-        # Apply the HoistLocalArraysTrans when possible
+    if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
+        # Apply the HoistLocalArraysTrans when possible, it cannot be applied
+        # to files with statement functions because it will attempt to put the
+        # allocate above it, which is not valid Fortran.
         try:
             HoistLocalArraysTrans().apply(schedule)
         except TransformationError:
@@ -163,7 +245,7 @@ def normalise_loops(
 
     if convert_array_notation:
         # Make sure all array dimensions are explicit
-        for reference in schedule.walk(Reference, stop_type=Reference):
+        for reference in schedule.walk(Reference):
             part_of_the_call = reference.ancestor(Call)
             if part_of_the_call:
                 if not part_of_the_call.is_elemental:
@@ -184,14 +266,20 @@ def normalise_loops(
 
     if convert_range_loops:
         # Convert all array implicit loops to explicit loops
-        explicit_loops = NemoAllArrayRange2LoopTrans()
+        explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
-            explicit_loops.apply(assignment)
+            try:
+                explicit_loops.apply(assignment)
+            except TransformationError:
+                pass
 
     if hoist_expressions:
         # First hoist all possible expressions
         for loop in schedule.walk(Loop):
-            HoistLoopBoundExprTrans().apply(loop)
+            try:
+                HoistLoopBoundExprTrans().apply(loop)
+            except TransformationError:
+                pass
 
         # Hoist all possible assignments (in reverse order so the inner loop
         # constants are hoisted all the way out if possible)
@@ -212,24 +300,25 @@ def insert_explicit_loop_parallelism(
         region_directive_trans=None,
         loop_directive_trans=None,
         collapse: bool = True,
+        privatise_arrays: bool = False,
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
 
     :param schedule: the PSyIR Schedule to transform.
     :type schedule: :py:class:`psyclone.psyir.nodes.node`
-    :param region_directive_trans: PSyclone transformation to insert the \
+    :param region_directive_trans: PSyclone transformation that inserts the
         region directive.
     :type region_directive_trans: \
         :py:class:`psyclone.transformation.Transformation`
-    :param loop_directive_trans: PSyclone transformation to use to insert the \
-        loop directive.
+    :param loop_directive_trans: PSyclone transformation that inserts the
+        loop parallelisation directive.
     :type loop_directive_trans: \
         :py:class:`psyclone.transformation.Transformation`
-    :param collapse: whether to attempt to insert the collapse clause to as \
+    :param collapse: whether to attempt to insert the collapse clause to as
         many nested loops as possible.
-    :param collapse: whether to insert directive on loops with Calls or \
-        CodeBlocks in their loop body.
+    :param privatise_arrays: whether to attempt to privatise arrays that cause
+        write-write race conditions.
 
     '''
     # Add the parallel directives in each loop
@@ -237,14 +326,17 @@ def insert_explicit_loop_parallelism(
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
-        opts = {}
+        opts = {"collapse": collapse, "privatise_arrays": privatise_arrays,
+                "verbose": True}
 
-        routine_name = loop.ancestor(Routine).invoke.name
+        routine_name = loop.ancestor(Routine).name
 
         if ('dyn_spg' in routine_name and len(loop.walk(Loop)) > 2):
-            print("Loop not parallelised because its in 'dyn_spg' and "
-                  "its not the inner loop")
+            loop.append_preceding_comment(
+                "PSyclone: Loop not parallelised because it is in 'dyn_spg' "
+                "and is not the inner loop")
             continue
+
         # Skip if it is an array operation loop on an ice routine if along the
         # third dim or higher or if the loop nests a loop over ice points
         # (npti) or if the loop and array dims do not match.
@@ -260,93 +352,35 @@ def insert_explicit_loop_parallelism(
                         for ref in lp.stop_expr.walk(Reference))
                  or (str(len(loop.walk(Loop))) !=
                      loop.stop_expr.arguments[1].value))):
-            print("ICE Loop not parallelised for performance reasons")
+            loop.append_preceding_comment(
+                "PSyclone: ICE Loop not parallelised for performance reasons")
             continue
+
         # Skip if looping over ice categories, ice or snow layers
         # as these have only 5, 4, and 1 iterations, respectively
         if (any(ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
                 for ref in loop.stop_expr.walk(Reference))):
-            print("Loop not parallelised because stops at 'jpl', 'nlay_i' "
-                  "or 'nlay_s'.")
+            loop.append_preceding_comment(
+                "PSyclone: Loop not parallelised because stops at 'jpl',"
+                " 'nlay_i' or 'nlay_s'.")
             continue
-
-        def skip_for_correctness(loop):
-            for call in loop.walk(Call):
-                if not isinstance(call, IntrinsicCall):
-                    print(f"Loop not parallelised because it has a call to "
-                          f"{call.routine.name}")
-                    return True
-                if not call.is_available_on_device():
-                    print(f"Loop not parallelised because it has a "
-                          f"{call.intrinsic.name} not available on GPUs.")
-                    return True
-            if loop.walk(CodeBlock):
-                print("Loop not parallelised because it has a CodeBlock")
-                return True
-            return False
-
-        # If we see one such ice linearised loop, we assume
-        # calls/codeblocks are not a problem (they are not)
-        if not any(ref.symbol.name in ('npti',)
-                   for ref in loop.stop_expr.walk(Reference)):
-            if skip_for_correctness(loop):
-                continue
-
-        # pnd_lev requires manual privatisation of ztmp
-        if any(name in routine_name for name in ('tab_', 'pnd_')):
-            opts = {"force": True}
 
         try:
+            # First check that the region_directive is feasible for this region
+            if region_directive_trans:
+                region_directive_trans.validate(loop, options=opts)
+
+            # If it is, apply the parallelisation directive
             loop_directive_trans.apply(loop, options=opts)
-            # Only add the region directive if the loop was successfully
-            # parallelised.
+
+            # And if successful, the region directive on top.
             if region_directive_trans:
                 region_directive_trans.apply(loop.parent.parent)
-        except TransformationError as err:
-            # This loop can not be transformed, proceed to next loop
-            print("Loop not parallelised because:", str(err))
+        except TransformationError:
+            # This loop cannot be transformed, proceed to next loop.
+            # The parallelisation restrictions will be explained with a comment
+            # associted to the loop in the generated output.
             continue
-
-        if collapse:
-
-            # Count the number of perfectly nested loops that can be collapsed
-            num_nested_loops = 0
-            next_loop = loop
-            previous_variables = []
-            while isinstance(next_loop, Loop):
-                previous_variables.append(next_loop.variable)
-                num_nested_loops += 1
-
-                # If it has more than one children, the next loop will not be
-                # perfectly nested, so stop searching. If there is no child,
-                # we have an empty loop (which would cause a crash when
-                # accessing the child next)
-                if len(next_loop.loop_body.children) != 1:
-                    break
-
-                next_loop = next_loop.loop_body.children[0]
-                if not isinstance(next_loop, Loop):
-                    break
-
-                # If it is a dependent (e.g. triangular) loop, it can not be
-                # collapsed
-                dependent_of_previous_variable = False
-                for bound in (next_loop.start_expr, next_loop.stop_expr,
-                              next_loop.step_expr):
-                    for ref in bound.walk(Reference):
-                        if ref.symbol in previous_variables:
-                            dependent_of_previous_variable = True
-                            break
-                if dependent_of_previous_variable:
-                    break
-
-                # Check that the next loop has no loop-carried dependencies
-                if not next_loop.independent_iterations():
-                    break
-
-            # Add collapse clause to the parent directive
-            if num_nested_loops > 1:
-                loop.parent.parent.collapse = num_nested_loops
 
 
 def add_profiling(children):
@@ -395,7 +429,7 @@ def add_profile_region(nodes):
     '''
     if nodes:
         # Check whether we should be adding profiling inside this routine
-        routine_name = nodes[0].ancestor(Routine).invoke.name.lower()
+        routine_name = nodes[0].ancestor(Routine).name.lower()
         if any(ignore in routine_name for ignore in PROFILING_IGNORE):
             return
         if len(nodes) == 1:

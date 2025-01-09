@@ -45,7 +45,7 @@ import inspect
 
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import Node, Schedule, Container
-from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
+from psyclone.psyir.commentable_mixin import CommentableMixin
 
 
 class VisitorError(PSycloneError):
@@ -65,16 +65,19 @@ class PSyIRVisitor():
     a particular back end. By default, global constraints are enforced by
     calling the `validate_global_constraints()` method of each Node visited.
 
-    :param bool skip_nodes: If skip_nodes is False then an exception \
-        is raised if a visitor method for a PSyIR node has not been \
-        implemented, otherwise the visitor silently continues. This is an \
+    :param bool skip_nodes: If skip_nodes is False then an exception
+        is raised if a visitor method for a PSyIR node has not been
+        implemented, otherwise the visitor silently continues. This is an
         optional argument which defaults to False.
-    :param str indent_string: Specifies what to use for indentation. This \
+    :param str indent_string: Specifies what to use for indentation. This
         is an optional argument that defaults to two spaces.
-    :param int initial_indent_depth: Specifies how much indentation to \
+    :param int initial_indent_depth: Specifies how much indentation to
         start with. This is an optional argument that defaults to 0.
-    :param bool check_global_constraints: whether or not to validate all \
+    :param bool check_global_constraints: whether or not to validate all
         global constraints when walking the tree. Defaults to True.
+    :param bool disable_copy: whether or not to disable the lowering copy
+        operation. Note that disabling it will make the visitor alter the
+        original tree.
 
     :raises TypeError: if any of the supplied parameters are of the wrong type.
 
@@ -90,7 +93,8 @@ class PSyIRVisitor():
     _DISABLE_LOWERING = False
 
     def __init__(self, skip_nodes=False, indent_string="  ",
-                 initial_indent_depth=0, check_global_constraints=True):
+                 initial_indent_depth=0, check_global_constraints=True,
+                 disable_copy=False):
 
         if not isinstance(skip_nodes, bool):
             raise TypeError(
@@ -112,6 +116,10 @@ class PSyIRVisitor():
             raise TypeError(f"check_global_constraints should be a boolean "
                             f"but found "
                             f"'{type(check_global_constraints).__name__}'.")
+        if not isinstance(disable_copy, bool):
+            raise TypeError(f"disable_copy should be a boolean "
+                            f"but found "
+                            f"'{type(disable_copy).__name__}'.")
 
         self._skip_nodes = skip_nodes
         self._indent = indent_string
@@ -119,6 +127,7 @@ class PSyIRVisitor():
         #: If validate_nodes is True then each node visited will have any
         #: global constraints validated.
         self._validate_nodes = check_global_constraints
+        self._disable_copy = disable_copy
 
     def reference_node(self, node):
         '''This method is called when a Reference instance is found in the
@@ -176,14 +185,17 @@ class PSyIRVisitor():
 
         # The visitor must not alter the provided node but if there are any
         # DSL concepts then these will need to be lowered in-place and this
-        # operation often modifies the tree. Therefore, we first create a
-        # copy of the full provided tree (as modifications can be above the
-        # provided node - e.g. adding a symbol in the scope)
-        tree_copy = node.root.copy()
-
-        # Get the node in the new tree with equivalent position to the
-        # provided node
-        node_copy = tree_copy.walk(Node)[node.abs_position]
+        # operation often modifies the tree. Therefore, unless we explicitly
+        # disable it, we create a copy of the full provided tree (as
+        # modifications can be above the provided node - e.g. adding a symbol
+        # in the scope)
+        if self._disable_copy:
+            node_copy = node
+        else:
+            tree_copy = node.root.copy()
+            # Get the node in the new tree with equivalent position to the
+            # provided node
+            node_copy = tree_copy.walk(Node)[node.abs_position]
 
         # Lower the DSL concepts starting from the selected node.
         # pylint: disable=broad-except
@@ -298,7 +310,9 @@ class PSyIRVisitor():
             # set so we ignore it and continue on down to any children.
             results = []
             for child in node.children:
-                results.append(self._visit(child))
+                result = self._visit(child)
+                if result is not None:
+                    results.append(result)
             return "".join(results)
 
         raise VisitorError(

@@ -65,7 +65,7 @@ def make_loop():
     start = Literal("0", INTEGER_SINGLE_TYPE)
     stop = Literal("1", INTEGER_SINGLE_TYPE)
     step = Literal("1", INTEGER_SINGLE_TYPE)
-    sched = Routine("loop_test_sub")
+    sched = Routine.create("loop_test_sub")
     tmp = sched.symbol_table.new_symbol("tmp", symbol_type=DataSymbol,
                                         datatype=REAL_SINGLE_TYPE)
     isym = sched.symbol_table.new_symbol("i", symbol_type=DataSymbol,
@@ -194,6 +194,36 @@ def test_loop_node_str(monkeypatch):
     assert loop.node_str(colour=True) == "yes[variable='i']"
     assert loop.node_str(colour=False) == "no[variable='i']"
 
+    # And with loop_type rules
+    Loop.set_loop_type_inference_rules({"i-loop": {"variable": "i"}})
+    out = loop.node_str()
+    assert "yes[variable='i', loop_type='i-loop']" in out
+    Loop.set_loop_type_inference_rules({})
+
+
+def test_loop_replace_symbols_using():
+    '''Test the replace_symbols_using() method of Loop.'''
+    loop = make_loop()
+    assert loop.variable.name == "i"
+    # Create a symbol table containing a replacement symbol.
+    table = SymbolTable()
+    new_i = table.new_symbol("i", symbol_type=DataSymbol,
+                             datatype=INTEGER_TYPE)
+    assert loop.variable is not new_i
+    loop.replace_symbols_using(table)
+    # Loop variable should have been updated.
+    assert loop.variable is new_i
+    # Check that the method has recursed to the children too.
+    assert loop.loop_body[0].rhs.symbol is new_i
+    # Test when the Loop doesn't have the _variable property set.
+    loop = Loop()
+    loop.addchild(Literal("0", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("2", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("1", INTEGER_SINGLE_TYPE))
+    loop.addchild(Schedule(parent=loop))
+    assert not loop._variable
+    loop.replace_symbols_using(table)
+
 
 def test_loop_str():
     '''Test the __str__ property of Loop.'''
@@ -201,6 +231,12 @@ def test_loop_str():
     out = str(loop)
     assert "Loop[variable:'i']\n" in out
     assert "End Loop" in out
+
+    # And with loop_type rules
+    Loop.set_loop_type_inference_rules({"i-loop": {"variable": "i"}})
+    out = str(loop)
+    assert "Loop[variable:'i', loop_type:'i-loop']\n" in out
+    Loop.set_loop_type_inference_rules({})
 
 
 def test_loop_independent_iterations():
@@ -222,8 +258,8 @@ def test_loop_gen_code():
         os.path.abspath(__file__)))), "test_files", "dynamo0p3")
     _, invoke_info = parse(os.path.join(base_path,
                                         "1.0.1_single_named_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
 
     # By default LFRicLoop has step = 1 and it is not printed in the Fortran DO
     gen = str(psy.gen)
@@ -486,3 +522,110 @@ def test_loop_equality():
     # Set different variables
     loop2.variable = DataSymbol("k", INTEGER_SINGLE_TYPE)
     assert loop1 != loop2
+
+
+def test_set_loop_type_inference_rules():
+    ''' Check that the set_loop_type_inference_rules populates the class
+    attribute with the appropriate values, or fails if the rules do not
+    follow the expected format.
+    '''
+    #
+    with pytest.raises(TypeError) as err:
+        Loop.set_loop_type_inference_rules("a")
+    assert ("The rules argument must be of type 'dict' but found"
+            in str(err.value))
+    with pytest.raises(TypeError) as err:
+        Loop.set_loop_type_inference_rules({1: "a"})
+    assert "The rules keys must be of type 'str' but found" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        Loop.set_loop_type_inference_rules({"a": 1})
+    assert "values must be of type 'dict' but found" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        Loop.set_loop_type_inference_rules({"a": {"invalid": 3}})
+    assert ("All the values of the rule definition must be of type 'str' "
+            "but found" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        Loop.set_loop_type_inference_rules({"a": {"invalid": "name"}})
+    assert ("Currently only the 'variable' rule key is accepted, but found:"
+            " 'invalid'." in str(err.value))
+    with pytest.raises(TypeError) as err:
+        Loop.set_loop_type_inference_rules({"a": {}})
+    assert ("A rule must at least have a 'variable' field to specify the loop "
+            "variable name that defines this loop_type, but the rule for "
+            "'a' does not have it." in str(err.value))
+
+    Loop.set_loop_type_inference_rules({"a": {"variable": "name"}})
+    assert "name" in Loop._loop_type_inference_rules
+    assert Loop._loop_type_inference_rules["name"] == "a"
+
+
+def test_loop_type(fortran_reader):
+    ''' Check that the loop_type method works as expeced '''
+    code = '''
+    subroutine basic_loop()
+      integer, parameter :: jpi=16, jpj=16
+      integer :: ji, jj
+      real :: a(jpi, jpj), fconst
+      do jj = 1, jpj
+        do ji = 1, jpi
+          a(ji) = fconst
+        end do
+      end do
+    end subroutine basic_loop
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+
+    # We can set inference rules, which will provide the right behaviour for
+    # the generic loop.loop_type property
+    Loop.set_loop_type_inference_rules({
+            "lon": {"variable": "ji"},
+            "lat": {"variable": "jj"}
+    })
+    outer_loop = psyir.walk(Loop)[0]
+    assert outer_loop.loop_type == "lat"
+    inner_loop = psyir.walk(Loop)[1]
+    assert inner_loop.loop_type == "lon"
+
+    # The rules can also be unset, which will mean that no loop has a loop_type
+    Loop.set_loop_type_inference_rules(None)
+    assert outer_loop.loop_type is None
+    assert inner_loop.loop_type is None
+
+
+def test_explicitly_private_symbols(fortran_reader):
+    ''' Check that the explicitly_private_symbols functionality works '''
+    code = '''
+    subroutine basic_loop()
+      integer, parameter :: jpi=16, jpj=16
+      integer :: ji, jj
+      real :: a(jpi, jpj), fconst
+      do jj = 1, jpj
+        do ji = 1, jpi
+          a(ji) = b(ji, jj)
+        end do
+      end do
+    end subroutine basic_loop
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    a_ref = psyir.walk(Assignment)[0].lhs
+    b_ref = psyir.walk(Assignment)[0].rhs
+
+    # By default no loop has explict local symbols
+    assert len(loops[0].explicitly_private_symbols) == 0
+    assert len(loops[1].explicitly_private_symbols) == 0
+
+    # Add A as explicitly local to the first loop
+    loops[0].explicitly_private_symbols.add(a_ref.symbol)
+    assert len(loops[0].explicitly_private_symbols) == 1
+    assert a_ref.symbol in loops[0].explicitly_private_symbols
+    assert b_ref.symbol not in loops[0].explicitly_private_symbols
+    assert len(loops[1].explicitly_private_symbols) == 0
+
+    # Check that the copy method appropriately updates the symbol references
+    new_psyir = psyir.copy()
+    new_loops = new_psyir.walk(Loop)
+    new_a_ref = new_psyir.walk(Assignment)[0].lhs
+    assert new_a_ref.symbol is not a_ref.symbol
+    assert a_ref.symbol not in new_loops[0].explicitly_private_symbols
+    assert new_a_ref.symbol in new_loops[0].explicitly_private_symbols

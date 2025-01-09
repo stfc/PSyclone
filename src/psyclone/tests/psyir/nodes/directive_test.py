@@ -61,8 +61,8 @@ def test_directive_backward_dependence():
     the schedule or None if none are found.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     otrans = DynamoOMPParallelLoopTrans()
@@ -81,8 +81,8 @@ def test_directive_backward_dependence():
     # 3: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     otrans.apply(schedule.children[0])
@@ -200,7 +200,7 @@ def test_regiondirective_gen_post_region_code():
     TODO #1648 - this can be removed when the gen_post_region_code() method is
     removed.'''
     temporary_module = f2pygen.ModuleGen("test")
-    subroutine = nodes.Routine("testsub")
+    subroutine = nodes.Routine.create("testsub")
     directive = nodes.RegionDirective()
     sym = subroutine.symbol_table.new_symbol(
             "i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)

@@ -43,7 +43,7 @@ via another transformation script which is imported as a Python module.
 
 This script can be applied via the '-s' option when running PSyclone:
 
-$ psyclone -nodm -s extract_kernel_with_transformations.py \
+$ psyclone -api lfric -nodm -s extract_kernel_with_transformations.py \
     gw_mixed_schur_preconditioner_alg_mod.x90
 
 Please note that distributed memory is not supported for code extraction
@@ -59,12 +59,13 @@ Names of Invokes and positions of Nodes containing the Kernel call can
 be found using the 'find_kernel.py' script.
 '''
 
-from __future__ import print_function
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
+from psyclone.psyGen import InvokeSchedule
+
 
 # Specify the Kernel name as it appears in the Kernel calls
 # (ending with "_code")
-KERNEL_NAME = "dg_matrix_vector_kernel_code"
+KERNEL_NAME = "dg_matrix_vector_code"
 # Specify the name of Invoke containing the Kernel call. If the name
 # does not correspond to Invoke names in the Algorithm file no Kernels
 # will be extracted.
@@ -77,35 +78,33 @@ INVOKE_NAME = "invoke_2"
 NODE_POSITION = 1
 
 
-def trans(psy):
-    ''' PSyclone transformation script for the Dynamo0.3 API to
-    extract the specified Kernel after applying transformations. '''
+def trans(psyir):
+    ''' PSyclone transformation script for the LFRic API to
+    extract the specified Kernel after applying transformations.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
 
     # Get instance of the ExtractTrans transformation
     etrans = LFRicExtractTrans()
 
     # Import transformation script and apply transformations
     import colouring_and_omp as transformation
-    psy = transformation.trans(psy)
+    transformation.trans(psyir)
 
-    # Get Invoke and its Schedule
-    invoke = psy.invokes.get(INVOKE_NAME)
-    schedule = invoke.schedule
-
-    # Loop over Nodes and check whether they contain the call to
-    # the specified Kernel
-    for child in schedule.children:
-        for kernel in child.coded_kernels():
-            # Extract the Node with the specified Kernel call from
-            # this Invoke
-            if kernel.name.lower() == KERNEL_NAME and \
-              child.position == NODE_POSITION:
-                print("\nExtracting Node '[" + str(child.position) +
-                      "]' with Kernel call '" + KERNEL_NAME +
-                      "' from Invoke '" + invoke.name + "'\n")
-                etrans.apply(child)
-
-    # Take a look at the transformed Schedule
-    print(schedule.view())
-
-    return psy
+    for schedule in psyir.walk(InvokeSchedule):
+        if schedule.name == INVOKE_NAME:
+            # Loop over Nodes and check whether they contain the call to
+            # the specified Kernel
+            for child in schedule.children:
+                for kernel in child.coded_kernels():
+                    # Extract the Node with the specified Kernel call from
+                    # this Invoke
+                    if kernel.name.lower() == KERNEL_NAME and \
+                      child.position == NODE_POSITION:
+                        print("\nExtracting Node '[" + str(child.position) +
+                              "]' with Kernel call '" + KERNEL_NAME +
+                              "' from Invoke '" + schedule.name + "'\n")
+                        etrans.apply(child)

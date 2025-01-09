@@ -224,7 +224,7 @@ def test_struc_ref_semantic_nav():
     with pytest.raises(InternalError) as err:
         _ = sref.member
     assert ("StructureReference malformed or incomplete. It must have a "
-            "single child that must be a (sub-class of) Member, but "
+            "first child that must be a (sub-class of) Member, but "
             "found: ['broken']" in str(err.value))
 
 
@@ -241,7 +241,9 @@ def test_struc_ref_datatype():
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None),
         ("data", atype, symbols.Symbol.Visibility.PRIVATE, None),
+        # A single member of structure type.
         ("roger", rtype, symbols.Symbol.Visibility.PUBLIC, None),
+        # An array of structure type.
         ("titty", artype, symbols.Symbol.Visibility.PUBLIC, None)])
     # Symbol with type defined by StructureType
     ssym0 = symbols.DataSymbol("grid", grid_type)
@@ -272,6 +274,20 @@ def test_struc_ref_datatype():
     singleref = nodes.StructureReference.create(
         ssym, [("titty", [one.copy(), two.copy()])])
     assert singleref.datatype == rtype_sym
+
+    # Reference to grid%titty(1,2)%gibber
+    sref = nodes.StructureReference.create(
+        ssym, [("titty", [one.copy(), two.copy()]), "gibber"])
+    assert sref.datatype == symbols.BOOLEAN_TYPE
+
+    # Reference to grid%titty(my_func(1), 2) where my_func is unresolved.
+    func_sym = symbols.DataSymbol("my_func",
+                                  datatype=symbols.UnresolvedType(),
+                                  interface=symbols.UnresolvedInterface())
+    fref = nodes.ArrayReference.create(func_sym, [one.copy()])
+    sref2 = nodes.StructureReference.create(
+        ssym, [("titty", [fref, two.copy()])])
+    assert isinstance(sref2.datatype, symbols.UnresolvedType)
 
     # Reference to sub-array of structure members of structure
     myrange = nodes.Range.create(two.copy(),
@@ -351,10 +367,18 @@ def test_structure_reference_unresolved_type():
         [("aptr", [two.copy(), two.copy()])])
     assert len(aref2.datatype.shape) == 1
     assert isinstance(aref2.datatype.intrinsic, symbols.UnsupportedFortranType)
+    # An array where the index expression is the result of a function
+    # my_sym(myfunc())%aptr(2,2)
+    array_grid_type = symbols.ArrayType(grid_type_symbol, [four.copy()])
+    array_sym = symbols.DataSymbol("thing", array_grid_type)
+    aref3 = nodes.ArrayOfStructuresReference.create(
+        array_sym, [nodes.Call.create(symbols.RoutineSymbol("myfunc"))],
+        [("aptr", [two.copy(), two.copy()])])
+    assert isinstance(aref3.datatype, symbols.UnresolvedType)
     # An array of arrays - not supported.
     # my_sym(2:4)%aptr
-    aref3 = nodes.ArrayOfStructuresReference.create(
+    aref4 = nodes.ArrayOfStructuresReference.create(
         array_sym, [myrange.copy()], ["aptr"])
     with pytest.raises(NotImplementedError) as err:
-        _ = aref3.datatype
+        _ = aref4.datatype
     assert "Array of arrays not supported: " in str(err.value)

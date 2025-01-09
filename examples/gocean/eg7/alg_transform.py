@@ -36,15 +36,14 @@
 '''Python script intended to be passed to the 'psyclone' command
 via its -s option. This script demonstrates the use of the
 optional trans_alg() function which gives access to PSyclone's
-internal representation of the algorithm layer.
+intermediate representation of the algorithm layer.
 
 '''
 from psyclone.domain.common.algorithm.psyir import AlgorithmInvokeCall
 
 
-def trans(psy):
+def trans(psyir):
     '''The trans function is required for the script to be valid.'''
-    return psy
 
 
 def trans_alg(psyir):

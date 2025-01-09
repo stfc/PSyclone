@@ -53,9 +53,10 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Node, Loop
 from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.transformations import (ACCEnterDataTrans, ACCKernelsTrans,
-                                      check_intergrid, Dynamo0p3ColourTrans,
+from psyclone.transformations import (ACCEnterDataTrans, check_intergrid,
+                                      Dynamo0p3ColourTrans,
                                       DynamoOMPParallelLoopTrans,
                                       TransformationError)
 
@@ -63,7 +64,7 @@ from psyclone.transformations import (ACCEnterDataTrans, ACCKernelsTrans,
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
-API = "dynamo0.3"
+API = "lfric"
 
 RESTRICT_MDATA = '''
 module restrict_mod
@@ -84,12 +85,10 @@ end module restrict_mod
 '''
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
 
 
 def test_check_intergrid():
@@ -356,7 +355,7 @@ def test_field_prolong(tmpdir, dist_mem):
         assert "loop0_stop = field2_proxy%vspace%get_ncell()\n" in gen_code
 
     expected = (
-        "        CALL prolong_test_kernel_code(nlayers, "
+        "        CALL prolong_test_kernel_code(nlayers_field1, "
         "cell_map_field2(:,:,cell), ncpc_field1_field2_x, "
         "ncpc_field1_field2_y, ncell_field1, field1_data, "
         "field2_data, ndf_w1, undf_w1, map_w1, undf_w2, "
@@ -378,7 +377,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -398,7 +397,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     assert defs in output
 
     defs2 = (
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_field1\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: field2_data => "
         "null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: field1_data => "
@@ -487,7 +486,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     # We pass the whole dofmap for the fine mesh (we are reading from).
     # This is associated with the second kernel argument.
     kern_call = (
-        "        CALL restrict_test_kernel_code(nlayers, "
+        "        CALL restrict_test_kernel_code(nlayers_field1, "
         "cell_map_field1(:,:,cell), ncpc_field2_field1_x, "
         "ncpc_field2_field1_y, ncell_field2, "
         "field1_data, field2_data, undf_aspc1_field1, "
@@ -514,7 +513,7 @@ def test_cont_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -663,27 +662,27 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
         assert "loop3_stop = cmap_fld_c_proxy%vspace%get_ncell()\n" in output
         expected = (
             "      DO cell = loop0_start, loop0_stop, 1\n"
-            "        CALL prolong_test_kernel_code(nlayers, "
+            "        CALL prolong_test_kernel_code(nlayers_fld_m, "
             "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
             "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, fld_m_data, "
             "cmap_fld_c_data, ndf_w1, undf_w1, map_w1, undf_w2, "
             "map_w2(:,cell))\n"
             "      END DO\n"
             "      DO cell = loop1_start, loop1_stop, 1\n"
-            "        CALL prolong_test_kernel_code(nlayers, cell_map_fld_m"
-            "(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
-            "fld_f_data, fld_m_data, ndf_w1, undf_w1, map_w1, "
+            "        CALL prolong_test_kernel_code(nlayers_fld_f, "
+            "cell_map_fld_m(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y,"
+            " ncell_fld_f, fld_f_data, fld_m_data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cell))\n"
             "      END DO\n"
             "      DO cell = loop2_start, loop2_stop, 1\n"
-            "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_m"
-            "(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
-            "fld_m_data, fld_f_data, undf_aspc1_fld_m, "
+            "        CALL restrict_test_kernel_code(nlayers_fld_m, "
+            "cell_map_fld_m(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y,"
+            " ncell_fld_f, fld_m_data, fld_f_data, undf_aspc1_fld_m, "
             "map_aspc1_fld_m(:,cell), ndf_aspc2_fld_f, undf_aspc2_fld_f, "
             "map_aspc2_fld_f)\n"
             "      END DO\n"
             "      DO cell = loop3_start, loop3_stop, 1\n"
-            "        CALL restrict_test_kernel_code(nlayers, "
+            "        CALL restrict_test_kernel_code(nlayers_cmap_fld_c, "
             "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
             "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, cmap_fld_c_data, "
             "fld_m_data, undf_aspc1_cmap_fld_c, map_aspc1_cmap_fld_c"
@@ -701,16 +700,11 @@ def test_fine_halo_read():
     schedule = psy.invokes.invoke_list[0].schedule
     hexch = schedule.children[5]
     assert isinstance(hexch, LFRicHaloExchange)
-    assert hexch._compute_halo_depth() == '2'
+    assert hexch._compute_halo_depth().value == '2'
     call = schedule.children[6]
     field = call.args[1]
     hra = HaloReadAccess(field, schedule.symbol_table)
-    assert hra._var_depth is None
-    # Change the internal state of the HaloReadAccess to mimic the case
-    # where the field in question has a stencil access with a variable depth
-    hra._var_depth = "my_depth"
-    hra._compute_from_field(field)
-    assert hra._var_depth == "2*my_depth"
+    assert hra._var_depth.debug_string() == "2 * 1"
 
 
 def test_prolong_with_gp_error():
@@ -759,7 +753,7 @@ def test_no_stub_gen():
     a kernel stub if the metadata contains mesh information. '''
     with pytest.raises(NotImplementedError) as excinfo:
         generate(os.path.join(BASE_PATH, "prolong_test_kernel_mod.f90"),
-                 api="dynamo0.3")
+                 api="lfric")
     assert ("Intergrid kernels can only be setup inside an InvokeSchedule, "
             "but attempted 'prolong_test_kernel_code' without it."
             in str(excinfo.value))
@@ -801,9 +795,9 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         "      ! Call kernels and communication routines\n"
         "      !\n"
         "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL restrict_kernel_code(nlayers, cell_map_fld_m(:,:,cell), "
-        "ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
-        "fld_m_data, fld_f_data, undf_adspc1_fld_m, "
+        "        CALL restrict_kernel_code(nlayers_fld_m, "
+        "cell_map_fld_m(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, "
+        "ncell_fld_f, fld_m_data, fld_f_data, undf_adspc1_fld_m, "
         "map_adspc1_fld_m(:,cell), ndf_adspc2_fld_f, "
         "undf_adspc2_fld_f, map_adspc2_fld_f)\n"
         "      END DO\n")
@@ -863,7 +857,7 @@ def test_restrict_prolong_chain_acc(tmpdir):
     const = LFRicConstants()
 
     for loop in schedule.walk(Loop):
-        if (loop.iteration_space == "cell_column" and
+        if (loop.iteration_space.endswith("cell_column") and
                 loop.field_space.orig_name not in
                 const.VALID_DISCONTINUOUS_NAMES):
             ctrans.apply(loop)

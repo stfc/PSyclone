@@ -31,14 +31,19 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Authors: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 ''' Module containing various utilities to aid in the application of
     OpenACC KERNELS directives to NEMO source. Mainly required to
-    workaround the vagaries of the PGI compiler's support for OpenACC.
+    workaround the vagaries of the NVIDIA compiler's support for OpenACC.
 '''
 
-from __future__ import print_function
+from fparser.two.utils import walk
+from fparser.two import Fortran2003
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import CodeBlock, IfBlock, Loop
+from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.transformations import TransformationError
 
 
 def valid_kernel(node):
@@ -53,9 +58,6 @@ def valid_kernel(node):
     :rtype: bool
 
     '''
-    from psyclone.psyir.nodes import CodeBlock, IfBlock
-    from fparser.two.utils import walk
-    from fparser.two import Fortran2003
     # PGI (18.10) often produces code that fails at run time if a Kernels
     # region includes If constructs.
     excluded_node_types = (CodeBlock, IfBlock)
@@ -81,9 +83,8 @@ def have_loops(nodes):
     :rtype: bool
 
     '''
-    from psyclone.nemo import NemoLoop
     for node in nodes:
-        if node.walk(NemoLoop):
+        if node.walk(Loop):
             return True
     return False
 
@@ -111,6 +112,7 @@ def add_kernels(children, default_present=True):
                 try_kernels_trans(node_list, default_present)
                 node_list = []
             # It can't so go down a level and try again
+            node_list = []
             add_kernels(child.children)
         else:
             node_list.append(child)
@@ -130,8 +132,6 @@ def try_kernels_trans(nodes, default_present):
                           DEFAULT(PRESENT) clause to ACC KERNELS directives.
 
     '''
-    from psyclone.errors import InternalError
-    from psyclone.transformations import TransformationError, ACCKernelsTrans
     try:
         ACCKernelsTrans().apply(nodes, {"default_present": default_present})
     except (TransformationError, InternalError) as err:

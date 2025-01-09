@@ -36,7 +36,9 @@
 
 ''' This module provides the PSyIR Fortran front-end.'''
 
-from typing import Optional
+import os
+
+from typing import Optional, Union, List
 from fparser.common.readfortran import FortranStringReader, FortranFileReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003, pattern_tools
@@ -53,14 +55,46 @@ class FortranReader():
     ''' PSyIR Fortran frontend. This frontend translates Fortran from a string
     or a file into PSyIR using the fparser2 utilities.
 
+    :param free_form: If parsing free-form code or not (default True).
+    :param ignore_comments: If comments should be ignored or not
+                            (default True).
+    :param ignore_directives: If directives should be ignored or not
+                            (default True). Only has an effect
+                            if ignore_comments is False.
+    :param last_comments_as_codeblocks: If the last comments in the
+                                        a given block (e.g. subroutine,
+                                        do, if-then body, etc.) should
+                                        be kept as code blocks or lost
+                                        (default False).
+                                        Only has an effect if ignore_comments
+                                        is False.
+    :param resolve_modules: Whether to resolve modules while parsing a file,
+        for more precise control it also accepts a list of module names.
+        Defaults to False.
+
+    :raises ValueError: If ignore_directives is set to False but
+                        ignore_comments is set to True.
+
     '''
     # Save parser object across instances to reduce the initialisation time
     _parser = None
 
-    def __init__(self):
+    def __init__(self, free_form: bool = True, ignore_comments: bool = True,
+                 ignore_directives: bool = True,
+                 last_comments_as_codeblocks: bool = False,
+                 resolve_modules: Union[bool, List[str]] = False):
         if not self._parser:
             self._parser = ParserFactory().create(std="f2008")
-        self._processor = Fparser2Reader()
+        self._free_form = free_form
+        if ignore_comments and not ignore_directives:
+            raise ValueError(
+                "Setting ignore_directives to False in the FortranReader will"
+                " only have an effect if ignore_comments is also set to False."
+            )
+        self._ignore_comments = ignore_comments
+        self._processor = Fparser2Reader(ignore_directives,
+                                         last_comments_as_codeblocks,
+                                         resolve_modules)
         SYMBOL_TABLES.clear()
 
     @staticmethod
@@ -83,21 +117,23 @@ class FortranReader():
             raise ValueError(
                 f"Invalid Fortran name '{name}' found.")
 
-    def psyir_from_source(self, source_code: str, free_form: bool = True):
+    def psyir_from_source(self, source_code: str):
         ''' Generate the PSyIR tree representing the given Fortran source code.
 
-        :param source_code: text representation of the code to be parsed.
-        :param free_form: If parsing free-form code or not (default True).
+        :param str source_code: text representation of the code to be parsed.
 
         :returns: PSyIR representing the provided Fortran source code.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         SYMBOL_TABLES.clear()
-        string_reader = FortranStringReader(source_code)
+        string_reader = FortranStringReader(
+            source_code, include_dirs=Config.get().include_paths,
+            ignore_comments=self._ignore_comments)
         # Set reader to free format.
-        string_reader.set_format(FortranFormat(free_form, False))
+        string_reader.set_format(FortranFormat(self._free_form, False))
         parse_tree = self._parser(string_reader)
+
         psyir = self._processor.generate_psyir(parse_tree)
         return psyir
 
@@ -180,11 +216,7 @@ class FortranReader():
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the statement and lookup any symbols that it
         # references.
-        try:
-            routine_symbol = symbol_table.lookup_with_tag("own_routine_symbol")
-            routine_name = routine_symbol.name
-        except KeyError:
-            routine_name = "dummy"
+        routine_name = "dummy"
         fake_parent = Routine.create(
             routine_name, SymbolTable(), [])
         # pylint: disable=protected-access
@@ -195,14 +227,11 @@ class FortranReader():
         self._processor.process_nodes(fake_parent, exec_part.children)
         return fake_parent[0].detach()
 
-    def psyir_from_file(self, file_path, free_form=True):
+    def psyir_from_file(self, file_path):
         ''' Generate the PSyIR tree representing the given Fortran file.
 
         :param file_path: path of the file to be read and parsed.
         :type file_path: str or any Python Path format.
-
-        :param free_form: If parsing free-form code or not (default True).
-        :type free_form: bool
 
         :returns: PSyIR representing the provided Fortran file.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -218,10 +247,13 @@ class FortranReader():
         # Using the FortranFileReader instead of manually open the file allows
         # fparser to keep the filename information in the tree
         reader = FortranFileReader(file_path,
-                                   include_dirs=Config.get().include_paths)
-        reader.set_format(FortranFormat(free_form, False))
+                                   include_dirs=Config.get().include_paths,
+                                   ignore_comments=self._ignore_comments)
+        reader.set_format(FortranFormat(self._free_form, False))
         parse_tree = self._parser(reader)
-        psyir = self._processor.generate_psyir(parse_tree)
+        _, filename = os.path.split(file_path)
+
+        psyir = self._processor.generate_psyir(parse_tree, filename)
         return psyir
 
 

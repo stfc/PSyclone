@@ -52,15 +52,13 @@ from psyclone.gen_kernel_stub import generate
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
 
 
 def test_kernel_stub_invalid_iteration_space():
@@ -75,13 +73,15 @@ def test_kernel_stub_invalid_iteration_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
     assert ("supports kernels that operate on one of "
-            "['cell_column'] but found 'dof' in kernel "
+            "['cell_column', 'halo_cell_column', "
+            "'owned_and_halo_cell_column'] but found 'dof' in kernel "
             "'testkern_dofs_code'." in str(excinfo.value))
     kernel._iterates_over = "domain"
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
     assert ("supports kernels that operate on one of "
-            "['cell_column'] but found 'domain' in kernel "
+            "['cell_column', 'halo_cell_column', "
+            "'owned_and_halo_cell_column'] but found 'domain' in kernel "
             "'testkern_dofs_code'." in str(excinfo.value))
 
 
@@ -122,13 +122,6 @@ def test_stub_generate_working():
     ''' Check that the stub generate produces the expected output '''
     result = generate(os.path.join(BASE_PATH, "testkern_simple_mod.f90"),
                       api=TEST_API)
-    assert SIMPLE in str(result)
-
-
-def test_stub_generate_working_noapi():
-    ''' check that the stub generate produces the expected output when
-    we use the default api (which should be dynamo0.3)'''
-    result = generate(os.path.join(BASE_PATH, "testkern_simple_mod.f90"))
     assert SIMPLE in str(result)
 
 
@@ -512,7 +505,7 @@ def test_enforce_op_bc_kernel_stub_gen():
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension("
-        "ndf_aspc1_op_1,ndf_aspc2_op_1,op_1_ncell_3d) :: op_1\n"
+        "op_1_ncell_3d,ndf_aspc1_op_1,ndf_aspc2_op_1) :: op_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
         "dimension(ndf_aspc1_op_1,2) :: boundary_dofs_op_1\n"
         "    END SUBROUTINE enforce_operator_bc_code\n"

@@ -39,9 +39,12 @@ which module is contained in which file (including full location). '''
 
 from collections import OrderedDict
 import copy
+from difflib import SequenceMatcher
 import os
+import re
 
 from psyclone.errors import InternalError
+from psyclone.parse.file_info import FileInfo
 from psyclone.parse.module_info import ModuleInfo
 
 
@@ -53,6 +56,10 @@ class ModuleManager:
     # Class variable to store the singleton instance
     _instance = None
 
+    # How similar a file name must be to a module name to trigger reading
+    # of the file.
+    _threshold_similarity = 0.7
+
     # ------------------------------------------------------------------------
     @staticmethod
     def get():
@@ -62,6 +69,7 @@ class ModuleManager:
         '''
         if not ModuleManager._instance:
             ModuleManager._instance = ModuleManager()
+
         return ModuleManager._instance
 
     # ------------------------------------------------------------------------
@@ -70,8 +78,9 @@ class ModuleManager:
         if ModuleManager._instance is not None:
             raise InternalError("You need to use 'ModuleManager.get()' "
                                 "to get the singleton instance.")
-        # Cached mapping from module name to filename.
-        self._mod_2_filename = {}
+
+        self._modules = {}
+        self._visited_files = {}
 
         # The list of all search paths which have not yet all their files
         # checked. It is stored as an ordered dict to make it easier to avoid
@@ -80,6 +89,11 @@ class ModuleManager:
         self._original_search_paths = []
 
         self._ignore_modules = set()
+
+        # Setup the regex used to find Fortran modules. Have to be careful not
+        # to match e.g. "module procedure :: some_sub".
+        self._module_pattern = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
+                                          flags=(re.IGNORECASE | re.MULTILINE))
 
     # ------------------------------------------------------------------------
     def add_search_path(self, directories, recursive=True):
@@ -90,7 +104,7 @@ class ModuleManager:
         :param directories: the directory/directories to add.
         :type directories: str | list[str]
 
-        :param bool recursive: whether recursively all subdirectories should \
+        :param bool recursive: whether recursively all subdirectories should
             be added to the search path.
 
         '''
@@ -113,35 +127,65 @@ class ModuleManager:
 
     # ------------------------------------------------------------------------
     def _add_all_files_from_dir(self, directory):
-        '''This function adds all files with an extension of (F/f/X/x)90 in the
-        given directory to the mapping of module names to file names. The
-        module names are based on the filename using `get_modules_in_file()`.
-        By default it is assumed that `a_mod.f90` contains the module `a_mod`.
+        '''This function creates (and caches) FileInfo objects for all files
+        with an extension of (F/f/X/x)90 in the given directory that have
+        not previously been visited. The new FileInfo objects are returned.
 
-        :param str directory: the directory containing Fortran files \
+        :param str directory: the directory containing Fortran files
             to analyse.
 
+        :returns: the FileInfo objects for any files that we have not
+                  previously visited.
+        :rtype: list[:py:class:`psyclone.parse.FileInfo` | None]
+
         '''
+        new_files = []
         with os.scandir(directory) as all_entries:
             for entry in all_entries:
                 _, ext = os.path.splitext(entry.name)
-                if (not entry.is_file()) or \
-                        ext not in [".F90", ".f90", ".X90", ".x90"]:
+                if (not entry.is_file() or
+                        ext not in [".F90", ".f90", ".X90", ".x90"]):
                     continue
                 full_path = os.path.join(directory, entry.name)
-                # Obtain the names of all modules defined in this source file.
-                all_modules = self.get_modules_in_file(full_path)
-                for module in all_modules:
-                    # Pre-processed file should always take precedence
-                    # over non-pre-processed files. So if a module already
-                    # exists in the mapping, only overwrite it if the new
-                    # file is pre-processed (i.e. .f90). This still means that
-                    # if files are not preprocessed (.F90), they will still be
-                    # added (but might cause problems parsing later).
-                    if module not in self._mod_2_filename or \
-                            ext in [".f90", ".x90"]:
-                        mod_info = ModuleInfo(module, full_path)
-                        self._mod_2_filename[module] = mod_info
+                if full_path in self._visited_files:
+                    continue
+                self._visited_files[full_path] = FileInfo(full_path)
+                new_files.append(self._visited_files[full_path])
+        return new_files
+
+    # ------------------------------------------------------------------------
+    def _find_module_in_files(self, name, file_list):
+        '''
+        Searches the files represented by the supplied list of FileInfo objects
+        to find the one defining the named Fortran module.
+
+        :param str name: the name of the module to locate.
+        :param file_list: the files to search.
+        :type file_list: list[:py:class:`psyclone.parse.FileInfo`]
+
+        :returns: information on the file that contains the module or None if
+                  it wasn't found.
+        :rtype: :py:class:`psyclone.parse.FileInfo` | None
+
+        '''
+        mod_info = None
+        for finfo in file_list:
+            # We only proceed to read a file to check for a module if its
+            # name is sufficiently similar to that of the module.
+            score = SequenceMatcher(None,
+                                    finfo.basename, name).ratio()
+            if score > self._threshold_similarity:
+                mod_names = self.get_modules_in_file(finfo)
+                if name in mod_names:
+                    # We've found the module we want. Create a ModuleInfo
+                    # object for it and cache it.
+                    mod_info = ModuleInfo(name, finfo)
+                    self._modules[name] = mod_info
+                    # A file that has been (or does not require)
+                    # preprocessing always takes precendence.
+                    if finfo.filename.endswith(".f90"):
+                        return mod_info
+        return mod_info
 
     # ------------------------------------------------------------------------
     def add_ignore_module(self, module_name):
@@ -167,10 +211,11 @@ class ModuleManager:
 
         :param str module_name: name of the module.
 
-        :returns: the filename that contains the module
-        :rtype: str
+        :returns: object describing the requested module or None if the
+                  manager has been configured to ignore this module.
+        :rtype: :py:class:`psyclone.parse.ModuleInfo` | None
 
-        :raises FileNotFoundError: if the module_name is not found in \
+        :raises FileNotFoundError: if the module_name is not found in
             either the cached data nor in the search path.
 
         '''
@@ -179,22 +224,34 @@ class ModuleManager:
         if mod_lower in self._ignore_modules:
             return None
 
-        # First check if we have already cached this file:
-        mod_info = self._mod_2_filename.get(mod_lower, None)
-        if mod_info:
+        # First check if we have already seen this module. We only end the
+        # search early if the file we've found does not require pre-processing
+        # (i.e. has a .f90 suffix).
+        mod_info = self._modules.get(mod_lower, None)
+        if mod_info and mod_info.filename.endswith(".f90"):
             return mod_info
+        old_mod_info = mod_info
+        # Are any of the files that we've already seen a good match?
+        mod_info = self._find_module_in_files(mod_lower,
+                                              self._visited_files.values())
+        if mod_info and mod_info.filename.endswith(".f90"):
+            return mod_info
+        old_mod_info = mod_info
 
         # If not, check the search paths. To avoid frequent accesses to
         # the directories, we search directories one at a time, and
         # add the list of all files in that directory to our cache
-        # _mod_2_filename
+        # `_visited_files`.
         while self._remaining_search_paths:
             # Get the first element from the search path list:
             directory, _ = self._remaining_search_paths.popitem(last=False)
-            self._add_all_files_from_dir(directory)
-            mod_info = self._mod_2_filename.get(mod_lower, None)
+            new_files = self._add_all_files_from_dir(directory)
+            mod_info = self._find_module_in_files(mod_lower, new_files)
             if mod_info:
                 return mod_info
+
+        if old_mod_info:
+            return old_mod_info
 
         raise FileNotFoundError(f"Could not find source file for module "
                                 f"'{module_name}' in any of the directories "
@@ -203,26 +260,26 @@ class ModuleManager:
                                 f"command line option.")
 
     # ------------------------------------------------------------------------
-    def get_modules_in_file(self, filename):
-        '''This function returns the list of modules defined in the specified
-        file. The base implementation assumes the use of the LFRic coding
-        style: the file `a_mod.f90` implements the module `a_mod`. This
-        function can be implemented in a derived class to actually parse the
-        source file if required.
+    def get_modules_in_file(self, finfo):
+        '''
+        Uses a regex search to find all modules defined in the file with the
+        supplied name.
 
-        :param str filename: the file name for which to find the list \
-            of modules it contains.
+        :param finfo: object holding information on the file to examine.
+        :type finfo: :py:class:`psyclone.parse.FileInfo`
 
-        :returns: the list of all modules contained in the specified file.
+        :returns: the names of any modules present in the supplied file.
         :rtype: list[str]
 
         '''
-        basename = os.path.basename(filename)
-        root, _ = os.path.splitext(basename)
-        if root.lower().endswith("_mod"):
-            return [root]
+        # TODO #2597: perhaps use the fparser FortranReader here as this regex
+        # could be defeated by e.g.
+        #   module &
+        #    my_mod
+        # `finfo.contents` will read the file if it hasn't already been cached.
+        mod_names = self._module_pattern.findall(finfo.contents)
 
-        return []
+        return [name.lower() for name in mod_names]
 
     # ------------------------------------------------------------------------
     def get_all_dependencies_recursively(self, all_mods):
@@ -245,7 +302,7 @@ class ModuleManager:
         :param set[str] all_mods: the set of all modules for which to collect
             module dependencies.
 
-        :returns: a dictionary with all modules that are required (directly \
+        :returns: a dictionary with all modules that are required (directly
             or indirectly) for the modules in ``all_mods``.
         :rtype: dict[str, set[str]]
 

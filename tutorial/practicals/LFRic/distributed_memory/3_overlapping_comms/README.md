@@ -37,7 +37,7 @@ in this file assume that you are in the same directory as this
 `README.md` file):
 
 ```bash
-    $ psyclone -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
+    $ psyclone --psykal-dsl lfric -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
 ```
 
 The schedule containing the halo exchanges is stored as a tree in the
@@ -45,9 +45,9 @@ PSyIR. The indendation in the visualisation of the PSyiR indicates the
 depth of the tree. Also notice the numbers in the output. These help
 you determine the position of the particular nodes in the tree.
 
-Take a look at the provided `schedule.py` script file. The `schedule` variable
+Take a look at the provided `schedule.py` script file. The `psyir` variable
 in the script is the root of the tree (which is why
-`schedule.view()` provides a view of the whole schedule). You will
+`psyir.view()` provides a view of the whole schedule). You will
 need to traverse this tree to get to the halo exchanges and then apply
 the transformation to the appropriate nodes.
 
@@ -82,7 +82,7 @@ which is accessible from all nodes in the PSyIR. The `walk` method
 takes a class name as an argument (actually it can take more than one
 class name but you don't need that) and will return all instances of
 this class that it finds in the tree beneath the node from which it is
-called in a list. If we use the walk method from the `schedule`
+called in a list. If we use the walk method from the `psyir`
 variable in the `schedule.py` script then all nodes will be visited.
 
 ```python
@@ -102,7 +102,7 @@ from psyclone.dynamo0p3 import LFRicHaloExchange
 and use it in the walk method:
 
 ```python
-    hex_nodes = schedule.walk(LFRicHaloExchange)
+    hex_nodes = psyir.walk(LFRicHaloExchange)
 ```
 
 We now want to transform each of these halo exchange nodes. The
@@ -120,19 +120,17 @@ Your script should look something like this:
 ```python
 from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans
 from psyclone.dynamo0p3 import LFRicHaloExchange
-def trans(psy):
+def trans(psyir):
     async_hex = Dynamo0p3AsyncHaloExchangeTrans()
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    for hex_node in schedule.walk(LFRicHaloExchange):
+    for hex_node in psyir.walk(LFRicHaloExchange):
         async_hex.apply(hex_node)
-    print(schedule.view())
+    print(psyir.view())
 ```
 
 You are now ready to transform the code. Run your script:
 
 ```bash
-    $ psyclone -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
+    $ psyclone --psykal-dsl lfric -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
 ```
 
 You will see that all halo exchanges have been converted to asynchronous halo exchanges.
@@ -172,25 +170,6 @@ will work with any number of halo exchanges placed at any location.
 
 Well done, you've (at least partially) created a generic script that
 could be applied to the whole code base of any code that uses this API.
-
-Why might this script not be completely generic? What about the case
-where a file contains multiple invokes?  Would your script modify halo
-exchanges in all of these invokes? If not, what would you need to do
-to fix this?
-
-The problem is that the script you are using is only applied to the first invoke:
-
-```python
-    invoke = psy.invokes.invoke_list[0]
-````
-
-We want to apply this for all invokes:
-
-```python
-    invokes = psy.invokes.invoke_list
-    for invoke in invokes:
-        ...
-```
 
 If you're racing ahead, you might like to change the example to
 include more invokes in the algorithm layer and check that your script

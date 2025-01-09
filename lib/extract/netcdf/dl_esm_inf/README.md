@@ -63,6 +63,17 @@ so the exact path **must be specified** using the environment variable
 GOCEAN_INF_DIR=<path/to/dl_esm_inf/finite_difference> make
 ```
 
+The library can be compiled with MPI support, which will add the process rank
+to each output filename, by setting ``MPI=yes``:
+
+```shell
+MPI=yes make
+```
+
+The build environment will provide ``NO_MPI`` as a pre-processor definition when
+MPI is not enabled (to be compatible with LFRic) so that MPI specific code can
+be disabled.
+
 The locations of the ExtractNetcdf and PSyData base classes are
 specified using the environment variables ``$LIB_TMPLT_DIR`` and
 ``$PSYDATA_LIB_DIR``, respectively. They default to the relative paths to

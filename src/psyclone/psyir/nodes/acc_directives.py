@@ -36,7 +36,7 @@
 #         C.M. Maynard, Met Office / University of Reading
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
-# Modified J. G. Wallwork, Met Office
+# Modified J. G. Wallwork, Met Office / University of Cambridge
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the various OpenACC Directive
@@ -121,11 +121,11 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
         '''
 
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynInvokeSchedule
+        from psyclone.domain.lfric import LFRicInvokeSchedule
         from psyclone.gocean1p0 import GOInvokeSchedule
         from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 
-        if self.ancestor((DynInvokeSchedule, GOInvokeSchedule)):
+        if self.ancestor((LFRicInvokeSchedule, GOInvokeSchedule)):
             # Look-up the kernels that are children of this node
             sig_set = set()
             for call in self.kernels():
@@ -144,12 +144,54 @@ class ACCStandaloneDirective(ACCDirective, StandaloneDirective,
 
 
 class ACCRoutineDirective(ACCStandaloneDirective):
-    ''' Class representing a "!$ACC routine" OpenACC directive in PSyIR. '''
+    '''
+    Class representing an "ACC routine" OpenACC directive in PSyIR.
+
+    :param str parallelism: the level of parallelism in the routine, one of
+        "gang", "worker", "vector", "seq".
+
+    '''
+    SUPPORTED_PARALLELISM = ["seq", "vector", "worker", "gang"]
+
+    def __init__(self, parallelism="seq", **kwargs):
+        self.parallelism = parallelism
+
+        super().__init__(self, **kwargs)
+
+    @property
+    def parallelism(self):
+        '''
+        :returns: the clause describing the level of parallelism within this
+                  routine (or a called one).
+        :rtype: str
+
+        '''
+        return self._parallelism
+
+    @parallelism.setter
+    def parallelism(self, value):
+        '''
+        :param str value: the new value for the level-of-parallelism within
+                          this routine (or a called one).
+
+        :raises TypeError: if `value` is not a str.
+        :raises ValueError: if `value` is not a recognised level of
+                            parallelism.
+        '''
+        if not isinstance(value, str):
+            raise TypeError(
+                f"Expected a str to specify the level of parallelism but got "
+                f"'{type(value).__name__}'")
+        if value.lower() not in self.SUPPORTED_PARALLELISM:
+            raise ValueError(
+                f"Expected one of {self.SUPPORTED_PARALLELISM} for the level "
+                f"of parallelism but got '{value}'")
+        self._parallelism = value.lower()
 
     def gen_code(self, parent):
-        '''Generate the fortran ACC Routine Directive and any associated code.
+        '''Generate the Fortran ACC Routine Directive and any associated code.
 
-        :param parent: the parent Node in the Schedule to which to add our \
+        :param parent: the parent Node in the Schedule to which to add our
                        content.
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
         '''
@@ -157,7 +199,8 @@ class ACCRoutineDirective(ACCStandaloneDirective):
         self.validate_global_constraints()
 
         # Generate the code for this Directive
-        parent.add(DirectiveGen(parent, "acc", "begin", "routine", ""))
+        parent.add(DirectiveGen(parent, "acc", "begin", "routine",
+                                f"{self.parallelism}"))
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -168,7 +211,7 @@ class ACCRoutineDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
-        return "acc routine"
+        return f"acc routine {self.parallelism}"
 
 
 class ACCEnterDataDirective(ACCStandaloneDirective):
@@ -247,13 +290,15 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         :returns: the opening statement of this directive.
         :rtype: str
 
-        :raises GenerationError: if there are no variables to copy to \
+        :raises GenerationError: if there are no variables to copy to
                                  the device.
         '''
         if not self._sig_set:
             # There should be at least one variable to copyin.
             # TODO #1872: this directive needs reimplementing using the Clause
-            # class and proper lowering.
+            # class and proper lowering. When this is fixed it may be possible
+            # to change RegionTrans.validate() so that it always uses
+            # Node.debug_string() rather than only for CodeBlocks.
             raise GenerationError(
                 "ACCEnterData directive did not find any data to copyin. "
                 "Perhaps there are no ACCParallel or ACCKernels directives "
@@ -402,6 +447,7 @@ class ACCLoopDirective(ACCRegionDirective):
         self._sequential = sequential
         self._gang = gang
         self._vector = vector
+        self._check_clauses_consistent()
         super().__init__(**kwargs)
 
     def __eq__(self, other):
@@ -423,6 +469,19 @@ class ACCLoopDirective(ACCRegionDirective):
         is_eq = is_eq and self.vector == other.vector
 
         return is_eq
+
+    def _check_clauses_consistent(self):
+        '''
+        Check that the clauses applied to the loop directive make sense.
+
+        :raises ValueError: if sequential is used in conjunction with gang
+            and/or vector
+        '''
+        if self.sequential and (self.gang or self.vector):
+            raise ValueError(
+                "The OpenACC seq clause cannot be used in conjunction with the"
+                " gang or vector clauses."
+            )
 
     @property
     def collapse(self):
@@ -505,12 +564,13 @@ class ACCLoopDirective(ACCRegionDirective):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
+        self._check_clauses_consistent()
         text = self.coloured_name(colour)
-        text += f"[sequential={self._sequential},"
-        text += f"gang={self._gang},"
-        text += f"vector={self._vector},"
-        text += f"collapse={self._collapse},"
-        text += f"independent={self._independent}]"
+        text += f"[sequential={self.sequential},"
+        text += f"gang={self.gang},"
+        text += f"vector={self.vector},"
+        text += f"collapse={self.collapse},"
+        text += f"independent={self.independent}]"
         return text
 
     def validate_global_constraints(self):
@@ -574,17 +634,18 @@ class ACCLoopDirective(ACCRegionDirective):
         if leading_acc:
             clauses = ["acc", "loop"]
 
-        if self._sequential:
+        self._check_clauses_consistent()
+        if self.sequential:
             clauses += ["seq"]
         else:
-            if self._gang:
+            if self.gang:
                 clauses += ["gang"]
-            if self._vector:
+            if self.vector:
                 clauses += ["vector"]
-            if self._independent:
+            if self.independent:
                 clauses += ["independent"]
-            if self._collapse:
-                clauses += [f"collapse({self._collapse})"]
+            if self.collapse:
+                clauses += [f"collapse({self.collapse})"]
         return " ".join(clauses)
 
     def end_string(self):
