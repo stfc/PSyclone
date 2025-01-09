@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -275,3 +275,12 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
             assert node.preceding_comment == "Comment on assignment"
         else:
             assert node.preceding_comment == ""
+
+    # Check that the following combination raises an error
+    with pytest.raises(ValueError) as err:
+        FortranReader(ignore_comments=True, ignore_directives=False)
+    msg = (
+        "Setting ignore_directives to False in the FortranReader will"
+        " only have an effect if ignore_comments is also set to False."
+    )
+    assert msg in str(err.value)
