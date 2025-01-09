@@ -2124,6 +2124,16 @@ class Argument():
                 if hasattr(self, 'vector_size') and self.vector_size > 1:
                     data_type = ArrayType(data_type, [self.vector_size])
 
+                # Symbol imports for STENCILS are not yet in the symbol
+                # table (until lowering time), so make sure the argument
+                # names do not overlap with them
+                # pylint: disable=import-outside-toplevel
+                from psyclone.domain.lfric.lfric_constants import \
+                    LFRicConstants
+                const = LFRicConstants()
+                if self._orig_name.upper() in const.STENCIL_MAPPING.values():
+                    self._orig_name = self._orig_name + "_arg"
+
                 new_argument = symtab.find_or_create_tag(
                     tag, root_name=self._orig_name, symbol_type=DataSymbol,
                     datatype=data_type,

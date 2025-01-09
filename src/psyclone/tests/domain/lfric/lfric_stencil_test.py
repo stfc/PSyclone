@@ -254,7 +254,6 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
     assert "do cell = loop1_start, loop1_stop" in result
 
 
-@pytest.mark.xfail(reason="fix first argument of call")
 def test_stencil_args_unique_1(dist_mem, tmpdir):
     ''' This test checks that stencil extent and direction arguments do not
     clash with internal names generated in the PSy-layer. f2_stencil_size
@@ -296,15 +295,14 @@ def test_stencil_args_unique_1(dist_mem, tmpdir):
         "    f2_stencil_size_1 => f2_stencil_map%get_stencil_sizes()")
     assert output6 in result
     output7 = (
-        "      call testkern_stencil_xory1d_code(nlayers_1, "
-        "f1_data, f2_data, f2_stencil_size_1(cell), nlayers, "
+        "      call testkern_stencil_xory1d_code(nlayers_f1, "
+        "f1_data, f2_data, f2_stencil_size_1(cell), nlayers_f1, "
         "f2_stencil_dofmap(:,:,cell), f3_data, f4_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
-    assert output7 == result
+    assert output7 in result
 
 
-@pytest.mark.xfail(reason="arguments order")
 def test_stencil_args_unique_2(dist_mem, tmpdir):
     '''This test checks that stencil extent and direction arguments are
     unique within the generated PSy-layer when they are accessed as
@@ -321,7 +319,7 @@ def test_stencil_args_unique_2(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert ("  subroutine invoke_0(f1, f2, f3, f4, f2_info, "
-            "f2_info_2, f2_info_1, f2_info_3)" == result)
+            "f2_info_2, f2_info_1, f2_info_3)" in result)
     assert "integer(kind=i_def), intent(in) :: f2_info\n" in result
     assert "integer(kind=i_def), intent(in) :: f2_info_2\n" in result
     assert "integer(kind=i_def), intent(in) :: f2_info_1\n" in result
@@ -397,10 +395,10 @@ def test_stencil_args_unique_3(dist_mem, tmpdir):
     if dist_mem:
         assert (
             "if (f2_proxy%is_dirty(depth=MAX(my_info_f2_info + 1, "
-            "my_info_f2_info_1 + 1))) then" in result)
+            "my_info_f2_info_2 + 1))) then" in result)
         assert (
             "call f2_proxy%halo_exchange(depth=MAX(my_info_f2_info + 1, "
-            "my_info_f2_info_1 + 1))" in result)
+            "my_info_f2_info_2 + 1))" in result)
         assert "if (f3_proxy%is_dirty(depth=1)) then" in result
         assert "call f3_proxy%halo_exchange(depth=1)" in result
         assert "if (f4_proxy%is_dirty(depth=1)) then" in result
@@ -465,8 +463,8 @@ def test_stencil_xory_vector(dist_mem, tmpdir):
         in result
     assert ("integer(kind=i_def), pointer, dimension(:) :: f2_stencil_size => "
             "null()\n" in result)
-    # assert ("integer(kind=i_def), pointer, dimension(:,:,:) :: "
-    #         "f2_stencil_dofmap => null()\n" == result)
+    assert ("integer(kind=i_def), pointer, dimension(:,:,:) :: "
+            "f2_stencil_dofmap => null()\n" in result)
     assert ("type(stencil_dofmap_type), pointer :: f2_stencil_map => "
             "null()\n" in result)
     assert (
@@ -650,8 +648,8 @@ def test_single_stencil_extent(dist_mem, tmpdir):
     assert "integer(kind=i_def), intent(in) :: f2_extent\n" in result
     assert ("integer(kind=i_def), pointer, dimension(:) :: f2_stencil_size"
             " => null()\n" in result)
-    # assert ("integer(kind=i_def), pointer, dimension(:,:,:) :: "
-    #         "f2_stencil_dofmap => null()\n" in result)
+    assert ("integer(kind=i_def), pointer, dimension(:,:,:) :: "
+            "f2_stencil_dofmap => null()\n" in result)
     assert ("type(stencil_dofmap_type), pointer :: f2_stencil_map => "
             "null()\n" in result)
     output5 = (
@@ -1351,7 +1349,6 @@ def test_multi_kerns_stencils_diff_fields(dist_mem, tmpdir):
     assert output8 in result
 
 
-@pytest.mark.xfail(reason="fix name clash")
 def test_extent_name_clash(dist_mem, tmpdir):
     ''' Test we can deal with name clashes for stencils. We have a single
     kernel with argument names passed from the algorithm layer that
@@ -1370,61 +1367,59 @@ def test_extent_name_clash(dist_mem, tmpdir):
 
     output1 = (
         "  subroutine invoke_0(f2_stencil_map, f2, f2_stencil_dofmap, "
-        "stencil_cross_1, f3_stencil_map, f3, f3_stencil_dofmap, "
+        "stencil_cross_arg, f3_stencil_map, f3, f3_stencil_dofmap, "
         "f2_extent, f3_stencil_size)")
-    assert output1 == result
-    output2 = (
-        "    use stencil_dofmap_mod, only : STENCIL_CROSS\n"
-        "    use stencil_dofmap_mod, only : stencil_dofmap_type")
-    assert output2 in result
-    assert ("INTEGER(kind=i_def), intent(in) :: f2_extent, f3_stencil_size\n"
-            in result)
-    output3 = (
-        "    type(field_type), intent(in) :: f2_stencil_map, f2, "
-        "f2_stencil_dofmap, stencil_cross_1, f3_stencil_map, f3, "
-        "f3_stencil_dofmap\n")
-    assert output3 in result
-    output4 = (
-        "    integer(kind=i_def), pointer :: f3_stencil_size_1(:) => "
-        "null()\n"
-        "    integer(kind=i_def), pointer :: f3_stencil_dofmap_1(:,:,:) => "
-        "null()\n"
-        "    type(stencil_dofmap_type), pointer :: f3_stencil_map_1 => "
-        "null()\n"
-        "    integer(kind=i_def), pointer :: f2_stencil_size(:) => null()\n"
-        "    integer(kind=i_def), pointer :: f2_stencil_dofmap_1(:,:,:) => "
-        "null()\n"
-        "    type(stencil_dofmap_type), pointer :: f2_stencil_map_1 => "
-        "null()\n")
-    assert output4 in result
-    output5 = (
-        "    type(field_proxy_type) f2_stencil_map_proxy, f2_proxy, "
-        "f2_stencil_dofmap_proxy, stencil_cross_1_proxy, "
-        "f3_stencil_map_proxy, f3_proxy, f3_stencil_dofmap_proxy\n")
-    assert output5 in result
-    output6 = (
-        "      stencil_cross_1_proxy = stencil_cross_1%get_proxy()")
-    assert output6 in result
+    assert output1 in result
+    assert ("use stencil_dofmap_mod, only : STENCIL_CROSS, "
+            "stencil_dofmap_type\n" in result)
+    assert "integer(kind=i_def), intent(in) :: f2_extent\n" in result
+    assert "integer(kind=i_def), intent(in) :: f3_stencil_size\n" in result
+    assert "type(field_type), intent(in) :: f2_stencil_map" in result
+    assert "type(field_type), intent(in) :: f2" in result
+    assert "type(field_type), intent(in) :: f2_stencil_dofmap" in result
+    assert "type(field_type), intent(in) :: stencil_cross_arg" in result
+    assert "type(field_type), intent(in) :: f3_stencil_map" in result
+    assert "type(field_type), intent(in) :: f3" in result
+    assert "type(field_type), intent(in) :: f3_stencil_dofmap" in result
+    assert ("integer(kind=i_def), pointer, dimension(:) :: "
+            "f3_stencil_size_1 => null()\n" in result)
+    assert ("integer(kind=i_def), pointer, dimension(:,:,:) :: "
+            "f3_stencil_dofmap_1 => null()\n" in result)
+    assert ("type(stencil_dofmap_type), pointer :: f3_stencil_map_1 => "
+            "null()\n" in result)
+    assert ("integer(kind=i_def), pointer, dimension(:) :: "
+            "f2_stencil_size => null()\n" in result)
+    assert ("integer(kind=i_def), pointer, dimension(:,:,:) :: "
+            "f2_stencil_dofmap_1 => null()\n" in result)
+    assert ("type(stencil_dofmap_type), pointer :: f2_stencil_map_1 => "
+            "null()\n" in result)
+    assert "type(field_proxy_type) :: f2_stencil_map_proxy" in result
+    assert "type(field_proxy_type) :: f2_proxy" in result
+    assert "type(field_proxy_type) :: f2_stencil_dofmap_proxy" in result
+    assert "type(field_proxy_type) :: stencil_cross_arg_proxy" in result
+    assert "type(field_proxy_type) :: f3_stencil_map_proxy" in result
+    assert "type(field_proxy_type) :: f3_proxy" in result
+    assert "type(field_proxy_type) :: f3_stencil_dofmap_proxy" in result
+    assert "stencil_cross_arg_proxy = stencil_cross_arg%get_proxy()" in result
     output7 = (
-        "      ! Initialise stencil dofmaps\n"
-        "      !\n"
-        "      f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,f2_extent)\n"
-        "      f2_stencil_dofmap_1 => "
+        "    ! Initialise stencil dofmaps\n"
+        "    f2_stencil_map_1 => f2_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_CROSS, f2_extent)\n"
+        "    f2_stencil_dofmap_1 => "
         "f2_stencil_map_1%get_whole_dofmap()\n"
-        "      f2_stencil_size => f2_stencil_map_1%get_stencil_sizes()\n"
-        "      f3_stencil_map_1 => f3_proxy%vspace%get_stencil_dofmap("
-        "STENCIL_CROSS,f3_stencil_size)\n"
-        "      f3_stencil_dofmap_1 => "
+        "    f2_stencil_size => f2_stencil_map_1%get_stencil_sizes()\n"
+        "    f3_stencil_map_1 => f3_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_CROSS, f3_stencil_size)\n"
+        "    f3_stencil_dofmap_1 => "
         "f3_stencil_map_1%get_whole_dofmap()\n"
-        "      f3_stencil_size_1 => f3_stencil_map_1%get_stencil_sizes()\n"
-        "      !\n")
+        "    f3_stencil_size_1 => f3_stencil_map_1%get_stencil_sizes()\n"
+        )
     assert output7 in result
     output8 = (
         "      call testkern_stencil_code(nlayers_f2_stencil_map, "
         "f2_stencil_map_data, f2_data, f2_stencil_size(cell), "
         "f2_stencil_dofmap_1(:,:,cell), f2_stencil_dofmap_data, "
-        "stencil_cross_1_data, ndf_w1, undf_w1, map_w1(:,cell), "
+        "stencil_cross_arg_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))")
     assert output8 in result
@@ -1432,7 +1427,7 @@ def test_extent_name_clash(dist_mem, tmpdir):
         "      call testkern_stencil_code(nlayers_f3_stencil_map, "
         "f3_stencil_map_data, f3_data, f3_stencil_size_1(cell), "
         "f3_stencil_dofmap_1(:,:,cell), f3_stencil_dofmap_data, "
-        "stencil_cross_1_data, ndf_w1, undf_w1, map_w1(:,cell), "
+        "stencil_cross_arg_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))")
     assert output9 in result

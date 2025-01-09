@@ -5182,8 +5182,8 @@ class DynKernelArguments(Arguments):
                     # it is unique in the PSy layer
                     tag = "AlgArgs_" + arg.stencil.direction_arg.text
                     root = arg.stencil.direction_arg.varname
-                    symbol = symtab.find_or_create(
-                        root, tag=tag,
+                    symbol = symtab.find_or_create_tag(
+                        tag, root,
                         symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")()
                     )
