@@ -107,7 +107,7 @@ class ACCKernelsTrans(RegionTrans):
         start_index = node_list[0].position
 
         default_present = options.get("default_present", False)
-        async_queue = options.get("async_queue", None)
+        async_queue = options.get("async_queue", False)
 
         # check
         self.check_async_queue(node_list, async_queue)

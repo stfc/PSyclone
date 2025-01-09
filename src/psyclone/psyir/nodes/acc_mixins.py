@@ -39,10 +39,12 @@
 classes.'''
 
 import abc
-
-from psyclone.psyir.nodes.reference import Reference
-
 from typing import Union
+
+from psyclone.psyir.nodes.acc_clauses import ACCAsyncQueueClause
+from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.symbols import INTEGER_TYPE
 
 
 class ACCAsyncMixin(metaclass=abc.ABCMeta):
@@ -58,12 +60,52 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
     '''
     def __init__(
                 self,
-                async_queue: Union[bool, int, Reference, None] = None
+                async_queue: Union[bool, int, Reference] = False
             ):
-        self.async_queue = async_queue
+        clause = self._create_clause(async_queue)
+        if clause:
+            self.addchild(clause)
+
+    @staticmethod
+    def convert_queue(async_queue):
+        '''
+        '''
+        if isinstance(async_queue, bool):
+            qarg = async_queue
+        elif isinstance(async_queue, int):
+            qarg = Literal(f"{async_queue}", INTEGER_TYPE)
+        elif isinstance(async_queue, Reference):
+            qarg = async_queue
+        else:
+            raise TypeError(f"Invalid async_queue value, expect Reference or "
+                            f"integer or None or bool, got : {async_queue}")
+        return qarg
+
+    def _create_clause(self, async_queue):
+        '''
+        :raises TypeError: if `async_queue` is of the wrong type
+        '''
+        if async_queue is False:
+            return None
+        # Convert async_queue value to PSyIR if necessary and
+        # add as child of clause.
+        qarg = self.convert_queue(async_queue)
+        clause = ACCAsyncQueueClause()
+        if qarg and not qarg is True:
+            clause.addchild(qarg)
+        return clause
 
     @property
-    def async_queue(self) -> Union[bool, int, Reference, None]:
+    def async_clause(self) -> Union[ACCAsyncQueueClause, None]:
+        '''
+        '''
+        for child in self.clauses:
+            if isinstance(child, ACCAsyncQueueClause):
+                return child
+        return None
+
+    @property
+    def async_queue(self) -> Union[bool, int, Reference]:
         '''
         :returns: whether or not async is enabled and if so, which queue this
                   node is associated with. (True indicates the default stream.)
@@ -71,7 +113,12 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
                   Int to attach to the given stream ID or use a variable
                   Reference to say at runtime what stream to be used.
         '''
-        return self._async_queue
+        clause = self.async_clause
+        if clause:
+            if clause.queue is None:
+                return True
+            return clause.queue
+        return False
 
     @async_queue.setter
     def async_queue(self, async_queue: Union[bool, int, Reference, None]):
@@ -82,21 +129,22 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
                             ID or use a variable Reference to say at runtime
                             what stream to be used.
 
-        :raises TypeError: if `wait_queue` is of the wrong type
         '''
-        # check
-        if (async_queue is not None and
-           not isinstance(async_queue, (bool, Reference, int))):
-            raise TypeError(f"Invalid async_queue value, expect Reference or "
-                            f"integer or None or bool, got : {async_queue}")
-
-        # assign
-        self._async_queue = async_queue
+        clause = self._create_clause(async_queue)
+        existing = self.async_clause
+        if existing:
+            if clause:
+                existing.replace_with(clause)
+            else:
+                existing.detach()
+        else:
+            if clause:
+                self.addchild(clause)
 
     def _build_async_string(self) -> str:
         '''
         Build the async arg to concat to the acc directive when generating the
-        code.
+        code in the old, 'gen_code' path.
 
         :returns: The `async()` option to add to the directive.
         '''
@@ -104,18 +152,11 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
         result = ""
 
         # async
-        if self.async_queue is not None:
-            if isinstance(self.async_queue, bool):
-                if self.async_queue:
-                    result = " async()"
-            elif isinstance(self.async_queue, int):
-                result = f" async({self.async_queue})"
-            elif isinstance(self.async_queue, Reference):
-                from psyclone.psyir.backend.fortran import FortranWriter
-                text = FortranWriter()(self.async_queue)
-                result = f" async({text})"
+        clause = self.async_clause
+        if clause:
+            from psyclone.psyir.backend.fortran import FortranWriter
+            result = f" {FortranWriter()(clause)}"
 
-        # ok
         return result
 
     def __eq__(self, other) -> bool:

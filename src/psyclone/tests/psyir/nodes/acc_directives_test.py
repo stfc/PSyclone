@@ -485,7 +485,7 @@ def test_acckernelsdirective_gencode_async_queue(async_queue):
     if async_queue is None:
         string = ""
     elif isinstance(async_queue, bool) and async_queue is True:
-        string = " async()"
+        string = " async"
     elif isinstance(async_queue, bool) and async_queue is False:
         string = ""
     elif isinstance(async_queue, int):
@@ -553,7 +553,6 @@ def test_acc_routine_parallelism():
             in str(einfo.value))
     with pytest.raises(ValueError) as einfo:
         target.parallelism = "sequential"
-    print(str(einfo.value))
     assert ("Expected one of ['gang', 'seq', 'vector', 'worker'] for the level"
             " of parallelism but got 'sequential'" in str(einfo.value))
 
@@ -591,13 +590,13 @@ def test_accupdatedirective_init():
 
     directive = ACCUpdateDirective(sig, "host", if_present=False)
     assert directive.if_present is False
-    assert directive.async_queue is None
+    assert directive.async_queue is False
 
     directive = ACCUpdateDirective(sig, "host", async_queue=True)
     assert directive.async_queue is True
 
     directive = ACCUpdateDirective(sig, "host", async_queue=1)
-    assert directive.async_queue == 1
+    assert directive.async_queue.value == "1"
 
     directive = ACCUpdateDirective(sig, "host",
                                    async_queue=Reference(Symbol("var")))
@@ -615,18 +614,17 @@ def test_accupdatedirective_begin_string():
                                                  async_queue=True)
     directive_async_queue_int = ACCUpdateDirective(sig, "device",
                                                    async_queue=1)
-    directive_async_queue_str = \
-        ACCUpdateDirective(sig, "device", async_queue=Reference(Symbol("var")))
+    directive_async_queue_str = ACCUpdateDirective(
+        sig, "device", async_queue=Reference(Symbol("var")))
 
     assert directive_host.begin_string() == "acc update host(x)"
-    assert directive_device.begin_string() \
-        == "acc update if_present device(x)"
-    assert directive_async_default.begin_string() \
-        == "acc update if_present device(x) async()"
-    assert directive_async_queue_int.begin_string() \
-        == "acc update if_present device(x) async(1)"
-    assert directive_async_queue_str.begin_string() \
-        == "acc update if_present device(x) async(var)"
+    assert directive_device.begin_string() == "acc update if_present device(x)"
+    assert (directive_async_default.begin_string() ==
+            "acc update if_present device(x) async")
+    assert (directive_async_queue_int.begin_string() ==
+            "acc update if_present device(x) async(1)")
+    assert (directive_async_queue_str.begin_string() ==
+            "acc update if_present device(x) async(var)")
 
     with pytest.raises(GenerationError) as err:
         directive_empty.begin_string()
@@ -734,23 +732,18 @@ def test_directives_async_queue(directive_type):
         directive._sig_set.add(Signature("x"))
 
     # check initial status
-    assert directive.async_queue == 1
+    assert directive.async_queue.value == "1"
     assert 'async(1)' in directive.begin_string()
 
     # change value to true
     directive.async_queue = True
     assert directive.async_queue is True
-    assert 'async()' in directive.begin_string()
+    assert 'async' in directive.begin_string()
 
     # change value to False
     directive.async_queue = False
     assert directive.async_queue is False
-    assert 'async()' not in directive.begin_string()
-
-    # change value to None
-    directive.async_queue = None
-    assert directive.async_queue is None
-    assert 'async()' not in directive.begin_string()
+    assert 'async' not in directive.begin_string()
 
     # change value afterward
     directive.async_queue = Reference(Symbol("stream"))

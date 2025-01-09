@@ -45,8 +45,8 @@ from psyclone.psyir.nodes.reference import Reference
 
 class ACCAsyncQueueClause(Clause):
     '''
-    OpenACC async clause. Specifies which queue, if any, this node is
-    associated with.
+    OpenACC async clause. Has one child which specifies which queue, if any,
+    this node is associated with.
 
     '''
     _children_valid_format = "DataNode"
@@ -65,6 +65,15 @@ class ACCAsyncQueueClause(Clause):
         if position != 0:
             return False
         return isinstance(child, DataNode)
+
+    @property
+    def queue(self) -> Union[DataNode, None]:
+        '''
+        :returns: the queue specified by this clause (if any)
+        '''
+        if self.children:
+            return self.children[0]
+        return None
 
 
 class ACCCopyClause(Clause):

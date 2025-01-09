@@ -54,17 +54,19 @@ from psyclone.psyir.nodes.acc_clauses import (
     ACCCopyOutClause)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.assignment import Assignment
-from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import (StandaloneDirective,
                                             RegionDirective)
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.operation import BinaryOperation
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
 
 from psyclone.f2pygen import BaseGen
 
@@ -92,13 +94,16 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
     ''' Base class for all OpenACC region directive statements.
 
     '''
+    # Textual description of the node.
+    _children_valid_format = "Schedule, Clause*"
+
     def validate_global_constraints(self):
         '''
         Perform validation checks for any global constraints. This can only
         be done at code-generation time.
 
-        :raises GenerationError: if this ACCRegionDirective encloses any form \
-            of PSyData node since calls to PSyData routines within OpenACC \
+        :raises GenerationError: if this ACCRegionDirective encloses any form
+            of PSyData node since calls to PSyData routines within OpenACC
             regions are not supported.
 
         '''
@@ -113,6 +118,21 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
                 f"within OpenACC regions but found "
                 f"{[type(node).__name__ for node in data_nodes]} within a "
                 f"region enclosed by an '{type(self).__name__}'")
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        if position == 0:
+            return isinstance(child, Schedule)
+        return isinstance(child, Clause)
 
     @property
     def signatures(self) -> Union[
@@ -154,6 +174,19 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
 class ACCStandaloneDirective(ACCDirective, StandaloneDirective,
                              metaclass=abc.ABCMeta):
     ''' Base class for all standalone OpenACC directive statements. '''
+
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        return StandaloneDirective._validate_child(position, child)
 
 
 class ACCRoutineDirective(ACCStandaloneDirective):
@@ -241,19 +274,16 @@ class ACCEnterDataDirective(ACCStandaloneDirective, ACCAsyncMixin):
         stream. Int to attach to the given stream ID or use a PSyIR
         expression to say at runtime what stream to be used.
 
+    :raises TypeError: if async_queue is of the wrong type.
+
     '''
     def __init__(
                 self,
                 children: List[Node] = None,
                 parent: Node = None,
-                async_queue: Union[bool, int, Reference, None] = None
+                async_queue: Union[bool, int, Reference] = False
             ):
         super().__init__(children=children, parent=parent)
-        if async_queue is not None:
-            # TODO - convert async_queue value to PSyIR if necessary and
-            # add as child of clause.
-            clause = ACCAsyncQueueClause()
-            self.addchild(clause)
 
         ACCAsyncMixin.__init__(self, async_queue)
         self._acc_dirs = None  # List of parallel directives
@@ -270,6 +300,7 @@ class ACCEnterDataDirective(ACCStandaloneDirective, ACCAsyncMixin):
 
         '''
         self.validate_global_constraints()
+
         self.lower_to_language_level()
         # Leverage begin_string() to raise an exception if there are no
         # variables to copyin but discard the generated string since it is
@@ -372,7 +403,7 @@ class ACCParallelDirective(ACCRegionDirective, ACCAsyncMixin):
     '''
     def __init__(
                 self,
-                async_queue: Union[bool, int, Reference, None] = None,
+                async_queue: Union[bool, int, Reference] = False,
                 default_present: bool = True,
                 **kwargs
             ):
@@ -734,20 +765,20 @@ class ACCKernelsDirective(ACCRegionDirective, ACCAsyncMixin):
         and which are therefore children of this node.
     :param parent: the parent of this node in the PSyIR.
     :param bool default_present: whether or not to add the
-        "default(present)" clause to the kernels
-        directive.
+        "default(present)" clause to the kernels directive.
     :param async_queue: Make the directive asynchronous and attached to the
         given stream identified by an ID or by a variable
         name pointing to an integer.
 
     '''
+    _children_valid_format = "Schedule, Clause*"
 
     def __init__(
                 self,
                 children: List[Node] = None,
                 parent: Node = None,
                 default_present: bool = True,
-                async_queue: Union[bool, int, Reference, None] = None
+                async_queue: Union[bool, int, Reference] = False
             ):
         super().__init__(children=children, parent=parent)
         ACCAsyncMixin.__init__(self, async_queue)
@@ -769,6 +800,21 @@ class ACCKernelsDirective(ACCRegionDirective, ACCAsyncMixin):
         is_eq = is_eq and ACCAsyncMixin.__eq__(self, other)
 
         return is_eq
+
+    @staticmethod
+    def _validate_child(position: int, child: Node) -> bool:
+        '''
+        :param int position: the position to be validated.
+        :param child: a child to be validated.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :return: whether the given child and position are valid for this node.
+        :rtype: bool
+
+        '''
+        if position == 0:
+            return isinstance(child, Schedule)
+        return isinstance(child, ACCAsyncQueueClause)
 
     @property
     def default_present(self) -> bool:
@@ -795,7 +841,8 @@ class ACCKernelsDirective(ACCRegionDirective, ACCAsyncMixin):
         parent.add(DirectiveGen(parent, "acc", "begin",
                                 *self.begin_string().split()[1:]))
         for child in self.children:
-            child.gen_code(parent)
+            if not isinstance(child, Clause):
+                child.gen_code(parent)
 
         parent.add(DirectiveGen(parent, *self.end_string().split()))
 
@@ -849,7 +896,7 @@ class ACCDataDirective(ACCRegionDirective):
             "ACCDataDirective.gen_code should not have been called.")
 
     @staticmethod
-    def _validate_child(position: int, child: Node) -> str:
+    def _validate_child(position: int, child: Node) -> bool:
         '''
         Check that the supplied node is a valid child of this node at the
         specified position.
@@ -947,7 +994,7 @@ class ACCUpdateDirective(ACCStandaloneDirective, ACCAsyncMixin):
                 children: List[Node] = None,
                 parent: Node = None,
                 if_present: Optional[bool] = True,
-                async_queue: Union[bool, int, Reference, None] = None
+                async_queue: Union[bool, int, Reference] = False
             ):
         super().__init__(children=children, parent=parent)
         ACCAsyncMixin.__init__(self, async_queue)

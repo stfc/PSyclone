@@ -65,6 +65,7 @@ from psyclone.psyir.nodes import (
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
     Return, Routine, Schedule)
+from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
@@ -2501,7 +2502,7 @@ class ACCEnterDataTrans(Transformation):
 
         The available options are :
          - async_queue : Permit to force using the given async stream if
-                         not None.
+                         not False.
 
         :type options: Optional[Dict[str, Any]]
 
@@ -2531,8 +2532,8 @@ class ACCEnterDataTrans(Transformation):
                 current = current.parent
             posn = sched.children.index(current)
 
-        # extract async. Default to None
-        async_queue = options.get('async_queue', None)
+        # extract async. Default to False.
+        async_queue = options.get('async_queue', False)
 
         # check
         self.check_child_async(sched, async_queue)
@@ -2553,16 +2554,15 @@ class ACCEnterDataTrans(Transformation):
 
         :param async_queue: The async queue to expect in childs.
         :type async_queue: \
-            Optional[bool,int,:py:class: psyclone.core.Reference]
+            Optional[bool,int,:py:class:`psyclone.core.Reference`]
         '''
-
+        qval = ACCAsyncMixin.convert_queue(async_queue)
         directive_cls = (ACCParallelDirective, ACCKernelsDirective)
-        for dir in sched.walk(directive_cls):
-            if async_queue is not None:
-                if async_queue != dir.async_queue:
-                    raise TransformationError(
-                        'Try to make an ACCEnterDataTrans with async_queue '
-                        'different than the one in child kernels !')
+        for dirv in sched.walk(directive_cls):
+            if qval != dirv.async_queue:
+                raise TransformationError(
+                    'Try to make an ACCEnterDataTrans with async_queue '
+                    'different than the one in child kernels !')
 
     def validate(self, sched, options={}):
         # pylint: disable=arguments-differ, arguments-renamed
@@ -2592,7 +2592,7 @@ class ACCEnterDataTrans(Transformation):
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
 
-        async_queue = options.get('async_queue', None)
+        async_queue = options.get('async_queue', False)
 
         # check consistency with childs about async_queue
         self.check_child_async(sched, async_queue)
