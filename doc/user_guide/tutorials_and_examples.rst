@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2024, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2025, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -782,6 +782,14 @@ benchmark with the PSyData-based kernel extraction code. Detailed
 compilation instructions are in the ``README.md`` file, including how
 to switch from using the stand-alone extraction library to the NetCDF-based
 one (see :ref:`extraction_libraries` for details).
+
+Example 6: Read-only Verification
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example shows the use of read-only verification with PSyclone for
+generic Fortran code. It instruments each kernel in a small Fortran
+program with the PSyData-based read-only verification code. Detailed
+compilation instructions are in the ``README.md`` file.
 
 
 Scripts
