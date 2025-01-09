@@ -242,7 +242,7 @@ contains
          any([element_order_v] == rmdi) ) then
       nqp_exact = imdi
     else
-      nqp_exact = MAX(element_order, element_order_v) + 3
+      nqp_exact = MAX(element_order_h, element_order_v) + 3
     end if
 
     namelist_loaded = .true.

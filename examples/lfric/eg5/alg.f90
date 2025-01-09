@@ -49,7 +49,8 @@ module oned_conservative_flux_alg_mod
   use function_space_collection_mod,     only: function_space_collection
   use quadrature_mod,                    only: quadrature_type, GAUSSIAN
   use fs_continuity_mod,                 only: W0, W3
-  use finite_element_config_mod,         only: element_order
+  use finite_element_config_mod,         only: element_order_h,                &
+                                               element_order_v
   use subgrid_config_mod,                only: transport_stencil_length,       &
                                                rho_stencil_length
 

@@ -46,7 +46,8 @@ program operator_example
   type(operator_type)                 :: mm_w3
   type(quadrature_xyoz_type), pointer :: qr => null
   integer(i_def)                      :: mesh_id = 1
-  integer(i_def)                      :: element_order = 0
+  integer(i_def)                      :: element_order_h = 0
+  integer(i_def)                      :: element_order_v = 0
   integer(i_def)                      :: a
 
   a = 1_i_def
