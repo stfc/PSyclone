@@ -40,7 +40,6 @@ to a small Fortran program. You can use
 
 '''
 
-from psyclone.transformations import TransformationError
 from psyclone.psyir.transformations import ReadOnlyVerifyTrans
 from psyclone.psyir.nodes import Loop, Routine
 
