@@ -59,14 +59,13 @@ from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import (StandaloneDirective,
                                             RegionDirective)
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
-from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.operation import BinaryOperation
-from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
+from psyclone.psyir.symbols import ScalarType
 
 from psyclone.f2pygen import BaseGen
 

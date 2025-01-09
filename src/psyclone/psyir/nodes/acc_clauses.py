@@ -37,6 +37,8 @@
 ''' This module contains the implementations of the various OpenACC Directive
 Clause nodes.'''
 
+from typing import Union
+
 from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.node import Node

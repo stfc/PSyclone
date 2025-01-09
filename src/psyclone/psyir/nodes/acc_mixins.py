@@ -86,13 +86,16 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
         :raises TypeError: if `async_queue` is of the wrong type
         '''
         if async_queue is False:
+            # There's no async clause.
             return None
         # Convert async_queue value to PSyIR if necessary and
         # add as child of clause.
         qarg = self.convert_queue(async_queue)
         clause = ACCAsyncQueueClause()
-        if qarg and not qarg is True:
+        if qarg and qarg is not True:
+            # A specific queue is supplied.
             clause.addchild(qarg)
+        # No queue is specified
         return clause
 
     @property
