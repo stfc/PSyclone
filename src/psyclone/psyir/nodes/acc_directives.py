@@ -45,9 +45,10 @@
 nodes.'''
 
 import abc
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 from psyclone.core import Signature
-from psyclone.f2pygen import DirectiveGen, CommentGen
+from psyclone.f2pygen import BaseGen, CommentGen, DirectiveGen
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.acc_clauses import (
     ACCAsyncQueueClause, ACCCopyClause, ACCCopyInClause,
@@ -56,6 +57,7 @@ from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.clause import Clause
 from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.directive import (StandaloneDirective,
                                             RegionDirective)
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
@@ -66,10 +68,6 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.symbols import ScalarType
-
-from psyclone.f2pygen import BaseGen
-
-from typing import Dict, List, Optional, Set, Tuple, Union
 
 
 class ACCDirective(metaclass=abc.ABCMeta):
@@ -136,9 +134,7 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
     @property
     def signatures(self) -> Union[
                                 Tuple[Set[Signature]],
-                                Tuple[
-                                    Set[Signature], Set[Signature]
-                                ]
+                                Tuple[Set[Signature], Set[Signature]]
                             ]:
         '''
         Returns a 1-tuple or a 2-tuple of sets depending on the working API.
@@ -150,8 +146,8 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
         device (probably a GPU) before the parallel region can be begun.
 
         :returns: 1-tuple or 2-tuple of input and output sets of variable names
-        '''
 
+        '''
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicInvokeSchedule
         from psyclone.gocean1p0 import GOInvokeSchedule
@@ -175,16 +171,15 @@ class ACCStandaloneDirective(ACCDirective, StandaloneDirective,
     ''' Base class for all standalone OpenACC directive statements. '''
 
     @staticmethod
-    def _validate_child(position, child):
+    def _validate_child(position: int, child: Node) -> bool:
         '''
-        :param int position: the position to be validated.
+        :param position: the position to be validated.
         :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: whether the given child and position are valid for this node.
-        :rtype: bool
 
         '''
+        # Ensure we call the _validate_child() in the correct parent class..
         return StandaloneDirective._validate_child(position, child)
 
 
@@ -200,8 +195,6 @@ class ACCRoutineDirective(ACCStandaloneDirective):
 
     def __init__(self, parallelism: str = "seq", **kwargs):
         self.parallelism = parallelism
-        assert self.parallelism in self.SUPPORTED_PARALLELISM
-
         super().__init__(self, **kwargs)
 
     @property
@@ -280,7 +273,7 @@ class ACCEnterDataDirective(ACCStandaloneDirective, ACCAsyncMixin):
                 self,
                 children: List[Node] = None,
                 parent: Node = None,
-                async_queue: Union[bool, int, Reference] = False
+                async_queue: Union[bool, int, DataNode] = False
             ):
         super().__init__(children=children, parent=parent)
 
@@ -363,6 +356,8 @@ class ACCEnterDataDirective(ACCStandaloneDirective, ACCAsyncMixin):
                 "Perhaps there are no ACCParallel or ACCKernels directives "
                 "within the region?")
 
+        # Variables need lexicographic sorting since sets guarantee no ordering
+        # and members of composite variables must appear later in deep copies.
         sym_list = _sig_set_to_string(self._sig_set)
 
         # options
@@ -371,8 +366,6 @@ class ACCEnterDataDirective(ACCStandaloneDirective, ACCAsyncMixin):
         # async
         options += self._build_async_string()
 
-        # Variables need lexicographic sorting since sets guarantee no ordering
-        # and members of composite variables must appear later in deep copies.
         return f"acc enter data{options}"
 
     def data_on_device(self, parent: Node):
@@ -395,14 +388,15 @@ class ACCParallelDirective(ACCRegionDirective, ACCAsyncMixin):
 
     :param default_present: whether this directive includes the
         `DEFAULT(PRESENT)` clause or not.
-    :param async_queue: If `True`, make the directive asynchronous.
-        If of type `int` or a `Reference`, also attach it to the given stream
-        identified by an ID or by a variable name pointing to an integer.
+    :param async_queue: Enable async support and attach it to the given queue.
+        Can use False to disable, True to enable on default
+        stream. Int to attach to the given stream ID or use a PSyIR
+        expression to say at runtime what stream to be used.
 
     '''
     def __init__(
                 self,
-                async_queue: Union[bool, int, Reference] = False,
+                async_queue: Union[bool, int, DataNode] = False,
                 default_present: bool = True,
                 **kwargs
             ):
@@ -765,9 +759,10 @@ class ACCKernelsDirective(ACCRegionDirective, ACCAsyncMixin):
     :param parent: the parent of this node in the PSyIR.
     :param bool default_present: whether or not to add the
         "default(present)" clause to the kernels directive.
-    :param async_queue: Make the directive asynchronous and attached to the
-        given stream identified by an ID or by a variable
-        name pointing to an integer.
+    :param async_queue: Enable async support and attach it to the given queue.
+        Can use False to disable, True to enable on default
+        stream. Int to attach to the given stream ID or use a PSyIR
+        expression to say at runtime what stream to be used.
 
     '''
     _children_valid_format = "Schedule, Clause*"
@@ -777,7 +772,7 @@ class ACCKernelsDirective(ACCRegionDirective, ACCAsyncMixin):
                 children: List[Node] = None,
                 parent: Node = None,
                 default_present: bool = True,
-                async_queue: Union[bool, int, Reference] = False
+                async_queue: Union[bool, int, DataNode] = False
             ):
         super().__init__(children=children, parent=parent)
         ACCAsyncMixin.__init__(self, async_queue)
@@ -978,9 +973,10 @@ class ACCUpdateDirective(ACCStandaloneDirective, ACCAsyncMixin):
         clause on the update directive (this instructs the
         directive to silently ignore any variables that are not
         on the device).
-    :param async_queue: Make the directive asynchronous and attached to the
-        given stream identified by an ID or by a variable name
-        pointing to an integer.
+    :param async_queue: Enable async support and attach it to the given queue.
+        Can use False to disable, True to enable on default
+        stream. Int to attach to the given stream ID or use a PSyIR
+        expression to say at runtime what stream to be used.
 
     '''
 
@@ -993,7 +989,7 @@ class ACCUpdateDirective(ACCStandaloneDirective, ACCAsyncMixin):
                 children: List[Node] = None,
                 parent: Node = None,
                 if_present: Optional[bool] = True,
-                async_queue: Union[bool, int, Reference] = False
+                async_queue: Union[bool, int, DataNode] = False
             ):
         super().__init__(children=children, parent=parent)
         ACCAsyncMixin.__init__(self, async_queue)

@@ -90,10 +90,19 @@ class ACCKernelsTrans(RegionTrans):
 
         :param node: a node or list of nodes in the PSyIR to enclose.
         :param options: a dictionary with options for transformations.
-            "default_present": boolean whether or not the kernels
+        :param bool options["default_present"]: whether or not the kernels
             region should have the 'default present' attribute (indicating
             that data is already on the accelerator). When using managed
             memory this option should be False.
+        :param bool options["disable_loop_check"]: whether to disable the check
+            that the supplied region contains 1 or more loops. Default is False
+            (i.e. the check is enabled).
+        :param options["async_queue"]: whether or not to add the 'async' clause
+            to the new directive and if so, which queue to associate it with.
+            True to enable for the default queue or a queue value specified
+            with an int or PSyIR expression.
+        :type options["async_queue"]:
+            Union[bool, :py:class:`psyclone.psyir.nodes.DataNode`]
 
         '''
         # Ensure we are always working with a list of nodes, even if only
@@ -107,9 +116,6 @@ class ACCKernelsTrans(RegionTrans):
 
         default_present = options.get("default_present", False)
         async_queue = options.get("async_queue", False)
-
-        # check
-        self.check_async_queue(node_list, async_queue)
 
         # Create a directive containing the nodes in node_list and insert it.
         directive = ACCKernelsDirective(
@@ -190,11 +196,19 @@ class ACCKernelsTrans(RegionTrans):
         :param nodes: the proposed PSyIR node or nodes to enclose in the
                       kernels region.
         :param options: a dictionary with options for transformations.
-            "disable_loop_check": boolean whether to disable the
+        :param bool options["default_present"]: whether or not the kernels
+            region should have the 'default present' attribute (indicating
+            that data is already on the accelerator). When using managed
+            memory this option should be False.
+        :param bool options["disable_loop_check"]: whether to disable the
             check that the supplied region contains 1 or more loops. Default
             is False (i.e. the check is enabled).
-
-            "async_queue": the async stream to be used.
+        :param options["async_queue"]: whether or not to add the 'async' clause
+            to the new directive and if so, which queue to associate it with.
+            True to enable for the default queue or a queue value specified
+            with an int or PSyIR expression.
+        :type options["async_queue"]:
+            Union[bool, :py:class:`psyclone.psyir.nodes.DataNode`]
 
         :raises NotImplementedError: if the supplied Nodes belong to
             a GOInvokeSchedule.

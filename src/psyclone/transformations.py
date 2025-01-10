@@ -46,6 +46,7 @@
 # pylint: disable=too-many-lines
 
 import abc
+from typing import Any, Dict, Optional, Union
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -2489,7 +2490,7 @@ class ACCEnterDataTrans(Transformation):
         '''
         return "ACCEnterDataTrans"
 
-    def apply(self, sched, options={}):
+    def apply(self, sched: Schedule, options: Optional[Dict[str, Any]] = {}):
         # pylint: disable=arguments-renamed
         '''Adds an OpenACC "enter data" directive to the invoke associated
         with the supplied Schedule. Any fields accessed by OpenACC kernels
@@ -2497,14 +2498,11 @@ class ACCEnterDataTrans(Transformation):
         order to ensure they remain on the target device.
 
         :param sched: schedule to which to add an "enter data" directive.
-        :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
 
         The available options are :
          - async_queue : Permit to force using the given async stream if
                          not False.
-
-        :type options: Optional[Dict[str, Any]]
 
         '''
         # Ensure that the proposed transformation is valid

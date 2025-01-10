@@ -55,7 +55,7 @@ from psyclone.psyir.nodes import (
     ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective,
     ACCParallelDirective, ACCRegionDirective, ACCRoutineDirective,
     ACCUpdateDirective, ACCAtomicDirective, ACCWaitDirective, Assignment,
-    Literal, Reference, Return, Routine, Schedule)
+    BinaryOperation, Literal, Reference, Return, Routine, Schedule)
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.symbols import (
     Symbol, SymbolTable, DataSymbol, INTEGER_TYPE, UnresolvedType)
@@ -750,6 +750,13 @@ def test_directives_async_queue(directive_type):
     assert directive.async_queue == Reference(Symbol("stream"))
     assert 'async(stream)' in directive.begin_string()
 
+    # Value is a PSyIR expression
+    directive.async_queue = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        Literal("1", INTEGER_TYPE),
+        Reference(Symbol("stream")))
+    assert 'async(1 + stream)' in directive.begin_string()
+
     # put wrong type
     with pytest.raises(TypeError) as error:
         directive.async_queue = 3.5
@@ -764,7 +771,7 @@ def test_mixin_constructor_error():
     with pytest.raises(TypeError) as error:
         _ = ACCAsyncMixin(3.5)
 
-    assert ("Invalid async_queue value, expect Reference or integer or None "
+    assert ("Invalid async_queue value, expected DataNode, integer "
             "or bool, got : 3.5" in str(error))
 
 
