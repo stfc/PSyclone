@@ -7,7 +7,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020-2024, Science and Technology Facilities
+! Modifications copyright (c) 2020-2025, Science and Technology Facilities
 ! Council.
 ! All rights reserved.
 !
