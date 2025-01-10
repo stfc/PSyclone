@@ -84,7 +84,7 @@ def test_file_info_cached_source_code(tmpdir):
     content = "module andy\n\nend module"
     with open(fname, "w", encoding="utf-8") as fout:
         fout.write(content)
-    finfo = FileInfo(fname, use_caching=True)
+    finfo = FileInfo(fname, cache_active=True)
     input1 = finfo.get_source_code()
     assert input1 == content
     # Check that the contents have been cached.
@@ -98,7 +98,7 @@ def test_file_info_cached_source_code(tmpdir):
     finfo.get_fparser_tree()
     assert finfo._cache_data_save is not None
 
-    finfo = FileInfo(fname, use_caching=True)
+    finfo = FileInfo(fname, cache_active=True)
     input1 = finfo.get_fparser_tree()
     assert finfo._cache_data_load is not None
     assert finfo._cache_data_save is None
@@ -381,7 +381,7 @@ def test_file_info_source_with_bugs(tmpdir):
         file_info.get_psyir(verbose=True)
 
     assert ("FileInfoFParserError: Failed to create"
-            "fparser tree: at line 5") in (
+            " fparser tree: at line 5") in (
         str(einfo.value))
 
     # Call it a 2nd time for coverage of not attempting to create it a 2nd time
@@ -527,6 +527,7 @@ def test_file_info_source_psyir_test(tmpdir):
     assert psyir_node is psyir_node2
 
 
+
 def test_fparser_error():
     """
     Test that fparser raises an FileInfoFParserError
@@ -540,17 +541,11 @@ def test_fparser_error():
         file_info.get_fparser_tree()
 
 
-# def test_get_fparser_tree(monkeypatch):
-#     file_info = FileInfo(filepath="dummy")
+def test_get_fparser_tree(monkeypatch):
+    file_info = FileInfo(filepath="dummy")
 
-#     def get_source_code():
-#         return "some dummy source code"
+    from psyclone.errors import PSycloneError
+    with pytest.raises(FileNotFoundError) as einfo:
+        file_info.get_source_code(verbose=True)
 
-#     file_info.get_source_code = get_source_code
-
-#     from psyclone.errors import PSycloneError
-#     with pytest.raises(PSycloneError) as einfo:
-#         file_info.get_fparser_tree()
-
-#     assert ("Hash sum should be set after loading"
-#             " the source") in str(einfo.value)
+    assert ("FileInfo: No such file or directory 'dummy'.") in str(einfo.value)

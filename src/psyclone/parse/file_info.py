@@ -239,19 +239,13 @@ class FileInfo:
                 f"Loading source code"
             )
 
-        if self._use_caching:
+        if self._cache_active:
             # Update the hash sum
-            self.get_source_code_hash_sum()
+            self._source_code_hash_sum = hashlib.md5(
+                self._source_code.encode()).hexdigest()
 
         return self._source_code
 
-    def get_source_code_hash_sum(self) -> "hashlib._Hash":
-        if self._source_code_hash_sum is not None:
-            return self._source_code_hash_sum
-
-        self._source_code_hash_sum = hashlib.md5(
-                    self._source_code.encode()).hexdigest()
-        return self._source_code_hash_sum
 
     def _cache_load(
         self,
