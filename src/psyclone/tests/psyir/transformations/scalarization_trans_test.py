@@ -204,12 +204,10 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
     assert ScalarizationTrans._value_unused_after_loop(keys[1],
-                                                       node,
                                                        var_accesses)
     # Test b
     assert var_accesses[keys[2]].var_name == "b"
     assert not ScalarizationTrans._value_unused_after_loop(keys[2],
-                                                           node,
                                                            var_accesses)
 
     # Test we ignore array next_access if they're in an if statement
@@ -238,12 +236,10 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
     assert ScalarizationTrans._value_unused_after_loop(keys[1],
-                                                       node,
                                                        var_accesses)
     # Test b
     assert var_accesses[keys[2]].var_name == "b"
     assert ScalarizationTrans._value_unused_after_loop(keys[2],
-                                                       node,
                                                        var_accesses)
     # Test we don't ignore array next_access if they're in an if statement
     # that is an ancestor of the loop we're scalarizing
@@ -271,12 +267,10 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
     assert ScalarizationTrans._value_unused_after_loop(keys[1],
-                                                       node,
                                                        var_accesses)
     # Test b
     assert var_accesses[keys[2]].var_name == "b"
     assert ScalarizationTrans._value_unused_after_loop(keys[2],
-                                                       node,
                                                        var_accesses)
 
     # Test we don't ignore array next_access if they have an ancestor
@@ -306,12 +300,10 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
     assert ScalarizationTrans._value_unused_after_loop(keys[1],
-                                                       node,
                                                        var_accesses)
     # Test b
     assert var_accesses[keys[2]].var_name == "b"
     assert not ScalarizationTrans._value_unused_after_loop(keys[2],
-                                                           node,
                                                            var_accesses)
 
     # Test being a while condition correctly counts as being used.
@@ -341,7 +333,6 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     # Test b
     assert var_accesses[keys[2]].var_name == "b"
     assert not ScalarizationTrans._value_unused_after_loop(keys[2],
-                                                           node,
                                                            var_accesses)
 
     # Test being a loop start/stop/step condition correctly counts
@@ -374,17 +365,14 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
     assert not ScalarizationTrans._value_unused_after_loop(keys[1],
-                                                           node,
                                                            var_accesses)
     # Test b
     assert var_accesses[keys[2]].var_name == "b"
     assert not ScalarizationTrans._value_unused_after_loop(keys[2],
-                                                           node,
                                                            var_accesses)
     # Test c
     assert var_accesses[keys[3]].var_name == "c"
     assert not ScalarizationTrans._value_unused_after_loop(keys[3],
-                                                           node,
                                                            var_accesses)
 
     # Test being a symbol in a Codeblock counts as used
@@ -414,7 +402,6 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
     assert not ScalarizationTrans._value_unused_after_loop(keys[1],
-                                                           node,
                                                            var_accesses)
 
     # Test being in an IfBlock condition counts as used.
@@ -446,7 +433,6 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     # Test arr
     assert var_accesses[keys[1]].var_name == "arr"
     assert not ScalarizationTrans._value_unused_after_loop(keys[1],
-                                                           node,
                                                            var_accesses)
 
 
@@ -495,5 +481,62 @@ def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
     b(i) = b(i) + 1
   enddo'''
     out = fortran_writer(psyir)
+    assert correct in out
+    assert Compile(tmpdir).string_compiles(out)
+
+    # Use in if/else where the if has write only followup and
+    # the else has a read - shouldn't scalarise b.
+    code = '''subroutine test()
+         integer :: i
+         integer :: k
+         integer, dimension(1:100) :: arr
+         integer, dimension(1:100) :: b
+         integer, dimension(1:100) :: c
+
+         do i = 1, 100
+            arr(i) = i
+            arr(i) = exp(arr(i))
+            k = i
+            b(i) = arr(i) * 3
+            c(k) = i
+         end do
+         do i = 1, 100
+            if(c(i) > 50) then
+                b(i) = c(i)
+            else
+                b(i) = b(i) + c(i)
+            end if
+         end do
+     end subroutine
+    '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+
+    loop = psyir.children[0].children[0]
+    strans.apply(loop)
+    correct = '''subroutine test()
+  integer :: i
+  integer :: k
+  integer, dimension(100) :: arr
+  integer, dimension(100) :: b
+  integer, dimension(100) :: c
+  integer :: arr_scalar
+
+  do i = 1, 100, 1
+    arr_scalar = i
+    arr_scalar = EXP(arr_scalar)
+    k = i
+    b(i) = arr_scalar * 3
+    c(k) = i
+  enddo
+  do i = 1, 100, 1
+    if (c(i) > 50) then
+      b(i) = c(i)
+    else
+      b(i) = b(i) + c(i)
+    end if
+  enddo'''
+    out = fortran_writer(psyir)
+    print(out)
     assert correct in out
     assert Compile(tmpdir).string_compiles(out)

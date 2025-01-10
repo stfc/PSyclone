@@ -49,6 +49,16 @@ class ScalarizationTrans(LoopTrans):
 
     @staticmethod
     def _is_local_array(signature, var_accesses):
+        '''
+        :param signature: The signature to check if it is a local array symbol
+                          or not.
+        :type signature: :py:class:`psyclone.core.Signature`
+        :param var_accesses: The VariableAccessesInfo object containing
+                             signature.
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns bool: whether the symbol corresponding to signature is a
+                       local symbol or not.
+        '''
         if not var_accesses[signature].is_array():
             return False
         base_symbol = var_accesses[signature].all_accesses[0].node.symbol
@@ -59,6 +69,16 @@ class ScalarizationTrans(LoopTrans):
 
     @staticmethod
     def _have_same_unmodified_index(signature, var_accesses):
+        '''
+        :param signature: The signature to check.
+        :type signature: :py:class:`psyclone.core.Signature`
+        :param var_accesses: The VariableAccessesInfo object containing
+                             signature.
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns bool: whether all the array accesses to signature use the
+                       same index, and whether the index is unmodified in
+                       the code region.
+        '''
         array_indices = None
         scalarizable = True
         for access in var_accesses[signature].all_accesses:
@@ -84,13 +104,30 @@ class ScalarizationTrans(LoopTrans):
         return scalarizable
 
     @staticmethod
-    def _check_first_access_is_write(sig, var_accesses):
-        if var_accesses[sig].is_written_first():
+    def _check_first_access_is_write(signature, var_accesses):
+        '''
+        :param signature: The signature to check.
+        :type signature: :py:class:`psyclone.core.Signature`
+        :param var_accesses: The VariableAccessesInfo object containing
+                             signature.
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns bool: whether the first access to signature is a write.
+        '''
+        if var_accesses[signature].is_written_first():
             return True
         return False
 
     @staticmethod
-    def _value_unused_after_loop(sig, node, var_accesses):
+    def _value_unused_after_loop(sig, var_accesses):
+        '''
+        :param sig: The signature to check.
+        :type sig: :py:class:`psyclone.core.Signature`
+        :param var_accesses: The VariableAccessesInfo object containing
+                             signature.
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :returns bool: whether the value computed in the loop containing
+                       sig is read from after the loop.
+        '''
         # Find the last access of the signature
         last_access = var_accesses[sig].all_accesses[-1].node
         # Find the next accesses to this symbol
@@ -218,7 +255,7 @@ class ScalarizationTrans(LoopTrans):
         # Check the values written to these arrays are not used after this loop
         finalised_targets = filter(
                 lambda sig:
-                ScalarizationTrans._value_unused_after_loop(sig, node,
+                ScalarizationTrans._value_unused_after_loop(sig,
                                                             var_accesses),
                 potential_targets)
 
