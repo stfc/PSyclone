@@ -46,7 +46,7 @@
 # pylint: disable=too-many-lines
 
 import abc
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 from psyclone import psyGen
 from psyclone.configuration import Config
