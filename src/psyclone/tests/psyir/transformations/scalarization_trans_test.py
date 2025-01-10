@@ -242,9 +242,9 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
                                                        var_accesses)
     # Test b
     assert var_accesses[keys[2]].var_name == "b"
-    assert not ScalarizationTrans._value_unused_after_loop(keys[2],
-                                                           node,
-                                                           var_accesses)
+    assert ScalarizationTrans._value_unused_after_loop(keys[2],
+                                                       node,
+                                                       var_accesses)
     # Test we don't ignore array next_access if they're in an if statement
     # that is an ancestor of the loop we're scalarizing
     code = '''subroutine test()

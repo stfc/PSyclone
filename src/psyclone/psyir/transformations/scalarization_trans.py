@@ -40,7 +40,7 @@ import itertools
 from psyclone.core import VariablesAccessInfo
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Assignment, Call, CodeBlock, IfBlock, \
-        Reference, Routine
+        Loop, Node, Reference, Routine, WhileLoop
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 
@@ -95,29 +95,47 @@ class ScalarizationTrans(LoopTrans):
         last_access = var_accesses[sig].all_accesses[-1].node
         # Find the next accesses to this symbol
         next_accesses = last_access.next_accesses()
-        # If we don't use this again then this can be scalarized
-        if len(next_accesses) == 0:
-            return True
-
-        # If the next_access has an ancestor IfBlock and
-        # that isn't an ancestor of the loop then its not valid since
-        # we aren't tracking down what the condition-dependent next
-        # use really is.
         for next_access in next_accesses:
             # next_accesses looks backwards to the start of the loop,
             # but we don't care about those accesses here.
             if next_access.abs_position <= last_access.abs_position:
                 continue
-            if_ancestor = next_access.ancestor(IfBlock)
-            # If abs_position of if_ancestor is > node.abs_position
-            # its not an ancestor of us.
-            # Handles:
-            # if (some_condition) then
-            #    x = next_access[i] + 1
-            if (if_ancestor is not None and
-                    if_ancestor.abs_position > node.abs_position):
-                # Not a valid next_access pattern.
+
+            # If next access is a Call or CodeBlock or Kern then
+            # we have to assume the value is used.
+            if isinstance(next_access, (CodeBlock, Call, Kern)):
                 return False
+
+            # If next access is an IfBlock then it reads the value.
+            if isinstance(next_access, IfBlock):
+                return False
+
+            # If next access has an ancestor WhileLoop, and its in the
+            # condition then it reads the value.
+            ancestor_while = next_access.ancestor(WhileLoop)
+            if ancestor_while:
+                conditions = ancestor_while.condition.walk(Node)
+                for node in conditions:
+                    if node is next_access:
+                        return False
+
+            # If next access has an ancestor Loop, and its one of the
+            # start/stop/step values then it reads the value.
+            ancestor_loop = next_access.ancestor(Loop)
+            if ancestor_loop:
+                starts = ancestor_loop.start_expr.walk(Node)
+                stops = ancestor_loop.stop_expr.walk(Node)
+                steps = ancestor_loop.step_expr.walk(Node)
+                for node in starts:
+                    if node is next_access:
+                        return False
+                for node in stops:
+                    if node is next_access:
+                        return False
+                for node in steps:
+                    if node is next_access:
+                        return False
+
 
             # If next access is the RHS of an assignment then we need to
             # skip it
