@@ -23,7 +23,7 @@ LIBS +=  $(LFRIC_LIB)
 
 LDFLAGS += $(LIBS)
 
-PSYCLONE = psyclone --config $(ROOT_DIR)/config/psyclone.cfg -api $(API) -l output
+PSYCLONE = psyclone --config $(ROOT_DIR)/config/psyclone.cfg --psykal-dsl $(API) -l output
 
 default: $(EXE)
 
