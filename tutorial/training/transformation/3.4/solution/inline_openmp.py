@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council
+# Copyright (c) 2018-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 
 '''A simple transformation script for the introduction of OpenMP with PSyclone.
 In order to use it you must first install PSyclone. See README.md in the
@@ -83,21 +83,23 @@ def trans(psyir):
     assignments = [assignment for assignment
                    in parent.children
                    if isinstance(assignment, Assignment)]
-    # Now move any non-loop statement in the parent to just before the first
-    # loop. We can't move the scalar assignments before the first loop, since
-    # they would be moved to the same location, which triggers an exception
-    # in the transformation. So we start with the first statement after the
-    # first loop
-    # Now move the assignments to the scalars
+    # We need to move all statements that define the loop boundaries
+    #    xstart = current%internal%xstart
+    #    ...
+    #    xstart_1 = current%internal%xstart etc
+    # to before the first loop (to allow loop fusion). We can't move the
+    # assignments before the first loop (they would be moved to the same
+    # location, which the move transformation does not allow), so we
+    # start with all direct children of the parent after the first loop.
+    # Moving only assignments will also make sure that the output step
+    # remains at the end of the loop body:
     move = MoveTrans()
     for child in parent.children[lat_loops[0].position+1:]:
-        if isinstance(child, Loop):
-            # Leave the loop where they are
-            continue
-        try:
-            move.apply(child, lat_loops[0], options={"position": "before"})
-        except TransformationError as err:
-            print(f"Cannot move code {child}: {err.value}")
+        if isinstance(child, Assignment):
+            try:
+                move.apply(child, lat_loops[0], options={"position": "before"})
+            except TransformationError as err:
+                print(f"Cannot move code {child}: {err.value}")
 
     const_mapping = {}
     for assignment in assignments:
