@@ -209,3 +209,11 @@ internally you can specify the ``-v`` option. For example
 ::
 
    > psyad -a var1 var2 -oad ad_kern.f90 -v tl_kern.f90
+
+Configuration Options
+---------------------
+
+By default PSyAD uses the same configuration file used by PSyclone. To
+use a custom configuration file use the ``--config`` command-line option.
+Further dcoumentation of the configuration option can be read in
+:ref:`user_guide:configuration`.
