@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -239,8 +239,9 @@ class FileInfo:
                 f"Loading source code"
             )
 
-        # Update the hash sum
-        self.get_source_code_hash_sum()
+        if self._use_caching:
+            # Update the hash sum
+            self.get_source_code_hash_sum()
 
         return self._source_code
 
@@ -459,10 +460,6 @@ class FileInfo:
         except FileNotFoundError as err:
             raise FileInfoFParserError(
                 f"File '{self._filename}' not found:\n{str(err)}")
-
-        if self._source_code_hash_sum is None:
-            raise PSycloneError(
-                    "Hash sum should be set after loading the source")
 
         # Check for cache
         self._cache_load(verbose=verbose)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2024, Science and Technology Facilities Council.
+# Copyright (c) 2023-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -542,4 +542,5 @@ def test_empty_container():
 
     module_info.get_psyir = lambda: None
 
-    module_info.get_symbol("dummy")
+    retval = module_info.get_symbol("dummy")
+    assert retval is None

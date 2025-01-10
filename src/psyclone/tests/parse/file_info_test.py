@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Laboratory.
 
 
-'''Module containing tests for the FileInfo class.'''
+"""Module containing tests for the FileInfo class."""
 
 import os
 import pytest
@@ -51,11 +51,11 @@ end program main
 
 
 def test_file_info_constructor():
-    '''
+    """
     Check that a FileInfo can be constructed and that its initial
     properties are set correctly.
 
-    '''
+    """
     finfo: FileInfo = FileInfo("missing.txt")
     assert finfo._filename == "missing.txt"
     assert finfo._source_code is None
@@ -64,11 +64,11 @@ def test_file_info_constructor():
 
 
 def test_file_info_missing_file():
-    '''
+    """
     Test FileInfo.source() raises the expected exception if the
     file cannot be found.
 
-    '''
+    """
     finfo = FileInfo("missing.txt")
     with pytest.raises(FileNotFoundError) as err:
         _ = finfo.get_source_code()
@@ -76,33 +76,68 @@ def test_file_info_missing_file():
 
 
 def test_file_info_cached_source_code(tmpdir):
-    '''
+    """
     Check that the contents of the file have been cached
     and that the cache was used if reading it a 2nd time.
-    '''
+    """
     fname = os.path.join(tmpdir, "a_file.txt")
-    content = "Just\nA\nTest"
-    with open(fname, "w", encoding='utf-8') as fout:
+    content = "module andy\n\nend module"
+    with open(fname, "w", encoding="utf-8") as fout:
         fout.write(content)
-    finfo = FileInfo(fname)
+    finfo = FileInfo(fname, use_caching=True)
     input1 = finfo.get_source_code()
     assert input1 == content
     # Check that the contents have been cached.
     input2 = finfo.get_source_code()
     assert input2 is input1
     assert finfo._source_code_hash_sum is not None
+    assert finfo._cache_data_load is None
+    assert finfo._cache_data_save is None
+
+    # Load fparser tree to start caching
+    finfo.get_fparser_tree()
+    assert finfo._cache_data_save is not None
+
+    finfo = FileInfo(fname, use_caching=True)
+    input1 = finfo.get_fparser_tree()
+    assert finfo._cache_data_load is not None
+    assert finfo._cache_data_save is None
+
+
+def test_file_info_no_cached_source_code(tmpdir):
+    """
+    Check that the contents of the file have not been cached.
+    """
+    fname = os.path.join(tmpdir, "a_file.txt")
+    content = "module andy\n\nend module"
+    with open(fname, "w", encoding="utf-8") as fout:
+        fout.write(content)
+    finfo = FileInfo(fname)
+    finfo.get_source_code()
+    assert finfo._source_code_hash_sum is None
+    assert finfo._cache_data_load is None
+    assert finfo._cache_data_save is None
+
+    # Load fparser tree and check that no caching is performed.
+    finfo.get_fparser_tree()
+    assert finfo._cache_data_save is None
+
+    finfo = FileInfo(fname)
+    finfo.get_fparser_tree()
+    assert finfo._cache_data_load is None
+    assert finfo._cache_data_save is None
 
 
 def test_file_info_decode_error(tmpdir):
-    '''
+    """
     Check that FileInfo.get_source_code() handles a decoding error when reading
     a file.
 
-    '''
+    """
     fname = os.path.join(tmpdir, "a_file.txt")
     # Test content includes a byte that cannot be decoded as utf-8.
     content = "Ju\xb5st\nA\nTest"
-    with open(fname, "w", encoding='latin') as fout:
+    with open(fname, "w", encoding="latin") as fout:
         fout.write(content)
     finfo = FileInfo(fname)
     # Content of file has been read with problematic byte skipped.
@@ -110,17 +145,17 @@ def test_file_info_decode_error(tmpdir):
 
 
 def test_file_info_source_fparser_psyir(tmpdir):
-    '''
+    """
     Check that read source, fparser and psyir always result
     in the same objects.
 
-    '''
+    """
     filename = os.path.join(tmpdir, "testfile_a.f90")
     try:
         os.remove(filename)
     except FileNotFoundError:
         pass
-    with open(filename, "w", encoding='utf-8') as fout:
+    with open(filename, "w", encoding="utf-8") as fout:
         fout.write(SOURCE_DUMMY)
 
     file_info: FileInfo = FileInfo(filename, cache_active=True)
@@ -142,10 +177,10 @@ def test_file_info_source_fparser_psyir(tmpdir):
 
 
 def test_file_info_load_from_cache(tmpdir):
-    '''
+    """
     Check that the caching to file really works.
 
-    '''
+    """
     filename = os.path.join(tmpdir, "testfile_b.f90")
     filename_cache = os.path.join(tmpdir, "testfile_b.psyclone")
 
@@ -159,7 +194,7 @@ def test_file_info_load_from_cache(tmpdir):
     except FileNotFoundError:
         pass
 
-    with open(filename, "w", encoding='utf-8') as fout:
+    with open(filename, "w", encoding="utf-8") as fout:
         fout.write(SOURCE_DUMMY)
 
     file_info: FileInfo = FileInfo(filename, cache_active=True)
@@ -197,10 +232,10 @@ def test_file_info_load_from_cache(tmpdir):
 
 
 def test_file_info_load_from_cache_corrupted(tmpdir):
-    '''
+    """
     Test handling of corrupt cache file
 
-    '''
+    """
     filename = os.path.join(tmpdir, "testfile_c.f90")
     filename_cache = os.path.join(tmpdir, "testfile_c.psyclone")
 
@@ -214,11 +249,11 @@ def test_file_info_load_from_cache_corrupted(tmpdir):
     except FileNotFoundError:
         pass
 
-    with open(filename, "w", encoding='utf-8') as fout:
+    with open(filename, "w", encoding="utf-8") as fout:
         fout.write(SOURCE_DUMMY)
 
     filename_cache = os.path.join(tmpdir, "testfile_c.psycache")
-    with open(filename_cache, "w", encoding='utf-8') as fout:
+    with open(filename_cache, "w", encoding="utf-8") as fout:
         fout.write("GARBAGE")
 
     #
@@ -261,11 +296,11 @@ def test_file_info_load_from_cache_corrupted(tmpdir):
 
 
 def test_file_info_source_changed(tmpdir):
-    '''
+    """
     Make sure that cache is not used if source code
     file changed, hence, its checksum.
 
-    '''
+    """
     filename = os.path.join(tmpdir, "testfile_d.f90")
     filename_cache = os.path.join(tmpdir, "testfile_d.psyclone")
 
@@ -279,7 +314,7 @@ def test_file_info_source_changed(tmpdir):
     except FileNotFoundError:
         pass
 
-    with open(filename, "w", encoding='utf-8') as fout:
+    with open(filename, "w", encoding="utf-8") as fout:
         fout.write(SOURCE_DUMMY)
 
     #
@@ -297,8 +332,8 @@ def test_file_info_source_changed(tmpdir):
     # Step 2) Change source code
     #
 
-    with open(filename, "w", encoding='utf-8') as fout:
-        fout.write(SOURCE_DUMMY+"\n! I'm a comment to change the hashsum")
+    with open(filename, "w", encoding="utf-8") as fout:
+        fout.write(SOURCE_DUMMY + "\n! I'm a comment to change the hashsum")
 
     #
     # Step 3) Cache file should not be used
@@ -318,10 +353,10 @@ def test_file_info_source_changed(tmpdir):
 
 
 def test_file_info_source_with_bugs(tmpdir):
-    '''
+    """
     Make sure that error is triggered if there's an error.
 
-    '''
+    """
     filename = os.path.join(tmpdir, "testfile_bug.f90")
     filename_cache = os.path.join(tmpdir, "testfile_bug.psyclone")
 
@@ -335,12 +370,13 @@ def test_file_info_source_with_bugs(tmpdir):
     except FileNotFoundError:
         pass
 
-    with open(filename, "w", encoding='utf-8') as fout:
-        fout.write(SOURCE_DUMMY+"arbitrary words to trigger error")
+    with open(filename, "w", encoding="utf-8") as fout:
+        fout.write(SOURCE_DUMMY + "arbitrary words to trigger error")
 
     file_info: FileInfo = FileInfo(filename, cache_active=True)
 
     from psyclone.parse.file_info import FileInfoFParserError
+
     with pytest.raises(FileInfoFParserError) as einfo:
         file_info.get_psyir(verbose=True)
 
@@ -354,17 +390,17 @@ def test_file_info_source_with_bugs(tmpdir):
 
 
 def test_file_info_cachefile_not_accessible(tmpdir):
-    '''
+    """
     Check if cachefile is not accessible
 
-    '''
+    """
     filename = os.path.join(tmpdir, "testfile_e.f90")
 
     try:
         os.remove(filename)
     except FileNotFoundError:
         pass
-    with open(filename, "w", encoding='utf-8') as fout:
+    with open(filename, "w", encoding="utf-8") as fout:
         fout.write(SOURCE_DUMMY)
 
     file_info: FileInfo = FileInfo(filename, cache_active=True)
@@ -407,12 +443,12 @@ def test_file_info_cachefile_not_writable(tmpdir):
 
 
 def test_file_info_cachefile_pickle_load_exception(tmpdir, monkeypatch):
-    '''
+    """
     Check pickle exceptions work
 
-    '''
+    """
     filename = os.path.join(tmpdir, "testfile_f.f90")
-    with open(filename, "w", encoding='utf-8') as fout:
+    with open(filename, "w", encoding="utf-8") as fout:
         fout.write(SOURCE_DUMMY)
 
     file_info: FileInfo = FileInfo(filename, cache_active=True)
@@ -425,12 +461,12 @@ def test_file_info_cachefile_pickle_load_exception(tmpdir, monkeypatch):
 
 
 def test_file_info_cachefile_pickle_dump_exception(tmpdir, monkeypatch):
-    '''
+    """
     Check pickle exceptions work
 
-    '''
+    """
     filename = os.path.join(tmpdir, "testfile_f.f90")
-    with open(filename, "w", encoding='utf-8') as fout:
+    with open(filename, "w", encoding="utf-8") as fout:
         fout.write(SOURCE_DUMMY)
 
     file_info: FileInfo = FileInfo(filename, cache_active=True)
@@ -448,12 +484,12 @@ def test_file_info_cachefile_pickle_dump_exception(tmpdir, monkeypatch):
 
 
 def test_file_info_source_psyir_test(tmpdir):
-    '''
+    """
     Here, we generate a dummy psyir cached node to load it.
     This is not yet possible (TODO #2786), but the code
     for this already exists and is tested here.
 
-    '''
+    """
     filename = os.path.join(tmpdir, "testfile_g.f90")
     filename_cache = os.path.join(tmpdir, "testfile_g.psycache")
 
@@ -467,7 +503,7 @@ def test_file_info_source_psyir_test(tmpdir):
     except FileNotFoundError:
         pass
 
-    with open(filename, "w", encoding='utf-8') as fout:
+    with open(filename, "w", encoding="utf-8") as fout:
         fout.write(SOURCE_DUMMY)
 
     # Create cache
@@ -491,15 +527,11 @@ def test_file_info_source_psyir_test(tmpdir):
     assert psyir_node is psyir_node2
 
 
-def test_no_caching():
-    file_info = FileInfo(filepath="dummy")
-
-    # Catch one if-branch returning if caching is disabled
-    file_info._cache_load(False)
-    file_info._cache_save(False)
-
-
 def test_fparser_error():
+    """
+    Test that fparser raises an FileInfoFParserError
+    error if a file was not found
+    """
     file_info = FileInfo(filepath="dummy")
 
     # Catch special exception
@@ -508,17 +540,17 @@ def test_fparser_error():
         file_info.get_fparser_tree()
 
 
-def test_get_fparser_tree(monkeypatch):
-    file_info = FileInfo(filepath="dummy")
+# def test_get_fparser_tree(monkeypatch):
+#     file_info = FileInfo(filepath="dummy")
 
-    def get_source_code():
-        return "some dummy source code"
+#     def get_source_code():
+#         return "some dummy source code"
 
-    file_info.get_source_code = get_source_code
+#     file_info.get_source_code = get_source_code
 
-    from psyclone.errors import PSycloneError
-    with pytest.raises(PSycloneError) as einfo:
-        file_info.get_fparser_tree()
+#     from psyclone.errors import PSycloneError
+#     with pytest.raises(PSycloneError) as einfo:
+#         file_info.get_fparser_tree()
 
-    assert ("Hash sum should be set after loading"
-            " the source") in str(einfo.value)
+#     assert ("Hash sum should be set after loading"
+#             " the source") in str(einfo.value)
