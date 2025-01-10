@@ -1,5 +1,5 @@
 EXE = gol
-API = gocean1.0
+API = gocean
 
 # We need to compile and link the PSyData libraries:
 PSY_DATA_DIR = $(ROOT_DIR)/lib/profiling/simple_timing

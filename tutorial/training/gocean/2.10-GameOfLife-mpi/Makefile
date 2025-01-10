@@ -1,5 +1,5 @@
 EXE = gol
-API = gocean1.0
+API = gocean
 MPI = no
 F90 = mpif90
 

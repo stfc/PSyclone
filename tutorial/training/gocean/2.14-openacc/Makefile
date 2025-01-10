@@ -1,5 +1,5 @@
 EXE = gol
-API = gocean1.0
+API = gocean
 
 OBJ = output_field_mod.o time_step_alg_mod.o time_step_alg_mod_psy.o
 

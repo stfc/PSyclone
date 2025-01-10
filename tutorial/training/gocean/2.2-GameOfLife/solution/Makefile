@@ -1,5 +1,5 @@
 EXE = gol
-API = gocean1.0
+API = gocean
 
 # Don't include gol-lib at link time, it is not required
 IGNORE_GOL_LIB=yes

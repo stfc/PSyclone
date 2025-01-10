@@ -1,5 +1,5 @@
 EXE = gol
-API = gocean1.0
+API = gocean
 
 OBJ = time_step_alg_mod.o time_step_alg_mod_psy.o
 
@@ -16,5 +16,5 @@ time_step_alg_mod.o: time_step_alg_mod_psy.o
 
 # PSyclone: create alg and psy layer files:
 %.f90: %.x90 Makefile fuse_loops.py
-	$(PSYCLONE) -s ./fuse_loops.py -api gocean1.0 -oalg $*.f90 \
+	$(PSYCLONE) -s ./fuse_loops.py -oalg $*.f90 \
 		        -opsy $*_psy.f90 $<
