@@ -106,9 +106,14 @@ class ScalarizationTrans(LoopTrans):
             if isinstance(next_access, (CodeBlock, Call, Kern)):
                 return False
 
-            # If next access is an IfBlock then it reads the value.
-            if isinstance(next_access, IfBlock):
-                return False
+            # If next access is in an IfBlock condition then it reads the
+            # value.
+            ancestor_ifblock = next_access.ancestor(IfBlock)
+            if ancestor_ifblock:
+                conditions = ancestor_ifblock.condition.walk(Node)
+                for node in conditions:
+                    if node is next_access:
+                        return False
 
             # If next access has an ancestor WhileLoop, and its in the
             # condition then it reads the value.
@@ -201,8 +206,6 @@ class ScalarizationTrans(LoopTrans):
                 ScalarizationTrans._have_same_unmodified_index(sig,
                                                                var_accesses),
                 potential_targets)
-#        potential_targets = self._find_potential_scalarizable_array_symbols(
-#                node, var_accesses)
 
         # Now we need to check the first access is a write and remove those
         # that aren't.
@@ -211,8 +214,6 @@ class ScalarizationTrans(LoopTrans):
                 ScalarizationTrans._check_first_access_is_write(sig,
                                                                 var_accesses),
                 potential_targets)
-#        potential_targets = self._check_first_access_is_write(
-#                node, var_accesses, potential_targets)
 
         # Check the values written to these arrays are not used after this loop
         finalised_targets = filter(
@@ -220,8 +221,6 @@ class ScalarizationTrans(LoopTrans):
                 ScalarizationTrans._value_unused_after_loop(sig, node,
                                                             var_accesses),
                 potential_targets)
-#        finalised_targets = self._check_valid_following_access(
-#                node, var_accesses, potential_targets)
 
         routine_table = node.ancestor(Routine).symbol_table
         # For each finalised target we can replace them with a scalarized
