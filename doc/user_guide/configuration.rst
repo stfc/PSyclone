@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2024, Science and Technology Facilities Council
+.. Copyright (c) 2018-2025, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -75,6 +75,10 @@ locations searched is now:
 1. ``${PWD}/.psyclone/``
 2. ``<python-base-dir>/share/psyclone/``
 3. ``${HOME}/.local/share/psyclone/``
+
+As a last resort, the location
+``<psyclone-src-base>/config/``
+is searched in case PSyclone was installed in editable mode.
 
 Note that for developers a slightly different configuration handling
 is implemented, see :ref:`dev_guide:dev_configuration` for details.
