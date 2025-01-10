@@ -109,10 +109,10 @@ class ModuleManager:
         self._remaining_search_paths = OrderedDict()
         self._original_search_paths = []
 
-        # Dictionary to lookup file info from file path
+        # Ordered dictionary to lookup file info from file path
         self._filepath_to_file_info: OrderedDict[str, FileInfo] = OrderedDict()
 
-        # Dictionary to lookup modules of all files
+        # Ordered dictionary to lookup modules of all files
         # Note that there can be multiple modules per file
         self._filepath_to_module_info: OrderedDict[str, List[ModuleInfo]] = \
             OrderedDict()
@@ -246,8 +246,7 @@ class ModuleManager:
     def add_files(self, filepaths: Union[str, List[str], Set[str]]) -> None:
         """Add a file to the list of files
 
-        :param filepath: Path to file
-        :type filepath: str
+        :param filepaths: Filename or list of filenames
         """
 
         if isinstance(filepaths, str):
@@ -265,21 +264,35 @@ class ModuleManager:
             )
 
     def load_all_source_codes(self, verbose: bool = False) -> None:
-        """Routine to load the source of all files"""
+        """Routine to load the source of all files previously added
+        to the module manager
+
+        :param verbose: If `True`, print verbose information
+        """
 
         for fileinfo in self._filepath_to_file_info.values():
             fileinfo: FileInfo
             fileinfo.get_source_code(verbose=verbose)
 
     def load_all_fparser_trees(self, verbose: bool = False) -> None:
-        """Routine to load the source of all files"""
+        """
+        Routine to load the fparser tree of all files added
+        to the module manager
+
+        :param verbose: If `True`, print verbose information
+        """
 
         for fileinfo in self._filepath_to_file_info.values():
             fileinfo: FileInfo
             fileinfo.get_fparser_tree(verbose=verbose)
 
     def load_all_psyir_nodes(self, verbose: bool = False) -> None:
-        """Routine to load the psyir representation of all files"""
+        """
+        Routine to load the psyir nodes of all files added
+        to the module manager
+
+        :param verbose: If `True`, print verbose information
+        """
 
         for fileinfo in self._filepath_to_file_info.values():
             fileinfo: FileInfo
@@ -287,6 +300,10 @@ class ModuleManager:
 
     def load_all_module_infos(self, verbose: bool = False, indent: str = ""):
         """Load the module info using psyir nodes
+
+        :param verbose: If `True`, print verbose information
+        :param indent: Prefix used as indentation for each line of
+            verbose output.
 
         :raises KeyError: If module was already processed
         """
@@ -340,24 +357,31 @@ class ModuleManager:
             self._filepath_to_module_info[filepath] = module_info_in_file
 
     def get_all_module_infos(self) -> List[ModuleInfo]:
+        """
+        Return a list of all module infos
+        """
+
         return list(self._modules.values())
 
     def get_all_file_infos(self) -> List[FileInfo]:
+        """
+        Return a list of all FileInfo objects
+        """
         return list(self._filepath_to_file_info.values())
 
     def get_module_info(self, module_name: str) -> ModuleInfo:
-        '''This function returns the ModuleInfo for the specified
+        """This function returns the ModuleInfo for the specified
         module.
 
-        :param module_name: name of the module.
+        :param module_name: Name of the module.
 
         :returns: object describing the requested module or None if the
                   manager has been configured to ignore this module.
 
         :raises FileNotFoundError: if the module_name is not found in
             either the cached data nor in the search path.
+        """
 
-        '''
         mod_lower = module_name.lower()
 
         if mod_lower in self._ignore_modules:
@@ -432,9 +456,10 @@ class ModuleManager:
 
         :param module_info_name: the module info name for which to collect
             all recursively used modules.
-        :param bool verbose: whether to print some information about
+        :param verbose: whether to print some information about
             the modules being processed.
-        :param str indent: the current indentation level for printing.
+        :param indent: Prefix used as indentation for each line of
+            verbose output.
 
         :returns: a list of all modules used by the specified module in
             order of dependencies.

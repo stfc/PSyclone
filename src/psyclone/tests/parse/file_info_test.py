@@ -417,8 +417,8 @@ def test_file_info_cachefile_not_accessible(tmpdir):
 
 def test_file_info_cachefile_not_writable(tmpdir):
     '''
-    Check if cachefile is not writable
-
+    Check if cachefile is not writable.
+    This should not raise any errors!
     '''
 
     filename = os.path.join(tmpdir, "testfile_e.f90")
@@ -527,7 +527,6 @@ def test_file_info_source_psyir_test(tmpdir):
     assert psyir_node is psyir_node2
 
 
-
 def test_fparser_error():
     """
     Test that fparser raises an FileInfoFParserError
@@ -537,15 +536,9 @@ def test_fparser_error():
 
     # Catch special exception
     from psyclone.parse.file_info import FileInfoFParserError
-    with pytest.raises(FileInfoFParserError):
+    with pytest.raises(FileInfoFParserError) as einfo:
         file_info.get_fparser_tree()
 
-
-def test_get_fparser_tree(monkeypatch):
-    file_info = FileInfo(filepath="dummy")
-
-    from psyclone.errors import PSycloneError
-    with pytest.raises(FileNotFoundError) as einfo:
-        file_info.get_source_code(verbose=True)
-
-    assert ("FileInfo: No such file or directory 'dummy'.") in str(einfo.value)
+    assert "FileInfo: No such file or directory 'dummy'" in str(
+        einfo.value
+    )

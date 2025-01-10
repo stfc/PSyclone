@@ -87,6 +87,12 @@ class FileInfo:
         object holds information on. Can also be set to 'None' in case of
         providing fparser / PSyIR node in a different way.
     :param use_caching: Use caching of intermediate representations
+    :param cache_path: Path to directory where to put cache files.
+        If it is provided, the file name for caching will include
+        the hash sum to avoid conflicting file names.
+        This allows using, e.g., `~/.cache/psyclone` as a cache
+        directory for all cached files.
+        See _get_filepath_cache() for more information.
 
     """
     def __init__(self,
@@ -245,7 +251,6 @@ class FileInfo:
                 self._source_code.encode()).hexdigest()
 
         return self._source_code
-
 
     def _cache_load(
         self,
@@ -499,7 +504,8 @@ class FileInfo:
         """Returns the psyclone FileContainer of the file.
 
         :param verbose: Produce some verbose output
-        :param indent: Indentation string of verbose output
+        :param indent: String used for indentation of each line
+            for verbose output.
 
         :returns: PSyIR file container node.
 
