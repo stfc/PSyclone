@@ -1,5 +1,5 @@
 
-EXAMPLES=$(sort $(wildcard 2.*GameOfLife*))
+EXAMPLES=$(sort $(wildcard 4.*))
 clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
 allclean_EXAMPLES=$(addprefix allclean_,$(EXAMPLES))
 
