@@ -9,7 +9,7 @@ module combine_mod
     public combine, combine_code
     type, extends(kernel_type) :: combine
        type(go_arg), dimension(TODO) :: meta_args =           &
-       TODO
+       TODO: add the kernel arguments
        !> This kernel writes to all internal points
        !! of the simulation domain.
        integer :: ITERATES_OVER = GO_INTERNAL_PTS
@@ -33,10 +33,11 @@ contains
 
     subroutine combine_code(i, j, current, die, born)
         implicit none
-        double precision, dimension(:,:), intent(out) :: current
-        double precision, dimension(:,:), intent(in)  :: die, born
-        integer, intent(in)                           :: i, j
+        double precision, dimension(:,:), intent(inout) :: current
+        double precision, dimension(:,:), intent(in)    :: die, born
+        integer, intent(in)                             :: i, j
 
+        TODO: implement the actual kernel
     end subroutine combine_code
 
 end module combine_mod

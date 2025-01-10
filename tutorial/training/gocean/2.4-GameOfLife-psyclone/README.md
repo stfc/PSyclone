@@ -139,9 +139,9 @@ the extend in each direction in which neighbouring elements are
 accessed. The stencil declaration (which is used instead of
 `GO_POINTWISE`) looks like this:
 
-    STENCIL(010,   &
-            010,   &
-            010))
+    GO_STENCIL(010,   &
+               010,   &
+               010))
 
 for a field that accesses elements one row above and below.
 Adjust this declaration to the access pattern used when counting

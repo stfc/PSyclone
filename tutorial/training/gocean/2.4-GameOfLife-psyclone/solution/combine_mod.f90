@@ -36,9 +36,9 @@ contains
 
     subroutine combine_code(i, j, current, die, born)
         implicit none
-        double precision, dimension(:,:), intent(out) :: current
-        double precision, dimension(:,:), intent(in)  :: die, born
-        integer, intent(in)                           :: i, j
+        double precision, dimension(:,:), intent(inout) :: current
+        double precision, dimension(:,:), intent(in)    :: die, born
+        integer, intent(in)                             :: i, j
 
         current(i, j) = current(i, j)  &
                       - die(i, j)      &
