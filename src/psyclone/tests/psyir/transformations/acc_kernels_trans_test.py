@@ -499,7 +499,7 @@ def test_check_async_queue_with_enter_data(fortran_reader):
     with pytest.raises(TypeError) as err:
         acc_trans.check_async_queue(None, 3.5)
     assert ("Invalid async_queue value, expect Reference or integer or None "
-            "or False, got : 3.5" in str(err.value))
+            "or bool, got : 3.5" in str(err.value))
     psyir = fortran_reader.psyir_from_source(
                 "program two_loops\n"
                 "  integer :: ji\n"

@@ -41,19 +41,18 @@
 ''' This module provides the ACCKernelsTrans transformation. '''
 
 import re
+from typing import Any, Dict, List, Union
 
 from psyclone import psyGen
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes import (
     ACCEnterDataDirective, ACCKernelsDirective, Assignment,
-    Call, CodeBlock, Loop, Node,
+    Call, CodeBlock, Literal, Loop, Node,
     PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
-from psyclone.psyir.symbols import UnsupportedFortranType
+from psyclone.psyir.symbols import INTEGER_TYPE, UnsupportedFortranType
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
-
-from typing import Any, Dict, List, Union
 
 
 class ACCKernelsTrans(RegionTrans):
@@ -122,44 +121,61 @@ class ACCKernelsTrans(RegionTrans):
     @staticmethod
     def check_async_queue(
                 nodes: List[Node],
-                async_queue: Union[bool, int, Reference, None]
+                async_queue: Union[bool, int, Reference]
             ):
         '''
         Common function to check that all parent data directives have
         the same async queue.
 
         :param node: the nodes in the PSyIR to enclose.
-        :param async_queue: The async queue to expect in parents.
+        :param async_queue: The async queue to expect in ancestors.
 
+        :raises TypeError: if the supplied queue is of the wrong type.
+        :raises TransformationError: if the supplied queue does not match
+                                     that specified by any ancestor nodes.
         '''
-        if async_queue is None:
+        def _to_str(val):
+            return (f"'{val.debug_string()}'" if isinstance(val, Node)
+                    else "None")
+
+        if async_queue is False:
+            # The kernels directive will not have the async clause.
             return
 
-        # check type
-        if not isinstance(async_queue, (int, Reference)):
+        # check type (a bool is an instance of int) and ensure the supplied
+        # value is in a form suitable for comparison with values already
+        # stored in the PSyIR.
+        if isinstance(async_queue, bool):
+            # A value of True means that async is specified with no queue.
+            checkval = None
+        elif isinstance(async_queue, int):
+            checkval = Literal(f"{async_queue}", INTEGER_TYPE)
+        elif isinstance(async_queue, Reference):
+            checkval = async_queue
+        else:
             raise TypeError(f"Invalid async_queue value, expect Reference or "
-                            f"integer or None or False, got : {async_queue}")
+                            f"integer or None or bool, got : {async_queue}")
 
         # Perform an additional check whether a queue has been used before.
         # Note this to work only for the current routine.
         parent = nodes[0].ancestor(ACCAsyncMixin)
         if parent is not None:
-            if async_queue != parent.async_queue:
+            if checkval != parent.async_queue:
                 raise TransformationError(
                     f"Cannot apply ACCKernelsTrans with asynchronous "
-                    f"queue '{async_queue}' because a parent "
-                    f"directive specifies queue '{parent.async_queue}'")
+                    f"queue {_to_str(checkval)} because a parent directive "
+                    f"specifies queue {_to_str(parent.async_queue)}")
 
         parent = nodes[0].ancestor(Routine)
         if parent:
             edata = parent.walk(ACCEnterDataDirective)
             if edata:
-                if async_queue != edata[0].async_queue:
+                if checkval != edata[0].async_queue:
                     raise TransformationError(
                         f"Cannot apply ACCKernelsTrans with asynchronous queue"
-                        f" '{async_queue}' because the containing routine "
+                        f" {_to_str(checkval)} because the containing routine "
                         f"has an ENTER DATA directive specifying queue "
-                        f"'{edata[0].async_queue}'")
+                        f"{_to_str(edata[0].async_queue)}")
 
     def validate(
                 self,
@@ -243,7 +259,7 @@ class ACCKernelsTrans(RegionTrans):
                         f"OpenACC region because it is not available on GPU.")
 
         # extract async option and check validity
-        async_queue = options.get('async_queue', None)
+        async_queue = options.get('async_queue', False)
         self.check_async_queue(node_list, async_queue)
 
         # Check that we have at least one loop or array range within
