@@ -118,7 +118,7 @@ def test_file_info_no_cached_source_code(tmpdir):
     assert finfo._cache_data_load is None
     assert finfo._cache_data_save is None
 
-    # Load fparser tree to start caching
+    # Load fparser tree and check that no caching is performed.
     finfo.get_fparser_tree()
     assert finfo._cache_data_save is None
 
