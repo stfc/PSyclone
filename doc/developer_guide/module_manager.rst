@@ -169,7 +169,7 @@ of `ModuleManager`.
 
 .. testcode ::
 
-    mod_manager = ModuleManager.get(use_caching=True)
+    mod_manager = ModuleManager.get(cache_active=True)
 
 
 Most of the time in the PSyIR generation is currently spent in the
@@ -177,9 +177,40 @@ fparser tree generation. Consequently, this leads to significant
 speed-ups in the process of reading and parsing the source code
 of modules.
 
+
+
+Default cache file locations
+----------------------------
+
+
 The default cache file is named the same way as the source file,
 but replaces the file extension with `.psycache`. E.g., a cache file
 for the source file `foo.f90` will be called `foo.psycache`.
+
+
+
+(Global) cache file folder
+--------------------------
+
+To avoid storing cache files together with source code files,
+a path can be provided to the module manager.
+
+.. testcode ::
+
+    mod_manager = ModuleManager.get(cache_active=True,
+                     cache_path="/tmp/my_cache_path")
+
+A cache file name will then be created based on the hashsum of each
+source code file. The combination of the provided `cache_path` and
+the cache file name will then be used as the storage location.
+
+A standard storage path could be, e.g., `$HOME/.cache/psyclone`.
+Note, that the cache path directory must exist.
+
+
+
+Caching algorithm
+-----------------
 
 The caching algorithm to obtain the fparser tree OR PSyIR is briefly described as follows:
 
