@@ -190,10 +190,13 @@ class FileInfo:
                 f"FileInfo: No such file or directory '{self._filename}'."
             ) from err
 
-        # Compute hash sum which will be used to check cache of fparser tree
-        self._source_code_hash_sum = hashlib.md5(
-            self._source_code.encode()
-        ).hexdigest()
+        if self._use_caching:
+            # Only update if caching is used.
+            # Compute hash sum which will be used to
+            # check cache of fparser tree
+            self._source_code_hash_sum = hashlib.md5(
+                self._source_code.encode()
+            ).hexdigest()
 
         return self._source_code
 
@@ -391,10 +394,6 @@ class FileInfo:
         except FileNotFoundError as err:
             raise FileInfoFParserError(
                 f"File '{self._filename}' not found:\n{str(err)}")
-
-        if self._source_code_hash_sum is None:
-            raise PSycloneError(
-                "Hash sum should be set after loading the source")
 
         # Check for cache
         self._cache_load(verbose=verbose)

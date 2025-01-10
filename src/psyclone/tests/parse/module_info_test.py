@@ -519,4 +519,5 @@ def test_empty_container():
 
     module_info.get_psyir = lambda: None
 
-    module_info.get_symbol("dummy")
+    retval = module_info.get_symbol("dummy")
+    assert retval is None
