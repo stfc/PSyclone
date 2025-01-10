@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,39 +34,36 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel fuseion code to
+function via the -s option. It adds kernel fusion code to
 all invokes.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
-from psyclone.gocean1p0 import GOKern
+from psyclone.psyGen import InvokeSchedule
 
 
-def trans(psy):
+def trans(psyir):
     '''
-    Take the supplied psy object, and fuse the first two loops
+    Take the supplied psy object, and fuse the first three loops
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    fuse = GOceanLoopFuseTrans()
     inline = KernelModuleInlineTrans()
 
-    invoke = psy.invokes.get("invoke_compute")
-    schedule = invoke.schedule
-
     # Inline all kernels to help gfortran with inlining.
-    for kern in schedule.walk(GOKern):
+    for kern in psyir.kernels():
         inline.apply(kern)
+
+    # We know that there is only one schedule
+    schedule = psyir.walk(InvokeSchedule)[0]
 
     # This schedule has four loops, corresponding to
     # count_neighbours, compute_born, compute_die, combine kernels
 
+    fuse = GOceanLoopFuseTrans()
     # First merge 2nd and 3rd loops
     fuse.apply(schedule[1], schedule[2])
     # Then merge the (previous fourth, now third) loop to the
@@ -82,5 +79,3 @@ def trans(psy):
     fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
     fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
     invoke.schedule.view()
-
-    return psy

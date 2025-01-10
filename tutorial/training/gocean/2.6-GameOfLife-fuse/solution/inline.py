@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,33 +34,32 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel extraction code to
-all invokes.
+function via the -s option.module-level inlining.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOKern
+from psyclone.psyGen import InvokeSchedule
 
 
-def trans(psy):
+def trans(psyir):
     '''
-    Take the supplied psy object, and fuse the first two loops
+    Take the supplied psyir object, and inline all kernels
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     inline = KernelModuleInlineTrans()
 
-    for invoke in psy.invokes.invoke_list:
-        print(invoke)
-        schedule = invoke.schedule
-        # Inline all kernels to help gfortran with inlining.
-        for kern in schedule.walk(GOKern):
-            print(kern)
-            inline.apply(kern)
+    for sched in psyir.walk(InvokeSchedule):
+        print(sched.view())
 
-    return psy
+    # Or to show that InvokesSchedule are Routines:
+    # from psyclone.psyir.nodes import Routine
+    # for subroutine in psyir.walk(Routine):
+    #    print(subroutine.view())
+
+    for kern in psyir.walk(GOKern):
+        # Inline all kernels to help gfortran with inlining.
+        inline.apply(kern)

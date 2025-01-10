@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,30 +40,27 @@ all invokes.
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
-from psyclone.gocean1p0 import GOKern
+from psyclone.psyGen import InvokeSchedule
 
 
 def trans(psy):
     '''
     Take the supplied psy object, and fuse the first two loops
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     fuse = GOceanLoopFuseTrans()
     inline = KernelModuleInlineTrans()
 
-    invoke = psy.invokes.get("invoke_compute")
-    schedule = invoke.schedule
-
-    print(schedule.view())
     # Inline all kernels to help gfortran with inlining.
-    for kern in schedule.walk(GOKern):
+    for kern in psyir.kernels():
         inline.apply(kern)
+
+    # We know that there is only one schedule
+    schedule = psyir.walk(InvokeSchedule)[0]
+    print(schedule.view())
 
     # do j do i count
     # do j do i born
@@ -101,5 +98,3 @@ def trans(psy):
     # do j do i count born die
     # do j do i combine
     print(schedule.view())
-
-    return psy
