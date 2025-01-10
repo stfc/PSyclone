@@ -136,7 +136,6 @@ class ScalarizationTrans(LoopTrans):
                     if node is next_access:
                         return False
 
-
             # If next access is the RHS of an assignment then we need to
             # skip it
             # Handles:
