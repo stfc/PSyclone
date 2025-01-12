@@ -34,7 +34,7 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel fuseion code to
+function via the -s option. It adds kernel fusion code to
 all invokes.
 '''
 
@@ -67,7 +67,8 @@ def trans(psy):
     # do j do i die
     # do j do i combine
 
-    # TODO: First merge the first two j loops
+    # TODO: First merge the first two j loops. You can address them
+    # using `schedule[index]`
     fuse.apply ...
 
     # do j do i count

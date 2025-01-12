@@ -45,7 +45,7 @@ from psyclone.psyGen import InvokeSchedule
 
 def trans(psyir):
     '''
-    Take the supplied psy object, and fuse the first three loops
+    Take the supplied FileContainer object, and fuse the first three loops.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
@@ -65,17 +65,17 @@ def trans(psyir):
 
     fuse = GOceanLoopFuseTrans()
     # First merge 2nd and 3rd loops
-    fuse.apply(schedule[1], schedule[2])
+    fuse.apply(...)
     # Then merge the (previous fourth, now third) loop to the
     # fused loop
-    fuse.apply(schedule[1], schedule[2])
+    fuse.apply(...)
     # Now we have:
     # do j count_neighbours
     # do j
     #   do i
     #   do i
     #   do i
-    # Fuse the three inner loops:
-    fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
-    fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
-    invoke.schedule.view()
+    # Fuse the three inner loops
+    fuse.apply(...)
+    fuse.apply(...)
+    print(schedule.view())

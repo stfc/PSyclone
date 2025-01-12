@@ -45,7 +45,7 @@ from psyclone.psyGen import InvokeSchedule
 
 def trans(psyir):
     '''
-    Take the supplied psy object, and fuse the first three loops
+    Take the supplied FileContainer object, and fuse the first three loops.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
