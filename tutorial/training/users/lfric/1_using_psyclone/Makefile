@@ -58,7 +58,7 @@ F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 
 # Default target: run PSyclone (even if the output file should already exist)
 transform:
-	psyclone -api lfric -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+	psyclone --psykal-dsl lfric -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 
 compile: main_alg_psy.f90 $(EXEC)

@@ -36,7 +36,7 @@
 .PHONY: transform test clean allclean
 
 transform:
-	psyclone -api lfric -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+	psyclone --psykal-dsl lfric -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 test:
 	$(MAKE) transform 2>&1 | grep "Parse Error: Kernel 'summation_w0_to_w3_kernel_type' "\
