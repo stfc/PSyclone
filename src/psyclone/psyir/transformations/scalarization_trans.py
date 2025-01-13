@@ -46,6 +46,52 @@ from psyclone.psyir.transformations.loop_trans import LoopTrans
 
 
 class ScalarizationTrans(LoopTrans):
+    '''This transformation takes a Loop and converts any array accesses
+    to scalar if the results of the loop are unused, and the initial value
+    is unused. For example:
+
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.transformations import ScalarizationTrans
+    >>> from psyclone.psyir.nodes import Loop
+    >>> code = """program test
+    ... integer :: i,j
+    ... real :: a(100), b(100)
+    ... do i = 1,100
+    ...   a(i) = i
+    ...   b(i) = a(i) * a(i)
+    ... end do
+    ... do j = 1, 100
+    ...  if(b(i) > 200) then
+    ...    print *, b(i)
+    ...  end if
+    ... end do
+    ... end program"""
+    >>> psyir = FortranReader().psyir_from_source(code)
+    >>> scalarise = ScalarizationTrans()
+    >>> scalarise.apply(psyir.walk(Loop)[0])
+    >>> print(FortranWriter()(psyir))
+    program test
+      integer :: i
+      integer :: j
+      real, dimension(100) :: a
+      real, dimension(100) :: b
+      real :: a_scalar
+      <BLANKLINE>
+      do i = 1, 100, 1
+        a_scalar = i
+        b(i) = a_scalar * a_scalar
+      enddo
+      do j = 1, 100, 1
+        if (b(i) > 200) then
+          ! PSyclone CodeBlock (unsupported code) reason:
+          !  - Unsupported statement: Print_Stmt
+          PRINT *, b(i)
+        end if
+      enddo
+    <BLANKLINE>
+    end program test
+    '''
 
     @staticmethod
     def _is_local_array(signature, var_accesses):
