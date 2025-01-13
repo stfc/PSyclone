@@ -26,7 +26,7 @@ import subprocess
 # -- Project information -----------------------------------------------------
 
 project = 'Reference Guide'
-project_copyright = ('2019-2024, R. W. Ford, J. Henrichs, I. Kavcic, '
+project_copyright = ('2019-2025, R. W. Ford, J. Henrichs, I. Kavcic, '
                      'A. R. Porter, S. Siso')
 author = 'R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, S. Siso'
 
@@ -62,6 +62,7 @@ extensions = [
     'sphinx.ext.githubpages',
     'sphinx.ext.autodoc',
     'sphinx.ext.inheritance_diagram',
+    'sphinx_autodoc_typehints',
     'autoapi.sphinx'
 ]
 

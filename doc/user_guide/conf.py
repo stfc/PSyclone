@@ -40,6 +40,7 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
               'sphinx.ext.intersphinx', 'sphinx.ext.coverage',
               'sphinx.ext.imgmath', 'sphinx.ext.viewcode',
               'sphinxcontrib.bibtex', 'sphinx_tabs.tabs',
+              'sphinx_autodoc_typehints',
               'apilinks',
               ]
 bibtex_bibfiles = ['../bibliography/references.bib']
@@ -84,7 +85,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'PSyclone'
-project_copyright = '2017-2024, STFC Daresbury Laboratory'
+project_copyright = '2017-2025, STFC Daresbury Laboratory'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -245,9 +246,10 @@ latex_elements = {
 # (source start file, target name, title, author,
 #  documentclass [howto/manual]).
 latex_documents = [
-    ('index', 'psyclone.tex', 'PSyclone Documentation',
-     'Andrew Coughtrie, Rupert Ford, Joerg Henrichs, Iva Kavcic,\\\\ '
-     'Andrew Porter, Sergi Siso and Joseph Wallwork', 'manual'),
+    ('index', 'psyclone.tex', 'PSyclone User Guide',
+     'Oakley Brunt, Andrew Coughtrie, Rupert Ford, \\\\ '
+     'Joerg Henrichs, Iva Kavcic, Andrew Porter, Sergi Siso \\\ '
+     'and Joseph Wallwork', 'manual'),
 ]
 
 # Set maximum depth for the nested lists to prevent LaTeX

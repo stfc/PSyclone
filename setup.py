@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council
+# Copyright (c) 2017-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -166,7 +166,7 @@ if __name__ == '__main__':
                           'graphviz'],
         extras_require={
             'doc': ["sphinx", "sphinxcontrib.bibtex", "sphinx-tabs",
-                    "sphinx_rtd_theme", "autoapi"],
+                    "sphinx_rtd_theme", "sphinx-autodoc-typehints", "autoapi"],
             'test': ["flake8", "pylint", "pytest-cov", "pytest-xdist"],
         },
         include_package_data=True,

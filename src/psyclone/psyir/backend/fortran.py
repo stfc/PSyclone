@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -536,6 +536,11 @@ class FortranWriter(LanguageWriter):
                                 f"and should not be provided to 'gen_vardecl'."
                                 )
 
+        result = ""
+        if len(symbol.preceding_comment) > 0:
+            for line in symbol.preceding_comment.splitlines():
+                result += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+
         # Whether we're dealing with an array declaration and, if so, the
         # shape of that array.
         if isinstance(symbol.datatype, ArrayType):
@@ -554,10 +559,14 @@ class FortranWriter(LanguageWriter):
                     # blocks appearing in SAVE statements.
                     decln = add_accessibility_to_unsupported_declaration(
                                 symbol)
-                    return f"{self._nindent}{decln}\n"
-
-                decln = symbol.datatype.declaration
-                return f"{self._nindent}{decln}\n"
+                else:
+                    decln = symbol.datatype.declaration
+                result += f"{self._nindent}{decln}"
+                if symbol.inline_comment != "":
+                    result += (f" {self._COMMENT_PREFIX}"
+                               f"{symbol.inline_comment}")
+                result += "\n"
+                return result
             # The Fortran backend only handles UnsupportedFortranType
             # declarations.
             raise VisitorError(
@@ -566,7 +575,7 @@ class FortranWriter(LanguageWriter):
                 f"supported by the Fortran backend.")
 
         datatype = gen_datatype(symbol.datatype, symbol.name)
-        result = f"{self._nindent}{datatype}"
+        result += f"{self._nindent}{datatype}"
 
         if ArrayType.Extent.DEFERRED in array_shape:
             # A 'deferred' array extent means this is an allocatable array
@@ -615,6 +624,9 @@ class FortranWriter(LanguageWriter):
                     f"therefore (in Fortran) must have a StaticInterface. "
                     f"However it has an interface of '{symbol.interface}'.")
             result += " = " + self._visit(symbol.initial_value)
+
+        if symbol.inline_comment != "":
+            result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
 
         return result + "\n"
 
@@ -696,7 +708,12 @@ class FortranWriter(LanguageWriter):
                 f"Fortran backend cannot generate code for symbol "
                 f"'{symbol.name}' of type '{type(symbol.datatype).__name__}'")
 
-        result = f"{self._nindent}type"
+        result = ""
+        if symbol.preceding_comment != "":
+            for line in symbol.preceding_comment.splitlines():
+                result += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+
+        result += f"{self._nindent}type"
 
         if include_visibility:
             if symbol.visibility == Symbol.Visibility.PRIVATE:
@@ -726,7 +743,13 @@ class FortranWriter(LanguageWriter):
                                        include_visibility=include_visibility)
         self._depth -= 1
 
-        result += f"{self._nindent}end type {symbol.name}\n"
+        result += f"{self._nindent}end type {symbol.name}"
+
+        if symbol.inline_comment != "":
+            result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
+
+        result += "\n"
+
         return result
 
     def gen_default_access_stmt(self, symbol_table):

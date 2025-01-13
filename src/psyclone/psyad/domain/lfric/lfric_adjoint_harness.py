@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -266,7 +266,7 @@ def _init_fields_random(fields, input_symbols, table):
 
     '''
     idef_sym = table.add_lfric_precision_symbol("i_def")
-    idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
+    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef_sym)
     # We use the setval_random builtin to initialise all fields.
     kernel_list = []
     builtin_factory = LFRicBuiltinFunctorFactory.get()

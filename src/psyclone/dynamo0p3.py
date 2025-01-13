@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -4992,6 +4992,24 @@ class DynKernelArguments(Arguments):
         arguments of this kernel. The names are unmangled (i.e. as
         specified in the kernel metadata) '''
         return self._unique_fs_names
+
+    @property
+    def first_field_or_operator(self):
+        '''
+        :returns: the first field or operator argument in the list.
+        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :raises InternalError: if no field or operator argument is found.
+
+        '''
+        for arg in self._args:
+            arg: DynKernelArgument
+            if arg.is_field or arg.is_operator:
+                return arg
+
+        raise InternalError(
+            f"Invalid LFRic kernel: failed to find a DynKernelArgument that is"
+            f" a field or operator in '{self.names}'.")
 
     def iteration_space_arg(self):
         '''

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,11 +37,10 @@
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
-    Assignment, Loop, Directive, Container, Reference, CodeBlock,
+    Assignment, Loop, Directive, Reference, CodeBlock,
     Call, Return, IfBlock, Routine, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ScalarType,
-    RoutineSymbol, ImportInterface)
+    DataSymbol, INTEGER_TYPE, ScalarType, RoutineSymbol)
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
@@ -49,13 +48,19 @@ from psyclone.psyir.transformations import (
 from psyclone.transformations import TransformationError
 
 
+# USE statements to chase to gather additional symbol information.
+NEMO_MODULES_TO_IMPORT = [
+    "oce", "par_oce", "dom_oce", "phycst", "ice",
+    "obs_fbm", "flo_oce", "sbc_ice", "wet_dry"
+]
+
 # Files that PSyclone could process but would reduce the performance.
 NOT_PERFORMANT = [
     "bdydta.f90", "bdyvol.f90", "fldread.f90", "icbclv.f90", "icbthm.f90",
     "icbdia.f90", "icbini.f90", "icbstp.f90", "iom.f90", "iom_nf90.f90",
     "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
     "obs_types.f90", "obs_read_prof.f90", "obs_write.f90", "tide_mod.f90",
-    "zdfosm.f90",
+    "zdfosm.f90", "obs_read_surf.f90",
 ]
 
 # If routine names contain these substrings then we do not profile them
@@ -119,47 +124,26 @@ def _it_should_be(symbol, of_type, instance):
 
 
 def enhance_tree_information(schedule):
-    ''' Resolve imports in order to populate relevant datatype on the
-    tree symbol tables.
+    ''' Manually fix some PSyIR issues produced by not having enough symbol
+    information from external modules. Setting NEMO_MODULES_TO_IMPORT above
+    improve the situation but its not complete (not all symbols are imported)
+    and it is not transitive (imports that inside import other symbols).
 
     :param schedule: the PSyIR Schedule to transform.
     :type schedule: :py:class:`psyclone.psyir.nodes.node`
+
     '''
-
-    mod_sym_tab = schedule.ancestor(Container).symbol_table
-
-    modules_to_import = ("oce", "par_oce", "dom_oce", "phycst", "ice",
-                         "obs_fbm", "flo_oce", "sbc_ice", "wet_dry")
-
-    for module_name in modules_to_import:
-        if module_name in mod_sym_tab:
-            mod_symbol = mod_sym_tab.lookup(module_name)
-            mod_sym_tab.resolve_imports(container_symbols=[mod_symbol])
-
     are_integers = ('jpi', 'jpim1', 'jpj', 'jpjm1', 'jp_tem', 'jp_sal',
                     'jpkm1', 'jpiglo', 'jpni', 'jpk', 'jpiglo_crs',
                     'jpmxl_atf', 'jpmxl_ldf', 'jpmxl_zdf', 'jpnij',
                     'jpts', 'jpvor_bev', 'nleapy', 'nn_ctls', 'jpmxl_npc',
                     'jpmxl_zdfp', 'npti')
 
-    # Manually set the datatype of some integer and real variables that are
-    # important for performance
     for reference in schedule.walk(Reference):
         if reference.symbol.name in are_integers:
+            # Manually set the datatype of some integer scalars that are
+            # important for performance
             _it_should_be(reference.symbol, ScalarType, INTEGER_TYPE)
-        elif reference.symbol.name in ('rn_avt_rnf', ):
-            _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
-        elif isinstance(reference.symbol.interface, ImportInterface) and \
-                reference.symbol.interface.container_symbol.name == "phycst":
-            # Everything imported from phycst is a REAL
-            _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
-        elif reference.symbol.name == 'tmask':
-            if reference.ancestor(Container).name == "dom_oce":
-                continue  # Do not update the original declaration
-            _it_should_be(reference.symbol, ArrayType, ArrayType(REAL_TYPE, [
-                        ArrayType.Extent.ATTRIBUTE,
-                        ArrayType.Extent.ATTRIBUTE,
-                        ArrayType.Extent.ATTRIBUTE]))
         elif reference.symbol.name in NEMO_FUNCTIONS:
             if reference.symbol.is_import or reference.symbol.is_unresolved:
                 # The parser gets these wrong, they are Calls not ArrayRefs

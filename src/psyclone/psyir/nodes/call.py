@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -235,18 +235,16 @@ class Call(Statement, DataNode):
         # because the 1st child is the routine reference
         self.children.insert(index + 1, arg)
 
-    def replace_named_arg(self, existing_name, arg):
+    def replace_named_arg(self, existing_name: str, arg: DataNode):
         '''Replace one named argument node with another node keeping the
         same name.
 
-           :param str existing_name: the argument name.
-           :param arg: the argument expression.
-           :type arg: :py:class:`psyclone.psyir.nodes.DataNode`
+        :param existing_name: the argument name.
+        :param arg: the argument expression.
 
-           :raises TypeError: if the name argument is the wrong type.
-           :raises ValueError: if the name argument is already used \
-               for an existing argument.
-           :raises TypeError: if the index argument is the wrong type.
+        :raises TypeError: if the name argument is the wrong type.
+        :raises ValueError: if the name argument is already used
+            for an existing argument.
 
         '''
         if not isinstance(existing_name, str):

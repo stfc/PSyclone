@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ from fparser.two.utils import walk
 
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
+from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol

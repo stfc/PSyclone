@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -236,7 +236,7 @@ class KernCallArgList(ArgOrdering):
         '''
         if self._kern.iterates_over == "dof":
             return
-        name = f"nlayers_{self._kern.arguments.iteration_space_arg().name}"
+        name = f"nlayers_{self._kern.arguments.first_field_or_operator.name}"
         nlayers_symbol = self.append_integer_reference(name, tag=name)
         self.append(nlayers_symbol.name, var_accesses)
         self._nlayers_positions.append(self.num_args)

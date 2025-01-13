@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -77,13 +77,14 @@ class LFRicCellIterators(LFRicCollection):
             return
 
         # Each kernel that operates on either the domain or cell-columns needs
-        # an 'nlayers' obtained from the first written field/operator argument.
+        # an 'nlayers' obtained from the first field/operator argument.
         for kern in self._invoke.schedule.walk(LFRicKern):
             if kern.iterates_over != "dof":
-                arg = kern.arguments.iteration_space_arg()
-                self._nlayers_names[self._symbol_table.find_or_create_tag(
+                arg = kern.arguments.first_field_or_operator
+                sym = self._symbol_table.find_or_create_tag(
                     f"nlayers_{arg.name}",
-                    symbol_type=LFRicTypes("MeshHeightDataSymbol")).name] = arg
+                    symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+                self._nlayers_names[sym.name] = arg
 
         first_var = None
         for var in self._invoke.psy_unique_vars:
