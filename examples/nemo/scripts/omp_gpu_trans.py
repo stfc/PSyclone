@@ -143,6 +143,17 @@ def trans(psyir):
                 hoist_expressions=True
         )
 
+        if (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop)) or \
+                psyir.name == "solfrac_mod.f90":
+            try:
+                # We need the 'force' option.
+                # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
+                # array notation. (TODO #717)
+                OMPDeclareTargetTrans().apply(subroutine,
+                                              options={"force": True})
+            except TransformationError as err:
+                print(err)
+
         # Thes are functions that are called from inside parallel regions,
         # annotate them with 'omp declare target'
         if subroutine.name.lower().startswith("sign_"):
