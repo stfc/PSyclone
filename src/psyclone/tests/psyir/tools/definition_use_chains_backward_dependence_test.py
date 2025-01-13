@@ -253,9 +253,6 @@ def test_definition_use_chain_find_backward_accesses_loop_example(
     # Second a = A + i
     # Third (?) is A = a + i
     # Last is A = 1
-    print(reaches[0].parent.debug_string())
-    print(reaches[1].parent.debug_string())
-    print(reaches[2].parent.debug_string())
     assert len(reaches) == 4
     assert (
         reaches[0] is routine.children[1].loop_body.children[1].rhs.children[0]
@@ -460,7 +457,6 @@ def test_definition_use_chain_find_backward_accesses_codeblock_and_call_cflow(
     chains = DefinitionUseChain(routine.children[2].rhs.children[0])
     reaches = chains.find_backward_accesses()
     assert len(reaches) == 2
-    print([x.parent.debug_string() for x in reaches])
     assert reaches[0] is routine.children[1].if_body.children[1].children[1]
     assert reaches[1] is routine.children[0]
 
