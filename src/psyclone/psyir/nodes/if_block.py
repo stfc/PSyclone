@@ -195,9 +195,13 @@ class IfBlock(Statement):
         # The first child is the if condition - all variables are read-only
         self.condition.reference_accesses(var_accesses)
         var_accesses.next_location()
-        self.if_body.reference_accesses(var_accesses)
-        var_accesses.next_location()
 
-        if self.else_body:
-            self.else_body.reference_accesses(var_accesses)
+        if not var_accesses.options("FLATTEN"):
+            self.if_body.reference_accesses(var_accesses)
             var_accesses.next_location()
+            if self.else_body:
+                self.else_body.reference_accesses(var_accesses)
+                var_accesses.next_location()
+            return
+
+        var_accesses.set_conditional_accesses(self.if_body, self.else_body)

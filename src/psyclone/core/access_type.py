@@ -37,7 +37,6 @@
 
 '''This module implements the AccessType used throughout PSyclone.'''
 
-from __future__ import print_function, absolute_import
 from enum import Enum
 from psyclone.configuration import Config
 
@@ -109,7 +108,7 @@ class AccessType(Enum):
         :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
         return [AccessType.READ, AccessType.READWRITE, AccessType.INC,
-                AccessType.READINC]
+                AccessType.READINC] + AccessType.get_valid_reduction_modes()
 
     @staticmethod
     def get_valid_reduction_modes():

@@ -36,9 +36,7 @@
 
 '''This module provides a class to manage indices in variable accesses.'''
 
-from __future__ import print_function, absolute_import
-
-
+from psyclone.core.symbolic_maths import SymbolicMaths
 from psyclone.errors import InternalError
 
 
@@ -189,6 +187,34 @@ class ComponentIndices():
             unique_vars = unique_vars.intersection(set_of_vars)
             indices.append(unique_vars)
         return indices
+
+    # ------------------------------------------------------------------------
+    def equal(self, other):
+        '''Checks whether `self` has the same indices as `other`. It uses
+        symbolic maths to compare the indices.
+        returns: whether self has the same indices as other.
+        :rtype: bool
+        '''
+
+        # We need to make sure the sizes are identical, otherwise:
+        # 1.) the zip below will stop after the shortest number of elements,
+        # 2.) we wouldn't be able to distinguish between a%b(i) and a(i)%b
+
+        # Same number of components:
+        if len(self) != len(other):
+            return False
+        # Same number of dimensions for each component
+        for i in range(len(self)):
+            if len(self._component_indices[i]) != \
+                    len(other.indices_lists[i]):
+                return False
+
+        # Now the number of indices are identical, compare the actual indices:
+        sym_maths = SymbolicMaths.get()
+        for i, j in zip(self.iterate(), other.iterate()):
+            if not sym_maths.equal(self[i], other[j]):
+                return False
+        return True
 
 
 # ---------- Documentation utils -------------------------------------------- #

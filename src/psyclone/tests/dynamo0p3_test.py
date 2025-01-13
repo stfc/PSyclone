@@ -3419,8 +3419,8 @@ def test_HaloReadAccess_field_not_reader():
         _ = HaloReadAccess(argument, None)
     assert (
         "In HaloInfo class, field 'f1' should be one of ['gh_read', "
-        "'gh_readwrite', 'gh_inc', 'gh_readinc'], but found 'gh_write'"
-        in str(excinfo.value))
+        "'gh_readwrite', 'gh_inc', 'gh_readinc', 'gh_sum'], but found "
+        "'gh_write'" in str(excinfo.value))
 
 
 def test_HaloRead_inv_loop_upper(monkeypatch):

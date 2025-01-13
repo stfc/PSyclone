@@ -35,11 +35,11 @@
 
 '''This module tests the ComponentIndices class in psyclone/core.'''
 
-from __future__ import absolute_import
 import pytest
 
-from psyclone.core import ComponentIndices, VariablesAccessInfo
+from psyclone.core import ComponentIndices, Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Assignment
 
 
 def test_component_indices():
@@ -169,3 +169,93 @@ def test_get_subscripts_of(expression, correct, fortran_reader):
     access = access_info[sig][0]
     result = access.component_indices.get_subscripts_of(loop_vars)
     assert result == correct
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("index_1, index_2, result", [("i", "i", True),
+                                                      ("i", "i-1", False),
+                                                      ("i", "2*i+1-i-1", True),
+                                                      ("i", "2*i+1-i", False),
+                                                      ("i,j", "i,j", True),
+                                                      ("i,2*j-1",
+                                                       "j+2*i+1-j-1-i, 2*j-1",
+                                                       True),
+                                                      ("i,j", "j,i", False),
+                                                      ("i,j", "i", False),
+                                                      ])
+def test_component_indices_equal(index_1, index_2, result, fortran_reader):
+    '''Tests that comparing component indices works as expected, taking
+    symbolic equality into account. Also test if some accesses should
+    have different number of indices, e.g.: a(i,j) vs b(i), since the
+    component indices are independent of the symbol. In this test,
+    we use the same variable name (e.g. a(i,j) and a(i)), which is not
+    semantically correct, but it creates the right component indices
+    for this test.
+    '''
+    # Check if we need 1D or 2D arrays:
+    if "," in index_1:
+        declaration = "n,n"
+    else:
+        declaration = "n"
+    source = f'''program test
+                 use my_mod, only: my_type
+                 type(my_type) :: dv(10)
+                 integer i, j, k, l
+                 integer, parameter :: n=10
+                 real, dimension({declaration}) :: a1, a2
+                 a1({index_1}) = a2({index_2})
+                 end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    assign = psyir.walk(Assignment)
+
+    # Get all access info for the expression
+    access_info = VariablesAccessInfo(assign)
+    comp_index_1 = access_info[Signature("a1")][0].component_indices
+    comp_index_2 = access_info[Signature("a2")][0].component_indices
+    assert comp_index_1.equal(comp_index_2) == result
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("var1, var2, result", [("a(i)%b(j)",
+                                                 "a(2*i-i)%b(1+j-2+1)", True),
+                                                ("a(i)%b",
+                                                 "a(i)%b(j)", False),
+                                                ("a(i)%b",
+                                                 "a(i)%b(i, j)", False),
+                                                ("a(i)%b(i)",
+                                                 "a(i)%b(i, j)", False),
+                                                ("a(i)%b(i, j, k)",
+                                                 "a(i)%b(i, j)", False),
+                                                ("a(i)%b(i)%c",
+                                                 "a(i)%b%c(i)", False),
+                                                ("a(i)%b",
+                                                 "a(i)%b(j)%c(k)", False),
+                                                ])
+def test_component_indices_equal_derived(var1, var2, result, fortran_reader):
+    '''Tests that comparing component indices of derived types work as
+    expected. Besides using symbolic maths, it tests if different level of
+    members (a%b vs a%b%c) are used.
+    '''
+    source = f'''program test
+                 use my_mod, only: my_type
+                 type(my_type), dimension(10) :: a, b, c
+                 {var1} = {var2}
+                 end program test'''
+    psyir = fortran_reader.psyir_from_source(source)
+    assignment = psyir.walk(Assignment)[0]
+
+    # Get all access info for the expression
+    access_info_1 = VariablesAccessInfo(assignment.lhs)
+    access_info_2 = VariablesAccessInfo(assignment.rhs)
+    if var1.count("%") == 1:
+        comp_index_1 = access_info_1[Signature("a%b")][0].component_indices
+    else:
+        comp_index_1 = access_info_1[Signature("a%b%c")][0].component_indices
+    if var2.count("%") == 1:
+        comp_index_2 = access_info_2[Signature("a%b")][0].component_indices
+    else:
+        # Support the tests with a%b%c
+        comp_index_2 = access_info_2[Signature("a%b%c")][0].component_indices
+
+    assert comp_index_1.equal(comp_index_2) == result
+    assert comp_index_2.equal(comp_index_1) == result
