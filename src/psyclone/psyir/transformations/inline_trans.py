@@ -37,7 +37,7 @@
 This module contains the InlineTrans transformation.
 
 '''
-from psyclone.errors import LazyString
+from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
@@ -677,7 +677,7 @@ class InlineTrans(Transformation):
                     f"has a named argument '{arg}' (TODO #924).")
 
         parent_routine = node.ancestor(Routine)
-        table = parent_routine.symbol_table # node.scope.symbol_table
+        table = parent_routine.symbol_table  # node.scope.symbol_table
         routine_table = routine.symbol_table
 
         for sym in routine_table.datasymbols:
