@@ -226,7 +226,10 @@ class InlineTrans(Transformation):
         # the ancestor Routine. This avoids issues like #2424 when
         # applying ParallelLoopTrans to loops containing inlined calls.
         if ancestor_table is not scope.symbol_table:
-            ancestor_table.merge(scope.symbol_table)
+            try:
+                ancestor_table.merge(scope.symbol_table)
+            except SymbolError as err:
+                raise InternalError("No escape") from err
             replacement = type(scope.symbol_table)()
             scope.symbol_table.detach()
             replacement.attach(scope)
@@ -673,7 +676,8 @@ class InlineTrans(Transformation):
                     f"Routine '{routine.name}' cannot be inlined because it "
                     f"has a named argument '{arg}' (TODO #924).")
 
-        table = node.scope.symbol_table
+        parent_routine = node.ancestor(Routine)
+        table = parent_routine.symbol_table # node.scope.symbol_table
         routine_table = routine.symbol_table
 
         for sym in routine_table.datasymbols:
@@ -693,7 +697,10 @@ class InlineTrans(Transformation):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because it "
                     f"contains a Symbol '{sym.name}' with an UnknownInterface:"
-                    f" '{sym.datatype.declaration}'")
+                    f" '{sym.datatype.declaration}'. You may be able to work "
+                    f"around this limitation by adding the name of the module "
+                    f"containing this Symbol to RESOLVE_IMPORTS in the "
+                    f"transformation script.")
             # Check that there are no static variables in the routine (because
             # we don't know whether the routine is called from other places).
             if (isinstance(sym.interface, StaticInterface) and
