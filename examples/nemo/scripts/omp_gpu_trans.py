@@ -68,6 +68,7 @@ FILES_TO_SKIP = PASSTHROUGH_ISSUES + [
                     # expression required
     "sbcflx.f90",   # NEMOv4 sbc_dyc causes NVFORTRAN-S-0083-Vector expression
                     # used where scalar expression required
+    "fldread.f90",  # Wrong runtime results
 ]
 
 OFFLOADING_ISSUES = [
@@ -79,9 +80,9 @@ OFFLOADING_ISSUES = [
     "crsdom.f90",  # String comparison not allowed inside omp teams
     "zdftke.f90",  # returned error 700 (CUDA_ERROR_ILLEGAL_ADDRESS):
                    # Illegal address during kernel execution
-    "dynzdf.f90",  # returned error 700 (CUDA_ERROR_ILLEGAL_ADDRESS)
     "traatf_qco.f90",  # Runtime: Failed to find device function
     "lbclnk.f90",  # Improve performance until #2751
+    "dynzdf.f90",  # Wrong runtime results
 ]
 
 PRIVATISATION_ISSUES = [
@@ -98,6 +99,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    # import os
     # if psyir.name not in (os.environ['ONLY_FILE'], "lib_fortran.f90"):
     #     return
     omp_target_trans = OMPTargetTrans()
@@ -120,7 +122,9 @@ def trans(psyir):
         if (subroutine.name.endswith('_alloc') or
                 subroutine.name.endswith('_init') or
                 subroutine.name.startswith('Agrif') or
-                subroutine.name == 'dom_msk'):
+                subroutine.name.startswith('dia_') or
+                subroutine.name == 'dom_msk' or
+                subroutine.name == 'dom_ngb'):
             continue
 
         if PROFILING_ENABLED:

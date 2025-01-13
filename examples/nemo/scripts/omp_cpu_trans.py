@@ -63,6 +63,7 @@ if PROFILING_ENABLED:
     # Fails with profiling enabled. issue #2723
     FILES_TO_SKIP.append("mppini.f90")
 
+
 def trans(psyir):
     ''' Add OpenMP Parallel and Do directives to all loops, including the
     implicit ones.
