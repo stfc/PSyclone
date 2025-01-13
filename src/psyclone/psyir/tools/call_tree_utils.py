@@ -38,7 +38,7 @@
 across different subroutines and modules.'''
 
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.parse.module_manager import ModuleManager
+from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import Container, Reference
 from psyclone.psyir.symbols import (

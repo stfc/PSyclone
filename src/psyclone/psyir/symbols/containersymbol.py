@@ -125,10 +125,8 @@ class ContainerSymbol(Symbol):
         new_symbol.is_intrinsic = self.is_intrinsic
         return new_symbol
 
-    def find_container_psyir(
-        self, local_node=None
-    ):
-        """Searches for the Container that this Symbol refers to. If it is
+    def find_container_psyir(self, local_node=None):
+        ''' Searches for the Container that this Symbol refers to. If it is
         not available, use the interface to import the container. If
         `local_node` is supplied then the PSyIR tree below it is searched for
         the container first.
@@ -144,7 +142,7 @@ class ContainerSymbol(Symbol):
         :returns: referenced container.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
-        """
+        '''
         if not self._reference:
             # First check in the current PSyIR tree (if supplied).
             if local_node:

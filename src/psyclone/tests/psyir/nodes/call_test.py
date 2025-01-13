@@ -1245,10 +1245,12 @@ end module some_mod'''
     with pytest.raises(CallMatchingArgumentsNotFoundError) as err:
         call_foo.get_callee()
 
-    assert (
-        "Found routines, but no routine with matching arguments found"
-        in str(err.value)
-    )
+    assert ("Found routines, but no routine with matching arguments"
+            " found for 'call foo(e, f, d=g)':" in str(err.value))
+
+    print(str(err.value))
+    assert ("CallMatchingArgumentsNotFound: Named argument"
+           " 'd' not found." in str(err.value))
 
 
 def test_call_get_callee_8_arguments_not_handled(fortran_reader):
@@ -1285,10 +1287,12 @@ end module some_mod'''
     with pytest.raises(CallMatchingArgumentsNotFoundError) as err:
         call_foo.get_callee()
 
-    assert (
-        "Found routines, but no routine with matching arguments found"
-        in str(err.value)
-    )
+    assert ("CallMatchingArgumentsNotFound: Found routines, but"
+            " no routine with matching arguments found for 'call"
+            " foo(e, f)':" in str(err.value))
+
+    assert ("CallMatchingArgumentsNotFound: Argument 'c' in"
+            " subroutine 'foo' not handled." in str(err.value))
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")

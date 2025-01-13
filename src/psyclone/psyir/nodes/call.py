@@ -111,16 +111,14 @@ class Call(Statement, DataNode):
         '''
         if not isinstance(routine, (Reference, RoutineSymbol)):
             raise TypeError(
-                "The Call routine argument should be a Reference to a "
-                "RoutineSymbol or a RoutineSymbol, but "
-                f"found '{type(routine).__name__}'."
-            )
+                f"The Call routine argument should be a Reference to a "
+                f"RoutineSymbol or a RoutineSymbol, but "
+                f"found '{type(routine).__name__}'.")
 
         if not isinstance(arguments, Iterable):
             raise GenerationError(
-                "Call.create 'arguments' argument should be an Iterable but "
-                f"found '{type(arguments).__name__}'."
-            )
+                f"Call.create 'arguments' argument should be an Iterable but "
+                f"found '{type(arguments).__name__}'.")
 
         call = cls()
         if isinstance(routine, Reference):
@@ -154,17 +152,15 @@ class Call(Statement, DataNode):
             if isinstance(arg, tuple):
                 if not len(arg) == 2:
                     raise GenerationError(
-                        "If a child of the children argument in create "
-                        "method of Call class is a tuple, it's "
-                        f"length should be 2, but found {len(arg)}."
-                    )
+                        f"If a child of the children argument in create "
+                        f"method of Call class is a tuple, it's "
+                        f"length should be 2, but found {len(arg)}.")
                 if not isinstance(arg[0], str):
                     raise GenerationError(
-                        "If a child of the children argument in create "
-                        "method of Call class is a tuple, its first "
-                        "argument should be a str, but found "
-                        f"{type(arg[0]).__name__}."
-                    )
+                        f"If a child of the children argument in create "
+                        f"method of Call class is a tuple, its first "
+                        f"argument should be a str, but found "
+                        f"{type(arg[0]).__name__}.")
                 name, arg = arg
             call.append_named_arg(name, arg)
 
@@ -184,15 +180,13 @@ class Call(Statement, DataNode):
             # Avoid circular import.
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.frontend.fortran import FortranReader
-
             FortranReader.validate_name(name)
             for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
                         f"The value of the name argument ({name}) in "
-                        "'append_named_arg' in the 'Call' node is "
-                        "already used for a named argument."
-                    )
+                        f"'append_named_arg' in the 'Call' node is "
+                        f"already used for a named argument.")
         self._argument_names.append((id(arg), name))
         self.children.append(arg)
 
@@ -215,21 +209,18 @@ class Call(Statement, DataNode):
             # Avoid circular import.
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.frontend.fortran import FortranReader
-
             FortranReader.validate_name(name)
             for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
                         f"The value of the name argument ({name}) in "
-                        "'insert_named_arg' in the 'Call' node is "
-                        "already used for a named argument."
-                    )
+                        f"'insert_named_arg' in the 'Call' node is "
+                        f"already used for a named argument.")
         if not isinstance(index, int):
             raise TypeError(
-                "The 'index' argument in 'insert_named_arg' in the "
-                "'Call' node should be an int but found "
-                f"{type(index).__name__}."
-            )
+                f"The 'index' argument in 'insert_named_arg' in the "
+                f"'Call' node should be an int but found "
+                f"{type(index).__name__}.")
         self._argument_names.insert(index, (id(arg), name))
         # The n'th argument is placed at the n'th+1 children position
         # because the 1st child is the routine reference
@@ -249,10 +240,9 @@ class Call(Statement, DataNode):
         '''
         if not isinstance(existing_name, str):
             raise TypeError(
-                "The 'name' argument in 'replace_named_arg' in the "
-                "'Call' node should be a string, but found "
-                f"{type(existing_name).__name__}."
-            )
+                f"The 'name' argument in 'replace_named_arg' in the "
+                f"'Call' node should be a string, but found "
+                f"{type(existing_name).__name__}.")
         index = 0
         for _, name in self._argument_names:
             if name is not None and name.lower() == existing_name:
@@ -261,9 +251,8 @@ class Call(Statement, DataNode):
         else:
             raise ValueError(
                 f"The value of the existing_name argument ({existing_name}) "
-                "in 'replace_named_arg' in the 'Call' node was not found "
-                "in the existing arguments."
-            )
+                f"in 'replace_named_arg' in the 'Call' node was not found "
+                f"in the existing arguments.")
         # The n'th argument is placed at the n'th+1 children position
         # because the 1st child is the routine reference
         self.children[index + 1] = arg
@@ -418,10 +407,8 @@ class Call(Statement, DataNode):
         :rtype: str
 
         '''
-        return (
-            f"{self.coloured_name(colour)}"
-            f"[name='{self.routine.debug_string()}']"
-        )
+        return (f"{self.coloured_name(colour)}"
+                f"[name='{self.routine.debug_string()}']")
 
     def __str__(self):
         return self.node_str(False)
@@ -454,6 +441,9 @@ class Call(Statement, DataNode):
         '''
         Searches for the implementation(s) of all potential target routines
         for this Call without any arguments check.
+
+        Deprecation warning: This only exists for backwards compatibility
+        reason. It's recommende to directly use `CallRoutineMatcher`.
 
         :param ignore_missing_modules: If a module wasn't found, return 'None'
             instead of throwing an exception 'ModuleNotFound'.

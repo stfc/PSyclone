@@ -26,7 +26,7 @@ COV_REPORT="xml:cov.xml"
 OPTS=" --cov-report term"
 
 if [[ -e cov.xml ]]; then
-	echo "Removing previoud reporting file 'cov.xml'"
+	echo "Removing previous reporting file 'cov.xml'"
 	rm -rf cov.xml
 fi
 

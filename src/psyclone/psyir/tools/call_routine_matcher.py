@@ -34,8 +34,9 @@
 # -----------------------------------------------------------------------------
 # This file is based on gathering various components related to
 # calls and routines from across psyclone. Hence, there's no clear author.
-# Initial author of this file: M. Schreiber, University Grenoble Alpes
-# Further authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors of gathered files: R. W. Ford, A. R. Porter and
+#   S. Siso, STFC Daresbury Lab
+# Creator/partial author of this file: M. Schreiber, University Grenoble Alpes
 # -----------------------------------------------------------------------------
 
 from typing import List, Union, Set
@@ -174,7 +175,7 @@ class CallRoutineMatcher:
 
         if (isinstance(routine_arg.datatype, ArrayType) and
                 isinstance(call_arg.datatype, ArrayType)):
-            
+
             # If these are two arrays, only make sure that the types
             # match.
             if (call_arg.datatype.datatype == routine_arg.datatype.datatype):
@@ -263,7 +264,7 @@ class CallRoutineMatcher:
             else:
                 # It doesn't match => Raise exception
                 raise CallMatchingArgumentsNotFoundError(
-                    f"Named argument '{arg_name}' not found"
+                    f"Named argument '{arg_name}' not found."
                 )
 
             routine_argument_list[routine_arg_idx] = None
@@ -284,7 +285,7 @@ class CallRoutineMatcher:
 
             raise CallMatchingArgumentsNotFoundError(
                 f"Argument '{routine_arg.name}' in subroutine"
-                f" '{self._routine_node.name}' not handled"
+                f" '{self._routine_node.name}' not handled."
             )
 
         return ret_arg_idx_list
@@ -521,8 +522,9 @@ class CallRoutineMatcher:
 
         error_msg = "\n".join(err_info_list)
 
+        s = str(self._call_node.debug_string()).replace("\n", "")
         raise CallMatchingArgumentsNotFoundError(
             "Found routines, but no routine with matching arguments found "
-            f"for '{self._call_node.routine.name}':\n"
+            f"for '{s}':\n"
             + error_msg
         )
