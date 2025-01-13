@@ -1834,9 +1834,10 @@ def test_validate_unsupportedtype_argument(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(routine)
+
     assert (
-        "Found routines, but no routine with matching arguments found for"
-        " 'sub'"
+        "Transformation Error: Cannot inline routine 'sub'"
+        " because its source cannot be found:"
         in str(err.value)
     )
     assert (
@@ -2085,15 +2086,16 @@ def test_validate_wrong_number_args(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert (
-        "Found routines, but no routine with matching arguments found for"
-        " 'sub':"
-        in str(err.value)
-    )
 
     assert (
-        "More arguments in call ('call sub(i, trouble)') than callee (routine"
-        " 'sub')"
+        "Transformation Error: Cannot inline routine 'sub'"
+        " because its source cannot be found:\n"
+        "CallMatchingArgumentsNotFound: Found routines,"
+        " but no routine with matching arguments found"
+        " for 'call sub(i, trouble)':\n"
+        "CallMatchingArgumentsNotFound: More arguments"
+        " in call ('call sub(i, trouble)') than callee"
+        " (routine 'sub')"
         in str(err.value)
     )
 
@@ -2540,7 +2542,6 @@ def test_apply_optional_and_named_arg_2(fortran_reader):
 
         inline_trans.apply(call)
 
-    print(routine_main.debug_string())
     assert (
         '''var = var + 2.0 + 1.0
   var = var + 4.0 + 1.0
