@@ -34,6 +34,7 @@
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by T. Vockerodt, Met Office
+# Modified by A. Pirrie, Met Office
 
 '''A module to perform pytest tests on the code in the main.py file
 within the psyad directory.

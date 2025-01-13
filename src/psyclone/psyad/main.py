@@ -34,6 +34,7 @@
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 #             T. Vockerodt, Met Office
+# Modified by A. Pirrie, Met Office
 
 '''Top-level driver functions for PSyAD : the PSyclone Adjoint
 support. Transforms an LFRic tangent linear kernel to its adjoint.
