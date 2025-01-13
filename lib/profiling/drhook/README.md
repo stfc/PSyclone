@@ -64,10 +64,6 @@ The compilation process will create the wrapper library ``libdrhook_psy.a``.
 
 ### Linking the wrapper library
 
-In order to use the wrapper with your application, you must provide the
-location of the wrapper as an ``include`` path (so that the module file is found),
-and link first with the wrapper library, then the DrHook library:
-
 In order to use the wrapper with your application, the location of this
 library must be provided as an ``include`` path (so that the module file
 is found), and linked first with the wrapper library, ``drhook_psy``,
@@ -120,7 +116,7 @@ Profiling information for program='./profile_test.drhook', proc#1:
 
 BSD 3-Clause License
 
-Copyright (c) 2019-2024, Science and Technology Facilities Council.
+Copyright (c) 2019-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
