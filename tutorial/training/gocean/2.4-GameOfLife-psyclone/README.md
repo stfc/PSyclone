@@ -169,7 +169,7 @@ parameters in the right order).
 Now you run PSyclone to see if it correctly processes
 all your kernels. You can use the following command line:
 
-    psyclone -nodm -api gocean1.0 -oalg time_step_alg_mod.f90 \
+    psyclone -nodm --psykal-dsl gocean -oalg time_step_alg_mod.f90 \
              -opsy time_step_alg_mod_psy.f90 time_step_alg_mod.x90
 
 The flag `-nodm` disables distributes memory processing. We need

@@ -81,7 +81,7 @@ allclean: clean
 # This rule invokes the same PSyclone command, but it won't run if
 # the output file already exist, which is useful to avoid recompilation.
 main_alg_psy.f90: main_alg.x90
-	psyclone -s ./omp_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+	psyclone --psykal-dsl lfric -s ./omp_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 # For PSyclone CI:
 test: transform

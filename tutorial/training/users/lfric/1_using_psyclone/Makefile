@@ -82,7 +82,7 @@ allclean: clean
 # the output file already exist, which is useful for compilation to avoid
 # recompilation.
 main_alg_psy.f90: main_alg.x90
-	psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+	psyclone --psykal-dsl lfric -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 # For PSyclone CI:
 test: transform
