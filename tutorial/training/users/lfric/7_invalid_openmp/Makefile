@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,8 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
+include ../common.mk
+
 # The compiler to use may be specified via the F90 environment
 #
 # export F90=gfortran
@@ -58,7 +60,7 @@ F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 
 # Default target: run PSyclone (even if the output file should already exist)
 transform:
-	psyclone --psykal-dsl lfric -s ./omp_transformation.py -dm -l output \
+	$(PSYCLONE) -s ./omp_transformation.py -dm -l output \
 		     -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 compile: $(EXEC)
@@ -83,7 +85,7 @@ allclean: clean
 # This rule invokes the same PSyclone command, but it won't run if
 # the output file already exist, which is useful to avoid recompilation.
 main_alg_psy.f90: main_alg.x90 omp_transformation.py
-	psyclone -s ./omp_transformation.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+	$(PSYCLONE) -s ./omp_transformation.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 # For PSyclone CI:
 test:
