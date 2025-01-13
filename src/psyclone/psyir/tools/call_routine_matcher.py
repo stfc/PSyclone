@@ -38,7 +38,7 @@
 # Further authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-from typing import List, Union
+from typing import List, Union, Set
 from psyclone.psyir.symbols.datatypes import ArrayType, UnresolvedType
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import Call, Routine
@@ -169,14 +169,24 @@ class CallRoutineMatcher:
                     f"argument '{call_arg}' and routine argument "
                     f"'{routine_arg}'"
                 )
-        else:
-            if call_arg.datatype != routine_arg.datatype:
-                raise CallMatchingArgumentsNotFoundError(
-                    "Argument type mismatch of call argument "
-                    f"'{call_arg}' with type '{call_arg.datatype}' "
-                    "and routine argument "
-                    f"'{routine_arg}' with type '{routine_arg.datatype}'."
-                )
+
+            return True
+
+        if (isinstance(routine_arg.datatype, ArrayType) and
+                isinstance(call_arg.datatype, ArrayType)):
+            
+            # If these are two arrays, only make sure that the types
+            # match.
+            if (call_arg.datatype.datatype == routine_arg.datatype.datatype):
+                return True
+
+        if call_arg.datatype != routine_arg.datatype:
+            raise CallMatchingArgumentsNotFoundError(
+                "Argument type mismatch of call argument "
+                f"'{call_arg}' with type '{call_arg.datatype}' "
+                "and routine argument "
+                f"'{routine_arg}' with type '{routine_arg.datatype}'."
+            )
 
         return True
 
@@ -279,17 +289,12 @@ class CallRoutineMatcher:
 
         return ret_arg_idx_list
 
-    def get_callee_candidates(self, ignore_missing_modules: bool = False):
+    def get_callee_candidates(self) -> List[Routine]:
         '''
         Searches for the implementation(s) of all potential target routines
         for this Call without any arguments check.
 
-        :param ignore_missing_modules: If a module wasn't found, return 'None'
-            instead of throwing an exception 'ModuleNotFound'.
-        :type ignore_missing_modules: bool
-
         :returns: the Routine(s) that this call targets.
-        :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
 
         :raises NotImplementedError: if the routine is not local and not found
             in any containers in scope at the call site.
@@ -472,25 +477,18 @@ class CallRoutineMatcher:
             " is within a CodeBlock."
         )
 
-    def get_callee(self):
+    def get_callee(self) -> Set[Union[Routine, List[int]]]:
         '''
         Searches for the implementation(s) of the target routine for this Call
         including argument checks.
 
-        :param check_matching_arguments: Also check argument types to match.
-            If set to `False` and in case it doesn't find matching arguments,
-            the very first implementation of the matching routine will be
-            returned (even if the argument type check failed). The argument
-            types and number of arguments might therefore mismatch!
-        :type ret_arg_match_list: bool
-
         :returns: A tuple of two elements. The first element is the routine
             that this call targets. The second one a list of arguments
             providing the information on matching argument indices.
-        :rtype: Set[psyclone.psyir.nodes.Routine, List[int]]
 
-        :raises NotImplementedError: if the routine is not local and not found
-            in any containers in scope at the call site.
+        :raises CallMatchingArgumentsNotFoundError: if the routine is not local
+            and not found in any containers in scope at the call site or if
+            the arguments don't match.
         '''
 
         routine_list = self.get_callee_candidates()
