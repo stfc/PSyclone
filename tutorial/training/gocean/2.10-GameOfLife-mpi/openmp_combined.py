@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,20 +39,18 @@ function via the -s option. It adds optimised OpenMP statements.
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOKern, GOLoop
+from psyclone.psyGen import InvokeSchedule
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
 
 from fuse_loops import trans as fuse_trans
 
 
-def trans(psy):
+def trans(psyir):
     '''
-    Take the supplied psy object, and fuse the first two loops
+    Take the supplied psyir object, and fuse all loops.
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     omp_parallel = OMPParallelTrans()
@@ -60,11 +58,11 @@ def trans(psy):
     omp_do = OMPLoopTrans(omp_schedule="dynamic")
     inline = KernelModuleInlineTrans()
 
-    invoke = psy.invokes.get("invoke_compute")
-    schedule = invoke.schedule
+    # We know that there is only one schedule
+    schedule = psyir.walk(InvokeSchedule)[0]
 
     # Inline all kernels to help gfortran with inlining.
-    for kern in schedule.walk(GOKern):
+    for kern in schedule.kernels():
         inline.apply(kern)
 
     # Optional:

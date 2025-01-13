@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,42 +34,40 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel extraction code to
-all invokes.
+function via the -s option. It adds openmp for an MPI implementation.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.gocean1p0 import GOKern, GOLoop
+from psyclone.gocean1p0 import GOLoop
+from psyclone.psyGen import InvokeSchedule
 from psyclone.transformations import (OMPLoopTrans, OMPParallelLoopTrans,
                                       OMPParallelTrans,
                                       GOceanOMPParallelLoopTrans)
 
 from fuse_loops import trans as fuse_trans
 
-def trans(psy):
+
+def trans(psyir):
     '''
-    Take the supplied psy object, and fuse the first two loops
+    Take the supplied psyir object, and apply simple openmp directives.
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     omp_parallel_loop = GOceanOMPParallelLoopTrans()
-    omp_parallel = OMPParallelTrans()
-    omp_do = OMPLoopTrans()
-    inline = KernelModuleInlineTrans()
 
-    invoke = psy.invokes.get("invoke_compute")
-    schedule = invoke.schedule
+    # We know that there is only one schedule
+    schedule = psyir.walk(InvokeSchedule)[0]
 
-    # Inline all kernels to help gfortran with inlining.
-    for kern in schedule.walk(GOKern):
-        inline.apply(kern)
+    # Call the existing fuse transformation, which will also inline.
+    fuse_trans(psyir)
 
+    # As example, select schedule dynamic. Both ways work - either specify
+    # the default in the constructor above, or change the schedule
+    omp_parallel_loop.omp_schedule = "dynamic"
     for loop in schedule.walk(GOLoop):
         if loop.loop_type == "outer":
             omp_parallel_loop.apply(loop)
+
     print(schedule.view())
