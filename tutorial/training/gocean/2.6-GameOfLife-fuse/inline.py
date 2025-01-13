@@ -53,7 +53,7 @@ def trans(psyir):
 
     # TODO: Look at the schedule representation, i.e. print
     # psyir.view()
-    for kern in psyir.walk(GOKern):
+    for kern in psyir.kernels():
         # TODO: Inline all kernels to help gfortran with inlining
         # by applying the inline transformation to each kernel:
         # inline.apply(...)

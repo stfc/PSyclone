@@ -34,11 +34,10 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option.module-level inlining.
+function via the -s option. It module inlines all kernels.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.gocean1p0 import GOKern
 from psyclone.psyGen import InvokeSchedule
 
 
@@ -53,13 +52,15 @@ def trans(psyir):
     inline = KernelModuleInlineTrans()
 
     for sched in psyir.walk(InvokeSchedule):
-        print(sched.view())
+        print("invoke", sched.name)
+        for kern in sched.kernels():
+            print("  kern", kern.name)
 
     # Or to show that InvokesSchedule are Routines:
     # from psyclone.psyir.nodes import Routine
     # for subroutine in psyir.walk(Routine):
     #    print(subroutine.view())
 
-    for kern in psyir.walk(GOKern):
+    for kern in psyir.kernels():
         # Inline all kernels to help gfortran with inlining.
         inline.apply(kern)
