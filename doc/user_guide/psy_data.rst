@@ -248,7 +248,7 @@ the required variables:
 
 This will create a library called ``lib_read_only.a``.
 An executable example for using the generic read-only-verification
-library is included in ``examples/gocean/eg6/``.
+library is included in ``examples/nemo/eg6/``.
 
 .. _psydata_value_range_check:
 
