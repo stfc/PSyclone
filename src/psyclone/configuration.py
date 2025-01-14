@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council.
+# Copyright (c) 2018-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -415,6 +415,7 @@ class Config:
         - ${HOME}/.local/share/psyclone/
         - <system-install-prefix>/share/psyclone/
         - <psyclone-installation-base>/share/psyclone/
+        - <psyclone-src-base>/config/
 
         :returns: the fully-qualified path to the configuration file
         :rtype: str
@@ -449,8 +450,17 @@ class Config:
         if not within_virtual_env():
             # 4. <python-installation-base>/share/psyclone/
             _file_paths.append(share_dir)
+
         # 5. <psyclone-installation-base>/share/psyclone/
         _file_paths.extend(pkg_share_dir)
+
+        # 6. <psyclone-src-base>/config/
+        # Search for configuration file relative to this source file
+        dev_dir_tmp = os.path.dirname(__file__)
+        dev_dir_tmp = os.path.split(dev_dir_tmp)[0]  # Go down one level
+        dev_dir_tmp = os.path.split(dev_dir_tmp)[0]  # Go down another level
+        dev_path = os.path.join(dev_dir_tmp, "config")
+        _file_paths.append(dev_path)
 
         for cfile in [os.path.join(cdir, _FILE_NAME) for cdir in _file_paths]:
             if os.path.isfile(cfile):
