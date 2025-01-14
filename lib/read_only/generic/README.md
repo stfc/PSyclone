@@ -1,7 +1,7 @@
 # Read-only Verification Library for Generic Fortran Code
 
 This library implements the [PSyData API](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification-library-for-gocean)
+https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification-library-for-generic-fortran)
 to verify that variables declared read-only are not modified (overwritten) in
 a kernel.
 

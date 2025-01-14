@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Australian Bureau of Meteorology
 
+# This Makefile is for the read-only checking lib for generic Fortran code.
 
 # This Makefile picks up the compiler to use plus any flags from
 # environment variables. e.g.:
