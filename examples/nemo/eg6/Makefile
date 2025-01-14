@@ -34,10 +34,9 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified J. Henrichs, Bureau of Meteorology
 
-# Makefile for the 5th NEMO example. Uses PSyclone (which must
-# be installed) to generate Fortran for the tracer-advection benchmark.
-# The script provided here instruments code to check that read-only
-# variables are not modified.
+# This example uses PSyclone (which must be installed) to generate Fortran for
+# the tracer-advection benchmark. The script provided here instruments code to
+# check that read-only variables are not modified.
 
 # The compiler to use may be specified via the F90 environment variable,
 # it defaults to:
