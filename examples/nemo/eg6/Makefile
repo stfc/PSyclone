@@ -76,7 +76,7 @@ $(READ_ONLY_CHECK_DIR)/$(LIB_NAME):
 	make -C $(READ_ONLY_CHECK_DIR)
 
 # Compilation uses the 'kernels' transformed code
-psy.f90: kernels
+psy.f90: dummy.f90 read_only_check.py
 psy.o:  $(READ_ONLY_CHECK_DIR)/$(LIB_NAME)
 
 %.o: %.f90

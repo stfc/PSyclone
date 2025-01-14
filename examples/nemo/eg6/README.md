@@ -39,7 +39,7 @@ $ PSYDATA_VERBOSE=2 ./dummy
    3.00000000     F
 ```
 
-If you copy the lines 32 and 33 from ``dummy.f90`` into ``psy.f90``,
+If you copy the lines 30 and 31 from ``dummy.f90`` into ``psy.f90``,
 the code will modify ``logical_var`` (by using out-of-bound array accesses.
 Or you could just manually set ``logical_var = .true.``). If you then
 compile again, an error will be produced.
