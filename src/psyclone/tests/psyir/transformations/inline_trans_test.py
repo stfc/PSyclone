@@ -107,6 +107,50 @@ def test_apply_empty_routine(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
+def test_apply_argument_clash(fortran_reader, fortran_writer, tmpdir):
+    '''
+    Check that the formal arguments to the inlined routine are not included
+    when checking for clashes (since they will be replaced by the actual
+    arguments to the call).
+    '''
+
+    code_clash = """
+  subroutine sub(Istr)
+    integer :: Istr
+    real :: x
+    x = 2.0*x
+    call sub_sub(Istr)
+  end subroutine sub
+
+  subroutine sub_sub(Istr)
+    integer :: i
+    integer :: Istr
+    real :: b(10)
+
+    b(Istr:10) = 1.0
+  end subroutine sub_sub"""
+
+    psyir = fortran_reader.psyir_from_source(code_clash)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    expected = '''\
+subroutine sub(istr)
+  integer :: istr
+  real :: x
+  integer :: i
+  real, dimension(10) :: b
+
+  x = 2.0 * x
+  b(istr:) = 1.0
+
+end subroutine sub
+'''
+    output = fortran_writer(psyir)
+    assert expected in output
+    assert Compile(tmpdir).string_compiles(output)
+
+
 def test_apply_empty_routine_coverage_option_check_strict_array_datatype(
             fortran_reader, fortran_writer, tmpdir):
     '''For coverage of particular branch in `inline_trans.py`.'''
@@ -2444,53 +2488,6 @@ def test_apply_unsupported_pointer_error(fortran_reader):
             " 'REAL, INTENT(INOUT), POINTER :: x'." in str(einfo.value))
 
 
-def test_apply_optional_and_named_arg(fortran_reader):
-    '''Test that the validate method inlines a routine
-    that has an optional argument.'''
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "subroutine main\n"
-        "  real :: var = 0.0\n"
-        "  call sub(var, named=1.0)\n"
-        "  ! Result:\n"
-        "  ! var = var + 1.0 + 1.0\n"
-        "  call sub(var, 2.0, named=1.0)\n"
-        "  ! Result:\n"
-        "  ! var = var + 2.0\n"
-        "  ! var = var + 1.0 + 1.0\n"
-        "end subroutine main\n"
-        "subroutine sub(x, opt, named)\n"
-        "  real, intent(inout) :: x\n"
-        "  real, optional :: opt\n"
-        "  real :: named\n"
-        "  if( present(opt) )then\n"
-        "    x = x + opt\n"
-        "  end if\n"
-        "  x = x + 1.0 + named\n"
-        "end subroutine sub\n"
-        "end module test_mod\n"
-    )
-    psyir: Node = fortran_reader.psyir_from_source(code)
-
-    inline_trans = InlineTrans()
-
-    routine_main: Routine = psyir.walk(Routine)[0]
-    assert routine_main.name == "main"
-    for call in psyir.walk(Call, stop_type=Call):
-        call: Call
-        if call.routine.name != "sub":
-            continue
-
-        inline_trans.apply(call)
-
-    assert (
-        '''var = var + 1.0 + 1.0
-  var = var + 2.0
-  var = var + 1.0 + 1.0'''
-        in routine_main.debug_string()
-    )
-
 
 def test_apply_optional_and_named_arg_2(fortran_reader):
     '''Test that the validate method inlines a routine
@@ -2604,46 +2601,3 @@ def test_apply_merges_symbol_table_with_routine(fortran_reader):
     # The i_1 symbol is the renamed i from the inlined call.
     assert psyir.walk(Routine)[0].symbol_table.get_symbols()['i_1'] is not None
 
-
-def test_apply_argument_clash(fortran_reader, fortran_writer, tmpdir):
-    '''
-    Check that the formal arguments to the inlined routine are not included
-    when checking for clashes (since they will be replaced by the actual
-    arguments to the call).
-    '''
-
-    code_clash = """
-  subroutine sub(Istr)
-    integer :: Istr
-    real :: x
-    x = 2.0*x
-    call sub_sub(Istr)
-  end subroutine sub
-
-  subroutine sub_sub(Istr)
-    integer :: i
-    integer :: Istr
-    real :: b(10)
-
-    b(Istr:10) = 1.0
-  end subroutine sub_sub"""
-
-    psyir = fortran_reader.psyir_from_source(code_clash)
-    call = psyir.walk(Call)[0]
-    inline_trans = InlineTrans()
-    inline_trans.apply(call)
-    expected = '''\
-subroutine sub(istr)
-  integer :: istr
-  real :: x
-  integer :: i
-  real, dimension(10) :: b
-
-  x = 2.0 * x
-  b(istr:) = 1.0
-
-end subroutine sub
-'''
-    output = fortran_writer(psyir)
-    assert expected in output
-    assert Compile(tmpdir).string_compiles(output)
