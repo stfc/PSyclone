@@ -243,20 +243,21 @@ class ScalarizationTrans(LoopTrans):
         return True
 
     def apply(self, node, options=None):
-        '''Apply the scalarization transformation to a loop.
+        '''
+        Apply the scalarization transformation to a loop.
         All of the array accesses that are identified as being able to be
         scalarized will be transformed by this transformation.
 
         An array access will be scalarized if:
         1. All accesses to the array use the same indexing statement.
         2. All References contained in the indexing statement are not modified
-           inside of the loop (loop variables are ok).
+        inside of the loop (loop variables are ok).
         3. The array symbol is either not accessed again or is written to
-           as its next access. If the next access is inside a conditional
-           that is not an ancestor of the input loop, then PSyclone will
-           assume that we cannot scalarize that value instead of attempting to
-           understand the control flow.
-        4. TODO - The array symbol is a local variable.
+        as its next access. If the next access is inside a conditional
+        that is not an ancestor of the input loop, then PSyclone will
+        assume that we cannot scalarize that value instead of attempting to
+        understand the control flow.
+        4. The array symbol is a local variable.
 
         :param node: the supplied loop to apply scalarization to.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
