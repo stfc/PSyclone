@@ -39,10 +39,11 @@ $ PSYDATA_VERBOSE=2 ./dummy
    3.00000000     F
 ```
 
-If you copy the lines 30 and 31 from ``dummy.f90`` into ``psy.f90``,
+If you copy the lines 68 and 69 from ``dummy.f90`` into ``psy.f90``,
 the code will modify ``logical_var`` (by using out-of-bound array accesses.
 Or you could just manually set ``logical_var = .true.``). If you then
-compile again, an error will be produced.
+compile again (using `make compile`, otherwise the original file would
+get processed again, overwriting your changes), an error will be produced.
 
 ```sh
 $ ./dummy 
@@ -54,10 +55,11 @@ $ ./dummy
    3.00000000     T
 ```
 
-Note that adding the assignment to ``logical_var`` as above to ``dummy.f90``
-would mean that ``logical_var`` is not a read-only variable anymore, so no
-error will be produced. The code commented out can also not be processed
-by PSyclone (missing support for ``loc`` and ``sizeof``).
+Note that adding the assignment to ``logical_var`` as above to the original
+``dummy.f90`` file would mean that ``logical_var`` is not a read-only variable
+anymore, so no test and therefore no error will be produced for this variable.
+The code commented out can also not be processed by PSyclone (missing support
+for ``loc`` and ``sizeof``, which are non-standard Fortran extensions).
 
 ## Licence
 
