@@ -31,7 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: Martin Schreiber, Univ. Grenoble Alpes / LJK / Inria
+# This file is based on gathering various components related to
+# calls and routines from across psyclone. Hence, there's no clear author.
+# Authors of gathered files: R. W. Ford, A. R. Porter and
+#   S. Siso, STFC Daresbury Lab
+# Author: M. Schreiber, Univ. Grenoble Alpes / LJK / Inria
 # -----------------------------------------------------------------------------
 
 
