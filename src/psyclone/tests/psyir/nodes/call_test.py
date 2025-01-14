@@ -57,8 +57,7 @@ from psyclone.psyir.symbols import (
     DataSymbol,
     NoType,
     RoutineSymbol,
-    REAL_TYPE,
-    SymbolError
+    REAL_TYPE
 )
 
 from psyclone.psyir.tools.call_routine_matcher import (

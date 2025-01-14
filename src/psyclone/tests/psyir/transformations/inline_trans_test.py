@@ -151,7 +151,6 @@ end subroutine sub
     assert Compile(tmpdir).string_compiles(output)
 
 
-
 def test_apply_single_return(fortran_reader, fortran_writer, tmpdir):
     '''Check that a call to a routine containing only a return statement
     is removed. '''
@@ -309,7 +308,6 @@ def test_apply_array_access(fortran_reader, fortran_writer, tmpdir):
             "        a(i_1) = 2.0 * i\n"
             "      enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
-
 
 
 def test_apply_gocean_kern(fortran_reader, fortran_writer, monkeypatch):
@@ -2424,7 +2422,6 @@ def test_apply_unsupported_pointer_error(fortran_reader):
             " 'REAL, INTENT(INOUT), POINTER :: x'." in str(einfo.value))
 
 
-
 def test_apply_optional_and_named_arg_2(fortran_reader):
     '''Test that the validate method inlines a routine
     that has an optional argument.'''
@@ -2536,4 +2533,3 @@ def test_apply_merges_symbol_table_with_routine(fortran_reader):
     inline_trans.apply(routine)
     # The i_1 symbol is the renamed i from the inlined call.
     assert psyir.walk(Routine)[0].symbol_table.get_symbols()['i_1'] is not None
-

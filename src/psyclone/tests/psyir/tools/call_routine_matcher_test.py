@@ -35,7 +35,6 @@
 # -----------------------------------------------------------------------------
 
 
-from psyclone.psyir.symbols.datatypes import ArrayType, UnresolvedType
 import os
 import pytest
 from psyclone.configuration import Config
