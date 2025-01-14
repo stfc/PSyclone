@@ -491,11 +491,12 @@ def test_validate_array_of_struct(fortran_reader):
     psyir = fortran_reader.psyir_from_source(
         '''
    module lbcnfd
+     use lib_mpp
    contains
    SUBROUTINE lbc_nfd_dp( ptab, cd_nat, psgn, kfld )
       TYPE(PTR_4d_dp),  DIMENSION(:), INTENT(inout) ::   ptab
       CHARACTER(len=1), DIMENSION(:), INTENT(in   ) ::   cd_nat
-      REAL(dp),  DIMENSION(:), INTENT(in   ) ::   psgn 
+      REAL(dp),  DIMENSION(:), INTENT(in   ) ::   psgn
       INTEGER                       , INTENT(in   ) ::   kfld
       integer :: jf
       integer :: ij1, ipi, ipj, ipk, ipl, ihls
