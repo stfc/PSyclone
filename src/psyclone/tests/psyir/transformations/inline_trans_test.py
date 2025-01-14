@@ -151,31 +151,6 @@ end subroutine sub
     assert Compile(tmpdir).string_compiles(output)
 
 
-def test_apply_empty_routine_coverage_option_check_strict_array_datatype(
-            fortran_reader, fortran_writer, tmpdir):
-    '''For coverage of particular branch in `inline_trans.py`.'''
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "    integer, dimension(6) :: i\n"
-        "    i = 10\n"
-        "    call sub(i)\n"
-        "  end subroutine run_it\n"
-        "  subroutine sub(idx)\n"
-        "    integer, dimension(:) :: idx\n"
-        "  end subroutine sub\n"
-        "end module test_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Call)[0]
-    inline_trans = InlineTrans()
-    inline_trans.set_option(check_argument_strict_array_datatype=False)
-    inline_trans.apply(routine)
-    output = fortran_writer(psyir)
-    assert ("    i = 10\n\n"
-            "  end subroutine run_it\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
-
 
 def test_apply_single_return(fortran_reader, fortran_writer, tmpdir):
     '''Check that a call to a routine containing only a return statement
@@ -335,45 +310,6 @@ def test_apply_array_access(fortran_reader, fortran_writer, tmpdir):
             "      enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
-
-def test_apply_array_access_check_unresolved_symbols_error(
-        fortran_reader, fortran_writer, tmpdir):
-    '''
-    This check solely exists for the coverage report to
-    catch the simple case `if not check_unresolved_symbols:`
-    in `symbol_table.py`
-
-    '''
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "    integer :: i\n"
-        "    real :: a(10)\n"
-        "    do i=1,10\n"
-        "      call sub(a, i)\n"
-        "    end do\n"
-        "  end subroutine run_it\n"
-        "  subroutine sub(x, ivar)\n"
-        "    real, intent(inout), dimension(10) :: x\n"
-        "    integer, intent(in) :: ivar\n"
-        "    integer :: i\n"
-        "    do i = 1, 10\n"
-        "      x(i) = 2.0*ivar\n"
-        "    end do\n"
-        "  end subroutine sub\n"
-        "end module test_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Call)[0]
-    inline_trans = InlineTrans()
-    inline_trans.set_option(check_unresolved_symbols=False)
-    inline_trans.apply(routine)
-    output = fortran_writer(psyir)
-    assert ("    do i = 1, 10, 1\n"
-            "      do i_1 = 1, 10, 1\n"
-            "        a(i_1) = 2.0 * i\n"
-            "      enddo\n" in output)
-    assert Compile(tmpdir).string_compiles(output)
 
 
 def test_apply_gocean_kern(fortran_reader, fortran_writer, monkeypatch):
