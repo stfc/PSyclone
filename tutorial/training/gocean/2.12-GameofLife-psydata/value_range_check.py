@@ -34,7 +34,7 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds Value Range verification for all
+function via the -s option. It adds value range verification for all
 kernels.
 '''
 
@@ -42,22 +42,19 @@ from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.transformations import ValueRangeCheck
 
 
-def trans(psy):
+def trans(psyir):
     '''
-    Take the supplied psy object, and fuse the first two loops
+    Take the supplied psy object, and apply 'omp parallel do' to all loops.
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     value_range_check = ValueRangeCheck()
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
+    for loop in psyir.walk(GOLoop):
         # Apply nan-testing to all loops that are outer loops:
+        if loop.type ...
         ...
 
     return psy

@@ -1,5 +1,5 @@
 EXE = gol.value_range_check
-API = gocean1.0
+API = gocean
 
 # We need to compile and link the PSyData libraries:
 PSY_DATA_DIR = $(ROOT_DIR)/lib/value_range_check/dl_esm_inf
