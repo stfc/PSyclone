@@ -133,10 +133,15 @@ class InlineTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
         :param bool options["force"]: whether or not to permit the inlining
             of Routines containing CodeBlocks. Default is False.
+
+        :raises InternalError: if the merge of the symbol tables fails.
+            In theory this should never happen because validate() should
+            catch such a situation.
+
         '''
         self.validate(node, options)
         # The table associated with the scoping region holding the Call.
-        table = node.scope.symbol_table
+        table = node.ancestor(Routine).symbol_table
         # Find the routine to be inlined.
         orig_routine = node.get_callees()[0]
 
@@ -161,8 +166,14 @@ class InlineTrans(Transformation):
 
         # Shallow copy the symbols from the routine into the table at the
         # call site.
-        table.merge(routine_table,
-                    symbols_to_skip=routine_table.argument_list[:])
+        try:
+            table.merge(routine_table,
+                        symbols_to_skip=routine_table.argument_list[:])
+        except SymbolError as err:
+            raise InternalError(
+                f"Error copying routine symbols to call site. This should "
+                f"have been caught by the validate() method. Original error "
+                f"was {err}")
 
         # When constructing new references to replace references to formal
         # args, we need to know whether any of the actual arguments are array
@@ -183,11 +194,6 @@ class InlineTrans(Transformation):
         formal_args = routine_table.argument_list
         for ref in refs[:]:
             self._replace_formal_arg(ref, node, formal_args)
-
-        # Store the Routine level symbol table and node's current scope
-        # so we can merge symbol tables later if required.
-        ancestor_table = node.ancestor(Routine).scope.symbol_table
-        scope = node.scope
 
         # Copy the nodes from the Routine into the call site.
         # TODO #924 - while doing this we should ensure that any References
@@ -220,19 +226,6 @@ class InlineTrans(Transformation):
             for child in new_stmts[1:]:
                 idx += 1
                 parent.addchild(child, idx)
-
-        # If the scope we merged the inlined function's symbol table into
-        # is not a Routine scope then we now merge that symbol table into
-        # the ancestor Routine. This avoids issues like #2424 when
-        # applying ParallelLoopTrans to loops containing inlined calls.
-        if ancestor_table is not scope.symbol_table:
-            try:
-                ancestor_table.merge(scope.symbol_table)
-            except SymbolError as err:
-                raise InternalError("No escape") from err
-            replacement = type(scope.symbol_table)()
-            scope.symbol_table.detach()
-            replacement.attach(scope)
 
     def _replace_formal_arg(self, ref, call_node, formal_args):
         '''
@@ -602,6 +595,7 @@ class InlineTrans(Transformation):
             and the 'force' option is not True.
         :raises TransformationError: if the called routine has a named
             argument.
+        :raises TransformationError: if the call-site is not within a Routine.
         :raises TransformationError: if any of the variables declared within
             the called routine are of UnknownInterface.
         :raises TransformationError: if any of the variables declared within
@@ -636,6 +630,13 @@ class InlineTrans(Transformation):
                 f"Cannot inline an IntrinsicCall ('{node.routine.name}')")
         name = node.routine.name
 
+        # The call site must be within a Routine (i.e. not detached)
+        parent_routine = node.ancestor(Routine)
+        if not parent_routine:
+            raise TransformationError(
+                f"Routine '{name}' cannot be inlined because the call site "
+                f"('{node.debug_string().strip()}') is not inside a Routine.")
+
         # Check that we can find the source of the routine being inlined.
         # TODO #924 allow for multiple routines (interfaces).
         try:
@@ -664,8 +665,8 @@ class InlineTrans(Transformation):
             # CodeBlocks to be included.
             raise TransformationError(
                 f"Routine '{name}' contains one or more CodeBlocks and "
-                "therefore cannot be inlined. (If you are confident that "
-                "the code may safely be inlined despite this then use "
+                f"therefore cannot be inlined. (If you are confident that "
+                f"the code may safely be inlined despite this then use "
                 "`options={'force': True}` to override.)")
 
         # Support for routines with named arguments is not yet implemented.
@@ -676,8 +677,7 @@ class InlineTrans(Transformation):
                     f"Routine '{routine.name}' cannot be inlined because it "
                     f"has a named argument '{arg}' (TODO #924).")
 
-        parent_routine = node.ancestor(Routine)
-        table = parent_routine.symbol_table  # node.scope.symbol_table
+        table = parent_routine.symbol_table
         routine_table = routine.symbol_table
 
         for sym in routine_table.datasymbols:

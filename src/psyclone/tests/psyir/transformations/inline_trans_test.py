@@ -41,6 +41,7 @@ import os
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine, Loop
 from psyclone.psyir.symbols import (
     AutomaticInterface, DataSymbol, UnresolvedType)
@@ -1271,6 +1272,36 @@ def test_apply_callsite_rename_container(fortran_reader, fortran_writer):
             "    i = i * a_mod_1\n" in output)
 
 
+def test_apply_internal_error(fortran_reader, monkeypatch):
+    '''
+    Test that we raise the expected error in apply if we find a situation that
+    should have been caught by validate.
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    use some_mod, only: a_clash\n"
+        "    integer :: i\n"
+        "    i = 10\n"
+        "    call sub(i)\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(idx)\n"
+        "    use other_mod, only: a_clash\n"
+        "    integer :: idx\n"
+        "    idx = idx + trouble\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    monkeypatch.setattr(inline_trans, "validate", lambda _a, _b: None)
+    with pytest.raises(InternalError) as err:
+        inline_trans.apply(call)
+    assert ("Error copying routine symbols to call site. This should have "
+            "been caught" in str(err.value))
+
+
 def test_validate_non_local_import(fortran_reader):
     '''Test that we reject the case where the routine to be
     inlined accesses a symbol from an import in its parent container.'''
@@ -2164,7 +2195,22 @@ SUB_IN_MODULE = (
     f"end module inline_mod\n")
 
 
-def test_apply_merges_symbol_table_with_routine(fortran_reader):
+def test_validate_call_within_routine(fortran_reader):
+    '''
+    Check that validate raises the expected error if the call is not within
+    a Routine.
+    '''
+    psyir = fortran_reader.psyir_from_source(CALL_IN_SUB_USE)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call.detach())
+    assert ("Routine 'sub' cannot be inlined because the call site ('call "
+            "sub(a)') is not inside a Routine" in str(err.value))
+
+
+def test_apply_merges_symbol_table_with_routine(fortran_reader,
+                                                fortran_writer):
     '''
     Check that the apply method merges the inlined function's symbol table to
     the containing Routine when the call node is inside a child ScopingNode.
