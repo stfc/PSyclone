@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -920,6 +920,17 @@ def test_structure_type():
     assert ("The initial value of a component of a StructureType must be "
             "None or an instance of 'DataNode', but got 'str'."
             in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add("hello", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None,
+                  preceding_comment=None)
+    assert ("The preceding_comment of a component of a StructureType "
+            "must be a 'str' but got 'NoneType'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add("hello", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None,
+                  inline_comment=None)
+    assert ("The inline_comment of a component of a StructureType "
+            "must be a 'str' but got 'NoneType'" in str(err.value))
+
     with pytest.raises(KeyError):
         stype.lookup("missing")
     # Cannot have a recursive type definition
@@ -954,9 +965,10 @@ def test_create_structuretype():
         StructureType.create([
             ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
             ("george", Symbol.Visibility.PRIVATE)])
-    assert ("Each component must be specified using a 4-tuple of (name, "
-            "type, visibility, initial_value) but found a tuple with 2 "
-            "members: ('george', " in str(err.value))
+    assert ("Each component must be specified using a 4 to 6-tuple of (name, "
+            "type, visibility, initial_value, preceding_comment, "
+            "inline_comment) but found a tuple with 2 members: ('george', "
+            in str(err.value))
 
 
 def test_structuretype_eq():
@@ -1017,3 +1029,50 @@ def test_structuretype_replace_symbols():
     table.add(newtsymbol)
     stype.replace_symbols_using(table)
     assert stype.components["barry"].datatype is newtsymbol
+
+
+def test_structuretype_componenttype_eq():
+    '''Test that the equality operator of StructureType.ComponentType does
+    not take the preceding_comment and inline_comment into account.
+    '''
+    comp1 = StructureType.ComponentType("fred", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None)
+    comp2 = StructureType.ComponentType("fred", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None)
+    assert comp1 == comp2
+
+    comp1 = StructureType.ComponentType("fred", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None)
+    object.__setattr__(comp1, "_preceding_comment", "A comment")
+    comp2 = StructureType.ComponentType("fred", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None)
+    object.__setattr__(comp2, "_preceding_comment", "Another comment")
+    assert comp1 == comp2
+
+    comp1 = StructureType.ComponentType("fred", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None)
+    object.__setattr__(comp1, "_inline_comment", "A comment")
+    comp2 = StructureType.ComponentType("fred", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None)
+    object.__setattr__(comp2, "_inline_comment", "Another comment")
+    assert comp1 == comp2
+
+    comp1 = StructureType.ComponentType("fred", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None)
+    comp2 = StructureType.ComponentType("george", INTEGER_TYPE,
+                                        Symbol.Visibility.PUBLIC, None)
+    assert comp1 != comp2
+
+
+def test_structuretype___copy__():
+    '''Test the __copy__ method of StructureType.'''
+    stype = StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE))])
+    copied = stype.__copy__()
+    assert copied == stype
+    assert copied is not stype
+    # The components should be the same objects
+    assert copied.components["nancy"] == stype.components["nancy"]
+    assert copied.components["peggy"] == stype.components["peggy"]

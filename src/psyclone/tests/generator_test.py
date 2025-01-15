@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -909,6 +909,70 @@ def trans(psyir):
     output, _ = capsys.readouterr()
     assert ("funny_syntax.f90' skipped because it is listed in FILES_TO_SKIP."
             in output)
+
+
+@pytest.mark.parametrize(
+         "idx, value, output",
+         [("0", "False", "result = a + b"),
+          ("1", "True", "result = 1 + 1"),
+          ("2", "[\"module1\"]", "result = 1 + b"),
+          ("3", "[\"module2\"]", "result = a + 1"),
+          # Now change both with case insensitive names
+          ("4", "[\"mOdule1\",\"moduLe2\"]", "result = 1 + 1")])
+def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
+                                             idx, value, output):
+    ''' Test that applying recipes in the code-transformation mode follows the
+    selected list of module names when generating the tree. '''
+
+    module1 = '''
+        module module1
+            integer :: a
+        end module module1
+    '''
+    module2 = '''
+        module module2
+            integer :: b
+        end module module2
+    '''
+    code = '''
+        module test
+            use module1
+            use module2
+            real :: result
+        contains
+            subroutine mytest()
+                result = a + b
+            end subroutine mytest
+        end module test
+    '''
+    recipe = f'''
+from psyclone.psyir.nodes import Reference, Literal
+from psyclone.psyir.symbols import INTEGER_TYPE
+
+RESOLVE_IMPORTS = {value}
+
+def trans(psyir):
+    # Replace all integer references with literal '1', it can only be done if
+    # we have the type of the symbol (resolved from the module).
+    for ref in psyir.walk(Reference):
+        if ref.datatype == INTEGER_TYPE:
+            ref.replace_with(Literal("1", INTEGER_TYPE))
+    '''
+    recipe_name = f"replace_integers_{idx}.py"
+    for filename, content in [("module1.f90", module1),
+                              ("module2.f90", module2),
+                              ("code.f90", code),
+                              (recipe_name, recipe)]:
+        with open(tmpdir.join(filename), "w", encoding='utf-8') as my_file:
+            my_file.write(content)
+
+    # Execute the recipe (no -I needed as we have everything at the same place)
+    monkeypatch.chdir(tmpdir)
+    main(["code.f90", "-s", recipe_name])
+    captured = capsys.readouterr()
+
+    # Compare the generated output to the parametrised expected output
+    assert output in str(captured), str(captured)
 
 
 def test_code_transformation_trans(tmpdir):

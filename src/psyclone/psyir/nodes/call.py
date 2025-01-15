@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -766,7 +766,6 @@ class Call(Statement, DataNode):
         '''
 
         routine_list = self.get_callees()
-        assert len(routine_list) != 0
 
         err_info_list = []
 
