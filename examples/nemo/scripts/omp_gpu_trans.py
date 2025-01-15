@@ -61,6 +61,7 @@ FILES_TO_SKIP = PASSTHROUGH_ISSUES + [
     "sbcflx.f90",  # NEMOv4 sbc_dyc causes NVFORTRAN-S-0083-Vector expression
                     # used where scalar expression required
     "fldread.f90",  # Wrong runtime results
+    "zdftke.f90",  # Wrong results
     "zdfddm.f90",  # Wrong results
     "zdfiwm.f90",  # Wrong results
     "geo2ocean.f90",  # Wrong results
