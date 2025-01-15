@@ -56,19 +56,29 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = PASSTHROUGH_ISSUES + [
+    "lib_mpp.f90",  # Compiler error: Illegal substring expression
+    "sbcblk.f90",   # Compiler error: Vector expression used where scalar
+                    # expression required
+    "sbcflx.f90",  # NEMOv4 sbc_dyc causes NVFORTRAN-S-0083-Vector expression
+                    # used where scalar expression required
+    "fldread.f90",  # Wrong runtime results
+    "zdfddm.f90",  # Wrong results
+    "zdfiwm.f90",  # Wrong results
+    "geo2ocean.f90",  # Wrong results
+]
+
+SKIP_FOR_PERFORMANCE = [
+    # Check if these work with NEMOv4
     "iom.f90",
     "iom_nf90.f90",
     "iom_def.f90",
-    "timing.f90",   # Compiler error: Subscript, substring, or argument illegal
-    "lbcnfd.f90",   # Illegal address during kernel execution
-                    # - line 1012: lbc_nfd_dp
-    "lib_mpp.f90",  # Compiler error: Illegal substring expression
-    "prtctl.f90",   # Compiler error: Illegal substring expression
-    "sbcblk.f90",   # Compiler error: Vector expression used where scalar
-                    # expression required
-    "sbcflx.f90",   # NEMOv4 sbc_dyc causes NVFORTRAN-S-0083-Vector expression
-                    # used where scalar expression required
-    "fldread.f90",  # Wrong runtime results
+    "timing.f90",
+    "prtctl.f90",
+]
+
+DONT_HOIST = [
+    # Incorrect hoisting
+    "lbcnfd.f90",
 ]
 
 OFFLOADING_ISSUES = [
@@ -83,6 +93,8 @@ OFFLOADING_ISSUES = [
     "traatf_qco.f90",  # Runtime: Failed to find device function
     "lbclnk.f90",  # Improve performance until #2751
     "dynzdf.f90",  # Wrong runtime results
+    "traqsr.f90",
+    "ldftra.f90",  # Wrong runtime results
 ]
 
 PRIVATISATION_ISSUES = [
@@ -112,6 +124,9 @@ def trans(psyir):
     if psyir.name.startswith("obs_"):
         return
 
+    if psyir.name in SKIP_FOR_PERFORMANCE:
+        return
+
     # ICE routines do not perform well on GPU, so we skip them
     if psyir.name.startswith("ice"):
         return
@@ -124,11 +139,9 @@ def trans(psyir):
                 subroutine.name.startswith('Agrif') or
                 subroutine.name.startswith('dia_') or
                 subroutine.name == 'dom_msk' or
+                subroutine.name == 'dom_zgr' or
                 subroutine.name == 'dom_ngb'):
             continue
-
-        if PROFILING_ENABLED:
-            add_profiling(subroutine.children)
 
         print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
 
@@ -140,28 +153,27 @@ def trans(psyir):
                 convert_array_notation=True,
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
-                hoist_expressions=True
+                hoist_expressions=(psyir.name not in DONT_HOIST)
         )
 
-        if (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop)) or \
-                psyir.name == "solfrac_mod.f90":
+        # These are functions that are called from inside parallel regions,
+        # annotate them with 'omp declare target'
+        if (
+            subroutine.name.lower().startswith("sign_") or
+            subroutine.name.lower() == "solfrac" or
+            (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
+        ):
             try:
-                # We need the 'force' option.
-                # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
-                # array notation. (TODO #717)
-                OMPDeclareTargetTrans().apply(subroutine,
-                                              options={"force": True})
+                OMPDeclareTargetTrans().apply(subroutine)
+                print(f"Marked {subroutine.name} as GPU-enabled")
             except TransformationError as err:
                 print(err)
-
-        # Thes are functions that are called from inside parallel regions,
-        # annotate them with 'omp declare target'
-        if subroutine.name.lower().startswith("sign_"):
-            OMPDeclareTargetTrans().apply(subroutine)
-            print(f"Marked {subroutine.name} as GPU-enabled")
             # We continue parallelising inside the routine, but this could
             # change if the parallelisation directives added below are not
             # nestable, in that case we could add a 'continue' here
+        elif PROFILING_ENABLED:
+            # We annotate the rest with profiling hooks if requested
+            add_profiling(subroutine.children)
 
         # For now this is a special case for stpctl.f90 because it forces
         # loops to parallelise without many safety checks

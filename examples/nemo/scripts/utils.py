@@ -69,7 +69,7 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm",
                     # prevents from being in-lined (and then breaks any attempt
                     # to create OpenACC regions with calls to them)
                     "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
-                    "sum", "sign_", "ddpdd", "psyclone_cmp_int",
+                    "sum", "sign_", "ddpdd", "solfrac", "psyclone_cmp_int",
                     "psyclone_cmp_char", "psyclone_cmp_logical"]
 
 # Currently fparser has no way of distinguishing array accesses from
