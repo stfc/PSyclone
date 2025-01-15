@@ -800,6 +800,7 @@ class IntrinsicCall(Call):
             # The one below are not documented on nvidia compiler
             IntrinsicCall.Intrinsic.PRODUCT, IntrinsicCall.Intrinsic.SIZE,
             IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
+            IntrinsicCall.Intrinsic.MERGE,
             IntrinsicCall.Intrinsic.UBOUND)
 
     @classmethod
