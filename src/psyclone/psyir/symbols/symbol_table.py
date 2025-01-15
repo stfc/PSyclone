@@ -1625,6 +1625,11 @@ class SymbolTable():
                 # TODO #11: It would be useful to log this.
                 continue
 
+            if not external_container:
+                # Failed to get a Container (possibly due to parsing or raising
+                # errors).
+                continue
+
             # Examine all Symbols defined within this external container
             for symbol in external_container.symbol_table.symbols:
                 if symbol.visibility == Symbol.Visibility.PRIVATE:

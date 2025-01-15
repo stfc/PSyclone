@@ -212,7 +212,6 @@ class InlineTrans(Transformation):
             for child in new_stmts:
                 idx += 1
                 parent.addchild(child, idx)
-            table = parent.scope.symbol_table
             # Avoid a potential name clash with the original function
             table.rename_symbol(
                 routine.return_symbol, table.next_available_name(
