@@ -56,7 +56,6 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = PASSTHROUGH_ISSUES + [
-    "lib_mpp.f90",  # Compiler error: Illegal substring expression
     "sbcblk.f90",   # Compiler error: Vector expression used where scalar
                     # expression required
     "sbcflx.f90",  # NEMOv4 sbc_dyc causes NVFORTRAN-S-0083-Vector expression
