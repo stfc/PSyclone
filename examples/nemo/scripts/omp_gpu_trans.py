@@ -85,8 +85,6 @@ DONT_HOIST = [
 OFFLOADING_ISSUES = [
     "trcrad.f90",  # Illegal address during kernel execution, unless the
                    # dimensions are small
-    "zdftke.f90",  # returned error 700 (CUDA_ERROR_ILLEGAL_ADDRESS):
-                   # Illegal address during kernel execution
     "traatf_qco.f90",  # Runtime: Failed to find device function
     "lbclnk.f90",  # Improve performance until #2751
     "dynzdf.f90",  # Wrong runtime results
