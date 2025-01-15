@@ -1583,12 +1583,12 @@ class SymbolTable():
         :type symbol_target: Optional[
             :py:class:`psyclone.psyir.symbols.Symbol`]
 
-        :raises SymbolError: if a symbol name clash is found between multiple \
+        :raises SymbolError: if a symbol name clash is found between multiple
             imports or an import and a local symbol.
-        :raises TypeError: if the provided container_symbols is not a list of \
+        :raises TypeError: if the provided container_symbols is not a list of
             ContainerSymbols.
         :raises TypeError: if the provided symbol_target is not a Symbol.
-        :raises KeyError: if a symbol_target has been specified but this has \
+        :raises KeyError: if a symbol_target has been specified but this has
             not been found in any of the searched containers.
 
         '''
@@ -1617,7 +1617,7 @@ class SymbolTable():
             try:
                 external_container = c_symbol.find_container_psyir(
                     local_node=self.node)
-            # pylint: disable=broad-except
+            # pylint: disable-next=broad-except
             except Exception:
                 # Ignore this container if the associated module file has not
                 # been found in the given include_path or any issue has arisen
