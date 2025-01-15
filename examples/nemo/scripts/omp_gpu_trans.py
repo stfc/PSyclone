@@ -65,6 +65,7 @@ FILES_TO_SKIP = PASSTHROUGH_ISSUES + [
     "zdfddm.f90",  # Wrong results
     "zdfiwm.f90",  # Wrong results
     "geo2ocean.f90",  # Wrong results
+    "zdfswm.f90", # fort2 terminated by signal 11
 ]
 
 SKIP_FOR_PERFORMANCE = [
@@ -74,6 +75,7 @@ SKIP_FOR_PERFORMANCE = [
     "iom_def.f90",
     "timing.f90",
     "prtctl.f90",
+    "trazdf.f90",
 ]
 
 DONT_HOIST = [
@@ -84,10 +86,6 @@ DONT_HOIST = [
 OFFLOADING_ISSUES = [
     "trcrad.f90",  # Illegal address during kernel execution, unless the
                    # dimensions are small
-    "tranxt.f90",  # String comparison not allowed inside omp teams
-                   # (this worked fine with omp loop)
-    "trazdf.f90",  # String comparison not allowed inside omp teams
-    "crsdom.f90",  # String comparison not allowed inside omp teams
     "zdftke.f90",  # returned error 700 (CUDA_ERROR_ILLEGAL_ADDRESS):
                    # Illegal address during kernel execution
     "traatf_qco.f90",  # Runtime: Failed to find device function
