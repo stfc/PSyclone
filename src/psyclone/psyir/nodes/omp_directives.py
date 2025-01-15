@@ -2416,6 +2416,11 @@ class OMPTeamsDistributeParallelDoDirective(OMPParallelDoDirective):
     _directive_string = "teams distribute parallel do"
 
 
+class OMPTeamsLoopDirective(OMPParallelDoDirective):
+    ''' Class representing the OMP teams loop directive. '''
+    _directive_string = "teams loop"
+
+
 class OMPTargetDirective(OMPRegionDirective):
     ''' Class for the !$OMP TARGET directive that offloads the code contained
     in its region into an accelerator device. '''

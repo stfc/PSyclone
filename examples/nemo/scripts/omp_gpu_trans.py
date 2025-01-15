@@ -114,7 +114,7 @@ def trans(psyir):
     #     return
     omp_target_trans = OMPTargetTrans()
     omp_gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
-    omp_gpu_loop_trans.omp_directive = "teamsdistributeparalleldo"
+    omp_gpu_loop_trans.omp_directive = "teamsloop"
     omp_cpu_loop_trans = OMPLoopTrans(omp_schedule="static")
     omp_cpu_loop_trans.omp_directive = "paralleldo"
 
