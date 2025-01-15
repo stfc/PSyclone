@@ -34,6 +34,11 @@ $(PSY_DATA_LIB): $(INF_LIB)
 %.f90: %.x90 Makefile
 	$(PSYCLONE) --profile kernels -oalg $*.f90 -opsy $*_psy.f90 $<
 
+allclean:
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_INC) clean
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(GOL_DIR) clean
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(PSY_DATA_DIR) clean
+
 clean:
 	$(MAKE) -f Makefile.extraction clean
 	$(MAKE) -f Makefile.value_range_check clean
