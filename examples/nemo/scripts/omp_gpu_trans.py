@@ -76,6 +76,7 @@ SKIP_FOR_PERFORMANCE = [
     "timing.f90",
     "prtctl.f90",
     "trazdf.f90",
+    "dynzdf.f90",
 ]
 
 DONT_HOIST = [
@@ -86,9 +87,8 @@ DONT_HOIST = [
 OFFLOADING_ISSUES = [
     "trcrad.f90",  # Illegal address during kernel execution, unless the
                    # dimensions are small
-    "traatf_qco.f90",  # Runtime: Failed to find device function
+    "traatf_qco.f90",  # Runtime: Failed to find device function (BENCH)
     "lbclnk.f90",  # Improve performance until #2751
-    "dynzdf.f90",  # Wrong runtime results
     "traqsr.f90",
     "ldftra.f90",  # Wrong runtime results
 ]
