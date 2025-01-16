@@ -164,7 +164,6 @@ PARALLELISATION_ISSUES = [
     # TODO #2787: May solve these issues.
     "icedyn_rhg_evp.f90",
     "domqco.f90",
-    "dynspg_ts.f90",
 ]
 
 

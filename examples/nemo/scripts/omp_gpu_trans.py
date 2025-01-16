@@ -64,7 +64,6 @@ FILES_TO_SKIP = PASSTHROUGH_ISSUES + [
     "zdftke.f90",  # Wrong results
     "zdfddm.f90",  # Wrong results
     "zdfiwm.f90",  # Wrong results
-    "geo2ocean.f90",  # Wrong results
     "zdfswm.f90", # fort2 terminated by signal 11
 ]
 
@@ -91,6 +90,7 @@ OFFLOADING_ISSUES = [
     "lbclnk.f90",  # Improve performance until #2751
     "traqsr.f90",
     "ldftra.f90",  # Wrong runtime results
+    "geo2ocean.f90",  # Uses MATH function calls (ONLY EXCLUDE FOR TESTING)
 ]
 
 PRIVATISATION_ISSUES = [
