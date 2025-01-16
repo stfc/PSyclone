@@ -1577,7 +1577,8 @@ class CodedKern(Kern):
         # Use the fparser1 AST to generate Fortran source
         fortran = self._module_code.tofortran()
         # Create an fparser2 Fortran2008 parser
-        my_parser = parser.ParserFactory().create(std="f2008")
+        std = Config.get().fortran_standard
+        my_parser = parser.ParserFactory().create(std=std)
         # Parse that Fortran using our parser
         reader = FortranStringReader(fortran)
         self._fp2_ast = my_parser(reader)

@@ -3445,7 +3445,7 @@ class Fparser2Reader():
             f"subroutine dummy()\n"
             f"  {datatype.declaration}\n"
             f"end subroutine\n")
-        parser = ParserFactory().create(std="f2008")
+        parser = ParserFactory().create(std=Config.get().fortran_standard)
         reader = FortranStringReader(dummy_code)
         fp2_ast = parser(reader)
         type_decl_stmt = fp2_ast.children[0].children[1].children[0]
@@ -3695,7 +3695,8 @@ class Fparser2Reader():
 
         # Parse the the created Fortran text to an fparser2 tree and
         # store the resulting tree in a PSyIR CodeBlock.
-        parser = ParserFactory().create(std="f2008")
+        std = Config.get().fortran_standard
+        parser = ParserFactory().create(std=std)
         reader = FortranStringReader(code)
         fp2_program = parser(reader)
         # Ignore the program part of the fparser2 tree
