@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council
+# Copyright (c) 2024-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,18 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 
-'''A simple transformation script for the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
-
-Once you have PSyclone installed, this script may be used by doing:
-
- >>> psyclone -s ./omp_levels_trans.py traldf_iso.F90
-
-This should produce a lot of output, ending with generated
-Fortran.
+'''A simple generic transformation script to apply omp parallel do.
 '''
 
 from psyclone.transformations import OMPParallelLoopTrans, TransformationError
@@ -58,7 +49,7 @@ Loop.set_loop_type_inference_rules({
 
 def trans(psyir):
     ''' Transform a specific Schedule by making all loops
-    over levels OpenMP parallel.
+    over latitudes OpenMP parallel do.
 
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

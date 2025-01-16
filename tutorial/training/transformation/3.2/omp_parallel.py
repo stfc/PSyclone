@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council
+# Copyright (c) 2024-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,18 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 
-'''A simple transformation script for the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
-
-Once you have PSyclone installed, this script may be used by doing:
-
- >>> psyclone -s ./omp_levels_trans.py traldf_iso.F90
-
-This should produce a lot of output, ending with generated
-Fortran.
+'''A simple generic transformation script to apply omp parallel and omp do.
 '''
 
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
@@ -58,7 +49,8 @@ Loop.set_loop_type_inference_rules({
 
 def trans(psyir):
     ''' Transform a specific Schedule by making all loops
-    over levels OpenMP parallel.
+    over latitudes OpenMP parallel, and adding an omp parallel
+    in the calling subroutine.
 
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
@@ -67,13 +59,16 @@ def trans(psyir):
     omp_parallel = OMPParallelTrans()
     omp_do = OMPLoopTrans()
 
-    # In case of a transformation, the argument psyir is a FileContainer
+    # The argument psyir is a FileContainer
     print("Filename is", psyir.name)
 
-    # Apply it to each loop over levels containing a kernel
+    # Apply it to each loop over latitudes containing a kernel
     for loop in psyir.walk(Loop):
         if loop.loop_type == "lat":
-            # Apply transformation for outer loops:
+            # Apply transformation. Note that you need to specify
+            # "--backend disable-validation" on the PSyclone command line,
+            # since PSyclone will otherwise prevent you from adding a `omp do`
+            # with no surrounding omp parallel.
             omp_do.apply(loop)
-        elif loop.loop_type == None and # Check file name before applying
+        elif loop.loop_type is None and  # Check file name before applying
             # TODO: Add omp parallel in the time stepping loop
