@@ -35,6 +35,8 @@
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
+#          S. Valat, Inria / Laboratoire Jean Kuntzmann
+#          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
 
 ''' This module provides the various transformations that can be applied to
     PSyIR nodes. There are both general and API-specific transformation
@@ -44,6 +46,7 @@
 # pylint: disable=too-many-lines
 
 import abc
+from typing import Any, Dict, Optional
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -63,6 +66,7 @@ from psyclone.psyir.nodes import (
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
     Return, Routine, Schedule)
+from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
@@ -2486,7 +2490,7 @@ class ACCEnterDataTrans(Transformation):
         '''
         return "ACCEnterDataTrans"
 
-    def apply(self, sched, options=None):
+    def apply(self, sched: Schedule, options: Optional[Dict[str, Any]] = {}):
         # pylint: disable=arguments-renamed
         '''Adds an OpenACC "enter data" directive to the invoke associated
         with the supplied Schedule. Any fields accessed by OpenACC kernels
@@ -2494,9 +2498,11 @@ class ACCEnterDataTrans(Transformation):
         order to ensure they remain on the target device.
 
         :param sched: schedule to which to add an "enter data" directive.
-        :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
+
+        The available options are :
+         - async_queue : Permit to force using the given async stream if
+                         not False.
 
         '''
         # Ensure that the proposed transformation is valid
@@ -2524,12 +2530,39 @@ class ACCEnterDataTrans(Transformation):
                 current = current.parent
             posn = sched.children.index(current)
 
+        # extract async. Default to False.
+        async_queue = options.get('async_queue', False)
+
+        # check
+        self.check_child_async(sched, async_queue)
+
         # Add the directive at the position determined above, i.e. just before
         # the first statement containing an OpenACC compute construct.
-        data_dir = AccEnterDataDir(parent=sched, children=[])
+        data_dir = AccEnterDataDir(parent=sched, children=[],
+                                   async_queue=async_queue)
         sched.addchild(data_dir, index=posn)
 
-    def validate(self, sched, options=None):
+    def check_child_async(self, sched, async_queue):
+        '''
+        Common function to check that all kernel/parallel childs have the
+        same async queue.
+
+        :param sched: schedule to which to add an "enter data" directive.
+        :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :param async_queue: The async queue to expect in childs.
+        :type async_queue: \
+            Optional[bool,int,:py:class:`psyclone.core.Reference`]
+        '''
+        qval = ACCAsyncMixin.convert_queue(async_queue)
+        directive_cls = (ACCParallelDirective, ACCKernelsDirective)
+        for dirv in sched.walk(directive_cls):
+            if qval != dirv.async_queue:
+                raise TransformationError(
+                    'Try to make an ACCEnterDataTrans with async_queue '
+                    'different than the one in child kernels !')
+
+    def validate(self, sched, options={}):
         # pylint: disable=arguments-differ, arguments-renamed
         '''
         Check that we can safely apply the OpenACC enter-data transformation
@@ -2556,6 +2589,11 @@ class ACCEnterDataTrans(Transformation):
         if sched.walk(directive_cls, stop_type=directive_cls):
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
+
+        async_queue = options.get('async_queue', False)
+
+        # check consistency with childs about async_queue
+        self.check_child_async(sched, async_queue)
 
 
 class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
