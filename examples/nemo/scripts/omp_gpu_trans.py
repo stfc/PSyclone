@@ -89,8 +89,9 @@ OFFLOADING_ISSUES = [
     "lbclnk.f90",  # Improve performance until #2751
     "traqsr.f90",
     "ldftra.f90",  # Wrong runtime results
-    "geo2ocean.f90",  # Uses MATH function calls (ONLY EXCLUDE FOR TESTING)
-    "zdftke.f90",  # Uses MATH function calls (ONLY EXCLUDE FOR TESTING)
+    "geo2ocean.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
+    "dynspg_ts.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
+    "zdftke.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
 ]
 
 PRIVATISATION_ISSUES = [
