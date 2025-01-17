@@ -61,7 +61,6 @@ FILES_TO_SKIP = PASSTHROUGH_ISSUES + [
     "sbcflx.f90",  # NEMOv4 sbc_dyc causes NVFORTRAN-S-0083-Vector expression
                     # used where scalar expression required
     "fldread.f90",  # Wrong runtime results
-    "zdftke.f90",  # Wrong results
     "zdfddm.f90",  # Wrong results
     "zdfiwm.f90",  # Wrong results
     "zdfswm.f90", # fort2 terminated by signal 11
@@ -91,6 +90,7 @@ OFFLOADING_ISSUES = [
     "traqsr.f90",
     "ldftra.f90",  # Wrong runtime results
     "geo2ocean.f90",  # Uses MATH function calls (ONLY EXCLUDE FOR TESTING)
+    "zdftke.f90",  # Uses MATH function calls (ONLY EXCLUDE FOR TESTING)
 ]
 
 PRIVATISATION_ISSUES = [
