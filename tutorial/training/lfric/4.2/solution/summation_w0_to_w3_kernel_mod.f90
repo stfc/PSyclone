@@ -60,6 +60,16 @@ contains
     ! This kernel adds all 8 values from the field on W0 to the corresponding
     ! element in W3. It assumes lowest order finite elements.
 
+    !! @param[in] nlayers Integer the number of layers.
+    !! @param[in,out] field_w3 The field on W3 to store the sum.
+    !! @param[in,out] field_w0 The field on W0 which is added up.
+    !! @param[in] ndf_w3 Integer value indicating the number of degrees of freedom on W3
+    !! @param[in] undf_w3 Integer value indicating the number of unique degrees of freedom in W3
+    !! @param[in] map_w3 Integer array holding the dofmap for the cell at the base of the column for W3
+    !! @param[in] ndf_w0 Integer the number of degrees of freedom in W0
+    !! @param[in] undf_w0 Integer value indicating the number of unique degrees of freedom in W0
+    !! @param[in] map_w0 Integer array holding the dofmap for the cell at the base of the column for W0
+
     SUBROUTINE summation_w0_to_w3_kernel_code(nlayers, field_w3, field_w0, ndf_w3, &
                                               undf_w3, map_w3, ndf_w0, undf_w0, map_w0)
       USE constants_mod
