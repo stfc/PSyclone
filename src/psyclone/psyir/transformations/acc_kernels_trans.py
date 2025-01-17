@@ -39,12 +39,14 @@
 ''' This module provides the ACCKernelsTrans transformation. '''
 
 import re
+from typing import List, Union
 
 from psyclone import psyGen
+from psyclone.errors import LazyString
 from psyclone.psyir.nodes import (
-    ACCKernelsDirective, Assignment, Call, CodeBlock, Loop, PSyDataNode,
-    Reference, Return, Routine, Statement, WhileLoop)
-from psyclone.psyir.symbols import UnsupportedFortranType
+    ACCKernelsDirective, Assignment, Call, CodeBlock, Literal, Loop,
+    Node, PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
+from psyclone.psyir.symbols import ScalarType, UnsupportedFortranType
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -110,7 +112,8 @@ class ACCKernelsTrans(RegionTrans):
 
         parent.children.insert(start_index, directive)
 
-    def validate(self, nodes, options=None):
+    def validate(self, nodes: Union[Node, List[Node]],
+                 options: dict = None) -> None:
         # pylint: disable=signature-differs
         '''
         Check that we can safely enclose the supplied node or list of nodes
@@ -124,6 +127,11 @@ class ACCKernelsTrans(RegionTrans):
         :param bool options["disable_loop_check"]: whether to disable the
             check that the supplied region contains 1 or more loops. Default
             is False (i.e. the check is enabled).
+        :param bool options["allow_string"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
+        :param bool options["verbose"]: log the reason the validation failed,
+            at the moment with a comment in the provided PSyIR node.
 
         :raises NotImplementedError: if the supplied Nodes belong to
             a GOInvokeSchedule.
@@ -133,8 +141,13 @@ class ACCKernelsTrans(RegionTrans):
             a routine that is not available on the accelerator.
         :raises TransformationError: if there are no Loops within the
             proposed region and options["disable_loop_check"] is not True.
+        :raises TransformationError: if any assignments in the region contain a
+            character type child and the allow_strings option is not set.
 
         '''
+        if not options:
+            options = {}
+
         # Ensure we are always working with a list of nodes, even if only
         # one was supplied via the `nodes` argument.
         node_list = self.get_node_list(nodes)
@@ -147,6 +160,10 @@ class ACCKernelsTrans(RegionTrans):
                 "OpenACC kernels regions are not currently supported for "
                 "GOcean InvokeSchedules")
         super().validate(node_list, options)
+
+        # Any errors below this point will optionally log the resason, which
+        # at the moment means adding a comment in the output code
+        verbose = options.get("verbose", False)
 
         # The regex we use to determine whether a character declaration is
         # of assumed size ('LEN=*' or '*(*)').
@@ -180,6 +197,31 @@ class ACCKernelsTrans(RegionTrans):
                         f"Assumed-size character variables cannot be enclosed "
                         f"in an OpenACC region but found "
                         f"'{stmt.debug_string()}'")
+            # Check there are no character assignments in the region as these
+            # cause various problems with (at least) NVHPC <= 24.5
+            if not options.get("allow_string", False):
+                for assign in node.walk(Assignment):
+                    for child in assign.walk((Literal, Reference)):
+                        try:
+                            forbid = ScalarType.Intrinsic.CHARACTER
+                            if (child.is_character(unknown_as=False) or
+                                    child.symbol.datatype.intrinsic == forbid):
+                                message = (
+                                    f"{self.name} does not permit assignments "
+                                    f"involving character variables by default"
+                                    f" (use the 'allow_string' option to "
+                                    f"include them)")
+                                if verbose:
+                                    assign.append_preceding_comment(message)
+                                # pylint: disable=cell-var-from-loop
+                                raise TransformationError(LazyString(
+                                    lambda: f"{message}, but found:"
+                                    f"\n{assign.debug_string()}"))
+                        except (NotImplementedError, AttributeError):
+                            # We cannot always get the datatype, we ignore this
+                            # for now
+                            pass
+
             # Check that any called routines are supported on the device.
             for icall in node.walk(Call):
                 if not icall.is_available_on_device():
