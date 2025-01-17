@@ -16,7 +16,7 @@ $(EXE): $(OBJ)
 # ------------------------
 .precious: $(SRC_X90:%.x90=%.f90)
 
-%.f90: %.x90
+%.f90: %.x90 inline_openmp.py
 	$(PSYCLONE) -s ./inline_openmp.py -o $*.f90 $<
 
 %.o: %.f90

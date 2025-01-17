@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council
+# Copyright (c) 2024-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,16 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-'''A simple transformation script for the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
-
-Once you have PSyclone installed, this script may be used by doing:
-
- >>> psyclone -s ./omp_levels_trans.py traldf_iso.F90
-
-This should produce a lot of output, ending with generated
-Fortran.
+'''
 '''
 
 from psyclone.transformations import MoveTrans, TransformationError
