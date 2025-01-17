@@ -42,11 +42,12 @@ import re
 from typing import List, Union
 
 from psyclone import psyGen
-from psyclone.errors import LazyString
 from psyclone.psyir.nodes import (
-    ACCKernelsDirective, Assignment, Call, CodeBlock, Literal, Loop,
+    ACCKernelsDirective, Assignment, Call, CodeBlock, Loop,
     Node, PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
-from psyclone.psyir.symbols import ScalarType, UnsupportedFortranType
+from psyclone.psyir.symbols import UnsupportedFortranType
+from psyclone.psyir.transformations.arrayassignment2loops_trans import (
+    ArrayAssignment2LoopsTrans)
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -161,10 +162,6 @@ class ACCKernelsTrans(RegionTrans):
                 "GOcean InvokeSchedules")
         super().validate(node_list, options)
 
-        # Any errors below this point will optionally log the resason, which
-        # at the moment means adding a comment in the output code
-        verbose = options.get("verbose", False)
-
         # The regex we use to determine whether a character declaration is
         # of assumed size ('LEN=*' or '*(*)').
         # TODO #2612 - improve the fparser2 frontend support for character
@@ -200,27 +197,13 @@ class ACCKernelsTrans(RegionTrans):
             # Check there are no character assignments in the region as these
             # cause various problems with (at least) NVHPC <= 24.5
             if not options.get("allow_string", False):
+                message = (
+                    f"{self.name} does not permit assignments involving "
+                    f"character variables by default (use the 'allow_string' "
+                    f"option to include them)")
                 for assign in node.walk(Assignment):
-                    for child in assign.walk((Literal, Reference)):
-                        try:
-                            forbid = ScalarType.Intrinsic.CHARACTER
-                            if (child.is_character(unknown_as=False) or
-                                    child.symbol.datatype.intrinsic == forbid):
-                                message = (
-                                    f"{self.name} does not permit assignments "
-                                    f"involving character variables by default"
-                                    f" (use the 'allow_string' option to "
-                                    f"include them)")
-                                if verbose:
-                                    assign.append_preceding_comment(message)
-                                # pylint: disable=cell-var-from-loop
-                                raise TransformationError(LazyString(
-                                    lambda: f"{message}, but found:"
-                                    f"\n{assign.debug_string()}"))
-                        except (NotImplementedError, AttributeError):
-                            # We cannot always get the datatype, we ignore this
-                            # for now
-                            pass
+                    ArrayAssignment2LoopsTrans.validate_no_char(
+                        assign, message, options)
 
             # Check that any called routines are supported on the device.
             for icall in node.walk(Call):
