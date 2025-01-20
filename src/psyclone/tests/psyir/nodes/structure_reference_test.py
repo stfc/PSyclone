@@ -232,7 +232,7 @@ def test_struc_ref_datatype():
     '''Test the datatype() method of StructureReference.'''
     atype = symbols.ArrayType(symbols.REAL_TYPE, [10, 8])
     rtype = symbols.StructureType.create([
-        ("gibber", symbols.BOOLEAN_TYPE, symbols.Symbol.Visibility.PUBLIC,
+        ("Gibber", symbols.BOOLEAN_TYPE, symbols.Symbol.Visibility.PUBLIC,
          None)])
     # TODO #1031. Currently cannot create an array of StructureTypes
     # directly - have to have a DataTypeSymbol.
@@ -241,8 +241,8 @@ def test_struc_ref_datatype():
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None),
         ("data", atype, symbols.Symbol.Visibility.PRIVATE, None),
-        # A single member of structure type.
-        ("roger", rtype, symbols.Symbol.Visibility.PUBLIC, None),
+        # A single member of structure type with a mixed-case name.
+        ("roGEr", rtype, symbols.Symbol.Visibility.PUBLIC, None),
         # An array of structure type.
         ("titty", artype, symbols.Symbol.Visibility.PUBLIC, None)])
     # Symbol with type defined by StructureType
@@ -266,8 +266,8 @@ def test_struc_ref_datatype():
     gref = nodes.StructureReference.create(ssym, ["roger", "gibber"])
     assert gref.datatype == symbols.BOOLEAN_TYPE
 
-    # Reference to structure member of structure
-    rref = nodes.StructureReference.create(ssym, ["roger"])
+    # Reference to structure member of structure using different capitalisation
+    rref = nodes.StructureReference.create(ssym, ["rogeR"])
     assert rref.datatype == rtype
 
     # Reference to single element of array of structures within a structure

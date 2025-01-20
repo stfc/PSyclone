@@ -77,12 +77,12 @@ class ACCKernelsTrans(RegionTrans):
     excluded_node_types = (CodeBlock, Return, PSyDataNode,
                            psyGen.HaloExchange, WhileLoop)
 
-    def apply(self, node, options=None):
+    def apply(self, node: Union[Node, List[Node]], options: dict = None):
         '''
         Enclose the supplied list of PSyIR nodes within an OpenACC
         Kernels region.
 
-        :param node: a node or list of nodes in the PSyIR to enclose.
+        :param node: the node(s) in the PSyIR to enclose.
         :type node: :py:class:`psyclone.psyir.nodes.Node` |
                     list[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
@@ -91,6 +91,11 @@ class ACCKernelsTrans(RegionTrans):
             region should have the 'default present' attribute (indicating
             that data is already on the accelerator). When using managed
             memory this option should be False.
+        :param bool options["allow_string"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
+        :param bool options["verbose"]: log the reason the validation failed,
+            at the moment with a comment in the provided PSyIR node.
 
         '''
         # Ensure we are always working with a list of nodes, even if only

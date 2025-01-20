@@ -1050,23 +1050,25 @@ class StructureType(DataType):
                 f"be a 'str' but got "
                 f"'{type(inline_comment).__name__}'")
 
-        self._components[name] = self.ComponentType(name, datatype, visibility,
-                                                    initial_value)
+        key_name = name.lower()
+        self._components[key_name] = self.ComponentType(name, datatype,
+                                                        visibility,
+                                                        initial_value)
         # Use object.__setattr__ due to the frozen nature of ComponentType
-        object.__setattr__(self._components[name],
+        object.__setattr__(self._components[key_name],
                            "_preceding_comment",
                            preceding_comment)
-        object.__setattr__(self._components[name],
+        object.__setattr__(self._components[key_name],
                            "_inline_comment",
                            inline_comment)
 
     def lookup(self, name):
         '''
-        :returns: the ComponentType tuple describing the named member of this \
+        :returns: the ComponentType tuple describing the named member of this
                   StructureType.
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
         '''
-        return self._components[name]
+        return self._components[name.lower()]
 
     def __eq__(self, other):
         '''
@@ -1111,7 +1113,8 @@ class StructureType(DataType):
             if component.initial_value:
                 component.initial_value.replace_symbols_using(table)
             # Construct the new ComponentType
-            new_components[component.name] = StructureType.ComponentType(
+            key_name = component.name.lower()
+            new_components[key_name] = StructureType.ComponentType(
                 component.name, new_type, component.visibility,
                 component.initial_value)
         self._components = new_components
