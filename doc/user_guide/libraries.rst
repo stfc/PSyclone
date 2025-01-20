@@ -99,8 +99,9 @@ Read-only libraries check that a field declared as read-only is not
 modified during a kernel call. More information can be found in the
 :ref:`Read-Only Verification <psydata_read_verification>` section.
 
-The libraries for :ref:`LFRic <lfric-api>` and
-:ref:`GOcean <gocean-api>` APIs are included with PSyclone in
+The libraries for :ref:`LFRic <lfric-api>`,
+:ref:`GOcean <gocean-api>` APIs and generic Fortran code
+are included with PSyclone in
 the ``lib/read_only`` `directory
 <https://github.com/stfc/PSyclone/tree/master/lib/read_only>`__.
 For detailed instructions on how to build and use these libraries
