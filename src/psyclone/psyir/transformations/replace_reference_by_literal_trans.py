@@ -164,6 +164,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                     )
                     sym.preceding_comment += message
                     param_table.pop(sym_name)
+                    continue
                 if not isinstance(sym.initial_value, Literal):
                     message = (
                         "Psyclone(ReplaceReferenceByLiteral): only "
@@ -172,6 +173,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                         + f"a {type(sym.initial_value)}"
                     )
                     sym.preceding_comment += message
+                    continue
                 new_literal: Literal = sym.initial_value.copy().detach()
                 param_table[sym_name] = new_literal
         return param_table
@@ -226,6 +228,8 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         :param options: not used, defaults to None
         :type options: _type_, optional
         """
+        ## Reset the param table for the current Routine
+        self._param_table = {}
         self.validate(node, options)
         ## NOTE: (From Andrew) We may want to look at all symbols in scope
         # rather than just those in the parent symbol table?
@@ -266,9 +270,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         :param node: the node that is being checked.
         :param options: not used, defaults to None
         :type options: _type_, optional
-        :raises TransformationError: if the node argument is not a \
-            Routine.
-        :raises TransformationError: if the symbol_table is None
+        :raises TransformationError: if the node argument is not a Routine.
         """
         if not isinstance(node, Routine):
             raise TransformationError(
@@ -276,8 +278,6 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                 f"argument should be a PSyIR Routine, but found "
                 f"'{type(node).__name__}'."
             )
-        if node.symbol_table is None:
-            raise TransformationError("SymbolTable is None")
 
 
 __all__ = ["ReplaceReferenceByLiteralTrans"]

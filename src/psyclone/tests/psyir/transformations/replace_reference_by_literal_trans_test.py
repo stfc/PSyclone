@@ -52,11 +52,6 @@ def test_rrbl_general():
     """Test general functionality of the transformation."""
 
     rrbl = ReplaceReferenceByLiteralTrans()
-
-    assert (
-        "psyclone.psyir.transformations.replace_reference_by_literal_trans.ReplaceReferenceByLiteralTrans"
-        in str(rrbl)
-    )
     assert rrbl.name == "ReplaceReferenceByLiteralTrans"
 
 
@@ -78,18 +73,22 @@ def test_rrbl_errors():
 
 # ----------------------------------------------------------------------------
 def test_rrbl_in_loop(fortran_reader, fortran_writer):
-    """Tests if subroutine parameters are replaced as expected."""
+    """Tests if subroutine parameters are replaced as expected.
+    * constant var in a loop bound, e.g. do i = u1, u4, u1
+    * constant var as index in derived-type access, e.g. t1%b(u4)
+    """
 
     source = """program test
                 use mymod
                 type(my_type):: t1, t2, t3, t4
                 integer, parameter :: x=3, y=12, z=13
-                integer, parameter :: u1=1, u2=2, u3=3, u4=4
+                integer, parameter :: u1=1, u2=2, u3=3, u4=4, u10=10
                 integer i, invariant, ic1, ic2, ic3
                 real, dimension(10) :: a
                 invariant = 1
-                do i = 1, 10
+                do i = u1, u10, u1
                     t1%a = z
+                    t1%b(u4) = y
                     a(ic1) = u1+(ic1+x)*ic1
                     a(ic2) = u2+(ic2+y)*ic2
                     a(ic3) = u3+(ic3+z)*ic3
@@ -198,28 +197,6 @@ def test_rrbl_array_type_extend(fortran_reader, fortran_writer):
     assert "integer, dimension(:,3:)" in written_code
 
 
-def test_rrbl_raise_transformation_error_symbol_table_is_none(
-    fortran_reader, fortran_writer
-):
-    """test raise TransformationError because of None value in SymbolTable"""
-
-    source = """subroutine foo()
-    integer, parameter ::  a = 3
-    integer :: x
-    x = a
-    end subroutine"""
-    psyir = fortran_reader.psyir_from_source(source)
-    foo: Routine = psyir.walk(Routine)[0]
-    foo._symbol_table = None
-    rbbl = ReplaceReferenceByLiteralTrans()
-    error_str = ""
-    try:
-        rbbl.apply(foo)
-    except TransformationError as e:
-        error_str = e.__str__()
-    assert "SymbolTable is None" in error_str
-
-
 def test_rrbl_conflict_between_module_and_routine_scopes(
     fortran_reader, fortran_writer
 ):
@@ -253,15 +230,46 @@ contains
     assert "integer, parameter :: y = a" in written_code
 
 
+def test_rrbl_call_with_const(fortran_reader, fortran_writer):
+    """
+    * constant var as argument to subroutine call, e.g. call my_sub(ic1+u3)
+    """
+
+    source = """module toto
+    integer, parameter :: a=3, u2=2
+contains 
+    subroutine tata()
+    integer :: i
+    integer, parameter :: u3=3
+    do i=1,10,1
+        call foo(u2+ u3)
+    enddo
+    end subroutine
+    subroutine foo()
+        integer, dimension(10, a) :: array
+        end subroutine
+        end module 
+        """
+    psyir = fortran_reader.psyir_from_source(source)
+    foo: Routine = psyir.walk(Routine)[0]
+    rbbl = ReplaceReferenceByLiteralTrans()
+    rbbl.apply(foo)
+    written_code = fortran_writer(foo.ancestor(Container))
+    assert "integer, dimension(10,a) :: array" in written_code
+    assert "call foo(2 + 3)" in written_code
+
+
 def test_rrbl_same_constant_data_symbol_twice(fortran_reader, fortran_writer):
     """test fortran code annotation with transformation warning and
     value is coming from the closest scope.
+    * constant var as argument to subroutine call, e.g. call my_sub(ic1+u3)
     """
 
     source = """module toto
     integer, parameter :: a=3
 contains 
     subroutine tata()
+    integer :: i
     call foo()
     end subroutine
     subroutine foo()
@@ -279,7 +287,7 @@ contains
         "! Psyclone(ReplaceReferenceByLiteralTrans): Symbol already found"
         in written_code
     )
-    assert "integer, dimension(10,2) :: array" in written_code
+    assert "integer, dimension(10,a) :: array" in written_code
 
 
 def test_rrbl_write_fortran_comment_warning_about_symbol_found(
@@ -325,6 +333,7 @@ def test_rrbl_raise_transformation_error_initial_value_not_literal(
         "! Psyclone(ReplaceReferenceByLiteral): only supports symbols which have a Literal as their initial value"
         in written_code
     )
+    assert "x = b" in written_code
 
 
 def test_rrbl_raise_transformation_error_initial_value(
