@@ -181,6 +181,17 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         current_shape: List[Union[Literal, Reference]],
         param_table: Dict[str, Literal],
     ) -> List[Union[Literal, Reference]]:
+        """From the param_table and the current_shape of an array,
+        this method create a new_shape with the reference replaced by literal
+        when they are found in the param_table.
+
+        :param current_shape: shape before transformation
+        :type current_shape: List[Union[Literal, Reference]]
+        :param param_table: table of parameters Literal values.
+        :type param_table: Dict[str, Literal]
+        :return: the new shape with replaced reference by literal.
+        :rtype: List[Union[Literal, Reference]]
+        """
         new_shape = []
         for dim in current_shape:
             if isinstance(dim, ArrayType.ArrayBounds):
