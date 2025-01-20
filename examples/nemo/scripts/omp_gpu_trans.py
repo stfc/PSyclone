@@ -63,7 +63,7 @@ FILES_TO_SKIP = PASSTHROUGH_ISSUES + [
     "fldread.f90",  # Wrong runtime results
     "zdfddm.f90",  # Wrong results
     "zdfiwm.f90",  # Wrong results
-    "zdfswm.f90", # fort2 terminated by signal 11
+    "zdfswm.f90",  # fort2 terminated by signal 11
 ]
 
 SKIP_FOR_PERFORMANCE = [
@@ -90,7 +90,6 @@ OFFLOADING_ISSUES = [
     "traqsr.f90",
     "ldftra.f90",  # Wrong runtime results
     "geo2ocean.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
-    "dynspg_ts.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
     "zdftke.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
 ]
 

@@ -151,7 +151,10 @@ CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
 # These files change the results from baseline when psyclone processes them
 PASSTHROUGH_ISSUES = [
-    "ldfslp.f90",  # It has a '!dir$ NOVECTOR' that gets deleted by fparser
+    # TODO #2858: These 3 have parenthesis that matter for full reporducibility
+    "dynspg_ts.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
+    "dynvor.f90",
+    "ldfslp.f90",
 ]
 
 # These files change the results from the baseline when psyclone adds
