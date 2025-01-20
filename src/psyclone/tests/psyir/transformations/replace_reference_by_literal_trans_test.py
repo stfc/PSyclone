@@ -40,22 +40,18 @@
 import pytest
 
 from psyclone.psyir.nodes import Container, Literal, Routine
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import (
     ReplaceReferenceByLiteralTrans,
     TransformationError,
 )
 
-
-# ----------------------------------------------------------------------------
 def test_rrbl_general():
     """Test general functionality of the transformation."""
 
     rrbl = ReplaceReferenceByLiteralTrans()
     assert rrbl.name == "ReplaceReferenceByLiteralTrans"
 
-
-# ----------------------------------------------------------------------------
 def test_rrbl_errors():
     """Test errors that should be thrown."""
 
@@ -70,8 +66,6 @@ def test_rrbl_errors():
         "'Literal'" in str(err.value)
     )
 
-
-# ----------------------------------------------------------------------------
 def test_rrbl_in_loop(fortran_reader, fortran_writer):
     """Tests if subroutine parameters are replaced as expected.
     * constant var in a loop bound, e.g. do i = u1, u4, u1
@@ -105,7 +99,6 @@ def test_rrbl_in_loop(fortran_reader, fortran_writer):
     assert "a(ic3) = 3 + (ic3 + 13) * ic3" in written_code
     assert "a(t1%a) = 4 + (t1%a + 4 * 13) * t1%a" in written_code
 
-
 def test_rrbl_module_defined_parameter(fortran_reader, fortran_writer):
     """test replacement of reference by a literal defined as constant value in
     the module scope
@@ -132,9 +125,10 @@ def test_rrbl_module_defined_parameter(fortran_reader, fortran_writer):
 
     assert "a(ic1) = 1 + (ic1 + 2) * ic1 * 3" in out
 
-
 def test_rrbl_array_shape(fortran_reader, fortran_writer):
-    """Tests if subroutine parameters are replaced as expected."""
+    """Tests if subroutine parameters are replaced as expected when they appear
+    in array shape specifications or logical expressions.
+    """
 
     source = """subroutine testtrue()
                 logical, parameter :: x=.true., y=.false.
@@ -179,7 +173,7 @@ def test_rrbl_array_shape(fortran_reader, fortran_writer):
     assert "if (.false.) then" in written_code
 
 
-def test_rrbl_array_type_extend(fortran_reader, fortran_writer):
+def test_rrbl_array_type_extent(fortran_reader, fortran_writer):
     """test replacement of lower bound of an array dimension"""
 
     source = """subroutine foo()
@@ -256,7 +250,6 @@ contains
     assert "integer, dimension(10,a) :: array" in written_code
     assert "call foo(2 + 3)" in written_code
 
-
 def test_rrbl_same_constant_data_symbol_twice(fortran_reader, fortran_writer):
     """test fortran code annotation with transformation warning and
     value is coming from the closest scope.
@@ -287,7 +280,6 @@ contains
     )
     assert "integer, dimension(10,a) :: array" in written_code
 
-
 def test_rrbl_write_fortran_comment_warning_about_symbol_found(
     fortran_reader, fortran_writer
 ):
@@ -309,7 +301,6 @@ def test_rrbl_write_fortran_comment_warning_about_symbol_found(
         in written_code
     )
 
-
 def test_rrbl_raise_transformation_error_initial_value_not_literal(
     fortran_reader, fortran_writer
 ):
@@ -322,7 +313,6 @@ def test_rrbl_raise_transformation_error_initial_value_not_literal(
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(source)
     foo: Routine = psyir.walk(Routine)[0]
-    assert foo.symbol_table is not None
 
     rbbl = ReplaceReferenceByLiteralTrans()
     rbbl.apply(foo)
@@ -332,7 +322,6 @@ def test_rrbl_raise_transformation_error_initial_value_not_literal(
         in written_code
     )
     assert "x = b" in written_code
-
 
 def test_rrbl_raise_transformation_error_initial_value(
     fortran_reader, fortran_writer
@@ -347,8 +336,6 @@ def test_rrbl_raise_transformation_error_initial_value(
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(source)
     foo: Routine = psyir.walk(Routine)[0]
-    assert foo.symbol_table is not None
-    from psyclone.psyir.symbols import DataSymbol
 
     sym_a: DataSymbol = foo.symbol_table.find_or_create("a")
     assert not sym_a.is_constant
