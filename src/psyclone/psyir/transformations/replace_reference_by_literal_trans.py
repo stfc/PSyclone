@@ -124,12 +124,6 @@ class ReplaceReferenceByLiteralTrans(Transformation):
 
     '''
 
-    def __str__(self):
-        return (
-            "Replaces all static const Reference"
-            + " by its Literal in a subroutine."
-        )
-
     def _update_param_table(
         self, param_table: Dict[str, Literal], symbol_table: SymbolTable
     ) -> Dict[str, Literal]:
