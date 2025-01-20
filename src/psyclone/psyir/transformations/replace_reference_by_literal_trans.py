@@ -49,8 +49,8 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     ArrayType,
     DataSymbol,
-    Symbol,
     SymbolTable,
+    UnsupportedFortranType,
 )
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError,
@@ -126,6 +126,8 @@ class ReplaceReferenceByLiteralTrans(Transformation):
 
     def __init__(self) -> None:
         super().__init__()
+        # Dictionary with Literal values of the corresponding symbol
+        # from symbol_table (based on symbol name as a string).
         self._param_table: Dict[str, Literal] = {}
 
     def _update_param_table(
@@ -144,9 +146,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         * Returns the updated param_table
 
         :param param_table: To be updated
-        :type param_table: Dict[str, Literal]
         :param symbol_table: scope symbol table to look for the symbols.
-        :type symbol_table: SymbolTable
         :return: the updated param_table (same reference as the entry one)
         :rtype: Dict[str, Literal]
         """
@@ -186,11 +186,8 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         when they are found in the param_table.
 
         :param current_shape: shape before transformation
-        :type current_shape: List[Union[Literal, Reference]]
         :param param_table: table of parameters Literal values.
-        :type param_table: Dict[str, Literal]
         :return: the new shape with replaced reference by literal.
-        :rtype: List[Union[Literal, Reference]]
         """
         new_shape = []
         for dim in current_shape:
@@ -215,12 +212,32 @@ class ReplaceReferenceByLiteralTrans(Transformation):
 
     # ------------------------------------------------------------------------
     def apply(self, node: Routine, options=None):
-        self.validate(node, options)
-        if isinstance(node.parent, Container):
-            self._param_table = self._update_param_table(
-                self._param_table, node.parent.symbol_table
-            )
+        """Applies the transformation to a Routine node:
+        * First update a dictionary (param_table) with the Literal of constant
+        (parameter) symbol from node.parent symbol_table, and from
+        node.symbol_table.
+        * Second, use this updated param_table to replace reference in node
+        psyir_tree with the corresponsing Literal.
+        * Third, use this updated param_table to replace reference in node
+        symbol_table DataSymbol array's dimensions with the corresponsing
+        Literal.
 
+        :param node: _description_
+        :param options: not used, defaults to None
+        :type options: _type_, optional
+        """
+        self.validate(node, options)
+        ## NOTE: (From Andrew) We may want to look at all symbols in scope
+        # rather than just those in the parent symbol table?
+        if node.parent is not None and isinstance(node.parent, Container):
+            if node.parent.symbol_table is not None:
+                self._param_table = self._update_param_table(
+                    self._param_table, node.parent.symbol_table
+                )
+        ## NOTE: and other parent scopes?
+        # symbol_table.parent_symbol_table
+
+        ## node.symbol_table is not None (in validate)
         self._param_table = self._update_param_table(
             self._param_table, node.symbol_table
         )
@@ -231,13 +248,9 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                 literal: Literal = self._param_table[ref.name]
                 ref.replace_with(literal.copy())
 
-        for sym in node.symbol_table.symbols:
-            sym: Symbol
-            if isinstance(sym, DataSymbol) and sym.is_array:
-                from psyclone.psyir.symbols.datatypes import (
-                    UnsupportedFortranType,
-                )
-
+        for sym in node.symbol_table.datasymbols:
+            sym: DataSymbol
+            if sym.is_array:
                 if not isinstance(sym.datatype, UnsupportedFortranType):
                     new_shape: List[Union[Literal, Reference]] = (
                         self._replace_bounds(sym.shape, self._param_table)
@@ -251,11 +264,11 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         Node.
 
         :param node: the node that is being checked.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine`
-
+        :param options: not used, defaults to None
+        :type options: _type_, optional
         :raises TransformationError: if the node argument is not a \
             Routine.
-
+        :raises TransformationError: if the symbol_table is None
         """
         if not isinstance(node, Routine):
             raise TransformationError(
