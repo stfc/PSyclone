@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author: H. Brunie, University of Grenoble Alpes
 
-"""Module providing a transformation that replace PsyIR Node static const
-Reference with a Literal node when possible. """
+"""Module providing a transformation that replace PsyIR Node representing a 
+static, constant value with a Literal Node when possible. """
 
 from psyclone.psyir.symbols import (
     DataSymbol,
@@ -61,6 +61,9 @@ class ReplaceReferenceByLiteralTrans(Transformation):
     """Replace Reference by Literal if the corresponding symbol from
     the symbol table is constant. That is to say this is a Fortran parameter.
     For example:
+
+    we should always consider all constant symbols that are in scope,
+    rather than explicitly looking at the Routine and Container symbol tables?
 
     TODO: shoule we make it also for the module symbol table parameter?
 
@@ -95,6 +98,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                     raise TransformationError(
                         f"Symbol already found {sym_name}."
                     )
+                ## FIXME: Andrew: better if it is skipped quietly
                 if not isinstance(sym.initial_value, Literal):
                     raise TransformationError(
                         f"DataSymbol {sym_name} initial value is not "
