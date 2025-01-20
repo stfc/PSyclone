@@ -1596,7 +1596,7 @@ class OMPParallelDirective(OMPRegionDirective):
         var_accesses = VariablesAccessInfo()
         self.reference_accesses(var_accesses)
         for signature in var_accesses.all_signatures:
-            if not var_accesses[signature].has_data_access:
+            if not var_accesses[signature].has_data_access():
                 continue
             accesses = var_accesses[signature].all_accesses
             # TODO #2094: var_name only captures the top-level
