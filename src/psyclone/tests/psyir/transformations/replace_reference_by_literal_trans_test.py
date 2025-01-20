@@ -220,6 +220,68 @@ def test_rrbl_raise_transformation_error_symbol_table_is_none(
     assert "SymbolTable is None" in error_str
 
 
+def test_rrbl_conflict_between_module_and_routine_scopes(
+    fortran_reader, fortran_writer
+):
+    """test fortran code annotation with transformation warning"""
+
+    source = """module toto
+    integer, parameter :: a=3
+contains 
+    subroutine tata()
+    call foo()
+    end subroutine
+    subroutine foo()
+        integer, parameter :: x=a
+        integer, parameter :: a=2
+        integer, parameter :: y=a
+        end subroutine
+        end module 
+        """
+    psyir = fortran_reader.psyir_from_source(source)
+    foo: Routine = psyir.walk(Routine)[1]
+    rbbl = ReplaceReferenceByLiteralTrans()
+    rbbl.apply(foo)
+    written_code = fortran_writer(foo.ancestor(Container))
+    print(written_code)
+    assert (
+        "! Psyclone(ReplaceReferenceByLiteralTrans): Symbol already found a"
+        in written_code
+    )
+    assert "integer, parameter :: x = a" in written_code
+    assert "integer, parameter :: a = 2" in written_code
+    assert "integer, parameter :: y = a" in written_code
+
+
+def test_rrbl_same_constant_data_symbol_twice(fortran_reader, fortran_writer):
+    """test fortran code annotation with transformation warning and
+    value is coming from the closest scope.
+    """
+
+    source = """module toto
+    integer, parameter :: a=3
+contains 
+    subroutine tata()
+    call foo()
+    end subroutine
+    subroutine foo()
+        integer, parameter :: a=2
+        integer, dimension(10, a) :: array
+        end subroutine
+        end module 
+        """
+    psyir = fortran_reader.psyir_from_source(source)
+    foo: Routine = psyir.walk(Routine)[1]
+    rbbl = ReplaceReferenceByLiteralTrans()
+    rbbl.apply(foo)
+    written_code = fortran_writer(foo.ancestor(Container))
+    assert (
+        "! Psyclone(ReplaceReferenceByLiteralTrans): Symbol already found"
+        in written_code
+    )
+    assert "integer, dimension(10,2) :: array" in written_code
+
+
 def test_rrbl_write_fortran_comment_warning_about_symbol_found(
     fortran_reader, fortran_writer
 ):

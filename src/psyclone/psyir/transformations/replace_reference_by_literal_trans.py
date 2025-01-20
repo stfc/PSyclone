@@ -133,18 +133,41 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         param_table: Dict[str, Literal],
         symbol_table: SymbolTable,
     ) -> Dict[str, Literal]:
-        for sym in symbol_table.symbols:
-            sym: Symbol
-            if not isinstance(sym, DataSymbol):
-                continue
+        """This methods takes a param_table as entry, updates this dictionary
+        and then returns the same dictionary updated.
+
+        * Goes through all datasymbols in the symbol_table.
+            * if symbol already in param_table or initial_value is not Literal:
+                * annotate code with warning.
+            * copy and detach the symbol.initial_value (Literal)
+            * update the param_table with this copy.
+        * Returns the updated param_table
+
+        :param param_table: To be updated
+        :type param_table: Dict[str, Literal]
+        :param symbol_table: scope symbol table to look for the symbols.
+        :type symbol_table: SymbolTable
+        :return: the updated param_table (same reference as the entry one)
+        :rtype: Dict[str, Literal]
+        """
+        for sym in symbol_table.datasymbols:
+            sym: DataSymbol
             if sym.is_constant:
                 sym_name = sym.name
                 if param_table.get(sym_name):
-                    message = f"Psyclone(ReplaceReferenceByLiteralTrans): Symbol already found {sym_name}."
+                    message = (
+                        "Psyclone(ReplaceReferenceByLiteralTrans):"
+                        + f" Symbol already found {sym_name}."
+                        + " A conflict is possible."
+                        + "To avoid replacing by wrong value, "
+                        + "symbol is removed from param_table."
+                    )
                     sym.preceding_comment += message
+                    param_table.pop(sym_name)
                 if not isinstance(sym.initial_value, Literal):
                     message = (
-                        f"Psyclone(ReplaceReferenceByLiteralTrans): DataSymbol {sym_name} initial value is not "
+                        "Psyclone(ReplaceReferenceByLiteralTrans): "
+                        + f"DataSymbol {sym_name} initial value is not "
                         + f"a Literal {type(sym.initial_value)}."
                     )
                     sym.preceding_comment += message
