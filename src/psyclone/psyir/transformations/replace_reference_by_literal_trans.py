@@ -68,21 +68,21 @@ class ReplaceReferenceByLiteralTrans(Transformation):
     >>> from psyclone.psyir.symbols import INTEGER_TYPE
     >>> from psyclone.psyir.transformations import ReplaceReferenceByLiteralTrans
     >>> source = """program test
-    ...             use mymod
-    ...             type(my_type):: t1, t2, t3, t4
-    ...             integer, parameter :: x=3, y=12, z=13
-    ...             integer, parameter :: u1=1, u2=2, u3=3, u4=4
-    ...             integer i, invariant, ic1, ic2, ic3
-    ...             real, dimension(10) :: a
-    ...             invariant = 1
-    ...             do i = 1, 10
-    ...                 t1%a = z
-    ...                 a(ic1) = u1+(ic1+x)*ic1
-    ...                 a(ic2) = u2+(ic2+y)*ic2
-    ...                 a(ic3) = u3+(ic3+z)*ic3
-    ...                 a(t1%a) = u4+(t1%a+u4*z)*t1%a
-    ...             end do
-    ...             end program test"""
+    ... use mymod
+    ... type(my_type):: t1, t2, t3, t4
+    ... integer, parameter :: x=3, y=12, z=13
+    ... integer, parameter :: u1=1, u2=2, u3=3, u4=4
+    ... integer i, invariant, ic1, ic2, ic3
+    ... real, dimension(10) :: a
+    ... invariant = 1
+    ... do i = 1, 10
+    ...     t1%a = z
+    ...     a(ic1) = u1+(ic1+x)*ic1
+    ...     a(ic2) = u2+(ic2+y)*ic2
+    ...     a(ic3) = u3+(ic3+z)*ic3
+    ...     a(t1%a) = u4+(t1%a+u4*z)*t1%a
+    ... end do
+    ... end program test"""
     >>> fortran_writer = FortranWriter()
     >>> fortran_reader = FortranReader()
     >>> psyir = fortran_reader.psyir_from_source(source)
@@ -110,7 +110,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
       integer :: ic2
       integer :: ic3
       real, dimension(10) :: a
-
+      <BLANKLINE>
       invariant = 1
       do i = 1, 10, 1
         t1%a = 13
@@ -119,8 +119,9 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         a(ic3) = 3 + (ic3 + 13) * ic3
         a(t1%a) = 4 + (t1%a + 4 * 13) * t1%a
       enddo
-
+      <BLANKLINE>
     end program test
+    <BLANKLINE>
 
     '''
 
