@@ -322,7 +322,7 @@ def test_rrbl_raise_transformation_error_initial_value_not_literal(
     rbbl.apply(foo)
     written_code = fortran_writer(foo.ancestor(Container))
     assert (
-        "Psyclone(ReplaceReferenceByLiteralTrans): DataSymbol b initial value is not a Literal"
+        "! Psyclone(ReplaceReferenceByLiteral): only supports symbols which have a Literal as their initial value"
         in written_code
     )
 
@@ -348,7 +348,8 @@ def test_rrbl_raise_transformation_error_initial_value(
     rbbl = ReplaceReferenceByLiteralTrans()
     rbbl.apply(foo)
     written_code = fortran_writer(foo.ancestor(Container))
+    print(written_code)
     assert (
-        "! Psyclone(ReplaceReferenceByLiteralTrans): DataSymbol b initial value is not a Literal"
+        "! Psyclone(ReplaceReferenceByLiteral): only supports symbols which have a Literal as their initial value"
         in written_code
     )

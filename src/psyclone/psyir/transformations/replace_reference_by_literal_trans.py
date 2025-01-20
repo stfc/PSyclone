@@ -166,9 +166,10 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                     param_table.pop(sym_name)
                 if not isinstance(sym.initial_value, Literal):
                     message = (
-                        "Psyclone(ReplaceReferenceByLiteralTrans): "
-                        + f"DataSymbol {sym_name} initial value is not "
-                        + f"a Literal {type(sym.initial_value)}."
+                        "Psyclone(ReplaceReferenceByLiteral): only "
+                        + "supports symbols which have a Literal as their "
+                        + f"initial value but {sym_name} is assigned "
+                        + f"a {type(sym.initial_value)}"
                     )
                     sym.preceding_comment += message
                 new_literal: Literal = sym.initial_value.copy().detach()
