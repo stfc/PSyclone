@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2021-2024, Science and Technology Facilities Council.
+   Copyright (c) 2021-2025, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -666,12 +666,12 @@ can be parallelised:
 DefinitionUseChain
 ==================
 PSyclone also provides a DefinitionUseChain class, which can search for forward
-dependencies (backward NYI) for a given Reference inside a region of code. This
+and backward dependencies for a given Reference inside a region of code. This
 implementation differs from the DependencyTools as it is control-flow aware, so
 can find many dependencies for a single Reference in a given Routine or scope.
 
-This is primarily used to implement the `References.next_accesses` function, but can be
-used directly as follows:
+This is primarily used to implement the `Reference.next_accesses` and
+`Reference.previous_accessess` functions, but can be used directly as follows:
 
 .. code::
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,8 @@ def init_module_manager():
     # to read extracted data from a file) relative to the infrastructure path:
     psyclone_root = os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.dirname(os.path.dirname(infrastructure_path)))))
-    read_mod_path = os.path.join(psyclone_root, "lib", "extract", "standalone")
+    read_mod_path = os.path.join(psyclone_root, "lib", "extract",
+                                 "standalone", "lfric")
     # Enforce loading of the default ModuleManager
     ModuleManager._instance = None
 

@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # BSD 2-Clause License
 # 
-# Copyright (c) 2023-2024, Science and Technology Facilities Council.
+# Copyright (c) 2023-2025, Science and Technology Facilities Council.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -90,6 +90,7 @@ compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinj
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_netcdf_base.f90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_netcdf_base.f90 \
+		compare_variables_mod.F90 extract_netcdf_base.F90
 
 allclean: clean

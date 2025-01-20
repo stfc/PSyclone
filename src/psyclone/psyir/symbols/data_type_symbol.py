@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -73,8 +73,11 @@ class DataTypeSymbol(Symbol):
         :rtype: :py:class:`psyclone.psyir.symbols.TypeSymbol`
 
         '''
-        return type(self)(self.name, self.datatype, visibility=self.visibility,
+        copy = type(self)(self.name, self.datatype, visibility=self.visibility,
                           interface=self.interface.copy())
+        copy.preceding_comment = self.preceding_comment
+        copy.inline_comment = self.inline_comment
+        return copy
 
     def __str__(self):
         return f"{self.name}: {type(self).__name__}"

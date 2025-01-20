@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1694,7 +1694,7 @@ def test_process_use_stmts_resolving_external_imports(
     # Add the path to the include_path and set up a frontend instance
     # witth the module_to_resolve names
     monkeypatch.setattr(Config.get(), '_include_paths', [tmpdir])
-    processor = Fparser2Reader(value)
+    processor = Fparser2Reader(resolve_modules=value)
     reader = FortranStringReader('''
     module test
         use other1

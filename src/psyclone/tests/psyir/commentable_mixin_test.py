@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -67,6 +67,13 @@ def test_statement_comment_properties():
         statement.inline_comment = 2
     assert "The inline_comment must be a string but found 'int'." \
         in str(err.value)
+
+    # Check that inline_comment cannot contain '\n'
+    with pytest.raises(ValueError) as err:
+        statement.inline_comment = "My inline\ncomment"
+    assert ("The inline_comment must be a single line but "
+            "found a newline character in 'My inline\ncomment'."
+            in str(err.value))
 
     # Check the append_preceding_comment method
     statement._preceding_comment = None  # Uninitialised preceding_comment
