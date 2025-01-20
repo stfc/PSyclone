@@ -96,7 +96,6 @@ def test_rrbl_in_loop(fortran_reader, fortran_writer):
                 end do
                 end program test"""
     psyir = fortran_reader.psyir_from_source(source)
-    # The first child is the assignment to 'invariant'
     routine = psyir.walk(Routine)[0]
     rrbl = ReplaceReferenceByLiteralTrans()
     rrbl.apply(routine)
@@ -164,7 +163,6 @@ def test_rrbl_array_shape(fortran_reader, fortran_writer):
                 end subroutine
                 """
     psyir = fortran_reader.psyir_from_source(source)
-    # The first child is the assignment to 'invariant'
     mainprog = psyir.walk(Routine)[0]
     routine_testfalse = psyir.walk(Routine)[1]
     rrbl = ReplaceReferenceByLiteralTrans()
