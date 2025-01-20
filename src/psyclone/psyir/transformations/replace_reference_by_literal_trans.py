@@ -36,48 +36,92 @@
 """Module providing a transformation that replace PsyIR Node representing a 
 static, constant value with a Literal Node when possible. """
 
+from typing import Dict, List, Union
+
+from psyclone.psyGen import Transformation
+from psyclone.psyir.nodes import (
+    Container,
+    DataNode,
+    Literal,
+    Reference,
+    Routine,
+)
 from psyclone.psyir.symbols import (
+    ArrayType,
     DataSymbol,
     Symbol,
     SymbolTable,
-    ArrayType,
-)
-from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import (
-    DataNode,
-    Routine,
-    Reference,
-    Literal,
-    Container,
 )
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError,
 )
 
-from typing import Dict, List, Union
-
-
 class ReplaceReferenceByLiteralTrans(Transformation):
-    """Replace Reference by Literal if the corresponding symbol from
-    the symbol table is constant. That is to say this is a Fortran parameter.
-    For example:
+    '''
+        This transformation takes a psyir Routine and replace all Reference psyir
+        Nodes by Literal if the corresponding symbol from the symbol table is
+        constant. That is to say the symbol is a Fortran parameter.
+        For example:
 
-    we should always consider all constant symbols that are in scope,
-    rather than explicitly looking at the Routine and Container symbol tables?
+        >>> from psyclone.psyir.backend.fortran import FortranWriter
+        >>> from psyclone.psyir.symbols import INTEGER_TYPE
+        >>> from psyclone.psyir.transformations import ReplaceReferenceByLiteralTrans
+        >>> source = """program test
+        ...             use mymod
+        ...             type(my_type):: t1, t2, t3, t4
+        ...             integer, parameter :: x=3, y=12, z=13
+        ...             integer, parameter :: u1=1, u2=2, u3=3, u4=4
+        ...             integer i, invariant, ic1, ic2, ic3
+        ...             real, dimension(10) :: a
+        ...             invariant = 1
+        ...             do i = 1, 10
+        ...                 t1%a = z
+        ...                 a(ic1) = u1+(ic1+x)*ic1
+        ...                 a(ic2) = u2+(ic2+y)*ic2
+        ...                 a(ic3) = u3+(ic3+z)*ic3
+        ...                 a(t1%a) = u4+(t1%a+u4*z)*t1%a
+        ...             end do
+        ...             end program test"""
+        >>> fortran_writer = FortranWriter()
+        >>> fortran_reader = FortranReader()
+        >>> psyir = fortran_reader.psyir_from_source(source)
+        >>> routine = psyir.walk(Routine)[0]
+        >>> rrbl = ReplaceReferenceByLiteralTrans()
+        >>> rrbl.apply(routine)
+        >>> written_code = fortran_writer(routine)
+        >>> print(written_code)
+    program test
+      use mymod
+      integer, parameter :: x = 3
+      integer, parameter :: y = 12
+      integer, parameter :: z = 13
+      integer, parameter :: u1 = 1
+      integer, parameter :: u2 = 2
+      integer, parameter :: u3 = 3
+      integer, parameter :: u4 = 4
+      type(my_type) :: t1
+      type(my_type) :: t2
+      type(my_type) :: t3
+      type(my_type) :: t4
+      integer :: i
+      integer :: invariant
+      integer :: ic1
+      integer :: ic2
+      integer :: ic3
+      real, dimension(10) :: a
 
-    TODO: shoule we make it also for the module symbol table parameter?
+      invariant = 1
+      do i = 1, 10, 1
+        t1%a = 13
+        a(ic1) = 1 + (ic1 + 3) * ic1
+        a(ic2) = 2 + (ic2 + 12) * ic2
+        a(ic3) = 3 + (ic3 + 13) * ic3
+        a(t1%a) = 4 + (t1%a + 4 * 13) * t1%a
+      enddo
 
-    eg:
-    module toto
-    integer, parameter x= 3
-    integer, parameter z = x*2
+    end program test
 
-    becomes
-    module toto
-    integer, parameter x= 3
-    integer, parameter z = 3*2
-
-    """
+    '''
 
     def __str__(self):
         return (

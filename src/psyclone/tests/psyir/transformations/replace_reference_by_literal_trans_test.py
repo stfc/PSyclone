@@ -85,7 +85,6 @@ def test_rrbl_working(fortran_reader, fortran_writer):
                 type(my_type):: t1, t2, t3, t4
                 integer, parameter :: x=3, y=12, z=13
                 integer, parameter :: u1=1, u2=2, u3=3, u4=4
-
                 integer i, invariant, ic1, ic2, ic3
                 real, dimension(10) :: a
                 invariant = 1
@@ -100,11 +99,9 @@ def test_rrbl_working(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(source)
     # The first child is the assignment to 'invariant'
     routine = psyir.walk(Routine)[0]
-
     rrbl = ReplaceReferenceByLiteralTrans()
     rrbl.apply(routine)
     written_code = fortran_writer(routine)
-
     assert "a(ic1) = 1 + (ic1 + 3) * ic1" in written_code
     assert "a(ic2) = 2 + (ic2 + 12) * ic2" in written_code
     assert "a(ic3) = 3 + (ic3 + 13) * ic3" in written_code
