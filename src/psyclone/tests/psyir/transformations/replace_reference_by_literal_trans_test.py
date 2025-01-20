@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
 
 import pytest
 
-from psyclone.psyir.nodes import Literal, Routine, Container
+from psyclone.psyir.nodes import Container, Literal, Routine
 from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.psyir.transformations import (
     ReplaceReferenceByLiteralTrans,
@@ -77,8 +77,9 @@ def test_rrbl_errors():
 
 
 # ----------------------------------------------------------------------------
-def test_rrbl_working(fortran_reader, fortran_writer):
+def test_rrbl_in_loop(fortran_reader, fortran_writer):
     """Tests if subroutine parameters are replaced as expected."""
+
     source = """program test
                 use mymod
                 type(my_type):: t1, t2, t3, t4
@@ -107,9 +108,11 @@ def test_rrbl_working(fortran_reader, fortran_writer):
     assert "a(t1%a) = 4 + (t1%a + 4 * 13) * t1%a" in written_code
 
 
-# ----------------------------------------------------------------------------
-# ----------------------------------------------------------------------------
 def test_rrbl_module_defined_parameter(fortran_reader, fortran_writer):
+    """test replacement of reference by a literal defined as constant value in
+    the module scope
+    """
+
     source = """module test
                 integer, parameter :: x=1, y=2, z=3
                 real, dimension(10) :: a
@@ -134,6 +137,7 @@ def test_rrbl_module_defined_parameter(fortran_reader, fortran_writer):
 
 def test_rrbl_array_shape(fortran_reader, fortran_writer):
     """Tests if subroutine parameters are replaced as expected."""
+
     source = """subroutine testtrue()
                 logical, parameter :: x=.true., y=.false.
                 integer, parameter :: u=3, size=10
@@ -179,6 +183,8 @@ def test_rrbl_array_shape(fortran_reader, fortran_writer):
 
 
 def test_rrbl_array_type_extend(fortran_reader, fortran_writer):
+    """test replacement of lower bound of an array dimension"""
+
     source = """subroutine foo()
     integer, parameter ::  a = 3
     integer, dimension(:,a:) :: x
@@ -195,6 +201,8 @@ def test_rrbl_array_type_extend(fortran_reader, fortran_writer):
 def test_rrbl_raise_transformation_error_symbol_table_is_none(
     fortran_reader, fortran_writer
 ):
+    """test raise TransformationError because of None value in SymbolTable"""
+
     source = """subroutine foo()
     integer, parameter ::  a = 3
     integer :: x
@@ -212,8 +220,11 @@ def test_rrbl_raise_transformation_error_symbol_table_is_none(
     assert "SymbolTable is None" in error_str
 
 
-def test_rrbl_raise_transformation_error(fortran_reader, fortran_writer):
-    """"""
+def test_rrbl_write_fortran_comment_warning_about_symbol_found(
+    fortran_reader, fortran_writer
+):
+    """test fortran code annotation with transformation warning"""
+
     source = """subroutine foo()
     integer, parameter ::  a = 3
     integer :: x
@@ -234,8 +245,8 @@ def test_rrbl_raise_transformation_error(fortran_reader, fortran_writer):
 def test_rrbl_raise_transformation_error_initial_value_not_literal(
     fortran_reader, fortran_writer
 ):
-    """TODO: use sympy maybe to simplify expression before applying
-    transformation"""
+    """test fortran code annotation with transformation warning"""
+
     source = """subroutine foo()
     integer, parameter ::  b = 3+2
     integer :: x
@@ -257,6 +268,8 @@ def test_rrbl_raise_transformation_error_initial_value_not_literal(
 def test_rrbl_raise_transformation_error_initial_value(
     fortran_reader, fortran_writer
 ):
+    """test fortran code annotation with transformation warning"""
+
     source = """subroutine foo()
     character(len=4), parameter ::  a = "toto"
     integer, parameter ::  b = 3+2
