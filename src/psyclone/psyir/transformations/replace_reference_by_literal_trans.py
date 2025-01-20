@@ -124,8 +124,14 @@ class ReplaceReferenceByLiteralTrans(Transformation):
 
     '''
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._param_table: Dict[str, Literal] = {}
+
     def _update_param_table(
-        self, param_table: Dict[str, Literal], symbol_table: SymbolTable
+        self,
+        param_table: Dict[str, Literal],
+        symbol_table: SymbolTable,
     ) -> Dict[str, Literal]:
         for sym in symbol_table.symbols:
             sym: Symbol
@@ -134,16 +140,15 @@ class ReplaceReferenceByLiteralTrans(Transformation):
             if sym.is_constant:
                 sym_name = sym.name
                 if param_table.get(sym_name):
-                    raise TransformationError(
-                        f"Symbol already found {sym_name}."
-                    )
-                ## FIXME: Andrew: better if it is skipped quietly
+                    message = f"Psyclone(ReplaceReferenceByLiteralTrans): Symbol already found {sym_name}."
+                    sym.preceding_comment += message
                 if not isinstance(sym.initial_value, Literal):
-                    raise TransformationError(
-                        f"DataSymbol {sym_name} initial value is not "
+                    message = (
+                        f"Psyclone(ReplaceReferenceByLiteralTrans): DataSymbol {sym_name} initial value is not "
                         + f"a Literal {type(sym.initial_value)}."
                     )
-                new_literal = sym.initial_value.copy().detach()
+                    sym.preceding_comment += message
+                new_literal: Literal = sym.initial_value.copy().detach()
                 param_table[sym_name] = new_literal
         return param_table
 
@@ -176,18 +181,19 @@ class ReplaceReferenceByLiteralTrans(Transformation):
     # ------------------------------------------------------------------------
     def apply(self, node: Routine, options=None):
         self.validate(node, options)
-        param_table: Dict[str, Literal] = {}
         if isinstance(node.parent, Container):
-            param_table = self._update_param_table(
-                param_table, node.parent.symbol_table
+            self._param_table = self._update_param_table(
+                self._param_table, node.parent.symbol_table
             )
 
-        param_table = self._update_param_table(param_table, node.symbol_table)
+        self._param_table = self._update_param_table(
+            self._param_table, node.symbol_table
+        )
 
         for ref in node.walk(Reference):
             ref: Reference
-            if ref.name in param_table:
-                literal: Literal = param_table[ref.name]
+            if ref.name in self._param_table:
+                literal: Literal = self._param_table[ref.name]
                 ref.replace_with(literal.copy())
 
         for sym in node.symbol_table.symbols:
@@ -199,11 +205,9 @@ class ReplaceReferenceByLiteralTrans(Transformation):
 
                 if not isinstance(sym.datatype, UnsupportedFortranType):
                     new_shape: List[Union[Literal, Reference]] = (
-                        self._replace_bounds(sym.shape, param_table)
+                        self._replace_bounds(sym.shape, self._param_table)
                     )
                     sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
-        ## For debug and triggering raise Error.
-        self._param_table = param_table
 
     # ------------------------------------------------------------------------
     def validate(self, node, options=None):

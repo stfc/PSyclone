@@ -39,7 +39,7 @@
 
 import pytest
 
-from psyclone.psyir.nodes import Literal, Routine
+from psyclone.psyir.nodes import Literal, Routine, Container
 from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.psyir.transformations import (
     ReplaceReferenceByLiteralTrans,
@@ -54,9 +54,8 @@ def test_rrbl_general():
     rrbl = ReplaceReferenceByLiteralTrans()
 
     assert (
-        str(rrbl)
-        == "Replaces all static const Reference "
-        + "by its Literal in a subroutine."
+        "psyclone.psyir.transformations.replace_reference_by_literal_trans.ReplaceReferenceByLiteralTrans"
+        in str(rrbl)
     )
     assert rrbl.name == "ReplaceReferenceByLiteralTrans"
 
@@ -179,7 +178,7 @@ def test_rrbl_array_shape(fortran_reader, fortran_writer):
     assert "if (.false.) then" in written_code
 
 
-def test_array_type_extend(fortran_reader, fortran_writer):
+def test_rrbl_array_type_extend(fortran_reader, fortran_writer):
     source = """subroutine foo()
     integer, parameter ::  a = 3
     integer, dimension(:,a:) :: x
@@ -193,7 +192,7 @@ def test_array_type_extend(fortran_reader, fortran_writer):
     assert "integer, dimension(:,3:)" in written_code
 
 
-def test_raise_transformation_error_symbol_table_is_none(
+def test_rrbl_raise_transformation_error_symbol_table_is_none(
     fortran_reader, fortran_writer
 ):
     source = """subroutine foo()
@@ -213,7 +212,8 @@ def test_raise_transformation_error_symbol_table_is_none(
     assert "SymbolTable is None" in error_str
 
 
-def test_raise_transformation_error(fortran_reader, fortran_writer):
+def test_rrbl_raise_transformation_error(fortran_reader, fortran_writer):
+    """"""
     source = """subroutine foo()
     integer, parameter ::  a = 3
     integer :: x
@@ -223,15 +223,15 @@ def test_raise_transformation_error(fortran_reader, fortran_writer):
     foo: Routine = psyir.walk(Routine)[0]
     rbbl = ReplaceReferenceByLiteralTrans()
     rbbl.apply(foo)
-    error_str = ""
-    try:
-        rbbl._update_param_table(rbbl._param_table, foo.symbol_table)
-    except TransformationError as e:
-        error_str = e.__str__()
-    assert "Symbol already found" in error_str
+    rbbl._update_param_table(rbbl._param_table, foo.symbol_table)
+    written_code = fortran_writer(foo.ancestor(Container))
+    assert (
+        "! Psyclone(ReplaceReferenceByLiteralTrans): Symbol already found"
+        in written_code
+    )
 
 
-def test_raise_transformation_error_initial_value_not_literal(
+def test_rrbl_raise_transformation_error_initial_value_not_literal(
     fortran_reader, fortran_writer
 ):
     """TODO: use sympy maybe to simplify expression before applying
@@ -246,15 +246,15 @@ def test_raise_transformation_error_initial_value_not_literal(
     assert foo.symbol_table is not None
 
     rbbl = ReplaceReferenceByLiteralTrans()
-    error_str = ""
-    try:
-        rbbl.apply(foo)
-    except TransformationError as e:
-        error_str = e.__str__()
-    assert "initial value is not a Literal" in error_str
+    rbbl.apply(foo)
+    written_code = fortran_writer(foo.ancestor(Container))
+    assert (
+        "Psyclone(ReplaceReferenceByLiteralTrans): DataSymbol b initial value is not a Literal"
+        in written_code
+    )
 
 
-def test_raise_transformation_error_initial_value(
+def test_rrbl_raise_transformation_error_initial_value(
     fortran_reader, fortran_writer
 ):
     source = """subroutine foo()
@@ -271,9 +271,9 @@ def test_raise_transformation_error_initial_value(
     sym_a: DataSymbol = foo.symbol_table.find_or_create("a")
     assert not sym_a.is_constant
     rbbl = ReplaceReferenceByLiteralTrans()
-    error_str = ""
-    try:
-        rbbl.apply(foo)
-    except TransformationError as e:
-        error_str = e.__str__()
-    assert "initial value is not a Literal" in error_str
+    rbbl.apply(foo)
+    written_code = fortran_writer(foo.ancestor(Container))
+    assert (
+        "! Psyclone(ReplaceReferenceByLiteralTrans): DataSymbol b initial value is not a Literal"
+        in written_code
+    )
