@@ -1282,14 +1282,16 @@ class FortranWriter(LanguageWriter):
                     return f"({lhs} {fort_oper} {rhs})"
                 if precedence(fort_oper) == precedence(parent_fort_oper):
                     # We still may need to enforce precedence
-                    if (isinstance(parent, UnaryOperation) or
-                            (isinstance(parent, BinaryOperation) and
-                             parent.children[1] == node)):
-                        # We need brackets to enforce precedence
-                        # as a) a unary operator is performed
-                        # before a binary operator and b) floating
-                        # point operations are not actually
-                        # associative due to rounding errors.
+                    if (
+                        # If parent is a UnaryOperation
+                        isinstance(parent, UnaryOperation) or
+                        # Or it is a BinaryOperation ...
+                        (isinstance(parent, BinaryOperation) and
+                            # ... with right-to-left precedence
+                            (parent.children[1] == node) or
+                            # ... or originally had explicit parenthesis
+                            node.has_explicit_grouping)
+                    ):
                         return f"({lhs} {fort_oper} {rhs})"
             return f"{lhs} {fort_oper} {rhs}"
         except KeyError as error:

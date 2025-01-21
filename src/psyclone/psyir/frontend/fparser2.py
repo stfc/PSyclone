@@ -4895,7 +4895,14 @@ class Fparser2Reader():
         # Use the items[1] content of the node as it contains the required
         # information (items[0] and items[2] just contain the left and right
         # brackets as strings so can be disregarded.
-        return self._create_child(node.items[1], parent)
+        new_node = self._create_child(node.items[1], parent)
+
+        # Explicit parenthesis on BinaryOperations are sometimes needed for
+        # reproducibility, so we store the fact that they are here.
+        if isinstance(new_node, BinaryOperation):
+            new_node.has_explicit_grouping = True
+
+        return new_node
 
     def _part_ref_handler(self, node, parent):
         '''
