@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,19 +30,33 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified: M. Jamieson, EPCC
+# -----------------------------------------------------------------------------
+# Author: J. Henrichs, Bureau of Meteorology
 
-EXAMPLES=$(sort $(wildcard eg*))
+'''A transformation script that applies read-only-verification
+to a small Fortran program. You can use
+    $ psyclone --config ../../../psyclone.cfg  \
+        -s ./read_only_check.py -opsy psy.f90 dummy.f90
 
-include ../top_level.mk
+'''
 
-transform:
-	@echo "No transformation supported for xdsl"
+from psyclone.psyir.transformations import ReadOnlyVerifyTrans
+from psyclone.psyir.nodes import Loop, Routine
 
-compile: transform
-	@echo "No compilation supported for xdsl"
 
-run: compile
-	@echo "No run targets for xdsl"
+def trans(psyir):
+    '''Applies the read-only verification transformation to every
+    subroutine in the file.
+
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    '''
+
+    rov = ReadOnlyVerifyTrans()
+
+    for subroutine in psyir.walk(Routine):
+        print(f"Transforming subroutine: {subroutine.name}")
+        for kern in subroutine.children:
+            if not isinstance(kern, Loop):
+                continue
+            rov.apply(kern)

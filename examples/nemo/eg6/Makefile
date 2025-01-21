@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,18 +31,53 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified: M. Jamieson, EPCC
+# Author: A. R. Porter, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 
-EXAMPLES=$(sort $(wildcard eg*))
+# This example uses PSyclone (which must be installed) to generate Fortran for
+# the tracer-advection benchmark. The script provided here instruments code to
+# check that read-only variables are not modified.
 
-include ../top_level.mk
+# The compiler to use may be specified via the F90 environment variable,
+# it defaults to:
+# export F90=gfortran
+# export F90FLAGS="-g -O0"
 
-transform:
-	@echo "No transformation supported for xdsl"
+include ../../common.mk
 
-compile: transform
-	@echo "No compilation supported for xdsl"
+TYPE ?= standalone
+
+GENERATED_FILES += psy.f90 psy.o dummy
+
+PSYROOT=../../..
+READ_ONLY_CHECK_DIR ?= $(PSYROOT)/lib/read_only/generic
+
+F90FLAGS += -I$(READ_ONLY_CHECK_DIR)
+LIB_NAME = lib_read_only.a
+
+.PHONY: allclean
+
+compile: dummy
 
 run: compile
-	@echo "No run targets for xdsl"
+	./dummy
+
+dummy: psy.o $(READ_ONLY_CHECK_DIR)/$(LIB_NAME)
+	$(F90) psy.o -o dummy $(READ_ONLY_CHECK_DIR)/$(LIB_NAME) $(LDFLAGS)
+
+transform: kernels
+
+# Need `-l all` to ensure line-lengths in generated code are less than the
+# standard-mandated 132 chars.
+kernels: read_only_check.py
+	$(PSYCLONE) -l all -s ./read_only_check.py -o psy.f90 dummy.f90
+
+$(READ_ONLY_CHECK_DIR)/$(LIB_NAME):
+	make -C $(READ_ONLY_CHECK_DIR)
+
+# Compilation uses the 'kernels' transformed code
+psy.f90: dummy.f90 read_only_check.py
+psy.o:  $(READ_ONLY_CHECK_DIR)/$(LIB_NAME)
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
