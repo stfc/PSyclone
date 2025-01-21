@@ -169,7 +169,7 @@ class UnaryOperation(Operation):
         '''Create a UnaryOperation instance given an operator and operand.
 
         :param operator: the specified operator.
-        :type operator: \
+        :type operator:
             :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
         :param operand: the PSyIR node that oper operates on, or a tuple
             containing the name of the argument and the PSyIR node.
@@ -269,8 +269,8 @@ class BinaryOperation(Operation):
         :type rhs: Union[:py:class:`psyclone.psyir.nodes.Node`,
             Tuple[str, :py:class:`psyclone.psyir.nodes.Node`]]
         :param bool has_explicit_grouping: Whether this operation should be
-        surrounded by explicit grouping syntax (e.g. parenthesis) regarless of
-        not breaking any other precedence rules. Defaults to False.
+            surrounded by explicit grouping syntax (e.g. parenthesis) regarless
+            of not breaking any other precedence rules. Defaults to False.
 
         :returns: a BinaryOperator instance.
         :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
