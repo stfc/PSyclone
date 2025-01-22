@@ -763,7 +763,7 @@ class ArgOrdering:
                         metadata_posn=scalar_arg.metadata_index)
             if scalar_arg.precision and var_accesses is not None:
                 var_accesses.add_access(Signature(scalar_arg.precision),
-                                        AccessType.COMPILE_TIME, self._kern)
+                                        AccessType.TYPE_INFO, self._kern)
         else:
             self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
                         metadata_posn=scalar_arg.metadata_index)

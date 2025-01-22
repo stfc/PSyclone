@@ -48,22 +48,28 @@ class AccessType(Enum):
     READ = 1
     WRITE = 2
     READWRITE = 3
+    #: Incremented from more than one cell column (see the LFRic API section
+    #: of the User Guide).
     INC = 4
+    #: Read before incrementing. Requires that the outermost halo be clean (see
+    #: the LFRic API section of the User Guide).
     READINC = 5
     SUM = 6
-    # This is used internally to indicate unknown access type of
-    # a variable, e.g. when a variable is passed to a subroutine
-    # and the access type of this variable in the subroutine
-    # is unknown.
+    #: This is used internally to indicate unknown access type of
+    #: a variable, e.g. when a variable is passed to a subroutine
+    #: and the access type of this variable in the subroutine
+    #: is unknown.
+    #: TODO #2863 - VariablesAccessInfo does not currently consider
+    #: UNKNOWN accesses and it should!
     UNKNOWN = 7
-    # A symbol representing a routine is called.
+    #: A symbol representing a routine is called.
     CALL = 8
-    # The property/ies of a symbol is/are queried but the data it
-    # represents is not accessed (e.g. 'var' in SIZE(var, dim=1)).
+    #: The property/ies of a symbol is/are queried but the data it
+    #: represents is not accessed (e.g. 'var' in SIZE(var, dim=1)).
     INQUIRY = 9
-    # The symbol is only accessed at compile time - e.g. precision
-    # of a literal or a type definition.
-    COMPILE_TIME = 10
+    #: The symbol is used to access its type information (available at compile
+    #: time) - e.g. precision values such as 'wp' in 1.0_wp.
+    TYPE_INFO = 10
 
     def __str__(self) -> str:
         '''Convert to a string representation, returning just the
@@ -144,7 +150,7 @@ class AccessType(Enum):
                   a symbol.
         :rtype: list[:py:class:`psyclone.core.AccessType`]
         '''
-        return [AccessType.CALL, AccessType.COMPILE_TIME, AccessType.INQUIRY]
+        return [AccessType.CALL, AccessType.TYPE_INFO, AccessType.INQUIRY]
 
 
 # ---------- Documentation utils -------------------------------------------- #

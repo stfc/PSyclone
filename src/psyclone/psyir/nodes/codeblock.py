@@ -214,6 +214,9 @@ class CodeBlock(Statement, DataNode):
         them all as READWRITE, unfortunately, this will include the names of
         any routines that are called.
 
+        TODO #2863 - it would be better to use AccessType.UNKNOWN here but
+        currently VariablesAccessInfo does not consider that type of access.
+
         This method makes use of
         :py:meth:`~psyclone.psyir.nodes.CodeBlock.get_symbol_names` and is
         therefore subject to the same limitations as that method.
