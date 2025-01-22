@@ -152,14 +152,14 @@ class GOceanExtractTrans(ExtractTrans):
             is required (and is supported by the runtime library).
 
         '''
-
-        my_options = self.merge_in_default_options(options)
+        if options is None:
+            options = {}
 
         ctu = CallTreeUtils()
         nodes = self.get_node_list(nodes)
-        region_name = self.get_unique_region_name(nodes, my_options)
-        my_options["region_name"] = region_name
-        my_options["prefix"] = my_options.get("prefix", "extract")
+        region_name = self.get_unique_region_name(nodes, options)
+        options["region_name"] = region_name
+        options["prefix"] = options.get("prefix", "extract")
 
         read_write_info = ctu.get_in_out_parameters(
             nodes, include_non_data_accesses=True)
@@ -167,15 +167,15 @@ class GOceanExtractTrans(ExtractTrans):
         # that avoid any name clashes
         postfix = ExtractTrans.determine_postfix(read_write_info,
                                                  postfix="_post")
-        my_options["post_var_postfix"] = postfix
+        options["post_var_postfix"] = postfix
 
-        if my_options.get("create_driver", False):
+        if options.get("create_driver", False):
             # We need to create the driver before inserting the ExtractNode
             # (since some of the visitors used in driver creation do not
             # handle an ExtractNode in the tree)
             self._driver_creator.write_driver(nodes, read_write_info,
                                               postfix=postfix,
-                                              prefix=my_options["prefix"],
+                                              prefix=options["prefix"],
                                               region_name=region_name)
 
-        super().apply(nodes, my_options)
+        super().apply(nodes, options)
