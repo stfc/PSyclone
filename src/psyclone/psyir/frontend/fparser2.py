@@ -4898,7 +4898,10 @@ class Fparser2Reader():
         new_node = self._create_child(node.items[1], parent)
 
         # Explicit parenthesis on BinaryOperations are sometimes needed for
-        # reproducibility, so we store the fact that they are here.
+        # reproducibility (because a Fortran compiler may evaluate any
+        # mathematically-equivalent expression, provided that the integrity
+        # of parentheses is not violated - Fortran2008 section 7.1.5.2.4),
+        # so we store the fact that they are here.
         if isinstance(new_node, BinaryOperation):
             new_node.has_explicit_grouping = True
 

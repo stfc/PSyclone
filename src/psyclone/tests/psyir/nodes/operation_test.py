@@ -141,6 +141,11 @@ def test_binaryoperation_create():
     result = FortranWriter().binaryoperation_node(binaryoperation)
     assert result == "tmp1 + tmp2"
 
+    # Check with the optional has_explicit_grouping parameter
+    binaryoperation = BinaryOperation.create(
+        oper, lhs.copy(), rhs.copy(), has_explicit_grouping=True)
+    assert binaryoperation.has_explicit_grouping
+
 
 def test_binaryoperation_create_invalid():
     '''Test that the create method in a BinaryOperation class raises the

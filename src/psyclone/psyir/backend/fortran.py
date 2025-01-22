@@ -337,14 +337,13 @@ class FortranWriter(LanguageWriter):
         mapping. Any key that does already exist in `reverse_dict`
         is not overwritten, only new keys are added.
 
-        :param reverse_dict: the dictionary to which the new mapping of \
+        :param reverse_dict: the dictionary to which the new mapping of
             operator to string is added.
-        :type reverse_dict: dict from \
-            :py:class:`psyclone.psyir.nodes.BinaryOperation`, \
-            :py:class:`psyclone.psyir.nodes.NaryOperation` or \
-            :py:class:`psyclone.psyir.nodes.UnaryOperation` to str
+        :type reverse_dict: dict[
+                :py:class:`psyclone.psyir.nodes.Operation`, str
+            ]
 
-        :param op_map: mapping from string representation of operator to \
+        :param op_map: mapping from string representation of operator to
                        enumerated type.
         :type op_map: :py:class:`collections.OrderedDict`
 

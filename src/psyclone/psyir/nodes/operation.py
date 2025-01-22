@@ -212,7 +212,7 @@ class BinaryOperation(Operation):
     :param operator: the operator used in the operation.
     :type operator: :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator`
     :param bool has_explicit_grouping: Whether this operation should be
-        surrounded by explicit grouping syntax (e.g. parenthesis) regarless of
+        surrounded by explicit grouping syntax (e.g. parenthesis) regardless of
         not breaking any other precedence rules. Defaults to False.
     :param parent: the parent node of this Operation in the PSyIR.
     :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
@@ -269,8 +269,9 @@ class BinaryOperation(Operation):
         :type rhs: Union[:py:class:`psyclone.psyir.nodes.Node`,
             Tuple[str, :py:class:`psyclone.psyir.nodes.Node`]]
         :param bool has_explicit_grouping: Whether this operation should be
-            surrounded by explicit grouping syntax (e.g. parenthesis) regarless
-            of not breaking any other precedence rules. Defaults to False.
+            surrounded by explicit grouping syntax (e.g. parenthesis)
+            regardless of not breaking any other precedence rules. Defaults to
+            False.
 
         :returns: a BinaryOperator instance.
         :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
@@ -294,7 +295,7 @@ class BinaryOperation(Operation):
     def has_explicit_grouping(self) -> bool:
         '''
         :returns: Whether this operation should be surrounded by explicit
-            grouping syntax (e.g. parenthesis) regarless of not breaking any
+            grouping syntax (e.g. parenthesis) regardless of not breaking any
             other precedence rules.
         '''
         return self._has_explicit_grouping
@@ -303,7 +304,7 @@ class BinaryOperation(Operation):
     def has_explicit_grouping(self, value: bool):
         '''
         :param value: Whether this operation should be surrounded by explicit
-            grouping syntax (e.g. parenthesis) regarless of not breaking any
+            grouping syntax (e.g. parenthesis) regardless of not breaking any
             other precedence rules.
 
         :raises TypeError: if the provided value is not a boolean.
