@@ -119,7 +119,7 @@ class ScalarizationTrans(LoopTrans):
     @staticmethod
     def _have_same_unmodified_index(signature: Signature,
                                     var_accesses: VariablesAccessInfo) \
-                                            -> bool:
+            -> bool:
         '''
         :param signature: The signature to check.
         :type signature: :py:class:`psyclone.core.Signature`
@@ -158,7 +158,7 @@ class ScalarizationTrans(LoopTrans):
     @staticmethod
     def _check_first_access_is_write(signature: Signature,
                                      var_accesses: VariablesAccessInfo) \
-                                             -> bool:
+            -> bool:
         '''
         :param signature: The signature to check.
         :type signature: :py:class:`psyclone.core.Signature`
@@ -251,7 +251,8 @@ class ScalarizationTrans(LoopTrans):
 
         return True
 
-    def apply(self, node: Loop, options:Optional[Dict[str,Any]]=None) -> None:
+    def apply(self, node: Loop, options: Optional[Dict[str, Any]] = None) \
+            -> None:
         '''
         Apply the scalarization transformation to a loop.
         All of the array accesses that are identified as being able to be

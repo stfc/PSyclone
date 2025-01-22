@@ -1793,12 +1793,11 @@ class Node():
         :returns bool: whether potential_ancestor is an ancestor of this node.
         '''
         current_node = self
-        while (current_node is not potential_ancestor and 
+        while (current_node is not potential_ancestor and
                current_node.parent is not None):
             current_node = current_node.parent
 
         return current_node is potential_ancestor
-
 
 
 # For automatic documentation generation
