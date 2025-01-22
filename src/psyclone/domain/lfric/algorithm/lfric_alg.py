@@ -35,6 +35,7 @@
 # Modified by: R. W. Ford, STFC Daresbury Laboratory.
 #              L. Turner, Met Office
 #              T. Vockerodt, Met Office
+#              J. Dendy, Met Office
 
 '''This module contains the LFRicAlg class which encapsulates tools for
    creating standalone LFRic algorithm-layer code.
@@ -260,8 +261,12 @@ class LFRicAlg:
         # The order of the finite-element scheme.
         fe_config_mod = table.new_symbol(
             "finite_element_config_mod", symbol_type=ContainerSymbol)
-        order = table.new_symbol(
-            "element_order", tag="element_order",
+        order_h = table.new_symbol(
+            "element_order_h", tag="element_order_h",
+            symbol_type=DataSymbol, datatype=UnresolvedType(),
+            interface=ImportInterface(fe_config_mod))
+        order_v = table.new_symbol(
+            "element_order_v", tag="element_order_v",
             symbol_type=DataSymbol, datatype=UnresolvedType(),
             interface=ImportInterface(fe_config_mod))
 
@@ -292,7 +297,7 @@ class LFRicAlg:
 
             cblock = reader.psyir_from_statement(
                 f"{vsym_ptr.name} => function_space_collection%get_fs( mesh, "
-                f"{order.name}, {space})", table)
+                f"{order_h.name}, {order_v.name}, {space})", table)
 
             prog.addchild(cblock)
 
@@ -395,9 +400,11 @@ class LFRicAlg:
                                            datatype=qr_gaussian_type)
 
         if shape == "gh_quadrature_xyoz":
-            order = table.lookup_with_tag("element_order")
+            order_h = table.lookup_with_tag("element_order_h")
+            order_v = table.lookup_with_tag("element_order_v")
             expr = reader.psyir_from_expression(
-                f"quadrature_xyoz_type({order.name}+3, {qr_rule_sym.name})",
+                f"quadrature_xyoz_type(MAX({order_h.name},{order_v.name})+3, "
+                f"{qr_rule_sym.name})",
                 table)
             prog.addchild(Assignment.create(Reference(qr_sym), expr))
 
