@@ -291,11 +291,11 @@ def test_lfric():
     var_accesses = VariablesAccessInfo(schedule)
     assert str(var_accesses) == (
         "a: READ, cell: READ+WRITE, f1_data: READ+WRITE, f2_data: READ, "
-        "field_type: INQUIRY, i_def: INQUIRY, loop0_start: READ, "
-        "loop0_stop: READ, m1_data: READ, m2_data: READ, map_w1: READ, "
+        "field_type: NO DATA ACCESS, i_def: NO DATA ACCESS, loop0_start: "
+        "READ, loop0_stop: READ, m1_data: READ, m2_data: READ, map_w1: READ, "
         "map_w2: READ, map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ,"
-        " nlayers_f1: READ, r_def: INQUIRY, undf_w1: READ, undf_w2: READ, "
-        "undf_w3: READ")
+        " nlayers_f1: READ, r_def: NO DATA ACCESS, undf_w1: READ, undf_w2: "
+        "READ, undf_w3: READ")
 
 
 def test_lfric_kern_cma_args():
