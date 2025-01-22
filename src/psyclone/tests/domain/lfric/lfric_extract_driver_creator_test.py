@@ -622,7 +622,6 @@ def test_lfric_driver_field_array_inc():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="FIXME")
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_external_symbols():
     '''Test the handling of symbols imported from other modules, or calls to
@@ -646,7 +645,7 @@ def test_lfric_driver_external_symbols():
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
-    assert ("call extract_psy_data % ReadVariable('module_var_a_post@"
+    assert ("call extract_psy_data%ReadVariable('module_var_a_post@"
             "module_with_var_mod', module_var_a_post)" in driver)
     assert ("call compare('module_var_a', module_var_a, module_var_a_post)"
             in driver)
@@ -658,7 +657,6 @@ def test_lfric_driver_external_symbols():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="FIXME")
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_external_symbols_name_clash():
     '''Test the handling of symbols imported from other modules, or calls to
@@ -678,9 +676,9 @@ def test_lfric_driver_external_symbols_name_clash():
 
     # Make sure the imported, clashing symbol 'f1_data' is renamed:
     assert "use module_with_name_clash_mod, only : f1_data_1=>f1_data" in code
-    assert ('CALL extract_psy_data%PreDeclareVariable("f1_data@'
+    assert ('CALL extract_psy_data % PreDeclareVariable("f1_data@'
             'module_with_name_clash_mod", f1_data_1)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("f1_data@'
+    assert ('CALL extract_psy_data % ProvideVariable("f1_data@'
             'module_with_name_clash_mod", f1_data_1)' in code)
 
     # Even though PSyclone cannot find the variable, it should still be
@@ -705,7 +703,6 @@ def test_lfric_driver_external_symbols_name_clash():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="FIXME")
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_external_symbols_error(capsys):
     '''Test the handling of symbols imported from other modules, or calls to

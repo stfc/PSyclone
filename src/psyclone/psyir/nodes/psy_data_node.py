@@ -497,16 +497,21 @@ class PSyDataNode(Statement):
         out_list = []
         for (module_name, signature) in var_list:
             if module_name:
-                tag = f"{signature[0]}@{module_name}"
-                try:
-                    var_symbol = symbol_table.lookup(signature.var_name)
-                    if tag not in symbol_table.tags_dict:
-                        symbol_table.tags_dict[tag] = var_symbol
-                    elif symbol_table.tags_dict[tag] is not var_symbol:
-                        raise ValueError("Already used tag")
-                except KeyError:
-                    print(f"Missing {signature.var_name}")
-                    continue
+                 # pylint: disable=import-outside-toplevel
+                from psyclone.parse import ModuleManager
+                mod_man = ModuleManager.get()
+                mod_info = mod_man.get_module_info(module_name)
+                sym = mod_info.get_symbol(signature[0])
+                # if not isinstance(sym, DataSymbol):
+                #     raise TypeError("The ")
+                container = symbol_table.find_or_create(
+                    module_name, symbol_type=ContainerSymbol)
+                var_symbol = symbol_table.find_or_create_tag(
+                                tag=f"{signature[0]}"
+                                    f"@{module_name}",
+                                root_name=signature[0],
+                                interface=ImportInterface(container))
+
                 unique_sig = Signature(var_symbol.name, signature[1:])
             else:
                 # This is a local variable anyway, no need to rename:
@@ -678,7 +683,7 @@ class PSyDataNode(Statement):
                     module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
-                    [f"\"{sig}{module_name}{pre_suffix}\"", unique_sig])
+                    [f"\"{sig}{pre_suffix}{module_name}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
             for module_name, sig, unique_sig in post_variable_list:
@@ -686,7 +691,7 @@ class PSyDataNode(Statement):
                     module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
-                    [f"\"{sig}{module_name}{post_suffix}\"", unique_sig])
+                    [f"\"{sig}{post_suffix}{module_name}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
             call = gen_type_bound_call(self._var_name, "PreEndDeclaration")
@@ -697,7 +702,7 @@ class PSyDataNode(Statement):
                     module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
-                    [f"\"{sig}{module_name}{pre_suffix}\"", unique_sig])
+                    [f"\"{sig}{pre_suffix}{module_name}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
             call = gen_type_bound_call(self._var_name, "PreEnd")
@@ -717,7 +722,7 @@ class PSyDataNode(Statement):
                     module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
-                    [f"\"{sig}{module_name}{post_suffix}\"", unique_sig])
+                    [f"\"{sig}{post_suffix}{module_name}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
         # PSyData end call

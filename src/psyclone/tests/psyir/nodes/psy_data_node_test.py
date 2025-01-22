@@ -479,7 +479,6 @@ def test_psy_data_node_lower_to_language_level_with_options():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="FIXME")
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
 def test_psy_data_node_name_clash(fortran_writer):
     '''Test the handling of symbols imported from other modules, or calls to
@@ -513,18 +512,18 @@ def test_psy_data_node_name_clash(fortran_writer):
     assert ('CALL extract_psy_data % PreDeclareVariable("f1_data_post", '
             'f1_data)' in code)
     assert ('CALL extract_psy_data % PreDeclareVariable("f1_data@'
-            'module_with_name_clash_mod", f1_data_1)' == code)
+            'module_with_name_clash_mod", f1_data_1)' in code)
     assert ('CALL extract_psy_data % PreDeclareVariable("f2_data@'
             'module_with_name_clash_mod", f2_data_1)' in code)
-    assert ('CALL extract_psy_data % PreDeclareVariable("f2_data@'
-            'module_with_name_clash_mod_post", f2_data_1)' in code)
+    assert ('CALL extract_psy_data % PreDeclareVariable("f2_data_post@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
 
     assert ('CALL extract_psy_data % ProvideVariable("f1_data@'
             'module_with_name_clash_mod", f1_data_1)' in code)
     assert ('CALL extract_psy_data % ProvideVariable("f2_data@'
             'module_with_name_clash_mod", f2_data_1)' in code)
-    assert ('CALL extract_psy_data % ProvideVariable("f2_data@'
-            'module_with_name_clash_mod_post", f2_data_1)' in code)
+    assert ('CALL extract_psy_data % ProvideVariable("f2_data_post@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
 
 
 # ----------------------------------------------------------------------------
