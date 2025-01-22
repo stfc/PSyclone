@@ -73,7 +73,7 @@ kernels: read_only_check.py
 	$(PSYCLONE) -l all -s ./read_only_check.py -o psy.f90 dummy.f90
 
 $(READ_ONLY_CHECK_DIR)/$(LIB_NAME):
-	make -C $(READ_ONLY_CHECK_DIR)
+	$(MAKE) -C $(READ_ONLY_CHECK_DIR)
 
 # Compilation uses the 'kernels' transformed code
 psy.f90: dummy.f90 read_only_check.py kernels
@@ -81,3 +81,6 @@ psy.o:  $(READ_ONLY_CHECK_DIR)/$(LIB_NAME)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
+
+allclean: clean
+	${MAKE} -C $(READ_ONLY_CHECK_DIR) allclean
