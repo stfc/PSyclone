@@ -252,7 +252,7 @@ class GOceanKernelMetadata():
         '''
         kernel_metadata = GOceanKernelMetadata()
 
-        # Ensure the Fortran2003 parser is initialised.
+        # Ensure the Fortran parser is initialised.
         std = Config.get().fortran_standard
         _ = ParserFactory().create(std=std)
         reader = FortranStringReader(fortran_string)
