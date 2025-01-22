@@ -136,6 +136,11 @@ def test_codeblock_get_symbol_names(parser):
 
 def test_codeblock_ref_accesses(parser):
     '''Test that the reference_accesses() method works as expected.
+
+    TODO #2863 - accesses within a CodeBlock should really be marked as
+    AccessType.UNKNOWN but are currently always READWRITE. Also, calls to
+    Fortran intrinsics are not captured.
+
     '''
     vai = VariablesAccessInfo()
     reader = FortranStringReader('''
