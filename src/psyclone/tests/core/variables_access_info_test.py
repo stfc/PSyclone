@@ -471,7 +471,7 @@ def test_lfric_access_info():
     # variable in the access list:
     assert ("basis_w1_qr: READ, basis_w3_qr: READ, cell: READ+WRITE, "
             "diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, f1_data: "
-            "READ+WRITE, f2_data: READ, "
+            "READ+WRITE, f2_data: READ, loop0_start: READ, loop0_stop: READ, "
             "m1_data: READ, m2_data: READ, map_w1: READ, map_w2: READ, map_w3:"
             " READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, nlayers_f1: "
             "READ, np_xy_qr: READ, np_z_qr: READ, undf_w1: READ, undf_w2: "

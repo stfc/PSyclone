@@ -4366,6 +4366,16 @@ field_r_phys)
     real(kind=r_phys), intent(in) :: scalar_r_phys
     type(r_phys_field_type), intent(in) :: field_r_phys
     integer(kind=i_def) :: cell
+    integer(kind=i_def) :: loop0_start
+    integer(kind=i_def) :: loop0_stop
+    integer(kind=i_def) :: loop1_start
+    integer(kind=i_def) :: loop1_stop
+    integer(kind=i_def) :: loop2_start
+    integer(kind=i_def) :: loop2_stop
+    integer(kind=i_def) :: loop3_start
+    integer(kind=i_def) :: loop3_stop
+    integer(kind=i_def) :: loop4_start
+    integer(kind=i_def) :: loop4_stop
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
     real(kind=r_def), pointer, dimension(:) :: field_r_def_data => null()

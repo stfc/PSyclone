@@ -86,12 +86,12 @@ def test_extract_node_gen_code(fortran_writer):
     code = fortran_writer(invoke.schedule)
     expected = [
         'CALL psydata % PreStart("single_invoke_psy", '
-        '"invoke_important_invoke-testkern_code-r0", 15, 2)',
+        '"invoke_important_invoke-testkern_code-r0", 17, 2)',
         'CALL psydata % PreDeclareVariable("a", a)',
         'CALL psydata % PreDeclareVariable("f1_data", f1_data)',
         'CALL psydata % PreDeclareVariable("f2_data", f2_data)',
-        # 'CALL psydata % PreDeclareVariable("loop0_start", loop0_start)',
-        # 'CALL psydata % PreDeclareVariable("loop0_stop", loop0_stop)',
+        'CALL psydata % PreDeclareVariable("loop0_start", loop0_start)',
+        'CALL psydata % PreDeclareVariable("loop0_stop", loop0_stop)',
         'CALL psydata % PreDeclareVariable("m1_data", m1_data)',
         'CALL psydata % PreDeclareVariable("m2_data", m2_data)',
         'CALL psydata % PreDeclareVariable("map_w1", map_w1)',
@@ -219,13 +219,12 @@ def test_extract_node_gen():
     etrans.apply(invoke.schedule.children[0])
     code = str(psy.gen)
     output = '''CALL extract_psy_data % PreStart("single_invoke_psy", \
-"invoke_0_testkern_type-testkern_code-r0", 15, 2)
+"invoke_0_testkern_type-testkern_code-r0", 17, 2)
     CALL extract_psy_data % PreDeclareVariable("a", a)
     CALL extract_psy_data % PreDeclareVariable("f1_data", f1_data)
-    CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)'''
-    # CALL extract_psy_data % PreDeclareVariable("loop0_start", loop0_start)
-    # CALL extract_psy_data % PreDeclareVariable("loop0_stop", loop0_stop)
-    '''
+    CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
+    CALL extract_psy_data % PreDeclareVariable("loop0_start", loop0_start)
+    CALL extract_psy_data % PreDeclareVariable("loop0_stop", loop0_stop)
     CALL extract_psy_data % PreDeclareVariable("m1_data", m1_data)
     CALL extract_psy_data % PreDeclareVariable("m2_data", m2_data)
     CALL extract_psy_data % PreDeclareVariable("map_w1", map_w1)
@@ -234,7 +233,7 @@ def test_extract_node_gen():
     CALL extract_psy_data % PreDeclareVariable("ndf_w1", ndf_w1)
     CALL extract_psy_data % PreDeclareVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % PreDeclareVariable("ndf_w3", ndf_w3)
-    CALL extract_psy_data % PreDeclareVariable("nlayers", nlayers)
+    CALL extract_psy_data % PreDeclareVariable("nlayers_f1", nlayers_f1)
     CALL extract_psy_data % PreDeclareVariable("undf_w1", undf_w1)
     CALL extract_psy_data % PreDeclareVariable("undf_w2", undf_w2)
     CALL extract_psy_data % PreDeclareVariable("undf_w3", undf_w3)
@@ -243,10 +242,9 @@ def test_extract_node_gen():
     CALL extract_psy_data % PreEndDeclaration
     CALL extract_psy_data % ProvideVariable("a", a)
     CALL extract_psy_data % ProvideVariable("f1_data", f1_data)
-    CALL extract_psy_data % ProvideVariable("f2_data", f2_data)'''
-    # CALL extract_psy_data % ProvideVariable("loop0_start", loop0_start)
-    # CALL extract_psy_data % ProvideVariable("loop0_stop", loop0_stop)
-    '''
+    CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
+    CALL extract_psy_data % ProvideVariable("loop0_start", loop0_start)
+    CALL extract_psy_data % ProvideVariable("loop0_stop", loop0_stop)
     CALL extract_psy_data % ProvideVariable("m1_data", m1_data)
     CALL extract_psy_data % ProvideVariable("m2_data", m2_data)
     CALL extract_psy_data % ProvideVariable("map_w1", map_w1)

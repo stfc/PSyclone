@@ -303,14 +303,14 @@ def test_single_node_dynamo0p3():
 
     etrans.apply(schedule.children[0])
     code = str(psy.gen)
-    # CALL extract_psy_data % PreDeclareVariable("loop0_start", loop0_start)
-    # CALL extract_psy_data % PreDeclareVariable("loop0_stop", loop0_stop)
     output = '''\
     CALL extract_psy_data % PreStart("single_invoke_psy", \
-"invoke_0_testkern_type-testkern_code-r0", 15, 2)
+"invoke_0_testkern_type-testkern_code-r0", 17, 2)
     CALL extract_psy_data % PreDeclareVariable("a", a)
     CALL extract_psy_data % PreDeclareVariable("f1_data", f1_data)
     CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
+    CALL extract_psy_data % PreDeclareVariable("loop0_start", loop0_start)
+    CALL extract_psy_data % PreDeclareVariable("loop0_stop", loop0_stop)
     CALL extract_psy_data % PreDeclareVariable("m1_data", m1_data)
     CALL extract_psy_data % PreDeclareVariable("m2_data", m2_data)
     CALL extract_psy_data % PreDeclareVariable("map_w1", map_w1)
@@ -329,6 +329,8 @@ def test_single_node_dynamo0p3():
     CALL extract_psy_data % ProvideVariable("a", a)
     CALL extract_psy_data % ProvideVariable("f1_data", f1_data)
     CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
+    CALL extract_psy_data % ProvideVariable("loop0_start", loop0_start)
+    CALL extract_psy_data % ProvideVariable("loop0_stop", loop0_stop)
     CALL extract_psy_data % ProvideVariable("m1_data", m1_data)
     CALL extract_psy_data % ProvideVariable("m2_data", m2_data)
     CALL extract_psy_data % ProvideVariable("map_w1", map_w1)
@@ -367,16 +369,16 @@ def test_node_list_dynamo0p3():
 
     etrans.apply(schedule.children[0:3])
     code = str(psy.gen)
-    # CALL extract_psy_data % PreDeclareVariable("loop0_start", loop0_start)
-    # CALL extract_psy_data % PreDeclareVariable("loop0_stop", loop0_stop)
-    # CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
-    # CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
-    # CALL extract_psy_data % PreDeclareVariable("loop2_start", loop2_start)
-    # CALL extract_psy_data % PreDeclareVariable("loop2_stop", loop2_stop)
     output = """\
     CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy", \
-"invoke_0-r0", 5, 5)
+"invoke_0-r0", 11, 5)
     CALL extract_psy_data % PreDeclareVariable("f3_data", f3_data)
+    CALL extract_psy_data % PreDeclareVariable("loop0_start", loop0_start)
+    CALL extract_psy_data % PreDeclareVariable("loop0_stop", loop0_stop)
+    CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
+    CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
+    CALL extract_psy_data % PreDeclareVariable("loop2_start", loop2_start)
+    CALL extract_psy_data % PreDeclareVariable("loop2_stop", loop2_stop)
     CALL extract_psy_data % PreDeclareVariable("map_w2", map_w2)
     CALL extract_psy_data % PreDeclareVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % PreDeclareVariable("nlayers_f3", nlayers_f3)
@@ -388,6 +390,12 @@ def test_node_list_dynamo0p3():
     CALL extract_psy_data % PreDeclareVariable("f5_data_post", f5_data)
     CALL extract_psy_data % PreEndDeclaration
     CALL extract_psy_data % ProvideVariable("f3_data", f3_data)
+    CALL extract_psy_data % ProvideVariable("loop0_start", loop0_start)
+    CALL extract_psy_data % ProvideVariable("loop0_stop", loop0_stop)
+    CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
+    CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
+    CALL extract_psy_data % ProvideVariable("loop2_start", loop2_start)
+    CALL extract_psy_data % ProvideVariable("loop2_stop", loop2_stop)
     CALL extract_psy_data % ProvideVariable("map_w2", map_w2)
     CALL extract_psy_data % ProvideVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % ProvideVariable("nlayers_f3", nlayers_f3)
@@ -428,12 +436,14 @@ def test_dynamo0p3_builtin():
     etrans.apply(schedule.children[0:3])
     code = str(psy.gen)
 
-    # CALL extract_psy_data % PreDeclareVariable("loop1_start", """\
-    #        """loop1_start)
-    # CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
-    # CALL extract_psy_data % PreDeclareVariable("loop2_start", loop2_start)
-    # CALL extract_psy_data % PreDeclareVariable("loop2_stop", loop2_stop)
     output = """
+    CALL extract_psy_data % PreDeclareVariable("f3_data", f3_data)
+    CALL extract_psy_data % PreDeclareVariable("loop0_start", loop0_start)
+    CALL extract_psy_data % PreDeclareVariable("loop0_stop", loop0_stop)
+    CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
+    CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
+    CALL extract_psy_data % PreDeclareVariable("loop2_start", loop2_start)
+    CALL extract_psy_data % PreDeclareVariable("loop2_stop", loop2_stop)
     CALL extract_psy_data % PreDeclareVariable("map_w2", map_w2)
     CALL extract_psy_data % PreDeclareVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % PreDeclareVariable("nlayers_f3", nlayers_f3)
@@ -445,6 +455,12 @@ def test_dynamo0p3_builtin():
     CALL extract_psy_data % PreDeclareVariable("f5_data_post", f5_data)
     CALL extract_psy_data % PreEndDeclaration
     CALL extract_psy_data % ProvideVariable("f3_data", f3_data)
+    CALL extract_psy_data % ProvideVariable("loop0_start", loop0_start)
+    CALL extract_psy_data % ProvideVariable("loop0_stop", loop0_stop)
+    CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
+    CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
+    CALL extract_psy_data % ProvideVariable("loop2_start", loop2_start)
+    CALL extract_psy_data % ProvideVariable("loop2_stop", loop2_stop)
     CALL extract_psy_data % ProvideVariable("map_w2", map_w2)
     CALL extract_psy_data % ProvideVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % ProvideVariable("nlayers_f3", nlayers_f3)
@@ -488,17 +504,15 @@ def test_extract_single_builtin_dynamo0p3():
     etrans.apply(schedule.children[1])
     code = str(psy.gen)
     output = """\
-    CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy", """ \
-    """"invoke_0-setval_c-r0", 0, 2)"""
-    # CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
-    # CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
-    """
+    CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy", \
+"invoke_0-setval_c-r0", 2, 2)
+    CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
+    CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
     CALL extract_psy_data % PreDeclareVariable("df_post", df)
     CALL extract_psy_data % PreDeclareVariable("f2_data_post", f2_data)
-    CALL extract_psy_data % PreEndDeclaration"""
-    # CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
-    # CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
-    """
+    CALL extract_psy_data % PreEndDeclaration
+    CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
+    CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
     CALL extract_psy_data % PreEnd
     do df = loop1_start, loop1_stop, 1
       ! Built-in: setval_c (set a real-valued field to a real scalar value)
@@ -520,22 +534,19 @@ def test_extract_single_builtin_dynamo0p3():
     etrans.apply(schedule.children[1])
     code_omp = str(psy.gen)
     output = """\
-    CALL extract_psy_data % PreStart("single_invoke_psy", """ \
-    """"invoke_0-inc_ax_plus_y-r0", 2, 2)
+    CALL extract_psy_data % PreStart("single_invoke_psy", \
+"invoke_0-inc_ax_plus_y-r0", 4, 2)
     CALL extract_psy_data % PreDeclareVariable("f1_data", f1_data)
-    CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)"""
-    # CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
-    # CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
-    """
+    CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
+    CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
+    CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
     CALL extract_psy_data % PreDeclareVariable("df_post", df)
     CALL extract_psy_data % PreDeclareVariable("f1_data_post", f1_data)
     CALL extract_psy_data % PreEndDeclaration
     CALL extract_psy_data % ProvideVariable("f1_data", f1_data)
     CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
-    """
-    # CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
-    # CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
-    """
+    CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
+    CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
     CALL extract_psy_data % PreEnd
     !$omp parallel do default(shared), private(df), schedule(static)
     do df = loop1_start, loop1_stop, 1
@@ -564,17 +575,16 @@ def test_extract_kernel_and_builtin_dynamo0p3():
     etrans.apply(schedule.children[1:3])
     code = str(psy.gen)
     output = """\
-    CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy", """ \
-    """"invoke_0-r0", 5, 4)
-    CALL extract_psy_data % PreDeclareVariable("f3_data", f3_data)"""
-    # CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
-    # CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
-    # CALL extract_psy_data % PreDeclareVariable("loop2_start", loop2_start)
-    # CALL extract_psy_data % PreDeclareVariable("loop2_stop", loop2_stop)
-    """
+    CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy", \
+"invoke_0-r0", 9, 4)
+    CALL extract_psy_data % PreDeclareVariable("f3_data", f3_data)
+    CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
+    CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
+    CALL extract_psy_data % PreDeclareVariable("loop2_start", loop2_start)
+    CALL extract_psy_data % PreDeclareVariable("loop2_stop", loop2_stop)
     CALL extract_psy_data % PreDeclareVariable("map_w2", map_w2)
     CALL extract_psy_data % PreDeclareVariable("ndf_w2", ndf_w2)
-    CALL extract_psy_data % PreDeclareVariable("nlayers", nlayers)
+    CALL extract_psy_data % PreDeclareVariable("nlayers_f3", nlayers_f3)
     CALL extract_psy_data % PreDeclareVariable("undf_w2", undf_w2)
     CALL extract_psy_data % PreDeclareVariable("cell_post", cell)
     CALL extract_psy_data % PreDeclareVariable("df_post", df)
@@ -582,6 +592,10 @@ def test_extract_kernel_and_builtin_dynamo0p3():
     CALL extract_psy_data % PreDeclareVariable("f3_data_post", f3_data)
     CALL extract_psy_data % PreEndDeclaration
     CALL extract_psy_data % ProvideVariable("f3_data", f3_data)
+    CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
+    CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
+    CALL extract_psy_data % ProvideVariable("loop2_start", loop2_start)
+    CALL extract_psy_data % ProvideVariable("loop2_stop", loop2_stop)
     CALL extract_psy_data % ProvideVariable("map_w2", map_w2)
     CALL extract_psy_data % ProvideVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % ProvideVariable("nlayers_f3", nlayers_f3)
@@ -592,7 +606,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       f2_data(df) = 0.0
     enddo
     do cell = loop2_start, loop2_stop, 1
-      call testkern_w2_only_code(nlayers, f3_data, f2_data, ndf_w2, \
+      call testkern_w2_only_code(nlayers_f3, f3_data, f2_data, ndf_w2, \
 undf_w2, map_w2(:,cell))
     enddo
     CALL extract_psy_data % PostStart
@@ -645,7 +659,7 @@ def test_extract_colouring_omp_dynamo0p3(fortran_writer):
     code = str(psy.gen)
     output = ("""
     CALL extract_psy_data % PreStart("multikernel_invokes_7_psy", \
-"invoke_0-ru_code-r0", 26, 3)
+"invoke_0-ru_code-r0", 28, 3)
     CALL extract_psy_data % PreDeclareVariable("a_data", a_data)
     CALL extract_psy_data % PreDeclareVariable("b_data", b_data)
     CALL extract_psy_data % PreDeclareVariable("basis_w0_qr", basis_w0_qr)
@@ -659,6 +673,8 @@ diff_basis_w0_qr)
 diff_basis_w2_qr)
     CALL extract_psy_data % PreDeclareVariable("e", e)
     CALL extract_psy_data % PreDeclareVariable("istp", istp)
+    CALL extract_psy_data % PreDeclareVariable("loop7_start", loop7_start)
+    CALL extract_psy_data % PreDeclareVariable("loop7_stop", loop7_stop)
     CALL extract_psy_data % PreDeclareVariable("map_w0", map_w0)
     CALL extract_psy_data % PreDeclareVariable("map_w2", map_w2)
     CALL extract_psy_data % PreDeclareVariable("map_w3", map_w3)
@@ -691,6 +707,8 @@ diff_basis_w0_qr)
 diff_basis_w2_qr)
     CALL extract_psy_data % ProvideVariable("e", e)
     CALL extract_psy_data % ProvideVariable("istp", istp)
+    CALL extract_psy_data % ProvideVariable("loop7_start", loop7_start)
+    CALL extract_psy_data % ProvideVariable("loop7_stop", loop7_stop)
     CALL extract_psy_data % ProvideVariable("map_w0", map_w0)
     CALL extract_psy_data % ProvideVariable("map_w2", map_w2)
     CALL extract_psy_data % ProvideVariable("map_w3", map_w3)

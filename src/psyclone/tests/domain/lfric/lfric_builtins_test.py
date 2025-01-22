@@ -2130,5 +2130,6 @@ def test_field_access_info_for_arrays_in_builtins():
 
     assert Signature("f2_data") in vai
 
-    assert ("a: READ, df: READ+WRITE, f1_data: READ, f2_data: WRITE"
+    assert ("a: READ, df: READ+WRITE, f1_data: READ, f2_data: WRITE, "
+            "loop0_start: READ, loop0_stop: READ"
             == str(vai))

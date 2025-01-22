@@ -74,12 +74,10 @@ def test_lbounds_initialise(monkeypatch, fortran_writer):
     lbounds = LFRicLoopBounds(invoke)
 
     table = invoke.schedule.symbol_table
-    assert "loop0_start" not in table
-    assert "loop0_stop" not in table
 
     lbounds.initialise(0)
 
-    # Check that new symbols have been added.
+    # Check that new symbols exist
     start_sym = table.lookup("loop0_start")
     assert start_sym.datatype.intrinsic == symbols.ScalarType.Intrinsic.INTEGER
     stop_sym = table.lookup("loop0_stop")
