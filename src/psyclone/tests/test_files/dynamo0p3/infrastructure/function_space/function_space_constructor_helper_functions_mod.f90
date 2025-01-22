@@ -41,14 +41,6 @@ module function_space_constructor_helper_functions_mod
     integer(i_def), allocatable :: verts(:)
   end type select_entity_type
 
-  ! Select entities in the function space
-  type select_data_entity_type
-    integer(i_def), allocatable :: volumes(:)
-    integer(i_def), allocatable :: faces(:)
-    integer(i_def), allocatable :: edges(:)
-    integer(i_def), allocatable :: verts(:)
-  end type select_data_entity_type
-
 contains
 
   ! Allocates and initialises the select entity lists.
@@ -116,82 +108,6 @@ contains
     nullify(reference_element)
 
   end subroutine setup_select_entities
-
-  ! Allocates and initialises the select data entity lists.
-  !
-  ! [in] mesh  Mesh on which the entities reside.
-  ! [out] entity_all    All the entities available on the mesh.
-  ! [out] entity_theta  Entities on a theta field.
-  ! [out] entity_w2h    Entities on a w2h field.
-  ! [out] entity_w2v    Entities on a w2v field.
-  !
-  subroutine setup_select_data_entities( mesh, entity_all, entity_theta, &
-                                         entity_w2h, entity_w2v )
-
-    implicit none
-
-    type(mesh_type),               intent(in)  :: mesh
-    type(select_data_entity_type), intent(out) :: entity_all
-    type(select_data_entity_type), intent(out) :: entity_theta
-    type(select_data_entity_type), intent(out) :: entity_w2v
-    type(select_data_entity_type), intent(out) :: entity_w2h
-
-    integer(i_def), parameter :: number_of_volumes = 1
-
-    class(reference_element_type), pointer :: reference_element => null()
-
-    integer(i_def) :: number_of_faces
-    integer(i_def) :: number_of_edges
-    integer(i_def) :: number_of_vertices
-
-    reference_element => mesh%get_reference_element()
-    number_of_faces    = reference_element%get_number_faces()
-    number_of_edges    = reference_element%get_number_edges()
-    number_of_vertices = reference_element%get_number_vertices()
-
-    allocate( entity_all%volumes(number_of_volumes) )
-    allocate( entity_all%faces(number_of_faces) )
-    allocate( entity_all%edges(number_of_edges) )
-    allocate( entity_all%verts(number_of_vertices) )
-
-    entity_all%volumes = (/ V /)
-    entity_all%faces = (/ B, W, S, E, N, T /)
-    entity_all%edges = (/ WB, SB, EB, NB, SW, SE, NE, NW, WT, ST, ET, NT /)
-    entity_all%verts = (/ SWB, SEB, NEB, NWB, SWT, SET, NET, NWT /)
-
-    allocate( entity_theta%volumes(number_of_volumes) )
-    allocate( entity_theta%faces(number_of_faces) )
-    allocate( entity_theta%edges(number_of_edges) )
-    allocate( entity_theta%verts(number_of_vertices) )
-
-    entity_theta%volumes = IMDI
-    entity_theta%faces = (/ B, T, IMDI, IMDI, IMDI, IMDI /)
-    entity_theta%edges = IMDI
-    entity_theta%verts = IMDI
-
-    allocate( entity_w2v%volumes(number_of_volumes) )
-    allocate( entity_w2v%faces(number_of_faces) )
-    allocate( entity_w2v%edges(number_of_edges) )
-    allocate( entity_w2v%verts(number_of_vertices) )
-
-    entity_w2v%volumes = IMDI
-    entity_w2v%faces = (/ B, T, IMDI, IMDI, IMDI, IMDI /)
-    entity_w2v%edges = IMDI
-    entity_w2v%verts = IMDI
-
-    allocate( entity_w2h%volumes(number_of_volumes) )
-    allocate( entity_w2h%faces(number_of_faces) )
-    allocate( entity_w2h%edges(number_of_edges) )
-    allocate( entity_w2h%verts(number_of_vertices) )
-
-    entity_w2h%volumes = IMDI
-    entity_w2h%faces = (/ W, S, E, N, IMDI, IMDI/)
-    entity_w2h%edges = IMDI
-    entity_w2h%verts = IMDI
-
-    nullify(reference_element)
-
-  end subroutine setup_select_data_entities
 
   !-----------------------------------------------------------------------------
   !> @brief Computes the number of dofs for various entities.
@@ -450,7 +366,7 @@ contains
       ! of a W2V Hdiv space (or equivalently taking only the
       ! vertical components of the trace of the W2 space).
       ! The result is a scalar-valued space
-      ! with functions defined only on cell horizontal faces.
+      ! with functions defined only on cell vertical faces.
       !
       ! This space is discontinuous across edges/vertices.
       !
@@ -464,7 +380,7 @@ contains
       ! of a W2H Hdiv space (or equivalently taking only the
       ! horizontal components of the trace of the W2 space).
       ! The result is a scalar-valued space
-      ! with functions defined only on cell vertical faces.
+      ! with functions defined only on cell horizontal faces.
       !
       ! This space is discontinuous across edges/vertices.
       !
@@ -655,8 +571,12 @@ contains
     ly(:) = 0
     lz(:) = 0
 
-    ! Positional arrays - need two, i.e quadratic and linear for RT1
+    ! Positional arrays - need two, i.e quadratic and linear at lowest order.
+    ! These arrays will be used in the calculation of the nodal points and
+    ! corresponding basis functions
+
     do i = 1, k_h + 2
+      ! Evenly space the points edge to edge
       x1h(i) = real(i - 1, r_def) / real(k_h + 1, r_def)
     end do
 
@@ -707,7 +627,8 @@ contains
     ! Faces are defined as having one coordinate fixed,
     ! i.e. for face 1 x = 0 for all points on the face
     ! and for face 4 y = 1 for all points on the face.
-    ! This array give the index for the fixed coordinate for each face.
+    ! This array give the index of x1h/x1v that returns the fixed coordinate
+    ! of each face.
     ! If a face has fixed coordinate = 0 the index is 1
     ! If a face has fixed coordinate = 1 the index is k+2
     face_idx = (/ 1, 1, k_h + 2, k_h + 2, 1, k_v + 2 /)
@@ -1632,8 +1553,8 @@ contains
       !============================================
       do i = 1, number_faces - 2
         ! No vertical faces considered so one horizontal and one vertical loop
-        do j1 = 1, k_h + 1
-          do j2 = 1, k_v + 1
+        do j1 = 1, k_v + 1
+          do j2 = 1, k_h + 1
             j(1) = j1
             j(2) = j2
             j(3) = face_idx(i)
@@ -2423,7 +2344,7 @@ contains
               ! The following line is very confused by the casting that is
               ! required, but it is actually calculating the global id as being:
               !      (global_cell_id-1) * num_dofs * ndata * num_layers
-              !      + (idof-1) * ndata*num_layers
+              !      + (idof-1) * ndata * num_layers
               !      + (k - 1) * ndata
               !      + (m - 1)
               global_dof_id(dofmap(idof, icell) + (k - 1) * ndata + (m - 1)) = &
@@ -2477,138 +2398,40 @@ contains
   !>
   !> Creates an array of fractional (dof) levels for output.
   !>
-  !> @param[in]  mesh     Mesh to operate on.
-  !> @param[in]  nlayers  Number of layers.
-  !> @param[in]  fs       Integer enumeration of the function space.
-  !> @param[out] levels   Array of fractional levels.
+  !> @param[in]  mesh         Mesh to operate on.
+  !> @param[in]  nlayers      Number of layers.
+  !> @param[in]  ndof_cell    Number of dofs per cell of the function space.
+  !> @param[in]  nodal_coords Vector of nodal points of basis functions at each
+  !>                          dof of a cell.
+  !> @param[out] levels       Array of fractional levels.
   !>
-  subroutine levels_setup(mesh, nlayers, fs, levels)
+  subroutine levels_setup(mesh, nlayers, ndof_cell, nodal_coords, levels)
 
     implicit none
 
     type(mesh_type), intent(in) :: mesh
 
     integer(i_def), intent(in) :: nlayers
-    integer(i_def), intent(in) :: fs
+    integer(i_def), intent(in) :: ndof_cell
+    real(r_def),    intent(in) :: nodal_coords(3, ndof_cell)
 
     real(r_def), intent(out), allocatable :: levels(:)
 
-    class(reference_element_type), pointer :: reference_element => null()
-
-    real(r_def), allocatable :: vert_coords(:,:)
-    real(r_def), allocatable :: edge_coords(:,:)
-    real(r_def), allocatable :: face_coords(:,:)
-    real(r_def), allocatable :: volume_coords(:,:)
     ! Variable to hold the number of levels we found
     integer(i_def) :: idx
     ! working array to hold fractional levels
     real(r_def), allocatable :: tmp_levs(:)
 
-    type(select_data_entity_type) :: select_data_entity_all, &
-    select_data_entity_theta, &
-    select_data_entity_w2h, &
-    select_data_entity_w2v
-
-    reference_element => mesh%get_reference_element()
-    call reference_element%get_vertex_coordinates(vert_coords)
-    call reference_element%get_edge_centre_coordinates(edge_coords)
-    call reference_element%get_face_centre_coordinates(face_coords)
-    call reference_element%get_volume_centre_coordinates(volume_coords)
-
-    call setup_select_data_entities( mesh,                     &
-                                     select_data_entity_all,   &
-                                     select_data_entity_theta, &
-                                     select_data_entity_w2h,   &
-                                     select_data_entity_w2v )
-
-    select case (fs)
-
-    case (W0)
-      ! W0 locates data on vertices
-
-      call compute_levels( nlayers,                      &
-                           vert_coords,                  &
-                           select_data_entity_all%verts, &
-                           tmp_levs,                     &
-                           idx )
-
-    case (W1)
-      ! W1 locates data on edges
-
-      call compute_levels( nlayers,                      &
-                           edge_coords,                  &
-                           select_data_entity_all%edges, &
-                           tmp_levs,                     &
-                           idx )
-
-    case (W2, W2broken, W2trace)
-      ! W2 locates data on faces
-
-      call compute_levels( nlayers,                      &
-                           face_coords,                  &
-                           select_data_entity_all%faces, &
-                           tmp_levs,                     &
-                           idx )
-
-    case (W3)
-      ! W3 locates data on cell volume
-
-      call compute_levels( nlayers,                        &
-                           volume_coords,                  &
-                           select_data_entity_all%volumes, &
-                           tmp_levs,                       &
-                           idx )
-
-    case (WTHETA)
-      ! WTheta locates data on selected faces
-      ! (top and bottom)
-
-      call compute_levels( nlayers,                        &
-                           face_coords,                    &
-                           select_data_entity_theta%faces, &
-                           tmp_levs,                       &
-                           idx )
-
-    case (W2H, W2Hbroken)
-      ! W2H locates data on selected faces
-      ! (top and bottom)
-
-      call compute_levels( nlayers,                      &
-                           face_coords,                  &
-                           select_data_entity_w2h%faces, &
-                           tmp_levs,                     &
-                           idx )
-
-    case (W2V)
-      ! W2V locates data on selected faces
-      ! (W, S, E, N)
-
-      call compute_levels( nlayers,                      &
-                           face_coords,                  &
-                           select_data_entity_w2v%faces, &
-                           tmp_levs,                     &
-                           idx )
-
-    case default
-      ! For anything else just make a dummy list
-
-      idx = 2
-      allocate(tmp_levs(1))
-      tmp_levs(1) = 0
-
-    end select
+    call compute_levels( nlayers,      &
+                         ndof_cell,    &
+                         nodal_coords, &
+                         tmp_levs,     &
+                         idx )
 
     ! Allocate the out array to be the size of the number of levels we found
     ! and copy in the data from the temp array
     allocate(levels(size(tmp_levs(1:(idx - 1)))))
     levels = tmp_levs(1:(idx - 1))
-
-    nullify(reference_element)
-    if (allocated(vert_coords))   deallocate(vert_coords)
-    if (allocated(edge_coords))   deallocate(edge_coords)
-    if (allocated(face_coords))   deallocate(face_coords)
-    if (allocated(volume_coords)) deallocate(volume_coords)
-    if (allocated(tmp_levs))      deallocate(tmp_levs)
 
   end subroutine levels_setup
 
@@ -2621,22 +2444,23 @@ contains
   ! on this function space are to be output on.
   !
   ! [in]  nlayers       Number of layers in the atmosphere.
-  ! [in]  coords_array  List of entity coordinates.
-  ! [in]  entity_array  List of entities in the functionspace.
+  ! [in]  ndof_cell     Number of dofs per cell.
+  ! [in]  coords_array  Coordinates of nodal points of basis functions at each
+  !                     dof
   ! [out] tmp_levs      Allocated and filled with the fractional levels.
   ! [out] idx           Tally of items added to tmp_levs.
   !
   subroutine compute_levels( nlayers,      &
+                             ndof_cell,    &
                              coords_array, &
-                             entity_array, &
                              tmp_levs,     &
                              idx )
 
     implicit none
 
     integer(i_def),  intent(in)               :: nlayers
+    integer(i_def),  intent(in)               :: ndof_cell
     real(r_def),     intent(in)               :: coords_array(:,:)
-    integer(i_def),  intent(in)               :: entity_array(:)
     real(r_def),     intent(out), allocatable :: tmp_levs(:)
     integer(i_def),  intent(out)              :: idx
 
@@ -2645,21 +2469,17 @@ contains
     integer(i_def) :: ilayer, idof
 
     ! Allocate temp levels array to be the maximum possible size
-    allocate(tmp_levs(size(entity_array) * nlayers))
+    allocate(tmp_levs(ndof_cell * nlayers))
     tmp_levs = 999.0_r_def
     idx = 1
 
     do ilayer = 0, (nlayers - 1)
-      do idof = 1, size(entity_array)
-        ! Check this mesh entity is not marked as missing for this function
-        ! space
-        if (entity_array(idof) /= IMDI) then
-          l = ilayer + coords_array(entity_array(idof), 3)
-          if (.not.(any(tmp_levs == l))) then
-            tmp_levs(idx) = l
-            ! keep track of how many items we added
-            idx = idx + 1
-          end if
+      do idof = 1, ndof_cell
+        l = real(ilayer, r_def) + coords_array(3, idof)
+        if (.not.(any(tmp_levs == l))) then
+          tmp_levs(idx) = l
+          ! keep track of how many items we added
+          idx = idx + 1
         end if
       end do
     end do
@@ -2695,17 +2515,9 @@ contains
       ndata_first_int = 2
     end if
 
-    ! Temporary clause for #4443, will be removed when split element orders are
-    ! fully enabled in #4462
-    if ( element_order_h /= element_order_v ) then
-      call log_event(                                                          &
-      'Current infrastructure requires element orders to match',               &
-      LOG_LEVEL_ERROR)
-    else
-      fs_id = ndata + 1000_i_def*element_order_h + 10000_i_def*element_order_v &
-            + 100000_i_def*lfric_fs + 10000000_i_def*mesh_id                   &
-            + 1000000000_i_def*ndata_first_int
-    end if
+    fs_id = ndata + 1000_i_def*element_order_h + 10000_i_def*element_order_v &
+          + 100000_i_def*lfric_fs                                            &
+          + 10000000_i_def*mesh_id + 1000000000_i_def*ndata_first_int
 
   end function generate_fs_id
 
