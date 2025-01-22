@@ -78,7 +78,7 @@ class ScalarizationTrans(LoopTrans):
       real, dimension(100) :: a
       real, dimension(100) :: b
       real :: a_scalar
-      <BLANKLINE>
+    <BLANKLINE>
       do i = 1, 100, 1
         a_scalar = i
         b(i) = a_scalar * a_scalar
@@ -92,6 +92,7 @@ class ScalarizationTrans(LoopTrans):
       enddo
     <BLANKLINE>
     end program test
+    <BLANKLINE>
     '''
 
     @staticmethod
