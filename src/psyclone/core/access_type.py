@@ -44,9 +44,12 @@ from psyclone.configuration import Config
 class AccessType(Enum):
     '''A simple enum-class for the various valid access types.
     '''
-
+    #: Data associated with the symbol is read.
     READ = 1
+    #: Data associated with the symbols is written.
     WRITE = 2
+    #: Data associated with the symbol is both read and written (e.g. is passed
+    #: to a routine with intent(inout)).
     READWRITE = 3
     #: Incremented from more than one cell column (see the LFRic API section
     #: of the User Guide).
@@ -54,6 +57,7 @@ class AccessType(Enum):
     #: Read before incrementing. Requires that the outermost halo be clean (see
     #: the LFRic API section of the User Guide).
     READINC = 5
+    #: Is the output of a SUM reduction.
     SUM = 6
     #: This is used internally to indicate unknown access type of
     #: a variable, e.g. when a variable is passed to a subroutine
