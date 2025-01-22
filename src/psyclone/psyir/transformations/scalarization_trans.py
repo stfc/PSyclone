@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,9 @@
 '''This module provides the sclarization transformation class.'''
 
 import itertools
+from typing import Optional, Dict, Any
 
-from psyclone.core import VariablesAccessInfo
+from psyclone.core import VariablesAccessInfo, Signature
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Assignment, Call, CodeBlock, IfBlock, \
         Loop, Node, Reference, Routine, WhileLoop
@@ -94,7 +95,8 @@ class ScalarizationTrans(LoopTrans):
     '''
 
     @staticmethod
-    def _is_local_array(signature, var_accesses):
+    def _is_local_array(signature: Signature,
+                        var_accesses: VariablesAccessInfo) -> bool:
         '''
         :param signature: The signature to check if it is a local array symbol
                           or not.
@@ -103,7 +105,7 @@ class ScalarizationTrans(LoopTrans):
                              signature.
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
         :returns bool: whether the symbol corresponding to signature is a
-                       local symbol or not.
+                       local array symbol or not.
         '''
         if not var_accesses[signature].is_array():
             return False
@@ -114,7 +116,9 @@ class ScalarizationTrans(LoopTrans):
         return True
 
     @staticmethod
-    def _have_same_unmodified_index(signature, var_accesses):
+    def _have_same_unmodified_index(signature: Signature,
+                                    var_accesses: VariablesAccessInfo) \
+                                            -> bool:
         '''
         :param signature: The signature to check.
         :type signature: :py:class:`psyclone.core.Signature`
@@ -131,6 +135,7 @@ class ScalarizationTrans(LoopTrans):
             if array_indices is None:
                 array_indices = access.component_indices
             # For some reason using == on the component_lists doesn't work
+            # so we use [:] notation.
             elif array_indices[:] != access.component_indices[:]:
                 scalarizable = False
                 break
@@ -150,7 +155,9 @@ class ScalarizationTrans(LoopTrans):
         return scalarizable
 
     @staticmethod
-    def _check_first_access_is_write(signature, var_accesses):
+    def _check_first_access_is_write(signature: Signature,
+                                     var_accesses: VariablesAccessInfo) \
+                                             -> bool:
         '''
         :param signature: The signature to check.
         :type signature: :py:class:`psyclone.core.Signature`
@@ -164,7 +171,8 @@ class ScalarizationTrans(LoopTrans):
         return False
 
     @staticmethod
-    def _value_unused_after_loop(sig, var_accesses):
+    def _value_unused_after_loop(sig: Signature,
+                                 var_accesses: VariablesAccessInfo) -> bool:
         '''
         :param sig: The signature to check.
         :type sig: :py:class:`psyclone.core.Signature`
@@ -242,7 +250,7 @@ class ScalarizationTrans(LoopTrans):
 
         return True
 
-    def apply(self, node, options=None):
+    def apply(self, node: Loop, options:Optional[Dict[str,Any]]=None) -> None:
         '''
         Apply the scalarization transformation to a loop.
         All of the array accesses that are identified as being able to be

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -537,6 +537,5 @@ def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
     end if
   enddo'''
     out = fortran_writer(psyir)
-    print(out)
     assert correct in out
     assert Compile(tmpdir).string_compiles(out)
