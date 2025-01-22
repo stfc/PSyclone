@@ -196,7 +196,7 @@ class CallTreeUtils():
 
     # -------------------------------------------------------------------------
     def get_output_parameters(self, read_write_info, node_list,
-                              variables_info=None, options=None):
+                              variables_info=None):
         '''Adds all variables that are output parameters (i.e. are written)
         to the read_write_info object.
 
@@ -209,19 +209,11 @@ class CallTreeUtils():
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
         Optional[:py:class:`psyclone.core.variables_info.VariablesAccessInfo`]
-        :param options: a dictionary with options for the CallTreeUtils
-            which will also be used when creating the VariablesAccessInfo
-            instance if required.
-        :type param: Optional[dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is
-            set to a True value, arrays used as first parameter to the
-            PSyIR operators lbound, ubound, or size will be reported as
-            'read'. Otherwise, these accesses will be ignored.
 
         '''
         # Collect the information about all variables used:
         if not variables_info:
-            variables_info = VariablesAccessInfo(node_list, options=options)
+            variables_info = VariablesAccessInfo(node_list)
 
         for signature in variables_info.all_signatures:
             if variables_info.is_written(signature):
@@ -249,14 +241,6 @@ class CallTreeUtils():
         :param bool collect_non_local_symbols: whether non-local symbols
             (i.e. symbols used in other modules either directly or
             indirectly) should be included in the in/out information.
-        :param options: a dictionary with options for the CallTreeUtils
-            which will also be used when creating the VariablesAccessInfo
-            instance if required.
-        :type options: Optional[dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is
-            set to a True value, arrays used as first parameter to the
-            PSyIR operators lbound, ubound, or size will be reported as
-            'read'. Otherwise, these accesses will be ignored.
 
         :returns: a ReadWriteInfo object with the information about input-
             and output parameters.
