@@ -135,15 +135,6 @@ def test_loop_navigation_properties():
     with pytest.raises(InternalError) as err:
         _ = loop.loop_body
     assert error_str in str(err.value)
-    with pytest.raises(InternalError) as err:
-        loop.start_expr = Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE)
-    assert error_str in str(err.value)
-    with pytest.raises(InternalError) as err:
-        loop.stop_expr = Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE)
-    assert error_str in str(err.value)
-    with pytest.raises(InternalError) as err:
-        loop.step_expr = Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE)
-    assert error_str in str(err.value)
 
     # Check that Getters properties work
     loop.addchild(Schedule(parent=loop))

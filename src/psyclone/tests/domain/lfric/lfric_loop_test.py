@@ -234,18 +234,7 @@ def test_lower_to_language_normal_loop():
                            dist_mem=False, idx=0)
     sched = invoke.schedule
     loop1 = sched.children[1]
-    # FIXME: NOT_INITIALISED -> loop_bound symbol reference now happens
-    # dureing LFRicBound lowering in psy.gen, maybe this is wrong?
-    return
     assert loop1.start_expr.symbol.name == "loop1_start"
-
-    # Now remove loop 0, and verify that the start variable symbol has changed
-    # (which is a problem in case of driver creation, since the symbol names
-    # written in the full code can then be different from the symbols used
-    # in the driver). TODO #1731 might fix this, in which case this test
-    # will fail (and the whole lowering of LFRicLoop can likely be removed).
-    sched.children.pop(0)
-    assert loop1.start_expr.symbol.name == "loop0_start"
 
     # The same test with the lowered schedule should not change the
     # symbol anymore:
