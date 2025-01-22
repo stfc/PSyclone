@@ -140,3 +140,9 @@ benchmark.
 
 Extraction of kernel data. Using the tra_adv benchmark, this example
 shows the extraction of kernel input- and output-data.
+
+## Example 6
+
+A simple stand-alone example that shows verification that read-only data
+is not modified, e.g. by out-of-bounds accesses to other variables.
+This uses the PSyData interface to instrument generic Fortran code.
