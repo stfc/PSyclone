@@ -62,10 +62,6 @@ class VariablesAccessInfo(dict):
     :param options: a dictionary with options to influence which variable
         accesses are to be collected.
     :type options: Dict[str, Any]
-    :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is set
-        to a True value, arrays used as first parameter to the PSyIR query
-        operators lbound, ubound, or size will be reported as 'read'.
-        Otherwise, these accesses will be ignored.
     :param Any options["USE-ORIGINAL-NAMES"]: if this option is set to a
         True value, an imported symbol that is renamed (``use mod, a=>b``)
         will be reported using the original name (``b`` in the example).

@@ -168,6 +168,9 @@ class CodeBlock(Statement, DataNode):
         variable/routine as still being an intrinsic call and, as such, it will
         be omitted from the names returned by this method.
 
+        TODO #2863 - these limitations (blanket use of READWRITE and the
+        ignoring of Fortran intrinsics) need to be re-visited.
+
         :returns: the symbol names used inside the CodeBock.
         '''
         parse_tree = self.get_ast_nodes
