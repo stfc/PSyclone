@@ -1790,7 +1790,7 @@ class Node():
                                    of self.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns bool: whether potential_ancestor is an ancestor of this node.
+        :returns: whether potential_ancestor is an ancestor of this node.
         '''
         current_node = self
         while (current_node is not potential_ancestor and

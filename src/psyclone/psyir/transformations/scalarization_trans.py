@@ -101,12 +101,10 @@ class ScalarizationTrans(LoopTrans):
         '''
         :param signature: The signature to check if it is a local array symbol
                           or not.
-        :type signature: :py:class:`psyclone.core.Signature`
         :param var_accesses: The VariableAccessesInfo object containing
                              signature.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
-        :returns bool: whether the symbol corresponding to signature is a
-                       local array symbol or not.
+        :returns: whether the symbol corresponding to signature is a
+                  local array symbol or not.
         '''
         if not var_accesses[signature].is_array():
             return False
@@ -122,13 +120,11 @@ class ScalarizationTrans(LoopTrans):
             -> bool:
         '''
         :param signature: The signature to check.
-        :type signature: :py:class:`psyclone.core.Signature`
         :param var_accesses: The VariableAccessesInfo object containing
                              signature.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
-        :returns bool: whether all the array accesses to signature use the
-                       same index, and whether the index is unmodified in
-                       the code region.
+        :returns: whether all the array accesses to signature use the
+                  same index, and whether the index is unmodified in
+                  the code region.
         '''
         array_indices = None
         scalarizable = True
@@ -161,11 +157,9 @@ class ScalarizationTrans(LoopTrans):
             -> bool:
         '''
         :param signature: The signature to check.
-        :type signature: :py:class:`psyclone.core.Signature`
         :param var_accesses: The VariableAccessesInfo object containing
                              signature.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
-        :returns bool: whether the first access to signature is a write.
+        :returns: whether the first access to signature is a write.
         '''
         if var_accesses[signature].is_written_first():
             return True
@@ -173,15 +167,15 @@ class ScalarizationTrans(LoopTrans):
 
     @staticmethod
     def _value_unused_after_loop(sig: Signature,
+                                 loop: Loop,
                                  var_accesses: VariablesAccessInfo) -> bool:
         '''
         :param sig: The signature to check.
-        :type sig: :py:class:`psyclone.core.Signature`
+        :param loop: The loop the transformation is operating on.
         :param var_accesses: The VariableAccessesInfo object containing
                              signature.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
-        :returns bool: whether the value computed in the loop containing
-                       sig is read from after the loop.
+        :returns: whether the value computed in the loop containing
+                  sig is read from after the loop.
         '''
         # Find the last access of the signature
         last_access = var_accesses[sig].all_accesses[-1].node
@@ -190,7 +184,7 @@ class ScalarizationTrans(LoopTrans):
         for next_access in next_accesses:
             # next_accesses looks backwards to the start of the loop,
             # but we don't care about those accesses here.
-            if next_access.abs_position <= last_access.abs_position:
+            if next_access.is_descendent_of(loop):
                 continue
 
             # If next access is a Call or CodeBlock or Kern then
@@ -200,54 +194,56 @@ class ScalarizationTrans(LoopTrans):
 
             # If next access is in an IfBlock condition then it reads the
             # value.
-            ancestor_ifblock = next_access.ancestor(IfBlock)
-            if ancestor_ifblock:
-                conditions = ancestor_ifblock.condition.walk(Node)
-                for node in conditions:
-                    if node is next_access:
-                        return False
+#            ancestor_ifblock = next_access.ancestor(IfBlock)
+#            if ancestor_ifblock:
+#                conditions = ancestor_ifblock.condition.walk(Node)
+#                for node in conditions:
+#                    if node is next_access:
+#                        return False
 
             # If next access has an ancestor WhileLoop, and its in the
             # condition then it reads the value.
-            ancestor_while = next_access.ancestor(WhileLoop)
-            if ancestor_while:
-                conditions = ancestor_while.condition.walk(Node)
-                for node in conditions:
-                    if node is next_access:
-                        return False
+#            ancestor_while = next_access.ancestor(WhileLoop)
+#            if ancestor_while:
+#                conditions = ancestor_while.condition.walk(Node)
+#                for node in conditions:
+#                    if node is next_access:
+#                        return False
 
             # If next access has an ancestor Loop, and its one of the
             # start/stop/step values then it reads the value.
-            ancestor_loop = next_access.ancestor(Loop)
-            if ancestor_loop:
-                starts = ancestor_loop.start_expr.walk(Node)
-                stops = ancestor_loop.stop_expr.walk(Node)
-                steps = ancestor_loop.step_expr.walk(Node)
-                for node in starts:
-                    if node is next_access:
-                        return False
-                for node in stops:
-                    if node is next_access:
-                        return False
-                for node in steps:
-                    if node is next_access:
-                        return False
+#            ancestor_loop = next_access.ancestor(Loop)
+#            if ancestor_loop:
+#                starts = ancestor_loop.start_expr.walk(Node)
+#                stops = ancestor_loop.stop_expr.walk(Node)
+#                steps = ancestor_loop.step_expr.walk(Node)
+#                for node in starts:
+#                    if node is next_access:
+#                        return False
+#                for node in stops:
+#                    if node is next_access:
+#                        return False
+#                for node in steps:
+#                    if node is next_access:
+#                        return False
 
+            if next_access.is_read:
+                return False
             # If next access is the RHS of an assignment then we need to
             # skip it
             # Handles:
             # a = next_access[i] + 1
-            ancestor_assign = next_access.ancestor(Assignment)
-            if (ancestor_assign is not None and
-                    ancestor_assign.lhs is not next_access):
-                return False
+#            ancestor_assign = next_access.ancestor(Assignment)
+#            if (ancestor_assign is not None and
+#                    ancestor_assign.lhs is not next_access):
+#                return False
 
             # If it has an ancestor that is a CodeBlock or Call or Kern
             # then we can't guarantee anything, so we remove it.
             # Handles: call my_func(next_access)
-            if (next_access.ancestor((CodeBlock, Call, Kern))
-                    is not None):
-                return False
+#            if (next_access.ancestor((CodeBlock, Call, Kern))
+#                    is not None):
+#                return False
 
         return True
 
@@ -270,9 +266,7 @@ class ScalarizationTrans(LoopTrans):
         4. The array symbol is a local variable.
 
         :param node: the supplied loop to apply scalarization to.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         '''
         # For each array reference in the Loop:
@@ -313,6 +307,7 @@ class ScalarizationTrans(LoopTrans):
         finalised_targets = filter(
                 lambda sig:
                 ScalarizationTrans._value_unused_after_loop(sig,
+                                                            node,
                                                             var_accesses),
                 potential_targets)
 
