@@ -449,31 +449,6 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
                                                            node.loop_body,
                                                            var_accesses)
 
-    # Test being a Loop variable counts as unused.
-    code = '''subroutine test()
-    integer :: i
-    integer :: k
-    integer, dimension(1:100) :: arr
-
-    do i = 1, 100
-      arr(i) = i
-    end do
-    do arr(50) = 1, 100
-        print *, arr(i)
-    end do
-    end subroutine test
-    '''
-    psyir = fortran_reader.psyir_from_source(code)
-    node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
-    keys = list(var_accesses.keys())
-    # Test arr
-    assert var_accesses[keys[1]].var_name == "arr"
-    assert ScalarizationTrans._value_unused_after_loop(keys[1],
-                                                       node.loop_body,
-                                                       var_accesses)
-    assert False
-
 
 def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
     ''' Test the application of the scalarization transformation.'''

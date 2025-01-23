@@ -40,8 +40,8 @@ from typing import Optional, Dict, Any
 
 from psyclone.core import VariablesAccessInfo, Signature
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Assignment, Call, CodeBlock, IfBlock, \
-        Loop, Node, Reference, Routine, WhileLoop
+from psyclone.psyir.nodes import Call, CodeBlock,  \
+        Loop, Reference, Routine
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 
@@ -188,62 +188,15 @@ class ScalarizationTrans(LoopTrans):
                 continue
 
             # If next access is a Call or CodeBlock or Kern then
-            # we have to assume the value is used.
+            # we have to assume the value is used. These nodes don't
+            # have the is_read property that Reference has, so we need
+            # to be explicit.
             if isinstance(next_access, (CodeBlock, Call, Kern)):
                 return False
 
-            # If next access is in an IfBlock condition then it reads the
-            # value.
-#            ancestor_ifblock = next_access.ancestor(IfBlock)
-#            if ancestor_ifblock:
-#                conditions = ancestor_ifblock.condition.walk(Node)
-#                for node in conditions:
-#                    if node is next_access:
-#                        return False
-
-            # If next access has an ancestor WhileLoop, and its in the
-            # condition then it reads the value.
-#            ancestor_while = next_access.ancestor(WhileLoop)
-#            if ancestor_while:
-#                conditions = ancestor_while.condition.walk(Node)
-#                for node in conditions:
-#                    if node is next_access:
-#                        return False
-
-            # If next access has an ancestor Loop, and its one of the
-            # start/stop/step values then it reads the value.
-#            ancestor_loop = next_access.ancestor(Loop)
-#            if ancestor_loop:
-#                starts = ancestor_loop.start_expr.walk(Node)
-#                stops = ancestor_loop.stop_expr.walk(Node)
-#                steps = ancestor_loop.step_expr.walk(Node)
-#                for node in starts:
-#                    if node is next_access:
-#                        return False
-#                for node in stops:
-#                    if node is next_access:
-#                        return False
-#                for node in steps:
-#                    if node is next_access:
-#                        return False
-
+            # If the access is a read, then return False
             if next_access.is_read:
                 return False
-            # If next access is the RHS of an assignment then we need to
-            # skip it
-            # Handles:
-            # a = next_access[i] + 1
-#            ancestor_assign = next_access.ancestor(Assignment)
-#            if (ancestor_assign is not None and
-#                    ancestor_assign.lhs is not next_access):
-#                return False
-
-            # If it has an ancestor that is a CodeBlock or Call or Kern
-            # then we can't guarantee anything, so we remove it.
-            # Handles: call my_func(next_access)
-#            if (next_access.ancestor((CodeBlock, Call, Kern))
-#                    is not None):
-#                return False
 
         return True
 
