@@ -148,7 +148,7 @@ class ACCKernelsTrans(RegionTrans):
         :raises TransformationError: if there are no Loops within the
             proposed region and options["disable_loop_check"] is not True.
         :raises TransformationError: if any assignments in the region contain a
-            character type child and the allow_strings option is not set.
+            character type child and options["allow_string"] is not True.
 
         '''
         if not options:
