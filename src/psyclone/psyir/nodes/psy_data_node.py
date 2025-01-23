@@ -497,13 +497,6 @@ class PSyDataNode(Statement):
         out_list = []
         for (module_name, signature) in var_list:
             if module_name:
-                 # pylint: disable=import-outside-toplevel
-                from psyclone.parse import ModuleManager
-                mod_man = ModuleManager.get()
-                mod_info = mod_man.get_module_info(module_name)
-                sym = mod_info.get_symbol(signature[0])
-                # if not isinstance(sym, DataSymbol):
-                #     raise TypeError("The ")
                 container = symbol_table.find_or_create(
                     module_name, symbol_type=ContainerSymbol)
                 var_symbol = symbol_table.find_or_create_tag(
