@@ -568,6 +568,13 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.ScalarizationTrans
+      :members: apply
+      :noindex:
+
+####
+
+
 Algorithm-layer
 ---------------
 
