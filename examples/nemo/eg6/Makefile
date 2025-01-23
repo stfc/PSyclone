@@ -63,7 +63,7 @@ run: compile
 	./dummy
 
 dummy: psy.o $(READ_ONLY_CHECK_DIR)/$(LIB_NAME)
-	$(F90) psy.o -o dummy $(READ_ONLY_CHECK_DIR)/$(LIB_NAME) $(LDFLAGS)
+	$(F90) $(F90FLAGS) psy.o -o dummy $(READ_ONLY_CHECK_DIR)/$(LIB_NAME) $(LDFLAGS)
 
 transform: kernels
 
