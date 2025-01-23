@@ -583,6 +583,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
             sig_str = self._flatten_signature(signature)
+
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
                 orig_sym = mod_info.get_symbol(signature[0])
