@@ -41,9 +41,10 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
-import os
-from collections import OrderedDict
 import abc
+from collections import OrderedDict
+import os
+from typing import Any, Dict, List, Union
 
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.core import AccessType
@@ -68,6 +69,11 @@ FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 
 # Mapping of access type to operator.
 REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
+
+
+class UnsupportedOptionError(Exception):
+    '''
+    '''
 
 
 def object_index(alist, item):
@@ -2734,7 +2740,28 @@ class Transformation(metaclass=abc.ABCMeta):
     '''Abstract baseclass for a transformation. Uses the abc module so it
     can not be instantiated.
 
+        .. literalinclude:: ../../../../src/psyclone/psyGen.py
+           :language: python
+           :lines: 2752-2757
+           :linenos:
+
     '''
+    def __init__(self):
+        #: The options supported by this Transformation and their default
+        #: values.
+        self.valid_options: Dict[str, Any] = {
+            #: An example option that defaults to False.
+            "example": "yes",  #: Does this document it?
+            #: Use the Force.
+            "force": False
+        }
+
+    @property
+    def all_valid_options(self) -> set:
+        '''
+        '''
+        return self._valid_options | super().all_valid_options
+
     @property
     def name(self):
         '''
@@ -2745,12 +2772,12 @@ class Transformation(metaclass=abc.ABCMeta):
         return type(self).__name__
 
     @abc.abstractmethod
-    def apply(self, node, options=None):
+    def apply(self, node: Union[Node, List[Node]], **kwargs):
         '''Abstract method that applies the transformation. This function
         must be implemented by each transform. As a minimum each apply
         function must take a node to which the transform is applied, and
-        a dictionary of additional options, which will also be passed on
-        to the validate functions. This dictionary is used to provide
+        an unwrapped dict of additional options (which is also passed on
+        to the validate method). This dictionary is used to provide
         optional parameters, and also to modify the behaviour of
         validation of transformations: for example, if the user knows that
         a transformation can correctly be applied in a specific case, but
@@ -2762,7 +2789,7 @@ class Transformation(metaclass=abc.ABCMeta):
         Note that some apply() functions might take a slightly different
         set of parameters.
 
-        :param node: The node (or list of nodes) for the transformation \
+        :param node: The node (or list of nodes) for the transformation
                 - specific to the actual transform used.
         :type node: depends on actual transformation
         :param options: a dictionary with options for transformations.
@@ -2770,7 +2797,7 @@ class Transformation(metaclass=abc.ABCMeta):
 
         '''
 
-    def validate(self, node, options=None):
+    def validate(self, node: Union[Node, List[Node]], **kwargs):
         '''Method that validates that the input data is correct.
         It will raise exceptions if the input data is incorrect. This
         function needs to be implemented by each transformation.
@@ -2780,7 +2807,8 @@ class Transformation(metaclass=abc.ABCMeta):
         part of an apply() call.
 
         As minimum each validate function must take a node to which the
-        transform is applied and a dictionary of additional options.
+        transform is applied and an unwrapped dictionary of additional
+        options.
         This dictionary is used to provide optional parameters and also
         to modify the behaviour of validation: for example, if the user
         knows that a transformation can correctly be applied in a specific
@@ -2798,7 +2826,38 @@ class Transformation(metaclass=abc.ABCMeta):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         '''
-        # pylint: disable=unused-argument
+        options = self._unpack_options(**kwargs)
+        self._validate_options(options)
+
+    def _validate_options(self, **kwargs):
+        '''
+        '''
+        for opt, val in kwargs.items():
+            if not isinstance(val, self._valid_options[opt]):
+                raise TypeError("Option {opt} is of wrong type")
+            # Optionally, check the value of `val` and raise a ValueError
+            # if required.
+
+    def _unpack_options(self, **kwargs) -> Dict[str, Any]:
+        '''
+        '''
+        if not kwargs:
+            return None
+        # This will obtain all valid options, allowing for inheritance.
+        all_supported = self.all_valid_options
+        # Start with the supported options and their default values.
+        all_opts = all_supported
+        # Now loop over supplied values and update the defaults.
+        for opt in kwargs:
+            if opt == "options":
+                # ISSUE DEPRECATION WARNING
+                all_opts.update(kwargs["options"])
+            else:
+                all_opts[opt] = kwargs[opt]
+        # Finally, check that all options are recognised.
+        if any(key not in all_supported for key in all_opts):
+            raise UnsupportedOptionError("Unrecognised option: {key}")
+        return all_opts
 
 
 class DummyTransformation(Transformation):
