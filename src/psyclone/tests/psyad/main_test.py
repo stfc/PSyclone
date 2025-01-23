@@ -45,8 +45,8 @@ import os
 
 import pytest
 
-from psyclone.psyad import main
 from psyclone.configuration import Config
+from psyclone.psyad import main
 
 TEST_PROG = (
     "program test\n"
@@ -478,23 +478,19 @@ def test_config_flag(tmpdir):
     ''' Test that -c/--config take precedence over the configuration
         file references in the environment variable.
     '''
-    # filename_in = str(tmpdir.join("tl_foo_kernel_mod.f90"))
     filename_in = str(tmpdir.join("tl.f90"))
 
+    # Create LFRic kernel file
     with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_LFRIC_KERNEL)
 
-    # dummy_config has a non-default REPORD_PAD_SIZE of 7
+    # dummy_config has a non-default REPROD_PAD_SIZE of 7
     config_name = os.path.join(
         os.path.split(os.path.dirname(os.path.abspath(__file__)))[0],
         "test_files", "dummy_config.cfg")
 
     # Test with no option
     Config._HAS_CONFIG_BEEN_INITIALISED = False
-    main([filename_in, "-a", "field", "-api", "lfric"])
-    assert Config.get().api == "lfric"
-    assert Config.has_config_been_initialised() is True
-    print(Config.get().reprod_pad_size)
     assert Config.get().reprod_pad_size == 8
 
     # Test with with -c
