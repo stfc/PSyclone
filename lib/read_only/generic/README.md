@@ -1,36 +1,25 @@
-# Read-only Verification Library for GOcean
+# Read-only Verification Library for Generic Fortran Code
 
 This library implements the [PSyData API](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification-library-for-gocean)
+https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification-library-for-generic-fortran)
 to verify that variables declared read-only are not modified (overwritten) in
-a kernel call for an application using the [``dl_esm_inf`` library](
-https://github.com/stfc/dl_esm_inf).
+a kernel.
 
-A full runnable example can be found in [``examples/gocean/eg5/readonly``](
-https://github.com/stfc/PSyclone/tree/master/examples/gocean/eg5/readonly).
+A full runnable example can be found in [``examples/nemo/eg6/``](
+https://github.com/stfc/PSyclone/tree/master/examples/nemo/eg6).
 
 ## Dependencies
 
 This library uses the [PSyData API](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface
-with the application. The following dependencies must be available:
-
-- The [GOcean](https://psyclone.readthedocs.io/en/latest/gocean1p0.html)
-  infrastructure library ``dl_esm_inf``. A stable version of this is included
-  in the PSyclone repository as a Git submodule (see ["Installation"](
-  https://psyclone-dev.readthedocs.io/en/stable/working_practises.html#dev-installation)
-  in the PSyclone [Developer Guide](
-  https://psyclone-dev.readthedocs.io/en/stable) for details on working with
-  submodules). However, it is not included in the PSyclone [installation](
-  ./../../README.md#installation) and has to be cloned separately.
-
-- The ReadOnly (``read_only_base.jinja``) and PSyData
-  (``psy_data_base.jinja``) base classes, which are included in PSyclone
-  installation. These Jinja templates are processed to create
-  the read-only verification code for ``integer``, 32- and 64-bit ``real``
-  scalars, and 2-dimensional ``real`` and ``integer`` arrays. The generated
-  Fortran modules, ``read_only_base.f90`` and ``psy_data_base.f90``, are then
-  used by the supplied ``read_only.f90`` module to create the wrapper library.
+with the application. It needs the ReadOnly (``read_only_base.jinja``) and
+PSyData (``psy_data_base.jinja``) base classes, which are included in PSyclone
+installation. These Jinja templates are processed to create
+the generic read-only verification code for integer and real variables (both
+32- and 64-bit), logical and character variables. It will support scalar, and
+1- to 4-dimensional arrays. The ``read_only.f90`` file contains no actual
+executable code, it inherits from the base classes, and is only used so that
+the expected module- and type-names are available for PSyclone.
 
 ## Compilation
 
@@ -39,42 +28,24 @@ environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 [Fortran compiler](./../../README.md#compilation) and flags to use. They
 default to ``gfortran`` and the empty string.
 
-The location of the ``dl_esm_inf`` library is specified using the
-environment variable ``GOCEAN_INF_DIR``. It defaults to the relative
-path to location of the version included in PSyclone repository
-(``<PSYCLONEHOME>/external/dl_esm_inf/finite_difference``). This is
-not available in the PSyclone [installation](./../../README.md#installation)
-so the exact path **must be specified** during the compilation process, e.g.
-
-```shell
-GOCEAN_INF_DIR=<path/to/dl_esm_inf/finite_difference> make
-```
-
 The locations of the ReadOnly and PSyData base classes are specified
 using the environment variables ``$LIB_TMPLT_DIR`` and ``$PSYDATA_LIB_DIR``,
 respectively. They default to the relative paths to the
 [``lib/read_only``](./../) and top-level [``lib``](./../../) directories.
 
 The compilation process will create the wrapper library ``lib_read_only.a``.
-The ``Makefile`` will compile the ``dl_esm_inf`` infrastructure library,
-``lib_fd.a``, if required, with the previously selected compiler flags.
 
 Similar to compilation of the [examples](
 https://psyclone.readthedocs.io/en/latest/tutorials_and_examples.html#compilation), the
-compiled wrapper library can be removed by running ``make clean``. To also
-remove the compiled infrastructure library it is necessary to run
-``make allclean`` (this is especially important if changing compilers
-or compiler flags).
+compiled wrapper library can be removed by running ``make clean``. 
 
 ### Linking the wrapper library
 
 The application needs to provide the parameters to link in this read-only
-library, ``_read_only``, and the ``dl_esm_inf`` infrastructure library, ``_fd``.
-For instance:
+library, ``_read_only``. For instance:
 
 ```shell
-$(F90)  ... -L$(PSYDATA_LIB_DIR)/read_only/dl_esm_inf -l_read_only \
-        -L$(GOCEAN_INF_DIR) -l_fd
+$(F90)  ... -L$(PSYDATA_LIB_DIR)/read_only/generic -l_read_only
 ```
 
 <!--
@@ -84,7 +55,7 @@ $(F90)  ... -L$(PSYDATA_LIB_DIR)/read_only/dl_esm_inf -l_read_only \
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2025, Science and Technology Facilities Council.
+Copyright (c) 2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -116,5 +87,4 @@ POSSIBILITY OF SUCH DAMAGE.
 
 -------------------------------------------------------------------------------
 Authors: J. Henrichs, Bureau of Meteorology,
-         I. Kavcic, Met Office
 -->
