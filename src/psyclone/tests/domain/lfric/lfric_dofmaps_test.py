@@ -42,10 +42,11 @@ test file. '''
 import os
 import pytest
 
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.domain.lfric.lfric_dofmaps import LFRicDofmaps
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -54,30 +55,31 @@ TEST_API = "lfric"
 
 
 # Error tests
-# def test_lfricdofmap_stubdecln_err():
-#     '''
-#     Check that LFRicDofmaps._stub_declarations raises the expected errors
-#     if the stored CMA information is invalid.
+def test_lfricdofmap_stubdecln_err():
+    '''
+    Check that LFRicDofmaps._stub_declarations raises the expected errors
+    if the stored CMA information is invalid.
 
-#     '''
-#     _, invoke_info = parse(os.path.join(BASE_PATH,
-#                                         "20.5_multi_cma_invoke.f90"),
-#                            api=TEST_API)
-#     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-#     dofmaps = LFRicDofmaps(psy.invokes.invoke_list[0])
-#     mod = ModuleGen(name="test_module")
-#     for cma in dofmaps._unique_indirection_maps.values():
-#         cma["direction"] = "not-a-direction"
-#     with pytest.raises(InternalError) as err:
-#         dofmaps._stub_declarations(mod)
-#     assert ("Invalid direction ('not-a-direction') found for CMA operator "
-#             "when collecting indirection dofmaps" in str(err.value))
-#     for cma in dofmaps._unique_cbanded_maps.values():
-#         cma["direction"] = "not-a-direction"
-#     with pytest.raises(InternalError) as err:
-#         dofmaps._stub_declarations(mod)
-#     assert ("Invalid direction ('not-a-direction') found for CMA operator "
-#             "when collecting column-banded dofmaps" in str(err.value))
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "20.5_multi_cma_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    # Need and nlayers symbols because it is looked-up by the LFRicDofmaps
+    psy.invokes.invoke_list[0].schedule.symbol_table.find_or_create("nlayers")
+    dofmaps = LFRicDofmaps(psy.invokes.invoke_list[0])
+    for cma in dofmaps._unique_indirection_maps.values():
+        cma["direction"] = "not-a-direction"
+    with pytest.raises(InternalError) as err:
+        dofmaps._stub_declarations(0)
+    assert ("Invalid direction ('not-a-direction') found for CMA operator "
+            "when collecting indirection dofmaps" in str(err.value))
+    for cma in dofmaps._unique_cbanded_maps.values():
+        cma["direction"] = "not-a-direction"
+    with pytest.raises(InternalError) as err:
+        dofmaps._stub_declarations(0)
+    assert ("Invalid direction ('not-a-direction') found for CMA operator "
+            "when collecting column-banded dofmaps" in str(err.value))
 
 
 def test_cma_asm_cbanded_dofmap_error():

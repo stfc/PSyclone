@@ -508,8 +508,8 @@ def test_lfric_driver_extract_some_kernels_only():
     # be in the extract code:
     assert "PreDeclareVariable(\"loop0_start\", loop0_start)" not in code
     assert "PreDeclareVariable(\"loop1_start\", loop1_start)" not in code
-    # assert "PreDeclareVariable(\"loop2_start\", loop2_start)" in code
-    # assert "PreDeclareVariable(\"loop2_stop\", loop2_stop)" in code
+    assert "PreDeclareVariable(\"loop2_start\", loop2_start)" in code
+    assert "PreDeclareVariable(\"loop2_stop\", loop2_stop)" in code
 
     filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
@@ -519,8 +519,8 @@ def test_lfric_driver_extract_some_kernels_only():
     # kernels added, and that it uses index 2 for loop boundaries.
     assert "loop0_start" not in driver
     assert "loop1_start" not in driver
-    # assert "ReadVariable('loop2_start', loop2_start)" in driver
-    # assert "ReadVariable('loop2_stop', loop2_stop)" in driver
+    assert "ReadVariable('loop2_start', loop2_start)" in driver
+    assert "ReadVariable('loop2_stop', loop2_stop)" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "testkern_any_space_2_mod"]:
@@ -572,8 +572,8 @@ def test_lfric_driver_field_array_write():
 
     # While the actual code is LFRic, the driver is stand-alone, and as such
     # does not need any of the infrastructure files
-    # build = Compile(".")
-    # build.compile_file("driver-field-test.F90")
+    build = Compile(".")
+    build.compile_file("driver-field-test.F90")
 
 
 # ----------------------------------------------------------------------------

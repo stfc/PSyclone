@@ -272,7 +272,6 @@ def test_stencil_args_unique_1(dist_mem, tmpdir):
 
     # we use f2_stencil_size for extent and nlayers_f1 for direction
     # as arguments
-    print(result)
     assert ("  subroutine invoke_0_testkern_stencil_xory1d_type(f1, "
             "f2, f3, f4, f2_stencil_size, nlayers_f1)" in result)
     assert "integer(kind=i_def), intent(in) :: f2_stencil_size\n" in result

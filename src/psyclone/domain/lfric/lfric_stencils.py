@@ -687,10 +687,9 @@ class LFRicStencils(LFRicCollection):
                 size_symbol = self.dofmap_size_symbol(self.symtab, arg)
                 size_symbol.datatype = \
                     LFRicTypes("LFRicIntegerScalarDataType")()
-                if size_symbol not in symtab.argument_list:
-                    size_symbol.interface = ArgumentInterface(
+                size_symbol.interface = ArgumentInterface(
                                 ArgumentInterface.Access.READ)
-                    symtab.append_argument(size_symbol)
+                symtab.append_argument(size_symbol)
                 symbol.datatype = ArrayType(
                         LFRicTypes("LFRicIntegerScalarDataType")(),
                         [Reference(symtab.lookup(arg.function_space.ndf_name)),

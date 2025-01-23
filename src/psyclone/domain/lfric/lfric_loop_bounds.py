@@ -107,11 +107,8 @@ class LFRicLoopBounds(LFRicCollection):
                 # compiled with "no uninitialised variables" error, but
                 # SymbolTable.remove() is still not implemented for
                 # DataSymbols)
-                try:
-                    root_name = f"loop{idx}_stop"
-                    sym_table._symbols.pop(root_name)
-                except KeyError:
-                    pass
+                root_name = f"loop{idx}_stop"
+                sym_table._symbols.pop(root_name)
 
         return cursor
 

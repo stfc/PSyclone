@@ -391,7 +391,6 @@ def test_lfricscalarargs_mp():
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     code = str(psy.gen).lower()
-    print(code)
     assert "use constants_mod\n" in code
 
 

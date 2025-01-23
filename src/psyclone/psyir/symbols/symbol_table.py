@@ -1300,8 +1300,6 @@ class SymbolTable():
                 "argument.")
         if argument in self._argument_list:
             return
-            raise ValueError(
-                f"DataSymbol '{argument.name}' is already a listed argument.")
 
         self._argument_list.append(argument)
         if argument not in self.get_symbols().values():

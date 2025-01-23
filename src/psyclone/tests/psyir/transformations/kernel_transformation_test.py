@@ -501,7 +501,7 @@ def test_2kern_trans(kernel_outputdir):
             assert "nlayers = 100" in infile.read()
     assert "use testkern_any_space_2_mod, only" not in code
     assert "call testkern_any_space_2_code(" not in code
-    # assert LFRicBuild(kernel_outputdir).code_compiles(psy)
+    assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_gpumixin_builtin_no_trans():

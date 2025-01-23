@@ -6182,14 +6182,14 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
 
     if annexed:
         assert result.count("f1_proxy%halo_exchange(depth=1)") == 1
-        # assert isinstance(schedule.children[2], LFRicHaloExchange)
-        # assert schedule.children[2].field.name == "f1"
+        assert isinstance(schedule.children[2], LFRicHaloExchange)
+        assert schedule.children[2].field.name == "f1"
     else:
         assert result.count("f1_proxy%halo_exchange(depth=1)") == 2
-        # assert isinstance(schedule.children[0], LFRicHaloExchange)
-        # assert schedule.children[0].field.name == "f1"
-        # assert isinstance(schedule.children[4], LFRicHaloExchange)
-        # assert schedule.children[4].field.name == "f1"
+        assert isinstance(schedule.children[0], LFRicHaloExchange)
+        assert schedule.children[0].field.name == "f1"
+        assert isinstance(schedule.children[4], LFRicHaloExchange)
+        assert schedule.children[4].field.name == "f1"
 
     w_loop_idx = 2
     if annexed:
@@ -6230,12 +6230,12 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
 
         # the redundant computation code has one halo exchange for field f1
         assert result.count("f1_proxy%halo_exchange(depth=1)") == 1
-        # if annexed:
-        #     index = 1
-        # else:
-        #     index = 0
-        # assert isinstance(schedule.children[index], LFRicHaloExchange)
-        # assert schedule.children[index].field.name == "f1"
+        if annexed:
+            index = 1
+        else:
+            index = 0
+        assert isinstance(schedule.children[index], LFRicHaloExchange)
+        assert schedule.children[index].field.name == "f1"
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
 
