@@ -55,7 +55,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, Reference, StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
-    ImportInterface, ScalarType, ArrayType)
+    ImportInterface, ScalarType, ArrayType, UnsupportedFortranType)
 
 # psyir has classes created at runtime
 # pylint: disable=no-member
@@ -634,15 +634,26 @@ class KernCallArgList(ArgOrdering):
         self.append(sym.name, var_accesses)
 
         map_name = function_space.map_name
+        intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
+        dtype = UnsupportedFortranType(
+            f"{intrinsic_type.intrinsic.name}("
+            f"kind={intrinsic_type.precision.name}), pointer, "
+            f"dimension(:,:) :: {map_name} => null()",
+            partial_datatype=ArrayType(
+                intrinsic_type,
+                [ArrayType.Extent.DEFERRED, ArrayType.Extent.DEFERRED]))
+        sym = self._symtab.find_or_create_tag(
+            map_name, symbol_type=DataSymbol, datatype=dtype)
+
         if self._kern.iterates_over == 'domain':
             # This kernel takes responsibility for iterating over cells so
             # pass the whole dofmap.
-            sym = self.append_array_reference(map_name, [":", ":"])
+            self.append_array_reference(map_name, [":", ":"], symbol=sym)
             self.append(sym.name, var_accesses, var_access_name=sym.name)
         else:
             # Pass the dofmap for the cell column
             cell_name, cell_ref = self.cell_ref_name(var_accesses)
-            sym = self.append_array_reference(map_name, [":", cell_ref])
+            self.append_array_reference(map_name, [":", cell_ref], symbol=sym)
             self.append(f"{sym.name}(:,{cell_name})",
                         var_accesses, var_access_name=sym.name)
 
@@ -871,13 +882,11 @@ class KernCallArgList(ArgOrdering):
                     self.append_integer_reference(arg)
                 elif generic_name in ["weights_xy", "weights_z"]:
                     # 1d arrays:
-                    # TODO # 1910: These should be pointers
                     self.append_array_reference(
                                   arg, [":"],
                                   LFRicTypes("LFRicRealScalarDataType")())
                 elif generic_name in ["weights_xyz"]:
                     # 2d arrays:
-                    # TODO #1910: These should be pointers
                     self.append_array_reference(
                                   arg, [":", ":"],
                                   LFRicTypes("LFRicRealScalarDataType")())

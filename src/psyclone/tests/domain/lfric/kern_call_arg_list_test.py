@@ -606,16 +606,16 @@ def test_indirect_dofmap(fortran_writer):
     assert len(psyir_args[4].datatype.partial_datatype.shape) == 3
 
     # Test all 1D integer arrays:
-    int_1d = dummy_sym_tab.find_or_create_array("doesnt_matter1dint", 1,
-                                                ScalarType.Intrinsic.INTEGER)
+    i1d = dummy_sym_tab.find_or_create_array("doesnt_matter1dint", 1,
+                                             ScalarType.Intrinsic.INTEGER)
     for i in [15, 19]:
-        assert psyir_args[i].datatype == int_1d.datatype
+        assert psyir_args[i].datatype == i1d.datatype
 
     # Test all 2D integer arrays:
-    int_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
-                                                ScalarType.Intrinsic.INTEGER)
+    i2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
+                                             ScalarType.Intrinsic.INTEGER)
     for i in [14, 18]:
-        assert psyir_args[i].symbol.datatype == int_2d.datatype
+        assert psyir_args[i].symbol.datatype.partial_datatype == i2d.datatype
 
 
 def test_ref_element_handling(fortran_writer):
@@ -669,10 +669,10 @@ def test_ref_element_handling(fortran_writer):
     # standard LFRic types:
     dummy_sym_tab = LFRicSymbolTable()
     # Test all 2D integer arrays:
-    int_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
-                                                ScalarType.Intrinsic.INTEGER)
+    i2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
+                                             ScalarType.Intrinsic.INTEGER)
     for i in [4]:
-        assert psyir_args[i].symbol.datatype == int_2d.datatype
+        assert psyir_args[i].symbol.datatype.partial_datatype == i2d.datatype
 
     int_arr_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dreal", 2,
                                                     ScalarType.Intrinsic.REAL)
