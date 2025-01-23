@@ -215,5 +215,5 @@ Configuration Options
 
 By default PSyAD uses the same configuration file used by PSyclone. To
 use a custom configuration file use the ``--config`` command-line option.
-Further dcoumentation of the configuration option can be read in
+Further documentation of the configuration options can be found in
 :ref:`user_guide:configuration`.

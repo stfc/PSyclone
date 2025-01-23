@@ -60,7 +60,6 @@ def main(args):
                       been invoked with.
 
     '''
-
     # Make sure we have the supported APIs defined in the Config singleton,
     # but postpone loading the config file till the command line was parsed
     # in case that the user specifies a different config file.

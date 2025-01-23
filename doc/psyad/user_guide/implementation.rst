@@ -447,7 +447,7 @@ tangent-linear code it is first transformed into equivalent inline
 code before the code is transformed to its adjoint form. The PSyIR
 ``DotProduct2CodeTrans`` or ``Matmul2CodeTrans`` transformations are
 used to perform these manipulations. See the
-:ref:`user_guide:available_trans` section of the user guide for more
+:ref:`user_guide:sec_transformations_available` section of the user guide for more
 information on these transformations.
 
 .. note:: At the moment all ``dot_product`` and ``matmul`` intrinsics
