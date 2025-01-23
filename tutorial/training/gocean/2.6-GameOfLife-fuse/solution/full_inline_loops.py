@@ -39,9 +39,12 @@ real inlining of a kernel, and then adds kernel fusion code to
 all invokes.
 '''
 
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.nodes import Call
+from psyclone.psyir.nodes import (ArrayReference, Assignment, Call,
+                                  Loop, Reference, Routine, Statement)
+from psyclone.psyir.symbols import AutomaticInterface, DataSymbol, REAL8_TYPE
 from psyclone.psyir.transformations import InlineTrans, TransformationError
 
 
@@ -77,6 +80,41 @@ class GOceanInlineTrans(InlineTrans):
             raise TransformationError(str(err.value)) from err
 
 
+potential_symbols = []
+
+def trans_alg(psyir):
+
+    psyir.lower_to_language_level()
+    for routine in psyir.walk(Routine):
+        print("XX", routine.view())
+        symbol_table = routine.symbol_table
+        r2d_field = symbol_table.lookup("r2d_field")
+        var_info = VariablesAccessInfo(routine)
+        for sig in var_info:
+            print("XX varinfo", sig, var_info[sig])
+            sym = symbol_table.lookup(sig[0])
+            if not isinstance(sym.interface, AutomaticInterface):
+                # Ignore any non-local variables, we don't know their scope
+                continue
+            if not sym.datatype == r2d_field:
+                continue
+            if len(var_info[sig].all_accesses) > 1:
+                # More than one access in alg layer, which indicates that this
+                # field cannot be replaced with a scalar
+                continue
+            if len(var_info[sig].all_accesses) == 1:
+                # Just one access, check if it's the constructor
+                node = var_info[sig].all_accesses[0].node
+                statement = node.ancestor(Statement)
+                if not (isinstance(statement, Assignment) and
+                        statement.lhs.symbol == sym and
+                        isinstance(statement.rhs, ArrayReference) and
+                        statement.rhs.name == "r2d_field"):
+                    continue
+
+            print("potential replacement", sig)
+            potential_symbols.append(sig)
+
 def trans(psyir):
     '''
     Take the supplied psyir object, and fuse the first two loops
@@ -95,8 +133,9 @@ def trans(psyir):
     # do j do i die
     # do j do i combine
 
+    start = 1
     # First merge the first two j loops
-    fuse.apply(schedule[0], schedule[1])
+    fuse.apply(schedule[start], schedule[start+1])
     # do j do i count
     #      do i born
     # do j do i die
@@ -104,7 +143,7 @@ def trans(psyir):
 
     # Then merge the (previous third, now second) loop to the
     # fused loop
-    fuse.apply(schedule[0], schedule[1])
+    fuse.apply(schedule[start], schedule[start+1])
     # do j do i count
     #      do i born
     #      do i die
@@ -113,13 +152,13 @@ def trans(psyir):
     # You cannot fuse the two remaining outer loops!
 
     # Fuse the three inner loops: first the first two
-    fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
+    fuse.apply(schedule[start].loop_body[0], schedule[start].loop_body[1])
     # do j do i count born
     #      do i die
     # do j do i combine
 
     # Then merge in the previous third, now second) loop
-    fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
+    fuse.apply(schedule[start].loop_body[0], schedule[start].loop_body[1])
     # do j do i count born die
     # do j do i combine
 
@@ -131,3 +170,30 @@ def trans(psyir):
 
     for call in psyir.walk(Call):
         inline.apply(call)
+
+    var_info = VariablesAccessInfo(schedule)
+
+    for sig in potential_symbols:
+        sig_data = Signature(f"{sig}%data")
+        accesses = var_info[sig_data]
+        if accesses[0].access_type in AccessType.all_write_accesses():
+            if not (all(i.node.ancestor(Loop) ==
+                        accesses[0].node.ancestor(Loop) for i in accesses)):
+                print("IN DIFFERENT LOOPS", sig)
+                continue
+            symbol_table = schedule.symbol_table
+            sym = symbol_table.lookup(sig[0])
+            print("REPLACE", sig, sym.datatype, sym.interface,
+                  sym.datatype.datatype)
+            new_sym = \
+                symbol_table.find_or_create(f"{sig[0]}_scalar",
+                                            symbol_type=DataSymbol,
+                                            interface=AutomaticInterface(),
+                                            #datatype = sym.datatype)
+                                            datatype = REAL8_TYPE)
+            for ref in schedule.walk(Reference):
+                ref_sig, _ = ref.get_signature_and_indices()
+                if ref_sig == sig_data:
+                    #print("REF", ref)
+                    new_ref = Reference(new_sym)
+                    ref.replace_with(new_ref)
