@@ -325,11 +325,7 @@ def test_rrbl_raise_transformation_error_initial_value_not_literal(
     rbbl = ReplaceReferenceByLiteralTrans()
     rbbl.apply(routine_foo)
     written_code = fortran_writer(routine_foo.ancestor(Container))
-    assert (
-        "! Psyclone(ReplaceReferenceByLiteral): only supports symbols which"
-        + "have a Literal as their initial value"
-        in written_code
-    )
+    assert ReplaceReferenceByLiteralTrans._ERROR_MSG in written_code
     assert "x = b" in written_code
 
 

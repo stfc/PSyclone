@@ -127,6 +127,11 @@ class ReplaceReferenceByLiteralTrans(Transformation):
 
     '''
 
+    _ERROR_MSG = (
+        "Psyclone(ReplaceReferenceByLiteral): only "
+        + "supports symbols which have a Literal as their initial value but "
+    )
+
     def __init__(self) -> None:
         super().__init__()
         # Dictionary with Literal values of the corresponding symbol
@@ -157,6 +162,9 @@ class ReplaceReferenceByLiteralTrans(Transformation):
             sym: DataSymbol
             if sym.is_constant:
                 sym_name = sym.name
+                print(sym_name)
+                print(type(sym.initial_value))
+                print(param_table.get(sym_name))
                 if param_table.get(sym_name):
                     message = (
                         "Psyclone(ReplaceReferenceByLiteralTrans):"
@@ -170,12 +178,12 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                     continue
                 if not isinstance(sym.initial_value, Literal):
                     message = (
-                        "Psyclone(ReplaceReferenceByLiteral): only "
-                        + "supports symbols which have a Literal as their "
-                        + f"initial value but {sym_name} is assigned "
+                        ReplaceReferenceByLiteralTrans._ERROR_MSG
+                        + f"{sym_name} is assigned "
                         + f"a {type(sym.initial_value)}"
                     )
                     sym.preceding_comment += message
+                    print(sym.preceding_comment)
                     continue
                 new_literal: Literal = sym.initial_value.copy().detach()
                 param_table[sym_name] = new_literal
