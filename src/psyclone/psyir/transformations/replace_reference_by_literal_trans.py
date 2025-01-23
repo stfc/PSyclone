@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: H. Brunie, University of Grenoble Alpes
 
-"""Module providing a transformation that replace PsyIR Node representing a 
+"""Module providing a transformation that replace PsyIR Node representing a
 static, constant value with a Literal Node when possible. """
 
 from typing import Dict, List, Union
@@ -56,6 +56,7 @@ from psyclone.psyir.transformations.transformation_error import (
     TransformationError,
 )
 
+
 class ReplaceReferenceByLiteralTrans(Transformation):
     '''
     This transformation takes a psyir Routine and replace all Reference psyir
@@ -66,7 +67,8 @@ class ReplaceReferenceByLiteralTrans(Transformation):
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.symbols import INTEGER_TYPE
-    >>> from psyclone.psyir.transformations import ReplaceReferenceByLiteralTrans
+    >>> from psyclone.psyir.transformations import (
+        ReplaceReferenceByLiteralTrans)
     >>> source = """program test
     ... use mymod
     ... type(my_type):: t1, t2, t3, t4

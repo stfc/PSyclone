@@ -46,11 +46,13 @@ from psyclone.psyir.transformations import (
     TransformationError,
 )
 
+
 def test_rrbl_general():
     """Test general functionality of the transformation."""
 
     rrbl = ReplaceReferenceByLiteralTrans()
     assert rrbl.name == "ReplaceReferenceByLiteralTrans"
+
 
 def test_rrbl_errors():
     """Test errors that should be thrown."""
@@ -65,6 +67,7 @@ def test_rrbl_errors():
         "supplied node argument should be a PSyIR Routine, but found "
         "'Literal'" in str(err.value)
     )
+
 
 def test_rrbl_in_loop(fortran_reader, fortran_writer):
     """Tests if subroutine parameters are replaced as expected.
@@ -99,6 +102,7 @@ def test_rrbl_in_loop(fortran_reader, fortran_writer):
     assert "a(ic3) = 3 + (ic3 + 13) * ic3" in written_code
     assert "a(t1%a) = 4 + (t1%a + 4 * 13) * t1%a" in written_code
 
+
 def test_rrbl_module_defined_parameter(fortran_reader, fortran_writer):
     """test replacement of reference by a literal defined as constant value in
     the module scope
@@ -124,6 +128,7 @@ def test_rrbl_module_defined_parameter(fortran_reader, fortran_writer):
     out = fortran_writer(routine)
 
     assert "a(ic1) = 1 + (ic1 + 2) * ic1 * 3" in out
+
 
 def test_rrbl_array_shape(fortran_reader, fortran_writer):
     """Tests if subroutine parameters are replaced as expected when they appear
@@ -181,10 +186,10 @@ def test_rrbl_array_type_extent(fortran_reader, fortran_writer):
     integer, dimension(:,a:) :: x
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(source)
-    foo: Routine = psyir.walk(Routine)[0]
+    routine_foo: Routine = psyir.walk(Routine)[0]
     rbbl = ReplaceReferenceByLiteralTrans()
-    rbbl.apply(foo)
-    written_code = fortran_writer(foo)
+    rbbl.apply(routine_foo)
+    written_code = fortran_writer(routine_foo)
 
     assert "integer, dimension(:,3:)" in written_code
 
@@ -196,7 +201,7 @@ def test_rrbl_conflict_between_module_and_routine_scopes(
 
     source = """module toto
     integer, parameter :: a=3
-contains 
+contains
     subroutine tata()
     call foo()
     end subroutine
@@ -205,13 +210,13 @@ contains
         integer, parameter :: a=2
         integer, parameter :: y=a
         end subroutine
-        end module 
+        end module
         """
     psyir = fortran_reader.psyir_from_source(source)
-    foo: Routine = psyir.walk(Routine)[1]
+    routine_foo: Routine = psyir.walk(Routine)[1]
     rbbl = ReplaceReferenceByLiteralTrans()
-    rbbl.apply(foo)
-    written_code = fortran_writer(foo.ancestor(Container))
+    rbbl.apply(routine_foo)
+    written_code = fortran_writer(routine_foo.ancestor(Container))
     print(written_code)
     assert (
         "! Psyclone(ReplaceReferenceByLiteralTrans): Symbol already found a"
@@ -229,7 +234,7 @@ def test_rrbl_call_with_const(fortran_reader, fortran_writer):
 
     source = """module toto
     integer, parameter :: a=3, u2=2
-contains 
+contains
     subroutine tata()
     integer :: i
     integer, parameter :: u3=3
@@ -240,15 +245,16 @@ contains
     subroutine foo()
         integer, dimension(10, a) :: array
         end subroutine
-        end module 
+        end module
         """
     psyir = fortran_reader.psyir_from_source(source)
-    foo: Routine = psyir.walk(Routine)[0]
+    routine_foo: Routine = psyir.walk(Routine)[0]
     rbbl = ReplaceReferenceByLiteralTrans()
-    rbbl.apply(foo)
-    written_code = fortran_writer(foo.ancestor(Container))
+    rbbl.apply(routine_foo)
+    written_code = fortran_writer(routine_foo.ancestor(Container))
     assert "integer, dimension(10,a) :: array" in written_code
     assert "call foo(2 + 3)" in written_code
+
 
 def test_rrbl_same_constant_data_symbol_twice(fortran_reader, fortran_writer):
     """test fortran code annotation with transformation warning and
@@ -258,7 +264,7 @@ def test_rrbl_same_constant_data_symbol_twice(fortran_reader, fortran_writer):
 
     source = """module toto
     integer, parameter :: a=3
-contains 
+contains
     subroutine tata()
     integer :: i
     call foo()
@@ -267,18 +273,19 @@ contains
         integer, parameter :: a=2
         integer, dimension(10, a) :: array
         end subroutine
-        end module 
+        end module
         """
     psyir = fortran_reader.psyir_from_source(source)
-    foo: Routine = psyir.walk(Routine)[1]
+    routine_foo: Routine = psyir.walk(Routine)[1]
     rbbl = ReplaceReferenceByLiteralTrans()
-    rbbl.apply(foo)
-    written_code = fortran_writer(foo.ancestor(Container))
+    rbbl.apply(routine_foo)
+    written_code = fortran_writer(routine_foo.ancestor(Container))
     assert (
         "! Psyclone(ReplaceReferenceByLiteralTrans): Symbol already found"
         in written_code
     )
     assert "integer, dimension(10,a) :: array" in written_code
+
 
 def test_rrbl_write_fortran_comment_warning_about_symbol_found(
     fortran_reader, fortran_writer
@@ -291,15 +298,16 @@ def test_rrbl_write_fortran_comment_warning_about_symbol_found(
     x = a
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(source)
-    foo: Routine = psyir.walk(Routine)[0]
+    routine_foo: Routine = psyir.walk(Routine)[0]
     rbbl = ReplaceReferenceByLiteralTrans()
-    rbbl.apply(foo)
-    rbbl._update_param_table(rbbl._param_table, foo.symbol_table)
-    written_code = fortran_writer(foo.ancestor(Container))
+    rbbl.apply(routine_foo)
+    rbbl._update_param_table(rbbl._param_table, routine_foo.symbol_table)
+    written_code = fortran_writer(routine_foo.ancestor(Container))
     assert (
         "! Psyclone(ReplaceReferenceByLiteralTrans): Symbol already found"
         in written_code
     )
+
 
 def test_rrbl_raise_transformation_error_initial_value_not_literal(
     fortran_reader, fortran_writer
@@ -312,16 +320,18 @@ def test_rrbl_raise_transformation_error_initial_value_not_literal(
     x = b
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(source)
-    foo: Routine = psyir.walk(Routine)[0]
+    routine_foo: Routine = psyir.walk(Routine)[0]
 
     rbbl = ReplaceReferenceByLiteralTrans()
-    rbbl.apply(foo)
-    written_code = fortran_writer(foo.ancestor(Container))
+    rbbl.apply(routine_foo)
+    written_code = fortran_writer(routine_foo.ancestor(Container))
     assert (
-        "! Psyclone(ReplaceReferenceByLiteral): only supports symbols which have a Literal as their initial value"
+        "! Psyclone(ReplaceReferenceByLiteral): only supports symbols which"
+        + "have a Literal as their initial value"
         in written_code
     )
     assert "x = b" in written_code
+
 
 def test_rrbl_raise_transformation_error_initial_value(
     fortran_reader, fortran_writer
@@ -335,15 +345,16 @@ def test_rrbl_raise_transformation_error_initial_value(
     x = a
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(source)
-    foo: Routine = psyir.walk(Routine)[0]
+    routine_foo: Routine = psyir.walk(Routine)[0]
 
-    sym_a: DataSymbol = foo.symbol_table.find_or_create("a")
+    sym_a: DataSymbol = routine_foo.symbol_table.find_or_create("a")
     assert not sym_a.is_constant
     rbbl = ReplaceReferenceByLiteralTrans()
-    rbbl.apply(foo)
-    written_code = fortran_writer(foo.ancestor(Container))
+    rbbl.apply(routine_foo)
+    written_code = fortran_writer(routine_foo.ancestor(Container))
     print(written_code)
     assert (
-        "! Psyclone(ReplaceReferenceByLiteral): only supports symbols which have a Literal as their initial value"
+        "! Psyclone(ReplaceReferenceByLiteral): only supports symbols which"
+        + " have a Literal as their initial value"
         in written_code
     )
