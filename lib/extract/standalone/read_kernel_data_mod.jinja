@@ -19,18 +19,14 @@
 
 {# The types that are supported. The first entry of each tuple
    is the name used when naming subroutines and in user messages.
-   The second entry is the Fortran declaration. The third entry
-   is the number of bits. There is slightly different code
-   required for 32 and 64 bit values (due to the fact that the
-   Fortran transfer(value, mould) function leaves undefined bits
-   when mould is larger than value.) #}
+   The second entry is the Fortran declaration. #}
 
 {% if ALL_TYPES is not defined -%}
-   {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
-                        ("Real",   "real(kind=real32)",   32),
-                        ("Char",   "character(*)",         8),
-                        ("Logical","integer(kind=real32)",32),
-                        ("Int",    "integer(kind=int32)", 32) ] %}
+   {% set ALL_TYPES = [ ("Double", "real(kind=real64)"   ),
+                        ("Real",   "real(kind=real32)"   ),
+                        ("Char",   "character(*)"        ),
+                        ("Logical","integer(kind=real32)"),
+                        ("Int",    "integer(kind=int32)" ) ] %}
 {% endif -%}
 
 
@@ -102,7 +98,7 @@ module read_kernel_data_mod
         {# Collect and declare the various procedures for the same generic interface -#}
         {# ------------------------------------------------------------------------- -#}
         {% set all_reads=[] -%}
-        {% for name, type, bits in ALL_TYPES %}
+        {% for name, type in ALL_TYPES %}
         procedure :: ReadScalar{{name}}
           {{- all_reads.append("ReadScalar"~name) or "" }}
           {% for dim in ALL_DIMS %}
@@ -168,7 +164,7 @@ contains
 
     end subroutine OpenReadFileName
 
-{% for name, type, bits in ALL_TYPES %}
+{% for name, type in ALL_TYPES %}
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the value of a scalar {{type}}
@@ -264,6 +260,6 @@ contains
 
     {% endfor -%}  {# for dim in ALL_DIMS #}
 
-{%- endfor -%}  {# for name, type, bits in ALL_TYPES #}
+{%- endfor -%}  {# for name, type in ALL_TYPES #}
 
 end module read_kernel_data_mod

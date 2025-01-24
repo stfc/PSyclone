@@ -150,18 +150,14 @@ NEMO_FUNCTIONS = [
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
 # These files change the results from baseline when psyclone processes them
-PASSTHROUGH_ISSUES = [
-    # TODO #2858: These 3 have parenthesis that matter for full reporducibility
-    "dynspg_ts.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
-    "dynvor.f90",
-    "ldfslp.f90",
-]
+PASSTHROUGH_ISSUES = []
 
 # These files change the results from the baseline when psyclone adds
 # parallelisation dirctives
 PARALLELISATION_ISSUES = [
     "ldfc1d_c2d.f90",
     "tramle.f90",
+    "dynspg_ts.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
 ]
 
 

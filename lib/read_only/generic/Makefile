@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,54 +32,72 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Australian Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
 
-# This Makefile just creates the Fortran base class for all read-only
-# wrappers from the jinja template. The compile functionality it offers is
-# only meant for testing, each library should compile its own version
-# of the base class (with therefore consistent compiler settings).
+# This Makefile is for the read-only checking lib for generic Fortran code.
+
+# This Makefile picks up the compiler to use plus any flags from
+# environment variables. e.g.:
+# 
+# export F90=mpif90
+# export F90FLAGS="-O3"
+# export AR=ar
+#
 
 # ----------- Default "make" values, can be overwritten by the user -----------
 # Compiler and compiler flags
 F90 ?= gfortran
-F90FLAGS ?= 
-# Path to the PSyclone wrapper libraries. It defaults to the relative path to
-# the top-level 'lib' directory. Overwrite for a custom location.
-PSYDATA_LIB_DIR ?= ./..
+F90FLAGS ?=
+
+# Paths to the PSyclone wrapper libraries and required templates. They default
+# to the relative paths to the top-level 'lib' and 'lib/read_only'
+# directories. Overwrite for a custom location.
+PSYDATA_LIB_DIR ?= ./../..
+LIB_TMPLT_DIR ?= ./..
 # -----------------------------------------------------------------------------
 
-# The read-only verification library is implemented for int, logical,
-# characters, real, and double precision scalars and 1 to 4 dimensional arrays
-PROCESS_ARGS = -prefix=read_only_verify_ -types=char,int,logical,real,double \
+PSYDATA_LIB_NAME = _read_only
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
+
+OBJS = read_only.o psy_data_base.o read_only_base.o
+
+# The arguments for the jinja templates. Create support for all
+# types, and 1-4 dimensional arrays.
+PROCESS_ARGS = -prefix=read_only_verify_ -types=int,long,char,logical,real,double \
 		       -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-default: read_only_base.o psy_data_base.o
+default: $(PSYDATA_LIB)
 
-process: read_only_base.f90
+.PHONY: default clean allclean
 
-.PHONY: default process all clean allclean
+$(PSYDATA_LIB): $(OBJS)
+	${AR} ${ARFLAGS} ${PSYDATA_LIB} $^
 
-all:
-	$(MAKE) -C dl_esm_inf
-	$(MAKE) -C lfric
-	$(MAKE) -C generic
-
-%.f90:	%.jinja
-	$(PROCESS) $(PROCESS_ARGS) $< > $*.f90
-
-psy_data_base.f90:	$(PSYDATA_LIB_DIR)/psy_data_base.jinja
-	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
+# Dependencies:
+# -------------
+# Compilation of read_only needs the base class read_only_base
+# (which in turn needs psy_data_base).
+read_only.o: read_only.f90 read_only_base.o
 
 read_only_base.o: psy_data_base.o
 
+# Rules for file creation
+# -----------------------
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
+# The generic ReadOnly library is built on the psy-data base library
+# and the read-only base library. This library uses the `declareXXX`
+# functions implemented in `psy_data_base`, hence the parameter
+# `-generic-declare`. It also uses the `provideXXX` functions implemented
+# in `read_only_base`, which are added with the `-generic-provide` parameter.
+psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
+
+read_only_base.f90: $(LIB_TMPLT_DIR)/read_only_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > read_only_base.f90
+
 clean:
-	rm -f read_only_base.f90 psy_data_base.f90 *.o *.mod
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.* read_only_base.*
 
 allclean: clean
-	$(MAKE) -C dl_esm_inf allclean
-	$(MAKE) -C lfric allclean
-	$(MAKE) -C generic allclean
