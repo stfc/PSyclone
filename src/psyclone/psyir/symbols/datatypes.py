@@ -44,6 +44,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Union
 
+from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
@@ -219,7 +220,7 @@ class UnsupportedFortranType(UnsupportedType):
         string_reader = FortranStringReader(self._declaration)
         # Set reader to free format.
         string_reader.set_format(FortranFormat(True, False))
-        ParserFactory().create(std="f2008")
+        ParserFactory().create(std=Config.get().fortran_standard)
         try:
             ptree = Fortran2003.Specification_Part(
                 string_reader)
@@ -641,8 +642,8 @@ class ArrayType(DataType):
         :type extents: List[
             :py:class:`psyclone.psyir.symbols.ArrayType.Extent` | int
             | :py:class:`psyclone.psyir.nodes.DataNode` |
-            Tuple[int | :py:class:`psyclone.psyir.nodes.DataNode |
-                  :py:class:`psyclone.psyir.symbols.ArrayType.Extent]]
+            Tuple[int | :py:class:`psyclone.psyir.nodes.DataNode` |
+                  :py:class:`psyclone.psyir.symbols.ArrayType.Extent`]]
 
         :raises TypeError: if extents is not a list.
         :raises TypeError: if one or more of the supplied extents is a
