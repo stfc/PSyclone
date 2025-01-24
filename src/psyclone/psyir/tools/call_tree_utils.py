@@ -40,10 +40,10 @@ across different subroutines and modules.'''
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
-from psyclone.psyir.nodes import Container, Reference
+from psyclone.psyir.nodes import Call, Container, IntrinsicCall, Reference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DefaultModuleInterface, GenericInterfaceSymbol,
-    ImportInterface, IntrinsicSymbol, RoutineSymbol)
+    ArgumentInterface, AutomaticInterface, DefaultModuleInterface,
+    GenericInterfaceSymbol, ImportInterface, IntrinsicSymbol, RoutineSymbol)
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 
@@ -540,3 +540,111 @@ class CallTreeUtils():
                            var_accesses[signature]))
 
         return result
+
+    def _handle_call(self, routine_name, module_name, all_routines):
+        # Query the module that contains the kernel:
+        mod_man = ModuleManager.get()
+        try:
+            mod_info = mod_man.get_module_info(module_name)
+        except FileNotFoundError as err:
+            # TODO #11: Add proper logging
+            # TODO #2120: Handle error
+            print(f"[CallTreeUtils._handle_kernel] "
+                  f"Could not find module '{module_name}' - "
+                  f"ignored.")
+            # This includes the currently defined search path:
+            print(str(err))
+            return
+
+        # Get the Container for this module.
+        cntr = mod_info.get_psyir()
+        if not cntr:
+            print(f"[CallTreeUtils._handle_kernel] "
+                  f"Could not get PSyIR for module "
+                  f"'{module_name}' - ignored.")
+            return
+        # We might get several routines if there is a generic
+        # interface.
+        all_possible_routines = cntr.resolve_routine(routine_name)
+        for called_routine in all_possible_routines:
+            if (called_routine, module_name) not in all_routines:
+                all_routines.append((called_routine, module_name))
+                psyir = cntr.find_routine_psyir(called_routine)
+                if psyir:
+                    new_calls = self.get_all_called_routines(psyir)
+                    for i in new_calls:
+                        if i not in all_routines:
+                            all_routines.append(i)
+
+    def get_all_called_routines(self, nodes):
+        '''Example output for the following trans function:
+            def trans(psyir)
+                ctu = CallTreeUtils()
+                all = ctu.get_all_called_routines(psyir)
+                print("ALL kernel", all)
+        using
+            psyclone -l output --psykal-dsl lfric -s ./call_tree.py \
+                     -d... .../casim_alg_mod.x90
+        [('casim_code', 'casim_kernel_mod'),
+        ('mphys_air_density', 'mphys_air_density_mod'),
+        ('dr_hook', 'yomhook'),
+        ('allocate_diagnostic_space', 'generic_diagnostic_variables'),
+        ('shipway_microphysics', 'micro_main'),
+        ('zero_procs', 'process_routines'),
+        ('set_passive_fields', 'passive_fields'),
+        ('throw_mphys_error', 'mphys_die'),
+        ('ereport', 'ereport_mod'),
+        ('log_event', 'log_mod'),
+        ('traceback', 'traceback_mod'),
+        ('abort_model', 'log_mod'),
+        ('microphysics_common', 'micro_main'),
+        ('tidy_qin', 'mphys_tidy'),
+        ('recompute_qin_constants', 'mphys_tidy'),
+        ('casim_reflec', 'casim_reflec_mod'),
+        ('query_distributions', 'distributions'),
+        ('get_slope_generic_kf', 'lookup'),
+        ('casim_moments', 'casim_moments_mod'),
+        ('get_lam_n0_3m', 'lookup'),
+        ('get_lam_n0_2m', 'lookup'),
+        ('get_lam_n0_1m', 'lookup'),
+        ('get_lam_n0_1m_kf', 'lookup'),
+        ('get_slope_generic', 'lookup'),
+        ('deallocate_diagnostic_space',
+        ()'generic_diagnostic_variables')]
+
+        '''
+        if not isinstance(nodes, list):
+            nodes = [nodes]
+        all_routines = []
+        for node in nodes:
+            for callee in node.walk((Call, Kern)):
+                if isinstance(callee, (BuiltIn, IntrinsicCall)):
+                    # Ignore builtins and intrinsics
+                    continue
+
+                if isinstance(callee, Kern):
+                    routine_name = callee.name
+                    mod_name = callee.module_name
+                else:
+                    # It is a plain call.
+                    routine_name = callee.routine.name
+                    callee_sym = callee.routine.symbol
+                    if isinstance(callee_sym.interface,
+                                  DefaultModuleInterface):
+                        # It's not imported, let
+                        mod_name = node.ancestor(Container).name
+                        routine_name = callee_sym.name
+                    elif isinstance(callee_sym.interface, ImportInterface):
+                        mod_name = callee_sym.interface.container_symbol.name
+                    elif isinstance(callee_sym.interface, AutomaticInterface):
+                        mod_name = node.ancestor(Container).name
+                    else:
+                        print(f"[CallTreeUtils] Ignoring call to "
+                              f"{callee_sym.name} with interface "
+                              f"{callee_sym.interface}")
+                        continue
+
+                if not any(i[0] == routine_name for i in all_routines):
+                    self._handle_call(routine_name, mod_name, all_routines)
+
+        return all_routines
