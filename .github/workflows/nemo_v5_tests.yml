@@ -187,7 +187,7 @@ jobs:
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small_10 namelist_cfg
-        OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
+        OMP_NUM_THREADS=4 ./nemo
         tail run.stat
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
         export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
