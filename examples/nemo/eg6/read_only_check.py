@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,64 +32,31 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: S. Siso, STFC Daresbury Lab
 
-'''A transformation script that applies kernel data extraction to a
-stand-alone version of one of the tracer-advection routines from the
-NEMO ocean model. It was originally extracted by Silvia Mocavero
-of CMCC. The code can be found in the `../code` directory.
-
-This script is called for `tra_adv.F90` and applies the generic
-:py:class:`psyclone.psyir.transformations.ExtractTrans` to each
-invoke, as automatically identified by PSyclone.
-
-    $ psyclone -l output --config ../../../psyclone.cfg -l all \
-        -s ./extract_kernels.py -opsy psy.f90 ../code/tra_adv.F90
-
-You can inspect the output file `psy.f90` to see the instrumentation, e.g.:
-
-    CALL extract_psy_data_2 % PreStart("tra_adv", "r2", 1, 2)
-    CALL extract_psy_data_2 % PreDeclareVariable("jpk", jpk)
-    CALL extract_psy_data_2 % PreDeclareVariable("jk_post", jk)
-    CALL extract_psy_data_2 % PreDeclareVariable("rnfmsk_z_post", rnfmsk_z)
-    CALL extract_psy_data_2 % PreEndDeclaration
-    CALL extract_psy_data_2 % ProvideVariable("jpk", jpk)
-    CALL extract_psy_data_2 % PreEnd
-    do jk = 1, jpk, 1
-      rnfmsk_z(jk) = jk / jpk
-    enddo
-    CALL extract_psy_data_2 % PostStart
-    CALL extract_psy_data_2 % ProvideVariable("jk_post", jk)
-    CALL extract_psy_data_2 % ProvideVariable("rnfmsk_z_post", rnfmsk_z)
-    CALL extract_psy_data_2 % PostEnd
-
-Note that the Fortran source files provided to PSyclone must have already
-been preprocessed (if required).
+'''A transformation script that applies read-only-verification
+to a small Fortran program. You can use
+    $ psyclone --config ../../../psyclone.cfg  \
+        -s ./read_only_check.py -opsy psy.f90 dummy.f90
 
 '''
 
-from psyclone.transformations import TransformationError
-from psyclone.psyir.transformations import ExtractTrans
+from psyclone.psyir.transformations import ReadOnlyVerifyTrans
 from psyclone.psyir.nodes import Loop, Routine
 
 
 def trans(psyir):
-    '''Applies the kernel extraction to every subroutine in the file.
+    '''Applies the read-only verification transformation to every
+    subroutine in the file.
 
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 
-    extract = ExtractTrans()
+    rov = ReadOnlyVerifyTrans()
 
     for subroutine in psyir.walk(Routine):
         print(f"Transforming subroutine: {subroutine.name}")
         for kern in subroutine.children:
             if not isinstance(kern, Loop):
                 continue
-            try:
-                extract.apply(kern)
-            except TransformationError as err:
-                # Typically that's caused by a kernel having a CodeBlock
-                # inside.
-                print("Ignoring: ", str(err.value))
+            rov.apply(kern)
