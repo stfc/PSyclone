@@ -45,6 +45,8 @@ from psyclone.psyir.nodes import (
     Loop, Routine, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import OMPDeclareTargetTrans, TransformationError
+# TODO REMOVE
+from psyclone.transformations import ScalarizationTrans
 
 PROFILING_ENABLED = False
 
@@ -92,6 +94,11 @@ def trans(psyir):
                 convert_range_loops=True,
                 hoist_expressions=True
         )
+
+        #TODO REMOVE
+        scalartrans = ScalarizationTrans()
+        for loop in subroutine.walk(Loop):
+            scalartrans.apply(loop)
 
         # Thes are functions that are called from inside parallel regions,
         # annotate them with 'omp declare target'
