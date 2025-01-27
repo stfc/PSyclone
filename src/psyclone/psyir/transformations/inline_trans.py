@@ -41,8 +41,8 @@ from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
-    CodeBlock, IntrinsicCall, Node, Range, Routine, Reference,
-    Return, Literal, Statement, StructureMember, StructureReference)
+    CodeBlock, IntrinsicCall, Literal, Node, Range, Routine, Reference,
+    Return, ScopingNode, Statement, StructureMember, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, UnresolvedType, INTEGER_TYPE,
@@ -676,112 +676,68 @@ class InlineTrans(Transformation):
                     f"Routine '{routine.name}' cannot be inlined because it "
                     f"has a named argument '{arg}' (TODO #924).")
 
-        table = parent_routine.symbol_table
-        routine_table = routine.symbol_table
-
-        for sym in routine_table.datasymbols:
-            # We don't inline symbols that have an UnsupportedType and are
-            # arguments since we don't know if a simple assignment if
-            # enough (e.g. pointers)
-            if isinstance(sym.interface, ArgumentInterface):
-                if isinstance(sym.datatype, UnsupportedType):
+        for scope in routine.walk(ScopingNode):
+            routine_table = scope.symbol_table
+            for sym in routine_table.datasymbols:
+                # We don't inline symbols that have an UnsupportedType and are
+                # arguments since we don't know if a simple assignment if
+                # enough (e.g. pointers)
+                if isinstance(sym.interface, ArgumentInterface):
+                    if isinstance(sym.datatype, UnsupportedType):
+                        raise TransformationError(
+                            f"Routine '{routine.name}' cannot be inlined because "
+                            f"it contains a Symbol '{sym.name}' which is an "
+                            f"Argument of UnsupportedType: "
+                            f"'{sym.datatype.declaration}'")
+                # We don't inline symbols that have an UnknownInterface, as we
+                # don't know how they are brought into this scope.
+                if isinstance(sym.interface, UnknownInterface):
                     raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
-                        f"it contains a Symbol '{sym.name}' which is an "
-                        f"Argument of UnsupportedType: "
-                        f"'{sym.datatype.declaration}'")
-            # We don't inline symbols that have an UnknownInterface, as we
-            # don't know how they are brought into this scope.
-            if isinstance(sym.interface, UnknownInterface):
-                raise TransformationError(
-                    f"Routine '{routine.name}' cannot be inlined because it "
-                    f"contains a Symbol '{sym.name}' with an UnknownInterface:"
-                    f" '{sym.datatype.declaration}'. You may be able to work "
-                    f"around this limitation by adding the name of the module "
-                    f"containing this Symbol to RESOLVE_IMPORTS in the "
-                    f"transformation script.")
-            # Check that there are no static variables in the routine (because
-            # we don't know whether the routine is called from other places).
-            if (isinstance(sym.interface, StaticInterface) and
-                    not sym.is_constant):
-                raise TransformationError(
-                    f"Routine '{routine.name}' cannot be inlined because it "
-                    f"has a static (Fortran SAVE) interface for Symbol "
-                    f"'{sym.name}'.")
+                        f"Routine '{routine.name}' cannot be inlined because it "
+                        f"contains a Symbol '{sym.name}' with an UnknownInterface:"
+                        f" '{sym.datatype.declaration}'. You may be able to work "
+                        f"around this limitation by adding the name of the module "
+                        f"containing this Symbol to RESOLVE_IMPORTS in the "
+                        f"transformation script.")
+                # Check that there are no static variables in the routine (because
+                # we don't know whether the routine is called from other places).
+                if (isinstance(sym.interface, StaticInterface) and
+                        not sym.is_constant):
+                    raise TransformationError(
+                        f"Routine '{routine.name}' cannot be inlined because it "
+                        f"has a static (Fortran SAVE) interface for Symbol "
+                        f"'{sym.name}'.")
 
         # We can't handle a clash between (apparently) different symbols that
         # share a name but are imported from different containers.
-        try:
-            table.check_for_clashes(
-                routine_table,
-                symbols_to_skip=routine_table.argument_list[:])
-        except SymbolError as err:
-            raise TransformationError(
-                f"One or more symbols from routine '{routine.name}' cannot be "
-                f"added to the table at the call site.") from err
+        for scope in routine.walk(ScopingNode):
+            routine_table = scope.symbol_table
+            for scope in parent_routine.walk(ScopingNode):
+                table = scope.symbol_table
+                try:
+                    table.check_for_clashes(
+                        routine_table,
+                        symbols_to_skip=routine_table.argument_list[:])
+                except SymbolError as err:
+                    raise TransformationError(
+                        f"One or more symbols from routine '{routine.name}' cannot be "
+                        f"added to the table at the call site. Error was: {err}") from err
 
         # Check for unresolved symbols or for any accessed from the Container
         # containing the target routine.
+        from psyclone.domain.common.transformations import KernelModuleInlineTrans
+        KernelModuleInlineTrans.check_data_accesses(node, routine, routine.name,
+                                                    "routine")
         # TODO #1792 - kind parameters will not be found by simply doing
         # `walk(Reference)`. Although SymbolTable has the
         # `precision_datasymbols` property, this only returns those Symbols
         # that are used to define the precision of other Symbols in the same
         # table. If a precision symbol is only used within Statements then we
         # don't currently capture the fact that it is a precision symbol.
-        ref_or_lits = routine.walk((Reference, Literal))
-        # Check for symbols in any initial-value expressions
-        # (including Fortran parameters) or array dimensions.
-        for sym in routine_table.datasymbols:
-            if sym.initial_value:
-                ref_or_lits.extend(
-                    sym.initial_value.walk((Reference, Literal)))
-            if isinstance(sym.datatype, ArrayType):
-                for dim in sym.shape:
-                    if isinstance(dim, ArrayType.ArrayBounds):
-                        if isinstance(dim.lower, Node):
-                            ref_or_lits.extend(dim.lower.walk(Reference,
-                                                              Literal))
-                        if isinstance(dim.upper, Node):
-                            ref_or_lits.extend(dim.upper.walk(Reference,
-                                                              Literal))
-        # Keep a reference to each Symbol that we check so that we can avoid
-        # repeatedly checking the same Symbol.
-        _symbol_cache = set()
-        for lnode in ref_or_lits:
-            if isinstance(lnode, Literal):
-                if not isinstance(lnode.datatype.precision, DataSymbol):
-                    continue
-                sym = lnode.datatype.precision
-            else:
-                sym = lnode.symbol
-            # If we've already seen this Symbol then we can skip it.
-            if sym in _symbol_cache:
-                continue
-            _symbol_cache.add(sym)
-            if isinstance(sym, IntrinsicSymbol):
-                continue
-            # We haven't seen this Symbol before.
-            if sym.is_unresolved:
-                try:
-                    routine_table.resolve_imports(symbol_target=sym)
-                except KeyError:
-                    # The symbol is not (directly) imported into the symbol
-                    # table local to the routine.
-                    # pylint: disable=raise-missing-from
-                    raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined "
-                        f"because it accesses variable '{sym.name}' and this "
-                        f"cannot be found in any of the containers directly "
-                        f"imported into its symbol table.")
-            else:
-                if sym.name not in routine_table:
-                    raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
-                        f"it accesses variable '{sym.name}' from its "
-                        f"parent container.")
 
         # Check that the shapes of any formal array arguments are the same as
         # those at the call site.
+        routine_table = routine.symbol_table
         if len(routine_table.argument_list) != len(node.arguments):
             raise TransformationError(LazyString(
                 lambda: f"Cannot inline '{node.debug_string().strip()}' "

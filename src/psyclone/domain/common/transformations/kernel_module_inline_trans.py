@@ -49,7 +49,7 @@ from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
-    RoutineSymbol, Symbol)
+    ImportInterface, RoutineSymbol, Symbol)
 from psyclone.psyir.nodes import (
     Container, Reference, Routine, ScopingNode,
     Literal, CodeBlock, Call, IntrinsicCall)
@@ -156,24 +156,7 @@ class KernelModuleInlineTrans(Transformation):
         # We do not support kernels that use symbols representing data
         # declared in their own parent module (we would need to add new imports
         # from this module at the call site, and we don't do this yet).
-        # TODO #2424 - this suffers from the limitation that
-        # VariablesAccessInfo does not work with nested scopes. (e.g. 2
-        # different symbols with the same name but declared in different,
-        # nested scopes will be assumed to be the same symbol).
-        vai = VariablesAccessInfo(kernel_schedule)
-        table = kernel_schedule.symbol_table
-        for sig in vai.all_signatures:
-            symbol = table.lookup(sig.var_name, otherwise=None)
-            if not symbol:
-                raise TransformationError(
-                    f"{kern_or_call} '{kname}' contains accesses to "
-                    f"'{sig.var_name}' but the origin of this signature is "
-                    f"unknown.")
-            if not symbol.is_import and symbol.name not in table:
-                raise TransformationError(
-                    f"{kern_or_call} '{kname}' contains accesses to "
-                    f"'{symbol.name}' which is declared in the callee "
-                    f"module scope. Cannot inline such a {kern_or_call}.")
+        self.check_data_accesses(node, kernel_schedule, kname, kern_or_call)
 
         # We can't transform subroutines that shadow top-level symbol module
         # names, because we won't be able to bring this into the subroutine
@@ -199,6 +182,49 @@ class KernelModuleInlineTrans(Transformation):
                 f"symbol '{existing_symbol}' with the same name already "
                 f"exists and changing the name of module-inlined "
                 f"subroutines is not supported yet.")
+
+    @staticmethod
+    def check_data_accesses(call, kernel_schedule, kname, kern_or_call):
+        '''
+        Check for unresolved symbols or for any accessed from the Container
+        containing the target routine.
+        '''
+        # TODO #2424 - this suffers from the limitation that
+        # VariablesAccessInfo does not work with nested scopes. (e.g. 2
+        # different symbols with the same name but declared in different,
+        # nested scopes will be assumed to be the same symbol).
+        vai = VariablesAccessInfo(kernel_schedule)
+        table = kernel_schedule.symbol_table
+        for sig in vai.all_signatures:
+            symbol = table.lookup(sig.var_name, otherwise=None)
+            if not symbol:
+                raise TransformationError(
+                    f"{kern_or_call} '{kname}' contains accesses to "
+                    f"'{sig.var_name}' but the origin of this signature is "
+                    f"unknown.")
+            if symbol.is_unresolved:
+                routine_wildcards = table.wildcard_imports()
+                try:
+                    # This symbol must be imported from the one Container with
+                    # a wildcard import.
+                    (cname,) = routine_wildcards
+                    csym = table.lookup(cname, symbol_type=ContainerSymbol)
+                    symbol.interface = ImportInterface(csym)
+                except (ValueError, KeyError):
+                    callsite_wildcards = call.scope.symbol_table.wildcard_imports()
+                    if not routine_wildcards.issubset(callsite_wildcards):
+                        raise TransformationError(
+                            f"{kern_or_call} '{kname}' contains accesses to "
+                            f"'{symbol.name}' which is unresolved. It is being "
+                            f"brought into scope from one of {routine_wildcards}")
+            if not symbol.is_import and symbol.name not in table:
+                sym_at_call_site = call.scope.symbol_table.lookup(
+                    sig.var_name, otherwise=None)
+                if sym_at_call_site is not symbol:
+                    raise TransformationError(
+                        f"{kern_or_call} '{kname}' contains accesses to "
+                        f"'{symbol.name}' which is declared in the callee "
+                        f"module scope. Cannot inline such a {kern_or_call}.")
 
     @staticmethod
     def _prepare_code_to_inline(code_to_inline):

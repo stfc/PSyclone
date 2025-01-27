@@ -46,6 +46,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 import inspect
 import copy
+from typing import Any, List, Optional, Union
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -923,16 +924,21 @@ class SymbolTable():
         self._validate_arg_list(argument_symbols)
         self._argument_list = argument_symbols[:]
 
-    def lookup(self, name, visibility=None, scope_limit=None,
-               otherwise=DEFAULT_SENTINEL):
+    def lookup(
+            self,
+            name: str,
+            visibility: Optional[Union[Symbol.Visibility,
+                                       List[Symbol.Visibility]]] = None,
+            scope_limit = None,
+            symbol_type: Optional[type] = None,
+            otherwise: Any = DEFAULT_SENTINEL) -> Any:
         '''Look up a symbol in the symbol table. The lookup can be limited
         by visibility (e.g. just show public methods) or by scope_limit (e.g.
         just show symbols up to a certain scope).
 
-        :param str name: name of the symbol.
+        :param name: name of the symbol.
         :param visibilty: the visibility or list of visibilities that the
                           symbol must have.
-        :type visibility: [list of] :py:class:`psyclone.symbols.Visibility`
         :param scope_limit: optional Node which limits the symbol
             search space to the symbol tables of the nodes within the
             given scope. If it is None (the default), the whole
@@ -940,13 +946,14 @@ class SymbolTable():
             otherwise ancestors of the scope_limit node are not
             searched.
         :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
-        :param Any otherwise: an optional value to return if the named symbol
+        :param symbol_type: restrict the search to symbols of the specified
+            type.
+        :param otherwise: an optional value to return if the named symbol
             cannot be found (rather than raising a KeyError).
 
         :returns: the symbol with the given name and, if specified, visibility.
                   If no match is found and 'otherwise' is supplied then that
                   value is returned.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if the name argument is not a string.
         :raises SymbolError: if the name exists in the Symbol Table but does
@@ -985,6 +992,19 @@ class SymbolTable():
                         f"Symbol '{name}' exists in the Symbol Table but has "
                         f"visibility '{symbol.visibility.name}' which does not"
                         f" match with the requested visibility: {vis_names}")
+            if symbol_type and not isinstance(symbol, symbol_type):
+                # A Symbol type was specified and the symbol we've found is not
+                # of the correct type so keep looking in outer scopes.
+                table = self.parent_symbol_table(scope_limit=scope_limit)
+                if not table:
+                    raise KeyError(
+                        f"Only found one Symbol named '{name}' and it is of "
+                        f"type '{type(symbol).__name__}' rather than "
+                        f"'{symbol_type}'")
+                symbol = table.lookup(name, visibility=visibility,
+                                      scope_limit=scope_limit,
+                                      symbol_type=symbol_type,
+                                      otherwise=otherwise)
             return symbol
         except KeyError as err:
             if otherwise is DEFAULT_SENTINEL:

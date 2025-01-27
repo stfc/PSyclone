@@ -3,7 +3,7 @@ module kernel_scalar_int
   use field_mod
   use grid_mod
   use kernel_mod
-  use kind_params_mod
+  use kind_params_mod, only: go_wp
   implicit none
 
   private
