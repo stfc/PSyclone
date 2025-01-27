@@ -95,7 +95,7 @@ def trans(psyir):
                 hoist_expressions=True
         )
 
-        #TODO REMOVE
+        # TODO REMOVE
         scalartrans = ScalarizationTrans()
         for loop in subroutine.walk(Loop):
             scalartrans.apply(loop)
