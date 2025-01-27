@@ -929,7 +929,7 @@ class SymbolTable():
             name: str,
             visibility: Optional[Union[Symbol.Visibility,
                                        List[Symbol.Visibility]]] = None,
-            scope_limit = None,
+            scope_limit=None,
             symbol_type: Optional[type] = None,
             otherwise: Any = DEFAULT_SENTINEL) -> Any:
         '''Look up a symbol in the symbol table. The lookup can be limited

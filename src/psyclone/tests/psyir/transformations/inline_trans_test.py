@@ -1836,17 +1836,17 @@ def test_validate_unresolved_precision_sym(fortran_reader, code_body,
     call = psyir.walk(Call)[0]
     if use_stmt:
         # There is a module import within the called routine and therefore
-        # we
-        # don't know which module any unresolved symbols come from.
+        # we don't know which module any unresolved symbols come from.
         with pytest.raises(TransformationError) as err:
             inline_trans.validate(call)
         if "i_def" in code_body:
-            assert "A symbol named 'i_def' is present but unresolved in one or both tables" in str(err.value)
+            assert ("A symbol named 'i_def' is present but unresolved in one "
+                    "or both tables" in str(err.value))
         else:
             assert ("routine 'sub' contains accesses to" in str(err.value))
     else:
-        # There is only one module import and it is common to the target routine
-        # and the call site.
+        # There is only one module import and it is common to the target
+        # routine and the call site.
         inline_trans.validate(call)
 
 

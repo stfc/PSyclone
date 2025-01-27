@@ -205,18 +205,20 @@ class KernelModuleInlineTrans(Transformation):
             if symbol.is_unresolved:
                 routine_wildcards = table.wildcard_imports()
                 try:
-                    # This symbol must be imported from the one Container with
-                    # a wildcard import.
+                    # If there's more than one Container with a wildcard import
+                    # this will raise a ValueError.
                     (cname,) = routine_wildcards
                     csym = table.lookup(cname, symbol_type=ContainerSymbol)
                     symbol.interface = ImportInterface(csym)
                 except (ValueError, KeyError):
-                    callsite_wildcards = call.scope.symbol_table.wildcard_imports()
+                    callsite_wildcards = (
+                        call.scope.symbol_table.wildcard_imports())
                     if not routine_wildcards.issubset(callsite_wildcards):
                         raise TransformationError(
                             f"{kern_or_call} '{kname}' contains accesses to "
-                            f"'{symbol.name}' which is unresolved. It is being "
-                            f"brought into scope from one of {routine_wildcards}")
+                            f"'{symbol.name}' which is unresolved. It is being"
+                            f" brought into scope from one of "
+                            f"{routine_wildcards}")
             if not symbol.is_import and symbol.name not in table:
                 sym_at_call_site = call.scope.symbol_table.lookup(
                     sig.var_name, otherwise=None)
