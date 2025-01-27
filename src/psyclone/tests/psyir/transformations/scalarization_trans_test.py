@@ -553,3 +553,36 @@ def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
     out = fortran_writer(psyir)
     assert correct in out
     assert Compile(tmpdir).string_compiles(out)
+
+
+def test_scalarization_trans_apply_routinesymbol(fortran_reader,
+                                                 fortran_writer, tmpdir):
+    ''' Test the application of the scalarization transformation doesn't work
+    when applied on an array with a RoutineSymbol as an index.'''
+    code = '''subroutine test
+        integer, dimension(3) :: j
+        integer :: i
+        integer, allocatable, dimension(:,:,:) :: k
+        do i= 1, 100
+            allocate(k(MAXVAL(j(1:3)),1,1))
+            deallocate(k)
+        end do
+    end subroutine test'''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    strans.apply(psyir.children[0].children[0])
+    correct = '''subroutine test()
+  integer, dimension(3) :: j
+  integer :: i
+  integer, allocatable, dimension(:,:,:) :: k
+
+  do i = 1, 100, 1
+    ALLOCATE(k(1:MAXVAL(j(:)),1:1,1:1))
+    DEALLOCATE(k)
+  enddo
+
+end subroutine test
+'''
+    out = fortran_writer(psyir)
+    assert correct == out
+    assert Compile(tmpdir).string_compiles(out)

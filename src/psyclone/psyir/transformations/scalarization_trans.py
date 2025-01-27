@@ -42,7 +42,7 @@ from psyclone.core import VariablesAccessInfo, Signature
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Call, CodeBlock,  \
         Loop, Reference, Routine
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 
 
@@ -144,6 +144,11 @@ class ScalarizationTrans(LoopTrans):
                 # Index may not be a Reference, so we need to loop over the
                 # References
                 for ref in index.walk(Reference):
+                    # This Reference could be the symbol for a Call or
+                    # IntrinsicCall, which we don't allow to scalarize
+                    if isinstance(ref.symbol, RoutineSymbol):
+                        scalarizable = False
+                        break
                     sig, _ = ref.get_signature_and_indices()
                     if var_accesses[sig].is_written():
                         scalarizable = False
