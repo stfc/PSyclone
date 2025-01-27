@@ -47,7 +47,8 @@ from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
-                                   LFRicKern, LFRicKernMetadata, LFRicLoop)
+                                   LFRicKern, LFRicKernMetadata, LFRicLoop,
+                                   LFRicInvokeSchedule)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -64,6 +65,28 @@ BASE_PATH = os.path.join(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
 TEST_API = "lfric"
+
+
+def test_constructor_loop_bound_names():
+    ''' Check that the constructor creates the appropriate loop bound
+    references (with names with a sequencially ascending index)
+    '''
+    with pytest.raises(InternalError) as err:
+        _ = LFRicLoop(loop_type="null")
+    assert ("LFRic loops can only be inside a InvokeSchedule, a parent "
+            "argument is mandatory when they are created." in str(err.value))
+
+    schedule = LFRicInvokeSchedule.create("test")
+    schedule.addchild(LFRicLoop(parent=schedule))
+    schedule.addchild(LFRicLoop(parent=schedule))
+    schedule.addchild(LFRicLoop(parent=schedule))
+    loops = schedule.loops()
+    assert loops[0].start_expr.name == "loop0_start"
+    assert loops[1].start_expr.name == "loop1_start"
+    assert loops[2].start_expr.name == "loop2_start"
+    assert loops[0].stop_expr.name == "loop0_stop"
+    assert loops[1].stop_expr.name == "loop1_stop"
+    assert loops[2].stop_expr.name == "loop2_stop"
 
 
 def test_constructor_invalid_loop_type(monkeypatch):
@@ -95,7 +118,7 @@ def test_set_lower_bound_functions(monkeypatch):
     # TODO #1954: Remove the protected access using a factory
     monkeypatch.setattr(ScopingNode, "_symbol_table_class",
                         LFRicSymbolTable)
-    schedule = Schedule()
+    schedule = LFRicInvokeSchedule.create("test")
     my_loop = LFRicLoop(parent=schedule)
     schedule.children = [my_loop]
     with pytest.raises(GenerationError) as excinfo:
@@ -116,7 +139,7 @@ def test_set_upper_bound_functions(monkeypatch):
     # TODO #1954: Remove the protected access using a factory
     monkeypatch.setattr(ScopingNode, "_symbol_table_class",
                         LFRicSymbolTable)
-    schedule = Schedule()
+    schedule = LFRicInvokeSchedule.create("test")
     my_loop = LFRicLoop(parent=schedule)
     schedule.children = [my_loop]
     with pytest.raises(GenerationError) as excinfo:
@@ -718,7 +741,7 @@ def test_null_loop():
     check in the 'load()' method behaves as expected.
 
     '''
-    loop = LFRicLoop(loop_type="null")
+    loop = LFRicLoop(loop_type="null", parent=LFRicInvokeSchedule.create("a"))
     assert loop.loop_type == "null"
     assert loop.node_str(colour=False) == "Loop[type='null']"
 
@@ -753,7 +776,7 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     '''Tests for the independent_iterations() method.'''
     # A 'null' loop cannot be parallelised (because there's nothing to
     # parallelise).
-    loop = LFRicLoop(loop_type="null")
+    loop = LFRicLoop(loop_type="null", parent=LFRicInvokeSchedule.create("a"))
     assert not loop.independent_iterations()
     # A loop over all columns that contains a kernel that increments a field
     # on a continuous function space does not have independent iterations.

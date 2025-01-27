@@ -386,7 +386,7 @@ class LFRicMeshProperties(LFRicCollection):
         # kernel stub.
         self._properties = []
 
-        for call in self._calls:
+        for call in self.kernel_calls:
             if call.mesh:
                 self._properties += [prop for prop in call.mesh.properties
                                      if prop not in self._properties]
@@ -631,7 +631,7 @@ class LFRicMeshProperties(LFRicCollection):
         # it now, rather than when this class was first constructed.
         need_colour_limits = False
         need_colour_halo_limits = False
-        for call in self._calls:
+        for call in self.kernel_calls:
             if call.is_coloured() and not call.is_intergrid:
                 loop = call.parent.parent
                 # Record whether or not this coloured loop accesses the halo.
@@ -742,7 +742,7 @@ class DynReferenceElement(LFRicCollection):
         self._properties = []
         self._nfaces_h_required = False
 
-        for call in self._calls:
+        for call in self.kernel_calls:
             if call.reference_element:
                 self._properties.extend(call.reference_element.properties)
             if call.mesh and call.mesh.properties:
@@ -1124,7 +1124,7 @@ class DynFunctionSpaces(LFRicCollection):
         if self._invoke:
             self._function_spaces = self._invoke.unique_fss()[:]
         else:
-            self._function_spaces = self._calls[0].arguments.unique_fss
+            self._function_spaces = self.kernel_calls[0].arguments.unique_fss
 
         self._var_list = []
 
@@ -1681,7 +1681,7 @@ class DynCMAOperators(LFRicCollection):
         # You can't index into an OrderedDict so we keep a separate ref
         # to the first CMA argument we find.
         self._first_cma_arg = None
-        for call in self._calls:
+        for call in self.kernel_calls:
             if call.cma_operation:
                 # Get a list of all of the CMA arguments to this call
                 cma_args = psyGen.args_filter(
@@ -2580,7 +2580,7 @@ class DynBasisFunctions(LFRicCollection):
         # DynKernelArgument) tuples.
         self._eval_targets = OrderedDict()
 
-        for call in self._calls:
+        for call in self.kernel_calls:
 
             if isinstance(call, LFRicBuiltIn) or not call.eval_shapes:
                 # Skip this kernel if it doesn't require basis/diff basis fns
@@ -3599,7 +3599,7 @@ class DynBoundaryConditions(LFRicCollection):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.metadata_to_arguments_rules import (
             MetadataToArgumentsRules)
-        for call in self._calls:
+        for call in self.kernel_calls:
             if MetadataToArgumentsRules.bc_kern_regex.match(call.name):
                 bc_fs = None
                 for fspace in call.arguments.unique_fss:

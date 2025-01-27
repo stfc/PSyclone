@@ -75,7 +75,7 @@ class LFRicStencils(LFRicCollection):
         self._unique_extent_args = []
         extent_names = []
         # pylint: disable=too-many-nested-blocks
-        for call in self._calls:
+        for call in self.kernel_calls:
             for arg in call.arguments.args:
                 if arg.stencil:
                     # Check for the existence of arg.extent here as in
@@ -96,7 +96,7 @@ class LFRicStencils(LFRicCollection):
         # argument names are removed.
         self._unique_direction_args = []
         direction_names = []
-        for call in self._calls:
+        for call in self.kernel_calls:
             for idx, arg in enumerate(call.arguments.args):
                 if arg.stencil and arg.stencil.direction_arg:
                     if arg.stencil.direction_arg.is_literal():
@@ -115,7 +115,7 @@ class LFRicStencils(LFRicCollection):
         # List of stencil args with an extent variable passed in. The same
         # field name may occur more than once here from different kernels.
         self._kern_args = []
-        for call in self._calls:
+        for call in self.kernel_calls:
             for arg in call.arguments.args:
                 if arg.stencil:
                     if not arg.stencil.extent:

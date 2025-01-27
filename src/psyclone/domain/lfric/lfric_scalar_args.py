@@ -158,7 +158,7 @@ class LFRicScalarArgs(LFRicCollection):
 
         '''
         # Extract all scalar arguments
-        for arg in self._calls[0].arguments.args:
+        for arg in self.kernel_calls[0].arguments.args:
             if arg.is_scalar:
                 self._scalar_args[arg.intent].append(arg)
 

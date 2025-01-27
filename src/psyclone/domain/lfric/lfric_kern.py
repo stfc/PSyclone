@@ -384,9 +384,11 @@ class LFRicKern(CodedKern):
             qr_arg = args[idx]
             quad_map = const.QUADRATURE_TYPE_MAP[shape]
 
-            # Use the InvokeSchedule symbol_table to create a unique symbol
-            # name for the whole Invoke.
+            # Use the InvokeSchedule or Stub symbol_table that we obtained
+            # earlier to create a unique symbol name
             if qr_arg.varname:
+                # If we have a name for the qr argument, we are dealing with
+                # an Invoke
                 tag = "AlgArgs_" + qr_arg.text
                 qr_sym = symtab.find_or_create(
                     qr_arg.varname, tag=tag, symbol_type=DataSymbol,
@@ -399,8 +401,6 @@ class LFRicKern(CodedKern):
             else:
                 # If we don't have a name then we must be doing kernel-stub
                 # generation so create a suitable name.
-                # TODO #719 we don't yet have a symbol table to prevent
-                # clashes.
                 qr_name = "qr_"+shape.split("_")[-1]
 
             # Append the name of the qr argument to the names of the qr-related
@@ -469,12 +469,9 @@ class LFRicKern(CodedKern):
         return self._intergrid_ref is not None
 
     @property
-    def colourmap(self):
+    def colourmap(self: DataSymbol):
         '''
-        Getter for the name of the colourmap associated with this kernel call.
-
-        :returns: name of the colourmap (Fortran array).
-        :rtype: str
+        :returns: the symbol representing the colourmap for this kernekl call.
 
         :raises InternalError: if this kernel is not coloured.
 
@@ -653,12 +650,11 @@ class LFRicKern(CodedKern):
         return self._argument_kinds
 
     @property
-    def gen_stub(self):
+    def gen_stub(self) -> Container:
         '''
         Create the PSyIR for a kernel stub.
 
         :returns: the kernel stub root Container.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         :raises GenerationError: if the supplied kernel stub does not operate
             on a supported subset of the domain (currently only those that
@@ -707,15 +703,17 @@ class LFRicKern(CodedKern):
             DynFunctionSpaces, DynCMAOperators, DynBoundaryConditions,
             DynLMAOperators, LFRicMeshProperties, DynBasisFunctions,
             DynReferenceElement)
+        cursor = 0
         for entities in [LFRicCellIterators, LFRicDofmaps, DynFunctionSpaces,
                          DynCMAOperators, LFRicScalarArgs, LFRicFields,
                          DynLMAOperators, LFRicStencils, DynBasisFunctions,
                          DynBoundaryConditions, DynReferenceElement,
                          LFRicMeshProperties]:
-            entities(self).declarations(stub_routine)
+               cursor = entities(self).declarations(cursor)
 
-        # The declarations above are not in order, we need to use the
-        # KernStubArgList to generate a list of strings with the correct order
+        # TODO #2874: The declarations above are not in order, we need to use
+        # the KernStubArgList to generate a list of strings with the correct
+        # order
         create_arg_list = KernStubArgList(self)
         create_arg_list._forced_symtab = stub_routine.symbol_table
         create_arg_list.generate()

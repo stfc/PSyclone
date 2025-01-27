@@ -272,16 +272,11 @@ class LFRicInvoke(Invoke):
         return None
 
     def declare(self):
-        ''' Declare and initialise all symbols associated this this Invoke.
+        ''' Declare and initialise all symbols associated this Invoke.
         Generates LFRic-specific invocation code (the subroutine
         called by the associated Invoke call in the algorithm
         layer). This consists of the PSy invocation subroutine and the
         declaration of its arguments.
-
-        :param parent: the parent node in the AST (of the code to be \
-                       generated) to which the node describing the PSy \
-                       subroutine will be added.
-        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
 
         '''
         cursor = 0

@@ -43,9 +43,10 @@ should be removed as we migrate to use PSyIR in LFRic.
 '''
 
 from dataclasses import dataclass
+from typing import Optional
 
 from psyclone import psyGen
-from psyclone.core import AccessType, Signature
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 # Avoid circular import:
@@ -950,18 +951,20 @@ class KernCallArgList(ArgOrdering):
                 "before the ndf_positions() method")
         return self._ndf_positions
 
-    def cell_ref_name(self, var_accesses=None):
-        '''Utility routine which determines whether to return the cell value
-        or the colourmap lookup value. If supplied it also stores this access
-        in var_accesses.
+    def cell_ref_name(
+            self, var_accesses: Optional[VariablesAccessInfo] = None
+    ) -> tuple[str, Reference]:
+        ''' Utility routine which determines whether to return the cell
+        reference or the colourmap lookup array reference. If supplied with
+        a "var_accesses" it also stores the Variables Access information.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
 
-        :returns: the Fortran code needed to access the current cell index.
-        :rtype: Tuple[str, py:class:`psyclone.psyir.nodes.Reference`]
+        :returns: the reference needed to access the current cell index.
+
+        TODO #2874: The name, argument, and first tuple component of this
+        and similar methods should be refactored.
 
         '''
         cell_sym = self._symtab.find_or_create_integer_symbol(
@@ -969,18 +972,7 @@ class KernCallArgList(ArgOrdering):
         if self._kern.is_coloured():
             colour_sym = self._symtab.find_or_create_integer_symbol(
                 "colour", tag="colours_loop_idx")
-            if self._kern.is_intergrid:
-                tag = None
-            else:
-                # If there is only one colourmap we need to specify the tag
-                # to make sure we get the right symbol.
-                tag = "cmap"
-            symbol = self._symtab.find_or_create(
-                self._kern.colourmap.name, symbol_type=DataSymbol,
-                datatype=ArrayType(
-                    LFRicTypes("LFRicIntegerScalarDataType")(),
-                    [ArrayType.Extent.DEFERRED, ArrayType.Extent.DEFERRED]),
-                tag=tag)
+            symbol = self._kern.colourmap
             array_ref = ArrayReference.create(
                     symbol,
                     [Reference(colour_sym), Reference(cell_sym)])
@@ -993,8 +985,7 @@ class KernCallArgList(ArgOrdering):
                                         AccessType.READ,
                                         self._kern, ["colour", "cell"])
 
-            return (self._kern.colourmap.name + "(colour,cell)",
-                    array_ref)
+            return (array_ref.debug_string(), array_ref)
 
         if var_accesses is not None:
             var_accesses.add_access(Signature("cell"), AccessType.READ,

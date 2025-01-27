@@ -110,6 +110,8 @@ class LFRicCellIterators(LFRicCollection):
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
             for name in self._nlayers_names:
                 sym = self.symtab.lookup(name)
+                # Symbols are created thinking for the Invoke context, so make
+                # sure the are arguments when we are in a Stub context.
                 sym.interface = ArgumentInterface(
                     ArgumentInterface.Access.READ)
                 self.symtab.append_argument(sym)
@@ -121,6 +123,7 @@ class LFRicCellIterators(LFRicCollection):
 
         :param int cursor: position where to add the next initialisation
             statements.
+
         :returns: Updated cursor value.
         :rtype: int
 

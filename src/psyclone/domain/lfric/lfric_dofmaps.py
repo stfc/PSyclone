@@ -88,7 +88,7 @@ class LFRicDofmaps(LFRicCollection):
         # "argument" and "direction" entries.
         self._unique_indirection_maps = OrderedDict()
 
-        for call in self._calls:
+        for call in self.kernel_calls:
             # We only need a dofmap if the kernel operates on cells
             # rather than dofs.
             if call.iterates_over != "dof":

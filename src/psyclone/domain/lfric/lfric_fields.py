@@ -113,14 +113,13 @@ class LFRicFields(LFRicCollection):
                 # new entry
                 field_datatype_map[(arg.data_type, arg.module_name)] = [arg]
 
-        symtab = self._invoke.schedule.symbol_table
         # Add the Invoke subroutine argument declarations for the
         # different fields types. They are declared as intent "in" as
         # they contain a pointer to the data that is modified.
         for fld_type, fld_mod in field_datatype_map:
             args = field_datatype_map[(fld_type, fld_mod)]
             for arg in args:
-                arg_symbol = symtab.lookup(arg.name)
+                arg_symbol = self.symtab.lookup(arg.name)
                 arg_symbol.interface.access = ArgumentInterface.Access.READ
 
         return cursor

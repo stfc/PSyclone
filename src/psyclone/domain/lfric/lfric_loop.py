@@ -103,18 +103,20 @@ class LFRicLoop(PSyLoop):
 
         # Initialise loop bounds
         ischedule = self.ancestor(InvokeSchedule)
-        if ischedule:
-            idx = len(ischedule.loops())
-            start_name = f"loop{idx}_start"
-            stop_name = f"loop{idx}_stop"
-            lbound = ischedule.symbol_table.find_or_create_integer_symbol(
-                start_name, tag=start_name)
-            ubound = ischedule.symbol_table.find_or_create_integer_symbol(
-                stop_name, tag=stop_name)
-        else:
-            # Only for testing, PS-layer creation always has an invoke
-            lbound = DataSymbol("undeclared_loop_start", datatype=INTEGER_TYPE)
-            ubound = DataSymbol("undeclared_loop_stop", datatype=INTEGER_TYPE)
+        if not ischedule:
+            raise InternalError(
+                "LFRic loops can only be inside a InvokeSchedule, a parent "
+                "argument is mandatory when they are created.")
+        # The loop bounds names are given by the number of previous LFRic loops
+        # already present in the Schedule. Since this are inserted in order it
+        # will produce sequencially ascending loop bound names.
+        idx = len(ischedule.loops())
+        start_name = f"loop{idx}_start"
+        stop_name = f"loop{idx}_stop"
+        lbound = ischedule.symbol_table.find_or_create_integer_symbol(
+            start_name, tag=start_name)
+        ubound = ischedule.symbol_table.find_or_create_integer_symbol(
+            stop_name, tag=stop_name)
         self.addchild(Reference(lbound))  # start
         self.addchild(Reference(ubound))  # stop
         self.addchild(Literal("1", INTEGER_TYPE, parent=self))  # step

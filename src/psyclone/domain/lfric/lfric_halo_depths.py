@@ -66,7 +66,7 @@ class LFRicHaloDepths(LFRicCollection):
             # No distributed memory so there are no halo regions.
             return
         depth_names = set()
-        for kern in self._calls:
+        for kern in self.kernel_calls:
             if not kern.halo_depth:
                 continue
             if not isinstance(kern.halo_depth, Literal):

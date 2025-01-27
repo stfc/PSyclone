@@ -41,9 +41,12 @@
     related entities within an Invoke or Kernel stub.'''
 
 import abc
+from typing import List
+
 from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.errors import InternalError
+from psyclone.psyGen import Kern
 
 
 class LFRicCollection():
@@ -65,12 +68,10 @@ class LFRicCollection():
             # We are handling declarations/initialisations for an Invoke
             self._invoke = node
             self._kernel = None
-            # The list of Kernel calls we are responsible for
         elif isinstance(node, LFRicKern):
             # We are handling declarations for a Kernel stub
             self._invoke = None
             self._kernel = node
-            # We only have a single Kernel call in this case
         else:
             raise InternalError(f"LFRicCollection takes only an LFRicInvoke "
                                 f"or an LFRicKern but got: {type(node)}")
@@ -94,10 +95,10 @@ class LFRicCollection():
         return self._kernel._stub_symbol_table
 
     @property
-    def _calls(self):
+    def kernel_calls(self) -> List[Kern]:
         '''
-        :returns: associated kernels.
-        :rtype: List[:py:class:`psyclone.psyGen.kern`]
+        :returns: associated kernels calls.
+
         '''
         if self._invoke:
             return self._invoke.schedule.kernels()
@@ -112,6 +113,7 @@ class LFRicCollection():
 
         :param int cursor: position where to add the next initialisation
             statements.
+
         :returns: Updated cursor value.
         :rtype: int
 
