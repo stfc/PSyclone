@@ -43,6 +43,8 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import NoMatchError, FortranSyntaxError
 
+from psyclone.configuration import Config
+
 
 # TODO issue #1886. This class and its subclasses may have
 # commonalities with the GOcean metadata processing.
@@ -120,7 +122,8 @@ class CommonMetadata(ABC):
             expected form.
 
         '''
-        _ = ParserFactory().create(std="f2003")
+        std = Config.get().fortran_standard
+        _ = ParserFactory().create(std=std)
         reader = FortranStringReader(fortran_string)
         match = True
         try:
