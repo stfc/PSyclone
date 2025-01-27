@@ -491,6 +491,9 @@ def test_config_flag(tmpdir):
 
     # Test with no option
     Config._HAS_CONFIG_BEEN_INITIALISED = False
+    main([filename_in, "-a", "field", "-api", "lfric"])
+    assert Config.get().api == "lfric"
+    assert Config.has_config_been_initialised() is True
     assert Config.get().reprod_pad_size == 8
 
     # Test with with -c
