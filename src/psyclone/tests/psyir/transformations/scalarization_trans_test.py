@@ -46,8 +46,8 @@ def test_scalararizationtrans_is_local_array(fortran_reader):
        use mymod, only: arr
        integer :: i
        integer :: k
-       integer, dimension(1:100) :: local
-       integer, dimension(1:100) :: a
+       real, dimension(1:100) :: local
+       real, dimension(1:100) :: a
 
        do i = 1, 100
           arr(i) = i
@@ -85,9 +85,9 @@ def test_scalarizationtrans_have_same_unmodified_index(fortran_reader):
     code = '''subroutine test()
        integer :: i
        integer :: k
-       integer, dimension(1:100) :: a
-       integer, dimension(1:103) :: b
-       integer, dimension(1:100) :: c
+       real, dimension(1:100) :: a
+       real, dimension(1:103) :: b
+       real, dimension(1:100) :: c
        k = 0
        do i = 1, 100
           a(i) = i
@@ -133,9 +133,9 @@ def test_scalarizationtrans_check_first_access_is_write(fortran_reader):
     code = '''subroutine test()
        integer :: i
        integer :: k
-       integer, dimension(1:100) :: a
-       integer, dimension(1:100) :: b
-       integer, dimension(1:100) :: c
+       real, dimension(1:100) :: a
+       real, dimension(1:100) :: b
+       real, dimension(1:100) :: c
        do i = 1, 100
           a(i) = i
           b(i) = b(i) + 1
@@ -185,8 +185,8 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     code = '''subroutine test()
         integer :: i
         integer :: k
-        integer, dimension(1:100) :: arr
-        integer, dimension(1:100) :: b
+        real, dimension(1:100) :: arr
+        real, dimension(1:100) :: b
 
         do i = 1, 100
            arr(i) = exp(arr(i))
@@ -216,8 +216,8 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     code = '''subroutine test()
         integer :: i
         integer :: k
-        integer, dimension(1:100) :: arr
-        integer, dimension(1:100) :: b
+        real, dimension(1:100) :: arr
+        real, dimension(1:100) :: b
         logical :: x = .FALSE.
 
         do i = 1, 100
@@ -250,8 +250,8 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     code = '''subroutine test()
         integer :: i
         integer :: k
-        integer, dimension(1:100) :: arr
-        integer, dimension(1:100) :: b
+        real, dimension(1:100) :: arr
+        real, dimension(1:100) :: b
 
         if(.false.) then
           do i = 1, 100
@@ -285,8 +285,8 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
         use my_mod
         integer :: i
         integer :: k
-        integer, dimension(1:100) :: arr
-        integer, dimension(1:100) :: b
+        real, dimension(1:100) :: arr
+        real, dimension(1:100) :: b
 
         if(.false.) then
           do i = 1, 100
@@ -319,8 +319,8 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
         use my_mod
         integer :: i
         integer :: k
-        integer, dimension(1:100) :: arr
-        integer, dimension(1:100) :: b
+        real, dimension(1:100) :: arr
+        real, dimension(1:100) :: b
 
           do i = 1, 100
            arr(i) = exp(arr(i))
@@ -350,10 +350,10 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
         use my_mod
         integer :: i
         integer :: k
-        integer, dimension(1:100) :: arr
-        integer, dimension(1:100) :: b
-        integer, dimension(1:100) :: c
-        integer, dimension(1:100, 1:100) :: d
+        real, dimension(1:100) :: arr
+        real, dimension(1:100) :: b
+        real, dimension(1:100) :: c
+        real, dimension(1:100, 1:100) :: d
 
           do i = 1, 100
            arr(i) = exp(arr(i))
@@ -392,10 +392,10 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
         use my_mod
         integer :: i
         integer :: k
-        integer, dimension(1:100) :: arr
-        integer, dimension(1:100) :: b
-        integer, dimension(1:100) :: c
-        integer, dimension(1:100, 1:100) :: d
+        real, dimension(1:100) :: arr
+        real, dimension(1:100) :: b
+        real, dimension(1:100) :: c
+        real, dimension(1:100, 1:100) :: d
 
           do i = 1, 100
            arr(i) = exp(arr(i))
@@ -422,10 +422,10 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
         use my_mod
         integer :: i
         integer :: k
-        integer, dimension(1:100) :: arr
-        integer, dimension(1:100) :: b
-        integer, dimension(1:100) :: c
-        integer, dimension(1:100, 1:100) :: d
+        real, dimension(1:100) :: arr
+        real, dimension(1:100) :: b
+        real, dimension(1:100) :: c
+        real, dimension(1:100, 1:100) :: d
 
           do i = 1, 100
            arr(i) = exp(arr(i))
@@ -455,9 +455,9 @@ def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
     code = '''subroutine test()
          integer :: i
          integer :: k
-         integer, dimension(1:100) :: arr
-         integer, dimension(1:100) :: b
-         integer, dimension(1:100) :: c
+         real, dimension(1:100) :: arr
+         real, dimension(1:100) :: b
+         real, dimension(1:100) :: c
 
          do i = 1, 100
             arr(i) = i
@@ -479,10 +479,10 @@ def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
     correct = '''subroutine test()
   integer :: i
   integer :: k
-  integer, dimension(100) :: arr
-  integer, dimension(100) :: b
-  integer, dimension(100) :: c
-  integer :: arr_scalar
+  real, dimension(100) :: arr
+  real, dimension(100) :: b
+  real, dimension(100) :: c
+  real :: arr_scalar
 
   do i = 1, 100, 1
     arr_scalar = i
@@ -503,9 +503,9 @@ def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
     code = '''subroutine test()
          integer :: i
          integer :: k
-         integer, dimension(1:100) :: arr
-         integer, dimension(1:100) :: b
-         integer, dimension(1:100) :: c
+         real, dimension(1:100) :: arr
+         real, dimension(1:100) :: b
+         real, dimension(1:100) :: c
 
          do i = 1, 100
             arr(i) = i
@@ -531,10 +531,10 @@ def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
     correct = '''subroutine test()
   integer :: i
   integer :: k
-  integer, dimension(100) :: arr
-  integer, dimension(100) :: b
-  integer, dimension(100) :: c
-  integer :: arr_scalar
+  real, dimension(100) :: arr
+  real, dimension(100) :: b
+  real, dimension(100) :: c
+  real :: arr_scalar
 
   do i = 1, 100, 1
     arr_scalar = i
