@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import OMPDeclareTargetTrans, TransformationError
 # TODO REMOVE
-from psyclone.transformations import ScalarizationTrans
+from psyclone.psyir.transformations import ScalarizationTrans
 
 PROFILING_ENABLED = False
 
