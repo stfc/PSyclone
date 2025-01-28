@@ -45,6 +45,8 @@ jobs:
   run_if_on_mirror:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
+    env:
+      NEMODIR_NAME: NEMOv5_Jan25
     
     steps:
     - uses: actions/checkout@v3
@@ -80,7 +82,7 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=${HOME}/NEMOv5
+        export NEMO_DIR=${HOME}/${NEMODIR_NAME}
         export TEST_DIR=BENCH_PASSTHROUGH_GCC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
@@ -110,13 +112,13 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=${HOME}/NEMOv5
+        export NEMO_DIR=${HOME}/${NEMODIR_NAME}
         export TEST_DIR=BENCH_PASSTHROUGH_NVHPC
         
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O1 -Kieee -nofma -Mnovect"
+        export FCFLAGS="-i4 -Mr8 -O1 -nofma -Mnovect"
         
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
@@ -142,7 +144,7 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=${HOME}/NEMOv5
+        export NEMO_DIR=${HOME}/${NEMODIR_NAME}
         export TEST_DIR=BENCH_PASSTHROUGH_ONEAPI
         
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
@@ -170,7 +172,7 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=${HOME}/NEMOv5
+        export NEMO_DIR=${HOME}/${NEMODIR_NAME}
         export TEST_DIR=BENCH_OMP_THREADING_GCC
         
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
@@ -187,7 +189,7 @@ jobs:
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small_10 namelist_cfg
-        OMP_NUM_THREADS=4 ./nemo
+        OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         tail run.stat
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
         export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
@@ -208,14 +210,14 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=${HOME}/NEMOv5
+        export NEMO_DIR=${HOME}/${NEMODIR_NAME}
         export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC
         
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         # We compile at -O1 to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O1 -Kieee -nofma -Mnovect -g -mp=gpu -gpu=managed"
+        export FCFLAGS="-i4 -Mr8 -O1 -nofma -Mnovect -g -mp=gpu -gpu=managed,math_uniform"
         
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
@@ -247,14 +249,14 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_HOME=${PWD}/.runner_venv
-        export NEMO_DIR=${HOME}/NEMOv5
+        export NEMO_DIR=${HOME}/${NEMODIR_NAME}
         export TEST_DIR=ORCA1_OMP_OFFLOAD_NVHPC
         
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
-        # We compile at -O1 to permit comparison of the results.
+        # We compile at "-O1 -nofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O1 -Kieee -nofma -Mnovect -g -mp=gpu -gpu=managed"
+        export FCFLAGS="-i4 -Mr8 -O1 -nofma -Mnovect -g -mp=gpu -gpu=managed,math_uniform"
         
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
