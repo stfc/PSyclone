@@ -250,16 +250,20 @@ class DefinitionUseChain:
                         .abs_position
                         + 1
                     )
-                    # We make a copy of the reference to have a detached
-                    # node to avoid handling the special cases based on
-                    # the parents of the reference.
-                    chain = DefinitionUseChain(
-                        self._reference.copy(),
-                        body,
-                        start_point=ancestor.abs_position,
-                        stop_point=sub_stop_point,
-                    )
-                    chains.insert(0, chain)
+                    # If we have a basic block with no children then skip it,
+                    # e.g. for an if block with no code before the else
+                    # statement, as is found in NEMO4.
+                    if(len(body) > 0):
+                        # We make a copy of the reference to have a detached
+                        # node to avoid handling the special cases based on
+                        # the parents of the reference.
+                        chain = DefinitionUseChain(
+                            self._reference.copy(),
+                            body,
+                            start_point=ancestor.abs_position,
+                            stop_point=sub_stop_point,
+                        )
+                        chains.insert(0, chain)
                     # If its a while loop, create a basic block for the while
                     # condition.
                     if isinstance(ancestor, WhileLoop):
@@ -300,6 +304,11 @@ class DefinitionUseChain:
             # Now add all the other standardly handled basic_blocks to the
             # list of chains.
             for block in basic_blocks:
+                # If we have a basic block with no children then skip it,
+                # e.g. for an if block with no code before the else
+                # statement, as is found in NEMO4.
+                if(len(block) == 0):
+                    continue
                 chain = DefinitionUseChain(
                     self._reference,
                     block,
@@ -835,6 +844,11 @@ class DefinitionUseChain:
             # Now add all the other standardly handled basic_blocks to the
             # list of chains.
             for block in basic_blocks:
+                # If we have a basic block with no children then skip it,
+                # e.g. for an if block with no code before the else
+                # statement, as is found in NEMO4.
+                if(len(block) == 0):
+                    continue
                 chain = DefinitionUseChain(
                     self._reference,
                     block,
@@ -874,14 +888,18 @@ class DefinitionUseChain:
                         ).abs_position
                     else:
                         sub_start_point = self._reference.abs_position
-                    chain = DefinitionUseChain(
-                        self._reference.copy(),
-                        body,
-                        start_point=sub_start_point,
-                        stop_point=sub_stop_point,
-                    )
-                    chains.append(chain)
-                    control_flow_nodes.append(ancestor)
+                    # If we have a basic block with no children then skip it,
+                    # e.g. for an if block with no code before the else
+                    # statement, as is found in NEMO4.
+                    if(len(body) > 0):
+                        chain = DefinitionUseChain(
+                            self._reference.copy(),
+                            body,
+                            start_point=sub_start_point,
+                            stop_point=sub_stop_point,
+                        )
+                        chains.append(chain)
+                        control_flow_nodes.append(ancestor)
                     # If its a while loop, create a basic block for the while
                     # condition.
                     if isinstance(ancestor, WhileLoop):

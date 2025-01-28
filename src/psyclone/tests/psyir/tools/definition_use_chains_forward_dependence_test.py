@@ -937,3 +937,33 @@ end module
     )
     reaches = chains.find_forward_accesses()
     assert len(reaches) == 0
+
+def test_definition_use_chains_forward_accesses_empty_schedules(
+    fortran_reader,
+):
+    '''Coverage to handle the case where we have empty schedules inside
+    various type of code.'''
+    code = """
+    subroutine x()
+    integer :: a, i
+    a = 1
+    do i = 1, 100
+    end do
+    if(.TRUE.) then
+    else
+    endif
+    do while(.FALSE.)
+    end do
+    a = a + a
+    end subroutine x
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(
+            routine.children[0].lhs
+    )
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 3
+    assert reaches[0] is routine.children[4].rhs.children[0]
+    assert reaches[1] is routine.children[4].rhs.children[1]
+    assert reaches[2] is routine.children[4].lhs
