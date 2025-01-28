@@ -37,6 +37,7 @@
 ''' Process Nemo code with PSyclone but don't do any changes. This file is only
 needed to provide a FILES_TO_SKIP list. '''
 from utils import PASSTHROUGH_ISSUES
+from psyclone.psyir.transformations import ScalarizationTrans
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = PASSTHROUGH_ISSUES
@@ -44,3 +45,8 @@ FILES_TO_SKIP = PASSTHROUGH_ISSUES
 
 def trans(_):
     ''' Don't do any changes. '''
+    # TODO REMOVE
+    scalartrans = ScalarizationTrans()
+    for loop in subroutine.walk(Loop):
+        scalartrans.apply(loop)
+
