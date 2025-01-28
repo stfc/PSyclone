@@ -44,6 +44,9 @@
 	15) PR #2855 for #2853. Allows the Fortran standard used by fparser to
 	be set in the config file and ensure it is used consistently.
 
+	16) PR #2857 for 2854. Excludes character assignments from ACC KERNELS
+	regions to avoid issues in NEMO.
+
 release 3.0.0 6th of December 2024
 
 	1) PR #2477 for #2463. Add support for Fortran Namelist statements.
