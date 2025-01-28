@@ -856,3 +856,18 @@ def test_dof_loop_independent_iterations(monkeypatch, dist_mem):
                         lambda _1: [Message("just a test",
                                             DTCode.WARN_SCALAR_REDUCTION)])
     assert loop.independent_iterations()
+
+
+def test_upper_bound_psyir_inner(monkeypatch):
+    ''' Check that we get the correct Fortran generated if a loop's upper
+    bound is 'inner'. There are no transformations that allow this
+    configuration, so we need to patch the value.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    my_loop = psy.invokes.invoke_list[0].schedule.children[4]
+    monkeypatch.setattr(my_loop, "_upper_bound_name", value="inner")
+    ubound = my_loop.upper_bound_psyir()
+    assert "mesh%get_last_inner_cell(1)" in ubound.debug_string()

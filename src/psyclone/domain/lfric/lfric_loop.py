@@ -46,10 +46,12 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicConstants, LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import InvokeSchedule, HaloExchange
+from psyclone.psyGen import (
+    InvokeSchedule, HaloExchange, zero_reduction_variables)
 from psyclone.psyir.nodes import (
     Loop, Literal, Schedule, Reference, ArrayReference, StructureReference,
-    Call, BinaryOperation, ArrayOfStructuresReference, Directive, DataNode)
+    Call, BinaryOperation, ArrayOfStructuresReference, Directive, DataNode,
+    Node)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, UnresolvedType, UnresolvedInterface)
 
@@ -149,7 +151,6 @@ class LFRicLoop(PSyLoop):
             self.detach()
             return None
 
-        from psyclone.psyGen import zero_reduction_variables
         # Get the list of calls (to kernels) that need reduction variables
         if not self.is_openmp_parallel():
             calls = self.reductions()
@@ -405,10 +406,9 @@ class LFRicLoop(PSyLoop):
         '''
         return self._upper_bound_halo_depth
 
-    def lower_bound_psyir(self):
+    def lower_bound_psyir(self) -> Node:
         '''
         :returns: the PSyIR for this loop lower bound.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         :raises GenerationError: if self._lower_bound_name is not "start"
                                  for sequential code.
@@ -483,17 +483,15 @@ class LFRicLoop(PSyLoop):
         return self.ancestor(InvokeSchedule).symbol_table.\
             lookup_with_tag(tag_name).name
 
-    def upper_bound_psyir(self):
+    def upper_bound_psyir(self) -> Node:
         '''
         :returns: the PSyIR for this loop upper bound.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         sym_tab = self.ancestor(InvokeSchedule).symbol_table
 
-        # precompute halo_index as a string as we use it in more than
-        # one of the if clauses
-        halo_index = ""
+        # Precompute halo_index as we use it in more than one of the if clauses
+        halo_index = None
         if self._upper_bound_halo_depth:
             halo_index = self._upper_bound_halo_depth
 
@@ -876,14 +874,11 @@ class LFRicLoop(PSyLoop):
         # First set all of the halo dirty unless we are
         # subsequently going to set all of the halo clean
         for field in fields:
-            try:
-                field_symbol = sym_table.lookup(field.proxy_name)
-            except KeyError:
-                field_symbol = sym_table.new_symbol(
-                                    field.proxy_name,
-                                    symbol_type=DataSymbol,
-                                    datatype=UnresolvedType(),
-                                    interface=UnresolvedInterface())
+            field_symbol = sym_table.find_or_create(
+                                field.proxy_name,
+                                symbol_type=DataSymbol,
+                                datatype=UnresolvedType(),
+                                interface=UnresolvedInterface())
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
             from psyclone.dynamo0p3 import HaloWriteAccess

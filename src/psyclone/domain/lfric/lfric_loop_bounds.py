@@ -69,8 +69,9 @@ class LFRicLoopBounds(LFRicCollection):
         first = True
         for idx, loop in enumerate(loops):
 
+            # pylint: disable=unidiomatic-typecheck
             if type(loop) is Loop or loop.loop_type == "null":
-                # Generic or 'null' loops don't need any bounds updates.
+                # Generic or 'null' loops don't need any variables to be set
                 continue
 
             # Set the lower bound
