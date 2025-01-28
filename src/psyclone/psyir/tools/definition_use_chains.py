@@ -253,7 +253,7 @@ class DefinitionUseChain:
                     # If we have a basic block with no children then skip it,
                     # e.g. for an if block with no code before the else
                     # statement, as is found in NEMO4.
-                    if(len(body) > 0):
+                    if len(body) > 0:
                         # We make a copy of the reference to have a detached
                         # node to avoid handling the special cases based on
                         # the parents of the reference.
@@ -307,7 +307,7 @@ class DefinitionUseChain:
                 # If we have a basic block with no children then skip it,
                 # e.g. for an if block with no code before the else
                 # statement, as is found in NEMO4.
-                if(len(block) == 0):
+                if len(block) == 0:
                     continue
                 chain = DefinitionUseChain(
                     self._reference,
@@ -847,7 +847,7 @@ class DefinitionUseChain:
                 # If we have a basic block with no children then skip it,
                 # e.g. for an if block with no code before the else
                 # statement, as is found in NEMO4.
-                if(len(block) == 0):
+                if len(block) == 0:
                     continue
                 chain = DefinitionUseChain(
                     self._reference,
@@ -891,7 +891,7 @@ class DefinitionUseChain:
                     # If we have a basic block with no children then skip it,
                     # e.g. for an if block with no code before the else
                     # statement, as is found in NEMO4.
-                    if(len(body) > 0):
+                    if len(body) > 0:
                         chain = DefinitionUseChain(
                             self._reference.copy(),
                             body,

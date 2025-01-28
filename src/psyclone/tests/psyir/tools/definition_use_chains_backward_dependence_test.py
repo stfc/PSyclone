@@ -688,6 +688,7 @@ def test_definition_use_chains_backward_accesses_nonassign_reference_in_loop(
     assert reaches[1] is routine.children[1].loop_body.children[0].lhs
     assert reaches[2] is routine.children[0].lhs
 
+
 def test_definition_use_chains_backward_accesses_empty_schedules(
     fortran_reader,
 ):

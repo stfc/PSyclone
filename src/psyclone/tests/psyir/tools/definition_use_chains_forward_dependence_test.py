@@ -938,6 +938,7 @@ end module
     reaches = chains.find_forward_accesses()
     assert len(reaches) == 0
 
+
 def test_definition_use_chains_forward_accesses_empty_schedules(
     fortran_reader,
 ):
