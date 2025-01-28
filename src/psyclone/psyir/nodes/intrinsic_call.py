@@ -798,11 +798,12 @@ class IntrinsicCall(Call):
             IntrinsicCall.Intrinsic.SIGN, IntrinsicCall.Intrinsic.SIN,
             IntrinsicCall.Intrinsic.SINH, IntrinsicCall.Intrinsic.SQRT,
             IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH,
+            IntrinsicCall.Intrinsic.UBOUND, IntrinsicCall.Intrinsic.MERGE,
             # The one below are not documented on nvidia compiler
             IntrinsicCall.Intrinsic.PRODUCT, IntrinsicCall.Intrinsic.SIZE,
             IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
-            IntrinsicCall.Intrinsic.MERGE,
-            IntrinsicCall.Intrinsic.UBOUND)
+            IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.MINVAL,
+            IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE)
 
     @classmethod
     def create(cls, intrinsic, arguments=()):
