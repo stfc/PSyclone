@@ -108,6 +108,12 @@ class ScalarizationTrans(LoopTrans):
         '''
         if not var_accesses[signature].is_array():
             return False
+        # If any of the accesses are to a CodeBlock then we stop. This can
+        # happen if there is a string access inside a string concatenation,
+        # e.g. NEMO4.
+        for access in var_accesses[signature].all_accesses:
+            if isinstance(access.node, CodeBlock):
+                return False
         base_symbol = var_accesses[signature].all_accesses[0].node.symbol
         if not base_symbol.is_automatic:
             return False
@@ -115,9 +121,9 @@ class ScalarizationTrans(LoopTrans):
         return True
 
     @staticmethod
-    def _have_same_unmodified_index(signature: Signature,
-                                    var_accesses: VariablesAccessInfo) \
-            -> bool:
+    def _have_same_unmodified_index(
+            signature: Signature,
+            var_accesses: VariablesAccessInfo) -> bool:
         '''
         :param signature: The signature to check.
         :param var_accesses: The VariableAccessesInfo object containing

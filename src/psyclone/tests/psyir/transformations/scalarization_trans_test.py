@@ -48,11 +48,13 @@ def test_scalararizationtrans_is_local_array(fortran_reader):
        integer :: k
        real, dimension(1:100) :: local
        real, dimension(1:100) :: a
+       character(2), dimension(1:100) :: b
 
        do i = 1, 100
           arr(i) = i
           a(i) = i
           local(i) = i
+          b(i) = b(i) // "c"
        end do
        end subroutine'''
     psyir = fortran_reader.psyir_from_source(code)
@@ -71,6 +73,14 @@ def test_scalararizationtrans_is_local_array(fortran_reader):
     assert var_accesses[keys[3]].var_name == "local"
     assert ScalarizationTrans._is_local_array(keys[3],
                                               var_accesses)
+
+    # Test b - the RHS of the assignment is a codeblock so we do not
+    # count it as a local array and invalidate it, as otherwise the
+    # local array test can fail. Also we can't safely transform the
+    # CodeBlock anyway.
+    assert var_accesses[keys[4]].var_name == "b"
+    assert not ScalarizationTrans._is_local_array(keys[4],
+                                                  var_accesses)
 
     # Test filter behaviour same as used in the transformation
     local_arrays = filter(
