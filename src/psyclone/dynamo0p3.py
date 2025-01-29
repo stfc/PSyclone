@@ -418,6 +418,8 @@ class LFRicMeshProperties(LFRicCollection):
                         "=> null()"
                     ),
                     tag=name_lower)
+            else:
+                raise InternalError("asdf")
 
     def kern_args(self, stub=False, var_accesses=None,
                   kern_call_arg_list=None):
@@ -741,7 +743,7 @@ class DynReferenceElement(LFRicCollection):
 
         symtab = self.symtab
 
-        # Create and store a name for the reference element object
+        # Create and store symbol for the reference element object
         self._ref_elem_symbol = None
 
         # Initialise names for the properties of the reference element object:
@@ -945,7 +947,8 @@ class DynReferenceElement(LFRicCollection):
     def stub_declarations(self):
         '''
         Create the necessary declarations for the variables needed in order
-        to provide properties of the reference element in a Kernel stub.
+        to provide properties of the reference element in a Kernel stub. Note
+        that argument order is redefined later by ArgOrdering.
 
         '''
         super().stub_declarations()
@@ -1153,7 +1156,7 @@ class DynFunctionSpaces(LFRicCollection):
         '''
         cursor = super().invoke_declarations(cursor)
         for var in self._var_list:
-            self._invoke.schedule.symbol_table.new_symbol(
+            self.symtab.new_symbol(
                 var,
                 symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
@@ -1168,7 +1171,6 @@ class DynFunctionSpaces(LFRicCollection):
         :returns: Updated cursor value.
 
         '''
-        symtab = self._invoke.schedule.symbol_table
         # Loop over all unique function spaces used by the kernels in
         # the invoke
         for function_space in self._function_spaces:
@@ -1184,7 +1186,7 @@ class DynFunctionSpaces(LFRicCollection):
             if not self._dofs_only:
                 ndf_name = function_space.ndf_name
                 assignment = Assignment.create(
-                        lhs=Reference(symtab.lookup(ndf_name)),
+                        lhs=Reference(self.symtab.lookup(ndf_name)),
                         rhs=arg.generate_method_call(
                               "get_ndf", function_space=function_space))
                 assignment.preceding_comment = (
@@ -1202,7 +1204,7 @@ class DynFunctionSpaces(LFRicCollection):
                     undf_name = function_space.undf_name
                     self._invoke.schedule.addchild(
                         Assignment.create(
-                            lhs=Reference(symtab.lookup(undf_name)),
+                            lhs=Reference(self.symtab.lookup(undf_name)),
                             rhs=arg.generate_method_call("get_undf")),
                         cursor)
                     cursor += 1
@@ -1444,7 +1446,6 @@ class DynProxies(LFRicCollection):
             is encountered.
 
         '''
-        symtab = self._invoke.schedule.symbol_table
         init_cursor = cursor
         for arg in self._invoke.psy_unique_vars:
             # We don't have proxies for scalars
@@ -1462,10 +1463,10 @@ class DynProxies(LFRicCollection):
                     self._invoke.schedule.addchild(
                         Assignment.create(
                             lhs=ArrayReference.create(
-                                symtab.lookup(arg.proxy_name),
+                                self.symtab.lookup(arg.proxy_name),
                                 [Literal(str(idx), INTEGER_TYPE)]),
                             rhs=Call.create(ArrayOfStructuresReference.create(
-                                symtab.lookup(arg.name),
+                                self.symtab.lookup(arg.name),
                                 [Literal(str(idx), INTEGER_TYPE)],
                                 ["get_proxy"]))),
                         cursor)
@@ -1476,7 +1477,7 @@ class DynProxies(LFRicCollection):
                         Assignment.create(
                             lhs=Reference(symbol),
                             rhs=ArrayOfStructuresReference.create(
-                                    symtab.lookup(arg.proxy_name),
+                                    self.symtab.lookup(arg.proxy_name),
                                     [Literal(str(idx), INTEGER_TYPE)],
                                     ["data"]),
                             is_pointer=True),
@@ -1485,9 +1486,10 @@ class DynProxies(LFRicCollection):
             else:
                 self._invoke.schedule.addchild(
                     Assignment.create(
-                        lhs=Reference(symtab.find_or_create(arg.proxy_name)),
+                        lhs=Reference(
+                            self.symtab.find_or_create(arg.proxy_name)),
                         rhs=Call.create(StructureReference.create(
-                            symtab.lookup(arg.name), ["get_proxy"]))),
+                            self.symtab.lookup(arg.name), ["get_proxy"]))),
                     cursor)
                 cursor += 1
                 if arg.is_field:
@@ -1497,7 +1499,7 @@ class DynProxies(LFRicCollection):
                         Assignment.create(
                             lhs=Reference(symbol),
                             rhs=StructureReference.create(
-                                symtab.lookup(arg.proxy_name), ["data"]),
+                                self.symtab.lookup(arg.proxy_name), ["data"]),
                             is_pointer=True),
                         cursor)
                     cursor += 1
@@ -1512,7 +1514,7 @@ class DynProxies(LFRicCollection):
                             Assignment.create(
                                 lhs=Reference(symbol),
                                 rhs=StructureReference.create(
-                                        symtab.lookup(arg.proxy_name),
+                                    self.symtab.lookup(arg.proxy_name),
                                         ["local_stencil"]),
                                 is_pointer=True),
                             cursor)
@@ -1540,7 +1542,8 @@ class DynLMAOperators(LFRicCollection):
     '''
     def stub_declarations(self):
         '''
-        Declare all LMA-related quantities in a Kernel stub.
+        Declare all LMA-related quantities in a Kernel stub. Note that argument
+        order will be defined later by ArgOrderig.
 
         '''
         super().stub_declarations()
@@ -1740,7 +1743,7 @@ class DynCMAOperators(LFRicCollection):
             stmt = Assignment.create(
                     lhs=Reference(cma_name),
                     rhs=StructureReference.create(
-                             self._invoke.schedule.symbol_table.lookup(
+                             self.symtab.lookup(
                                 self._cma_ops[op_name]["arg"].proxy_name),
                              ["columnwise_matrix"]),
                     is_pointer=True)
@@ -1762,7 +1765,7 @@ class DynCMAOperators(LFRicCollection):
                 stmt = Assignment.create(
                         lhs=Reference(param_name),
                         rhs=StructureReference.create(
-                             self._invoke.schedule.symbol_table.lookup(
+                             self.symtab.lookup(
                                 self._cma_ops[op_name]["arg"].proxy_name),
                              [param]),
                     )
@@ -2031,7 +2034,6 @@ class DynMeshes():
         # pylint: disable=too-many-locals
         const = LFRicConstants()
         non_intergrid_kern = None
-        sym_tab = self._invoke.schedule.symbol_table
 
         for call in [call for call in self._invoke.schedule.coded_kernels() if
                      call.is_coloured()]:
@@ -2054,7 +2056,7 @@ class DynMeshes():
             carg_name = call._intergrid_ref.coarse.name
             # Colour map
             base_name = "cmap_" + carg_name
-            colour_map = sym_tab.find_or_create(
+            colour_map = self.symtab.find_or_create(
                 base_name,
                 symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
@@ -2063,7 +2065,7 @@ class DynMeshes():
                 tag=base_name)
             # No. of colours
             base_name = "ncolour_" + carg_name
-            ncolours = sym_tab.find_or_create(
+            ncolours = self.symtab.find_or_create(
                 base_name, tag=base_name,
                 symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")()
@@ -2074,7 +2076,7 @@ class DynMeshes():
                 # This will require a loop into the halo and so the array is
                 # 2D (indexed by colour *and* halo depth).
                 base_name = "last_halo_cell_all_colours_" + carg_name
-                last_cell = self._invoke.schedule.symbol_table.find_or_create(
+                last_cell = self.symtab.find_or_create(
                     base_name,
                     symbol_type=DataSymbol,
                     datatype=ArrayType(
@@ -2085,7 +2087,7 @@ class DynMeshes():
                 # Array holding the last edge cell of a given colour. Just 1D
                 # as indexed by colour only.
                 base_name = "last_edge_cell_all_colours_" + carg_name
-                last_cell = self._invoke.schedule.symbol_table.find_or_create(
+                last_cell = self.symtab.find_or_create(
                     base_name,
                     symbol_type=DataSymbol,
                     datatype=ArrayType(
@@ -2105,13 +2107,13 @@ class DynMeshes():
             # don't already have one.
             colour_map = non_intergrid_kern.colourmap
             # No. of colours
-            ncolours = sym_tab.find_or_create(
+            ncolours = self.symtab.find_or_create(
                 "ncolour", tag="ncolour",
                 symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")()
             ).name
             if self._needs_colourmap_halo:
-                sym_tab.find_or_create(
+                self.symtab.find_or_create(
                     "last_halo_cell_all_colours",
                     symbol_type=DataSymbol,
                     datatype=ArrayType(
@@ -2119,7 +2121,7 @@ class DynMeshes():
                             [ArrayType.Extent.DEFERRED]*2),
                     tag="last_halo_cell_all_colours")
             if self._needs_colourmap:
-                sym_tab.find_or_create(
+                self.symtab.find_or_create(
                     "last_edge_cell_all_colours",
                     symbol_type=DataSymbol,
                     datatype=ArrayType(
@@ -2155,7 +2157,7 @@ class DynMeshes():
                                            self._needs_colourmap_halo):
             # There aren't any inter-grid kernels but we do need
             # colourmap information
-            csym = self._invoke.schedule.symbol_table.lookup_with_tag("cmap")
+            csym = self.symtab.lookup_with_tag("cmap")
             # Add declarations for these variables
             if self._needs_colourmap_halo:
                 self.symtab.find_or_create_tag(
@@ -2206,10 +2208,8 @@ class DynMeshes():
                 cursor += 1
             if self._needs_colourmap or self._needs_colourmap_halo:
                 # Look-up variable names for colourmap and number of colours
-                cmap = self._invoke.schedule.symbol_table\
-                    .find_or_create_tag("cmap")
-                ncolour = self._invoke.schedule.symbol_table\
-                    .find_or_create_tag("ncolour")
+                cmap = self.symtab.find_or_create_tag("cmap")
+                ncolour = self.symtab.find_or_create_tag("ncolour")
                 # Get the number of colours
                 assignment = Assignment.create(
                         lhs=Reference(ncolour),
@@ -2236,10 +2236,9 @@ class DynMeshes():
         for dig in self.intergrid_kernels:
             # We need pointers to both the coarse and the fine mesh as well
             # as the maximum halo depth for each.
-            fine_mesh = self._invoke.schedule.symbol_table\
-                .find_or_create_tag(f"mesh_{dig.fine.name}")
-            coarse_mesh = self._invoke.schedule.symbol_table\
-                .find_or_create_tag(f"mesh_{dig.coarse.name}")
+            fine_mesh = self.symtab.find_or_create_tag(f"mesh_{dig.fine.name}")
+            coarse_mesh = self.symtab.find_or_create_tag(
+                                            f"mesh_{dig.coarse.name}")
             if fine_mesh not in initialised:
                 initialised.append(fine_mesh)
                 assignment = Assignment.create(
@@ -2250,7 +2249,7 @@ class DynMeshes():
                 cursor += 1
                 if Config.get().distributed_memory:
                     max_halo_f_mesh = (
-                        self._invoke.schedule.symbol_table.find_or_create_tag(
+                        self.symtab.find_or_create_tag(
                             f"max_halo_depth_mesh_{dig.fine.name}"))
                     assignment = Assignment.create(
                             lhs=Reference(max_halo_f_mesh),
@@ -2268,7 +2267,7 @@ class DynMeshes():
                 cursor += 1
                 if Config.get().distributed_memory:
                     max_halo_c_mesh = (
-                        self._invoke.schedule.symbol_table.find_or_create_tag(
+                        self.symtab.find_or_create_tag(
                             f"max_halo_depth_mesh_{dig.coarse.name}"))
                     assignment = Assignment.create(
                             lhs=Reference(max_halo_c_mesh),
@@ -2280,7 +2279,7 @@ class DynMeshes():
             # the coarse mesh
             if dig.mmap not in initialised:
                 initialised.append(dig.mmap)
-                digmmap = self._invoke.schedule.symbol_table.lookup(dig.mmap)
+                digmmap = self.symtab.lookup(dig.mmap)
                 assignment = Assignment.create(
                         lhs=Reference(digmmap),
                         rhs=Call.create(StructureReference.create(
@@ -2293,8 +2292,7 @@ class DynMeshes():
             # Cell map. This is obtained from the mesh map.
             if dig.cell_map not in initialised:
                 initialised.append(dig.cell_map)
-                digcellmap = self._invoke.schedule.symbol_table\
-                    .lookup(dig.cell_map)
+                digcellmap = self.symtab.lookup(dig.cell_map)
                 assignment = Assignment.create(
                         lhs=Reference(digcellmap),
                         rhs=Call.create(StructureReference.create(
@@ -2306,8 +2304,7 @@ class DynMeshes():
             # Number of cells in the fine mesh
             if dig.ncell_fine not in initialised:
                 initialised.append(dig.ncell_fine)
-                digncellfine = self._invoke.schedule.symbol_table.lookup(
-                                                dig.ncell_fine)
+                digncellfine = self.symtab.lookup(dig.ncell_fine)
                 if Config.get().distributed_memory:
                     # TODO this hardwired depth of 2 will need changing in
                     # order to support redundant computation
@@ -2329,8 +2326,7 @@ class DynMeshes():
             # Number of fine cells per coarse cell in x.
             if dig.ncellpercellx not in initialised:
                 initialised.append(dig.ncellpercellx)
-                digncellpercellx = self._invoke.schedule.symbol_table.lookup(
-                                                dig.ncellpercellx)
+                digncellpercellx = self.symtab.lookup(dig.ncellpercellx)
                 assignment = Assignment.create(
                         lhs=Reference(digncellpercellx),
                         rhs=Call.create(StructureReference.create(
@@ -2341,8 +2337,7 @@ class DynMeshes():
             # Number of fine cells per coarse cell in y.
             if dig.ncellpercelly not in initialised:
                 initialised.append(dig.ncellpercelly)
-                digncellpercelly = self._invoke.schedule.symbol_table.lookup(
-                                                dig.ncellpercelly)
+                digncellpercelly = self.symtab.lookup(dig.ncellpercelly)
                 assignment = Assignment.create(
                         lhs=Reference(digncellpercelly),
                         rhs=Call.create(StructureReference.create(
@@ -2933,20 +2928,19 @@ class DynBasisFunctions(LFRicCollection):
                                self._basis_fns list.
         '''
         # pylint: disable=too-many-branches, too-many-locals
-        symtab = self._invoke.schedule.symbol_table
         api_config = Config.get().api_conf("lfric")
         const = LFRicConstants()
 
         # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
         # or an evaluator
         if self._qr_vars or self._eval_targets:
-            module = symtab.find_or_create(
+            module = self.symtab.find_or_create(
                 const.FUNCTION_SPACE_TYPE_MAP["function_space"]["module"],
                 symbol_type=ContainerSymbol)
-            symtab.find_or_create(
+            self.symtab.find_or_create(
                 "BASIS", symbol_type=DataSymbol, datatype=UnresolvedType(),
                 interface=ImportInterface(module))
-            symtab.find_or_create(
+            self.symtab.find_or_create(
                 "DIFF_BASIS", symbol_type=DataSymbol,
                 datatype=UnresolvedType(), interface=ImportInterface(module))
 
@@ -2955,12 +2949,12 @@ class DynBasisFunctions(LFRicCollection):
             # Look-up the module- and type-names from the QUADRATURE_TYPE_MAP
             for shp in self._qr_vars:
                 quad_map = const.QUADRATURE_TYPE_MAP[shp]
-                module = symtab.find_or_create(
+                module = self.symtab.find_or_create(
                     quad_map["module"],
                     symbol_type=ContainerSymbol)
-                symbol = symtab.lookup(quad_map["type"])
+                symbol = self.symtab.lookup(quad_map["type"])
                 symbol.interface = ImportInterface(module)
-                symbol = symtab.lookup(quad_map["proxy_type"])
+                symbol = self.symtab.lookup(quad_map["proxy_type"])
                 symbol.interface = ImportInterface(module)
 
             cursor = self._initialise_xyz_qr(cursor)
@@ -2979,7 +2973,7 @@ class DynBasisFunctions(LFRicCollection):
             # to evaluate basis/diff-basis functions
             nodes_name = "nodes_" + fspace.mangled_name
             kind = api_config.default_kind["real"]
-            symbol = symtab.new_symbol(
+            symbol = self.symtab.new_symbol(
                 nodes_name, symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
                     f"real(kind={kind}), pointer :: {nodes_name}"
@@ -3016,7 +3010,7 @@ class DynBasisFunctions(LFRicCollection):
 
             if first_dim not in var_dim_list:
                 var_dim_list.append(first_dim)
-                symbol = symtab.find_or_create(
+                symbol = self.symtab.find_or_create(
                     first_dim, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
@@ -3031,7 +3025,7 @@ class DynBasisFunctions(LFRicCollection):
 
         for basis in basis_arrays:
             dims = "("+",".join([":"]*len(basis_arrays[basis]))+")"
-            symbol = symtab.find_or_create(
+            symbol = self.symtab.find_or_create(
                 basis, symbol_type=DataSymbol, datatype=UnsupportedFortranType(
                     f"real(kind=r_def), allocatable :: {basis}{dims}"
                 ))
@@ -3039,7 +3033,7 @@ class DynBasisFunctions(LFRicCollection):
                 IntrinsicCall.Intrinsic.ALLOCATE,
                 [ArrayReference.create(
                     symbol,
-                    [Reference(symtab.find_or_create(
+                    [Reference(self.symtab.find_or_create(
                                 bn, symbol_type=DataSymbol,
                                 datatype=UnresolvedType()))
                      for bn in basis_arrays[basis]])]
@@ -3192,7 +3186,6 @@ class DynBasisFunctions(LFRicCollection):
         :rtype: int
 
         '''
-        symtab = self._invoke.schedule.symbol_table
         const = LFRicConstants()
 
         if "gh_quadrature_xyoz" not in self._qr_vars:
@@ -3204,14 +3197,14 @@ class DynBasisFunctions(LFRicCollection):
             # of quadrature points by appending the name of the quadrature
             # argument
             for name in self.qr_dim_vars["xyoz"]:
-                symtab.new_symbol(
+                self.symtab.new_symbol(
                     name+"_"+qr_arg_name, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             dtype = \
                 const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["intrinsic"]
             kind = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["kind"]
             for name in self.qr_weight_vars["xyoz"]:
-                symtab.new_symbol(
+                self.symtab.new_symbol(
                     name+"_"+qr_arg_name, symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
                         f"{dtype}(kind={kind}), pointer :: "
@@ -3223,7 +3216,7 @@ class DynBasisFunctions(LFRicCollection):
             proxy_symbol = self.symtab.find_or_create(
                     qr_arg_name+"_proxy", symbol_type=DataSymbol,
                     datatype=dtp_symbol)
-            symbol = symtab.lookup(qr_arg_name)
+            symbol = self.symtab.lookup(qr_arg_name)
 
             assignment = Assignment.create(
                     lhs=Reference(proxy_symbol),
@@ -3237,7 +3230,8 @@ class DynBasisFunctions(LFRicCollection):
             for qr_var in self.qr_dim_vars["xyoz"]:
                 self._invoke.schedule.addchild(
                     Assignment.create(
-                        lhs=Reference(symtab.lookup(qr_var+"_"+qr_arg_name)),
+                        lhs=Reference(self.symtab.lookup(
+                                qr_var+"_"+qr_arg_name)),
                         rhs=StructureReference.create(
                                 proxy_symbol, [qr_var])),
                     cursor)
@@ -3247,7 +3241,8 @@ class DynBasisFunctions(LFRicCollection):
             for qr_var in self.qr_weight_vars["xyoz"]:
                 self._invoke.schedule.addchild(
                     Assignment.create(
-                        lhs=Reference(symtab.lookup(qr_var+"_"+qr_arg_name)),
+                        lhs=Reference(self.symtab.lookup(
+                                qr_var+"_"+qr_arg_name)),
                         rhs=StructureReference.create(
                                 proxy_symbol, [qr_var]),
                         is_pointer=True),
@@ -3296,26 +3291,24 @@ class DynBasisFunctions(LFRicCollection):
         if quadrature_name not in self._qr_vars:
             return cursor
 
-        symbol_table = self.symtab
-
         for qr_arg_name in self._qr_vars[quadrature_name]:
 
-            arg_symbol = symbol_table.lookup(qr_arg_name)
+            arg_symbol = self.symtab.lookup(qr_arg_name)
             arg_symbol.interface = ArgumentInterface(
                                     ArgumentInterface.Access.READ)
-            symbol_table.append_argument(arg_symbol)
+            self.symtab.append_argument(arg_symbol)
 
             # We generate unique names for the integers holding the numbers
             # of quadrature points by appending the name of the quadrature
             # argument
             for name in self.qr_dim_vars[qr_type]:
-                symbol_table.find_or_create(
+                self.symtab.find_or_create(
                     name+"_"+qr_arg_name, tag=name+"_"+qr_arg_name,
                     symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
             for name in self.qr_weight_vars[qr_type]:
-                symbol_table.find_or_create(
+                self.symtab.find_or_create(
                     f"{name}_{qr_arg_name}", symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
                         f"real(kind=r_def), pointer, dimension(:,:) :: "
@@ -3325,14 +3318,14 @@ class DynBasisFunctions(LFRicCollection):
             const = LFRicConstants()
 
             # Get the quadrature proxy
-            ptype = symbol_table.lookup(
+            ptype = self.symtab.lookup(
                 const.QUADRATURE_TYPE_MAP[quadrature_name]["proxy_type"])
 
-            proxy_sym = symbol_table.find_or_create_tag(
+            proxy_sym = self.symtab.find_or_create_tag(
                 qr_arg_name+"_proxy", symbol_type=DataSymbol, datatype=ptype)
             call = Call.create(
                 StructureReference.create(
-                    symbol_table.lookup(qr_arg_name),
+                    self.symtab.lookup(qr_arg_name),
                     ["get_quadrature_proxy"]))
             assignment = Assignment.create(
                     lhs=Reference(proxy_sym),
@@ -3343,7 +3336,7 @@ class DynBasisFunctions(LFRicCollection):
             # The dimensioning variables required for this quadrature
             # (e.g. nedges/nfaces, np_xyz)
             for qr_var in self.qr_dim_vars[qr_type]:
-                qr_sym = symbol_table.lookup(qr_var+'_'+qr_arg_name)
+                qr_sym = self.symtab.lookup(qr_var+'_'+qr_arg_name)
                 assignment = Assignment.create(
                         lhs=Reference(qr_sym),
                         rhs=StructureReference.create(proxy_sym, [qr_var]))
@@ -3352,7 +3345,7 @@ class DynBasisFunctions(LFRicCollection):
 
             # Pointers to the weights arrays
             for qr_var in self.qr_weight_vars[qr_type]:
-                qr_sym = symbol_table.lookup(qr_var+'_'+qr_arg_name)
+                qr_sym = self.symtab.lookup(qr_var+'_'+qr_arg_name)
                 assignment = Assignment.create(
                         lhs=Reference(qr_sym),
                         rhs=StructureReference.create(
@@ -3376,7 +3369,6 @@ class DynBasisFunctions(LFRicCollection):
         '''
         # pylint: disable=too-many-locals
         const = LFRicConstants()
-        symtab = self._invoke.schedule.symbol_table
 
         loop_var_list = set()
         op_name_list = []
@@ -3411,16 +3403,16 @@ class DynBasisFunctions(LFRicCollection):
                 op_name_list.append(op_name)
 
                 # Create the argument list
-                args = [Reference(symtab.lookup(basis_type)),
+                args = [Reference(self.symtab.lookup(basis_type)),
                         basis_fn["arg"].generate_accessor(basis_fn["fspace"]),
-                        Reference(symtab.lookup(first_dim)),
-                        Reference(symtab.lookup(basis_fn["fspace"].ndf_name)),
-                        Reference(symtab.lookup(op_name))]
+                        Reference(self.symtab.lookup(first_dim)),
+                        Reference(self.symtab.lookup(basis_fn["fspace"].ndf_name)),
+                        Reference(self.symtab.lookup(op_name))]
 
                 # insert the basis array call
                 call = Call.create(
                     StructureReference.create(
-                        symtab.lookup(basis_fn["qr_var"]),
+                        self.symtab.lookup(basis_fn["qr_var"]),
                         ["compute_function"]),
                     args)
                 if first:
@@ -3443,13 +3435,13 @@ class DynBasisFunctions(LFRicCollection):
                     loop_var_list.add(nodal_loop_var)
 
                     # Loop over dofs of target function space
-                    symbol = symtab.find_or_create_tag(
+                    symbol = self.symtab.find_or_create_tag(
                         nodal_loop_var,
                         symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                     loop = Loop.create(
                             symbol, Literal('1', INTEGER_TYPE),
-                            Reference(symtab.lookup(space.ndf_name)),
+                            Reference(self.symtab.lookup(space.ndf_name)),
                             Literal('1', INTEGER_TYPE), [])
                     if first:
                         loop.preceding_comment = (
@@ -3461,33 +3453,33 @@ class DynBasisFunctions(LFRicCollection):
                     dof_loop_var = "df_" + basis_fn["fspace"].mangled_name
                     loop_var_list.add(dof_loop_var)
 
-                    symbol = symtab.find_or_create_tag(
+                    symbol = self.symtab.find_or_create_tag(
                         dof_loop_var,
                         symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                     inner_loop = Loop.create(
                             symbol, Literal('1', INTEGER_TYPE),
-                            Reference(symtab.lookup(
+                            Reference(self.symtab.lookup(
                                         basis_fn["fspace"].ndf_name)),
                             Literal('1', INTEGER_TYPE), [])
                     loop.loop_body.addchild(inner_loop)
 
-                    symbol = symtab.lookup(op_name)
+                    symbol = self.symtab.lookup(op_name)
                     rhs = basis_fn['arg'].generate_method_call(
                         "call_function", function_space=basis_fn['fspace'])
-                    rhs.addchild(Reference(symtab.lookup(basis_type)))
-                    rhs.addchild(Reference(symtab.lookup(dof_loop_var)))
+                    rhs.addchild(Reference(self.symtab.lookup(basis_type)))
+                    rhs.addchild(Reference(self.symtab.lookup(dof_loop_var)))
                     rhs.addchild(ArrayReference.create(
-                            symtab.lookup(f"nodes_{space.mangled_name}"),
-                            [":",
-                                Reference(symtab.lookup(nodal_loop_var))]))
+                            self.symtab.lookup(f"nodes_{space.mangled_name}"),
+                            [":", Reference(self.symtab.lookup(
+                                                    nodal_loop_var))]))
                     inner_loop.loop_body.addchild(
                         Assignment.create(
                             lhs=ArrayReference.create(symbol, [
                                 ":",
-                                Reference(symtab.lookup(
+                                Reference(self.symtab.lookup(
                                     f"df_{basis_fn['fspace'].mangled_name}")),
-                                Reference(symtab.lookup("df_nodal"))
+                                Reference(self.symtab.lookup("df_nodal"))
                             ]),
                             rhs=rhs))
             else:
@@ -3505,7 +3497,6 @@ class DynBasisFunctions(LFRicCollection):
         :raises InternalError: if an unrecognised type of basis function
                                is encountered.
         '''
-        symtab = self._invoke.schedule.symbol_table
 
         func_space_var_names = set()
         for basis_fn in self._basis_fns:
@@ -3531,7 +3522,7 @@ class DynBasisFunctions(LFRicCollection):
             # add the required deallocate call
             dealloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.DEALLOCATE,
-                [Reference(symtab.lookup(name)) for name in
+                [Reference(self.symtab.lookup(name)) for name in
                  sorted(func_space_var_names)]
             )
             if first:
@@ -3611,7 +3602,7 @@ class DynBoundaryConditions(LFRicCollection):
             dtype = UnsupportedFortranType(
                 f"integer(kind={kind}), pointer "
                 f":: {name}(:,:) => null()")
-            self._invoke.schedule.symbol_table.new_symbol(
+            self.symtab.new_symbol(
                 name,
                 symbol_type=DataSymbol,
                 datatype=dtype)
@@ -3648,12 +3639,11 @@ class DynBoundaryConditions(LFRicCollection):
         :rtype: int
 
         '''
-        symtab = self._invoke.schedule.symbol_table
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
             self._invoke.schedule.addchild(
                 Assignment.create(
-                    lhs=Reference(symtab.lookup(name)),
+                    lhs=Reference(self.symtab.lookup(name)),
                     rhs=dofs.argument.generate_method_call(
                                                 "get_boundary_dofs"),
                     is_pointer=True
@@ -4718,9 +4708,8 @@ class HaloReadAccess(HaloDepth):
 
     :param field: the field for which we want information.
     :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param sym_table: the symbol table associated with the scoping region
-                      that contains this halo access.
-    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param parent: the node where this HaloDepth belongs.
+    :type parent: :py:class:`psyclone.psyir.node.Node`
 
     '''
     def __init__(self, field, parent=None):

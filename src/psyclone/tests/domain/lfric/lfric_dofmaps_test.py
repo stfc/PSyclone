@@ -193,12 +193,12 @@ def test_stub_decl_dofmaps():
 
     '''
 
-    stub_psyir = generate(os.path.join(BASE_PATH,
+    stub_text = generate(os.path.join(BASE_PATH,
                                        "columnwise_op_asm_kernel_mod.F90"),
                           api=TEST_API)
 
-    assert "integer(kind=i_def), intent(in) :: cma_op_2_ncol" in stub_psyir
-    assert "integer(kind=i_def), intent(in) :: cma_op_2_nrow" in stub_psyir
+    assert "integer(kind=i_def), intent(in) :: cma_op_2_ncol" in stub_text
+    assert "integer(kind=i_def), intent(in) :: cma_op_2_nrow" in stub_text
 
 
 def test_lfricdofmaps_stub_gen():
@@ -207,7 +207,7 @@ def test_lfricdofmaps_stub_gen():
     two fields and one CMA operator as arguments.
 
     '''
-    stub_psyir = generate(os.path.join(BASE_PATH,
+    stub_text = generate(os.path.join(BASE_PATH,
                                        "columnwise_op_app_kernel_mod.F90"),
                           api=TEST_API)
 
@@ -221,4 +221,4 @@ def test_lfricdofmaps_stub_gen():
         "undf_aspc2_field_2, map_aspc2_field_2, "
         "cma_indirection_map_aspc2_field_2)\n"
         )
-    assert expected in stub_psyir
+    assert expected in stub_text

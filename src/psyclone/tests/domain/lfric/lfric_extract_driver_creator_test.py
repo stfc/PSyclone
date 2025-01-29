@@ -115,7 +115,6 @@ def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
     cntr = minfo.get_psyir()
     # We can't use 'remove()' with a DataSymbol.
     cntr.symbol_table._symbols.pop("module_var_b")
-    return
     ledc._create_read_in_code(new_routine,
                               DataSymbol("psy1", INTEGER_TYPE),
                               invoke.schedule.symbol_table,

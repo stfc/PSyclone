@@ -295,24 +295,9 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     # Kernel call should include whole dofmap and not be within a loop
     assert ("    call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, "
             "b, f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
+    assert "do " not in gen_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    # Also test that the FortranWriter handles domain kernels as expected.
-    # ATM we have a `lower_to_language_level method` for LFRicLoop which
-    # removes the loop node for a domain kernel entirely and only leaves the
-    # body. So we can't call the FortranWriter directly, since it will first
-    # lower the tree, which removes the domain kernel.
-    # In order to test the actual writer atm, we have to call the
-    # `loop_node` directly. But in order for this to work, we need to
-    # lower the actual kernel call. Once #1731 is fixed, the temporary
-    # `lower_to_language_level` method in LFRicLoop can (likely) be removed,
-    # and then we can just call `fortran_writer(schedule)` here.
-    schedule = psy.invokes.invoke_list[0].schedule
-    # Now call the loop handling method directly.
-    out = fortran_writer(schedule)
-    assert ("call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, b, "
-            "f1_data, ndf_w3, undf_w3, map_w3)" in out)
 
 
 def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):

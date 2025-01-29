@@ -43,13 +43,13 @@ from psyclone.domain.lfric import LFRicTypes
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.nodes import (
+    Assignment, Reference, Call, StructureReference, IfBlock, BinaryOperation,
+    Literal, DataNode)
 from psyclone.psyir.symbols import (
     DataSymbol, UnsupportedFortranType, INTEGER_TYPE,
     ArgumentInterface, UnresolvedType, ContainerSymbol,
     ImportInterface, ArrayType, DataTypeSymbol)
-from psyclone.psyir.nodes import (
-    Assignment, Reference, Call, StructureReference, IfBlock, BinaryOperation,
-    Literal)
 
 
 class LFRicStencils(LFRicCollection):
@@ -121,7 +121,7 @@ class LFRicStencils(LFRicCollection):
                     if not arg.stencil.extent:
                         self._kern_args.append(arg)
 
-    def extent_value(self, arg):
+    def extent_value(self, arg) -> DataNode:
         '''
         Returns the content of the stencil extent which may be a literal
         value (a number) or a variable name. This function simplifies this
@@ -131,7 +131,6 @@ class LFRicStencils(LFRicCollection):
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         :returns: the content of the stencil extent.
-        :rtype: str
 
         '''
         extent_arg = arg.stencil.extent_arg
@@ -230,10 +229,12 @@ class LFRicStencils(LFRicCollection):
         unique = LFRicStencils.stencil_unique_str(arg, "size")
         return symtab.find_or_create_tag(
                 unique, root_name=root_name, symbol_type=DataSymbol,
+                # We don't commit to a type because it is different on
+                # Invokes and Stubs
                 datatype=UnresolvedType())
 
     @staticmethod
-    def max_branch_length(symtab, arg):
+    def max_branch_length(symtab, arg) -> DataSymbol:
         '''
         Create a valid unique name for the maximum length of a stencil branch
         (in cells) of a 2D stencil dofmap in the PSy layer. This is required
@@ -246,8 +247,7 @@ class LFRicStencils(LFRicCollection):
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
-        :returns: a Fortran variable name for the max stencil branch length.
-        :rtype: str
+        :returns: the symbol representing the max stencil branch length.
 
         '''
         root_name = arg.name + "_max_branch_length"
@@ -507,7 +507,7 @@ class LFRicStencils(LFRicCollection):
                     cursor)
                 cursor += 1
 
-                # Add declaration and look-up of stencil size
+                # Add look-up of stencil size
                 size_symbol = self.dofmap_size_symbol(self.symtab, arg)
                 if arg.descriptor.stencil['type'] == "cross2d":
                     num_dimensions = 2
@@ -640,7 +640,8 @@ class LFRicStencils(LFRicCollection):
 
     def _declare_maps_stub(self):
         '''
-        Add declarations for all stencil maps to a kernel stub.
+        Add declarations for all stencil maps to a kernel stub. (Note that
+        the order of arguments will be redefined later on by ArgOrdering)
 
         '''
         symtab = self.symtab
