@@ -46,6 +46,8 @@ import os
 from collections import OrderedDict
 import abc
 
+from sphinx.util.typing import stringify_annotation
+
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
@@ -2825,7 +2827,9 @@ class Transformation(metaclass=abc.ABCMeta):
                 # automatic type checking of options.
                 if v.annotation is not inspect.Parameter.empty:
                     valid_options[k]['type'] = v.annotation
-                    valid_options[k]['typename'] = v.annotation.__name__
+                    valid_options[k]['typename'] = stringify_annotation(
+                            v.annotation
+                    )
                 else:
                     valid_options[k]['type'] = None
                     valid_options[k]['typename'] = None
@@ -2850,9 +2854,16 @@ class Transformation(metaclass=abc.ABCMeta):
                 invalid_options.append(option)
                 continue
             if valid_options[option]['type'] is not None:
-                if not isinstance(
-                        kwargs[option], valid_options[option]['type']):
-                    wrong_types[option] = type(kwargs[option]).__name__
+                try:
+                    if not isinstance(
+                            kwargs[option], valid_options[option]['type']):
+                        wrong_types[option] = type(kwargs[option]).__name__
+                except TypeError:
+                    # For older versions of Python, such as 3.8 they don't yet
+                    # support type checking for Generics, e.g. Union[...] so
+                    # we skip this check and it needs to be done in the
+                    # relevant function instead.
+                    pass
 
         if len(invalid_options) > 0:
             invalid_options_detail = []
