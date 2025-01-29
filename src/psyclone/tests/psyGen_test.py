@@ -723,36 +723,6 @@ def test_inlinedkern_node_str():
     assert text == "InlinedKern[]"
 
 
-def test_call_abstract_methods():
-    ''' Check that calling the abstract methods of Kern raises
-    the expected exceptions '''
-
-    class KernType:
-        ''' temporary dummy class '''
-        def __init__(self):
-            self.iterates_over = "stuff"
-    my_ktype = KernType()
-
-    class DummyClass:
-        ''' temporary dummy class '''
-        def __init__(self, ktype):
-            self.module_name = "dummy_module"
-            self.ktype = ktype
-
-    class DummyArguments(Arguments):
-        ''' temporary dummy class '''
-        # This is a mock class, we can disable expected pylint warnings
-        # pylint: disable=abstract-method, unused-argument
-        def __init__(self, call, parent_call, check):
-            Arguments.__init__(self, parent_call)
-
-    dummy_call = DummyClass(my_ktype)
-    my_call = Kern(None, dummy_call, "dummy", DummyArguments)
-    with pytest.raises(NotImplementedError) as excinfo:
-        my_call.local_vars()
-    assert "Kern.local_vars should be implemented" in str(excinfo.value)
-
-
 def test_arguments_abstract():
     ''' Check that we raise NotImplementedError if any of the virtual methods
     of the Arguments class are called. '''
