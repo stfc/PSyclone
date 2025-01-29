@@ -226,7 +226,7 @@ class OMPLoopTrans(ParallelLoopTrans):
             node.reprod = self._reprod
         return node
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the OMPLoopTrans transformation to the specified PSyIR Loop.
 
         :param node: the supplied node to which we will apply the \

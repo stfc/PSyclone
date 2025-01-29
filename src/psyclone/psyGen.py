@@ -41,6 +41,7 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
+import inspect
 import os
 from collections import OrderedDict
 import abc
@@ -2729,7 +2730,7 @@ class Transformation(metaclass=abc.ABCMeta):
         return type(self).__name__
 
     @abc.abstractmethod
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Abstract method that applies the transformation. This function
         must be implemented by each transform. As a minimum each apply
         function must take a node to which the transform is applied, and
@@ -2754,7 +2755,7 @@ class Transformation(metaclass=abc.ABCMeta):
 
         '''
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''Method that validates that the input data is correct.
         It will raise exceptions if the input data is incorrect. This
         function needs to be implemented by each transformation.
@@ -2783,6 +2784,98 @@ class Transformation(metaclass=abc.ABCMeta):
         :type options: Optional[Dict[str, Any]]
         '''
         # pylint: disable=unused-argument
+
+    def get_option(self, option_name: str, **kwargs):
+        '''Test if we can just pull the option value from the name of
+        the option'''
+        valid_options = type(self).get_valid_options()
+        if option_name not in valid_options.keys():
+            raise TypeError("TODO Error message")
+        return kwargs.get(option_name, valid_options[option_name]['default'])
+
+    @classmethod
+    def get_valid_options(cls):
+        '''
+        Pulls the valid options from the apply method. It also recurses
+        upwards to the superclasses of this transformation and pulls
+        their valid options as well if they exist.
+        '''
+        valid_options = OrderedDict()
+        # Loop through the inherited classes of this class, starting with the
+        # highest superclass. For some reason super isn't working here.
+        for base_cls in cls.__mro__[::-1]:
+            base_cls_apply = base_cls.__dict__.get("apply", None)
+            if base_cls_apply is None:
+                continue
+            signature = inspect.signature(base_cls_apply)
+            # Loop over the arguments to the apply call.
+            for k, v in signature.parameters.items():
+                if k == "options":
+                    continue
+                # If the argument is a keyword argument, i.e. it has a default
+                # value then we add it to the list of options.
+                if v.default is not inspect.Parameter.empty:
+                    valid_options[k] = {}
+                    valid_options[k]['default'] = v.default
+                else:
+                    # If its not a keyword argument then we skip it.
+                    continue
+                # If there is type information on the keyword argument, then we
+                # store the information so we can generate docs and do
+                # automatic type checking of options.
+                if v.annotation is not inspect.Parameter.empty:
+                    valid_options[k]['type'] = v.annotation
+                    valid_options[k]['typename'] = v.annotation.__name__
+                else:
+                    valid_options[k]['type'] = None
+                    valid_options[k]['typename'] = None
+        return valid_options
+
+    def validate_options(self, **kwargs):
+        '''
+        Checks the options provided to this transformation are valid. Makes
+        use of get_valid_options to work out the available options.
+
+        :raises ValueError: If an invalid option was provided.
+        :raises TypeError: If an option was provided with a value of the wrong
+                           type.
+        '''
+        valid_options = type(self).get_valid_options()
+        invalid_options = []
+        wrong_types = {}
+        for option in kwargs:
+            if option == "options":
+                continue
+            if option not in valid_options:
+                invalid_options.append(option)
+                continue
+            if valid_options[option]['type'] is not None:
+                if not isinstance(
+                        kwargs[option], valid_options[option]['type']):
+                    wrong_types[option] = type(kwargs[option]).__name__
+
+        if len(invalid_options) > 0:
+            invalid_options_detail = []
+            for invalid in invalid_options:
+                invalid_options_detail.append(f"{invalid}")
+            invalid_options_list = ", ".join(invalid_options_detail)
+            raise ValueError(f"{type(self).__name__} received invalid "
+                             f"options [{invalid_options_list}]. Please see "
+                             f"the documentation and check the available "
+                             f"options.")
+        if len(wrong_types.keys()) > 0:
+            wrong_types_detail = []
+            print(wrong_types)
+            for name in wrong_types.keys():
+                wrong_types_detail.append(
+                        f"{name} option expects type "
+                        f"{valid_options[name]['type']} but received "
+                        f"{kwargs[name]} of type {wrong_types[name]}.")
+            wrong_types_list = "\n".join(wrong_types_detail)
+            raise TypeError(f"{type(self).__name__} received options with "
+                            f"the wrong types:\n {wrong_types_list}\n. "
+                            f"Please see the documentation and check the "
+                            f"provided types.")
 
 
 class DummyTransformation(Transformation):

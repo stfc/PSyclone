@@ -40,6 +40,7 @@
 
 import abc
 from collections.abc import Iterable
+from typing import Union, List
 
 from psyclone import psyGen
 from psyclone.core import Signature
@@ -118,7 +119,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         return True
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Perform validation checks before applying the transformation
 
@@ -156,16 +157,29 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         '''
         # Check that the supplied node is a Loop and does not contain any
         # unsupported nodes.
-        super().validate(node, options=options)
+        super().validate(node, options=options, **kwargs)
 
         if not options:
-            options = {}
-        verbose = options.get("verbose", False)
-        collapse = options.get("collapse", False)
-        force = options.get("force", False)
-        ignore_dependencies_for = options.get("ignore_dependencies_for", [])
-        sequential = options.get("sequential", False)
-        privatise_arrays = options.get("privatise_arrays", False)
+            self.validate_options(**kwargs)
+            verbose = self.get_option("verbose")
+            collapse = self.get_option("collapse")
+            force = self.get_option("force")
+            ignore_dependencies_for = self.get_option(
+                    "ignore_dependencies_for"
+            )
+            if ignore_dependencies_for is None:
+                ignore_dependencies_for = []
+            sequential = self.get_option("sequential")
+            privatise_arrays = self.get_option("privatise_arrays")
+        else:
+            verbose = options.get("verbose", False)
+            collapse = options.get("collapse", False)
+            force = options.get("force", False)
+            ignore_dependencies_for = options.get(
+                    "ignore_dependencies_for", []
+            )
+            sequential = options.get("sequential", False)
+            privatise_arrays = options.get("privatise_arrays", False)
 
         # Check we are not a sequential loop
         if (not sequential and isinstance(node, PSyLoop) and
@@ -272,7 +286,11 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                         node.append_preceding_comment(f"PSyclone: {messages}")
                 raise TransformationError(messages)
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, verbose: bool = False,
+              collapse: bool = False, force: bool = False,
+              ignore_dependencies_for: Union[None, List[str]] = None,
+              privatise_arrays: bool = False, sequential: bool = False,
+              **kwargs):
         '''
         Apply the Loop transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
@@ -311,14 +329,31 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         '''
         if not options:
-            options = {}
-        self.validate(node, options=options)
+            self.validate_options(
+                    verbose=verbose, collapse=collapse,
+                    ignore_dependencies_for=ignore_dependencies_for,
+                    privatise_arrays=privatise_arrays,
+                    sequential=sequential, **kwargs
+            )
+            # Rename the input options that are renamed in this apply method.
+            ignore_dep_analysis = force
+            if ignore_dependencies_for is None:
+                list_of_names = []
+            else:
+                list_of_names = ignore_dependencies_for
+        else:
+            verbose = options.get("verbose", False)
+            collapse = options.get("collapse", False)
+            ignore_dep_analysis = options.get("force", False)
+            list_of_names = options.get("ignore_dependencies_for", [])
+            privatise_arrays = options.get("privatise_arrays", False)
 
-        verbose = options.get("verbose", False)
-        collapse = options.get("collapse", False)
-        ignore_dep_analysis = options.get("force", False)
-        list_of_names = options.get("ignore_dependencies_for", [])
-        privatise_arrays = options.get("privatise_arrays", False)
+        self.validate(node, options=options, verbose=verbose,
+                      collapse=collapse,
+                      ignore_dependencies_for=ignore_dependencies_for,
+                      privatise_arrays=privatise_arrays,
+                      sequential=sequential, **kwargs)
+
         list_of_signatures = [Signature(name) for name in list_of_names]
         dtools = DependencyTools()
 

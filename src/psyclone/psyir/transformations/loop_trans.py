@@ -62,7 +62,11 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
     # populated by sub-class.
     excluded_node_types = ()
 
-    def validate(self, node, options=None):
+    def apply(self, node, options=None, node_type_check: bool = True,
+              verbose: bool = False, **kwargs):
+        pass
+
+    def validate(self, node, options=None, **kwargs):
         '''Checks that the supplied node is a valid target for a loop
         transformation.
 
@@ -99,16 +103,19 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
                 f"{[type(child).__name__ for child in node.children]}.")
 
         if not options:
-            options = {}
-        if not isinstance(options, dict):
-            raise TransformationError(
-                f"Transformation validate method 'options' argument must be a "
-                f"dictionary but found '{type(options).__name__}'.")
-
-        verbose = options.get("verbose", False)
+            self.validate_options(**kwargs)
+            verbose = self.get_option("verbose")
+            node_type_check = self.get_option("node_type_check")
+        else:
+            if not isinstance(options, dict):
+                raise TransformationError(
+                    f"Transformation validate method 'options' argument must "
+                    f"be a dictionary but found '{type(options).__name__}'.")
+            verbose = options.get("verbose", False)
+            node_type_check = options.get("node-type-check", True)
 
         # Check that the proposed region contains only supported node types
-        if options.get("node-type-check", True):
+        if node_type_check:
             # Stop at any instance of Kern to avoid going into the
             # actual kernels, e.g. in Nemo inlined kernels
             # pylint: disable=cell-var-from-loop

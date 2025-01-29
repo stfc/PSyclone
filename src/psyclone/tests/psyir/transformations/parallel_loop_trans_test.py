@@ -508,7 +508,7 @@ def test_paralooptrans_apply_calls_validate(fortran_reader, monkeypatch):
     trans = ParaTrans()
 
     # Monkeypatch the validate() method so that it raises a unique error.
-    def fake(_1, _2, options):
+    def fake(_1, _2, options, **kwargs):
         raise TransformationError("just a test")
     monkeypatch.setattr(ParaTrans, "validate", fake)
     with pytest.raises(TransformationError) as err:
