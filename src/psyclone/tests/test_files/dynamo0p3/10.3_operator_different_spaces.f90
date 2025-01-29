@@ -31,6 +31,7 @@
 ! -----------------------------------------------------------------------------
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified: I. Kavcic, Met Office
+!           J. Dendy, Met Office
 
 program operator_example
 
@@ -49,10 +50,11 @@ program operator_example
   type(operator_type)                 :: mapping
   type(quadrature_xyoz_type), pointer :: qr => null
   integer(i_def)                      :: mesh_id = 1
-  integer(i_def)                      :: element_order = 0
+  integer(i_def)                      :: element_order_h = 0
+  integer(i_def)                      :: element_order_v = 0
 
   ! Do not remove long lines, this is used to check psyclone line-breaking functionality
-  mapping = operator_type(function_space_collection%get_fs(mesh_id,element_order,W3), function_space_collection%get_fs(mesh_id,element_order,W2))
+  mapping = operator_type(function_space_collection%get_fs(mesh_id,element_order_h,element_order_v,W3), function_space_collection%get_fs(mesh_id,element_order_h,element_order_v,W2))
 
   call invoke(assemble_weak_derivative_w3_w2_kernel_type(mapping, coord, qr))
 

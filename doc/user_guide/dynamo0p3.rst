@@ -262,8 +262,8 @@ gh_quadrature_XYoZ, gh_quadrature_face \)`` then the corresponding
 invoke would look something like::
 
       ...
-      qr_xyoz = quadrature_xyoz_type(nqp_exact, rule)
-      qr_face = quadrature_face_type(nqp_exact, ..., rule)
+      qr_xyoz = quadrature_xyoz_type(nqp_h_exact, nqp_h_exact, nqp_v_exact, rule)
+      qr_face = quadrature_face_type(nqp_h_exact, nqp_v_exact, ..., rule)
       call invoke(pressure_gradient_kernel_type(rhs_tmp(igh_u), rho, theta, qr_xyoz), &
                   geopotential_gradient_kernel_type(rhs_tmp(igh_u), geopotential, &
                                                     qr_xyoz, qr_face))
