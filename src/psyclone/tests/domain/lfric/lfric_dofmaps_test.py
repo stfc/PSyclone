@@ -77,7 +77,7 @@ def test_lfricdofmap_stubdecln_err():
         dofmaps.stub_declarations()
     assert ("Invalid direction ('not-a-direction') found for CMA operator "
             "when collecting column-banded dofmaps" in str(err.value))
-        
+
     # Test invalid direction kernel
     kernel_direction = psy.invokes.invoke_list[0].schedule.kernels()[1]
     # Need and nlayers symbols because it is looked-up by the LFRicDofmaps
@@ -194,8 +194,8 @@ def test_stub_decl_dofmaps():
     '''
 
     stub_text = generate(os.path.join(BASE_PATH,
-                                       "columnwise_op_asm_kernel_mod.F90"),
-                          api=TEST_API)
+                                      "columnwise_op_asm_kernel_mod.F90"),
+                         api=TEST_API)
 
     assert "integer(kind=i_def), intent(in) :: cma_op_2_ncol" in stub_text
     assert "integer(kind=i_def), intent(in) :: cma_op_2_nrow" in stub_text
@@ -208,8 +208,8 @@ def test_lfricdofmaps_stub_gen():
 
     '''
     stub_text = generate(os.path.join(BASE_PATH,
-                                       "columnwise_op_app_kernel_mod.F90"),
-                          api=TEST_API)
+                                      "columnwise_op_app_kernel_mod.F90"),
+                         api=TEST_API)
 
     expected = (
         "  subroutine columnwise_op_app_kernel_code(cell, ncell_2d, "

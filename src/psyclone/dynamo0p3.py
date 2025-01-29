@@ -1515,7 +1515,7 @@ class DynProxies(LFRicCollection):
                                 lhs=Reference(symbol),
                                 rhs=StructureReference.create(
                                     self.symtab.lookup(arg.proxy_name),
-                                        ["local_stencil"]),
+                                    ["local_stencil"]),
                                 is_pointer=True),
                             cursor)
                         cursor += 1
@@ -3406,7 +3406,8 @@ class DynBasisFunctions(LFRicCollection):
                 args = [Reference(self.symtab.lookup(basis_type)),
                         basis_fn["arg"].generate_accessor(basis_fn["fspace"]),
                         Reference(self.symtab.lookup(first_dim)),
-                        Reference(self.symtab.lookup(basis_fn["fspace"].ndf_name)),
+                        Reference(self.symtab.lookup(
+                            basis_fn["fspace"].ndf_name)),
                         Reference(self.symtab.lookup(op_name))]
 
                 # insert the basis array call
