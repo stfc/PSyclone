@@ -213,12 +213,14 @@ class KernelModuleInlineTrans(Transformation):
                 except (ValueError, KeyError):
                     callsite_wildcards = (
                         call.scope.symbol_table.wildcard_imports())
-                    if not routine_wildcards.issubset(callsite_wildcards):
+                    try:
+                        table.resolve_imports(symbol_target=symbol)
+                    except KeyError as err:
                         raise TransformationError(
                             f"{kern_or_call} '{kname}' contains accesses to "
                             f"'{symbol.name}' which is unresolved. It is being"
                             f" brought into scope from one of "
-                            f"{routine_wildcards}")
+                            f"{routine_wildcards}") from err
             if not symbol.is_import and symbol.name not in table:
                 sym_at_call_site = call.scope.symbol_table.lookup(
                     sig.var_name, otherwise=None)
