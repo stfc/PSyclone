@@ -211,8 +211,6 @@ class KernelModuleInlineTrans(Transformation):
                     csym = table.lookup(cname, symbol_type=ContainerSymbol)
                     symbol.interface = ImportInterface(csym)
                 except (ValueError, KeyError):
-                    callsite_wildcards = (
-                        call.scope.symbol_table.wildcard_imports())
                     try:
                         table.resolve_imports(symbol_target=symbol)
                     except KeyError as err:
