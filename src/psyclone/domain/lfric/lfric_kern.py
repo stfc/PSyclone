@@ -703,13 +703,12 @@ class LFRicKern(CodedKern):
             DynFunctionSpaces, DynCMAOperators, DynBoundaryConditions,
             DynLMAOperators, LFRicMeshProperties, DynBasisFunctions,
             DynReferenceElement)
-        cursor = 0
         for entities in [LFRicCellIterators, LFRicDofmaps, DynFunctionSpaces,
                          DynCMAOperators, LFRicScalarArgs, LFRicFields,
                          DynLMAOperators, LFRicStencils, DynBasisFunctions,
                          DynBoundaryConditions, DynReferenceElement,
                          LFRicMeshProperties]:
-               cursor = entities(self).declarations(cursor)
+            entities(self).stub_declarations()
 
         # TODO #2874: The declarations above are not in order, we need to use
         # the KernStubArgList to generate a list of strings with the correct

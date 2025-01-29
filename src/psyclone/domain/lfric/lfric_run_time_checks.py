@@ -60,7 +60,7 @@ class LFRicRunTimeChecks(LFRicCollection):
 
     '''
 
-    def _invoke_declarations(self, cursor: int) -> int:
+    def invoke_declarations(self, cursor: int) -> int:
         '''Insert declarations of all data and functions required by the
         run-time checks code into the PSy layer.
 
@@ -69,6 +69,7 @@ class LFRicRunTimeChecks(LFRicCollection):
         :returns: Updated cursor value.
 
         '''
+        cursor = super().invoke_declarations(cursor)
         if Config.get().api_conf("lfric").run_time_checks:
             # Only add if run-time checks are requested
             const = LFRicConstants()

@@ -45,7 +45,6 @@ from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernMetadata
 from psyclone.dynamo0p3 import DynBasisFunctions
-from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
@@ -2187,7 +2186,7 @@ def test_diff_basis_unsupp_space():
 
 def test_dynbasisfns_unsupp_qr(monkeypatch):
     ''' Check that the expected error is raised in
-    DynBasisFunctions._stub_declarations() if an un-supported quadrature
+    DynBasisFunctions.stub_declarations() if an un-supported quadrature
     shape is encountered. '''
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
     metadata = LFRicKernMetadata(ast)
@@ -2197,7 +2196,7 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
     monkeypatch.setattr(
         dbasis, "_qr_vars", {"unsupported-shape": None})
     with pytest.raises(InternalError) as err:
-        dbasis._stub_declarations(ModuleGen(name="my_mod"))
+        dbasis.stub_declarations()
     assert ("Quadrature shapes other than ['gh_quadrature_xyoz', "
             "'gh_quadrature_face', 'gh_quadrature_edge'] are not yet "
             "supported - got: 'unsupported-shape'" in str(err.value))

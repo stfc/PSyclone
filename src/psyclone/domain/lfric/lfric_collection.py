@@ -105,29 +105,6 @@ class LFRicCollection():
         # Otherwise it is a kernel
         return [self._kernel]
 
-    def declarations(self, cursor):
-        '''
-        Insert declarations for all necessary variables into the PSyIR. Simply
-        calls either '_invoke_declarations()' or'_stub_declarations()'
-        depending on whether we're handling an Invoke or a Kernel stub.
-
-        :param int cursor: position where to add the next initialisation
-            statements.
-
-        :returns: Updated cursor value.
-        :rtype: int
-
-        :raises InternalError: if neither 'self._invoke' nor 'self._kernel'
-                               are set.
-
-        '''
-        if self._invoke:
-            return self._invoke_declarations(cursor)
-        if self._kernel:
-            return self._stub_declarations(cursor)
-        raise InternalError("LFRicCollection has neither a Kernel "
-                            "nor an Invoke - should be impossible.")
-
     @abc.abstractmethod
     def initialise(self, cursor: int) -> int:
         '''
@@ -141,31 +118,48 @@ class LFRicCollection():
 
         '''
 
-    def _invoke_declarations(self, cursor: int) -> int:
+    def invoke_declarations(self, cursor: int) -> int:
         '''
-        Add necessary Invoke declarations for this Collection.
-        We do nothing by default - it is up to the sub-class to override
-        this method if declarations are required.
+        Add necessary Invoke declarations for this Collection. Some of the
+        new symbols are not arguments and need to be initialised and therefore
+        we provide a cursor to control the location of the initialisation
+        statements.
+
+        By default we just sanity check that the class is appropriately
+        initialised - it is up to the sub-class to add required declarations.
 
         :param cursor: position where to add the next initialisation
             statements.
         :returns: Updated cursor value.
 
+        :raises InternalError: if the class has been instantiated for a
+            kernel and not an invoke.
+
         '''
+        if not self._invoke:
+            raise InternalError(
+                f"invoke_declarations() can only be called with a "
+                f"{type(self).__name__} instantiated for an invoke (not a "
+                f"kernel).")
         return cursor
 
-    def _stub_declarations(self, cursor: int) -> int:
+    def stub_declarations(self):
         '''
         Add necessary Kernel Stub declarations for this collection.
         We do nothing by default - it is up to the sub-class to override
         this method if declarations are required.
 
-        :param cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
+        By default we just sanity check that the class is appropriately
+        initialised - it is up to the sub-class to add required declarations.
 
+        :raises InternalError: if the class has been instantiated for an
+            invoke and not a kernel.
         '''
-        return cursor
+        if not self._kernel:
+            raise InternalError(
+                f"stub_declarations() can only be called with a "
+                f"{type(self).__name__} instantiated for a kernel (not an "
+                f"invoke).")
 
 
 # ---------- Documentation utils -------------------------------------------- #

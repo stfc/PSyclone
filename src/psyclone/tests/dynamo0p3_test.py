@@ -56,7 +56,6 @@ from psyclone.dynamo0p3 import (
     DynKernelArgument, DynKernelArguments, DynProxies, HaloReadAccess,
     KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
-from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.utils import ParseError
@@ -3672,23 +3671,6 @@ def test_lfriccollection_err1():
     assert ("LFRicCollection takes only an LFRicInvoke or an LFRicKern but"
             in str(err.value))
 
-
-def test_lfriccollection_err2(monkeypatch):
-    ''' Check that the LFRicCollection constructor raises the expected
-    error if it is not provided with an LFRicKern or LFRicInvoke. '''
-
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    # Obtain a valid sub-class of a LFRicCollection
-    proxies = invoke.proxies
-    # Monkeypatch it to break internal state
-    monkeypatch.setattr(proxies, "_invoke", None)
-    with pytest.raises(InternalError) as err:
-        proxies.declarations(ModuleGen(name="testmodule"))
-    assert "LFRicCollection has neither a Kernel nor an Invoke" \
-        in str(err.value)
 
 # tests for class kerncallarglist position methods
 

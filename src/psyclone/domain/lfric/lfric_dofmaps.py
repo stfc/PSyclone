@@ -213,7 +213,7 @@ class LFRicDofmaps(LFRicCollection):
             cursor += 1
         return cursor
 
-    def _invoke_declarations(self, cursor: int) -> int:
+    def invoke_declarations(self, cursor: int) -> int:
         '''
         Declare all unique function space dofmaps in the PSy layer as pointers
         to integer arrays of rank 2.
@@ -223,6 +223,7 @@ class LFRicDofmaps(LFRicCollection):
         :returns: Updated cursor value.
 
         '''
+        cursor = super().invoke_declarations(cursor)
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
             if dmap not in self.symtab:
@@ -252,15 +253,12 @@ class LFRicDofmaps(LFRicCollection):
 
         return cursor
 
-    def _stub_declarations(self, cursor: int) -> int:
+    def stub_declarations(self):
         '''
         Add dofmap-related declarations to a Kernel stub.
 
-        :param cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
-
         '''
+        super().stub_declarations()
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
             # We declare ndf first as some compilers require this
@@ -329,8 +327,6 @@ class LFRicDofmaps(LFRicCollection):
             dmap_symbol.interface = ArgumentInterface(
                                         ArgumentInterface.Access.READ)
             self.symtab.append_argument(dmap_symbol)
-
-        return cursor
 
 
 # The list of module members that we wish AutoAPI to generate

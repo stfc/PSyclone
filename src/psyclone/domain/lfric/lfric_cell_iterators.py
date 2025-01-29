@@ -96,17 +96,13 @@ class LFRicCellIterators(LFRicCollection):
                 "Cannot create an Invoke with no field/operator arguments.")
         self._first_var = first_var
 
-    def _stub_declarations(self, cursor):
+    def stub_declarations(self):
         '''
         Declare entities required for a kernel stub that operates on
         cell-columns.
 
-        :param int cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
-        :rtype: int
-
         '''
+        super().stub_declarations()
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
             for name in self._nlayers_names:
                 sym = self.symtab.lookup(name)
@@ -115,7 +111,6 @@ class LFRicCellIterators(LFRicCollection):
                 sym.interface = ArgumentInterface(
                     ArgumentInterface.Access.READ)
                 self.symtab.append_argument(sym)
-        return cursor
 
     def initialise(self, cursor):
         '''

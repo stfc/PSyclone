@@ -252,7 +252,7 @@ Module: dynamo0p3
 =================
 
 Specialises various classes from the ``psyclone.psyGen`` module
-in order to support the Dynamo 0.3 API.
+in order to support the LFRic API.
 
 When constructing the Fortran subroutine for either an Invoke or
 Kernel stub (see :ref:`stub-generation`), there are various groups of
@@ -265,15 +265,15 @@ sub-class of the ``LFRicCollection`` abstract class:
    :private-members:
    :noindex:
 
-(A single base class is used for both Invokes and Kernel stubs since it
-allows the code dealing with variable declarations to be shared.)
+A single ``LFRicCollection`` class is used for both Invokes and Kernel stubs
+since it allows the code dealing with variable declarations to be shared.
 A concrete sub-class of ``LFRicCollection`` must provide an
-implementation of the ``_invoke_declarations`` method. If the
+implementation of the ``invoke_declarations`` method (if the
 quantities associated with the collection require initialisation
-within the PSy layer then the ``initialise`` method must also be
-implemented. If stub-generation is to be supported for kernels that
+this method should also insert the initialisation statements).
+If stub-generation is to be supported for kernels that
 make use of the collection type then an implementation must also be
-provided for ``_stub_declarations.``
+provided for ``stub_declarations``.
 
 Although instances of (sub-classes of) ``LFRicCollection`` handle all
 declarations and initialisation, there remains the problem of

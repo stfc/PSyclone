@@ -57,7 +57,7 @@ TEST_API = "lfric"
 # Error tests
 def test_lfricdofmap_stubdecln_err():
     '''
-    Check that LFRicDofmaps._stub_declarations raises the expected errors
+    Check that LFRicDofmaps.stub_declarations raises the expected errors
     if the stored CMA information is invalid.
 
     '''
@@ -65,21 +65,30 @@ def test_lfricdofmap_stubdecln_err():
                                         "20.5_multi_cma_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+
+    # Test invalid cbanded kernel
+    kernel_cbanded = psy.invokes.invoke_list[0].schedule.kernels()[0]
     # Need and nlayers symbols because it is looked-up by the LFRicDofmaps
-    psy.invokes.invoke_list[0].schedule.symbol_table.find_or_create("nlayers")
-    dofmaps = LFRicDofmaps(psy.invokes.invoke_list[0])
-    for cma in dofmaps._unique_indirection_maps.values():
-        cma["direction"] = "not-a-direction"
-    with pytest.raises(InternalError) as err:
-        dofmaps._stub_declarations(0)
-    assert ("Invalid direction ('not-a-direction') found for CMA operator "
-            "when collecting indirection dofmaps" in str(err.value))
+    kernel_cbanded._stub_symbol_table.find_or_create("nlayers")
+    dofmaps = LFRicDofmaps(kernel_cbanded)
     for cma in dofmaps._unique_cbanded_maps.values():
         cma["direction"] = "not-a-direction"
     with pytest.raises(InternalError) as err:
-        dofmaps._stub_declarations(0)
+        dofmaps.stub_declarations()
     assert ("Invalid direction ('not-a-direction') found for CMA operator "
             "when collecting column-banded dofmaps" in str(err.value))
+        
+    # Test invalid direction kernel
+    kernel_direction = psy.invokes.invoke_list[0].schedule.kernels()[1]
+    # Need and nlayers symbols because it is looked-up by the LFRicDofmaps
+    kernel_direction._stub_symbol_table.find_or_create("nlayers")
+    dofmaps = LFRicDofmaps(kernel_direction)
+    for cma in dofmaps._unique_indirection_maps.values():
+        cma["direction"] = "not-a-direction"
+    with pytest.raises(InternalError) as err:
+        dofmaps.stub_declarations()
+    assert ("Invalid direction ('not-a-direction') found for CMA operator "
+            "when collecting indirection dofmaps" in str(err.value))
 
 
 def test_cma_asm_cbanded_dofmap_error():

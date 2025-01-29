@@ -1865,7 +1865,7 @@ def test_lfricstencils_err():
     # Break internal state
     stencils._kern_args[0].descriptor.stencil['type'] = "not-a-type"
     with pytest.raises(GenerationError) as err:
-        stencils._declare_maps_invoke(0)
+        stencils._declare_maps_invoke()
     assert "Unsupported stencil type 'not-a-type' supplied. Supported " \
         "mappings are" in str(err.value)
     with pytest.raises(GenerationError) as err:

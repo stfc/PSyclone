@@ -69,7 +69,7 @@ def test_lfriccelliterators_kernel():
 
 def test_lfriccelliterators_kernel_stub_declns(fortran_writer):
     '''
-    Check that LFRicCellIterators._stub_declarations() creates the correct
+    Check that LFRicCellIterators.stub_declarations() creates the correct
     declarations for an LFRicKern.
     '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -84,7 +84,7 @@ def test_lfriccelliterators_kernel_stub_declns(fortran_writer):
 
 def test_lfriccelliterators_invoke_codegen():
     '''
-    Check that _invoke_declarations() creates the right declarations and
+    Check that invoke_declarations() creates the right declarations and
     initialisations for an invoke containing more than one kernel.
     '''
     _, info = parse(

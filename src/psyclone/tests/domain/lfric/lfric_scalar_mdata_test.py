@@ -50,7 +50,6 @@ from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
                                    LFRicKern, LFRicKernMetadata,
                                    LFRicScalarArgs)
 from psyclone.errors import InternalError, GenerationError
-from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import FORTRAN_INTENT_NAMES, PSyFactory
@@ -325,7 +324,7 @@ def test_lfricscalars_call_err1():
     scalar_arg = kernel.arguments.args[0]
     scalar_arg._intrinsic_type = "double-type"
     with pytest.raises(InternalError) as err:
-        LFRicScalarArgs(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
+        LFRicScalarArgs(invoke).invoke_declarations(0)
     assert ("Found unsupported intrinsic types for the scalar arguments "
             "['a'] to Invoke 'invoke_0_testkern_three_scalars_type'. "
             "Supported types are ['real', 'integer', 'logical']."
@@ -347,7 +346,7 @@ def test_lfricscalars_call_err2():
     scalar_args = LFRicScalarArgs(invoke)
     # Set up information that _create_declarations requires. Note,
     # this method also calls _create_declarations.
-    scalar_args._invoke_declarations(0)
+    scalar_args.invoke_declarations(0)
 
     # Sabotage code so that a call to _create declarations raises the
     # required exceptions.

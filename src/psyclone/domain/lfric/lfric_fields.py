@@ -60,7 +60,7 @@ class LFRicFields(LFRicCollection):
     or Kernel stub.
 
     '''
-    def _invoke_declarations(self, cursor: int) -> int:
+    def invoke_declarations(self, cursor: int) -> int:
         '''
         Add field-related declarations to the PSy-layer routine.
         Note: PSy layer in LFRic does not modify the field objects. Hence,
@@ -76,6 +76,7 @@ class LFRicFields(LFRicCollection):
                                argument data.
 
         '''
+        cursor = super().invoke_declarations(cursor)
         # Create dict of all field arguments for checks
         const = LFRicConstants()
         fld_args = self._invoke.unique_declarations(
@@ -124,18 +125,15 @@ class LFRicFields(LFRicCollection):
 
         return cursor
 
-    def _stub_declarations(self, cursor: int) -> int:
+    def stub_declarations(self):
         '''
         Add field-related declarations to a Kernel stub.
-
-        :param cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
 
         :raises InternalError: for an unsupported data type of field
                                argument data.
 
         '''
+        super().stub_declarations()
         const = LFRicConstants()
 
         fld_args = psyGen.args_filter(
@@ -186,8 +184,6 @@ class LFRicFields(LFRicCollection):
                     name, symbol_type=DataSymbol, datatype=datatype)
                 arg.interface = ArgumentInterface(intent)
                 self.symtab.append_argument(arg)
-
-        return cursor
 
 
 # ---------- Documentation utils -------------------------------------------- #

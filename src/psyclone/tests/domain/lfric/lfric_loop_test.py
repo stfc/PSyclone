@@ -52,8 +52,7 @@ from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import (
-    Call, Schedule, ScopingNode, Loop)
+from psyclone.psyir.nodes import Call, ScopingNode, Loop
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import Message, DTCode
 from psyclone.tests.lfric_build import LFRicBuild

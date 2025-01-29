@@ -291,7 +291,7 @@ class LFRicInvoke(Invoke):
                          self.reference_element_properties,
                          self.mesh_properties, self.loop_bounds,
                          self.run_time_checks]:
-            cursor = entities.declarations(cursor)
+            cursor = entities.invoke_declarations(cursor)
 
         for entities in [self.proxies, self.run_time_checks,
                          self.cell_iterators, self.meshes,

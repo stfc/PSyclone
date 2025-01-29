@@ -46,7 +46,6 @@ from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicKernMetadata
 from psyclone.dynamo0p3 import LFRicMeshProperties, MeshProperty
 from psyclone.errors import InternalError
-from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, Kern
@@ -170,7 +169,7 @@ def test_mesh_properties():
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    # Check that the kern_args() and _stub_declarations() methods raise the
+    # Check that the kern_args() and stub_declarations() methods raise the
     # expected error if the LFRicMeshProperties class has been created for
     # an Invoke.
     with pytest.raises(InternalError) as err:
@@ -178,13 +177,13 @@ def test_mesh_properties():
     assert ("only be called when LFRicMeshProperties has been instantiated "
             "for a kernel" in str(err.value))
     with pytest.raises(InternalError) as err:
-        invoke.mesh_properties._stub_declarations(None)
-    assert ("cannot be called because LFRicMeshProperties has been "
-            "instantiated for an invoke and not a kernel" in str(err.value))
+        invoke.mesh_properties.stub_declarations()
+    assert ("stub_declarations() can only be called with a LFRicMeshProperties"
+            " instantiated for a kernel (not an invoke)." in str(err.value))
     # Break the list of mesh properties
     invoke.mesh_properties._properties.append("not-a-property")
     with pytest.raises(InternalError) as err:
-        invoke.mesh_properties._invoke_declarations(ModuleGen("test_mod"))
+        invoke.mesh_properties.invoke_declarations(0)
     assert ("Found unsupported mesh property 'not-a-property' when "
             "generating invoke declarations. Only " in str(err.value))
     sched = invoke.schedule
@@ -204,11 +203,12 @@ def test_mesh_properties():
             "Only members of the MeshProperty Enum are"
             in str(err.value))
     with pytest.raises(InternalError) as err:
-        mesh_props._invoke_declarations(ModuleGen("test_mod"))
-    assert ("cannot be called because LFRicMeshProperties has been "
-            "instantiated for a kernel and not an invoke." in str(err.value))
+        mesh_props.invoke_declarations(0)
+    assert ("invoke_declarations() can only be called with a LFRicMesh"
+            "Properties instantiated for an invoke (not a kernel)."
+            in str(err.value))
     with pytest.raises(InternalError) as err:
-        mesh_props._stub_declarations(ModuleGen("test_mod"))
+        mesh_props.stub_declarations()
     assert ("Found unsupported mesh property 'not-a-property' when "
             "generating declarations for kernel stub. Only " in str(err.value))
 

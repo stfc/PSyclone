@@ -82,7 +82,7 @@ class LFRicScalarArgs(LFRicCollection):
             self._integer_scalars[intent] = []
             self._logical_scalars[intent] = []
 
-    def _invoke_declarations(self, cursor: int) -> int:
+    def invoke_declarations(self, cursor: int) -> int:
         '''
         Create argument lists and declarations for all scalar arguments
         in an Invoke.
@@ -97,6 +97,7 @@ class LFRicScalarArgs(LFRicCollection):
                                  within the same Invoke.
 
         '''
+        cursor = super().invoke_declarations(cursor)
         # Create dictionary of all scalar arguments for checks
         const = LFRicConstants()
         self._scalar_args = self._invoke.unique_declns_by_intent(
@@ -143,20 +144,18 @@ class LFRicScalarArgs(LFRicCollection):
                     f"different kernels. This is invalid.")
 
         # Create declarations
-        return self._create_declarations(cursor)
+        self._create_declarations()
+        return cursor
 
-    def _stub_declarations(self, cursor: int) -> int:
+    def stub_declarations(self):
         '''
         Create and add declarations for all scalar arguments in
         a Kernel stub.
 
-        :param cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
-
         :raises InternalError: for an unsupported argument data type.
 
         '''
+        super().stub_declarations()
         # Extract all scalar arguments
         for arg in self.kernel_calls[0].arguments.args:
             if arg.is_scalar:
@@ -180,18 +179,11 @@ class LFRicScalarArgs(LFRicCollection):
                         f"are {const.VALID_SCALAR_DATA_TYPES}.")
 
         # Create declarations
-        return self._create_declarations(cursor)
+        self._create_declarations()
 
-    def _create_declarations(self, cursor):
-        '''Add declarations for the scalar arguments.
-
-        :param int cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
-        :rtype: int
-
-        :raises InternalError: if neither self._invoke nor
-            self._kernel are set.
+    def _create_declarations(self):
+        '''
+        Add declarations for the scalar arguments.
 
         '''
         # Real scalar arguments
@@ -209,8 +201,7 @@ class LFRicScalarArgs(LFRicCollection):
                         real_scalars_precision_map[
                             real_scalar.precision] = [real_scalar]
                 # Declare scalars
-                for real_scalar_kind, real_scalars_list in \
-                        real_scalars_precision_map.items():
+                for real_scalars_list in real_scalars_precision_map.values():
                     for arg in real_scalars_list:
                         symbol = self.symtab.find_or_create(
                             arg.declaration_name,
@@ -243,7 +234,6 @@ class LFRicScalarArgs(LFRicCollection):
                     symbol.interface = ArgumentInterface(
                                         INTENT_MAPPING[intent])
                     self.symtab.append_argument(symbol)
-        return cursor
 
 
 # ---------- Documentation utils -------------------------------------------- #
