@@ -47,6 +47,9 @@ FILES_TO_SKIP = PASSTHROUGH_ISSUES
 
 def trans(psyir):
     ''' Don't do any changes. '''
+    if psyir.name.startswith("obs_"):
+        print("Skipping file", psyir.name)
+        return
     # TODO REMOVE
     for subroutine in psyir.walk(Routine):
         scalartrans = ScalarizationTrans()
