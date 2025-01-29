@@ -50,7 +50,7 @@ try:
     from sphinx.util.typing import stringify_annotation
 except ImportError:
     # Fix for Python-3.7 where sphinx didn't yet rename this.
-    from sphinx.util.type import stringify as stringify_annotation
+    from sphinx.util.typing import stringify as stringify_annotation
 
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.core import AccessType
