@@ -48,7 +48,7 @@ import abc
 
 try:
     from sphinx.util.typing import stringify_annotation
-except:
+except ImportError:
     # Fix for Python-3.7 where sphinx didn't yet rename this.
     from sphinx.util.type import stringify as stringify_annotation
 
