@@ -243,10 +243,10 @@ class OMPLoopTrans(ParallelLoopTrans):
 
         '''
         if not options:
-             self.validate_options(
+            self.validate_options(
                     reprod=reprod, **kwargs
             )
-             self._reprod = reprod
+            self._reprod = reprod
         else:
             self._reprod = options.get("reprod",
                                        Config.get().reproducible_reductions)

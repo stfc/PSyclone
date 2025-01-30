@@ -286,7 +286,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 raise TransformationError(messages)
 
     def apply(self, node, options=None, verbose: bool = False,
-              collapse: Union[int,bool] = False, force: bool = False,
+              collapse: Union[int, bool] = False, force: bool = False,
               ignore_dependencies_for: Union[None, List[str]] = None,
               privatise_arrays: bool = False, sequential: bool = False,
               **kwargs):

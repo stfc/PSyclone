@@ -580,8 +580,7 @@ def test_omploop_trans_new_options(sample_psyir):
                 "'collapse' option expects type 'int | bool' but "
                 "received 'x' of type 'str'.\n"
                 "Please see the documentation and check the provided types."
-            in str(excinfo.value))
-    
+                in str(excinfo.value))
 
 
 def test_ifblock_children_region():
