@@ -118,7 +118,7 @@ class LFRicCollection():
 
         '''
 
-    def invoke_declarations(self, cursor: int) -> int:
+    def invoke_declarations(self):
         '''
         Add necessary Invoke declarations for this Collection. Some of the
         new symbols are not arguments and need to be initialised and therefore
@@ -127,10 +127,6 @@ class LFRicCollection():
 
         By default we just sanity check that the class is appropriately
         initialised - it is up to the sub-class to add required declarations.
-
-        :param cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
 
         :raises InternalError: if the class has been instantiated for a
             kernel and not an invoke.
@@ -141,7 +137,6 @@ class LFRicCollection():
                 f"invoke_declarations() can only be called with a "
                 f"{type(self).__name__} instantiated for an invoke (not a "
                 f"kernel).")
-        return cursor
 
     def stub_declarations(self):
         '''

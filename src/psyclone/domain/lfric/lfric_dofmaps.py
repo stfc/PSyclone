@@ -213,17 +213,13 @@ class LFRicDofmaps(LFRicCollection):
             cursor += 1
         return cursor
 
-    def invoke_declarations(self, cursor: int) -> int:
+    def invoke_declarations(self):
         '''
         Declare all unique function space dofmaps in the PSy layer as pointers
         to integer arrays of rank 2.
 
-        :param cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
-
         '''
-        cursor = super().invoke_declarations(cursor)
+        super().invoke_declarations()
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
             if dmap not in self.symtab:
@@ -250,8 +246,6 @@ class LFRicDofmaps(LFRicCollection):
                         f"integer(kind=i_def), pointer :: {dmap}(:) "
                         "=> null()"))
                 self.symtab.add(dmap_sym, tag=dmap)
-
-        return cursor
 
     def stub_declarations(self):
         '''

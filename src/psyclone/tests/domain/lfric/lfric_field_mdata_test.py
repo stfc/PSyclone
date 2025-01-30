@@ -500,7 +500,7 @@ def test_lfricfields_call_err():
     fld_arg = kernel.arguments.args[0]
     fld_arg._intrinsic_type = "triple-type"
     with pytest.raises(InternalError) as err:
-        LFRicFields(invoke).invoke_declarations(0)
+        LFRicFields(invoke).invoke_declarations()
     test_str = str(err.value)
     assert ("Found unsupported intrinsic types for the field arguments "
             "['f1'] to Invoke 'invoke_0_testkern_fs_type'. Supported "

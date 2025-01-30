@@ -84,7 +84,7 @@ class LFRicHaloDepths(LFRicCollection):
                     depth_names.add(name)
                     self._halo_depth_vars.add(kern.halo_depth.symbol)
 
-    def invoke_declarations(self, cursor: int) -> int:
+    def invoke_declarations(self):
         '''
         Creates the declarations for the depths to which any 'halo'
         kernels iterate into the halos.
@@ -94,7 +94,7 @@ class LFRicHaloDepths(LFRicCollection):
         :returns: Updated cursor value.
 
         '''
-        cursor = super().invoke_declarations(cursor)
+        super().invoke_declarations()
         # Add the Invoke subroutine argument declarations for the
         # different halo depths. They are declared as intent "in".
         # pylint: disable=import-outside-toplevel
@@ -109,7 +109,6 @@ class LFRicHaloDepths(LFRicCollection):
                 sym.interface = ArgumentInterface(
                                         ArgumentInterface.Access.READ)
                 self.symtab.append_argument(sym)
-        return cursor
 
 
 # ---------- Documentation utils -------------------------------------------- #

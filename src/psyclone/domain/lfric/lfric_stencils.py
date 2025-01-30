@@ -381,21 +381,16 @@ class LFRicStencils(LFRicCollection):
         '''
         return self._unique_extent_vars + self._unique_direction_vars
 
-    def invoke_declarations(self, cursor: int) -> int:
+    def invoke_declarations(self):
         '''
         Declares all stencil maps, extent and direction arguments passed into
         the PSy layer.
 
-        :param cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
-
         '''
-        cursor = super().invoke_declarations(cursor)
+        super().invoke_declarations()
         self._declare_unique_extent_vars()
         self._declare_unique_direction_vars()
         self._declare_maps_invoke()
-        return cursor
 
     def stub_declarations(self):
         '''

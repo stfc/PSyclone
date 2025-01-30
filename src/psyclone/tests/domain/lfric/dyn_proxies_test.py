@@ -80,7 +80,7 @@ def test_invoke_declarations(fortran_writer):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     proxies = DynProxies(invoke)
-    proxies.invoke_declarations(0)
+    proxies.invoke_declarations()
     code = fortran_writer(invoke.schedule)
     assert ("real(kind=r_def), pointer, dimension(:) :: f1_1_data => null()"
             in code)
@@ -102,7 +102,7 @@ def test_initialise(fortran_writer):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     proxies = DynProxies(invoke)
-    proxies.invoke_declarations(0)
+    proxies.invoke_declarations()
     proxies.initialise(0)
     code = fortran_writer(invoke.schedule)
     assert "! Initialise field and/or operator proxies" in code
@@ -123,7 +123,7 @@ def test_initialise_errors(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     kern = invoke.schedule.walk(LFRicKern)[0]
     proxies = DynProxies(invoke)
-    proxies.invoke_declarations(0)
+    proxies.invoke_declarations()
     # Monkeypatch the first kernel argument so that it is of an unrecognised
     # type.
     monkeypatch.setattr(kern.args[0], "_argument_type", "gh_wrong")

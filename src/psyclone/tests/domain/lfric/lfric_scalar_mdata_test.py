@@ -324,7 +324,7 @@ def test_lfricscalars_call_err1():
     scalar_arg = kernel.arguments.args[0]
     scalar_arg._intrinsic_type = "double-type"
     with pytest.raises(InternalError) as err:
-        LFRicScalarArgs(invoke).invoke_declarations(0)
+        LFRicScalarArgs(invoke).invoke_declarations()
     assert ("Found unsupported intrinsic types for the scalar arguments "
             "['a'] to Invoke 'invoke_0_testkern_three_scalars_type'. "
             "Supported types are ['real', 'integer', 'logical']."
@@ -346,7 +346,7 @@ def test_lfricscalars_call_err2():
     scalar_args = LFRicScalarArgs(invoke)
     # Set up information that _create_declarations requires. Note,
     # this method also calls _create_declarations.
-    scalar_args.invoke_declarations(0)
+    scalar_args.invoke_declarations()
 
     # Sabotage code so that a call to _create declarations raises the
     # required exceptions.

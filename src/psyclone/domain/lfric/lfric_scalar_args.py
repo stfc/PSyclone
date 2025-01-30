@@ -82,14 +82,11 @@ class LFRicScalarArgs(LFRicCollection):
             self._integer_scalars[intent] = []
             self._logical_scalars[intent] = []
 
-    def invoke_declarations(self, cursor: int) -> int:
+    def invoke_declarations(self):
         '''
         Create argument lists and declarations for all scalar arguments
         in an Invoke.
 
-        :param cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
 
         :raises InternalError: for unsupported argument intrinsic types.
         :raises GenerationError: if the same scalar argument has different \
@@ -97,7 +94,7 @@ class LFRicScalarArgs(LFRicCollection):
                                  within the same Invoke.
 
         '''
-        cursor = super().invoke_declarations(cursor)
+        super().invoke_declarations()
         # Create dictionary of all scalar arguments for checks
         const = LFRicConstants()
         self._scalar_args = self._invoke.unique_declns_by_intent(
@@ -145,7 +142,6 @@ class LFRicScalarArgs(LFRicCollection):
 
         # Create declarations
         self._create_declarations()
-        return cursor
 
     def stub_declarations(self):
         '''

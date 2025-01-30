@@ -60,7 +60,7 @@ class LFRicFields(LFRicCollection):
     or Kernel stub.
 
     '''
-    def invoke_declarations(self, cursor: int) -> int:
+    def invoke_declarations(self):
         '''
         Add field-related declarations to the PSy-layer routine.
         Note: PSy layer in LFRic does not modify the field objects. Hence,
@@ -68,15 +68,11 @@ class LFRicFields(LFRicCollection):
         is only pointed to from the field object and is thus not a part of
         the object).
 
-        :param cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
-
         :raises InternalError: for unsupported intrinsic types of field
                                argument data.
 
         '''
-        cursor = super().invoke_declarations(cursor)
+        super().invoke_declarations()
         # Create dict of all field arguments for checks
         const = LFRicConstants()
         fld_args = self._invoke.unique_declarations(
@@ -122,8 +118,6 @@ class LFRicFields(LFRicCollection):
             for arg in args:
                 arg_symbol = self.symtab.lookup(arg.name)
                 arg_symbol.interface.access = ArgumentInterface.Access.READ
-
-        return cursor
 
     def stub_declarations(self):
         '''

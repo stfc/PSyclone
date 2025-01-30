@@ -60,34 +60,28 @@ class LFRicRunTimeChecks(LFRicCollection):
 
     '''
 
-    def invoke_declarations(self, cursor: int) -> int:
+    def invoke_declarations(self):
         '''Insert declarations of all data and functions required by the
         run-time checks code into the PSy layer.
 
-        :param cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
-
         '''
-        cursor = super().invoke_declarations(cursor)
+        super().invoke_declarations()
         if Config.get().api_conf("lfric").run_time_checks:
             # Only add if run-time checks are requested
             const = LFRicConstants()
-            symtab = self._invoke.schedule.symbol_table
-            csym = symtab.find_or_create(
+            csym = self.symtab.find_or_create(
                 const.UTILITIES_MOD_MAP["logging"]["module"],
                 symbol_type=ContainerSymbol
             )
-            symtab.find_or_create(
+            self.symtab.find_or_create(
                 "log_event", symbol_type=RoutineSymbol,
                 interface=ImportInterface(csym)
             )
-            symtab.find_or_create(
+            self.symtab.find_or_create(
                 "LOG_LEVEL_ERROR", symbol_type=DataSymbol,
                 datatype=UnresolvedType(),
                 interface=ImportInterface(csym)
             )
-        return cursor
 
     def _check_field_fs(self, cursor: int) -> int:
         '''

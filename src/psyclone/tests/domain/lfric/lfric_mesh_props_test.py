@@ -183,7 +183,7 @@ def test_mesh_properties():
     # Break the list of mesh properties
     invoke.mesh_properties._properties.append("not-a-property")
     with pytest.raises(InternalError) as err:
-        invoke.mesh_properties.invoke_declarations(0)
+        invoke.mesh_properties.invoke_declarations()
     assert ("Found unsupported mesh property 'not-a-property' when "
             "generating invoke declarations. Only " in str(err.value))
     sched = invoke.schedule
@@ -203,7 +203,7 @@ def test_mesh_properties():
             "Only members of the MeshProperty Enum are"
             in str(err.value))
     with pytest.raises(InternalError) as err:
-        mesh_props.invoke_declarations(0)
+        mesh_props.invoke_declarations()
     assert ("invoke_declarations() can only be called with a LFRicMesh"
             "Properties instantiated for an invoke (not a kernel)."
             in str(err.value))
