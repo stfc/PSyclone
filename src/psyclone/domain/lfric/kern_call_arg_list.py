@@ -43,7 +43,7 @@ should be removed as we migrate to use PSyIR in LFRic.
 '''
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
@@ -953,7 +953,7 @@ class KernCallArgList(ArgOrdering):
 
     def cell_ref_name(
             self, var_accesses: Optional[VariablesAccessInfo] = None
-    ) -> tuple[str, Reference]:
+    ) -> Tuple[str, Reference]:
         ''' Utility routine which determines whether to return the cell
         reference or the colourmap lookup array reference. If supplied with
         a "var_accesses" it also stores the Variables Access information.
