@@ -61,12 +61,12 @@ def generate(filename, api=""):
     Kernel Metadata must be presented in the standard Kernel
     format.
 
-    :param str filename: the name of the file for which to create a \
-                         kernel stub for.
-    :param str api: the name of the API for which to create a kernel \
-                    stub. Must be one of the supported stub APIs.
+    :param str filename: the name of the file for which to create a
+        kernel stub for.
+    :param str api: the name of the API for which to create a kernel
+        stub. Must be one of the supported stub APIs.
 
-    :returns: the kernel stub of the given kernel file.
+    :returns: the kernel stub of the metadata in the given kernel file.
     :rtype: str
 
     :raises GenerationError: if an invalid stub API is specified.

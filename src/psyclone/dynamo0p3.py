@@ -415,7 +415,10 @@ class LFRicMeshProperties(LFRicCollection):
                     name_lower, symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
                         "integer(kind=i_def), pointer :: adjacent_face(:,:) "
-                        "=> null()"
+                        "=> null()",
+                        partial_datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*2)
                     ),
                     tag=name_lower)
             else:
@@ -566,6 +569,7 @@ class LFRicMeshProperties(LFRicCollection):
         '''
         Creates the necessary declarations for the variables needed in order
         to provide properties of the mesh in a kernel stub.
+        Note that argument order is redefined later by ArgOrdering.
 
         :raises InternalError: if an unsupported mesh property is encountered.
 
@@ -935,8 +939,8 @@ class DynReferenceElement(LFRicCollection):
     def stub_declarations(self):
         '''
         Create the necessary declarations for the variables needed in order
-        to provide properties of the reference element in a Kernel stub. Note
-        that argument order is redefined later by ArgOrdering.
+        to provide properties of the reference element in a Kernel stub.
+        Note that argument order is redefined later by ArgOrdering.
 
         '''
         super().stub_declarations()
@@ -1123,6 +1127,7 @@ class DynFunctionSpaces(LFRicCollection):
     def stub_declarations(self):
         '''
         Add function-space-related declarations to a Kernel stub.
+        Note that argument order is redefined later by ArgOrdering.
 
         '''
         super().stub_declarations()
@@ -1780,6 +1785,7 @@ class DynCMAOperators(LFRicCollection):
         '''
         Generate all necessary declarations for CMA operators being passed to
         a Kernel stub.
+        Note that argument order is redefined later by ArgOrdering.
 
         '''
         super().stub_declarations()
@@ -1838,7 +1844,7 @@ class DynCMAOperators(LFRicCollection):
             op = symtab.find_or_create(
                 op_name, symbol_type=DataSymbol,
                 datatype=ArrayType(
-                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                    LFRicTypes("LFRicRealScalarDataType")(),
                     [Reference(bandwidth), Reference(nrow),
                      Reference(symtab.lookup("ncell_2d"))]))
             op.interface = ArgumentInterface(
@@ -2023,12 +2029,16 @@ class DynMeshes():
             carg_name = call._intergrid_ref.coarse.name
             # Colour map
             base_name = "cmap_" + carg_name
+            array_type = ArrayType(
+                LFRicTypes("LFRicRealScalarDataType")(),
+                [ArrayType.Extent.DEFERRED]*2)
             colour_map = self.symtab.find_or_create(
                 base_name,
                 symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
                     f"integer(kind=i_def), pointer, dimension(:,:) :: "
-                    f"{base_name} => null()"),
+                    f"{base_name} => null()",
+                    partial_datatype=array_type),
                 tag=base_name)
             # No. of colours
             base_name = "ncolour_" + carg_name
@@ -2338,8 +2348,9 @@ class DynMeshes():
                             coarse_mesh, [name])))
                 self._invoke.schedule.addchild(assignment, cursor)
                 cursor += 1
-        self._invoke.schedule[comment_cursor].preceding_comment = (
-            "Look-up mesh objects and loop limits for inter-grid kernels")
+        if cursor != comment_cursor:
+            self._invoke.schedule[comment_cursor].preceding_comment = (
+                "Look-up mesh objects and loop limits for inter-grid kernels")
 
         return cursor
 
@@ -2409,12 +2420,19 @@ class DynInterGrid():
         ).name
         # Name for cell map
         base_name = "cell_map_" + coarse_arg.name
+        ArrayType(
+            LFRicTypes("LFRicRealScalarDataType")(),
+            [ArrayType.Extent.DEFERRED]*2)
         sym = symtab.find_or_create(
                 base_name,
                 symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
                     f"integer(kind=i_def), pointer :: {base_name}"
-                    f"(:,:,:) => null()"))
+                    f"(:,:,:) => null()",
+                    partial_datatype=ArrayType(
+                        LFRicTypes("LFRicRealScalarDataType")(),
+                        [ArrayType.Extent.DEFERRED]*3)
+                ))
 
         self.cell_map = sym.name
 
@@ -2713,6 +2731,7 @@ class DynBasisFunctions(LFRicCollection):
         '''
         Insert the variable declarations required by the basis functions into
         the Kernel stub.
+        Note that argument order is redefined later by ArgOrdering.
 
         :raises InternalError: if an unsupported quadrature shape is found.
 
@@ -2736,6 +2755,8 @@ class DynBasisFunctions(LFRicCollection):
                 arg.interface = ArgumentInterface(
                                         ArgumentInterface.Access.READ)
                 self.symtab.append_argument(arg)
+
+        # Allocate basis arrays
         for basis in basis_arrays:
             dims = []
             for value in basis_arrays[basis]:
@@ -3263,12 +3284,16 @@ class DynBasisFunctions(LFRicCollection):
                     symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
+            array_type = ArrayType(
+                LFRicTypes("LFRicRealScalarDataType")(),
+                [ArrayType.Extent.DEFERRED]*2)
             for name in self.qr_weight_vars[qr_type]:
                 self.symtab.find_or_create(
                     f"{name}_{qr_arg_name}", symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
                         f"real(kind=r_def), pointer, dimension(:,:) :: "
-                        f"{name}_{qr_arg_name} => null()\n"
+                        f"{name}_{qr_arg_name} => null()\n",
+                        partial_datatype=array_type
                     ),
                     tag=f"{name}_{qr_arg_name}")
             const = LFRicConstants()
@@ -3553,7 +3578,11 @@ class DynBoundaryConditions(LFRicCollection):
             kind = api_config.default_kind["integer"]
             dtype = UnsupportedFortranType(
                 f"integer(kind={kind}), pointer "
-                f":: {name}(:,:) => null()")
+                f":: {name}(:,:) => null()",
+                partial_datatype=ArrayType(
+                    LFRicTypes("LFRicIntegerScalarDataType")(),
+                    [ArrayType.Extent.DEFERRED]*2)
+                )
             self.symtab.new_symbol(
                 name,
                 symbol_type=DataSymbol,
@@ -3562,6 +3591,7 @@ class DynBoundaryConditions(LFRicCollection):
     def stub_declarations(self):
         '''
         Add declarations for any boundary-dofs arrays required by a kernel.
+        Note that argument order is redefined later by ArgOrdering.
 
         '''
         super().stub_declarations()
@@ -4352,6 +4382,8 @@ class HaloDepth():
     :param parent: the parent PSyIR node of the region containing the field
                    access that is represented.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+    :raises TypeError: if the parent argument is not a Node.
 
     '''
     def __init__(self, parent):
@@ -5420,9 +5452,10 @@ class DynKernelArgument(KernelArgument):
         '''
         Generate a PSyIR call to the given method of this object.
 
-        :param str method: name of the method to generate.
+        :param str method: name of the method to generate a call to.
         :param Optional[str] function_space: name of the function space.
-        :param bool: if we generate the call by using the proxy as the base.
+        :param bool use_proxy: if we generate the call by using the proxy
+            as the base.
 
         :returns: the generated call.
         :rtype: :py:class:`psyclone.psyir.nodes.Call`
@@ -5437,16 +5470,17 @@ class DynKernelArgument(KernelArgument):
             symbol = symtab.lookup(self.name)
 
         if self._vector_size > 1:
+            # For a field vector, just call the specified method on the first
+            # element
             return Call.create(ArrayOfStructuresReference.create(
                 symbol, [Literal('1', INTEGER_TYPE)],
                 [self.ref_name(function_space), method]))
-        else:
-            return Call.create(StructureReference.create(
-                symbol, [self.ref_name(function_space), method]))
+        return Call.create(StructureReference.create(
+            symbol, [self.ref_name(function_space), method]))
 
     def generate_accessor(self, function_space=None):
         '''
-        Generate a Reference accessing this object data.
+        Generate a Reference accessing this object's data.
 
         :param Optional[str] function_space: name of the function space.
 
@@ -5460,12 +5494,12 @@ class DynKernelArgument(KernelArgument):
         symbol = symtab.lookup(self.proxy_name)
 
         if self._vector_size > 1:
+            # For a field vector, access the first element
             return ArrayOfStructuresReference.create(
                 symbol, [Literal('1', INTEGER_TYPE)],
                 [self.ref_name(function_space)])
-        else:
-            return StructureReference.create(
-                symbol, [self.ref_name(function_space)])
+        return StructureReference.create(
+            symbol, [self.ref_name(function_space)])
 
     def ref_name(self, function_space=None):
         '''

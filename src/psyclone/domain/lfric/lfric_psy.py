@@ -122,7 +122,7 @@ class LFRicPSy(PSy):
 
         # Now do the declarations/initialisation on the copied tree
         for invoke in self.invokes.invoke_list:
-            invoke.declare()
+            invoke.setup_psy_layer_symbols()
 
         # Use the PSyIR Fortran backend to generate Fortran code of the
         # supplied PSyIR tree.

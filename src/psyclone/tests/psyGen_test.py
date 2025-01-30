@@ -953,12 +953,21 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     schedule = psy.invokes.invoke_list[0].schedule
     call = schedule.kernels()[0]
     # args[5] is a scalar of data type gh_logical
+    assert call.arguments.args[5].intrinsic_type == 'logical'
     call._reduction_arg = call.arguments.args[5]
     with pytest.raises(GenerationError) as err:
         call.zero_reduction_variable()
     assert ("Kern.zero_reduction_variable() should be either a 'real' "
             "or an 'integer' scalar but found scalar of type 'logical'."
             in str(err.value))
+
+    # REALs and INTEGERs are fine
+    assert call.arguments.args[0].intrinsic_type == 'real'
+    call._reduction_arg = call.arguments.args[0]
+    call.zero_reduction_variable()
+    assert call.arguments.args[6].intrinsic_type == 'integer'
+    call._reduction_arg = call.arguments.args[6]
+    call.zero_reduction_variable()
 
 
 def test_reduction_sum_error(dist_mem):

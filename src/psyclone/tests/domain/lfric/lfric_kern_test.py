@@ -470,3 +470,16 @@ def test_undf_name():
     kern = sched.walk(LFRicKern)[0]
 
     assert kern.undf_name == "undf_w1"
+
+
+def test_argument_kinds():
+    ''' Test the LFRicKern.argument_kinds property. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    kern = sched.walk(LFRicKern)[0]
+
+    assert len(kern.argument_kinds) == 2
+    assert "i_def" in kern.argument_kinds
+    assert "r_def" in kern.argument_kinds

@@ -1346,7 +1346,7 @@ cbanded_map_adspc2_op_1
     integer(kind=i_def), intent(in) :: cma_op_2_gamma_p
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
-    integer(kind=i_def), dimension(cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d)\
+    real(kind=r_def), dimension(cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d)\
 , intent(in) :: cma_op_2
     integer(kind=i_def), intent(in) :: op_1_ncell_3d
     real(kind=r_def), dimension(op_1_ncell_3d,ndf_adspc1_op_1,ndf_adspc2_op_1)\
@@ -1403,7 +1403,7 @@ cbanded_map_aspc2_op_2
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
-    integer(kind=i_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
+    real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
 , intent(in) :: cma_op_3
     real(kind=r_def), dimension(undf_aspc1_field_1), intent(in) :: \
 field_1_aspc1_field_1
@@ -1458,7 +1458,7 @@ cbanded_map_aspc2_op_1
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
-    integer(kind=i_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
+    real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
 , intent(in) :: cma_op_3
     real(kind=r_def), dimension(undf_aspc1_op_1), intent(in) :: \
 field_2_aspc1_op_1
@@ -1519,7 +1519,7 @@ cma_indirection_map_aspc2_field_2
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
-    integer(kind=i_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow_1,\
+    real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow_1,\
 ncell_2d), intent(in) :: cma_op_3
     real(kind=r_def), dimension(undf_aspc1_field_1), intent(inout) :: \
 field_1_aspc1_field_1
@@ -1575,7 +1575,7 @@ cma_indirection_map_aspc2_field_1
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
-    integer(kind=i_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow_1,\
+    real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow_1,\
 ncell_2d), intent(in) :: cma_op_3
     real(kind=r_def), dimension(undf_aspc2_field_1), intent(inout) :: \
 field_1_aspc2_field_1
@@ -1637,11 +1637,11 @@ cma_op_3_gamma_p)
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
-    integer(kind=i_def), dimension(cma_op_1_bandwidth,cma_op_1_nrow,ncell_2d)\
+    real(kind=r_def), dimension(cma_op_1_bandwidth,cma_op_1_nrow,ncell_2d)\
 , intent(in) :: cma_op_1
-    integer(kind=i_def), dimension(cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d)\
+    real(kind=r_def), dimension(cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d)\
 , intent(in) :: cma_op_2
-    integer(kind=i_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
+    real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
 , intent(in) :: cma_op_3
     integer(kind=i_def) :: nlayers
     real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_1_cma_matrix \
@@ -1703,11 +1703,11 @@ cma_op_5_beta, cma_op_5_gamma_m, cma_op_5_gamma_p)
     integer(kind=i_def), intent(in) :: cma_op_5_gamma_p
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
-    integer(kind=i_def), dimension(cma_op_1_bandwidth,cma_op_1_nrow,ncell_2d)\
+    real(kind=r_def), dimension(cma_op_1_bandwidth,cma_op_1_nrow,ncell_2d)\
 , intent(in) :: cma_op_1
-    integer(kind=i_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
+    real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
 , intent(in) :: cma_op_3
-    integer(kind=i_def), dimension(cma_op_5_bandwidth,cma_op_5_nrow,ncell_2d)\
+    real(kind=r_def), dimension(cma_op_5_bandwidth,cma_op_5_nrow,ncell_2d)\
 , intent(in) :: cma_op_5
     real(kind=r_def), intent(in) :: rscalar_2
     real(kind=r_def), intent(in) :: rscalar_4

@@ -914,18 +914,18 @@ class GOLoop(PSyLoop):
                                       f" '{kernel.index_offset}' which does "
                                       f"not match '{index_offset}'.")
 
-    def gen_code(self, parent):
-        ''' Create the f2pygen AST for this loop (and update the PSyIR
-        representing the loop bounds if necessary).
+    # def gen_code(self, parent):
+    #     ''' Create the f2pygen AST for this loop (and update the PSyIR
+    #     representing the loop bounds if necessary).
 
-        :param parent: the node in the f2pygen AST to which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+    #     :param parent: the node in the f2pygen AST to which to add content.
+    #     :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
-        '''
-        # Check that it is a properly formed GOLoop
-        self._validate_loop()
+    #     '''
+    #     # Check that it is a properly formed GOLoop
+    #     self._validate_loop()
 
-        super().gen_code(parent)
+    #     super().gen_code(parent)
 
 
 # pylint: disable=too-few-public-methods

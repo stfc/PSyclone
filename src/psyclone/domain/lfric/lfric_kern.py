@@ -543,9 +543,8 @@ class LFRicKern(CodedKern):
                                 f"coloured loop.")
         if self.is_intergrid:
             ncols_sym = self._intergrid_ref.ncolours_var_symbol
-            if not ncols_sym:
-                return None
-            return ncols_sym.name
+            if ncols_sym is not None:
+                return ncols_sym.name
 
         return self.scope.symbol_table.lookup_with_tag("ncolour").name
 

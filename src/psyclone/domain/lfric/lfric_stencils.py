@@ -303,9 +303,7 @@ class LFRicStencils(LFRicCollection):
 
     def _declare_unique_extent_vars(self):
         '''
-        Declare all unique extent arguments as integers with intent 'in' and
-        add the declaration as a child of the parent argument passed
-        in.
+        Declare all unique extent arguments as integers with intent 'in'.
 
         '''
         if self._unique_extent_vars:
@@ -356,9 +354,7 @@ class LFRicStencils(LFRicCollection):
 
     def _declare_unique_direction_vars(self):
         '''
-        Declare all unique direction arguments as integers with intent 'in'
-        and add the declaration as a child of the parent argument
-        passed in.
+        Declare all unique direction arguments as integers with intent 'in'.
 
         '''
         for var in self._unique_direction_vars:

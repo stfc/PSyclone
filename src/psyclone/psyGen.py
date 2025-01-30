@@ -1035,13 +1035,19 @@ class Kern(Statement):
         reduction variable if one exists. The latter is used for reproducible
         reductions, if specified.
 
+        TODO #514: This is only used by LFRic, but should be generalised,
+        ideally in psyir.nodes.omp/acc_directives
+
         :raises GenerationError: if the variable to zero is not a scalar.
-        :raises GenerationError: if the reprod_pad_size (read from the \
-                                 configuration file) is less than 1.
-        :raises GenerationError: for a reduction into a scalar that is \
-                                 neither 'real' nor 'integer'.
+        :raises GenerationError: if the reprod_pad_size (read from the
+            configuration file) is less than 1.
+        :raises GenerationError: for a reduction into a scalar that is
+            neither 'real' nor 'integer'.
 
         '''
+        # pylint: disable-next=import-outside-toplevel
+        from psyclone.domain.common.psylayer import PSyLoop
+
         variable_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
         var_arg = self._reduction_arg
@@ -1053,10 +1059,8 @@ class Kern(Statement):
         # Generate the reduction variable
         var_data_type = var_arg.intrinsic_type
         if var_data_type == "real":
-            data_value = "0.0"
             data_type = REAL_TYPE
         elif var_data_type == "integer":
-            data_value = "0"
             data_type = INTEGER_TYPE
         else:
             raise GenerationError(
@@ -1064,13 +1068,12 @@ class Kern(Statement):
                 f"an 'integer' scalar but found scalar of type "
                 f"'{var_arg.intrinsic_type}'.")
         # Retrieve the precision information (if set) and append it
-        # to the initial reduction value
+        # to the reduction variable
         if var_arg.precision:
             kind_type = var_arg.precision
         else:
             kind_type = ""
         variable = self.scope.symbol_table.lookup(variable_name)
-        from psyclone.domain.common.psylayer import PSyLoop
         insert_loc = self.ancestor(PSyLoop)
         # If it has ancestor directive keep going up
         while isinstance(insert_loc.parent.parent, Directive):
@@ -1079,7 +1082,7 @@ class Kern(Statement):
         insert_loc = insert_loc.parent
         new_node = Assignment.create(
                         lhs=Reference(variable),
-                        rhs=Literal(data_value, data_type))
+                        rhs=Literal("0", data_type))
         insert_loc.addchild(new_node, cursor)
         cursor += 1
 
@@ -1107,7 +1110,7 @@ class Kern(Statement):
 
             assign = Assignment.create(
                 lhs=Reference(local_var),
-                rhs=Literal(data_value, data_type)
+                rhs=Literal("0", data_type)
             )
             insert_loc.addchild(assign, cursor)
         return new_node
@@ -1687,7 +1690,6 @@ class CodedKern(Kern):
                         sym._datatype = UnsupportedFortranType(
                             new_declaration,
                             partial_datatype=sym.datatype.partial_datatype)
-                        # pylint: enable=protected-access
                         break  # There is only one such statement per type
 
     @property

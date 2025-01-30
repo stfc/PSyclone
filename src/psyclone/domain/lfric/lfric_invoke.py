@@ -271,16 +271,11 @@ class LFRicInvoke(Invoke):
                 return field
         return None
 
-    def declare(self):
-        ''' Declare and initialise all symbols associated this Invoke.
-        Generates LFRic-specific invocation code (the subroutine
-        called by the associated Invoke call in the algorithm
-        layer). This consists of the PSy invocation subroutine and the
-        declaration of its arguments.
+    def setup_psy_layer_symbols(self):
+        ''' Declare, initialise and deallocate all symbols required by the
+        PSy-layer Invoke subroutine.
 
         '''
-        cursor = 0
-
         # Declare all quantities required by this PSy routine (Invoke)
         for entities in [self.scalar_args, self.fields, self.lma_ops,
                          self.stencil, self.meshes,
@@ -293,6 +288,7 @@ class LFRicInvoke(Invoke):
                          self.run_time_checks]:
             entities.invoke_declarations()
 
+        cursor = 0
         for entities in [self.proxies, self.run_time_checks,
                          self.cell_iterators, self.meshes,
                          self.stencil, self.dofmaps,
