@@ -523,6 +523,29 @@ def get_base_path(api):
                         "test_files", dir_name)
 
 
+def get_infrastructure_path(api: str) -> str:
+    '''
+    :returns: the location of the infrastructure source files for the
+              specified API/DSL.
+
+    :raises RuntimeError: if an invalid api is supplied.
+
+    '''
+    this_loc = os.path.dirname(os.path.abspath(__file__))
+    if api == "lfric":
+        return os.path.join(this_loc,
+                            "test_files", "dynamo0p3", "infrastructure")
+    elif api == "gocean":
+        root_dir = this_loc
+        for depth in range(3):
+            root_dir = os.path.dirname(root_dir)
+        return os.path.join(root_dir, "external", "dl_esm_inf",
+                            "finite_difference", "src")
+    else:
+        raise RuntimeError(f"The API '{api}' is not supported. "
+                           f"Supported values are 'lfric' and 'gocean'.")
+
+
 # =============================================================================
 def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
     '''
@@ -535,11 +558,11 @@ def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
                     or None if name is specified.
     :param str name: the name of the required invoke or None if an index
                      is supplied.
-    :param bool dist_mem: if the psy instance should be created with or \
+    :param bool dist_mem: if the psy instance should be created with or
                           without distributed memory support.
 
     :returns: (psy object, invoke object)
-    :rtype: Tuple[:py:class:`psyclone.psyGen.PSy`, \
+    :rtype: Tuple[:py:class:`psyclone.psyGen.PSy`,
                   :py:class:`psyclone.psyGen.Invoke`]
 
     :raises RuntimeError: if neither idx or name are supplied or if
@@ -552,7 +575,11 @@ def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
         raise RuntimeError("Either the index or the name of the "
                            "requested invoke must be specified")
 
-    Config.get().api = api
+    config = Config.get()
+    config.api = api
+    # Ensure infrastructure module files can be discovered.
+    config.include_paths.append(get_infrastructure_path(api))
+
     _, info = parse(os.path.join(get_base_path(api), algfile), api=api)
     psy = PSyFactory(api, distributed_memory=dist_mem).create(info)
     if name:
