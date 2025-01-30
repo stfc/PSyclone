@@ -250,7 +250,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
         contains
         subroutine compute_cv_code()
             real :: external_mod
-            real(kind=r_def) :: a
+            real :: a
             a = external_mod + 1
         end subroutine compute_cv_code
     end module my_mod
@@ -273,7 +273,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
         contains
         subroutine compute_cv_code()
             real :: external_mod
-            real(kind=r_def) :: a
+            real :: a
             a = external_mod + 1
         end subroutine compute_cv_code
     end module my_mod
@@ -295,7 +295,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
         contains
         subroutine compute_cv_code()
             use external_mod
-            real(kind=r_def) :: a
+            real :: a
             a = external_mod + 1
         end subroutine compute_cv_code
     end module my_mod
@@ -347,6 +347,11 @@ def test_validate_fail_to_get_psyir(fortran_reader):
     PSyIR for the called routine cannot be found.
 
     '''
+    config = Config.get()
+    # ARPDBG - fix for python 3.8.20 where it seems that the fixture to clean
+    # the Config singleton isn't working correctly.
+    config.include_paths = []
+    # ARPDBG - end fix.
     intrans = KernelModuleInlineTrans()
     code = '''\
     module a_mod
