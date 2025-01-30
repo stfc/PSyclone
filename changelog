@@ -47,6 +47,9 @@
 	16) PR #2857 for 2854. Excludes character assignments from ACC KERNELS
 	regions to avoid issues in NEMO.
 
+	17) PR #2829 for #2826. Adds a --config command-line argument to the
+	PSyAD script (to replicate that for psyclone).
+
 release 3.0.0 6th of December 2024
 
 	1) PR #2477 for #2463. Add support for Fortran Namelist statements.
