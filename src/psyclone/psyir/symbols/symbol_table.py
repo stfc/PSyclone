@@ -46,7 +46,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 import inspect
 import copy
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Set, Union
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -615,8 +615,8 @@ class SymbolTable():
                 f"Iterable but got '{type(symbols_to_skip).__name__}'")
 
         # Check whether there are any wildcard imports common to both tables.
-        self_imports = self.wildcard_imports()
-        other_imports = other_table.wildcard_imports()
+        self_imports = set(sym.name for sym in self.wildcard_imports())
+        other_imports = set(sym.name for sym in other_table.wildcard_imports())
         shared_wildcard_imports = self_imports & other_imports
         # Any wildcard imports that appear in one table but not in the other.
         unique_wildcard_imports = self_imports ^ other_imports
@@ -1595,7 +1595,7 @@ class SymbolTable():
         :param container_symbols: list of container symbols to search in
             order to resolve imported symbols. Defaults to all container
             symbols in the symbol table.
-        :type container_symbols: list[
+        :type container_symbols: Iterable[
             :py:class:`psyclone.psyir.symbols.ContainerSymbol`]
         :param symbol_target: If a symbol is given, this method will just
             resolve information for the given symbol. Otherwise it will
@@ -1605,24 +1605,25 @@ class SymbolTable():
 
         :raises SymbolError: if a symbol name clash is found between multiple
             imports or an import and a local symbol.
-        :raises TypeError: if the provided container_symbols is not a list of
-            ContainerSymbols.
+        :raises TypeError: if the provided container_symbols is not an Iterable
+            of ContainerSymbols.
         :raises TypeError: if the provided symbol_target is not a Symbol.
         :raises KeyError: if a symbol_target has been specified but this has
             not been found in any of the searched containers.
 
         '''
         if container_symbols is not None:
-            if not isinstance(container_symbols, list):
+            if not isinstance(container_symbols, Iterable):
                 raise TypeError(
-                    f"The resolve_imports container_symbols argument must be a"
-                    f" list but found '{type(container_symbols).__name__}' "
-                    f"instead.")
+                    f"The 'container_symbols' argument to resolve_imports() "
+                    f"must be an Iterable but found "
+                    f"'{type(container_symbols).__name__}' instead.")
             for item in container_symbols:
                 if not isinstance(item, ContainerSymbol):
                     raise TypeError(
-                        f"The resolve_imports container_symbols argument list "
-                        f"elements must be ContainerSymbols, but found a "
+                        f"The 'container_symbols' argument to "
+                        f"resolve_imports() must be an Iterable containing "
+                        f"ContainerSymbols, but found a "
                         f"'{type(item).__name__}' instead.")
         else:
             # If no container_symbol is given, search in all the containers
@@ -1884,24 +1885,23 @@ class SymbolTable():
         # Re-insert modified symbol
         self.add(symbol)
 
-    def wildcard_imports(self):
+    def wildcard_imports(self) -> List[ContainerSymbol]:
         '''
         Searches this symbol table and then up through any parent symbol
-        tables for a ContainerSymbol that has a wildcard import.
+        tables for ContainerSymbols that have a wildcard import.
 
-        :returns: the name(s) of containers which have wildcard imports
+        :returns: the ContainerSymbols which have wildcard imports
             into the current scope.
-        :rtype: set[str]
 
         '''
-        wildcards = set()
+        wildcards = {}
         current_table = self
         while current_table:
             for sym in current_table.containersymbols:
-                if sym.wildcard_import:
-                    wildcards.add(sym.name)
+                if sym.wildcard_import and sym.name.lower() not in wildcards:
+                    wildcards[sym.name.lower()] = sym
             current_table = current_table.parent_symbol_table()
-        return wildcards
+        return list(wildcards.values())
 
     def view(self):
         '''
