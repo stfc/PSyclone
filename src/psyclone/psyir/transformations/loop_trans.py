@@ -64,7 +64,8 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
 
     def apply(self, node, options=None, node_type_check: bool = True,
               verbose: bool = False, **kwargs):
-        pass
+        super().apply(node, options=options, node_type_check=node_type_check,
+                      verbose=verbose, **kwargs)
 
     def validate(self, node, options=None, **kwargs):
         '''Checks that the supplied node is a valid target for a loop

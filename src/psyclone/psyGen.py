@@ -2796,7 +2796,9 @@ class Transformation(metaclass=abc.ABCMeta):
         the option'''
         valid_options = type(self).get_valid_options()
         if option_name not in valid_options.keys():
-            raise TypeError("TODO Error message")
+            raise ValueError(f"'{type(self).__name__}' failed to get option "
+                             f"'{option_name}' as it is not provided as a "
+                             f"keyword argument to the apply method.")
         return kwargs.get(option_name, valid_options[option_name]['default'])
 
     @classmethod
