@@ -72,7 +72,7 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
         :param node_type_check: If the type of nodes enclosed in the loop
                                 should be tested to avoid including
                                 unsupported nodes in the transformation.
-        :param verbose: whether to log the reason the validation failed, at 
+        :param verbose: whether to log the reason the validation failed, at
                         the moment with a comment in the provided PSyIR node.
         '''
         super().apply(node, options=options, node_type_check=node_type_check,

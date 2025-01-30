@@ -37,6 +37,7 @@
 
 import sys
 import re
+from psyclone.errors import InternalError
 
 
 def within_virtual_env():
@@ -69,6 +70,7 @@ def a_or_an(string):
         return "an"
     return "a"
 
+
 def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
     def get_inherited_parameters(cls):
         docs = cls.apply.__doc__
@@ -79,15 +81,15 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
             parent_lines = []
         added_docs = ""
         for x, line in enumerate(parent_lines):
-            if(":param" in line):
+            if ":param" in line:
                 param_str = re.search(":[a-zA-Z0-9\\s]*:", line)
-                if( param_str is None or param_str.group() in docs):
+                if param_str is None or param_str.group() in docs:
                     continue
                 added_docs += "\n" + line
                 z = x+1
                 type_found = False
-                while(z < len(parent_lines)):
-                    if(":param" in parent_lines[z]
+                while z < len(parent_lines):
+                    if (":param" in parent_lines[z]
                        or ":raises" in parent_lines[z]):
                         # If we didn't find the :type: docstring,
                         # we need to create it to inherit the docstring
@@ -115,11 +117,11 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                                     f"for class '{cls.__name__}' as the "
                                     f"'{param_name}' arg has no known type."
                                 )
-                            type_doc = f"        "
+                            type_doc = "        "
                             type_doc += f":type {param_name}: {type_string}"
-                            added_docs += "\n"+ type_doc
+                            added_docs += "\n" + type_doc
                         break
-                    if(":type" in parent_lines[z]):
+                    if ":type" in parent_lines[z]:
                         type_found = True
                     if not parent_lines[z].isspace():
                         added_docs += "\n" + parent_lines[z]
@@ -148,9 +150,9 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                                 f"for class '{cls.__name__}' as the "
                                 f"'{param_name}' arg has no known type."
                             )
-                        type_doc = f"        "
+                        type_doc = "        "
                         type_doc += f":type {param_name}: {type_string}"
-                        added_docs += "\n"+ type_doc
+                        added_docs += "\n" + type_doc
         return added_docs
 
     def update_apply(cls, added_parameters):
@@ -161,7 +163,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
             if ":param" in line or ":type" in line:
                 last_instance = i
                 x = i+1
-                while(x < len(doc_lines)):
+                while x < len(doc_lines):
                     if not (":param" in line or ":type" in line or
                             ":raise" in line):
                         # This is part of the previous section.
@@ -179,7 +181,6 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
             new_docs += doc_lines[i] + "\n"
 
         cls.apply.__doc__ = new_docs
-        
 
     def wrapper():
         if inherit:
