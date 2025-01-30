@@ -226,7 +226,9 @@ class OMPLoopTrans(ParallelLoopTrans):
             node.reprod = self._reprod
         return node
 
-    def apply(self, node, options=None, **kwargs):
+    def apply(self, node, options=None,
+              reprod: bool = Config.get().reproducible_reductions,
+              **kwargs):
         '''Apply the OMPLoopTrans transformation to the specified PSyIR Loop.
 
         :param node: the supplied node to which we will apply the \
@@ -241,9 +243,13 @@ class OMPLoopTrans(ParallelLoopTrans):
 
         '''
         if not options:
-            options = {}
-        self._reprod = options.get("reprod",
-                                   Config.get().reproducible_reductions)
+             self.validate_options(
+                    reprod=reprod, **kwargs
+            )
+             self._reprod = reprod
+        else:
+            self._reprod = options.get("reprod",
+                                       Config.get().reproducible_reductions)
 
         if self._reprod:
             # When reprod is True, the variables th_idx and nthreads are
@@ -264,4 +270,4 @@ class OMPLoopTrans(ParallelLoopTrans):
                     "nthreads", tag="omp_num_threads",
                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
 
-        super().apply(node, options)
+        super().apply(node, options, **kwargs)

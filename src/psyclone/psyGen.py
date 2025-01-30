@@ -2872,23 +2872,22 @@ class Transformation(metaclass=abc.ABCMeta):
         if len(invalid_options) > 0:
             invalid_options_detail = []
             for invalid in invalid_options:
-                invalid_options_detail.append(f"{invalid}")
+                invalid_options_detail.append(f"'{invalid}'")
             invalid_options_list = ", ".join(invalid_options_detail)
-            raise ValueError(f"{type(self).__name__} received invalid "
+            raise ValueError(f"'{type(self).__name__}' received invalid "
                              f"options [{invalid_options_list}]. Please see "
                              f"the documentation and check the available "
                              f"options.")
         if len(wrong_types.keys()) > 0:
             wrong_types_detail = []
-            print(wrong_types)
             for name in wrong_types.keys():
                 wrong_types_detail.append(
-                        f"{name} option expects type "
-                        f"{valid_options[name]['type']} but received "
-                        f"{kwargs[name]} of type {wrong_types[name]}.")
+                        f"'{name}' option expects type "
+                        f"'{valid_options[name]['typename']}' but received "
+                        f"'{kwargs[name]}' of type '{wrong_types[name]}'.")
             wrong_types_list = "\n".join(wrong_types_detail)
-            raise TypeError(f"{type(self).__name__} received options with "
-                            f"the wrong types:\n {wrong_types_list}\n. "
+            raise TypeError(f"'{type(self).__name__}' received options with "
+                            f"the wrong types:\n{wrong_types_list}\n"
                             f"Please see the documentation and check the "
                             f"provided types.")
 

@@ -158,19 +158,18 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         # Check that the supplied node is a Loop and does not contain any
         # unsupported nodes.
         super().validate(node, options=options, **kwargs)
-
         if not options:
             self.validate_options(**kwargs)
-            verbose = self.get_option("verbose")
-            collapse = self.get_option("collapse")
-            force = self.get_option("force")
+            verbose = self.get_option("verbose", **kwargs)
+            collapse = self.get_option("collapse", **kwargs)
+            force = self.get_option("force", **kwargs)
             ignore_dependencies_for = self.get_option(
-                    "ignore_dependencies_for"
+                    "ignore_dependencies_for", **kwargs
             )
             if ignore_dependencies_for is None:
                 ignore_dependencies_for = []
-            sequential = self.get_option("sequential")
-            privatise_arrays = self.get_option("privatise_arrays")
+            sequential = self.get_option("sequential", **kwargs)
+            privatise_arrays = self.get_option("privatise_arrays", **kwargs)
         else:
             verbose = options.get("verbose", False)
             collapse = options.get("collapse", False)
@@ -287,7 +286,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 raise TransformationError(messages)
 
     def apply(self, node, options=None, verbose: bool = False,
-              collapse: bool = False, force: bool = False,
+              collapse: Union[int,bool] = False, force: bool = False,
               ignore_dependencies_for: Union[None, List[str]] = None,
               privatise_arrays: bool = False, sequential: bool = False,
               **kwargs):

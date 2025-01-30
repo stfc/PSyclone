@@ -104,8 +104,8 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
 
         if not options:
             self.validate_options(**kwargs)
-            verbose = self.get_option("verbose")
-            node_type_check = self.get_option("node_type_check")
+            verbose = self.get_option("verbose", **kwargs)
+            node_type_check = self.get_option("node_type_check", **kwargs)
         else:
             if not isinstance(options, dict):
                 raise TransformationError(
