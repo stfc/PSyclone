@@ -85,44 +85,44 @@ def test_kernel_stub_invalid_iteration_space():
             "'testkern_dofs_code'." in str(excinfo.value))
 
 
-def test_stub_generate_with_anyw2():
+def test_stub_generate_with_anyw2(fortran_writer):
     '''check that the stub generate produces the expected output when we
     have any_w2 fields. In particular, check basis functions as these
     have specific sizes associated with the particular function space'''
-    result = generate(os.path.join(BASE_PATH,
-                                   "testkern_multi_anyw2_basis_mod.f90"),
-                      api=TEST_API)
-    expected_output = (
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_any_w2,"
-        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_any_w2_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_any_w2,"
-        "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_any_w2_qr_xyoz")
-    assert expected_output in str(result)
+    psyir = generate(os.path.join(BASE_PATH,
+                                  "testkern_multi_anyw2_basis_mod.f90"),
+                     api=TEST_API)
+    result = fortran_writer(psyir)
+
+    assert ("real(kind=r_def), dimension(3_i_def,ndf_any_w2,np_xy_qr_xyoz,"
+            "np_z_qr_xyoz), intent(in) :: basis_any_w2_qr_xyoz\n" in result)
+    assert ("real(kind=r_def), dimension(1_i_def,ndf_any_w2,np_xy_qr_xyoz,"
+            "np_z_qr_xyoz), intent(in) :: diff_basis_any_w2_qr_xyoz" in result)
 
 
-SIMPLE = (
-    "  MODULE simple_mod\n"
-    "    IMPLICIT NONE\n"
-    "    CONTAINS\n"
-    "    SUBROUTINE simple_code(nlayers, field_1_w1, ndf_w1, undf_w1,"
-    " map_w1)\n"
-    "      USE constants_mod\n"
-    "      IMPLICIT NONE\n"
-    "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-    "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
-    "      INTEGER(KIND=i_def), intent(in) :: undf_w1\n"
-    "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
-    "field_1_w1\n"
-    "    END SUBROUTINE simple_code\n"
-    "  END MODULE simple_mod")
+SIMPLE = [
+    "module simple_mod",
+    "implicit none",
+    "contains",
+    "subroutine simple_code(nlayers, rfield_1_w1, ndf_w1, undf_w1, dofmap_w1)",
+    "use constants_mod",
+    "implicit none",
+    "integer(kind=i_def), intent(in) :: nlayers",
+    "integer(kind=i_def), intent(in) :: ndf_w1",
+    "integer(kind=i_def), dimension(ndf_w1), intent(in) :: dofmap_w1",
+    "integer(kind=i_def), intent(in) :: undf_w1",
+    "real(kind=r_def), dimension(undf_w1), intent(inout) :: rfield_1_w1",
+    "end subroutine simple_code",
+    "end module simple_mod"]
 
 
-def test_stub_generate_working():
+def test_stub_generate_working(fortran_writer):
     ''' Check that the stub generate produces the expected output '''
     result = generate(os.path.join(BASE_PATH, "testkern_simple_mod.f90"),
                       api=TEST_API)
-    assert SIMPLE in str(result)
+    out = fortran_writer(result)
+    for line in SIMPLE:
+        assert line in out
 
 
 # Fields : intent
