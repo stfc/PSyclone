@@ -46,7 +46,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 import inspect
 import copy
-from typing import Any, List, Optional, Set, Union
+from typing import Any, List, Optional, Union
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError

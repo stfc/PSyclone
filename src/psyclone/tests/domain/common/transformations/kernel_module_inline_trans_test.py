@@ -347,9 +347,9 @@ def test_validate_fail_to_get_psyir(fortran_reader):
     PSyIR for the called routine cannot be found.
 
     '''
-    config = Config.get()
     # ARPDBG - fix for python 3.8.20 where it seems that the fixture to clean
     # the Config singleton isn't working correctly.
+    config = Config.get()
     config.include_paths = []
     # ARPDBG - end fix.
     intrans = KernelModuleInlineTrans()
