@@ -217,7 +217,7 @@ class KernelModuleInlineTrans(Transformation):
                         if symbol.is_unresolved:
                             raise KeyError(
                                 f"Failed to resolve the type of Symbol "
-                                f"'{sym.name}'")
+                                f"'{symbol.name}'")
                     except KeyError as err:
                         raise TransformationError(
                             f"{kern_or_call} '{kname}' contains accesses to "

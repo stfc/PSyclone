@@ -94,7 +94,6 @@ def test_kernelimportstoargumentstrans_no_wildcard_import():
     ''' Check that the transformation rejects kernels with wildcard
     imports. '''
     trans = KernelImportsToArguments()
-    path = os.path.join(BASEPATH, "gocean1p0")
     psy, invoke_info = get_invoke(
         "single_invoke_kern_with_unqualified_use.f90", idx=0, api=API)
     kernel = invoke_info.schedule.coded_kernels()[0]
