@@ -85,7 +85,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                 param_str = re.search(":[a-zA-Z0-9\\s]*:", line)
                 if param_str is None or param_str.group() in docs:
                     continue
-                added_docs += "\n" + line
+                added_docs += line + "\n"
                 z = x+1
                 type_found = False
                 while z < len(parent_lines):
@@ -119,12 +119,12 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                                 )
                             type_doc = "        "
                             type_doc += f":type {param_name}: {type_string}"
-                            added_docs += "\n" + type_doc
+                            added_docs += type_doc + "\n"
                         break
                     if ":type" in parent_lines[z]:
                         type_found = True
                     if not parent_lines[z].isspace():
-                        added_docs += "\n" + parent_lines[z]
+                        added_docs += parent_lines[z] + "\n"
                     z = z + 1
                 else:
                     # If we don't break out of the loop we still need to check
@@ -152,7 +152,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                             )
                         type_doc = "        "
                         type_doc += f":type {param_name}: {type_string}"
-                        added_docs += "\n" + type_doc
+                        added_docs += type_doc + "\n"
         return added_docs
 
     def update_apply(cls, added_parameters):
@@ -164,6 +164,8 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                 last_instance = i
                 x = i+1
                 while x < len(doc_lines):
+                    if(doc_lines[x].isspace()):
+                        break
                     if not (":param" in doc_lines[x] or ":type" in
                             doc_lines[x] or ":raise" in doc_lines[x]):
                         # This is part of the previous section.
@@ -174,14 +176,12 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         new_docs = ""
         for i in range(last_instance+1):
             new_docs += doc_lines[i] + "\n"
-
+        # Remove any trailing whitespace, then add a newline
+        new_docs = new_docs.rstrip() + "\n"
         new_docs += added_parameters + "\n"
 
         for i in range(last_instance+1, len(doc_lines)):
             new_docs += doc_lines[i] + "\n"
-
-        # Add a blank line at the end of the docs to avoid a warning.
-        new_docs += "\n"
 
         cls.apply.__doc__ = new_docs
 
