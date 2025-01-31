@@ -43,7 +43,6 @@ from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003, C99Preprocessor
 from fparser.two.utils import walk
 
-from psyclone.configuration import Config
 from psyclone.errors import GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
@@ -116,7 +115,7 @@ def test_include_exec_part_abort(parser, routine_type, config_instance):
     # Check that any include path is correctly reported in the error message.
     # Cannot use the setter for include_paths here as that checks the paths
     # for validity.
-    config_instance._include_paths =  ["/road/to", "/nowhere"]
+    config_instance._include_paths = ["/road/to", "/nowhere"]
     with pytest.raises(GenerationError) as err:
         processor.generate_psyir(prog)
     assert ("This file must be made available by specifying its location with "
