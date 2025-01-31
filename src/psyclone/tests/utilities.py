@@ -36,12 +36,13 @@
 
 ''' Test utilities including support for testing that code compiles. '''
 
-import difflib
 from contextlib import contextmanager
+import difflib
 import os
 from pprint import pprint
 import subprocess
 import sys
+from typing import Tuple
 
 import pytest
 
@@ -49,7 +50,7 @@ from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import Invoke, PSyFactory, PSy
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import ScopingNode
 
@@ -547,23 +548,22 @@ def get_infrastructure_path(api: str) -> str:
 
 
 # =============================================================================
-def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
+def get_invoke(algfile: str, api: str, idx: int = None, name: str = None,
+               dist_mem: bool = None) -> Tuple[PSy, Invoke]:
     '''
     Utility method to get the idx'th or named invoke from the algorithm
     in the specified file.
 
-    :param str algfile: name of the Algorithm source file (Fortran).
-    :param str api: which PSyclone API this Algorithm uses.
-    :param int idx: the index of the invoke from the Algorithm to return
-                    or None if name is specified.
-    :param str name: the name of the required invoke or None if an index
-                     is supplied.
-    :param bool dist_mem: if the psy instance should be created with or
-                          without distributed memory support.
+    :param algfile: name of the Algorithm source file (Fortran).
+    :param api: which PSyclone API this Algorithm uses.
+    :param idx: the index of the invoke from the Algorithm to return
+                or None if name is specified.
+    :param name: the name of the required invoke or None if an index
+                 is supplied.
+    :param dist_mem: if the psy instance should be created with or
+                     without distributed memory support.
 
     :returns: (psy object, invoke object)
-    :rtype: Tuple[:py:class:`psyclone.psyGen.PSy`,
-                  :py:class:`psyclone.psyGen.Invoke`]
 
     :raises RuntimeError: if neither idx or name are supplied or if
                           both are supplied
