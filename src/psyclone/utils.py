@@ -164,8 +164,8 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                 last_instance = i
                 x = i+1
                 while x < len(doc_lines):
-                    if not (":param" in line or ":type" in line or
-                            ":raise" in line):
+                    if not (":param" in doc_lines[x] or ":type" in
+                            doc_lines[x] or ":raise" in doc_lines[x]):
                         # This is part of the previous section.
                         last_instance = x
                         x = x + 1
