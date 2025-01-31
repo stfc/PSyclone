@@ -365,6 +365,11 @@ class Compile():
                 for symbol in scope.symbol_table.containersymbols:
                     modules.add(symbol.name)
 
+        # Then also get all the CodedKernels used in all Invokes
+        for invoke in psy_ast.invokes.invoke_list:
+            for kernelcall in invoke.schedule.coded_kernels():
+                modules.add(kernelcall.module_name)
+
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
         with change_dir(self._tmpdir):
@@ -377,10 +382,10 @@ class Compile():
                 code = str(psy_ast.gen)
                 psy_file.write(fll.process(code))
 
-            # Not everything is captured by PSyIR as Symbols (e.g. PSyKAl
-            # coded kernels), in these cases we still need to import the
-            # kernel modules used in these PSy-layers, but we know they
-            # follow the '_mod' naming convention.
+            # Not everything is captured by PSyIR as Symbols (e.g. multiple
+            # versions of coded kernels), in these cases we still need to
+            # import the kernel modules used in these PSy-layers, but we know
+            # they follow the '_mod' naming convention.
             for name in code.split():
                 if name.endswith(('_mod', '_mod,')):
                     # Delete the , if the case of 'use name, only ...'

@@ -177,12 +177,6 @@ class GOInvoke(Invoke):
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
 
-    def setup_psy_layer_symbols(self):
-        ''' Declare, initialise and deallocate all symbols required by the
-        PSy-layer Invoke subroutine.
-
-        '''
-
 
 class GOInvokeSchedule(InvokeSchedule):
     ''' The GOcean specific InvokeSchedule sub-class. We call the base class

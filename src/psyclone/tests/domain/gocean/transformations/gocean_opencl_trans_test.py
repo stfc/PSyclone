@@ -1084,8 +1084,7 @@ in_fld, dx, dx_1, gphiu, xstart, xstop, ystart, ystop)
     # import a module which won't be found on kernel_outputdir
 
 
-@pytest.mark.usefixtures("kernel_outputdir")
-def test_set_kern_float_arg():
+def test_set_kern_float_arg(kernel_outputdir):
     ''' Check that we generate correct code to set a real, scalar kernel
     argument. '''
     psy, _ = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
@@ -1140,12 +1139,7 @@ tmask, xstart, xstop_1, ystart, ystop)
   end subroutine bc_ssh_code_set_args'''
 
     assert expected in generated_code
-    # The generated code of this test cannot be compiled due the duplication
-    # of the xstop symbol in the argument list. This happens because the first
-    # instance of the symbol is not declared in the symbol table. Issue #798
-    # should fix this problem. This is not essential for the purpose of this
-    # test that just checks that a_scalar argument is generated appropriately
-    # assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_set_arg_const_scalar():

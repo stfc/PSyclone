@@ -468,6 +468,18 @@ class Invoke():
         '''
         return self._invokes
 
+    def setup_psy_layer_symbols(self):
+        ''' Declare, initialise and deallocate all symbols required by the
+        PSy-layer Invoke subroutine.
+
+        By default does nothing - PSyKAL DSLs can specialise this method.
+
+        Currently this is done at "lowering", but we could move it to psy-layer
+        creation time to have the symbols available in the transformation
+        scripts.
+
+        '''
+
     @property
     def name(self):
         return self._name
