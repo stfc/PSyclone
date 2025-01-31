@@ -39,6 +39,7 @@
 ''' Perform py.test tests on the psyclone.psyir.symbols.datatype module. '''
 
 import pytest
+from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     BinaryOperation, Container, KernelSchedule,
@@ -306,10 +307,13 @@ def test_scalartype_replace_symbols():
 
 def test_arraytype_extent():
     '''Test the ArrayType.Extent class. This is just an enum with a
-    copy() method. '''
+    copy() method and an empty reference_accesses() method. '''
     xtent = ArrayType.Extent.ATTRIBUTE
     ytent = xtent.copy()
     assert isinstance(ytent, ArrayType.Extent)
+    vai = VariablesAccessInfo()
+    ytent.reference_accesses(vai)
+    assert not vai.all_signatures
 
 
 def test_arraytype():
@@ -848,6 +852,7 @@ def test_unsupported_fortran_type_copy(fortran_reader):
     stype = routine.symbol_table.lookup("some_type")
     assert vtype.partial_datatype.intrinsic is stype
     assert cpytype.partial_datatype.intrinsic is stype
+    assert vtype.intrinsic is stype
     # Repeat check when array lower bound is also a Reference.
     var2 = routine.symbol_table.lookup("var2")
     v2type = var2.datatype
