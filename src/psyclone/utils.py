@@ -183,6 +183,8 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         for i in range(last_instance+1, len(doc_lines)):
             new_docs += doc_lines[i] + "\n"
 
+        # Remove any trailing whitespace, then add a newline
+        new_docs = new_docs.rstrip() + "\n"
         cls.apply.__doc__ = new_docs
 
     def wrapper():
