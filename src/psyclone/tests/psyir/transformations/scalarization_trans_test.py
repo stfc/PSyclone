@@ -42,21 +42,27 @@ from psyclone.tests.utilities import Compile
 
 
 def test_scalararizationtrans_is_local_array(fortran_reader):
-    code = '''subroutine test(a)
-       use mymod, only: arr
+    code = '''function test(a) result(x)
+       use mymod, only: arr, atype
        integer :: i
        integer :: k
        real, dimension(1:100) :: local
        real, dimension(1:100) :: a
        character(2), dimension(1:100) :: b
+       real, dimension(1:100) :: x
+       type(atype) :: custom
+       type(atype), dimension(1:100) :: custom2
 
        do i = 1, 100
           arr(i) = i
           a(i) = i
           local(i) = i
           b(i) = b(i) // "c"
+          x(i) = i
+          custom%type(i) = i
+          custom2(i)%typeb(i) = i
        end do
-       end subroutine'''
+       end function'''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
     var_accesses = VariablesAccessInfo(nodes=node.loop_body)
@@ -80,6 +86,20 @@ def test_scalararizationtrans_is_local_array(fortran_reader):
     # CodeBlock anyway.
     assert var_accesses[keys[4]].var_name == "b"
     assert not ScalarizationTrans._is_local_array(keys[4],
+                                                  var_accesses)
+
+    # Test x - the return value is not classed as a local array.
+    assert var_accesses[keys[5]].var_name == "x"
+    assert not ScalarizationTrans._is_local_array(keys[5],
+                                                  var_accesses)
+
+    # Test custom - we don't scalarize derived types.
+    assert var_accesses[keys[6]].var_name == "custom%type"
+    assert not ScalarizationTrans._is_local_array(keys[6],
+                                                  var_accesses)
+    # Test custom2 - we don't scalarize derived types.
+    assert var_accesses[keys[7]].var_name == "custom2%typeb"
+    assert not ScalarizationTrans._is_local_array(keys[7],
                                                   var_accesses)
 
     # Test filter behaviour same as used in the transformation

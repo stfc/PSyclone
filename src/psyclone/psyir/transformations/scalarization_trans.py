@@ -40,9 +40,9 @@ from typing import Optional, Dict, Any
 
 from psyclone.core import VariablesAccessInfo, Signature
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Call, CodeBlock,  \
-        Loop, Reference, Routine
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol
+from psyclone.psyir.nodes import Call, CodeBlock, \
+        Loop, Reference, Routine, StructureReference
+from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol, RoutineSymbol
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 
 
@@ -116,6 +116,16 @@ class ScalarizationTrans(LoopTrans):
                 return False
         base_symbol = var_accesses[signature].all_accesses[0].node.symbol
         if not base_symbol.is_automatic:
+            return False
+        # If its a derived type then we don't scalarize.
+        if isinstance(var_accesses[signature].all_accesses[0].node,
+                      StructureReference):
+            return False
+        # Find the containing routine
+        rout = var_accesses[signature].all_accesses[0].node.ancestor(Routine)
+        # If the array is the return symbol then its not a local
+        # array symbol
+        if base_symbol is rout.return_symbol:
             return False
 
         return True
