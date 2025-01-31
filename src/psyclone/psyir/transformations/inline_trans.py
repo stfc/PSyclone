@@ -46,8 +46,8 @@ from psyclone.psyir.nodes import (
     StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
-    ArgumentInterface, ArrayType, UnresolvedType, INTEGER_TYPE,
-    StaticInterface, SymbolError, UnknownInterface, UnsupportedType)
+    ArrayType, UnresolvedType, INTEGER_TYPE,
+    SymbolError, UnknownInterface, UnsupportedType)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
@@ -680,17 +680,17 @@ class InlineTrans(Transformation):
 
         for scope in routine.walk(ScopingNode):
             routine_table = scope.symbol_table
-            for sym in routine_table.datasymbols:
+            for sym in routine_table.symbols:
                 # We don't inline symbols that have an UnsupportedType and are
                 # arguments since we don't know if a simple assignment if
                 # enough (e.g. pointers)
-                if isinstance(sym.interface, ArgumentInterface):
-                    if isinstance(sym.datatype, UnsupportedType):
-                        raise TransformationError(
-                            f"Routine '{routine.name}' cannot be inlined "
-                            f"because it contains a Symbol '{sym.name}' which "
-                            f"is an Argument of UnsupportedType: "
-                            f"'{sym.datatype.declaration}'")
+                if sym.is_argument and isinstance(sym.datatype,
+                                                  UnsupportedType):
+                    raise TransformationError(
+                        f"Routine '{routine.name}' cannot be inlined "
+                        f"because it contains a Symbol '{sym.name}' which "
+                        f"is an Argument of UnsupportedType: "
+                        f"'{sym.datatype.declaration}'")
                 # We don't inline symbols that have an UnknownInterface, as we
                 # don't know how they are brought into this scope.
                 if isinstance(sym.interface, UnknownInterface):
@@ -704,44 +704,18 @@ class InlineTrans(Transformation):
                 # Check that there are no static variables in the routine
                 # (because we don't know whether the routine is called from
                 # other places).
-                if (isinstance(sym.interface, StaticInterface) and
-                        not sym.is_constant):
+                if sym.is_static and not sym.is_constant:
                     raise TransformationError(
                         f"Routine '{routine.name}' cannot be inlined because "
                         f"it has a static (Fortran SAVE) interface for Symbol "
                         f"'{sym.name}'.")
-
-        # We can't handle a clash between (apparently) different symbols that
-        # share a name but are imported from different containers.
-        routine_arg_list = routine.symbol_table.argument_list[:]
-        for scope in routine.walk(ScopingNode):
-            routine_table = scope.symbol_table
-            for scope in parent_routine.walk(ScopingNode):
-                table = scope.symbol_table
-                try:
-                    table.check_for_clashes(
-                        routine_table,
-                        symbols_to_skip=routine_arg_list)
-                except SymbolError as err:
-                    raise TransformationError(
-                        f"One or more symbols from routine '{routine.name}' "
-                        f"cannot be added to the table at the call site. "
-                        f"Error was: {err}") from err
 
         # Check for unresolved symbols or for any accessed from the Container
         # containing the target routine.
         # TODO refactor this functionality
         from psyclone.domain.common.transformations import (
             KernelModuleInlineTrans)
-        KernelModuleInlineTrans.check_data_accesses(node, routine,
-                                                    routine.name,
-                                                    "routine")
-        # TODO #1792 - kind parameters will not be found by simply doing
-        # `walk(Reference)`. Although SymbolTable has the
-        # `precision_datasymbols` property, this only returns those Symbols
-        # that are used to define the precision of other Symbols in the same
-        # table. If a precision symbol is only used within Statements then we
-        # don't currently capture the fact that it is a precision symbol.
+        KernelModuleInlineTrans.check_data_accesses(node, routine, "routine")
 
         # Check that the shapes of any formal array arguments are the same as
         # those at the call site.

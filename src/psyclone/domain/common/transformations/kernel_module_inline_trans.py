@@ -42,6 +42,7 @@ TODO #2683 - rename this to {Privatise,Copy,Move}RoutineToLocalContainerTrans
 and move it to psyir/transformations/.
 
 '''
+from typing import Union
 
 from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError
@@ -49,10 +50,10 @@ from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
-    ImportInterface, RoutineSymbol, Symbol)
+    ImportInterface, RoutineSymbol, Symbol, SymbolError)
 from psyclone.psyir.nodes import (
-    Container, Reference, Routine, ScopingNode,
-    Literal, CodeBlock, Call, IntrinsicCall)
+    Call, Container, Reference, Routine, ScopingNode,
+    Literal, CodeBlock, IntrinsicCall)
 
 
 class KernelModuleInlineTrans(Transformation):
@@ -156,7 +157,7 @@ class KernelModuleInlineTrans(Transformation):
         # We do not support kernels that use symbols representing data
         # declared in their own parent module (we would need to add new imports
         # from this module at the call site, and we don't do this yet).
-        self.check_data_accesses(node, kernel_schedule, kname, kern_or_call)
+        self.check_data_accesses(node, kernel_schedule, kern_or_call)
 
         # We can't transform subroutines that shadow top-level symbol module
         # names, because we won't be able to bring this into the subroutine
@@ -184,22 +185,37 @@ class KernelModuleInlineTrans(Transformation):
                 f"subroutines is not supported yet.")
 
     @staticmethod
-    def check_data_accesses(call, kernel_schedule, kname, kern_or_call):
+    def check_data_accesses(call: Union[CodedKern, Call],
+                            schedule: Routine,
+                            kern_or_call: str):
         '''
         Check for unresolved symbols or for any accessed from the Container
         containing the target routine.
+
+        :param call: the node representing the call to the routine that is to
+            be inlined.
+        :param schedule: the PSyIR schedule of the routine to be inlined.
+        :param kern_or_call: text appropriate to whether we have a PSyKAl
+            Kernel or a generic routine.
+
+        :raises TransformationError: if there is an access to an unresolved
+            symbol.
+        :raises TransformationError: if there is an access to a symbol that is
+            declared in the Container (module) holding the target routine.
+
         '''
         # TODO #2424 - this suffers from the limitation that
         # VariablesAccessInfo does not work with nested scopes. (e.g. 2
         # different symbols with the same name but declared in different,
         # nested scopes will be assumed to be the same symbol).
-        vai = VariablesAccessInfo(kernel_schedule)
-        table = kernel_schedule.symbol_table
+        vai = VariablesAccessInfo(schedule)
+        table = schedule.symbol_table
+        name = schedule.name
         for sig in vai.all_signatures:
             symbol = table.lookup(sig.var_name, otherwise=None)
             if not symbol:
                 raise TransformationError(
-                    f"{kern_or_call} '{kname}' contains accesses to "
+                    f"{kern_or_call} '{name}' contains accesses to "
                     f"'{sig.var_name}' but the origin of this signature is "
                     f"unknown.")
             if symbol.is_unresolved:
@@ -208,19 +224,24 @@ class KernelModuleInlineTrans(Transformation):
                     # If there's more than one Container with a wildcard import
                     # this will raise a ValueError.
                     (csym,) = routine_wildcards
+                    # Now we know the origin of this symbol we can update it.
                     symbol.interface = ImportInterface(csym)
                 except (ValueError, KeyError):
                     try:
+                        # We have more than one wildcard import.
                         table.resolve_imports(
                             container_symbols=routine_wildcards,
                             symbol_target=symbol)
                         if symbol.is_unresolved:
+                            # Symbol is still not resolved (must be an indirect
+                            # import) so we give up.
                             raise KeyError(
                                 f"Failed to resolve the type of Symbol "
-                                f"'{symbol.name}'")
+                                f"'{symbol.name}'. It is probably an indirect "
+                                f"import.")
                     except KeyError as err:
                         raise TransformationError(
-                            f"{kern_or_call} '{kname}' contains accesses to "
+                            f"{kern_or_call} '{name}' contains accesses to "
                             f"'{symbol.name}' which is unresolved. It is being"
                             f" brought into scope from one of "
                             f"{[sym.name for sym in routine_wildcards]}. "
@@ -230,9 +251,27 @@ class KernelModuleInlineTrans(Transformation):
                     sig.var_name, otherwise=None)
                 if sym_at_call_site is not symbol:
                     raise TransformationError(
-                        f"{kern_or_call} '{kname}' contains accesses to "
+                        f"{kern_or_call} '{name}' contains accesses to "
                         f"'{symbol.name}' which is declared in the callee "
                         f"module scope. Cannot inline such a {kern_or_call}.")
+
+        # We can't handle a clash between (apparently) different symbols that
+        # share a name but are imported from different containers.
+        routine_arg_list = schedule.symbol_table.argument_list[:]
+        callsite_routine = call.ancestor(Routine)
+        for scope in schedule.walk(ScopingNode):
+            scope_table = scope.symbol_table
+            for callsite_scope in callsite_routine.walk(ScopingNode):
+                table = callsite_scope.symbol_table
+                try:
+                    table.check_for_clashes(
+                        scope_table,
+                        symbols_to_skip=routine_arg_list)
+                except SymbolError as err:
+                    raise TransformationError(
+                        f"One or more symbols from routine '{name}' "
+                        f"cannot be added to the table at the call site. "
+                        f"Error was: {err}") from err
 
     @staticmethod
     def _prepare_code_to_inline(code_to_inline):

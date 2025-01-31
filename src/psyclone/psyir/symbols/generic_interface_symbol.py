@@ -121,7 +121,8 @@ class GenericInterfaceSymbol(RoutineSymbol):
         '''
         if not values:
             raise ValueError("A GenericInterfaceSymbol requires a list of "
-                             "RoutineSymbols but none were provided.")
+                             "RoutineSymbols (unless it is imported) but none "
+                             "were provided.")
         if not isinstance(values, list):
             raise TypeError(f"A GenericInterfaceSymbol requires a list of "
                             f"tuples describing its member routines but got: "
@@ -186,6 +187,27 @@ class GenericInterfaceSymbol(RoutineSymbol):
                           datatype=self.datatype.copy(),
                           visibility=self.visibility,
                           interface=self.interface.copy())
+
+    def copy_properties(self, symbol_in: RoutineSymbol):
+        '''
+        Copies the properties of the supplied Symbol into this one.
+
+        :param symbol_in: the Symbol to copy properties from.
+
+        '''
+        super().copy_properties(symbol_in)
+        # We must add information on the routines which this interface
+        # can bind to.
+        new_values = []
+        for info in symbol_in.routines:
+            new_sym = info.symbol.copy()
+            if self.is_import:
+                # If this interface symbol is imported then the Routines it
+                # wraps must also be in scope in that same Container. Note that
+                # they may (and probably will) be private to that Container.
+                new_sym.interface = self.interface
+            new_values.append((new_sym, info.from_container))
+        self.routines = new_values
 
     def replace_symbols_using(self, table):
         '''
