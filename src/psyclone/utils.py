@@ -180,6 +180,9 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         for i in range(last_instance+1, len(doc_lines)):
             new_docs += doc_lines[i] + "\n"
 
+        # Add a blank line at the end of the docs to avoid a warning.
+        new_docs += "\n"
+
         cls.apply.__doc__ = new_docs
 
     def wrapper():
