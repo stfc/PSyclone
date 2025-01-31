@@ -404,13 +404,8 @@ class LFRicMeshProperties(LFRicCollection):
         # Store properties in symbol table
         for prop in self._properties:
             name_lower = prop.name.lower()
-            if prop.name in ["NCELL_2D", "NCELL_2D_NO_HALOS"]:
-                # This is an integer:
-                self.symtab.find_or_create(
-                    name_lower, tag=name_lower,
-                    symbol_type=DataSymbol,
-                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-            elif name_lower == "adjacent_face":
+            if prop == MeshProperty.ADJACENT_FACE:
+                # If it's adjacent face, make it a pointer array
                 self.symtab.find_or_create(
                     name_lower, symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
@@ -422,7 +417,11 @@ class LFRicMeshProperties(LFRicCollection):
                     ),
                     tag=name_lower)
             else:
-                raise InternalError("asdf")
+                # Everything else is an integer
+                self.symtab.find_or_create(
+                    name_lower, tag=name_lower,
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
     def kern_args(self, stub=False, var_accesses=None,
                   kern_call_arg_list=None):
@@ -1563,13 +1562,14 @@ class DynLMAOperators(LFRicCollection):
             elif op_dtype == "integer":
                 intr_type = ScalarType(ScalarType.Intrinsic.INTEGER, kind_sym)
             else:
-                raise NotImplementedError()
+                raise NotImplementedError(
+                    f"Only REAL and INTEGER LMAOperator types are supported, "
+                    f"but found '{op_dtype}'")
             if arg.intent == "in":
                 intent = ArgumentInterface.Access.READ
             elif arg.intent == "inout":
                 intent = ArgumentInterface.Access.READWRITE
-            else:
-                raise NotImplementedError()
+            # No need for else as arg.intent only returns in/inout or errors
 
             arg_sym = self.symtab.find_or_create(
                 arg.name, symbol_type=DataSymbol,
@@ -2785,12 +2785,9 @@ class DynBasisFunctions(LFRicCollection):
                 symbol_type=DataSymbol, datatype=UnresolvedType(),
                 interface=ImportInterface(
                     self.symtab.lookup("constants_mod")))
-            if const.QUADRATURE_TYPE_MAP[shape]["intrinsic"] == "real":
-                intr_type = ScalarType(ScalarType.Intrinsic.REAL, kind_sym)
-            elif const.QUADRATURE_TYPE_MAP[shape]["intrinsic"] == "integer":
-                intr_type = ScalarType(ScalarType.Intrinsic.INTEGER, kind_sym)
-            else:
-                raise NotImplementedError()
+
+            # All quatratures are REAL, the the PSyIR type
+            intr_type = ScalarType(ScalarType.Intrinsic.REAL, kind_sym)
 
             if shape == "gh_quadrature_xyoz":
                 dim = self.symtab.find_or_create(
@@ -2954,7 +2951,11 @@ class DynBasisFunctions(LFRicCollection):
                 nodes_name, symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
                     f"real(kind={kind}), pointer :: {nodes_name}"
-                    f"(:,:) => null()"))
+                    f"(:,:) => null()",
+                    partial_datatype=ArrayType(
+                        LFRicTypes("LFRicRealScalarDataType")(),
+                        [ArrayType.Extent.DEFERRED]*2)
+                    ))
             assignment = Assignment.create(
                     lhs=Reference(symbol),
                     rhs=arg.generate_method_call(

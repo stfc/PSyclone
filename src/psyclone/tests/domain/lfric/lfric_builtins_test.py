@@ -2084,8 +2084,7 @@ def test_real_to_real_x_lowering(monkeypatch, tmpdir, kind_name):
     # Test limited code generation (no equivalent field type)
     code = str(psy.gen)
 
-    # Due to the reverse alphabetical ordering performed by PSyclone,
-    # different cases will arise depending on the substitution
+    # Check that the kind constants are imported
     assert "use constants_mod\n" in code
 
     # Assert correct type is set

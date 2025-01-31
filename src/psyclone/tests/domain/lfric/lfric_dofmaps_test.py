@@ -42,11 +42,11 @@ test file. '''
 import os
 import pytest
 
+from psyclone.domain.lfric.lfric_dofmaps import LFRicDofmaps
 from psyclone.errors import GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.domain.lfric.lfric_dofmaps import LFRicDofmaps
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

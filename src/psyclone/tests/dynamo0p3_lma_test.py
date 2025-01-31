@@ -54,7 +54,7 @@ from psyclone.dynamo0p3 import DynFuncDescriptor03, FunctionSpace
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, args_filter
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir import symbols
@@ -969,6 +969,14 @@ ndf_adspc1_op_13), intent(in) :: op_13
 
 end module dummy_mod
 """ == generated_code
+
+    # Try with unsupported types
+    lma_args = args_filter(kernel.arguments.args, arg_types=["gh_operator"])
+    lma_args[0]._intrinsic_type = "logical"
+    with pytest.raises(NotImplementedError) as err:
+        _ = kernel.gen_stub
+    assert ("Only REAL and INTEGER LMAOperator types are supported, but found"
+            " 'logical'" in str(err.value))
 
 
 OPERATOR_DIFFERENT_SPACES = '''

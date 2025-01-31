@@ -58,8 +58,6 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
 from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
-from psyclone.f2pygen import (
-    UseGen, ModuleGen, PSyIRGen)
 from psyclone.parse.algorithm import Arg
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
@@ -107,23 +105,6 @@ class GOPSy(PSy):
         # Create invokes
         self._invokes = GOInvokes(invoke_info.calls, self)
 
-    @property
-    def gen(self):
-        '''
-        Generate PSy code for the GOcean api v.1.0.
-
-        :rtype: ast
-
-        '''
-        # create an empty PSy layer module
-        psy_module = ModuleGen(self.name)
-        # include the kind_params module
-        psy_module.add(UseGen(psy_module, name="kind_params_mod"))
-        # include the field_mod module
-        psy_module.add(UseGen(psy_module, name="field_mod"))
-        self.invokes.gen_code(psy_module)
-        return psy_module.root
-
 
 class GOInvokes(Invokes):
     '''
@@ -167,35 +148,6 @@ class GOInvokes(Invokes):
                     # those seen so far
                     index_offsets.append(kern_call.index_offset)
 
-    def gen_code(self, parent):
-        '''
-        GOcean redefines the Invokes.gen_code() to start using the PSyIR
-        backend when possible. In cases where the backend can not be used yet
-        (e.g. OpenCL and PSyDataNodes) the parent class will be called. This
-        is a temporary workaround to avoid modifying the generator file while
-        other APIs still use the f2pygen module for code generation.
-        Once the PSyIR backend has generated an output, this is added into a
-        f2pygen PSyIRGen block in the f2pygen AST for each Invoke in the
-        PSy layer.
-
-        :param parent: the parent node in the f2pygen AST to which to add \
-                       content.
-        :type parent: `psyclone.f2pygen.ModuleGen`
-        '''
-        if self.invoke_list:
-            # We just need one invoke as they all have a common root.
-            invoke = self.invoke_list[0]
-
-            # Lower the GOcean PSyIR to language level so it can be visited
-            # by the backends
-            invoke.schedule.parent.lower_to_language_level()
-            # Then insert it into a f2pygen AST as a PSyIRGen node.
-            # Note that other routines besides the Invoke could have been
-            # inserted during the lowering (e.g. module-inlined kernels),
-            # so have to iterate over all current children of parent.
-            for child in invoke.schedule.parent.children:
-                parent.add(PSyIRGen(parent, child))
-
 
 class GOInvoke(Invoke):
     '''
@@ -224,6 +176,12 @@ class GOInvoke(Invoke):
             # Insert halo exchange calls
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
+
+    def setup_psy_layer_symbols(self):
+        ''' Declare, initialise and deallocate all symbols required by the
+        PSy-layer Invoke subroutine.
+
+        '''
 
 
 class GOInvokeSchedule(InvokeSchedule):
@@ -913,19 +871,6 @@ class GOLoop(PSyLoop):
                                       f"'{kernel.name}' has offset"
                                       f" '{kernel.index_offset}' which does "
                                       f"not match '{index_offset}'.")
-
-    # def gen_code(self, parent):
-    #     ''' Create the f2pygen AST for this loop (and update the PSyIR
-    #     representing the loop bounds if necessary).
-
-    #     :param parent: the node in the f2pygen AST to which to add content.
-    #     :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-    #     '''
-    #     # Check that it is a properly formed GOLoop
-    #     self._validate_loop()
-
-    #     super().gen_code(parent)
 
 
 # pylint: disable=too-few-public-methods

@@ -245,15 +245,15 @@ def test_omptaskloop_apply(monkeypatch):
 
     clauses = " nogroup"
     assert (
-        f"    !$omp parallel default(shared), private(i,j)\n"
-        f"      !$omp master\n"
-        f"      !$omp taskloop{clauses}\n"
-        f"      DO" in code)
+        f"  !$omp parallel default(shared), private(i,j)\n"
+        f"    !$omp master\n"
+        f"    !$omp taskloop{clauses}\n"
+        f"    do" in code)
     assert (
-        "      END DO\n"
-        "      !$omp end taskloop\n"
-        "      !$omp end master\n"
-        "      !$omp end parallel" in code)
+        "    enddo\n"
+        "    !$omp end taskloop\n"
+        "    !$omp end master\n"
+        "    !$omp end parallel" in code)
 
     assert taskloop_node.begin_string() == "omp taskloop"
 

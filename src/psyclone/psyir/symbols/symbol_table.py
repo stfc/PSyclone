@@ -1278,8 +1278,9 @@ class SymbolTable():
 
     def append_argument(self, argument):
         '''
-        Append a new argument to the argument list and add it in the symbol
-        table itself.
+        Append the given argument to the argument list and add it in the symbol
+        table itself. If the argument is already part of the argument_list it
+        does nothing.
 
         :param argument: the new argument to add to the list.
         :type argument: :py:class:`psyclone.psyir.symbols.DataSymbol`

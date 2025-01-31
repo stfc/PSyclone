@@ -449,19 +449,18 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
 
     # - the gen_code
     gen = str(psy.gen)
-    assert 'SUBROUTINE compute_cv_code(i, j, cv, p, v)' in gen
+    assert 'subroutine compute_cv_code(i, j, cv, p, v)' in gen
 
-    # And the import has been remove from both
-    # check that the associated use no longer exists
-    assert 'use compute_cv_mod, only : compute_cv_code' not in code
-    assert 'USE compute_cv_mod, ONLY: compute_cv_code' not in gen
+    # And the import has been remove from both, so check that the associated
+    # use no longer exists
+    assert 'use compute_cv_mod' not in code.lower()
 
     # Do the gen_code check again because repeating the call resets some
     # aspects and we need to see if the second call still works as expected
     gen = str(psy.gen)
-    assert 'SUBROUTINE compute_cv_code(i, j, cv, p, v)' in gen
-    assert 'USE compute_cv_mod, ONLY: compute_cv_code' not in gen
-    assert gen.count("SUBROUTINE compute_cv_code(") == 1
+    assert 'subroutine compute_cv_code(i, j, cv, p, v)' in gen
+    assert 'use compute_cv_mod' not in gen
+    assert gen.count("subroutine compute_cv_code(") == 1
 
     # And it is valid code
     assert GOceanBuild(tmpdir).code_compiles(psy)
@@ -519,11 +518,11 @@ def test_module_inline_apply_with_sub_use(tmpdir):
     inline_trans.apply(kern_call)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
-    assert 'SUBROUTINE bc_ssh_code(ji, jj, istep, ssha, tmask)' in gen
+    assert 'subroutine bc_ssh_code(ji, jj, istep, ssha, tmask)' in gen
     # check that the use within the subroutine exists
-    assert 'USE grid_mod' in gen
+    assert 'use grid_mod' in gen
     # check that the associated psy use does not exist
-    assert 'USE bc_ssh_mod, ONLY: bc_ssh_code' not in gen
+    assert 'use bc_ssh_mod' not in gen
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
@@ -539,11 +538,11 @@ def test_module_inline_apply_same_kernel(tmpdir):
     inline_trans.apply(kern_call)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
-    assert 'SUBROUTINE compute_cu_code(' in gen
+    assert 'subroutine compute_cu_code(' in gen
     # check that the associated psy "use" does not exist
-    assert 'USE compute_cu_mod, ONLY: compute_cu_code' not in gen
+    assert 'use compute_cu_mod' not in gen
     # check that the subroutine has only been inlined once
-    count = count_lines(gen, "SUBROUTINE compute_cu_code(")
+    count = count_lines(gen, "subroutine compute_cu_code(")
     assert count == 1, "Expecting subroutine to be inlined once"
     assert GOceanBuild(tmpdir).code_compiles(psy)
 

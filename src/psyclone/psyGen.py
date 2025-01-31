@@ -261,6 +261,45 @@ class PSy():
         '''
         return "psy_"+self._name
 
+    @property
+    def gen(self) -> str:
+        '''
+        Generate PSy code for the LFRic API.
+
+        :returns: the generated Fortran source.
+
+        '''
+        # Before the backend we need to add the Invoke initialisations and
+        # declarations, this modifies the PSyIR tree, so we operate on a
+        # copy of the tree.
+        original_container = self.container
+        new_container = self.container.copy()
+        self._container = new_container
+        # We need to update the internal reference to the Schedule, this could
+        # be improved by making all PSy-layer PSyIR DSL nodes, instead of using
+        # PSY->Invokes->Invoke->InvokeSchedule classes
+        for invsch in self.container.walk(InvokeSchedule):
+            invsch.invoke.schedule = invsch
+
+        # Now do the declarations/initialisation on the copied tree
+        for invoke in self.invokes.invoke_list:
+            invoke.setup_psy_layer_symbols()
+
+        # Use the PSyIR Fortran backend to generate Fortran code of the
+        # supplied PSyIR tree.
+        config = Config.get()
+        fortran_writer = FortranWriter(
+            check_global_constraints=config.backend_checks_enabled,
+            disable_copy=True)  # We already made the copy manually above
+        result = fortran_writer(new_container)
+
+        # Restore original container (see comment above)
+        self._container = original_container
+        for invsch in self.container.walk(InvokeSchedule):
+            invsch.invoke.schedule = invsch
+
+        return result
+
 
 class Invokes():
     '''Manage the invoke calls.

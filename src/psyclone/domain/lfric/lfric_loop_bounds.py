@@ -64,8 +64,6 @@ class LFRicLoopBounds(LFRicCollection):
         if not loops:
             return cursor
 
-        sym_table = self._invoke.schedule.symbol_table
-
         first = True
         for idx, loop in enumerate(loops):
 
@@ -76,8 +74,8 @@ class LFRicLoopBounds(LFRicCollection):
 
             # Set the lower bound
             root_name = f"loop{idx}_start"
-            lbound = sym_table.find_or_create_integer_symbol(root_name,
-                                                             tag=root_name)
+            lbound = self.symtab.find_or_create_integer_symbol(
+                root_name, tag=root_name)
             assignment = Assignment.create(
                     lhs=Reference(lbound),
                     rhs=loop.lower_bound_psyir())
@@ -92,8 +90,8 @@ class LFRicLoopBounds(LFRicCollection):
             # Set the upper bound
             if loop.loop_type != "colour":
                 root_name = f"loop{idx}_stop"
-                ubound = sym_table.find_or_create_integer_symbol(root_name,
-                                                                 tag=root_name)
+                ubound = self.symtab.find_or_create_integer_symbol(
+                    root_name, tag=root_name)
                 self._invoke.schedule.addchild(
                     Assignment.create(
                         lhs=Reference(ubound),
@@ -104,12 +102,13 @@ class LFRicLoopBounds(LFRicCollection):
             else:
                 # If it needs a color look-up, it has to be in-place
                 loop.children[1] = loop.upper_bound_psyir()
-                # We need to remove the now unneeded symbol (because LFRic is
-                # compiled with "no uninitialised variables" error, but
-                # SymbolTable.remove() is still not implemented for
+                # TODO #898: We need to remove the now unneeded symbol (because
+                # LFRic is compiled with "no uninitialised variables" error,
+                # but SymbolTable.remove() is still not implemented for
                 # DataSymbols)
                 root_name = f"loop{idx}_stop"
-                sym_table._symbols.pop(root_name)
+                if root_name in self.symtab:
+                    self.symtab._symbols.pop(root_name)
 
         return cursor
 

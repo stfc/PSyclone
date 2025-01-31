@@ -165,45 +165,45 @@ def test_extract_node_lower_to_language_level():
 
     code = str(psy.gen)
     output = (
-        """CALL extract_psy_data % """
-        """PreStart("psy_single_invoke_three_kernels", "invoke_0-compute_cu_"""
-        """code-r0", 6, 3)
-      CALL extract_psy_data % PreDeclareVariable("cu_fld%internal%xstart", """
-        """cu_fld % internal % xstart)
-      CALL extract_psy_data % PreDeclareVariable("cu_fld%internal%xstop", """
-        """cu_fld % internal % xstop)
-      CALL extract_psy_data % PreDeclareVariable("cu_fld%internal%ystart", """
-        """cu_fld % internal % ystart)
-      CALL extract_psy_data % PreDeclareVariable("cu_fld%internal%ystop", """
-        """cu_fld % internal % ystop)
-      CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
-      CALL extract_psy_data % PreDeclareVariable("u_fld", u_fld)
-      CALL extract_psy_data % PreDeclareVariable("cu_fld_post", cu_fld)
-      CALL extract_psy_data % PreDeclareVariable("i_post", i)
-      CALL extract_psy_data % PreDeclareVariable("j_post", j)
-      CALL extract_psy_data % PreEndDeclaration
-      CALL extract_psy_data % ProvideVariable("cu_fld%internal%xstart", """
-        """cu_fld % internal % xstart)
-      CALL extract_psy_data % ProvideVariable("cu_fld%internal%xstop", """
-        """cu_fld % internal % xstop)
-      CALL extract_psy_data % ProvideVariable("cu_fld%internal%ystart", """
-        """cu_fld % internal % ystart)
-      CALL extract_psy_data % ProvideVariable("cu_fld%internal%ystop", """
-        """cu_fld % internal % ystop)
-      CALL extract_psy_data % ProvideVariable("p_fld", p_fld)
-      CALL extract_psy_data % ProvideVariable("u_fld", u_fld)
-      CALL extract_psy_data % PreEnd
-      DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1
-        DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
-          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        END DO
-      END DO
-      CALL extract_psy_data % PostStart
-      CALL extract_psy_data % ProvideVariable("cu_fld_post", cu_fld)
-      CALL extract_psy_data % ProvideVariable("i_post", i)
-      CALL extract_psy_data % ProvideVariable("j_post", j)
-      CALL extract_psy_data % PostEnd
-      """)
+      """CALL extract_psy_data % """
+      """PreStart("psy_single_invoke_three_kernels", "invoke_0-compute_cu_"""
+      """code-r0", 6, 3)
+    CALL extract_psy_data % PreDeclareVariable("cu_fld%internal%xstart", """
+      """cu_fld % internal % xstart)
+    CALL extract_psy_data % PreDeclareVariable("cu_fld%internal%xstop", """
+      """cu_fld % internal % xstop)
+    CALL extract_psy_data % PreDeclareVariable("cu_fld%internal%ystart", """
+      """cu_fld % internal % ystart)
+    CALL extract_psy_data % PreDeclareVariable("cu_fld%internal%ystop", """
+      """cu_fld % internal % ystop)
+    CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
+    CALL extract_psy_data % PreDeclareVariable("u_fld", u_fld)
+    CALL extract_psy_data % PreDeclareVariable("cu_fld_post", cu_fld)
+    CALL extract_psy_data % PreDeclareVariable("i_post", i)
+    CALL extract_psy_data % PreDeclareVariable("j_post", j)
+    CALL extract_psy_data % PreEndDeclaration
+    CALL extract_psy_data % ProvideVariable("cu_fld%internal%xstart", """
+      """cu_fld % internal % xstart)
+    CALL extract_psy_data % ProvideVariable("cu_fld%internal%xstop", """
+      """cu_fld % internal % xstop)
+    CALL extract_psy_data % ProvideVariable("cu_fld%internal%ystart", """
+      """cu_fld % internal % ystart)
+    CALL extract_psy_data % ProvideVariable("cu_fld%internal%ystop", """
+      """cu_fld % internal % ystop)
+    CALL extract_psy_data % ProvideVariable("p_fld", p_fld)
+    CALL extract_psy_data % ProvideVariable("u_fld", u_fld)
+    CALL extract_psy_data % PreEnd
+    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1
+      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
+        call compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+      enddo
+    enddo
+    CALL extract_psy_data % PostStart
+    CALL extract_psy_data % ProvideVariable("cu_fld_post", cu_fld)
+    CALL extract_psy_data % ProvideVariable("i_post", i)
+    CALL extract_psy_data % ProvideVariable("j_post", j)
+    CALL extract_psy_data % PostEnd
+    """)
     assert output in code
 
 

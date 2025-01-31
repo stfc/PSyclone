@@ -88,7 +88,7 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
     code = str(psy.gen).lower()
     # Work out the value of the tag used to re-name the kernel
     tag = re.search('use continuity(.+?)_mod', code).group(1)
-    assert f"use continuity{tag}_mod, only: continuity{tag}_code" in code
+    assert f"use continuity{tag}_mod, only : continuity{tag}_code" in code
     assert f"call continuity{tag}_code(" in code
     # The kernel and module name should have gained the tag just identified
     # and be written to the CWD

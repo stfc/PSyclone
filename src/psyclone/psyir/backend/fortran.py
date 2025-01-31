@@ -500,6 +500,7 @@ class FortranWriter(LanguageWriter):
         :returns: the Fortran variable declaration as a string.
         :rtype: str
 
+        :raises VisitorError: if the symbol is not typed.
         :raises VisitorError: if the symbol is of UnresolvedType.
         :raises VisitorError: if the symbol is of UnsupportedType other than
             UnsupportedFortranType.

@@ -83,5 +83,5 @@ def test_add_mesh_symbols():
     for tag in mesh_names:
         sym = sym_table.lookup(tag)
         assert isinstance(sym, DataSymbol)
-        assert isinstance(sym.datatype, UnsupportedFortranType)  # is a pointer
+        assert isinstance(sym.datatype, UnsupportedFortranType)
         assert "mesh_type" in sym.datatype.type_text

@@ -1350,7 +1350,6 @@ class OMPParallelDirective(OMPRegionDirective):
         sync_clauses = self.walk(OMPDependClause)
         if not reduction_kernels and need_sync:
             for sym in need_sync:
-                found = False
                 for clause in sync_clauses:
                     # Needs to be an out depend clause to synchronize
                     if clause.operand == "in":
@@ -1358,9 +1357,8 @@ class OMPParallelDirective(OMPRegionDirective):
                     # Check if the symbol is in this depend clause.
                     if sym.name in [child.symbol.name for child in
                                     clause.children]:
-                        found = True
                         break
-                if not found:
+                else:
                     raise GenerationError(
                         f"Lowering '{type(self).__name__}' does not support "
                         f"symbols that need synchronisation unless they are "

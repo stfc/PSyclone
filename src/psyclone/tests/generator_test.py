@@ -424,7 +424,7 @@ def test_no_script_gocean():
         os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
         api="gocean")
     assert "program single_invoke_test" in alg
-    assert "MODULE psy_single_invoke_test" in str(psy)
+    assert "module psy_single_invoke_test" in str(psy)
 
 
 def test_script_gocean(script_factory):
