@@ -42,7 +42,7 @@ from psyclone.core import VariablesAccessInfo, Signature
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Call, CodeBlock, \
         Loop, Reference, Routine, StructureReference
-from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol, RoutineSymbol
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 
 
