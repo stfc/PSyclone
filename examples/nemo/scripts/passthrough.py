@@ -55,4 +55,3 @@ def trans(psyir):
         scalartrans = ScalarizationTrans()
         for loop in subroutine.walk(Loop):
             scalartrans.apply(loop)
-
