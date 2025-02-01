@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
 from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference, Literal, IfBlock, IntrinsicCall)
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol
 
 
 class Abs2CodeTrans(Intrinsic2CodeTrans):
@@ -71,6 +71,19 @@ class Abs2CodeTrans(Intrinsic2CodeTrans):
     def __init__(self):
         super().__init__()
         self._intrinsic = IntrinsicCall.Intrinsic.ABS
+
+    def validate(self, node, options=None):
+        '''
+        Check that it is safe to apply the transformation to the supplied node.
+
+        :param node: the SIGN call to transform.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+        :param options: any of options for the transformation.
+        :type options: dict[str, Any]
+
+        '''
+        super().validate(node, options=options)
+        super()._validate_scalar_arg(node)
 
     def apply(self, node, options=None):
         '''Apply the ABS intrinsic conversion transformation to the specified
@@ -112,16 +125,12 @@ class Abs2CodeTrans(Intrinsic2CodeTrans):
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
 
-        # Create two temporary variables.  There is an assumption here
-        # that the ABS Operator returns a PSyIR real type. This might
-        # not be what is wanted (e.g. the args might PSyIR integers),
-        # or there may be errors (arguments are of different types)
-        # but this can't be checked as we don't have the appropriate
-        # methods to query nodes (see #658).
+        # Create two temporary variables.
+        result_type = node.arguments[0].datatype
         symbol_res_var = symbol_table.new_symbol(
-            "res_abs", symbol_type=DataSymbol, datatype=REAL_TYPE)
+            "res_abs", symbol_type=DataSymbol, datatype=result_type)
         symbol_tmp_var = symbol_table.new_symbol(
-            "tmp_abs", symbol_type=DataSymbol, datatype=REAL_TYPE)
+            "tmp_abs", symbol_type=DataSymbol, datatype=result_type)
 
         # Replace operation with a temporary (res_X).
         node.replace_with(Reference(symbol_res_var))
@@ -134,7 +143,7 @@ class Abs2CodeTrans(Intrinsic2CodeTrans):
 
         # if condition: tmp_var>0.0
         lhs = Reference(symbol_tmp_var)
-        rhs = Literal("0.0", REAL_TYPE)
+        rhs = Literal("0", result_type)
         if_condition = BinaryOperation.create(BinaryOperation.Operator.GT,
                                               lhs, rhs)
 
@@ -146,7 +155,7 @@ class Abs2CodeTrans(Intrinsic2CodeTrans):
         # else_body: res_var=-1.0*tmp_var
         lhs = Reference(symbol_res_var)
         lhs_child = Reference(symbol_tmp_var)
-        rhs_child = Literal("-1.0", REAL_TYPE)
+        rhs_child = Literal("-1", result_type)
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL, lhs_child,
                                      rhs_child)
         else_body = [Assignment.create(lhs, rhs)]

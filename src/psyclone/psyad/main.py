@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+#             T. Vockerodt, Met Office
 
 '''Top-level driver functions for PSyAD : the PSyclone Adjoint
 support. Transforms an LFRic tangent linear kernel to its adjoint.
@@ -40,6 +41,8 @@ support. Transforms an LFRic tangent linear kernel to its adjoint.
 '''
 import argparse
 import logging
+import os
+import re
 import sys
 
 from psyclone.configuration import Config, LFRIC_API_NAMES
@@ -97,7 +100,7 @@ def main(args):
                         help='the position of the panel-ID field in the '
                         'meta_args list of arguments in the kernel metadata '
                         '(LFRic only)')
-    parser.add_argument('-otest',
+    parser.add_argument('-otest', default=None,
                         help='filename for the unit test (implies -t)',
                         dest='test_filename')
     parser.add_argument('-oad', help='filename for the transformed code')
@@ -128,6 +131,22 @@ def main(args):
                          "the 'lfric' API.")
             sys.exit(1)
 
+    # Processing test filename
+    test_name = "adjoint_test"
+    if generate_test:
+        if args.api in LFRIC_API_NAMES:
+            filename_standard = "adjt_.+_alg_mod.[Xx]90|atlt_.+_alg_mod.[Xx]90"
+            regex_search = re.search(filename_standard, args.test_filename)
+            if regex_search is None:
+                logger.error("Filename '%s' with 'lfric' API "
+                             "must be of the form "
+                             "<path>/adjt_<name>_alg_mod.[Xx]90 or "
+                             "<path>/atlt_<name>_alg_mod.[Xx]90.",
+                             args.test_filename)
+                sys.exit(1)
+            # At this stage filename should be valid, so we take the base name
+            test_name = os.path.basename(args.test_filename).split("_mod.")[0]
+
     # TL Fortran code
     filename = args.filename
     logger.info("Reading kernel file %s", filename)
@@ -145,7 +164,8 @@ def main(args):
             tl_fortran_str, args.active, api=args.api,
             coord_arg_index=args.coord_arg,
             panel_id_arg_index=args.panel_id_arg,
-            create_test=generate_test)
+            create_test=generate_test,
+            test_name=test_name)
     except TangentLinearError as info:
         print(str(info.value))
         sys.exit(1)

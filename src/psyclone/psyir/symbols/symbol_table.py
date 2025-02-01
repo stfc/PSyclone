@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1669,6 +1669,15 @@ class SymbolTable():
                                     sym.wildcard_import]:
                                 symbol_table.remove(test_symbol)
                                 if test_symbol.name not in self:
+                                    # The visibility given by the inner symbol
+                                    # table does not necessarily match the one
+                                    # from the scope it should have been in (it
+                                    # doesn't have a non-default visibility,
+                                    # otherwise the symbol would already be in
+                                    # the ancestor symbol table).
+                                    test_symbol.visibility = \
+                                        self.default_visibility
+
                                     self.add(test_symbol)
                                 else:
                                     for ref in symbol_table.node.walk(

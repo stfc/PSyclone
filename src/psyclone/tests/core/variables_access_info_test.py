@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -452,7 +452,8 @@ def test_variables_access_info_domain_loop():
     vai = VariablesAccessInfo(invoke.schedule)
     assert str(vai) == ("a: READ, b: READ, f1_data: READWRITE, f2_data: "
                         "READWRITE, map_w3: READ, ncell_2d_no_halos: READ, "
-                        "ndf_w3: READ, nlayers: READ, undf_w3: READ")
+                        "ndf_w3: READ, nlayers_f1: READ, nlayers_f2: READ, "
+                        "undf_w3: READ")
 
 
 # -----------------------------------------------------------------------------
@@ -472,7 +473,7 @@ def test_lfric_access_info():
             "diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, f1_data: "
             "READ+WRITE, f2_data: READ, loop0_start: READ, loop0_stop: READ, "
             "m1_data: READ, m2_data: READ, map_w1: READ, map_w2: READ, map_w3:"
-            " READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, nlayers: READ, "
-            "np_xy_qr: READ, np_z_qr: READ, undf_w1: READ, undf_w2: READ, "
-            "undf_w3: READ, weights_xy_qr: READ, weights_z_qr: READ"
+            " READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, nlayers_f1: "
+            "READ, np_xy_qr: READ, np_z_qr: READ, undf_w1: READ, undf_w2: "
+            "READ, undf_w3: READ, weights_xy_qr: READ, weights_z_qr: READ"
             == str(vai))

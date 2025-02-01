@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2024, Science and Technology Facilities Council.
+# Copyright (c) 2023-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -231,7 +231,6 @@ class ModuleManager:
         if mod_info and mod_info.filename.endswith(".f90"):
             return mod_info
         old_mod_info = mod_info
-
         # Are any of the files that we've already seen a good match?
         mod_info = self._find_module_in_files(mod_lower,
                                               self._visited_files.values())

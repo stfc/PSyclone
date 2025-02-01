@@ -108,7 +108,7 @@ psy_time_step_mod:swlat_update_c    11  0.19000E+01   0.17272E+00  0.24E-02
 
 BSD 3-Clause License
 
-Copyright (c) 2019-2024, Science and Technology Facilities Council.
+Copyright (c) 2019-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

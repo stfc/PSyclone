@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -73,7 +73,7 @@ def test_basic_driver_add_call(fortran_writer):
     '''Tests that adding a call detects errors and adds calls
     with and without parameters as expected.
     '''
-    program = Routine("routine", is_program=True)
+    program = Routine.create("routine", is_program=True)
     program.symbol_table.find_or_create_tag("test")
     with pytest.raises(TypeError) as err:
         BaseDriverCreator.add_call(program, "test", [])
@@ -95,7 +95,7 @@ def test_basic_driver_add_call(fortran_writer):
 def test_lfric_driver_add_result_tests(fortran_writer):
     '''Tests adding tests that compare results.
     '''
-    program = Routine("routine", is_program=True)
+    program = Routine.create("routine", is_program=True)
     program.symbol_table.find_or_create_tag("test", symbol_type=RoutineSymbol)
     a1 = program.symbol_table.find_or_create(
         "a1", symbol_type=DataSymbol, datatype=INTEGER_TYPE)

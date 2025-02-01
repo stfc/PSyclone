@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2024,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
@@ -51,7 +51,7 @@ contains
   !> @brief real32 and real64 variants
   !! @param[in] cell Horizontal cell index
   !! @param[in] nlayers Number of layers
-  !! @param[inout] lhs Output lhs (A*x)
+  !! @param[in,out] lhs Output lhs (A*x)
   !! @param[in] x Input data
   !! @param[in] ncell_3d Total number of cells
   !! @param[in] matrix Local matrix assembly form of the operator A
@@ -84,21 +84,17 @@ contains
     integer(kind=i_def), dimension(ndf2), intent(in) :: map2
     real(kind=r_single), dimension(undf2),              intent(in)    :: x
     real(kind=r_single), dimension(undf1),              intent(inout) :: lhs
-    real(kind=r_single), dimension(ndf1,ndf2,ncell_3d), intent(in)    :: matrix
+    real(kind=r_single), dimension(ncell_3d,ndf1,ndf2), intent(in)    :: matrix
 
     ! Internal variables
-    integer(kind=i_def)                  :: df, k, ik
-    real(kind=r_single), dimension(ndf2) :: x_e
-    real(kind=r_single), dimension(ndf1) :: lhs_e
+    integer(kind=i_def) :: df, df2, k, ik
 
-    do k = 0, nlayers-1
-      do df = 1, ndf2
-        x_e(df) = x(map2(df)+k)
-      end do
-      ik = (cell-1)*nlayers + k + 1
-      lhs_e = matmul(matrix(:,:,ik),x_e)
-      do df = 1,ndf1
-        lhs(map1(df)+k) = lhs(map1(df)+k) + lhs_e(df)
+    do df = 1, ndf1
+      do df2 = 1, ndf2
+        do k = 0, nlayers-1
+          ik = (cell-1)*nlayers + k + 1
+          lhs(map1(df)+k) = lhs(map1(df)+k) + matrix(ik,df,df2)*x(map2(df2)+k)
+        end do
       end do
     end do
 
@@ -125,21 +121,17 @@ contains
     integer(kind=i_def), dimension(ndf2), intent(in) :: map2
     real(kind=r_double), dimension(undf2),              intent(in)    :: x
     real(kind=r_double), dimension(undf1),              intent(inout) :: lhs
-    real(kind=r_double), dimension(ndf1,ndf2,ncell_3d), intent(in)    :: matrix
+    real(kind=r_double), dimension(ncell_3d,ndf1,ndf2), intent(in)    :: matrix
 
     ! Internal variables
-    integer(kind=i_def)                  :: df, k, ik
-    real(kind=r_double), dimension(ndf2) :: x_e
-    real(kind=r_double), dimension(ndf1) :: lhs_e
+    integer(kind=i_def) :: df, df2, k, ik
 
-    do k = 0, nlayers-1
-      do df = 1, ndf2
-        x_e(df) = x(map2(df)+k)
-      end do
-      ik = (cell-1)*nlayers + k + 1
-      lhs_e = matmul(matrix(:,:,ik),x_e)
-      do df = 1,ndf1
-        lhs(map1(df)+k) = lhs(map1(df)+k) + lhs_e(df)
+    do df = 1, ndf1
+      do df2 = 1, ndf2
+        do k = 0, nlayers-1
+          ik = (cell-1)*nlayers + k + 1
+          lhs(map1(df)+k) = lhs(map1(df)+k) + matrix(ik,df,df2)*x(map2(df2)+k)
+        end do
       end do
     end do
 

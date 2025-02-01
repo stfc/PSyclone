@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council.
+# Copyright (c) 2018-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -444,10 +444,10 @@ def test_profile_fused_kernels_dynamo0p3():
     expected = '''\
       CALL profile_psy_data%PreStart("multi_invoke_psy", "invoke_0-r0", 0, 0)
       DO cell = loop0_start, loop0_stop, 1
-        CALL testkern_code(nlayers, a, f1_data, f2_data, m1_data, m2_data, \
+        CALL testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, m2_data, \
 ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
 undf_w3, map_w3(:,cell))
-        CALL testkern_code(nlayers, a, f1_data, f3_data, m2_data, m1_data, \
+        CALL testkern_code(nlayers_f1, a, f1_data, f3_data, m2_data, m1_data, \
 ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
 undf_w3, map_w3(:,cell))
       END DO
@@ -468,7 +468,7 @@ def test_profile_kernels_without_loop_dynamo0p3():
                            dist_mem=False)
 
     # Create a new Routine and copy over the Kernels from the invoke schedule.
-    new_sched = Routine("test_routine")
+    new_sched = Routine.create("test_routine")
     for kern in invoke.schedule.walk(LFRicKern):
         new_sched.addchild(kern.copy())
     # Check that the profiling node is added as expected.

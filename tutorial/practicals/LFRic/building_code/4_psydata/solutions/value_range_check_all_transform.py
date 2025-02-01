@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,42 +32,34 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds value range checking code to
-the invokes.
+'''Python script passed to the psyclone command via the -s option. It
+adds ValueRangeCheck code to the invokes.
 '''
 
-from psyclone.psyir.transformations import ValueRangeCheck
+from psyclone.psyir.nodes import Routine
+from psyclone.psyir.transformations import ValueRangeCheckTrans
 
 
-def trans(psy):
+def trans(psyir):
     '''
-    Take the supplied psy object, and add value_range_check code.
+    Add value_range_check verification code.
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    value_range_check = ValueRangeCheck()
+    value_range_check = ValueRangeCheckTrans()
 
-    for invoke_name in psy.invokes.names:
-
-        invoke = psy.invokes.get(invoke_name)
-
-        # Now get the schedule, to which we want to apply the transformation
-        schedule = invoke.schedule
+    for subroutine in psyir.walk(Routine):
+        print(subroutine.name)
 
         # Apply the transformation
-        value_range_check.apply(schedule, {"region_name": ("time_evolution",
-                                                           str(invoke_name))})
+        value_range_check.apply(subroutine, {"region_name":
+                                             ("time_evolution",
+                                              subroutine.name)})
 
-        # Just as feedback: show the modified schedule, which should have
+        # Just as feedback: show the modified PSyIR, which should have
         # a new node at the top:
-        print(schedule.view())
-
-    return psy
+        print(subroutine.view())

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council
+# Copyright (c) 2021-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@
 # The dl_esm_inf infrastructure library:
 #     export INF_DIR=../../../external/dl_esm_inf/finite_difference/src
 # The value-range-check wrapper library:
-#     export VALUE_RANGE_CHECK_DIR = ../../../lib/value_range_check/dl_esm_inf
+#     export VALUE_RANGE_CHECK_DIR=../../../lib/value_range_check/dl_esm_inf
 
 PSYROOT=../../../..
 include $(PSYROOT)/examples/common.mk

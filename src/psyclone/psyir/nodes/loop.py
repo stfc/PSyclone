@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -102,6 +102,10 @@ class Loop(Statement):
         self._variable = None
         if variable is not None:
             self.variable = variable
+        # Hold the set of symbols that will be private/local to the interation
+        # if this loop is run concurrently. Alternatively this could be
+        # implemented by moving the symbols to the loop_body symbol table.
+        self._explicitly_private_symbols = set()
 
     def __eq__(self, other):
         '''
@@ -121,6 +125,15 @@ class Loop(Statement):
         is_eq = is_eq and self.variable.name == other.variable.name
 
         return is_eq
+
+    @property
+    def explicitly_private_symbols(self):
+        '''
+        :returns: the set of symbols inside the loop which are private to each
+            iteration of the loop if it is executed concurrently.
+        :rtype: Set[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+        '''
+        return self._explicitly_private_symbols
 
     @property
     def loop_type(self):
@@ -416,9 +429,10 @@ class Loop(Statement):
 
     def replace_symbols_using(self, table):
         '''
-        Replace the Symbol referred to by this object's `variable` property
-        with that in the supplied SymbolTable with a matching name. If there
-        is no match then it is left unchanged.
+        Replace the Symbol referred to by this object's `variable` and
+        `explicit_local_symbols` properties with those in the supplied
+        SymbolTable with a matching name. If there is no matches then they
+        are left unchanged.
 
         :param table: symbol table in which to look up the replacement symbol.
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
@@ -428,6 +442,14 @@ class Loop(Statement):
             try:
                 new_sym = table.lookup(self._variable.name)
                 self.variable = new_sym
+            except KeyError:
+                pass
+
+        for symbol in list(self._explicitly_private_symbols):
+            try:
+                new_sym = table.lookup(symbol.name)
+                self._explicitly_private_symbols.remove(symbol)
+                self._explicitly_private_symbols.add(new_sym)
             except KeyError:
                 pass
         super().replace_symbols_using(table)
@@ -576,5 +598,5 @@ class Loop(Statement):
         # - Add the kernel module import statements
         for kernel in self.walk(CodedKern):
             if not kernel.module_inline:
-                parent.add(UseGen(parent, name=kernel._module_name, only=True,
-                                  funcnames=[kernel._name]))
+                parent.add(UseGen(parent, name=kernel.module_name, only=True,
+                                  funcnames=[kernel.name]))

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,10 +40,10 @@
 import pytest
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.opencl import OpenCLWriter
-from psyclone.psyir.nodes import Return, KernelSchedule
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, \
-    ArgumentInterface, UnresolvedInterface, ArrayType, REAL_TYPE, \
-    INTEGER_TYPE
+from psyclone.psyir.nodes import Return, KernelSchedule, Literal
+from psyclone.psyir.symbols import (
+    DataSymbol, SymbolTable, ArgumentInterface, UnresolvedInterface, ArrayType,
+    REAL_TYPE, INTEGER_TYPE)
 
 
 def test_oclw_initialization():
@@ -117,7 +117,9 @@ def test_oclw_gen_declaration():
     assert result == "__global int * restrict dummy2"
 
     # Array with a lower bound other than 1
-    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.ArrayBounds(2, 5)])
+    two = Literal("2", INTEGER_TYPE)
+    five = Literal("5", INTEGER_TYPE)
+    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.ArrayBounds(two, five)])
     symbol = DataSymbol("dummy3", array_type)
     with pytest.raises(VisitorError) as err:
         oclwriter.gen_declaration(symbol)
@@ -180,7 +182,7 @@ def test_oclw_kernelschedule():
     # need to be implemented by the APIs. A generic kernelschedule will
     # produce a NotImplementedError.
     oclwriter = OpenCLWriter()
-    kschedule = KernelSchedule("kname")
+    kschedule = KernelSchedule.create("kname")
     with pytest.raises(NotImplementedError) as error:
         _ = oclwriter(kschedule)
     assert "Abstract property. Which symbols are data arguments is " \

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+#         J. G. Wallwork, University of Cambridge
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Assignment PSyIR node. '''
@@ -100,6 +101,7 @@ def test_assignment_create():
     lhs = Reference(DataSymbol("tmp", REAL_SINGLE_TYPE))
     rhs = Literal("0.0", REAL_SINGLE_TYPE)
     assignment = Assignment.create(lhs, rhs)
+    assert assignment.is_literal_assignment
     check_links(assignment, [lhs, rhs])
     result = FortranWriter().assignment_node(assignment)
     assert result == "tmp = 0.0\n"
@@ -150,6 +152,7 @@ def test_is_array_assignment():
     array_ref = ArrayReference.create(symbol, [x_range, int_one.copy()])
     assignment = Assignment.create(array_ref, one.copy())
     assert assignment.is_array_assignment is True
+    assert assignment.is_literal_assignment
 
     # Check when lhs consists of various forms of structure access
     grid_type = StructureType.create([
@@ -349,8 +352,11 @@ def test_pointer_assignment():
     assignment1 = Assignment(is_pointer=True)
     assignment1.addchild(lhs.copy())
     assignment1.addchild(rhs.copy())
+    assert not assignment1.is_literal_assignment
     assignment2 = Assignment.create(lhs, rhs, is_pointer=True)
+    assert not assignment2.is_literal_assignment
     not_pointer = Assignment.create(lhs.copy(), rhs.copy())
+    assert not not_pointer.is_literal_assignment
 
     # Getters, equality and copy
     assert assignment1.is_pointer

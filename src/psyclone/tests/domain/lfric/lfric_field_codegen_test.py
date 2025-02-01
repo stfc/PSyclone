@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -80,7 +80,7 @@ def test_field(tmpdir):
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_f1\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
@@ -104,7 +104,7 @@ def test_field(tmpdir):
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -135,7 +135,7 @@ def test_field(tmpdir):
         "      ! Call our kernels\n"
         "      !\n"
         "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_code(nlayers, a, f1_data, f2_data, "
+        "        CALL testkern_code(nlayers_f1, a, f1_data, f2_data, "
         "m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
         "      END DO\n"
@@ -173,7 +173,7 @@ def test_field_deref(tmpdir, dist_mem):
         "      TYPE(field_type), intent(in) :: f1, est_f2, m1, est_m2\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_f1\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: est_m2_data => "
         "null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
@@ -205,7 +205,7 @@ def test_field_deref(tmpdir, dist_mem):
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n")
+        "      nlayers_f1 = f1_proxy%vspace%get_nlayers()\n")
     assert output in generated_code
     if dist_mem:
         output = (
@@ -268,9 +268,9 @@ def test_field_deref(tmpdir, dist_mem):
             "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
     output = (
-        "        CALL testkern_code(nlayers, a, f1_data, est_f2_data, m1_data,"
-        " est_m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
+        "        CALL testkern_code(nlayers_f1, a, f1_data, est_f2_data, "
+        "m1_data, est_m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, "
+        "undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
         "      END DO\n")
     assert output in generated_code
     if dist_mem:
@@ -310,7 +310,7 @@ def test_field_fs(tmpdir):
         "m4, f5, f6, m5, m6, m7\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_f1\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m7_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m6_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: m5_data => null()\n"
@@ -374,7 +374,7 @@ def test_field_fs(tmpdir):
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
@@ -506,7 +506,7 @@ def test_field_fs(tmpdir):
         "        CALL m7_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_fs_code(nlayers, f1_data, f2_data, "
+        "        CALL testkern_fs_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, m2_data, f3_data, f4_data, "
         "m3_data, m4_data, f5_data, f6_data, "
         "m5_data, m6_data, m7_data, ndf_w1, undf_w1, "
@@ -612,7 +612,7 @@ def test_int_field_fs(tmpdir):
         "f4, m3, m4, f5, f6, m5, m6, f7, f8, m7\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_f1\n"
         "      INTEGER(KIND=i_def), pointer, dimension(:) :: m7_data => "
         "null()\n"
         "      INTEGER(KIND=i_def), pointer, dimension(:) :: f8_data => "
@@ -699,7 +699,7 @@ def test_int_field_fs(tmpdir):
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
@@ -849,7 +849,7 @@ def test_int_field_fs(tmpdir):
         "        CALL m7_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_fs_int_field_code(nlayers, f1_data, "
+        "        CALL testkern_fs_int_field_code(nlayers_f1, f1_data, "
         "f2_data, m1_data, m2_data, f3_data, "
         "f4_data, m3_data, m4_data, f5_data, "
         "f6_data, m5_data, m6_data, f7_data, "
@@ -941,7 +941,7 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
             "diff_basis_adspc1_f3_qr_face)\n" in gen_code)
     # Check that the kernel call itself is correct
     assert (
-        "testkern_2qr_int_field_code(nlayers, f1_data, "
+        "testkern_2qr_int_field_code(nlayers_f1, f1_data, "
         "f2_1_data, f2_2_data, f2_3_data, f3_data, "
         "istp, ndf_w2, undf_w2, map_w2(:,cell), basis_w2_qr_xyoz, "
         "basis_w2_qr_face, ndf_wchi, undf_wchi, map_wchi(:,cell), "
@@ -993,7 +993,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def) nlayers_f1, nlayers_i1\n"
         "      INTEGER(KIND=i_def), pointer, dimension(:) :: n7_data => "
         "null()\n"
         "      INTEGER(KIND=i_def), pointer, dimension(:) :: i8_data => "
@@ -1050,7 +1050,8 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     output = (
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = i1_proxy%vspace%get_nlayers()\n"
+        "      nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
+        "      nlayers_i1 = i1_proxy%vspace%get_nlayers()\n"
         "      !\n")
     if dist_mem:
         output += (
@@ -1080,7 +1081,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     assert output in generated_code
     # Kernel calls are the same regardless of distributed memory
     kern1_call = (
-        "        CALL testkern_fs_int_field_code(nlayers, i1_data, "
+        "        CALL testkern_fs_int_field_code(nlayers_i1, i1_data, "
         "i2_data, n1_data, n2_data, i3_data, "
         "i4_data, n3_data, n4_data, i5_data, "
         "i6_data, n5_data, n6_data, i7_data, "
@@ -1098,7 +1099,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "undf_adspc1_n7, map_adspc1_n7(:,cell))\n")
     assert kern1_call in generated_code
     kern2_call = (
-        "        CALL testkern_fs_code(nlayers, f1_data, f2_data, "
+        "        CALL testkern_fs_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, m2_data, f3_data, f4_data, "
         "m3_data, m4_data, f5_data, f6_data, "
         "m5_data, m6_data, m7_data, ndf_w1, undf_w1, "

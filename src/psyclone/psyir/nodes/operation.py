@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,10 +64,10 @@ class Operation(DataNode, metaclass=ABCMeta):
                        self.Operator.
 
     '''
-    # Must be overridden in sub-class to hold an Enumeration of the Operators
-    # that it can represent.
+    #: Must be overridden in sub-class to hold an Enumeration of the Operators
+    #: that it can represent.
     Operator = object
-    # Colour of the node in a view tree.
+    #: Colour of the node in a view tree.
     _colour = "blue"
 
     def __init__(self, operator, parent=None):
@@ -140,6 +140,7 @@ class UnaryOperation(Operation):
     # Textual description of the node.
     _children_valid_format = "DataNode"
 
+    #: The Operators that a UnaryOperation can represent.
     Operator = Enum('Operator', [
         # Arithmetic Operators
         'MINUS', 'PLUS',
@@ -209,6 +210,7 @@ class BinaryOperation(Operation):
     as children 0 and 1, and an attribute with the operator type.
 
     '''
+    #: The Operators that a BinaryOperation can represent.
     Operator = Enum('Operator', [
         # Arithmetic Operators. ('REM' is remainder AKA 'MOD' in Fortran.)
         'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW',

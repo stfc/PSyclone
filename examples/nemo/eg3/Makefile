@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council.
+# Copyright (c) 2018-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,11 +41,11 @@
 # be installed and the location specified in DL_TIMER_ROOT below.
 #
 # The compiler to use must be specified via the F90 environment
-# variable. e.g. to use PGI and OpenACC:
+# variable. e.g. to use the NVIDIA compiler and OpenACC:
 #
-# export F90=pgf90
-# export F90FLAGS="-O1 -acc -ta=tesla,cc70 -Minfo=all"
-# export LDFLAGS="-acc -ta=tesla,cc70"
+# export F90=nvfortran
+# export F90FLAGS="-O1 -acc -gpu=cc70 -Minfo=all"
+# export LDFLAGS="-acc -gpu=cc70"
 include ../../common.mk
 
 GENERATED_FILES += psy.f90 psy.o traadv.exe output.dat psyclone.log \

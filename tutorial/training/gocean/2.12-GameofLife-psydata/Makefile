@@ -1,5 +1,5 @@
 EXE = gol
-API = gocean1.0
+API = gocean
 
 # We need to compile and link the PSyData libraries:
 PSY_DATA_DIR = $(ROOT_DIR)/lib/profiling/simple_timing
@@ -33,6 +33,11 @@ $(PSY_DATA_LIB): $(INF_LIB)
 
 %.f90: %.x90 Makefile
 	$(PSYCLONE) --profile kernels -oalg $*.f90 -opsy $*_psy.f90 $<
+
+allclean:
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_INC) clean
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(GOL_DIR) clean
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(PSY_DATA_DIR) clean
 
 clean:
 	$(MAKE) -f Makefile.extraction clean

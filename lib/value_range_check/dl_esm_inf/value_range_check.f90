@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020-2024, Science and Technology Facilities Council.
+! Copyright (c) 2020-2025, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 !! variable values are within a certain range. It is based on the
 !! ValueRangeCheckBaseType (from which it inherits the handling of the
 !! basic Fortran data types and 2d-arrays, as specified in the Makefile).
-!!It adds the support for the dl_esm_inf-specific field type.
+!! It adds the support for the dl_esm_inf-specific field type.
 
 
 module value_range_check_psy_data_mod

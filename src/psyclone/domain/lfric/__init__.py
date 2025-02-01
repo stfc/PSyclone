@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,12 +45,14 @@
 from psyclone.domain.lfric.function_space import FunctionSpace
 from psyclone.domain.lfric.lfric_arg_descriptor import LFRicArgDescriptor
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_halo_depths import LFRicHaloDepths
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.kern_call_acc_arg_list import KernCallAccArgList
 from psyclone.domain.lfric.kern_call_invoke_arg_list import \
     KernCallInvokeArgList
 from psyclone.domain.lfric.kernel_interface import KernelInterface
+from psyclone.domain.lfric.lfric_cell_iterators import LFRicCellIterators
 from psyclone.domain.lfric.lfric_extract_driver_creator import \
     LFRicExtractDriverCreator
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
@@ -71,6 +73,7 @@ from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
 from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
 from psyclone.domain.lfric.lfric_loop_bounds import LFRicLoopBounds
 from psyclone.domain.lfric.lfric_kern_metadata import LFRicKernMetadata
+from psyclone.domain.lfric.lfric_psy import LFRicPSy
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.domain.lfric.lfric_dofmaps import LFRicDofmaps
 from psyclone.domain.lfric.lfric_stencils import LFRicStencils
@@ -84,11 +87,13 @@ __all__ = [
     'KernelInterface',
     'KernStubArgList',
     'LFRicArgDescriptor',
+    'LFRicCellIterators',
     'LFRicCollection',
     'LFRicConstants',
     'LFRicDofmaps',
     'LFRicExtractDriverCreator',
     'LFRicFields',
+    'LFRicHaloDepths',
     'LFRicInvoke',
     'LFRicInvokes',
     'LFRicInvokeSchedule',
@@ -97,6 +102,7 @@ __all__ = [
     'LFRicKernMetadata',
     'LFRicLoop',
     'LFRicLoopBounds',
+    'LFRicPSy',
     'LFRicRunTimeChecks',
     'LFRicScalarArgs',
     'LFRicStencils',

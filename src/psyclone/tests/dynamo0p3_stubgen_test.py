@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -73,13 +73,15 @@ def test_kernel_stub_invalid_iteration_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
     assert ("supports kernels that operate on one of "
-            "['cell_column'] but found 'dof' in kernel "
+            "['cell_column', 'halo_cell_column', "
+            "'owned_and_halo_cell_column'] but found 'dof' in kernel "
             "'testkern_dofs_code'." in str(excinfo.value))
     kernel._iterates_over = "domain"
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
     assert ("supports kernels that operate on one of "
-            "['cell_column'] but found 'domain' in kernel "
+            "['cell_column', 'halo_cell_column', "
+            "'owned_and_halo_cell_column'] but found 'domain' in kernel "
             "'testkern_dofs_code'." in str(excinfo.value))
 
 
@@ -503,7 +505,7 @@ def test_enforce_op_bc_kernel_stub_gen():
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension("
-        "ndf_aspc1_op_1,ndf_aspc2_op_1,op_1_ncell_3d) :: op_1\n"
+        "op_1_ncell_3d,ndf_aspc1_op_1,ndf_aspc2_op_1) :: op_1\n"
         "      INTEGER(KIND=i_def), intent(in), "
         "dimension(ndf_aspc1_op_1,2) :: boundary_dofs_op_1\n"
         "    END SUBROUTINE enforce_operator_bc_code\n"

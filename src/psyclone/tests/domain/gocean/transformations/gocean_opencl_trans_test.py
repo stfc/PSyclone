@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council.
+# Copyright (c) 2018-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1216,7 +1216,7 @@ def test_symtab_implementation_for_opencl():
     ''' Tests that the GOcean specialised Symbol Table implements the
     abstract properties needed to generate OpenCL.
     '''
-    kschedule = GOKernelSchedule('test')
+    kschedule = GOKernelSchedule.create('test')
 
     # Test symbol table without any kernel argument
     with pytest.raises(GenerationError) as err:

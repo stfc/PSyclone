@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,9 +39,11 @@
 from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 from psyclone.psyir.tools.dependency_tools import DTCode, DependencyTools
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
+from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
 
 # For AutoAPI documentation generation.
 __all__ = ['CallTreeUtils',
            'DTCode',
            'DependencyTools',
+           'DefinitionUseChain', 
            'ReadWriteInfo']

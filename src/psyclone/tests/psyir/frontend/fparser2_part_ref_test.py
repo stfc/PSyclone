@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@ def test_handling_part_ref():
     reader = FortranStringReader("x(2)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0]
 
-    fake_parent = KernelSchedule('kernel')
+    fake_parent = KernelSchedule.create('kernel')
     fake_parent.symbol_table.add(DataSymbol('x', INTEGER_TYPE))
 
     processor = Fparser2Reader()
@@ -82,7 +82,7 @@ def test_handling_part_ref_expression():
     reader = FortranStringReader("x(i+3,j-4,(z*5)+1)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0]
 
-    fake_parent = KernelSchedule('assign')
+    fake_parent = KernelSchedule.create('assign')
     array_type = ArrayType(INTEGER_TYPE, [10, 10, 10])
     fake_parent.symbol_table.add(DataSymbol('x', array_type))
     fake_parent.symbol_table.add(DataSymbol('i', INTEGER_TYPE))
@@ -121,6 +121,7 @@ def test_handling_part_ref_function(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
 
     function = psyir.children[0].children[1]
+    assert function.name == "test_func"
     assert isinstance(function, Routine)
     assert isinstance(function.return_symbol, DataSymbol)
     assert isinstance(function.return_symbol.datatype, ScalarType)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
 # Modified: S. Siso, A. R. Porter and N. Nobre, STFC Daresbury Lab
+#           T. Vockerodt, Met Office
 
 '''Module providing a transformation from a PSyIR MATMUL operator to
 PSyIR code. This could be useful if the MATMUL operator is not
@@ -51,28 +52,43 @@ from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
 
 
-def _create_matrix_ref(matrix_symbol, loop_idx_symbols, other_dims):
+def _create_array_ref(array_symbol, loop_idx_symbols, other_dims,
+                      loop_idx_order, other_dims_order):
     '''
-    Utility function to create a reference to a matrix element being
+    Utility function to create a reference to an array element being
     accessed using one or more loop indices followed by zero or more
     other index expressions.
 
-    :param matrix_symbol: the symbol representing the matrix.
-    :type matrix_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-    :param loop_idx_symbols: loop indices which will index into the matrix.
+    :param array_symbol: the symbol representing the array.
+    :type array_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param loop_idx_symbols: loop indices which will index into the array.
     :type loop_idx_symbols: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-    :param other_dims: index expressions for any other dimensions that are \
-                       not being looped over. (If there are none then this \
+    :param other_dims: index expressions for any other dimensions that are
+                       not being looped over. (If there are none then this
                        must be an empty list.)
     :type other_dims: List[:py:class:`psyclone.psyir.nodes.ExpressionNode`]
+    :param List[int] loop_idx_order: list of indices in the original array
+                                     where the loop_idx_symbols are.
+    :param List[int] other_dims_order: list of indices in the original array
+                                       where the other_dims are.
 
-    :returns: the new reference to a matrix element.
+    :returns: the new reference to an array element.
     :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
     '''
-    indices = [Reference(sym) for sym in loop_idx_symbols]
-    indices.extend(dim.copy() for dim in other_dims)
-    return ArrayReference.create(matrix_symbol, indices)
+    # If there are no other dims, then we simply create
+    # an array with the loop_idx_symbols in order.
+    if len(other_dims) == 0:
+        indices = [Reference(sym) for sym in loop_idx_symbols]
+    else:
+        n_indices = len(loop_idx_symbols) + len(other_dims)
+        indices = [-1]*n_indices
+        for it, order_idx in enumerate(loop_idx_order):
+            indices[order_idx] = Reference(loop_idx_symbols[it])
+        # Fill the remaining indices with the other dims
+        for it, order_idx in enumerate(other_dims_order):
+            indices[order_idx] = other_dims[it].copy()
+    return ArrayReference.create(array_symbol, indices)
 
 
 def _get_array_bound(array, index):
@@ -174,6 +190,86 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         super().__init__()
         self._intrinsic = IntrinsicCall.Intrinsic.MATMUL
 
+    def _get_full_range_split(self, array):
+        '''A utility function that returns the number of full ranges
+           and the list of indices which are not full ranges.
+
+        :param array: the reference that we are interested in.
+        :type array: :py:class:`psyir.nodes.Reference`
+        :returns: tuple with list of full range indices,
+                  the list of non full range indices, and
+                  list of non full range nodes for this array.
+        :rtype: (List[int], List[int], List[psyclone.psyir.nodes.DataNode])
+
+       :raises TransformationError: if any Range nodes are not full, or
+            if there are more than two full range nodes.
+
+        '''
+        from psyclone.psyir.transformations import TransformationError
+        non_full_ranges = []
+        full_range_order = []
+        non_full_range_order = []
+        for it, idx in enumerate(array.children):
+            if isinstance(idx, Range):
+                if array.is_full_range(it):
+                    full_range_order.append(it)
+                else:
+                    raise TransformationError(
+                        f"To use {self.name} on matmul, each Range index "
+                        f"of the array '{array.debug_string()}' "
+                        f"must be a full range but found "
+                        f"non full range at position {it}.")
+            else:
+                non_full_ranges.append(idx)
+                non_full_range_order.append(it)
+
+        # Error raising if we go above 2 full ranges
+        n_full_ranges = len(full_range_order)
+        if n_full_ranges > 2:
+            raise TransformationError(
+                f"To use {self.name} on matmul, no more than "
+                f"two indices of the array '{array.debug_string()}' "
+                f"must be full ranges but found {n_full_ranges}.")
+        return (full_range_order, non_full_range_order, non_full_ranges)
+
+    def _validate_array_full_ranges(self, array, permitted_full_ranges):
+        '''A utility function that checks if the number of full ranges
+           of an array is allowed.
+
+        :param array: the reference that we are interested in.
+        :type array: :py:class:`psyir.nodes.Reference`
+        :param List[int] permitted_full_ranges: the permitted number
+                                                of full ranges for array
+
+       :raises TransformationError: if the number of full ranges
+                                    is not permitted.
+
+        '''
+        from psyclone.psyir.transformations import TransformationError
+        # Make sure the array has as many full ranges as needed
+        if (len(array.symbol.shape) in permitted_full_ranges
+           and not array.children):
+            # If the array only has 1 or 2 dimensions and all of its
+            # data is used in the matrix multiply then the reference does
+            # not need to supply any dimension information.
+            pass
+        else:
+            # There should be one index per dimension. This is enforced
+            # by the array create method so is not tested here.
+            full_range_order, _, _ = self._get_full_range_split(array)
+            n_full_ranges = len(full_range_order)
+            if n_full_ranges not in permitted_full_ranges:
+                # Formatting error message nicely.
+                if len(permitted_full_ranges) == 1:
+                    permit_str = f"{permitted_full_ranges[0]}"
+                else:
+                    permit_str = f"either {permitted_full_ranges[0]} " \
+                                 f"or {permitted_full_ranges[1]}"
+                raise TransformationError(
+                    f"To use {self.name} on matmul, {permit_str} "
+                    f"indices of the array '{array.debug_string()}' "
+                    f"must be full ranges but found {n_full_ranges}.")
+
     def validate(self, node, options=None):
         '''Perform checks to ensure that it is valid to apply the
         Matmul2CodeTran transformation to the supplied node.
@@ -183,13 +279,13 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         :param options: options for the transformation.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the node argument is not the \
+        :raises TransformationError: if the node argument is not the
             expected type.
-        :raises TransformationError: if the parent of the MATMUL \
+        :raises TransformationError: if the parent of the MATMUL
             operation is not an assignment.
-        :raises TransformationError: if the matmul arguments are not in \
+        :raises TransformationError: if the matmul arguments are not in
             the required form.
-        :raises TransformationError: if sub-sections of an array are present \
+        :raises TransformationError: if sub-sections of an array are present
             in the arguments.
 
         '''
@@ -249,36 +345,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             raise TransformationError(
                 f"Expected 1st child of a MATMUL IntrinsicCall to have 2 "
                 f"dimensions, but found '{len(matrix1.symbol.shape)}'.")
-        if len(matrix1.symbol.shape) == 2 and not matrix1.children:
-            # If matrix1 only has 2 dimensions and all of its data is
-            # used in the matrix multiply then the reference does
-            # not need to supply any dimension information.
-            pass
-        else:
-            # There should be one index per dimension. This is enforced
-            # by the array create method so is not tested here.
-
-            # The first two indices should be ranges. This is a
-            # limitation of this transformation, not the PSyIR, as it
-            # would be valid to have any two indices being
-            # ranges. Further, this transformation is currently
-            # limited to Ranges which specify the full extent of the
-            # dimension.
-            if not (matrix1.is_full_range(0) and matrix1.is_full_range(1)):
-                raise TransformationError(
-                    f"To use matmul2code_trans on matmul, the first two "
-                    f"indices of the 1st argument '{matrix1.name}' must be "
-                    f"full ranges.")
-
-            if len(matrix1.children) > 2:
-                # The 3rd index and onwards must not be ranges.
-                for (count, index) in enumerate(matrix1.children[2:]):
-                    if isinstance(index, Range):
-                        raise TransformationError(
-                            f"To use matmul2code_trans on matmul, only the "
-                            f"first two indices of the 1st argument are "
-                            f"permitted to be Ranges but found "
-                            f"{type(index).__name__} at index {count+2}.")
+        self._validate_array_full_ranges(matrix1, [2])
 
         if len(matrix2.symbol.shape) > 2 and not matrix2.children:
             # If matrix2 has no children then it is a reference. If
@@ -287,49 +354,10 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             raise TransformationError(
                 f"Expected 2nd child of a MATMUL IntrinsicCall to have 1 "
                 f"or 2 dimensions, but found '{len(matrix2.symbol.shape)}'.")
-        if len(matrix2.symbol.shape) in [1, 2] and not matrix2.children:
-            # If the 2nd argument only has 1 or 2 dimensions and all of its
-            # data is used in the matrix multiply then the reference does
-            # not need to supply any dimension information.
-            pass
-        else:
-            # There should be one index per dimension. This is enforced
-            # by the array create method so is not tested here.
+        self._validate_array_full_ranges(matrix2, [1, 2])
 
-            # The first index should be a range. This
-            # transformation is currently limited to Ranges which
-            # specify the full extent of the dimension.
-            if not matrix2.is_full_range(0):
-                raise TransformationError(
-                    f"To use matmul2code_trans on matmul, the first index of "
-                    f"the 2nd argument '{matrix2.name}' must be a full range.")
-            # Check that the second dimension is a full range if it is
-            # a range.
-            if (len(matrix2.symbol.shape) > 1 and
-                    isinstance(matrix2.children[1], Range)
-                    and not matrix2.is_full_range(1)):
-                raise TransformationError(
-                    f"To use matmul2code_trans on matmul for a matrix-matrix "
-                    f"multiplication, the second index of the 2nd "
-                    f"argument '{matrix2.name}' must be a full range.")
-            if len(matrix2.children) > 2:
-                # The 3rd index and onwards must not be ranges.
-                for (count, index) in enumerate(matrix2.children[2:]):
-                    if isinstance(index, Range):
-                        raise TransformationError(
-                            f"To use matmul2code_trans on matmul, only the "
-                            f"first two indices of the 2nd argument are "
-                            f"permitted to be a Range but found "
-                            f"{type(index).__name__} at index {count+2}.")
-
-        # Make sure the result has as many full range as needed
-        if result.children:
-            for idx, child in enumerate(result.children):
-                if isinstance(child, Range) and not result.is_full_range(idx):
-                    raise TransformationError(
-                        f"To use matmul2code_trans on matmul, each range on "
-                        f"the result variable '{result.name}' must be a full "
-                        f"range but found {result.debug_string()}")
+        # Make sure the result has as many full ranges as needed
+        self._validate_array_full_ranges(result, [1, 2])
 
         # Make sure the result is not one of the MATMUL operands
         if result.symbol in (matrix1.symbol, matrix2.symbol):
@@ -358,14 +386,15 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         self.validate(node, options)
 
         arg2 = node.arguments[1]
-        if (len(arg2.children) > 1 and isinstance(arg2.children[1], Range) or
+        full_range_order, _, _ = self._get_full_range_split(arg2)
+        n_full_ranges = len(full_range_order)
+        if (n_full_ranges > 1 or
                 not arg2.children and len(arg2.symbol.shape) == 2):
             self._apply_matrix_matrix(node)
         else:
             self._apply_matrix_vector(node)
 
-    @staticmethod
-    def _apply_matrix_vector(node):
+    def _apply_matrix_vector(self, node):
         '''
         Apply the transformation for the case of a matrix-vector
         multiplication.
@@ -379,7 +408,6 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         matrix = node.arguments[0]
         vector = node.arguments[1]
         result = node.parent.lhs
-        result_symbol = result.symbol
 
         # Create new i and j loop iterators.
         symbol_table = node.scope.symbol_table
@@ -389,24 +417,26 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                                              datatype=INTEGER_TYPE)
 
         # Create "result(i)"
-        result_dims = [Reference(i_loop_sym)]
-        if len(result.children) > 1:
-            # Add any additional dimensions (in case of an array slice)
-            for child in result.children[1:]:
-                result_dims.append(child.copy())
-        result_ref = ArrayReference.create(result_symbol, result_dims)
+        r_fr_order, r_nfr_order, r_nfr = self._get_full_range_split(result)
+        result_ref = _create_array_ref(result.symbol,
+                                       [i_loop_sym],
+                                       r_nfr,
+                                       r_fr_order,
+                                       r_nfr_order)
         # Create "vector(j)"
-        vector_dims = [Reference(j_loop_sym)]
-        if len(vector.children) > 1:
-            # Add any additional dimensions (in case of an array slice)
-            for child in vector.children[1:]:
-                vector_dims.append(child.copy())
-        vector_array_reference = ArrayReference.create(
-            vector.symbol, vector_dims)
+        v_fr_order, v_nfr_order, v_nfr = self._get_full_range_split(vector)
+        vector_array_reference = _create_array_ref(vector.symbol,
+                                                   [j_loop_sym],
+                                                   v_nfr,
+                                                   v_fr_order,
+                                                   v_nfr_order)
+        m_fr_order, m_nfr_order, m_nfr = self._get_full_range_split(matrix)
         # Create "matrix(i,j)"
-        matrix_array_reference = _create_matrix_ref(matrix.symbol,
-                                                    [i_loop_sym, j_loop_sym],
-                                                    matrix.children[2:])
+        matrix_array_reference = _create_array_ref(matrix.symbol,
+                                                   [i_loop_sym, j_loop_sym],
+                                                   m_nfr,
+                                                   m_fr_order,
+                                                   m_nfr_order)
         # Create "matrix(i,j) * vector(j)"
         multiply = BinaryOperation.create(
             BinaryOperation.Operator.MUL, matrix_array_reference,
@@ -418,21 +448,32 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         assign = Assignment.create(result_ref.copy(), rhs)
         # Create j loop and add the above code as a child
         # Work out the bounds
-        lower_bound, upper_bound, step = _get_array_bound(vector, 0)
+        if len(v_fr_order) == 0:
+            # If no full ranges, then the vector was specified
+            # without them i.e.: only has one dimension.
+            first_pos = 0
+        else:
+            first_pos = v_fr_order[0]
+        lower_bound, upper_bound, step = _get_array_bound(vector, first_pos)
         jloop = Loop.create(j_loop_sym, lower_bound, upper_bound, step,
                             [assign])
         # Create "result(i) = 0.0"
         assign = Assignment.create(result_ref.copy(),
                                    Literal("0.0", REAL_TYPE))
         # Create i loop and add assignment and j loop as children
-        lower_bound, upper_bound, step = _get_array_bound(matrix, 0)
+        if len(m_fr_order) == 0:
+            # If no full ranges, then matrix was specified
+            # without them i.e.: only has two dimensions.
+            first_pos = 0
+        else:
+            first_pos = m_fr_order[0]
+        lower_bound, upper_bound, step = _get_array_bound(matrix, first_pos)
         iloop = Loop.create(i_loop_sym, lower_bound, upper_bound, step,
                             [assign, jloop])
         # Replace the existing assignment with the new loop.
         assignment.replace_with(iloop)
 
-    @staticmethod
-    def _apply_matrix_matrix(node):
+    def _apply_matrix_matrix(self, node):
         '''
         Apply the transformation for the case of a matrix-matrix
         multiplication.
@@ -456,17 +497,26 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         ii_loop_sym = symbol_table.new_symbol("ii", symbol_type=DataSymbol,
                                               datatype=INTEGER_TYPE)
         # Create "result(i,j)"
-        result_ref = _create_matrix_ref(result.symbol,
-                                        [i_loop_sym, j_loop_sym],
-                                        result.children[2:])
+        r_fr_order, r_nfr_order, r_nfr = self._get_full_range_split(result)
+        result_ref = _create_array_ref(result.symbol,
+                                       [i_loop_sym, j_loop_sym],
+                                       r_nfr,
+                                       r_fr_order,
+                                       r_nfr_order)
         # Create "matrix2(ii,j)"
-        m2_array_reference = _create_matrix_ref(matrix2.symbol,
-                                                [ii_loop_sym, j_loop_sym],
-                                                matrix2.children[2:])
+        m2_fr_order, m2_nfr_order, m2_nfr = self._get_full_range_split(matrix2)
+        m2_array_reference = _create_array_ref(matrix2.symbol,
+                                               [ii_loop_sym, j_loop_sym],
+                                               m2_nfr,
+                                               m2_fr_order,
+                                               m2_nfr_order)
         # Create "matrix1(i,ii)"
-        m1_array_reference = _create_matrix_ref(matrix1.symbol,
-                                                [i_loop_sym, ii_loop_sym],
-                                                matrix1.children[2:])
+        m1_fr_order, m1_nfr_order, m1_nfr = self._get_full_range_split(matrix1)
+        m1_array_reference = _create_array_ref(matrix1.symbol,
+                                               [i_loop_sym, ii_loop_sym],
+                                               m1_nfr,
+                                               m1_fr_order,
+                                               m1_nfr_order)
         # Create "matrix1(i,ii) * matrix2(ii,j)"
         multiply = BinaryOperation.create(
             BinaryOperation.Operator.MUL, m1_array_reference,
@@ -478,19 +528,36 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         assign = Assignment.create(result_ref.copy(), rhs)
         # Create ii loop and add the above code as a child
         # Work out the bounds
-        lower_bound, upper_bound, step = _get_array_bound(matrix1, 1)
-        # Must be the same as _get_array_bound(matrix2, 0)
+        if len(m1_fr_order) == 0:
+            # If no full ranges, then matrix was specified
+            # without them i.e.: only has two dimensions.
+            pos_last = 1
+        else:
+            pos_last = m1_fr_order[-1]
+        lower_bound, upper_bound, step = _get_array_bound(matrix1, pos_last)
         iiloop = Loop.create(ii_loop_sym, lower_bound, upper_bound, step,
                              [assign])
         # Create "result(i,j) = 0.0"
         assign = Assignment.create(result_ref.copy(),
                                    Literal("0.0", REAL_TYPE))
         # Create i loop and add assignment and ii loop as children.
-        lower_bound, upper_bound, step = _get_array_bound(matrix1, 0)
+        if len(m1_fr_order) == 0:
+            # If no full ranges, then matrix was specified
+            # without them i.e.: only has two dimensions.
+            pos_first = 0
+        else:
+            pos_first = m1_fr_order[0]
+        lower_bound, upper_bound, step = _get_array_bound(matrix1, pos_first)
         iloop = Loop.create(i_loop_sym, lower_bound, upper_bound, step,
                             [assign, iiloop])
         # Create j loop and add i loop as child.
-        lower_bound, upper_bound, step = _get_array_bound(matrix2, 1)
+        if len(m2_fr_order) == 0:
+            # If no full ranges, then matrix was specified
+            # without them i.e.: only has two dimensions.
+            pos_last = 1
+        else:
+            pos_last = m2_fr_order[-1]
+        lower_bound, upper_bound, step = _get_array_bound(matrix2, pos_last)
         jloop = Loop.create(j_loop_sym, lower_bound, upper_bound, step,
                             [iloop])
         # Replace the original assignment with the new loop.

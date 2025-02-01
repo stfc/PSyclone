@@ -48,7 +48,7 @@ applies the inline tranformation.
 
     def trans(psy):
         '''
-        Take the supplied psy object, and fuse the first two loops
+        Take the supplied psy object, and apply module inlining.
     
         :param psy: the PSy layer to transform.
         :type psy: :py:class:`psyclone.psyGen.PSy`

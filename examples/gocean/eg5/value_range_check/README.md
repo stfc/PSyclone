@@ -1,4 +1,4 @@
-# PSyclone GOcean PSyData NaN-check Example
+# PSyclone GOcean PSyData Value Range Check Example
 
 **Author:** J. Henrichs, Bureau of Meteorology
 
@@ -28,17 +28,16 @@ invalid numbers (Infinity).
 
 ## Running
 In order to activate the value range checking, you need to
-specify the value range for variables as outlined in
+specify the value range for variables as outlined here:
 https://psyclone.readthedocs.io/en/latest/psy_data.html#value-range-check
-for details.
 
 ```
 $ PSYVERIFY__main__init__b_fld=2:3    ./value_range_check
 ...
 Allocating C-T field with bounds: (1:   6,1:   6), internal region is (2:   4,2:   4)
-PSyData: Variable 'b_fld' has the value 0.0000000000000000 at index/indices 6 1 in module 'main' region 'init', which is not between '2.0000000000000000' and '3.0000000000000000'.
+PSyData: Variable 'b_fld' has the value 0.0000000000000000 at index/indices 6 1 in module 'main', region 'init', which is not between '2.0000000000000000' and '3.0000000000000000'.
 ...
-PSyData: Variable 'a_fld' has the invalid value 'Inf' at index/indices 1 1 in module 'main' region 'update'.
+PSyData: Variable 'a_fld' has the invalid value 'Inf' at index/indices 1 1 in module 'main', region 'update'.
 ...
 
 ```
@@ -54,7 +53,8 @@ $ PSYVERIFY__b_fld=2:3    ./value_range_check
 PSyData: Variable 'b_fld' has the value 0.0000000000000000 at index/indices 6 1 in module 'main' region 'init', which is not between '2.0000000000000000' and '3.0000000000000000'.
 PSyData: Variable 'b_fld' has the value 0.0000000000000000 at index/indices 6 1 in module 'main' region 'update', which is not between '2.0000000000000000' and '3.0000000000000000'.
 ```
-The changes settings causes now warnings for the ``update`` kernel to be printed as well.
+Now that the kernel and module names are not being specified, warnings are also printed
+for the update kernel.
 
 ## Licence
 
@@ -62,7 +62,7 @@ The changes settings causes now warnings for the ``update`` kernel to be printed
 
 BSD 3-Clause License
 
-Copyright (c) 2021-2024, Science and Technology Facilities Council.
+Copyright (c) 2021-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

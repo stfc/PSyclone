@@ -43,6 +43,7 @@ needs_sphinx = '1.8'
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
               'sphinx.ext.intersphinx', 'sphinx.ext.coverage',
               'sphinx.ext.imgmath', 'sphinx.ext.viewcode',
+              'sphinx_autodoc_typehints',
               'sphinxcontrib.bibtex', 'apilinks']
 bibtex_bibfiles = ['../bibliography/references.bib']
 
@@ -89,7 +90,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = "PSyclone Developer Guide"
-project_copyright = '2017-2024, STFC Daresbury Laboratory'
+project_copyright = '2017-2025, STFC Daresbury Laboratory'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

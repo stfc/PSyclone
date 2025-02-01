@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,9 +41,9 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOKern
 
 
-def trans(psy):
+def trans(psyir):
     '''
-    Take the supplied psy object, and fuse the first two loops
+    Take the supplied psy object, and inline all kernels.
 
     :param psy: the PSy layer to transform.
     :type psy: :py:class:`psyclone.psyGen.PSy`
@@ -51,11 +51,9 @@ def trans(psy):
     '''
     # TODO: Create an instance of the inline transformation
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
-        # TODO: Look at the schedule representation, i.e. print
-        # schedule.view()
-        print
+    # TODO: Look at the schedule representation, i.e. print
+    # psyir.view()
+    for kern in psyir.kernels():
         # TODO: Inline all kernels to help gfortran with inlining
         # by applying the inline transformation to each kernel:
         # inline.apply(...)

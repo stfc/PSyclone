@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council
+# Copyright (c) 2019-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,26 +50,18 @@ class OpenCLWriter(CWriter):
     produces OpenCL code conforming to Version 1.2 of the specification
     (https://www.khronos.org/registry/OpenCL/specs/opencl-1.2.pdf).
 
-    :param bool skip_nodes: if skip_nodes is False then an exception \
-    is raised if a visitor method for a PSyIR node has not been \
-    implemented, otherwise the visitor silently continues. This is an \
-    optional argument which defaults to False.
-    :param str indent_string: specifies what to use for indentation. This \
-    is an optional argument that defaults to two spaces.
-    :param int initial_indent_depth: specifies how much indentation to \
-    start with. This is an optional argument that defaults to 0.
-    :param int kernel_local_size: uses the given local_size when generating \
-    OpenCL kernels.
+    :param int kernel_local_size: uses the given local_size when generating
+        OpenCL kernels.
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
 
     :raises TypeError: if kernel_local_size is not an integer.
     :raises ValueError: if kernel_local_size is not positive.
 
     '''
-    def __init__(self, skip_nodes=False, indent_string="  ",
-                 initial_indent_depth=0, kernels_local_size=1):
+    def __init__(self, kernels_local_size=1, **kwargs):
 
-        super(OpenCLWriter, self).__init__(
-            skip_nodes, indent_string, initial_indent_depth)
+        super().__init__(**kwargs)
 
         if not isinstance(kernels_local_size, int):
             raise TypeError(

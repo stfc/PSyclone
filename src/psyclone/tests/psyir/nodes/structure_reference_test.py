@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -241,7 +241,9 @@ def test_struc_ref_datatype():
     grid_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None),
         ("data", atype, symbols.Symbol.Visibility.PRIVATE, None),
+        # A single member of structure type.
         ("roger", rtype, symbols.Symbol.Visibility.PUBLIC, None),
+        # An array of structure type.
         ("titty", artype, symbols.Symbol.Visibility.PUBLIC, None)])
     # Symbol with type defined by StructureType
     ssym0 = symbols.DataSymbol("grid", grid_type)
@@ -272,6 +274,20 @@ def test_struc_ref_datatype():
     singleref = nodes.StructureReference.create(
         ssym, [("titty", [one.copy(), two.copy()])])
     assert singleref.datatype == rtype_sym
+
+    # Reference to grid%titty(1,2)%gibber
+    sref = nodes.StructureReference.create(
+        ssym, [("titty", [one.copy(), two.copy()]), "gibber"])
+    assert sref.datatype == symbols.BOOLEAN_TYPE
+
+    # Reference to grid%titty(my_func(1), 2) where my_func is unresolved.
+    func_sym = symbols.DataSymbol("my_func",
+                                  datatype=symbols.UnresolvedType(),
+                                  interface=symbols.UnresolvedInterface())
+    fref = nodes.ArrayReference.create(func_sym, [one.copy()])
+    sref2 = nodes.StructureReference.create(
+        ssym, [("titty", [fref, two.copy()])])
+    assert isinstance(sref2.datatype, symbols.UnresolvedType)
 
     # Reference to sub-array of structure members of structure
     myrange = nodes.Range.create(two.copy(),

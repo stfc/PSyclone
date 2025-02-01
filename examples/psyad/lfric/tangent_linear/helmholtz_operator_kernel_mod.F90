@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (c) Crown copyright 2021 Met Office. All rights reserved.
+! (c) Crown copyright 2021-2025 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
@@ -163,11 +163,11 @@ subroutine helmholtz_operator_code(stencil_size,                     &
   real(kind=r_def), dimension(undf_wt), intent(in)    :: mt_lumped_inv
 
   ! Operators
-  real(kind=r_def), dimension(ndf_w2, ndf_w3, ncell_3d_1), intent(in) :: div_star
-  real(kind=r_def), dimension(ndf_w3, ndf_w2, ncell_3d_2), intent(in) :: compound_div
-  real(kind=r_def), dimension(ndf_w3, ndf_wt, ncell_3d_3), intent(in) :: p3theta
-  real(kind=r_def), dimension(ndf_wt, ndf_w2, ncell_3d_4), intent(in) :: ptheta2v
-  real(kind=r_def), dimension(ndf_w3, ndf_w3, ncell_3d_5), intent(in) :: m3_exner_star
+  real(kind=r_def), dimension(ncell_3d_1, ndf_w2, ndf_w3), intent(in) :: div_star
+  real(kind=r_def), dimension(ncell_3d_2, ndf_w3, ndf_w2), intent(in) :: compound_div
+  real(kind=r_def), dimension(ncell_3d_3, ndf_w3, ndf_wt), intent(in) :: p3theta
+  real(kind=r_def), dimension(ncell_3d_4, ndf_wt, ndf_w2), intent(in) :: ptheta2v
+  real(kind=r_def), dimension(ncell_3d_5, ndf_w3, ndf_w3), intent(in) :: m3_exner_star
 
   ! Internal variables
   integer(kind=i_def) :: k, ik, kk, df, e, stencil_ik
@@ -344,7 +344,7 @@ subroutine helmholtz_operator_code(stencil_size,                     &
       a_op(df,:,e-1) = -u_normalisation(smap_w2(df,e)+k) &
                        *w2_mask(smap_w2(df,e)+k)         &
                        *hb_lumped_inv(smap_w2(df,e)+k)   &
-                       *div_star(df,:,stencil_ik)
+                       *div_star(stencil_ik,df,:)
 
       ! Initialise to zero to allow for missing neighbours
       ! in order to fill in any missing horizontal neighbours
@@ -359,7 +359,7 @@ subroutine helmholtz_operator_code(stencil_size,                     &
         a_op(df,:,dir) = -u_normalisation(smap_w2(df,e)+k) &
                          *w2_mask(smap_w2(df,e)+k)         &
                          *hb_lumped_inv(smap_w2(df,e)+k)   &
-                         *div_star(df,:,stencil_ik)
+                         *div_star(stencil_ik,df,:)
       end do
 
       ! Vertical stencil:
@@ -388,28 +388,28 @@ subroutine helmholtz_operator_code(stencil_size,                     &
       kk = -2
       if ( k > 1 ) then
         a_op(df,:,downdown) = -u_normalisation(map_w2(df)+k+kk)*w2_mask(map_w2(df)+k+kk) &
-                              *hb_lumped_inv(map_w2(df)+k+kk)*div_star(df,:,ik+kk)
+                              *hb_lumped_inv(map_w2(df)+k+kk)*div_star(ik+kk,df,:)
       else
         a_op(df,:,downdown) = 0.0_r_def
       end if
       kk = -1
       if ( k > 0 ) then
         a_op(df,:,down) = -u_normalisation(map_w2(df)+k+kk)*w2_mask(map_w2(df)+k+kk) &
-                          *hb_lumped_inv(map_w2(df)+k+kk)*div_star(df,:,ik+kk)
+                          *hb_lumped_inv(map_w2(df)+k+kk)*div_star(ik+kk,df,:)
       else
         a_op(df,:,down) = 0.0_r_def
       end if
       kk = 1
       if ( k < nlayers-1 ) then
         a_op(df,:,up) = -u_normalisation(map_w2(df)+k+kk)*w2_mask(map_w2(df)+k+kk) &
-                        *hb_lumped_inv(map_w2(df)+k+kk)*div_star(df,:,ik+kk)
+                        *hb_lumped_inv(map_w2(df)+k+kk)*div_star(ik+kk,df,:)
       else
         a_op(df,:,up) = 0.0_r_def
       end if
       kk = 2
       if ( k < nlayers-2 ) then
         a_op(df,:,upup) = -u_normalisation(map_w2(df)+k+kk)*w2_mask(map_w2(df)+k+kk) &
-                          *hb_lumped_inv(map_w2(df)+k+kk)*div_star(df,:,ik+kk)
+                          *hb_lumped_inv(map_w2(df)+k+kk)*div_star(ik+kk,df,:)
       else
         a_op(df,:,upup) = 0.0_r_def
       end if
@@ -444,13 +444,13 @@ subroutine helmholtz_operator_code(stencil_size,                     &
       !     |--------------|
     do df = 1,ndf_wt
       if ( k > 0 ) then
-        b_op(df,:,-1) = mt_lumped_inv(map_wt(df)+k-1)*ptheta2v(df,5:6,ik-1)
+        b_op(df,:,-1) = mt_lumped_inv(map_wt(df)+k-1)*ptheta2v(ik-1,df,5:6)
       else
         b_op(df,:,-1) = 0.0_r_def
       end if
-      b_op(df,:, 0) = mt_lumped_inv(map_wt(df)+k  )*ptheta2v(df,5:6,ik)
+      b_op(df,:, 0) = mt_lumped_inv(map_wt(df)+k  )*ptheta2v(ik,df,5:6)
       if ( k < nlayers-1 ) then
-        b_op(df,:, 1) = mt_lumped_inv(map_wt(df)+k+1)*ptheta2v(df,5:6,ik+1)
+        b_op(df,:, 1) = mt_lumped_inv(map_wt(df)+k+1)*ptheta2v(ik+1,df,5:6)
       else
         b_op(df,:, 1) = 0.0_r_def
       end if
@@ -458,17 +458,17 @@ subroutine helmholtz_operator_code(stencil_size,                     &
     ! Compute E*C for all cells in the stencil,
     ! EC maps from W2 points to W3 points and we only need it for the central
     ! cell.
-    ec_op = - compound_div(:,:,ik)
+    ec_op = - compound_div(ik,:,:)
 
     ! Compute D for all cells in the stencil,
     ! D maps from Wtheta points to W3 points and we only need it for the
     ! central cell.
-    d_op = - p3theta(:,:,ik)
+    d_op = - p3theta(ik,:,:)
 
     ! Compute F for all cells in the stencil,
     ! F maps from W3 points to W3 points and we only need it for the central
     ! cell.
-    f_op = m3_exner_star(:,:,ik)
+    f_op = m3_exner_star(ik,:,:)
 
     ! Now compute the coefficients:
 

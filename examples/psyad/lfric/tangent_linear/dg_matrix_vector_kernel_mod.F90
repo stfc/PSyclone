@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2024,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
@@ -48,7 +48,7 @@ contains
 !> @param[in] cell Horizontal cell index
 !> @param[in] nlayers Number of layers
 !> @param[in,out] lhs Output lhs (A*x)
-!> @param[in] x input data
+!> @param[in] x Input data
 !> @param[in] ncell_3d Total number of cells
 !> @param[in] matrix Matrix values in LMA form
 !> @param[in] ndf1 Number of degrees of freedom per cell for the output field
@@ -75,7 +75,7 @@ subroutine dg_matrix_vector_code(cell,              &
   integer(kind=i_def), dimension(ndf2),  intent(in) :: map2
   real(kind=r_def), dimension(undf2),              intent(in)    :: x
   real(kind=r_def), dimension(undf1),              intent(inout) :: lhs
-  real(kind=r_def), dimension(ndf1,ndf2,ncell_3d), intent(in)    :: matrix
+  real(kind=r_def), dimension(ncell_3d,ndf1,ndf2), intent(in)    :: matrix
 
   ! Internal variables
   integer(kind=i_def)               :: df, k, ik
@@ -87,7 +87,7 @@ subroutine dg_matrix_vector_code(cell,              &
       x_e(df) = x(map2(df)+k)
     end do
     ik = (cell-1)*nlayers + k + 1
-    lhs_e = matmul(matrix(:,:,ik),x_e)
+    lhs_e = matmul(matrix(ik,:,:),x_e)
     do df = 1,ndf1
        lhs(map1(df)+k) = lhs_e(df)
     end do

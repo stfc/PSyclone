@@ -51,7 +51,7 @@ by the read-only verification.
 Illustrates the use of the value range check in PSyclone. The
 resulting code may be compiled and executed to show warnings printed.
 Note that certain environment variables need to be defined to enable
-the value range check, see the README.md in this directory for details.
+the value range check, see the README.md in that directory for details.
 
 ## Example 6
 
@@ -68,7 +68,7 @@ Demonstrates the use of a script that can transform the algorithm layer.
 
 BSD 3-Clause License
 
-Copyright (c) 2017-2024, Science and Technology Facilities Council.
+Copyright (c) 2017-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

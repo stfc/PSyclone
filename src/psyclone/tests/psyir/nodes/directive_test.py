@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -200,7 +200,7 @@ def test_regiondirective_gen_post_region_code():
     TODO #1648 - this can be removed when the gen_post_region_code() method is
     removed.'''
     temporary_module = f2pygen.ModuleGen("test")
-    subroutine = nodes.Routine("testsub")
+    subroutine = nodes.Routine.create("testsub")
     directive = nodes.RegionDirective()
     sym = subroutine.symbol_table.new_symbol(
             "i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)

@@ -1,5 +1,5 @@
 EXE = gol.value_range_check
-API = gocean1.0
+API = gocean
 
 # We need to compile and link the PSyData libraries:
 PSY_DATA_DIR = $(ROOT_DIR)/lib/value_range_check/dl_esm_inf
@@ -21,6 +21,7 @@ $(EXE): $(INF_LIB) $(PSY_DATA_LIB) $(OBJ)
 time_step_alg_mod_psy.f90: time_step_alg_mod.f90
 time_step_alg_mod.o: time_step_alg_mod_psy.o
 
+
 # External libs
 # -------------
 $(PSY_DATA_LIB): $(INF_LIB)
@@ -28,3 +29,9 @@ $(PSY_DATA_LIB): $(INF_LIB)
 
 %.f90: %.x90 Makefile
 	$(PSYCLONE) -s ./value_range_check.py -oalg $*.f90 -opsy $*_psy.f90 $<
+
+allclean:
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_INC) clean
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(GOL_DIR) clean
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(PSY_DATA_DIR) clean
+

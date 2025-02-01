@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,9 +42,8 @@ intermediate representation of the algorithm layer.
 from psyclone.domain.common.algorithm.psyir import AlgorithmInvokeCall
 
 
-def trans(psy):
+def trans(psyir):
     '''The trans function is required for the script to be valid.'''
-    return psy
 
 
 def trans_alg(psyir):

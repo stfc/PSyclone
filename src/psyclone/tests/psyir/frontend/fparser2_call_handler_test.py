@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,7 @@ def test_call_noargs():
     '''
     reader = FortranStringReader(" call kernel()")
     ast = Fortran2003.Call_Stmt(reader)
-    fake_parent = Routine('dummy')
+    fake_parent = Routine.create('dummy')
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [ast])
 

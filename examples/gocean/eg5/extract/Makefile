@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -120,10 +120,10 @@ $(NAME): $(INF_LIB) $(EXTRACT_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
 	$(EXTRACT_DIR)/$(LIB_NAME) $(INF_LIB) $(LDFLAGS)
 
 $(DRIVER_INIT).$(TYPE):	$(KERNELS) $(DRIVER_INIT).o
-	$(F90) $(DRIVER_INIT).o -o $(DRIVER_INIT).$(TYPE) $(LDFLAGS)
+	$(F90) $(F90FLAGS) $(DRIVER_INIT).o -o $(DRIVER_INIT).$(TYPE) $(LDFLAGS)
 
 $(DRIVER_UPDATE).$(TYPE): $(KERNELS) $(DRIVER_UPDATE).o
-	$(F90) $(DRIVER_UPDATE).o -o $(DRIVER_UPDATE).$(TYPE) $(LDFLAGS)
+	$(F90) $(F90FLAGS) $(DRIVER_UPDATE).o -o $(DRIVER_UPDATE).$(TYPE) $(LDFLAGS)
 
 # The dl_esm_inf library
 $(INF_LIB):

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -212,10 +212,14 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
 
         # 4) Check halo depths
         if node1.upper_bound_halo_depth != node2.upper_bound_halo_depth:
+            node1_depth = (node1.upper_bound_halo_depth.debug_string() if
+                           node1.upper_bound_halo_depth else "None")
+            node2_depth = (node2.upper_bound_halo_depth.debug_string() if
+                           node2.upper_bound_halo_depth else "None")
             raise TransformationError(
                 f"Error in {self.name} transformation: The halo-depth indices "
-                f"are not the same. Found '{node1.upper_bound_halo_depth}' "
-                f"and '{node2.upper_bound_halo_depth}'.")
+                f"are not the same. Found "
+                f"'{node1_depth}' and '{node2_depth}'.")
 
         # 5) Check for reductions
         arg_types = const.VALID_SCALAR_NAMES

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,34 +34,26 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds NAN verification for all
+function via the -s option. It adds value range verification for all
 kernels.
 '''
 
 from psyclone.gocean1p0 import GOLoop
-from psyclone.psyir.transformations import ValueRangeCheck
+from psyclone.psyir.transformations import ValueRangeCheckTrans
 
 
-def trans(psy):
+def trans(psyir):
     '''
-    Take the supplied psy object, and fuse the first two loops
+    Take the supplied psy object, and apply 'omp parallel do' to all loops.
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    value_range_check = ValueRangeCheck()
+    value_range_check = ValueRangeCheckTrans()
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
-        # Apply nan-testing
-        for loop in schedule.walk(GOLoop):
-            # Only apply to the outer loop, PSyData will
-            # get full arrays provided to check for NANs
-            if loop.loop_type == "outer":
-                value_range_check.apply(loop)
-
-    return psy
+    for loop in psyir.walk(GOLoop):
+        # Only apply to the outer loop, PSyData will
+        # get full arrays provided to check for NANs
+        if loop.loop_type == "outer":
+            value_range_check.apply(loop)

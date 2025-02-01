@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2024, Science and Technology Facilities Council
+# Copyright (c) 2023-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,8 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import LFRicHaloExchange, LFRicHaloExchangeStart
 from psyclone.psyir.transformations import Matmul2CodeTrans
-from psyclone.psyir.nodes import IntrinsicCall, Container, KernelSchedule
+from psyclone.psyir.nodes import IntrinsicCall, KernelSchedule
+from psyclone.psyGen import InvokeSchedule
 from psyclone.transformations import Dynamo0p3ColourTrans, \
                                      Dynamo0p3OMPLoopTrans, \
                                      OMPParallelTrans, \
@@ -61,8 +62,13 @@ ENABLE_INTRINSIC_INLINING = True
 # are some issues to overcome, e.g. TODO #2232
 
 
-def trans(psy):
-    ''' Apply all possible LFRic transformations. '''
+def trans(psyir):
+    ''' Apply all possible LFRic transformations.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
     rtrans = Dynamo0p3RedundantComputationTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = Dynamo0p3OMPLoopTrans()
@@ -73,14 +79,11 @@ def trans(psy):
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     mtrans = MoveTrans()
 
-    # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
-
+    for subroutine in psyir.walk(InvokeSchedule):
         if ENABLE_REDUNDANT_COMPUTATION:
             # Make setval_* compute redundantly to the level 1 halo if it
             # is in its own loop
-            for loop in schedule.loops():
+            for loop in subroutine.loops():
                 if loop.iteration_space == "dof":
                     if len(loop.kernels()) == 1:
                         if loop.kernels()[0].name in ["setval_c", "setval_x"]:
@@ -88,18 +91,18 @@ def trans(psy):
 
         if ENABLE_ASYNC_HALOS:
             # This transformation splits all synchronous halo exchanges
-            for h_ex in schedule.walk(LFRicHaloExchange):
+            for h_ex in subroutine.walk(LFRicHaloExchange):
                 ahex_trans.apply(h_ex)
 
             # This transformation moves the start of the halo exchanges as
             # far as possible offering the potential for overlap between
             # communication and computation
             location_cursor = 0
-            for ahex in schedule.walk(LFRicHaloExchangeStart):
+            for ahex in subroutine.walk(LFRicHaloExchangeStart):
                 if ahex.position <= location_cursor:
                     continue
                 try:
-                    mtrans.apply(ahex, schedule.children[location_cursor])
+                    mtrans.apply(ahex, subroutine.children[location_cursor])
                     location_cursor += 1
                 except TransformationError:
                     pass
@@ -107,38 +110,34 @@ def trans(psy):
         if ENABLE_OMP_COLOURING:
             # Colour loops over cells unless they are on discontinuous
             # spaces or over dofs
-            for loop in schedule.loops():
-                if loop.iteration_space == "cell_column" \
+            for loop in subroutine.loops():
+                if loop.iteration_space.endswith("cell_column") \
                     and loop.field_space.orig_name \
                         not in const.VALID_DISCONTINUOUS_NAMES:
                     ctrans.apply(loop)
 
             # Add OpenMP to loops unless they are over colours or are null
-            for loop in schedule.loops():
+            for loop in subroutine.loops():
                 if loop.loop_type not in ["colours", "null"]:
                     oregtrans.apply(loop)
                     otrans.apply(loop, options={"reprod": True})
 
-        # Transformations that modify kernel code will need to have the
-        # kernels inlined first
-        if ENABLE_INTRINSIC_INLINING:
-            for kernel in schedule.coded_kernels():
-                try:
-                    inline_trans.apply(kernel)
-                except TransformationError:
-                    pass
+            # Transformations that modify kernel code will need to have the
+            # kernels inlined first
+            if ENABLE_INTRINSIC_INLINING:
+                for kernel in subroutine.coded_kernels():
+                    try:
+                        inline_trans.apply(kernel)
+                    except TransformationError:
+                        pass
 
     # Then transform all the kernels inlined into the module
-    if psy.invokes.invoke_list:
-        root = psy.invokes.invoke_list[0].schedule.ancestor(Container)
-        for kschedule in root.walk(KernelSchedule):
-            if ENABLE_INTRINSIC_INLINING:
-                # Expand MATMUL intrinsic
-                for icall in kschedule.walk(IntrinsicCall):
-                    if icall.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
-                        try:
-                            matmul_trans.apply(icall)
-                        except TransformationError:
-                            pass
-
-    return psy
+    for kschedule in psyir.walk(KernelSchedule):
+        if ENABLE_INTRINSIC_INLINING:
+            # Expand MATMUL intrinsic
+            for icall in kschedule.walk(IntrinsicCall):
+                if icall.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
+                    try:
+                        matmul_trans.apply(icall)
+                    except TransformationError:
+                        pass

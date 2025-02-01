@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 #
 # All rights reserved.
 #
@@ -167,6 +167,44 @@ def test_single_function_invoke_qr():
     assert "use single_invoke_psy, only" in gen
     assert ": invoke_0_testkern_qr_type" in gen
     assert ("call invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
+            in gen)
+
+
+def test_single_kernel_qr_and_halo_only():
+    '''
+    Check the transformation of the algorithm layer for an invoke of a kernel
+    that requires quadrature and halo depth.
+
+    '''
+    alg, _ = generate(
+        os.path.join(BASE_PATH,
+                     "1.1.10_single_invoke_qr_plus_halo.f90"),
+        api="lfric")
+    gen = str(alg).lower()
+    assert "use testkern_qr_and_halo_only_mod" not in gen
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':'
+    assert "use single_invoke_psy, only" in gen
+    assert ": invoke_0_testkern_qr_and_halo_only_type" in gen
+    # Invoke call must be passed both the qr and halo-depth arguments.
+    assert ("call invoke_0_testkern_qr_and_halo_only_type(f1, f2, m1, a, "
+            "m2, istp, qr, hdepth)" in gen)
+
+
+def test_multi_kernel_halo_only():
+    '''
+    Check the transformation of the algorithm layer for an invoke containing
+    two kernels that both require a halo depth.
+
+    '''
+    alg, _ = generate(
+        os.path.join(BASE_PATH,
+                     "1.1.11_two_halo_only.f90"),
+        api="lfric")
+    gen = str(alg).lower()
+    # There should be two distinct halo depths and no duplication.
+    assert ("call invoke_0(f1, f2, m1, a, m2, istp, b, qr, hdepth, hdepth2)"
             in gen)
 
 
@@ -371,9 +409,10 @@ def test_single_stencil_broken():
     path = os.path.join(BASE_PATH, "19.2_single_stencil_broken.f90")
     with pytest.raises(GenerationError) as excinfo:
         _, _ = generate(path, api="lfric")
-    # TODO issue #1618 different error messages for the different versions.
-    assert ("expected '5' arguments in the algorithm layer but found '4'"
-            in str(excinfo.value) or "The invoke kernel functor "
+    assert ("expected '5' arguments for the call to kernel "
+            "'testkern_stencil_type' from invoke "
+            "'invoke_0_testkern_stencil_type' in the algorithm layer but "
+            "found '4'" in str(excinfo.value) or "The invoke kernel functor "
             "'testkern_stencil_type' has 4 arguments, but the kernel "
             "metadata expects there to be 5 arguments." in str(excinfo.value))
 

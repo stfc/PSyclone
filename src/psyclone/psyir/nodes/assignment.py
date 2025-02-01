@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+#         J. G. Wallwork, University of Cambridge
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Assignment node implementation.'''
@@ -41,6 +42,7 @@
 from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.f2pygen import PSyIRGen
+from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.intrinsic_call import (
@@ -211,9 +213,9 @@ class Assignment(Statement):
     @property
     def is_array_assignment(self):
         '''
-        returns: True if the lhs of the assignment is an array access with at \
+        :returns: True if the lhs of the assignment is an array access with at
             least one of its dimensions being a range and False otherwise.
-        rtype: bool
+        :rtype: bool
 
         '''
         # It's not sufficient simply to check for a Range node as that may be
@@ -243,6 +245,16 @@ class Assignment(Statement):
                     # array range on the LHS
                     return True
         return False
+
+    @property
+    def is_literal_assignment(self):
+        '''
+        :returns: True if the rhs of the assignment is a literal value and
+            False otherwise.
+        :rtype: bool
+
+        '''
+        return isinstance(self.rhs, Literal)
 
     def gen_code(self, parent):
         '''F2pygen code generation of an Assignment.

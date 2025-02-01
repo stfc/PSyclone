@@ -1,9 +1,9 @@
-# ``NaN``-Test Verification Library for GOcean
+# ``ValueRangeCheck`` Library for GOcean
 
 This library implements the [PSyData API](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#nan-test)
-to verify that input and output parameters of a GOcean kernel are not ``NaN``
-or infinite, using the [``dl_esm_inf`` library](
+https://psyclone.readthedocs.io/en/latest/psy_data.html#psydata-value-range-check)
+to verify that input and output parameters of a GOcean kernel are within
+a user-specified range, and not ``NaN`` or infinite, using the [``dl_esm_inf`` library](
 https://github.com/stfc/dl_esm_inf).
 
 ## Dependencies
@@ -21,13 +21,13 @@ with the application. The following dependencies must be available:
   submodules). However, it is not included in the PSyclone [installation](
   ./../../README.md#installation) and has to be cloned separately.
 
-- The NANTest (``nan_test_base.jinja``) and PSyData
+- The ValueRangeCheck (``value_range_check_base.jinja``) and PSyData
   (``psy_data_base.jinja``) base classes, which are included in PSyclone
   installation. These Jinja templates are processed to create
-  the ``NaN``-test verification code for ``integer``, 32- and 64-bit ``real``
+  the ``ValueRangeCheck`` verification code for ``integer``, 32- and 64-bit ``real``
   scalars, and 2-dimensional ``real`` and ``integer`` arrays. The generated
-  Fortran modules, ``nan_test_base.f90`` and ``psy_data_base.f90``, are then
-  used by the supplied ``nan_test.f90`` module to create the wrapper library.
+  Fortran modules, ``value_range_check_base.f90`` and ``psy_data_base.f90``, are then
+  used by the supplied ``value_range_check.f90`` module to create the wrapper library.
 
 ## Compilation
 
@@ -47,12 +47,12 @@ so the exact path **must be specified** during the compilation process, e.g.
 GOCEAN_INF_DIR=<path/to/dl_esm_inf/finite_difference> make
 ```
 
-The locations of the NANTest and PSyData base classes are specified
+The locations of the ValueRangeCheck and PSyData base classes are specified
 using the environment variables ``$LIB_TMPLT_DIR`` and ``$PSYDATA_LIB_DIR``,
 respectively. They default to the relative paths to the
-[``lib/nan_test``](./../) and top-level [``lib``](./../../) directories.
+[``lib/value_range_check``](./../) and top-level [``lib``](./../../) directories.
 
-The compilation process will create the wrapper library ``lib_nan_test.a``.
+The compilation process will create the wrapper library ``lib_value_range_check.a``.
 The ``Makefile`` will compile the ``dl_esm_inf`` infrastructure library,
 ``lib_fd.a``, if required, with the previously selected compiler flags.
 
@@ -65,12 +65,12 @@ or compiler flags).
 
 ### Linking the wrapper library
 
-The application needs to provide the parameters to link in this ``NaN``-test
-library, ``_nan_test`` and the ``dl_esm_inf`` infrastructure library, ``_fd``.
+The application needs to provide the parameters to link in this ``ValueRangeCheck``
+library, ``_value_range_check`` and the ``dl_esm_inf`` infrastructure library, ``_fd``.
 For instance:
 
 ```shell
-$(F90)  ... -L$(PSYDATA_LIB_DIR)/nan_test/dl_esm_inf -l_nan_test \
+$(F90)  ... -L$(PSYDATA_LIB_DIR)/value_range_check/dl_esm_inf -l_value_range_check \
         -L$(GOCEAN_INF_DIR) -l_fd
 ```
 
@@ -81,7 +81,7 @@ $(F90)  ... -L$(PSYDATA_LIB_DIR)/nan_test/dl_esm_inf -l_nan_test \
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2024, Science and Technology Facilities Council.
+Copyright (c) 2024-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -113,5 +113,4 @@ POSSIBILITY OF SUCH DAMAGE.
 
 -------------------------------------------------------------------------------
 Authors: J. Henrichs, Bureau of Meteorology,
-         I. Kavcic, Met Office
 -->

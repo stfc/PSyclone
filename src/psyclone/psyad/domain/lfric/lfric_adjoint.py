@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -127,10 +127,8 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
 
     # Re-name the routines that we've adjointed.
     for routine in routines:
-
-        kernel_sym = ctr_table.lookup(routine.name)
         adj_kernel_name = create_adjoint_name(routine.name, table=ctr_table)
-        ctr_table.rename_symbol(kernel_sym, adj_kernel_name)
+        # Renaming the routines updates the symbol names
         routine.name = adj_kernel_name
 
         logger.debug("AD LFRic kernel will be named '%s'", routine.name)
@@ -168,7 +166,6 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
         if access:
             # Add in any new access symbols.
             _check_or_add_access_symbol(ad_container, access)
-
     return ad_psyir
 
 

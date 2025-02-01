@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -74,7 +74,7 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.while_loop import WhileLoop
-from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
+from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType, DataSymbol
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -1442,7 +1442,10 @@ class OMPParallelDirective(OMPRegionDirective):
             for call in reprod_red_call_list:
                 call.reduction_sum_loop(parent)
 
-        self.gen_post_region_code(parent)
+        # If there are nested OMPRegions, the post region code should be after
+        # the top-level one
+        if not self.ancestor(OMPRegionDirective):
+            self.gen_post_region_code(parent)
 
     def lower_to_language_level(self):
         '''
@@ -1536,7 +1539,7 @@ class OMPParallelDirective(OMPRegionDirective):
 
         This method analyses the directive body and automatically classifies
         each symbol using the following rules:
-        - All arrays are shared.
+        - All arrays are shared unless listed in the explicitly private list.
         - Scalars that are accessed only once are shared.
         - Scalars that are read-only or written outside a loop are shared.
         - Scalars written in multiple iterations of a loop are private, unless:
@@ -1573,8 +1576,9 @@ class OMPParallelDirective(OMPRegionDirective):
 
         # TODO #598: Improve the handling of scalar variables, there are
         # remaining issues when we have accesses after the parallel region
-        # of variables that we currently declare as private. This should be
-        # lastprivate.
+        # of variables that we currently declare as private. We could use
+        # the DefinitionUseChain to prove that there are no more uses after
+        # the loop.
         # e.g:
         # !$omp parallel do <- will set private(ji, my_index)
         # do ji = 1, jpk
@@ -1593,7 +1597,28 @@ class OMPParallelDirective(OMPRegionDirective):
         self.reference_accesses(var_accesses)
         for signature in var_accesses.all_signatures:
             accesses = var_accesses[signature].all_accesses
-            # Ignore variables that have indices, we only look at scalars
+            # TODO #2094: var_name only captures the top-level
+            # component in the derived type accessor. If the attributes
+            # only apply to a sub-component, this won't be captured
+            # appropriately.
+            name = signature.var_name
+            symbol = accesses[0].node.scope.symbol_table.lookup(
+                name, otherwise=None)
+
+            # If it is manually marked as a local symbol, add it to private or
+            # firstprivate set
+            if (isinstance(symbol, DataSymbol) and
+                    isinstance(self.dir_body[0], Loop) and
+                    symbol in self.dir_body[0].explicitly_private_symbols):
+                if any(ref.symbol is symbol for ref in self.preceding()
+                       if isinstance(ref, Reference)):
+                    # If it's used before the loop, make it firstprivate
+                    fprivate.add(symbol)
+                else:
+                    private.add(symbol)
+                continue
+
+            # All arrays not explicitly marked as threadprivate are shared
             if accesses[0].is_array():
                 continue
 
@@ -2302,7 +2327,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # Add directive to the f2pygen tree
         parent.add(
             DirectiveGen(
-                parent, "omp", "begin", "parallel do", ", ".join(
+                parent, "omp", "begin", self._directive_string, ", ".join(
                     text for text in [default_str, private_str, fprivate_str,
                                       schedule_str, self._reduction_string()]
                     if text)))
@@ -2312,10 +2337,23 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         # make sure the directive occurs straight after the loop body
         position = parent.previous_loop()
-        parent.add(DirectiveGen(parent, *self.end_string().split()),
+
+        # DirectiveGen only accepts 3 terms, e.g. "omp end loop", so for longer
+        # directive e.g. "omp end teams distribute parallel do", we split them
+        # between arguments and content (which is an additional string appended
+        # at the end)
+        terms = self.end_string().split()
+        # If its < 3 the array slices still work as expected
+        arguments = terms[:3]
+        content = " ".join(terms[3:])
+
+        parent.add(DirectiveGen(parent, *arguments, content=content),
                    position=["after", position])
 
-        self.gen_post_region_code(parent)
+        # If there are nested OMPRegions, the post region code should be after
+        # the top-level one
+        if not self.ancestor(OMPRegionDirective):
+            self.gen_post_region_code(parent)
 
     def lower_to_language_level(self):
         '''
@@ -2401,6 +2439,31 @@ class OMPTargetDirective(OMPRegionDirective):
 
         '''
         return "omp end target"
+
+    def gen_code(self, parent):
+        '''Generate the OpenMP Target Directive and any associated code.
+
+        :param parent: the parent Node in the Schedule to which to add our
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        # Check the constraints are correct
+        self.validate_global_constraints()
+
+        # Generate the code for this Directive
+        parent.add(DirectiveGen(parent, "omp", "begin", "target"))
+
+        # Generate the code for all of this node's children
+        for child in self.dir_body:
+            child.gen_code(parent)
+
+        # Generate the end code for this node
+        parent.add(DirectiveGen(parent, "omp", "end", "target", ""))
+
+        # If there are nested OMPRegions, the post region code should be after
+        # the top-level one
+        if not self.ancestor(OMPRegionDirective):
+            self.gen_post_region_code(parent)
 
 
 class OMPLoopDirective(OMPRegionDirective):

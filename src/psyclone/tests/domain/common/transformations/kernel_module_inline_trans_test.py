@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -219,9 +219,7 @@ def test_validate_name_clashes():
 
     # Check that if a subroutine with the same name already exists and it is
     # not identical, it fails.
-    new_symbol = RoutineSymbol("ru_code")
-    schedule.parent.symbol_table.add(new_symbol)
-    schedule.parent.addchild(Routine(new_symbol.name))
+    schedule.parent.addchild(Routine.create("ru_code"))
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(coded_kern)
     assert ("Cannot inline subroutine 'ru_code' because another, different, "

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@ all invokes.
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOKern, GOLoop
+from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import OMPParallelDirective
 from psyclone.transformations import (OMPLoopTrans, OMPParallelLoopTrans, 
                                       OMPParallelTrans, OMPTaskloopTrans,
@@ -49,15 +50,12 @@ from psyclone.transformations import (OMPLoopTrans, OMPParallelLoopTrans,
 
 from fuse_loops import trans as fuse_trans
 
-def trans(psy):
+def trans(psyir):
     '''
-    Take the supplied psy object, and fuse the first two loops
+    Take the supplied psyir object, and use omp taskloop directives.
 
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     omp_parallel_loop = GOceanOMPParallelLoopTrans()
@@ -67,59 +65,23 @@ def trans(psy):
     omp_single = OMPSingleTrans()
     inline = KernelModuleInlineTrans()
 
-    invoke = psy.invokes.get("invoke_compute")
-    schedule = invoke.schedule
+    # We know that there is only one schedule
+    schedule = psyir.walk(InvokeSchedule)[0]
+
+    # Inline all kernels to help gfortran with inlining.
+    for kern in schedule.kernels():
+        inline.apply(kern)
 
     # We need to have:
-    # omp paralle
+    # omp parallel
     # omp single
-    # omp task nested.
+    # omp taskloop nested in this order
     omp_parallel.apply(schedule)
 
-    # Explicit calls are ugly:
-    #omp_single.apply(schedule[0].children[0])
-    #schedule.view()
-    #omp_task.apply(schedule[0].children[0].children[0].children[0].children[0])
-    #omp_do.apply(schedule[0])
-    #omp_parallel.apply(schedule[0:2])
     for omp_par in schedule.walk(OMPParallelDirective):
         omp_single.apply(omp_par.children[0])
     for loop in schedule.walk(GOLoop):
         if loop.loop_type == "outer":
             omp_task.apply(loop)
 
-    schedule.view()
-
-    return psy
-
-    # Inline all kernels to help gfortran with inlining.
-    #for kern in schedule.walk(GOKern):
-    #    inline.apply(kern)
-
-    #for loop in schedule.walk(GOLoop):
-    #    if loop.loop_type == "outer":
-    #        omp_parallel_loop.apply(loop)
-    #schedule.view()
-    #return psy
-
-    # Inline all kernels to help gfortran with inlining.
-    for kern in schedule.walk(GOKern):
-        inline.apply(kern)
-
-    fuse_trans(psy)
-
-    # Both ways work - either specify the default in
-    # the constructor, or change the schedule
-    omp_do_dynamic = OMPLoopTrans(omp_schedule="dynamic")
-    omp_do.omp_schedule = "dynamic"
-    for loop in schedule.walk(GOLoop):
-        if loop.loop_type == "outer":
-            omp_do.apply(loop)
-    omp_parallel.apply(schedule[0:3])
-
-    schedule.view()
-
-
-    invoke = psy.invokes.get("invoke_combine")
-    schedule = invoke.schedule
-    omp_parallel_loop.apply(schedule[0])
+    print(schedule.view())

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -74,34 +74,34 @@ from psyclone.psyir.transformations import Matmul2CodeTrans
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
-def trans(psy):
-    '''PSyclone transformation script for the Dynamo0.3 API to optimise
+def trans(psyir):
+    '''PSyclone transformation script for the LFRic API to optimise
     the matvec kernel for many-core CPUs. For the moment simply find
     the first matvec kernel in the example, transform the matmul
     intrinsic to equivalant inline code and then print out its PSyIR
     representation and output it as Fortran using the PSyIR Fortran
     back-end.
 
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
     '''
     matmul2code_trans = Matmul2CodeTrans()
     fortran_writer = FortranWriter()
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
-        for kernel in schedule.coded_kernels():
-            if kernel.name.lower() == "matrix_vector_kernel_code":
-                kernel_schedule = kernel.get_kernel_schedule()
-                # Replace matmul with inline code
-                for icall in kernel_schedule.walk(IntrinsicCall):
-                    if icall.intrinsic is IntrinsicCall.Intrinsic.MATMUL:
-                        matmul2code_trans.apply(icall)
-                # Future optimisations will go here.
-                print(kernel_schedule.view())
-                result = fortran_writer(kernel_schedule)
-                print(result)
-                # Abort after the first matrix vector kernel for the
-                # time being.
-                print("Aborting to view the modifications to the matrix "
-                      "vector kernel")
-                sys.exit()
-    return psy
+    for kernel in psyir.coded_kernels():
+        if kernel.name.lower() == "matrix_vector_kernel_code":
+            kernel_schedule = kernel.get_kernel_schedule()
+            # Replace matmul with inline code
+            for icall in kernel_schedule.walk(IntrinsicCall):
+                if icall.intrinsic is IntrinsicCall.Intrinsic.MATMUL:
+                    matmul2code_trans.apply(icall)
+            # Future optimisations will go here.
+            print(kernel_schedule.view())
+            result = fortran_writer(kernel_schedule)
+            print(result)
+            # Abort after the first matrix vector kernel for the
+            # time being.
+            print("Aborting to view the modifications to the matrix "
+                  "vector kernel")
+            sys.exit()

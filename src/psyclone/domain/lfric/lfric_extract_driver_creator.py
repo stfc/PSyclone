@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -691,7 +691,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         file_container = FileContainer(unit_name)
 
         # Create the program and add it to the file container:
-        program = Routine(unit_name, is_program=True)
+        program = Routine.create(unit_name, is_program=True)
         program_symbol_table = program.symbol_table
         file_container.addchild(program)
 

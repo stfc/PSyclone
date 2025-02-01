@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,24 +33,15 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-# The compiler to use may be specified via the F90 environment
-#
-# export F90=gfortran
-# export F90FLAGS="-Wall -g -fcheck=bound"
-F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound -fopenmp
+# Set to omp_colour_transformation.py for the working solution
+#TRANS= ./omp_colour_transformation.py
+TRANS ?= ./omp_transformation.py
 
+API=lfric
 OBJ = main_alg_psy.o main_alg.o summation_w0_to_w0_kernel_mod.o
+EXE = example
 
-EXEC = example
-# Path of the included simplified LFRic infrastructure files:
-LFRIC_PATH = ../../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-
-# This sets up LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
-F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
+include ../../common.mk
 
 # Various targets
 # ---------------
@@ -58,21 +49,21 @@ F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 
 # Default target: run PSyclone (even if the output file should already exist)
 transform:
-	psyclone -api lfric -s ./omp_transformation.py -dm -l output \
+	$(PSYCLONE) -s $(TRANS) -dm -l output \
 		     -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
-compile: $(EXEC)
+compile: $(EXE)
 
 run: compile
 	@# If OMP_NUM_THREADS is not define, set it to 3:
 	OMP_NUM_THREADS=$${OMP_NUM_THREADS:-3} ./example
 
-$(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+$(EXE): $(LFRIC_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXE) $(LDFLAGS)
 
 # Only required in case the optional colouring transformation is used
 clean:
-	rm -f $(EXEC) $(OBJ) *.mod main_*alg.f90 main_*psy.f90
+	rm -f $(EXE) $(OBJ) *.mod main_*alg.f90 main_*psy.f90
 
 allclean: clean
 	make -C $(LFRIC_PATH) allclean
@@ -82,18 +73,17 @@ allclean: clean
 
 # This rule invokes the same PSyclone command, but it won't run if
 # the output file already exist, which is useful to avoid recompilation.
-main_alg_psy.f90: main_alg.x90 omp_transformation.py
-	psyclone -s ./omp_transformation.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+main_alg_psy.f90: main_alg.x90 $(TRANS)
+	$(PSYCLONE) -s $(TRANS) -nodm -l output \
+		     -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 # For PSyclone CI:
 test:
 	$(MAKE) transform 2>&1 | grep " The kernel has an argument with INC "\
 	"access. Colouring is required." >/dev/null
+	$(MAKE) clean
+	$(MAKE) TRANS=./omp_colour_transformation.py transform
 
-# External libraries - LFRic infrastructure
-# -----------------------------------------
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
 # ------------

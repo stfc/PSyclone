@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,9 @@ all invokes.
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
-from psyclone.psyir.transformations import TransformationError
 from psyclone.gocean1p0 import GOKern, GOLoop
+from psyclone.psyir.transformations import TransformationError
+from psyclone.psyGen import InvokeSchedule
 
 
 def apply_all(node_list, transform):
@@ -97,19 +98,16 @@ def apply_all(node_list, transform):
 
 
 # -----------------------------------------------------------------------------
-def trans(psy):
+def trans(psyir):
     '''
-    Take the supplied psy object, and fuse the first two loops
-
-    :param psy: the PSy layer to transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    Take the supplied psy object, and fuse loops as much as possible.
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    invoke = psy.invokes.get("invoke_compute")
-    schedule = invoke.schedule
+
+    # We know that there is only one schedule
+    schedule = psyir.walk(InvokeSchedule)[0]
 
     # Inline all kernels to help gfortran with inlining.
     inline = KernelModuleInlineTrans()

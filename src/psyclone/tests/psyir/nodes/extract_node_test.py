@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -100,7 +100,7 @@ def test_extract_node_gen_code():
         'CALL psydata%PreDeclareVariable("ndf_w1", ndf_w1)',
         'CALL psydata%PreDeclareVariable("ndf_w2", ndf_w2)',
         'CALL psydata%PreDeclareVariable("ndf_w3", ndf_w3)',
-        'CALL psydata%PreDeclareVariable("nlayers", nlayers)',
+        'CALL psydata%PreDeclareVariable("nlayers_f1", nlayers_f1)',
         'CALL psydata%PreDeclareVariable("undf_w1", undf_w1)',
         'CALL psydata%PreDeclareVariable("undf_w2", undf_w2)',
         'CALL psydata%PreDeclareVariable("undf_w3", undf_w3)',
@@ -235,7 +235,7 @@ def test_extract_node_gen():
       CALL extract_psy_data%PreDeclareVariable("ndf_w1", ndf_w1)
       CALL extract_psy_data%PreDeclareVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%PreDeclareVariable("ndf_w3", ndf_w3)
-      CALL extract_psy_data%PreDeclareVariable("nlayers", nlayers)
+      CALL extract_psy_data%PreDeclareVariable("nlayers_f1", nlayers_f1)
       CALL extract_psy_data%PreDeclareVariable("undf_w1", undf_w1)
       CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreDeclareVariable("undf_w3", undf_w3)
@@ -255,13 +255,13 @@ def test_extract_node_gen():
       CALL extract_psy_data%ProvideVariable("ndf_w1", ndf_w1)
       CALL extract_psy_data%ProvideVariable("ndf_w2", ndf_w2)
       CALL extract_psy_data%ProvideVariable("ndf_w3", ndf_w3)
-      CALL extract_psy_data%ProvideVariable("nlayers", nlayers)
+      CALL extract_psy_data%ProvideVariable("nlayers_f1", nlayers_f1)
       CALL extract_psy_data%ProvideVariable("undf_w1", undf_w1)
       CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
       CALL extract_psy_data%ProvideVariable("undf_w3", undf_w3)
       CALL extract_psy_data%PreEnd
       DO cell = loop0_start, loop0_stop, 1
-        CALL testkern_code(nlayers, a, f1_data, f2_data, ''' + \
+        CALL testkern_code(nlayers_f1, a, f1_data, f2_data, ''' + \
         "m1_data, m2_data, ndf_w1, undf_w1, " + \
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, " + \
         '''undf_w3, map_w3(:,cell))

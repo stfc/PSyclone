@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''A PSyclone transformation script that transforms a specific
 synchronous halo exchange into an asynchronous halo exchange and
@@ -55,26 +56,23 @@ PSyclone, it is not designed to be run directly from python.
 from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, MoveTrans
 
 
-def trans(psy):
+def trans(psyir):
     '''Transforms a specific synchronous halo exchange into an
     asynchronous halo exchange and moves the halo exchange start part
     as early as possible in the schedule in order to maximise the
     overlap of communication and computation. Also outputs a textual
     view of the transformed PSyIR representing the PSy-layer.
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
-        kernel information required by PSyclone.
-    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     # Create the required transformations
     async_hex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     move_trans = MoveTrans()
 
-    # Get a specific invoke
-    invoke = psy.invokes.invoke_list[0]
-    # Get the schedule (the PSyIR representation of the PSy-layer)
-    schedule = invoke.schedule
+    # Get the first subroutine in the first module
+    schedule = psyir.children[0].children[0]
     # Reference a specific node that we can move
     hex_node = schedule[2]
     async_hex_trans.apply(hex_node)

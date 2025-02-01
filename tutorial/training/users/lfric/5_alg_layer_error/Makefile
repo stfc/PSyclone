@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,10 +33,12 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
+include ../common.mk
+
 .PHONY: transform test clean allclean
 
 transform:
-	psyclone -api lfric -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+	$(PSYCLONE) -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 test:
 	$(MAKE) transform 2>&1 | grep "kernel call 'no_setval_c' must either "\

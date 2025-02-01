@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council
+# Copyright (c) 2021-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -432,7 +432,7 @@ def test_errors_add_call():
     not a RoutineSymbol.
 
     '''
-    program = Routine("test", is_program=True)
+    program = Routine.create("test", is_program=True)
     program_symbol_table = program.symbol_table
 
     # Add 'psy_data_mod' as a container symbol:

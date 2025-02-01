@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, xDSL project
+# Copyright (c) 2022-2025, xDSL project
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -285,10 +285,7 @@ class xDSLWriter(LanguageWriter):
     def gen_routine_access_stmts(self, symbol_table):
         # Find the symbol that represents itself, this one will not need
         # an accessibility statement
-        try:
-            itself = symbol_table.lookup_with_tag('own_routine_symbol')
-        except KeyError:
-            itself = None
+        itself = self.symbol
 
         public_routines = []
         private_routines = []

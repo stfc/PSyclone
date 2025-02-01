@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # BSD 2-Clause License
 # 
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -105,7 +105,8 @@ $(INF_LIB):
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.f90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.f90 \
+		compare_variables_mod.F90 read_kernel_data_mod.f90
 
 allclean: clean
 	$(MAKE) -C $(GOCEAN_INF_DIR) clean

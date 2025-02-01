@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council.
+# Copyright (c) 2018-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,8 @@ from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Routine, FileContainer, IntrinsicCall, Call
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import ACCRoutineTrans, Dynamo0p3KernelConstTrans
+from psyclone.transformations import (
+    ACCRoutineTrans, OMPDeclareTargetTrans, Dynamo0p3KernelConstTrans)
 
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -282,6 +283,30 @@ def test_gpumixin_validate_wrong_node_type():
             "Routine but got 'FileContainer'" in str(err.value))
 
 
+def test_gpumixin_kernel_interface(kernel_outputdir, monkeypatch,
+                                   fortran_reader, fortran_writer):
+    '''
+    Test that the MarkRoutineForGPUMixin.validate() rejects a kernel that has
+    multiple implementations (i.e. for different precisions).
+
+    TODO this limitation is the subject of #1946.
+
+    '''
+    # Ensure kernel-output directory is uninitialised
+    config = Config.get()
+    monkeypatch.setattr(config, "_kernel_naming", "multiple")
+    psy, invoke = get_invoke("26.8_mixed_precision_args.f90",
+                             api="lfric", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    rtrans = ACCRoutineTrans()
+    # Use force because the kernel contains a WRITE statement.
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(kernels[0], options={"force": True})
+    assert ("Cannot apply ACCRoutineTrans to kernel 'mixed_code' as it has "
+            "multiple implementations - TODO #1946" in str(err.value))
+
+
 def test_gpumixin_validate_no_schedule(monkeypatch):
     '''
     Test that the MarkRoutineForGPUMixin.validate_it_can_run_on_gpu() method
@@ -404,6 +429,24 @@ def test_gpumixin_validate_no_call():
             "and therefore cannot have ACCRoutineTrans applied to it "
             "(TODO #342)."
             in str(err.value))
+
+
+@pytest.mark.parametrize(
+    "rtrans, expected_directive",
+    [(ACCRoutineTrans(), "!$acc routine"),
+     (OMPDeclareTargetTrans(), "!$omp declare target")])
+def test_kernel_gpu_annotation_trans(rtrans, expected_directive,
+                                     fortran_writer):
+    ''' Check that the GPU annotation transformations insert the
+    proper directive inside PSyKAl kernel code '''
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
+    sched = invoke.schedule
+    kern = sched.coded_kernels()[0]
+    rtrans.apply(kern)
+
+    # Check that the directive has been added to the kernel code
+    code = fortran_writer(kern.get_kernel_schedule())
+    assert expected_directive in code
 
 
 def test_1kern_trans(kernel_outputdir):

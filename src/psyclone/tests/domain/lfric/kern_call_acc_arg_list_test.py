@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2024, Science and Technology Facilities Council.
+# Copyright (c) 2023-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -212,3 +212,31 @@ def test_lfric_stencil():
     assert "f1: READ+WRITE" in var_info
     assert "f2: READ" in var_info
     assert "f2_stencil_dofmap: READ" in var_info
+
+
+def test_lfric_field():
+    '''Check that the method to generate a field argument returns the
+    field data varaible name and the correct variable access info.
+
+    '''
+    # Use the OpenACC transforms to create the required kernels
+    acc_par_trans = ACCParallelTrans()
+    acc_enter_trans = ACCEnterDataTrans()
+    _, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
+                           "lfric",
+                           idx=0, dist_mem=False)
+    sched = invoke.schedule
+    acc_par_trans.apply(sched.children)
+    acc_enter_trans.apply(sched)
+
+    # Find the first kernel:
+    kern = invoke.schedule.walk(psyGen.CodedKern)[0]
+    create_acc_arg_list = KernCallAccArgList(kern)
+    var_accesses = VariablesAccessInfo()
+    create_acc_arg_list.generate(var_accesses=var_accesses)
+    var_info = str(var_accesses)
+    # Check fields
+    assert "f1_data: READ+WRITE" in var_info    # Written to in Built-in
+    assert "f2_data: READ" in var_info
+    assert "m1_data: READ" in var_info
+    assert "m2_data: READ" in var_info

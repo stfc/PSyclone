@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024, Science and Technology Facilities Council.
+# Copyright (c) 2024-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -323,6 +323,12 @@ class CallTreeUtils():
                           f"'{kernel.module_name}' - ignored.")
                     continue
                 all_possible_routines = cntr.resolve_routine(kernel.name)
+                if not all_possible_routines:
+                    print(f"[CallTreeUtils.get_non_local_read_write_info] "
+                          f"Could not get PSyIR for Routine "
+                          f"'{kernel.name}' from module "
+                          f"'{kernel.module_name}' as no possible routines "
+                          f" were found - ignored.")
                 for routine_name in all_possible_routines:
                     psyir = cntr.find_routine_psyir(routine_name)
                     if not psyir:

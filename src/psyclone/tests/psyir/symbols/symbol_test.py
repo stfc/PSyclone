@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -204,7 +204,7 @@ def test_find_symbol_table():
     assert ("expected to be passed an instance of psyir.nodes.Node but got "
             "'str'" in str(err.value))
     # Search for a SymbolTable with only one level of hierarchy
-    sched = KernelSchedule("dummy")
+    sched = KernelSchedule.create("dummy")
     table = sched.symbol_table
     table.add(sym)
     assert sym.find_symbol_table(sched) is table
@@ -317,7 +317,7 @@ def test_get_external_symbol(monkeypatch):
     # Create a Symbol that is imported from the "some_mod" Container
     bsym = Symbol("b", interface=ImportInterface(other_container))
     ctable.add(bsym)
-    _ = Container.create("test", ctable, [KernelSchedule("dummy")])
+    _ = Container.create("test", ctable, [KernelSchedule.create("dummy")])
     # Monkeypatch the container's FortranModuleInterface so that it always
     # appears to be unable to find the "some_mod" module
 
@@ -351,7 +351,7 @@ def test_get_external_symbol_missing(monkeypatch):
     # the ContainerSymbol
     ctable2 = SymbolTable()
     some_mod = Container.create("some_mod", ctable2,
-                                [KernelSchedule("dummy2")])
+                                [KernelSchedule.create("dummy2")])
     other_container = ContainerSymbol("some_mod")
     other_container._reference = some_mod
     # Create a Symbol that is imported from the "some_mod" Container

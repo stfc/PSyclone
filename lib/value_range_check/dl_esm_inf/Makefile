@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -94,8 +94,8 @@ value_range_check_base.o: psy_data_base.o
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
-# The dl_esm_inf NaN-test library is built on the PSyData base library
-# and the NaN-test base library. So add the rules to process
+# The dl_esm_inf ValueRangeCheck library is built on the PSyData base library
+# and the ValueRangeCheck base library. So add the rules to process
 # these files to get the plain Fortran files:
 psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90

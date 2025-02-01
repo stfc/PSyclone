@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -121,8 +121,8 @@ class LoopFuseTrans(LoopTrans):
         # Check node1 comes before node2:
         if node2.position-node1.position != 1:
             raise TransformationError(
-                f"Error in {self.name} transformation. The second loop comes "
-                f"before the first loop")
+                f"Error in {self.name} transformation. The second loop does "
+                f"not immediately follow the first loop.")
 
         # Check that the iteration space is the same
         if isinstance(node1, PSyLoop) and isinstance(node2, PSyLoop):

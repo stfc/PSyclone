@@ -10,7 +10,7 @@ into the application.
 This wrapper supports the ``profile_PSyDataStart()`` and
 ``profile_PSyDataStop()`` API calls that may be used in order to limit
 the region of code that is profiled at runtime. If so, the application
-must be linked against CUDA (``-Mcuda`` flag to the PGI compiler). This
+must be linked against CUDA (``-cuda`` flag to the NVIDIA compiler). This
 functionality is often used in combination with disabling profiling at
 application startup (e.g. flag ``'--profile-from-start off'`` to ``nvprof``).
 
@@ -28,8 +28,8 @@ https://devblogs.nvidia.com/customize-cuda-fortran-profiling-nvtx/.
 
 A ``Makefile`` is provided and just executing `make` should build the wrapper
 library. By default the ``gfortran`` compiler is used but you will probably
-want to use PGI if working with OpenACC, i.e. ``make F90=pgf90``. This will
-produce ``libnvtx_prof.a`` and ``profile_mod.mod``.
+want to use ``nvfortran`` if working with OpenACC, i.e. ``make F90=nvfortran``.
+This will produce ``libnvtx_prof.a`` and ``profile_mod.mod``.
 
 When compiling the application that has been instrumented for
 profiling, the location of the ``profile_mod.mod`` file must be provided
@@ -41,7 +41,7 @@ Finally, at the link stage the location of the wrapper *and* NVTX
 libraries must be provided, e.g.:
 
 ```shell
-pgf90 <my object files> -Mcuda -L<PATH-TO-PSYCLONE>/lib/profiling/nvidia -lnvtx_prof -L<CUDA_LIB_DIR> -lnvToolsExt
+nvfortran <my object files> -cuda -L<PATH-TO-PSYCLONE>/lib/profiling/nvidia -lnvtx_prof -L<CUDA_LIB_DIR> -lnvToolsExt
 ```
 
 where ``<CUDA_LIB_DIR>`` will depend upon your system but is likely to be
@@ -75,7 +75,7 @@ back to the first entry in the list.
 
 BSD 3-Clause License
 
-Copyright (c) 2019-2024, Science and Technology Facilities Council.
+Copyright (c) 2019-2025, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

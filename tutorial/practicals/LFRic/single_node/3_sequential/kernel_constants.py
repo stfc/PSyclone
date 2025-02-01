@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2020-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,6 @@ This script can be applied via the -s option in the psyclone command,
 it is not designed to be directly run from python.
 
 '''
-from __future__ import print_function
 from psyclone.transformations import Dynamo0p3KernelConstTrans, \
     TransformationError
 
@@ -68,28 +67,22 @@ ELEMENT_ORDER = 0
 CONSTANT_QUADRATURE = True
 
 
-def trans(psy):
-    '''PSyclone transformation script for the Dynamo0.3 API to make the
+def trans(psyir):
+    '''PSyclone transformation script for the LFRic API to make the
     kernel values of ndofs, nlayers and nquadrature-point sizes constant.
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
-        kernel information required by PSyclone.
-    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     const_trans = Dynamo0p3KernelConstTrans()
 
-    for invoke in psy.invokes.invoke_list:
-        print(f"invoke '{invoke.name}'")
-        schedule = invoke.schedule
-        for kernel in schedule.coded_kernels():
-            print(f"  kernel '{kernel.name.lower()}'")
-            try:
-                const_trans.apply(kernel,
-                                  {"number_of_layers": NUMBER_OF_LAYERS,
-                                   "element_order": ELEMENT_ORDER,
-                                   "quadrature": CONSTANT_QUADRATURE})
-            except TransformationError:
-                print(f"    Failed to modify kernel '{kernel.name}'")
-
-    return psy
+    for kernel in psyir.coded_kernels():
+        print(f"  kernel '{kernel.name.lower()}'")
+        try:
+            const_trans.apply(kernel,
+                              {"number_of_layers": NUMBER_OF_LAYERS,
+                               "element_order": ELEMENT_ORDER,
+                               "quadrature": CONSTANT_QUADRATURE})
+        except TransformationError:
+            print(f"    Failed to modify kernel '{kernel.name}'")

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -818,8 +818,8 @@ class DependencyTools():
 
         :param loop1: the first loop.
         :type loop1: :py:class:`psyclone.psyir.nodes.Loop`
-        :param loop1: the first loop.
-        :type loop1: :py:class:`psyclone.psyir.nodes.Loop`
+        :param loop2: the second loop.
+        :type loop2: :py:class:`psyclone.psyir.nodes.Loop`
 
         :return: whether the loops can be fused or not.
         :rtype: bool
@@ -830,8 +830,6 @@ class DependencyTools():
         # has done tests for loop boundaries (depending on domain)
 
         self._clear_messages()
-        assert isinstance(loop1, Loop)
-        assert isinstance(loop2, Loop)
         vars1 = VariablesAccessInfo(loop1)
         vars2 = VariablesAccessInfo(loop2)
 
@@ -935,7 +933,7 @@ class DependencyTools():
                                      loop_variable1, loop_variable2):
         '''Validates if the accesses to an array, which is at least written
         once, allows loop fusion. The access pattern to this array is
-        specified in the two parameters `var_info1` and `var_info2`. Ff
+        specified in the two parameters `var_info1` and `var_info2`. If
         loop fusion is not possible, a message is added to the dependency
         tools:
             - an array that is written to uses inconsistent indices, e.g.
@@ -985,8 +983,9 @@ class DependencyTools():
                                   [var_info1.signature[0]])
                 return False
 
-            # If the loop variable contains more than one index, it is
-            # used inconsistent:
+            # If the loop variable is used in different dimensions or
+            # members of a derived type. E.g. a(i,j) and a(j,i), or
+            # a(i)%b(j) and a(j)%b(i) it is used inconsistent:
             if len(index) > 1:
                 # Add the appropriate error message:
                 access1 = all_accesses[0].node.debug_string()
@@ -1003,7 +1002,7 @@ class DependencyTools():
             other_index = other_access.component_indices[index[0]]
             if not SymbolicMaths.equal(
                     first_index, other_index,
-                    assume={loop_var_name1: loop_variable2.name}):
+                    identical_variables={loop_var_name1: loop_variable2.name}):
                 # If we have one accesses for the loop variable that is
                 # different from others (e.g. a(i) and a(i+1)), for now
                 # don't allow loop fusion.

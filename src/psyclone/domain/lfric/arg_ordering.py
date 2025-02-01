@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -372,6 +372,11 @@ class ArgOrdering:
         # this quantity for *every* operator it encounters.
         # if self._kern.arguments.has_operator(op_type="gh_operator"):
         #     self.mesh_ncell3d()
+
+        # If this kernel iterates into the halos then include a halo-depth
+        # argument.
+        if "halo" in self._kern.iterates_over:
+            self.halo_depth(var_accesses=var_accesses)
 
         # Pass the number of columns in the mesh if this kernel operates on
         # the 'domain' or has a CMA operator argument. For the former we
@@ -953,6 +958,20 @@ class ArgOrdering:
                 # All kernel arguments are simple references:
                 self.psyir_append(Reference(symbol))
                 self.append(symbol.name, var_accesses)
+
+    def halo_depth(self, var_accesses=None):
+        '''
+        Add a halo-depth argument to the Kernel argument list.
+        This default implementation does nothing as halo depths are not passed
+        to kernel subroutines (but they are passed down from the Algorithm
+        layer to the PSy layer).
+
+        :param var_accesses: optional VariablesAccessInfo instance to store
+            information about variable accesses.
+        :type var_accesses: Optional[
+            :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
 
 
 # ============================================================================

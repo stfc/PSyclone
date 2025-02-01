@@ -1,4 +1,4 @@
-API = gocean1.0
+API = gocean
 default: libgol.a
 
 include ../common.mk

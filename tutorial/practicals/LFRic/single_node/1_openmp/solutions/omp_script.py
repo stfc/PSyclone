@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council
+# Copyright (c) 2021-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,16 +31,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
 # Modified by J. Henrichs, Bureau of Meteorology
 
-'''File containing a PSyclone transformation script for the dynamo0p3
+'''File containing a PSyclone transformation script for the LFRic
 API to apply colouring and then OpenMP parallelisation to an
 invoke. This script can be applied via the -s option in the psyclone
 command.
 
 '''
-from __future__ import print_function
 from psyclone.transformations import DynamoOMPParallelLoopTrans, \
     TransformationError, Dynamo0p3ColourTrans, OMPParallelTrans, \
     Dynamo0p3OMPLoopTrans
@@ -48,14 +47,13 @@ from psyclone.psyGen import Loop
 from psyclone.domain.lfric import LFRicConstants
 
 
-def trans(psy):
-    '''PSyclone transformation script for the dynamo0p3 API that applies
+def trans(psyir):
+    '''PSyclone transformation script for the LFRic API that applies
     loop colouring and OpenMP parallel loop parallelisation. It also
     outputs a textual representation of the transformated PSyIR.
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
-        kernel information required by PSyclone.
-    :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     otrans = DynamoOMPParallelLoopTrans()
@@ -64,29 +62,24 @@ def trans(psy):
     ltrans = Dynamo0p3OMPLoopTrans()
     const = LFRicConstants()
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
+    # Colour any loops that need colouring
+    for loop in psyir.walk(Loop):
+        if (loop.field_space.orig_name not in
+                const.VALID_DISCONTINUOUS_NAMES and
+                loop.iteration_space == "cell_column"):
+            ctrans.apply(loop)
 
-        # Colour any loops that need colouring
-        for loop in schedule.walk(Loop):
-            if (loop.field_space.orig_name not in
-                    const.VALID_DISCONTINUOUS_NAMES and
-                    loop.iteration_space == "cell_column"):
-                ctrans.apply(loop)
+    # Add OpenMP parallel do directives to the loops
+    for loop in psyir.walk(Loop):
+        try:
+            # Make sure reductions are reproducible
+            if loop.reductions():
+                ptrans.apply(loop)
+                ltrans.apply(loop, {"reprod": True})
+            else:
+                otrans.apply(loop)
+        except TransformationError as info:
+            print(str(info.value))
 
-        # Add OpenMP parallel do directives to the loops
-        for loop in schedule.walk(Loop):
-            try:
-                # Make sure reductions are reproducible
-                if loop.reductions():
-                    ptrans.apply(loop)
-                    ltrans.apply(loop, {"reprod": True})
-                else:
-                    otrans.apply(loop)
-            except TransformationError as info:
-                print(str(info.value))
-
-        # take a look at what we've done
-        print(schedule.view())
-
-        return psy
+    # take a look at what we've done
+    print(psyir.view())

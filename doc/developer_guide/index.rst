@@ -6,7 +6,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2017-2024, Science and Technology Facilities Council.
+   Copyright (c) 2017-2025, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@
    psy_data
    system_specific_setup
    coding-style
-   zz_bibliography
+   Bibliography <zz_bibliography>
 
 ..   FAQS
 

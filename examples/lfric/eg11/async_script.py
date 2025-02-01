@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council
+# Copyright (c) 2018-2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
-'''File containing a PSyclone transformation script for the Dynamo0p3
+'''File containing a PSyclone transformation script for the LFRic
 API to make asynchronous halo exchanges and overlap their
 communication with computation. This can be applied via the -s option
 in the generator.py script.
@@ -41,10 +41,13 @@ in the generator.py script.
 '''
 
 
-def trans(psy):
+def trans(psyir):
     '''A sample transformation script to demonstrate the use of asynchronous
     halo exchanges with overlapping compute and communication for the
     most costly halo exchanges in the (current version of the) LFRic model.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     from psyclone.transformations import \
@@ -52,7 +55,8 @@ def trans(psy):
         Dynamo0p3AsyncHaloExchangeTrans, \
         MoveTrans
 
-    schedule = psy.invokes.invoke_list[0].schedule
+    # Get first subroutine of the first module
+    schedule = psyir.children[0].children[0]
     print(schedule.view())
 
     # This transformation removes the halo exchange associated with
@@ -78,5 +82,3 @@ def trans(psy):
     for kern in schedule.children[5:0:-2]:
         mtrans.apply(kern, schedule.children[0])
     print(schedule.view())
-
-    return psy

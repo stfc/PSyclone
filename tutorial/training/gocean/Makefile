@@ -3,11 +3,13 @@ EXAMPLES=$(sort $(wildcard 2.*GameOfLife*))
 clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
 allclean_EXAMPLES=$(addprefix allclean_,$(EXAMPLES))
 
-.PHONY: $(EXAMPLES) $(clean_EXAMPLES) $(allclean_EXAMPLES)
+.PHONY: test $(EXAMPLES) $(clean_EXAMPLES) $(allclean_EXAMPLES)
 
 default: $(EXAMPLES)
 clean: $(clean_EXAMPLES)
 allclean: $(allclean_EXAMPLES)
+
+test: $(EXAMPLES)
 
 $(EXAMPLES):
 	$(MAKE) -C $@/solution test

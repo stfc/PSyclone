@@ -12,7 +12,7 @@ this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 # PSyclone directory is up two from this file
 ROOT_DIR := $(abspath $(dir $(this_file))../../..)
 
-ifeq ($(API), gocean1.0)
+ifeq ($(API), gocean)
 	INF_DIR ?= $(ROOT_DIR)/external/dl_esm_inf/finite_difference
 	INF_INC = $(INF_DIR)/src
 	ifeq ($(MPI), yes)
@@ -38,7 +38,7 @@ LIBS +=  $(INF_LIB)
 LDFLAGS += $(LIBS)
 F90FLAGS += -I$(INF_INC)
 
-PSYCLONE = psyclone --config $(ROOT_DIR)/config/psyclone.cfg -api $(API) -l output $(DM) -d $(GOL_DIR)
+PSYCLONE = psyclone --config $(ROOT_DIR)/config/psyclone.cfg --psykal-dsl $(API) -l output $(DM) -d $(GOL_DIR)
 
 default: $(EXE)
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -148,7 +148,7 @@ def fuse_loops(fortran_code, fortran_reader, fortran_writer):
 
 # ----------------------------------------------------------------------------
 def test_fuse_dependency_tools_called(fortran_reader):
-    '''Make sure that DepencendyTools.can_loops_be_fused is indeed called
+    '''Make sure that `DependencyTools.can_loops_be_fused` is indeed called
     from the loop fuse transformation with the right parameters.
     '''
 
@@ -361,16 +361,15 @@ def test_fuse_correct_bounds(tmpdir, fortran_reader, fortran_writer):
 
 
 # ----------------------------------------------------------------------------
-def test_fuse_dimension_change(tmpdir, fortran_reader, fortran_writer):
-    '''Test that inconsistent use of dimensions are detected, e.g.:
-    loop1:  a(i,j)
-    loop2:  a(j,i)
-    when at least one operation is a write. The failure cases are all
-    tested in the DependencyTools, the successes are here in order to
-    also run compilation tests.
+def test_fuse_dimension_change_for_read(tmpdir, fortran_reader,
+                                        fortran_writer):
+    '''Test that inconsistent use of dimensions for variables that are read
+    only are accepted. The failure cases are all tested in the
+    DependencyTools, the success is here in order to easily allow compilation
+    tests, and also check again that the output of loop fuse is as expected.
     '''
 
-    # The first example can be merged, since 't' is read-only,
+    # This example can be merged, since 't' is read-only,
     # so it doesn't matter that it is accessed differently
     code = '''subroutine sub()
               integer :: ji, jj, n
@@ -405,7 +404,7 @@ def test_fuse_dimension_change(tmpdir, fortran_reader, fortran_writer):
 def test_fuse_scalars(tmpdir, fortran_reader, fortran_writer):
     '''Test that using scalars work as expected in all combinations of
     being read/written in both loops. Note that the dependency tools check
-    more cases, this test is only her to check compilation of the fused
+    more cases, this test is only here to check compilation of the fused
     loops.
     '''
 
@@ -665,8 +664,8 @@ end subroutine sub'''
     fuse = LoopFuseTrans()
     with pytest.raises(TransformationError) as err:
         fuse.apply(loops[2], loops[1])
-    assert ("Error in LoopFuseTrans transformation. The second loop comes "
-            "before the first loop" in str(err.value))
+    assert ("Error in LoopFuseTrans transformation. The second loop does not "
+            "immediately follow the first loop" in str(err.value))
 
 
 def test_loop_fuse_different_variables_with_access(fortran_reader):

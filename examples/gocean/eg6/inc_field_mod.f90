@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2024, Science and Technology Facilities Council.
+! Copyright (c) 2018-2025, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -42,8 +42,8 @@ module inc_field_mod
   type, extends(kernel_type) :: inc_field
      type(go_arg), dimension(5) :: meta_args =             &
           (/ go_arg(GO_WRITE, GO_CT, GO_POINTWISE),        & ! field
-             ! We have to pass in the extend of the field array as PGI
-             ! does not support assumed-size arguments in accelerator
+             ! We have to pass in the extend of the field array as the NVIDIA
+             ! compiler does not support assumed-size arguments in accelerator
              ! regions. Ultimately PSyclone will do this for us.
              go_arg(GO_READ,  GO_I_SCALAR, GO_POINTWISE),  & ! nx
              go_arg(GO_READ,  GO_I_SCALAR, GO_POINTWISE),  & ! ny

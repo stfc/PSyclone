@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019-2024, Science and Technology Facilities Council
+! Copyright (c) 2019-2025, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -88,8 +88,8 @@ contains
     integer(kind=i_def), intent(in) :: np_xy, np_z
     integer(kind=i_def), intent(in), dimension(ndf_adspc4) :: map_adspc4
     real(kind=r_def), intent(in), dimension(undf_adspc4) :: field1
-    real(kind=r_def), intent(in), dimension(ndf_adspc1,ndf_adspc2,ncell_3d_op1)    :: op1
-    real(kind=r_def), intent(inout), dimension(ndf_adspc4,ndf_adspc1,ncell_3d_op2) :: op2
+    real(kind=r_def), intent(in), dimension(ncell_3d_op1,ndf_adspc1,ndf_adspc2)    :: op1
+    real(kind=r_def), intent(inout), dimension(ncell_3d_op2,ndf_adspc4,ndf_adspc1) :: op2
     real(kind=r_def), intent(in), dimension(1,ndf_adspc1,np_xy,np_z) :: basis_adspc1
     real(kind=r_def), intent(in), dimension(1,ndf_adspc4,np_xy,np_z) :: basis_adspc4
     real(kind=r_def), intent(in), dimension(3,ndf_adspc4,np_xy,np_z) :: diff_basis_adspc4

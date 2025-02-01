@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -114,7 +114,7 @@ def test_use_return2(fortran_reader):
 def test_use_stmt():
     ''' Check that SymbolTable entries are correctly created from
     module use statements. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod, only: some_var\n"
                                  "use this_mod\n"
@@ -152,7 +152,7 @@ def test_use_stmt():
 def test_use_stmt_error(monkeypatch):
     ''' Check that we raise the expected error if the parse tree representing
     a USE statement doesn't have the expected structure. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod, only: some_var\n"
                                  "use this_mod\n"
@@ -170,7 +170,7 @@ def test_use_stmt_error(monkeypatch):
 def test_multi_use_stmt():
     ''' Check that we handle the case where different symbols are imported
     from a module in separate USE statements. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod, only: some_var\n"
                                  "use this_mod\n"
@@ -200,7 +200,7 @@ def test_name_clash_use_stmt():
     ''' Check that we raise the expected error if we encounter a module
     with a name that's already taken in the Symbol Table. This is invalid
     Fortran but we need to test the error-handling in PSyclone. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod, only: some_var\n"
                                  "use some_var, only: var1, var2\n")
@@ -214,7 +214,7 @@ def test_name_clash_use_stmt():
 def test_use_no_only_list():
     ''' Check that we create the correct Symbol Table entry for a use
     statement that has an 'only' clause but no list of imported symbols. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod, only: some_var\n"
                                  "use some_mod, only:\n")
@@ -230,7 +230,7 @@ def test_use_no_only_with_rename(fortran_reader):
     '''
     We don't currently support USE statements with a rename but no 'ONLY'.
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod, local_name=>some_var\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
@@ -249,7 +249,7 @@ end module my_mod'''
 def test_broken_use(monkeypatch):
     ''' Check that we raise the expected error if we encounter an unrecognised
     parse tree for a USE statement. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("use some_mod, only:\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
@@ -267,7 +267,7 @@ def test_redundant_empty_only_list():
     ''' Check that we drop 'use's with an empty only list if they become
     redundant. #TODO #11 Check for appropriate logging messages here once
     logging is implemented. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     # Empty only-list followed by wildcard import
     reader = FortranStringReader("use mod1, only:\n"
@@ -309,7 +309,7 @@ def test_use_same_symbol():
     #TODO #11 Once logging is added, check that we log an appropriate
     warning for this case.
     '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("use mod2, only: a\n"
                                  "use mod3, only: a\n")
@@ -327,7 +327,7 @@ def test_use_same_symbol():
 def test_use_local_symbol_error():
     ''' Check that we raise the expected error if we encounter an import of
     a symbol that is already declared to be local. '''
-    fake_parent = KernelSchedule("dummy_schedule")
+    fake_parent = KernelSchedule.create("dummy_schedule")
     # In practise this situation is hard to trigger as USE statements must
     # come before local declarations. Therefore we manually add a symbol
     # to the table first.

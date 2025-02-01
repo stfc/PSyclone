@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -89,7 +89,7 @@ def test_reference_equality():
 
 def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
-    kschedule = KernelSchedule("kname")
+    kschedule = KernelSchedule.create("kname")
     symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
@@ -101,7 +101,7 @@ def test_reference_node_str():
 def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
-    kschedule = KernelSchedule("kname")
+    kschedule = KernelSchedule.create("kname")
     symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
@@ -216,8 +216,8 @@ def test_reference_can_be_copied():
     assert ref.symbol is array_symbol
 
 
-def test_reference_next_access(fortran_reader):
-    '''Test the next_access function for a Reference'''
+def test_reference_next_accesses(fortran_reader):
+    '''Test the next_accesses function for a Reference'''
     code = '''subroutine my_sub()
     integer :: a
     integer :: b
@@ -231,9 +231,11 @@ def test_reference_next_access(fortran_reader):
     b = routine.children[1].lhs
     a_2 = routine.children[2].lhs
     b_2 = routine.children[2].rhs
-    assert a.next_access() is a_2
-    assert b.next_access() is b_2
-    assert a_2.next_access() is None
+    assert len(a.next_accesses()) == 1
+    assert a.next_accesses()[0] is a_2
+    assert len(b.next_accesses()) == 1
+    assert b.next_accesses()[0] is b_2
+    assert len(a_2.next_accesses()) == 0
 
     code = '''subroutine my_sub()
     integer :: a
@@ -247,10 +249,12 @@ def test_reference_next_access(fortran_reader):
     routine = psyir.children[0]
     a = routine.children[0].lhs
     loop = routine.children[1]
-    b_a = loop.loop_body.children[0].lhs
+    b = loop.loop_body.children[0].lhs
     a_2 = loop.loop_body.children[0].rhs
-    assert a.next_access() is loop
-    assert b_a.next_access() is None
+    assert len(a.next_accesses()) == 1
+    assert a.next_accesses()[0] is loop
+    assert len(b.next_accesses()) == 1
+    assert b.next_accesses()[0] == b
 
     # Check the function for basic structures
     code = '''subroutine my_sub()
@@ -270,10 +274,12 @@ def test_reference_next_access(fortran_reader):
     b = routine.children[1].lhs
     a_2 = routine.children[2].lhs
     b_2 = routine.children[3].lhs
-    assert a.next_access() is a_2
-    assert b.next_access() is b_2
-    assert a_2.next_access() is None
-    assert b_2.next_access() is None
+    assert len(a.next_accesses()) == 1
+    assert len(b.next_accesses()) == 1
+    assert a.next_accesses()[0] is a_2
+    assert b.next_accesses()[0] is b_2
+    assert len(a_2.next_accesses()) == 0
+    assert len(b_2.next_accesses()) == 0
 
     # Check the function for array access
     code = '''subroutine my_sub()
@@ -285,8 +291,9 @@ def test_reference_next_access(fortran_reader):
     routine = psyir.children[0]
     a = routine.children[0].lhs
     a_2 = routine.children[1].lhs
-    assert a.next_access() is a_2
-    assert a_2.next_access() is None
+    assert len(a.next_accesses()) == 1
+    assert a.next_accesses()[0] is a_2
+    assert len(a_2.next_accesses()) == 0
 
     # Check if statements don't affect
     code = '''subroutine my_sub()
@@ -303,9 +310,12 @@ def test_reference_next_access(fortran_reader):
     a = routine.children[0].lhs
     a_2 = routine.children[1].if_body.children[0].lhs
     a_3 = routine.children[2].lhs
-    assert a.next_access() is a_2
-    assert a_2.next_access() is a_3
-    assert a_3.next_access() is None
+    assert len(a.next_accesses()) == 2
+    assert a.next_accesses()[0] is a_2
+    assert a.next_accesses()[1] is a_3
+    assert len(a_2.next_accesses()) == 1
+    assert a_2.next_accesses()[0] is a_3
+    assert len(a_3.next_accesses()) == 0
 
     # Check else block behaviour
     code = '''subroutine my_sub()
@@ -325,14 +335,16 @@ def test_reference_next_access(fortran_reader):
     a_2 = routine.children[1].if_body.children[0].lhs
     a_3 = routine.children[1].else_body.children[0].lhs
     a_4 = routine.children[2].lhs
-    assert a.next_access() is a_2
-    assert a_2.next_access() is a_3
-    assert a_3.next_access() is a_4
-    assert a_4.next_access() is None
+    assert a.next_accesses()[0] is a_2
+    assert a.next_accesses()[1] is a_3
+    assert a.next_accesses()[2] is a_4
+    assert a_2.next_accesses()[0] is a_4
+    assert a_3.next_accesses()[0] is a_4
+    assert len(a_4.next_accesses()) == 0
 
 
-def test_reference_next_access_with_codeblock(fortran_reader):
-    ''' Test when te next_access is a Codeblock. '''
+def test_reference_next_accesses_with_codeblock(fortran_reader):
+    ''' Test when the next_accesses finds a Codeblock. '''
     code = '''subroutine my_sub()
     character, dimension(100) :: a
     a = "test"
@@ -343,9 +355,8 @@ def test_reference_next_access_with_codeblock(fortran_reader):
     routine = psyir.children[0]
     a = routine.children[0].lhs
     codeblock = routine.children[1]
-    if a.next_access() is not codeblock:
-        pytest.xfail("#2271 Codeblocks don't currently support "
-                     "reference_accesses")
+    assert len(a.next_accesses()) == 1
+    assert a.next_accesses()[0] is codeblock
 
 
 def test_reference_previous_access(fortran_reader):
@@ -487,10 +498,10 @@ end module my_mod'''
     symbols = sym_tab.get_symbols()
     b_sym = symbols['b']
     refs = b_sym.initial_value.walk(Reference)
-    assert refs[0].next_access() == refs[1]
+    assert refs[0].next_accesses()[0] == refs[1]
     assert refs[1].previous_access() == refs[0]
     assert refs[0].previous_access() is None
-    assert refs[1].next_access() is None
+    assert len(refs[1].next_accesses()) == 0
 
 
 def test_reference_previous_access_with_codeblock(fortran_reader):
@@ -536,3 +547,48 @@ def test_reference_replace_symbols_using():
     ref.replace_symbols_using(table)
     assert ref.symbol is asym2
     assert ref.symbol.datatype.precision is wp
+
+
+def test_reference_is_read(fortran_reader):
+    '''Test the reference is_read property.'''
+    code = """subroutine my_subroutine()
+        b = a
+        call somecall(c)
+    end subroutine"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    references = psyir.walk(Reference)
+    assert not references[0].is_read
+    assert references[1].is_read
+    assert references[3].symbol.name == "c"
+    assert references[3].is_read
+
+
+def test_reference_is_write(fortran_reader):
+    '''Test the reference is_write property.'''
+    code = """subroutine my_subroutine()
+       a = LBOUND(b)
+       a(i) = 3
+       a = SIN(c)
+       call somecall(a)
+       a = b
+       end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    references = psyir.walk(Reference)
+    # a = LBOUND(b) has a as write and b not.
+    assert references[0].is_write
+    assert references[2].symbol.name == "b"
+    assert not references[2].is_write
+    # a(i) = 3 has a as write and i as not.
+    assert references[3].is_write
+    assert not references[4].is_write
+    # a = SIN(c) has a as write and c as not.
+    assert references[5].is_write
+    assert references[7].symbol.name == "c"
+    assert not references[7].is_write
+    # call has a as write.
+    assert references[9].symbol.name == "a"
+    assert references[9].is_write
+    # a = b has a as write and b as not
+    assert references[10].is_write
+    assert not references[11].is_write

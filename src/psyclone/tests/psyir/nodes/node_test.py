@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@ import sys
 import os
 import re
 import pytest
+import graphviz
 
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import InternalError, GenerationError
@@ -51,8 +52,7 @@ from psyclone.psyir.backend.debug_writer import DebugWriter
 from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
     Assignment, Return, Loop, Literal, Statement, node, KernelSchedule, \
     BinaryOperation, ArrayReference, Call, Range
-from psyclone.psyir.nodes.node import ChildrenList, Node, \
-    _graphviz_digraph_class
+from psyclone.psyir.nodes.node import ChildrenList, Node
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
     INTEGER_TYPE, REAL_TYPE, SymbolTable, ArrayType, RoutineSymbol, NoType
 from psyclone.tests.utilities import get_invoke
@@ -723,28 +723,13 @@ def test_dag_names():
     assert builtin.dag_name == "builtin_sum_x_12"
 
 
-def test_node_digraph_no_graphviz(monkeypatch):
-    ''' Test that the function to get the graphviz Digraph class type returns
-    None if graphviz is not installed. We monkeypatch sys.modules to ensure
-    that it always appears that graphviz is not installed on this system. '''
-    monkeypatch.setitem(sys.modules, 'graphviz', None)
-    dag_class = _graphviz_digraph_class()
-    assert dag_class is None
-
-    # Now add a dummy class and define it to be 'graphviz',
-    # so we can also test the code executed when graphviz exists.
-    class Dummy:
-        '''Dummy class to test _graphciz_digraph_class.'''
-        Digraph = "DummyDigraph"
-    monkeypatch.setitem(sys.modules, 'graphviz', Dummy)
-    dag_class = _graphviz_digraph_class()
-    assert dag_class == "DummyDigraph"
-
-
 def test_node_dag_no_graphviz(tmpdir, monkeypatch):
     ''' Test that the dag generation returns None (and that no file is created)
     when graphviz is not installed. We make this test independent of whether or
     not graphviz is installed by monkeypatching sys.modules. '''
+    def not_installed(_, **kwargs):
+        raise graphviz.ExecutableNotFound("error")
+    monkeypatch.setattr(graphviz.graphs.Digraph, "render", not_installed)
     monkeypatch.setitem(sys.modules, 'graphviz', None)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -761,7 +746,7 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
 def test_node_dag_returns_digraph(monkeypatch):
     ''' Test that the dag generation returns the expected Digraph object. We
     make this test independent of whether or not graphviz is installed by
-    monkeypatching the psyir.nodes.node._graphviz_digraph_class function to
+    monkeypatching the graphviz.Digraph function to
     return a fake digraph class type. '''
     class FakeDigraph():
         ''' Fake version of graphviz.Digraph class with key methods
@@ -779,7 +764,7 @@ def test_node_dag_returns_digraph(monkeypatch):
         def render(self, filename):
             ''' Fake render method. '''
 
-    monkeypatch.setattr(node, "_graphviz_digraph_class", lambda: FakeDigraph)
+    monkeypatch.setattr(graphviz, "Digraph", FakeDigraph)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         api="lfric")
@@ -795,7 +780,7 @@ def test_node_dag_wrong_file_format(monkeypatch):
     ''' Test the handling of the error raised by graphviz when it is passed
     an invalid file format. We make this test independent of whether or not
     graphviz is actually available by monkeypatching the
-    psyir.nodes.node._graphviz_digraph_class function to return a fake digraph
+    graphviz.Digraph function to return a fake digraph
     class type that mimics the error. '''
     class FakeDigraph():
         ''' Fake version of graphviz.Digraph class that raises a ValueError
@@ -804,7 +789,7 @@ def test_node_dag_wrong_file_format(monkeypatch):
         def __init__(self, format=None):
             raise ValueError(format)
 
-    monkeypatch.setattr(node, "_graphviz_digraph_class", lambda: FakeDigraph)
+    monkeypatch.setattr(graphviz, "Digraph", FakeDigraph)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         api="lfric")
@@ -853,9 +838,6 @@ def test_node_dag(tmpdir, have_graphviz):
     graphviz is not installed. '''
     if not have_graphviz:
         return
-    # We may not have graphviz installed so disable pylint error
-    # pylint: disable=import-outside-toplevel
-    import graphviz
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.1_multikernel_invokes.f90"),
         api="lfric")
@@ -1507,17 +1489,23 @@ def test_following_preceding():
     container = Container.create(
         "container", SymbolTable(), [routine1, routine2])
 
-    # 2a: Middle node. Additional container and routine2 nodes are not
-    # returned by default ('routine' argument defaults to True).
+    # 2a: Middle node. When 'same_routine_scope' argument is set to True, or
+    # nothing (True is default), only nodes from the same routine are returned.
     assert multiply1.following() == [c_ref, d_ref]
+    assert multiply1.following(same_routine_scope=True) == [c_ref, d_ref]
     assert (multiply1.preceding() ==
             [routine1, assign1, a_ref, multiply2, b_ref])
+    assert (multiply1.preceding(same_routine_scope=True) ==
+            [routine1, assign1, a_ref, multiply2, b_ref])
+    assert multiply1.following(include_children=False) == []
+    assert multiply1.following(same_routine_scope=True,
+                               include_children=False) == []
 
-    # 2b: Middle node. 'routine' argument is set to False. Additional
-    # container and routine2 nodes are returned.
-    assert (multiply1.following(routine=False) ==
+    # 2b: Middle node. When 'same_routine_scope' argument is set to False,
+    # nodes from other routines are returned.
+    assert (multiply1.following(same_routine_scope=False) ==
             [c_ref, d_ref, routine2, assign2, e_ref, zero])
-    assert (multiply1.preceding(routine=False) ==
+    assert (multiply1.preceding(same_routine_scope=False) ==
             [container, routine1, assign1, a_ref, multiply2, b_ref])
 
 
@@ -1815,3 +1803,104 @@ def test_get_sibling_lists_with_stopping(fortran_reader):
     # Second kernel
     assert len(blocks_to_port[1]) == 1
     assert blocks_to_port[1][0] is loops[2]
+
+
+def test_following_node(fortran_reader):
+    '''Tests that the following_node method works as expected.'''
+
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        contains
+
+        subroutine test
+            integer :: i, j, val
+
+            do j = 1, 10
+               do i = 1, 10
+                  if (i == 3) then
+                    val = 1
+                  end if
+               end do
+               val = 2
+            end do
+        end subroutine
+
+        subroutine test2
+        end subroutine test2
+    end module
+    ''')
+
+    loops = psyir.walk(Loop)
+    assignments = psyir.walk(Assignment)
+    routines = psyir.walk(Routine)
+
+    # If it has a following sibiling, this is the following_node
+    assert loops[1].following_node() is assignments[1]
+    assert routines[0].following_node() is routines[1]
+
+    # If it doesn't, but one of its ancestor does, that it the following node
+    assert assignments[0].following_node() is assignments[1]
+
+    # If they don't (at the routine scope), they return None
+    assert loops[0].following_node() is None
+    assert assignments[1].following_node() is None
+
+    # With the same_routine_scope=False, they keep searching outside the
+    # routine
+    assert loops[0].following_node(same_routine_scope=False) is routines[1]
+    assert (assignments[1].following_node(same_routine_scope=False)
+            is routines[1])
+
+    # If it has no parent, they return None
+    assert loops[0].detach().following_node(same_routine_scope=False) is None
+
+
+def test_following(fortran_reader):
+    '''Tests that the following method works as expected.'''
+
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        contains
+
+        subroutine test
+            integer :: i, j, val
+
+            do j = 1, 10
+               do i = 1, 10
+                  if (i == 3) then
+                    val = 1
+                  end if
+               end do
+               val = 2
+            end do
+            val = 3
+        end subroutine
+
+        subroutine test2
+        end subroutine test2
+    end module
+    ''')
+    loops = psyir.walk(Loop)
+    assignments = psyir.walk(Assignment)
+    routines = psyir.walk(Routine)
+
+    # By default following returns children and following children
+    # inside the same routine scope
+    assert loops[0] not in loops[1].following()  # before
+    assert assignments[0] in loops[1].following()  # inside
+    assert assignments[1] in loops[1].following()  # after
+    assert assignments[2] in loops[1].following()  # after a parent
+    assert routines[1] not in loops[1].following()  # outside routine
+
+    # If we set same_routine_scope to False, it returns nodes from outside
+    assert routines[1] in loops[1].following(same_routine_scope=False)
+
+    # If we set include_children to False, it only return "after" nodes
+    assert assignments[0] not in loops[1].following(include_children=False)
+    assert assignments[1] in loops[1].following(include_children=False)
+    assert assignments[2] in loops[1].following(include_children=False)
+
+    # Both arguments work together
+    assert routines[1] not in loops[1].following(include_children=False)
+    assert routines[1] in loops[1].following(same_routine_scope=False,
+                                             include_children=False)

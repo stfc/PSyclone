@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 ''' This module contains the ScopingNode implementation.'''
 
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import SymbolError, SymbolTable
+from psyclone.psyir.symbols import RoutineSymbol, SymbolError, SymbolTable
 
 
 class ScopingNode(Node):
@@ -61,15 +61,20 @@ class ScopingNode(Node):
     _symbol_table_class = SymbolTable
 
     def __init__(self, children=None, parent=None, symbol_table=None):
-        super().__init__(children=children, parent=parent)
         self._symbol_table = None
 
+        # As Routines (a ScopingNode subclass) add their own symbol
+        # into their parent's symbol table its necessary to ensure
+        # that the _symbol_table exists before we add the children
+        # to the Node (which happens in the super constructor).
         if symbol_table is not None:
             # Attach the provided symbol table to this scope
             symbol_table.attach(self)
         else:
             # Create a new symbol table attached to this scope
             self._symbol_table = self._symbol_table_class(self)
+
+        super().__init__(children=children, parent=parent)
 
     def __eq__(self, other):
         '''
@@ -119,10 +124,43 @@ class ScopingNode(Node):
         :type other: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        super(ScopingNode, self)._refine_copy(other)
+        # Reorganise the symbol table construction to occur before we add
+        # the children.
         self._symbol_table = other.symbol_table.deep_copy()
-        # pylint: disable-next=protected-access
         self._symbol_table._node = self  # Associate to self
+
+        # Remove symbols corresponding to Routines that are contained in this
+        # ScopingNode. These symbols will be added automatically by the Routine
+        # objects when we add them to our child list in the super refine_copy
+        # call.
+        # We have to import Routine here to avoid a circular dependency.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.routine import Routine
+        removed_tags = {}
+        for node in other.walk(Routine):
+            try:
+                if isinstance(self._symbol_table.lookup(node.name),
+                              RoutineSymbol):
+                    # We have to force the removal of the symbol.
+                    symbol = self._symbol_table.lookup(node.name)
+                    norm_name = self._symbol_table._normalize(symbol.name)
+                    self._symbol_table._symbols.pop(norm_name)
+                    # If the symbol had a tag, it should be disassociated
+                    for tag, tagged_symbol in list(
+                            self._symbol_table._tags.items()):
+                        if symbol is tagged_symbol:
+                            removed_tags[tag] = tagged_symbol
+                            del self._symbol_table._tags[tag]
+            except KeyError:
+                pass
+
+        super(ScopingNode, self)._refine_copy(other)
+        # pylint: disable=protected-access
+
+        # Add any routine tags back
+        for tag in removed_tags.keys():
+            self._symbol_table._tags[tag] = self._symbol_table.lookup(
+                    removed_tags[tag].name)
 
         # Now we've updated the symbol table, walk back down the tree and
         # update any Symbols.

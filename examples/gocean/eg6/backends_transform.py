@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2024, Science and Technology Facilities Council.
+# Copyright (c) 2018-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,8 +34,8 @@
 # Author: S. Siso, STFC Daresbury Lab
 # Modified: R. W. Ford, STFC Daresbury Lab
 
-'''Python script intended to be passed to PSyclone's generate()
-function via the -s option.
+''' Python script to visualise the differences between the DLS PSyIR tree, the
+language-level PSyIR tree and the final output.
 This script calls a successful exit from inside because it is a work in
 progress of the development tracked by issue #1010.
 '''
@@ -44,11 +44,17 @@ import sys
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
-def trans(psy):
-    ''' Use the PSyIR back-end to generate PSy-layer target code'''
+def trans(psyir):
+    '''
+    Prints to stdout the DLS PSyIR tree, the language-level PSyIR tree and the
+    final Fortran code.
 
-    invoke = psy.invokes.get('invoke_0_inc_field')
-    schedule = invoke.schedule
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+    '''
+    schedule = next(x for x in psyir.children[0].children
+                    if x.name == 'invoke_0_inc_field')
 
     print("DSL level view:")
     print(schedule.view())
@@ -63,7 +69,7 @@ def trans(psy):
     fvisitor = FortranWriter()
     print("")
     print("FortranWriter code:")
-    print(fvisitor(psy.container))
+    print(fvisitor(schedule.root))
 
     # This PSyclone call should terminate gracefully here
     sys.exit(0)

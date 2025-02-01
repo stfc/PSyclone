@@ -1,6 +1,5 @@
 EXE = gol
 
-TRANS ?= omp_trans.py
 include ../common.mk
 
 SRC_X90 = time_step_mod.x90
@@ -17,13 +16,8 @@ $(EXE): $(OBJ)
 # ------------------------
 .precious: $(SRC_X90:%.x90=%.f90)
 
-ifeq ($(TRANS), omp_trans.py)
-%.f90: %.x90
+%.f90: %.x90 inline_openmp.py
 	$(PSYCLONE) -s ./inline_openmp.py -o $*.f90 $<
-else
-%.f90: %.x90
-	$(PSYCLONE) --backend disable-validation -s ./inline_openmp.py -o $*.f90 $<
-endif
 
 %.o: %.f90
 	$(F90) -c $(F90FLAGS) $<

@@ -29,16 +29,16 @@ contains
     !> This subroutine updates the field 'current' by subtracting the dying
     !> cells, and adding the newly born cells.
     !>
-    !> @param[in]  i, j Coordinates of the cell to update.
-    !> @param[out] current The current state that will be updated.
-    !> @param[in]  die     The field with 1 iff the cell dies.
-    !> @param[in]  born    The field with 1 iff a new cell is born.
+    !> @param[in]    i, j Coordinates of the cell to update.
+    !> @param[inout] current The current state that will be updated.
+    !> @param[in]    die     The field with 1 iff the cell dies.
+    !> @param[in]    born    The field with 1 iff a new cell is born.
 
     subroutine combine_code(i, j, current, die, born)
         implicit none
-        double precision, dimension(:,:), intent(out) :: current
-        double precision, dimension(:,:), intent(in)  :: die, born
-        integer, intent(in)                           :: i, j
+        double precision, dimension(:,:), intent(inout) :: current
+        double precision, dimension(:,:), intent(in)    :: die, born
+        integer, intent(in)                             :: i, j
 
         current(i, j) = current(i, j)  &
                       - die(i, j)      &
