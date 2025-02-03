@@ -391,11 +391,17 @@ def test_kern_last_cell_all_colours():
     # Apply a colouring transformation to the loop.
     trans = Dynamo0p3ColourTrans()
     trans.apply(loop)
-    # We have to perform code generation as that sets-up the symbol table.
-    # pylint:disable=pointless-statement
-    psy.gen
-    assert (loop.kernel.last_cell_all_colours_symbol.name
-            == "last_halo_cell_all_colours")
+
+    symbol = loop.kernel.last_cell_all_colours_symbol
+    assert symbol.name == "last_halo_cell_all_colours"
+    assert len(symbol.datatype.shape) == 2  # It's a 2-dimensional array
+
+    # Delete the symbols and try again inside a loop wihtout a halo
+    sched.symbol_table._symbols.pop("last_halo_cell_all_colours")
+    loop.kernel.parent.parent._upper_bound_name = "not-a-halo"
+    symbol = loop.kernel.last_cell_all_colours_symbol
+    assert symbol.name == "last_edge_cell_all_colours"
+    assert len(symbol.datatype.shape) == 1  # It's a 1-dimensional array
 
 
 def test_kern_last_cell_all_colours_intergrid():

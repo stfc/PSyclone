@@ -120,10 +120,7 @@ class LFRicCollection():
 
     def invoke_declarations(self):
         '''
-        Add necessary Invoke declarations for this Collection. Some of the
-        new symbols are not arguments and need to be initialised and therefore
-        we provide a cursor to control the location of the initialisation
-        statements.
+        Add necessary Invoke declarations for this Collection.
 
         By default we just sanity check that the class is appropriately
         initialised - it is up to the sub-class to add required declarations.
@@ -140,9 +137,7 @@ class LFRicCollection():
 
     def stub_declarations(self):
         '''
-        Add necessary Kernel Stub declarations for this collection.
-        We do nothing by default - it is up to the sub-class to override
-        this method if declarations are required.
+        Add necessary Kernel Stub declarations for this Collection.
 
         By default we just sanity check that the class is appropriately
         initialised - it is up to the sub-class to add required declarations.

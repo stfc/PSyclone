@@ -744,9 +744,9 @@ class OMPParallelLoopTrans(OMPLoopTrans):
           !$OMP END PARALLEL DO
 
         :param node: the node (loop) to which to apply the transformation.
-        :type node: :py:class:`psyclone.f2pygen.DoGen`
-        :param options: a dictionary with options for transformations\
-                        and validation.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param options: a dictionary with options for transformations
+            and validation.
         :type options: Optional[Dict[str, Any]]
         '''
         self.validate(node, options=options)

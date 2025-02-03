@@ -89,10 +89,6 @@ class LFRicHaloDepths(LFRicCollection):
         Creates the declarations for the depths to which any 'halo'
         kernels iterate into the halos.
 
-        :param cursor: position where to add the next initialisation
-            statements.
-        :returns: Updated cursor value.
-
         '''
         super().invoke_declarations()
         # Add the Invoke subroutine argument declarations for the

@@ -471,7 +471,7 @@ class LFRicKern(CodedKern):
     @property
     def colourmap(self: DataSymbol):
         '''
-        :returns: the symbol representing the colourmap for this kernekl call.
+        :returns: the symbol representing the colourmap for this kernel call.
 
         :raises InternalError: if this kernel is not coloured.
 

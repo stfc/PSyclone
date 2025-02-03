@@ -59,6 +59,13 @@ def test_goloop_create(monkeypatch):
     ''' Test that the GOLoop create method populates the relevant attributes
     and creates the loop children. '''
 
+    # The parent must be a GOInvokeSchedule
+    with pytest.raises(GenerationError) as err:
+        goloop = GOLoop(loop_type="inner", parent=Schedule())
+    assert ("GOLoops must always be constructed with a parent which is inside"
+            " (directly or indirectly) of a GOInvokeSchedule"
+            in str(err.value))
+
     # Monkeypatch the called GOLoops methods as this will be tested separately
     monkeypatch.setattr(GOLoop, "lower_bound",
                         lambda x: Literal("10", INTEGER_TYPE))

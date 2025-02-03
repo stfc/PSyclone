@@ -3182,7 +3182,7 @@ class DynBasisFunctions(LFRicCollection):
                 const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["intrinsic"]
             kind = const.QUADRATURE_TYPE_MAP["gh_quadrature_xyoz"]["kind"]
             for name in self.qr_weight_vars["xyoz"]:
-                self.symtab.new_symbol(
+                self.symtab.find_or_create(
                     name+"_"+qr_arg_name, symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(
                         f"{dtype}(kind={kind}), pointer :: "

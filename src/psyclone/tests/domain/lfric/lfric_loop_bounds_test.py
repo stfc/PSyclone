@@ -88,7 +88,7 @@ def test_lbounds_initialise(monkeypatch, fortran_writer):
     monkeypatch.setattr(invoke.schedule, "loops", lambda: [])
     lbounds = LFRicLoopBounds(invoke)
     # The initialise() should not raise an error but nothing should be
-    # added to the f2pygen tree.
+    # added to the PSyIR tree.
     lbounds.initialise(0)
     # Symbols representing loop bounds should be unaffected.
     assert table.lookup("loop0_start") is start_sym

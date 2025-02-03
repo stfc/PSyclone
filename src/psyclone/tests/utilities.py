@@ -337,19 +337,19 @@ class Compile():
             raise CompileError(output)
 
     def _code_compiles(self, psy_ast, dependencies=None):
-        '''Attempts to build the Fortran code supplied as an AST of
-        f2pygen objects. Returns True for success, False otherwise.
+        '''
+        Use the given PSy class to generate the necessary PSyKAl components
+        to compile the psy-layer. Returns True for success, False otherwise.
         It is meant for internal test uses only, and must only be
         called when compilation is actually enabled (use code_compiles
         otherwse). All files produced are deleted.
 
-        :param psy_ast: The AST of the generated PSy layer.
+        :param psy_ast: The PSy object to build.
         :type psy_ast: :py:class:`psyclone.psyGen.PSy`
-        :param dependencies: optional module- or file-names on which \
-                    one or more of the kernels/PSy-layer depend (and \
-                    that are not part of e.g. the GOcean or LFRic \
-                    infrastructure).  These dependencies will be built \
-                    in the order they occur in this list.
+        :param dependencies: optional module- or file-names on which one or
+            more of the kernels/PSy-layer depend (and that are not part of
+            e.g. the GOcean or LFRic infrastructure).  These dependencies will
+            be built in the order they occur in this list.
         :type dependencies: List[str]
 
         :return: True if generated code compiles, False otherwise.
