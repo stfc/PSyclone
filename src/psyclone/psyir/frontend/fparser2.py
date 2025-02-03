@@ -4393,9 +4393,11 @@ class Fparser2Reader():
                 raise NotImplementedError(
                         "PSyclone doesn't yet support reference to imported "
                         "symbols inside WHERE clauses.")
-            intrinsic_ancestor = ref.ancestor(IntrinsicCall)
+            call_ancestor = ref.ancestor(Call)
+            elemental_ancestor = (call_ancestor is None or
+                                  call_ancestor.is_elemental)
             if (isinstance(ref.symbol, DataSymbol) and
-                    not intrinsic_ancestor):
+                    elemental_ancestor):
                 try:
                     Reference2ArrayRangeTrans().apply(ref)
                 except TransformationError:

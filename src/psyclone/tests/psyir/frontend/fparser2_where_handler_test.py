@@ -1014,3 +1014,73 @@ def test_non_array_ref_intrinsic_transformation_error(fortran_reader):
     references = psyir.walk(Reference)
     # The d should not have been transformed into an array.
     assert not isinstance(references[7], ArrayReference)
+
+
+def test_elemental_intrinsic_to_loop(fortran_reader, fortran_writer):
+    '''
+    Tests that if we have an elemental intrinsic (like ABS) that we
+    expand the where into a loop.
+    '''
+    code = '''
+    program where_test
+    implicit none
+    real, dimension(100) :: a, b
+
+    where(abs(a) < 2)
+        b = a
+    end where
+    end program
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    correct = '''program where_test
+  real, dimension(100) :: a
+  real, dimension(100) :: b
+  integer :: widx1
+
+  do widx1 = 1, 100, 1
+    if (ABS(a(widx1)) < 2) then
+      b(widx1) = a(widx1)
+    end if
+  enddo
+
+end program where_test'''
+    out = fortran_writer(psyir)
+    assert correct in out
+
+
+def test_elemental_function_to_loop(fortran_reader, fortran_writer):
+    '''
+    Tests that if we have an elemental function that we expand the where
+    into a loop.
+    '''
+    code = '''
+    module mymod
+    contains
+    real elemental function x(i)
+       real :: i
+       x = i + 1.5
+    end function
+    subroutine where_test
+    implicit none
+    real, dimension(100) :: a, b
+
+    where(x(a) < 2)
+        b = a
+    end where
+    end subroutine
+    end module'''
+    psyir = fortran_reader.psyir_from_source(code)
+    correct = '''  subroutine where_test()
+    real, dimension(100) :: a
+    real, dimension(100) :: b
+    integer :: widx1
+
+    do widx1 = 1, 100, 1
+      if (x(a(widx1)) < 2) then
+        b(widx1) = a(widx1)
+      end if
+    enddo
+
+  end subroutine where_test'''
+    out = fortran_writer(psyir)
+    assert correct in out
