@@ -1684,34 +1684,32 @@ class SymbolTable():
                 from psyclone.psyir.nodes import ScopingNode, Reference
                 for scoping_node in self.node.walk(ScopingNode):
                     symbol_table = scoping_node.symbol_table
-                    if symbol.name in symbol_table:
-                        test_symbol = symbol_table.lookup(symbol.name)
-                        if (test_symbol.is_unresolved and
-                                not symbol_table.wildcard_imports):
-                            # No wildcard imports into this scope.
-                            symbol_table.remove(test_symbol)
-                            if test_symbol.name not in self:
-                                # The visibility given by the inner symbol
-                                # table does not necessarily match the one
-                                # from the scope it should have been in (it
-                                # doesn't have a non-default visibility,
-                                # otherwise the symbol would already be in
-                                # the ancestor symbol table).
-                                test_symbol.visibility = \
-                                    self.default_visibility
+                    test_symbol = symbol_table.lookup(symbol.name,
+                                                      otherwise=None)
+                    if (test_symbol and test_symbol.is_unresolved and
+                            all(csym in self.containersymbols for
+                                csym in symbol_table.wildcard_imports())):
+                        # No wildcard imports into this scope.
+                        symbol_table.remove(test_symbol)
+                        if test_symbol.name not in self:
+                            # The visibility given by the inner symbol
+                            # table does not necessarily match the one
+                            # from the scope it should have been in (it
+                            # doesn't have a non-default visibility,
+                            # otherwise the symbol would already be in
+                            # the ancestor symbol table).
+                            test_symbol.visibility = self.default_visibility
 
-                                self.add(test_symbol)
-                            else:
-                                # There is already a symbol with this name
-                                # in this table. Update all references to
-                                # point to it.
-                                for ref in symbol_table.node.walk(
-                                        Reference):
-                                    if SymbolTable._has_same_name(
-                                            ref.symbol, symbol):
-                                        mod_symbol = self.lookup(
-                                            symbol.name)
-                                        ref.symbol = mod_symbol
+                            self.add(test_symbol)
+                        else:
+                            # There is already a symbol with this name
+                            # in this table. Update all references to
+                            # point to it.
+                            for ref in symbol_table.node.walk(Reference):
+                                if SymbolTable._has_same_name(
+                                        ref.symbol, symbol):
+                                    mod_symbol = self.lookup(symbol.name)
+                                    ref.symbol = mod_symbol
 
                 # This Symbol matches the name of a symbol in the current table
                 if symbol.name in self:

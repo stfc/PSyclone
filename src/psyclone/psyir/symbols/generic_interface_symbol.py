@@ -121,8 +121,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
         '''
         if not values:
             raise ValueError("A GenericInterfaceSymbol requires a list of "
-                             "RoutineSymbols (unless it is imported) but none "
-                             "were provided.")
+                             "RoutineSymbols but none were provided.")
         if not isinstance(values, list):
             raise TypeError(f"A GenericInterfaceSymbol requires a list of "
                             f"tuples describing its member routines but got: "
