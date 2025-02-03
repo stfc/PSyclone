@@ -453,8 +453,8 @@ def test_gen_typedecl(fortran_writer):
             "end type my_type\n")
     private_tsymbol = DataTypeSymbol("my_type", dtype,
                                      Symbol.Visibility.PRIVATE)
-    gen_code = fortran_writer.gen_typedecl(private_tsymbol)
-    assert gen_code.startswith("type, private :: my_type\n")
+    code = fortran_writer.gen_typedecl(private_tsymbol)
+    assert code.startswith("type, private :: my_type\n")
 
 
 def test_reverse_map():

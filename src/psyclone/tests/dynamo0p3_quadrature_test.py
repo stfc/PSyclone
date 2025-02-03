@@ -248,18 +248,18 @@ def test_edge_qr(tmpdir, dist_mem):
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     assert LFRicBuild(tmpdir).code_compiles(psy)
-    gen_code = str(psy.gen).lower()
+    code = str(psy.gen).lower()
 
     assert ("use quadrature_edge_mod, only : quadrature_edge_proxy_type, "
-            "quadrature_edge_type\n" in gen_code)
-    assert "type(quadrature_edge_type), intent(in) :: qr\n" in gen_code
-    assert "integer(kind=i_def) :: np_xyz_qr" in gen_code
-    assert "integer(kind=i_def) :: nedges_qr" in gen_code
+            "quadrature_edge_type\n" in code)
+    assert "type(quadrature_edge_type), intent(in) :: qr\n" in code
+    assert "integer(kind=i_def) :: np_xyz_qr" in code
+    assert "integer(kind=i_def) :: nedges_qr" in code
     assert (
         "    qr_proxy = qr%get_quadrature_proxy()\n"
         "    np_xyz_qr = qr_proxy%np_xyz\n"
         "    nedges_qr = qr_proxy%nedges\n"
-        "    weights_xyz_qr => qr_proxy%weights_xyz\n" in gen_code)
+        "    weights_xyz_qr => qr_proxy%weights_xyz\n" in code)
 
     assert (
         "    ! compute basis/diff-basis arrays\n"
@@ -270,14 +270,14 @@ def test_edge_qr(tmpdir, dist_mem):
         "    call qr%compute_function(basis, m2_proxy%vspace, dim_w3, "
         "ndf_w3, basis_w3_qr)\n"
         "    call qr%compute_function(diff_basis, m2_proxy%vspace, "
-        "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n" in gen_code)
+        "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n" in code)
 
     assert ("call testkern_qr_edges_code(nlayers_f1, f1_data, "
             "f2_data, m1_data, a, m2_data, istp, "
             "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, "
             "map_w2(:,cell), diff_basis_w2_qr, ndf_w3, undf_w3, "
             "map_w3(:,cell), basis_w3_qr, diff_basis_w3_qr, nedges_qr, "
-            "np_xyz_qr, weights_xyz_qr)" in gen_code)
+            "np_xyz_qr, weights_xyz_qr)" in code)
 
 
 def test_face_qr(tmpdir, dist_mem):
@@ -482,12 +482,12 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     assert LFRicBuild(tmpdir).code_compiles(psy)
-    gen_code = str(psy.gen)
-    print(gen_code)
+    code = str(psy.gen)
+    print(code)
     # Check that the qr-related variables are all declared
     assert ("    type(quadrature_face_type), intent(in) :: qr_face\n"
             "    type(quadrature_edge_type), intent(in) :: qr_edge\n"
-            in gen_code)
+            in code)
     assert """
     real(kind=r_def), allocatable :: basis_w1_qr_face(:,:,:,:)
     real(kind=r_def), allocatable :: basis_w1_qr_edge(:,:,:,:)
@@ -497,7 +497,7 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
     real(kind=r_def), allocatable :: diff_basis_w3_qr_face(:,:,:,:)
     real(kind=r_def), allocatable :: basis_w3_qr_edge(:,:,:,:)
     real(kind=r_def), allocatable :: diff_basis_w3_qr_edge(:,:,:,:)
-""" in gen_code
+""" in code
     assert """
     integer(kind=i_def) :: np_xyz_qr_face
     integer(kind=i_def) :: nfaces_qr_face
@@ -509,7 +509,7 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
     real(kind=r_def), pointer, dimension(:,:) :: weights_xyz_qr_edge => null()
 
     type(quadrature_edge_proxy_type) :: qr_edge_proxy
-    """ in gen_code
+    """ in code
     # Allocation and computation of (some of) the basis functions
     assert """
     ! Allocate basis/diff-basis arrays
@@ -528,7 +528,7 @@ nedges_qr_edge))
 nfaces_qr_face))
     ALLOCATE(basis_w3_qr_edge(dim_w3,ndf_w3,np_xyz_qr_edge,nedges_qr_edge))
     ALLOCATE(diff_basis_w3_qr_edge(diff_dim_w3,ndf_w3,np_xyz_qr_edge,\
-nedges_qr_edge))""" in gen_code
+nedges_qr_edge))""" in code
     assert ("    call qr_face%compute_function(BASIS, m2_proxy%vspace, "
             "dim_w3, ndf_w3, basis_w3_qr_face)\n"
             "    call qr_face%compute_function(DIFF_BASIS, m2_proxy%vspace, "
@@ -536,7 +536,7 @@ nedges_qr_edge))""" in gen_code
             "    call qr_edge%compute_function(BASIS, m2_proxy%vspace, "
             "dim_w3, ndf_w3, basis_w3_qr_edge)\n"
             "    call qr_edge%compute_function(DIFF_BASIS, m2_proxy%vspace, "
-            "diff_dim_w3, ndf_w3, diff_basis_w3_qr_edge)\n" in gen_code)
+            "diff_dim_w3, ndf_w3, diff_basis_w3_qr_edge)\n" in code)
     # Check that the kernel call itself is correct
     assert (
         "call testkern_2qr_code(nlayers_f1, f1_data, f2_data, "
@@ -547,7 +547,7 @@ nedges_qr_edge))""" in gen_code
         "ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr_face, basis_w3_qr_edge, "
         "diff_basis_w3_qr_face, diff_basis_w3_qr_edge, "
         "nfaces_qr_face, np_xyz_qr_face, weights_xyz_qr_face, "
-        "nedges_qr_edge, np_xyz_qr_edge, weights_xyz_qr_edge)" in gen_code)
+        "nedges_qr_edge, np_xyz_qr_edge, weights_xyz_qr_edge)" in code)
 
 
 def test_field_qr_deref(tmpdir):

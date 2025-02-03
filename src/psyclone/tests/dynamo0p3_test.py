@@ -820,13 +820,13 @@ def test_field_bc_kernel(tmpdir):
                                         "12.2_enforce_bc_kernel.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
     assert ("integer(kind=i_def), pointer :: boundary_dofs_a(:,:) => "
-            "null()" in gen_code)
-    assert "boundary_dofs_a => a_proxy%vspace%get_boundary_dofs()" in gen_code
+            "null()" in code)
+    assert "boundary_dofs_a => a_proxy%vspace%get_boundary_dofs()" in code
     assert ("call enforce_bc_code(nlayers_a, a_data, ndf_aspc1_a, "
             "undf_aspc1_a, map_aspc1_a(:,cell), boundary_dofs_a)"
-            in gen_code)
+            in code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -1139,12 +1139,12 @@ def test_named_psy_routine(dist_mem, tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Name should be all lower-case and with spaces replaced by underscores
-    assert "subroutine invoke_important_invoke" in gen_code
+    assert "subroutine invoke_important_invoke" in code
 
 # Tests for LFRic stub generator
 

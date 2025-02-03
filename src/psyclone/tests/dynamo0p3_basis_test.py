@@ -186,49 +186,49 @@ def test_single_kern_eval(tmpdir):
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.1_eval_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Check module declarations
-    assert "use constants_mod\n" in gen_code
-    assert "use field_mod, only : field_proxy_type, field_type" in gen_code
+    assert "use constants_mod\n" in code
+    assert "use field_mod, only : field_proxy_type, field_type" in code
 
     # Check subroutine declarations
-    assert "  subroutine invoke_0_testkern_eval_type(f0, cmap)" in gen_code
-    assert "    use testkern_eval_mod, only : testkern_eval_code" in gen_code
-    assert "    use function_space_mod, only : BASIS, DIFF_BASIS" in gen_code
-    assert "    type(field_type), intent(in) :: f0" in gen_code
-    assert "    type(field_type), intent(in) :: cmap" in gen_code
-    assert "    integer(kind=i_def) :: cell" in gen_code
-    assert "    integer(kind=i_def) :: loop4_start" in gen_code
-    assert "    integer(kind=i_def) :: loop4_stop" in gen_code
-    assert "    integer(kind=i_def) :: df_nodal" in gen_code
-    assert "    integer(kind=i_def) :: df_w0" in gen_code
-    assert "    integer(kind=i_def) :: df_w1" in gen_code
+    assert "  subroutine invoke_0_testkern_eval_type(f0, cmap)" in code
+    assert "    use testkern_eval_mod, only : testkern_eval_code" in code
+    assert "    use function_space_mod, only : BASIS, DIFF_BASIS" in code
+    assert "    type(field_type), intent(in) :: f0" in code
+    assert "    type(field_type), intent(in) :: cmap" in code
+    assert "    integer(kind=i_def) :: cell" in code
+    assert "    integer(kind=i_def) :: loop4_start" in code
+    assert "    integer(kind=i_def) :: loop4_stop" in code
+    assert "    integer(kind=i_def) :: df_nodal" in code
+    assert "    integer(kind=i_def) :: df_w0" in code
+    assert "    integer(kind=i_def) :: df_w1" in code
     assert ("    real(kind=r_def), allocatable :: basis_w0_on_w0(:,:,:)"
-            in gen_code)
+            in code)
     assert ("    real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
-            in gen_code)
-    assert "    integer(kind=i_def) :: dim_w0" in gen_code
-    assert "    integer(kind=i_def) :: diff_dim_w1" in gen_code
+            in code)
+    assert "    integer(kind=i_def) :: dim_w0" in code
+    assert "    integer(kind=i_def) :: diff_dim_w1" in code
     assert ("    real(kind=r_def), pointer :: nodes_w0(:,:) => null()"
-            in gen_code)
-    assert "    integer(kind=i_def) :: nlayers_f0" in gen_code
+            in code)
+    assert "    integer(kind=i_def) :: nlayers_f0" in code
     assert ("real(kind=r_def), pointer, dimension(:) :: cmap_data => null()"
-            in gen_code)
+            in code)
     assert ("    real(kind=r_def), pointer, dimension(:) :: f0_data => null()"
-            in gen_code)
-    assert "    type(field_proxy_type) :: f0_proxy" in gen_code
-    assert "    type(field_proxy_type) :: cmap_proxy" in gen_code
+            in code)
+    assert "    type(field_proxy_type) :: f0_proxy" in code
+    assert "    type(field_proxy_type) :: cmap_proxy" in code
     assert ("    integer(kind=i_def), pointer :: map_w0(:,:) => null()"
-            in gen_code)
+            in code)
     assert ("    integer(kind=i_def), pointer :: map_w1(:,:) => null()"
-            in gen_code)
-    assert "    integer(kind=i_def) :: ndf_w0" in gen_code
-    assert "    integer(kind=i_def) :: undf_w0" in gen_code
-    assert "    integer(kind=i_def) :: ndf_w1" in gen_code
-    assert "    integer(kind=i_def) :: undf_w1" in gen_code
+            in code)
+    assert "    integer(kind=i_def) :: ndf_w0" in code
+    assert "    integer(kind=i_def) :: undf_w0" in code
+    assert "    integer(kind=i_def) :: ndf_w1" in code
+    assert "    integer(kind=i_def) :: undf_w1" in code
     # Second, check the executable statements
     expected_code = (
         "\n"
@@ -288,13 +288,13 @@ def test_single_kern_eval(tmpdir):
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "    enddo\n"
     )
-    assert expected_code in gen_code
+    assert expected_code in code
     dealloc_code = (
         "    DEALLOCATE(basis_w0_on_w0, diff_basis_w1_on_w0)\n"
         "\n"
         "  end subroutine invoke_0_testkern_eval_type\n"
     )
-    assert dealloc_code in gen_code
+    assert dealloc_code in code
 
 
 def test_single_kern_eval_op(tmpdir):
@@ -304,40 +304,40 @@ def test_single_kern_eval_op(tmpdir):
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.1.1_eval_op_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Kernel writes to an operator, the 'to' space of which is W0. Kernel
     # requires basis on W2 ('from'-space of operator) and diff-basis on
     # W3 (space of the field).
-    assert "use function_space_mod, only : BASIS, DIFF_BASIS" in gen_code
-    assert "type(field_type), intent(in) :: f1" in gen_code
-    assert "type(operator_type), intent(in) :: op1" in gen_code
-    assert "integer(kind=i_def) :: cell" in gen_code
-    assert "integer(kind=i_def) :: loop4_start" in gen_code
-    assert "integer(kind=i_def) :: loop4_stop" in gen_code
-    assert "integer(kind=i_def) :: df_nodal" in gen_code
-    assert "integer(kind=i_def) :: df_w2" in gen_code
-    assert "integer(kind=i_def) :: df_w3" in gen_code
-    assert "real(kind=r_def), allocatable :: basis_w2_on_w0(:,:,:)" in gen_code
+    assert "use function_space_mod, only : BASIS, DIFF_BASIS" in code
+    assert "type(field_type), intent(in) :: f1" in code
+    assert "type(operator_type), intent(in) :: op1" in code
+    assert "integer(kind=i_def) :: cell" in code
+    assert "integer(kind=i_def) :: loop4_start" in code
+    assert "integer(kind=i_def) :: loop4_stop" in code
+    assert "integer(kind=i_def) :: df_nodal" in code
+    assert "integer(kind=i_def) :: df_w2" in code
+    assert "integer(kind=i_def) :: df_w3" in code
+    assert "real(kind=r_def), allocatable :: basis_w2_on_w0(:,:,:)" in code
     assert ("real(kind=r_def), allocatable :: diff_basis_w3_on_w0(:,:,:)"
-            in gen_code)
-    assert "integer(kind=i_def) :: dim_w2" in gen_code
-    assert "integer(kind=i_def) :: diff_dim_w3" in gen_code
-    assert "real(kind=r_def), pointer :: nodes_w0(:,:) => null()" in gen_code
-    assert "integer(kind=i_def) :: nlayers_op1" in gen_code
+            in code)
+    assert "integer(kind=i_def) :: dim_w2" in code
+    assert "integer(kind=i_def) :: diff_dim_w3" in code
+    assert "real(kind=r_def), pointer :: nodes_w0(:,:) => null()" in code
+    assert "integer(kind=i_def) :: nlayers_op1" in code
     assert ("real(kind=r_def), pointer, dimension(:,:,:) :: "
-            "op1_local_stencil => null()" in gen_code)
-    assert "type(operator_proxy_type) :: op1_proxy" in gen_code
+            "op1_local_stencil => null()" in code)
+    assert "type(operator_proxy_type) :: op1_proxy" in code
     assert ("real(kind=r_def), pointer, dimension(:) :: f1_data => null()"
-            in gen_code)
-    assert "type(field_proxy_type) :: f1_proxy" in gen_code
-    assert "integer(kind=i_def), pointer :: map_w3(:,:) => null()" in gen_code
-    assert "integer(kind=i_def) :: ndf_w0" in gen_code
-    assert "integer(kind=i_def) :: ndf_w2" in gen_code
-    assert "integer(kind=i_def) :: ndf_w3" in gen_code
-    assert "integer(kind=i_def) :: undf_w3" in gen_code
+            in code)
+    assert "type(field_proxy_type) :: f1_proxy" in code
+    assert "integer(kind=i_def), pointer :: map_w3(:,:) => null()" in code
+    assert "integer(kind=i_def) :: ndf_w0" in code
+    assert "integer(kind=i_def) :: ndf_w2" in code
+    assert "integer(kind=i_def) :: ndf_w3" in code
+    assert "integer(kind=i_def) :: undf_w3" in code
     init_output = (
         "    nodes_w0 => op1_proxy%fs_to%get_nodes()\n"
         "\n"
@@ -361,8 +361,8 @@ def test_single_kern_eval_op(tmpdir):
         "      enddo\n"
         "    enddo\n"
     )
-    assert init_output in gen_code
-    assert "loop4_stop = op1_proxy%fs_from%get_ncell()\n" in gen_code
+    assert init_output in code
+    assert "loop4_stop = op1_proxy%fs_from%get_ncell()\n" in code
     kern_call = (
         "    do cell = loop4_start, loop4_stop, 1\n"
         "      call testkern_eval_op_code(cell, nlayers_op1, "
@@ -370,8 +370,8 @@ def test_single_kern_eval_op(tmpdir):
         "basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), "
         "diff_basis_w3_on_w0)\n"
         "    enddo\n")
-    assert kern_call in gen_code
-    assert "    DEALLOCATE(basis_w2_on_w0, diff_basis_w3_on_w0)\n" in gen_code
+    assert kern_call in code
+    assert "    DEALLOCATE(basis_w2_on_w0, diff_basis_w3_on_w0)\n" in code
 
 
 def test_two_qr_same_shape(tmpdir):
@@ -381,104 +381,104 @@ def test_two_qr_same_shape(tmpdir):
                                         "1.1.2_single_invoke_2qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "use constants_mod\n" in gen_code
-    assert "use field_mod, only : field_proxy_type, field_type" in gen_code
+    assert "use constants_mod\n" in code
+    assert "use field_mod, only : field_proxy_type, field_type" in code
 
     assert ("subroutine invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
-            "n2, qr, qr2)" in gen_code)
-    assert "use testkern_qr_mod, only : testkern_qr_code" in gen_code
+            "n2, qr, qr2)" in code)
+    assert "use testkern_qr_mod, only : testkern_qr_code" in code
     assert ("use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, "
-            "quadrature_xyoz_type" in gen_code)
-    assert "use function_space_mod, only : BASIS, DIFF_BASIS" in gen_code
-    assert "real(kind=r_def), intent(in) :: a" in gen_code
-    assert "real(kind=r_def), intent(in) :: b" in gen_code
-    assert "integer(kind=i_def), intent(in) :: istp" in gen_code
-    assert "type(field_type), intent(in) :: f1" in gen_code
-    assert "type(field_type), intent(in) :: f2" in gen_code
-    assert "type(field_type), intent(in) :: m1" in gen_code
-    assert "type(field_type), intent(in) :: m2" in gen_code
-    assert "type(field_type), intent(in) :: g1" in gen_code
-    assert "type(field_type), intent(in) :: g2" in gen_code
-    assert "type(field_type), intent(in) :: n1" in gen_code
-    assert "type(field_type), intent(in) :: n2" in gen_code
-    assert "type(quadrature_xyoz_type), intent(in) :: qr" in gen_code
-    assert "type(quadrature_xyoz_type), intent(in) :: qr2" in gen_code
-    assert "integer(kind=i_def) :: cell" in gen_code
-    assert "integer(kind=i_def) :: loop1_start" in gen_code
-    assert "integer(kind=i_def) :: loop1_stop" in gen_code
-    assert "integer(kind=i_def) :: loop0_start" in gen_code
-    assert "integer(kind=i_def) :: loop0_stop" in gen_code
-    assert "real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)" in gen_code
+            "quadrature_xyoz_type" in code)
+    assert "use function_space_mod, only : BASIS, DIFF_BASIS" in code
+    assert "real(kind=r_def), intent(in) :: a" in code
+    assert "real(kind=r_def), intent(in) :: b" in code
+    assert "integer(kind=i_def), intent(in) :: istp" in code
+    assert "type(field_type), intent(in) :: f1" in code
+    assert "type(field_type), intent(in) :: f2" in code
+    assert "type(field_type), intent(in) :: m1" in code
+    assert "type(field_type), intent(in) :: m2" in code
+    assert "type(field_type), intent(in) :: g1" in code
+    assert "type(field_type), intent(in) :: g2" in code
+    assert "type(field_type), intent(in) :: n1" in code
+    assert "type(field_type), intent(in) :: n2" in code
+    assert "type(quadrature_xyoz_type), intent(in) :: qr" in code
+    assert "type(quadrature_xyoz_type), intent(in) :: qr2" in code
+    assert "integer(kind=i_def) :: cell" in code
+    assert "integer(kind=i_def) :: loop1_start" in code
+    assert "integer(kind=i_def) :: loop1_stop" in code
+    assert "integer(kind=i_def) :: loop0_start" in code
+    assert "integer(kind=i_def) :: loop0_stop" in code
+    assert "real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)" in code
     assert ("real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)"
-            in gen_code)
-    assert "real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)" in gen_code
+            in code)
+    assert "real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)" in code
     assert ("real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)"
-            in gen_code)
-    assert "real(kind=r_def), allocatable :: basis_w1_qr2(:,:,:,:)" in gen_code
+            in code)
+    assert "real(kind=r_def), allocatable :: basis_w1_qr2(:,:,:,:)" in code
     assert ("real(kind=r_def), allocatable :: diff_basis_w2_qr2(:,:,:,:)"
-            in gen_code)
-    assert "real(kind=r_def), allocatable :: basis_w3_qr2(:,:,:,:)" in gen_code
+            in code)
+    assert "real(kind=r_def), allocatable :: basis_w3_qr2(:,:,:,:)" in code
     assert ("real(kind=r_def), allocatable :: diff_basis_w3_qr2(:,:,:,:)"
-            in gen_code)
-    assert "integer(kind=i_def) :: dim_w1" in gen_code
-    assert "integer(kind=i_def) :: diff_dim_w2" in gen_code
-    assert "integer(kind=i_def) :: dim_w3" in gen_code
-    assert "integer(kind=i_def) :: diff_dim_w3" in gen_code
+            in code)
+    assert "integer(kind=i_def) :: dim_w1" in code
+    assert "integer(kind=i_def) :: diff_dim_w2" in code
+    assert "integer(kind=i_def) :: dim_w3" in code
+    assert "integer(kind=i_def) :: diff_dim_w3" in code
     assert ("real(kind=r_def), pointer :: weights_xy_qr2(:) => null()"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), pointer :: weights_z_qr2(:) => null()"
-            in gen_code)
-    assert "integer(kind=i_def) :: np_xy_qr2" in gen_code
-    assert "integer(kind=i_def) :: np_z_qr2" in gen_code
+            in code)
+    assert "integer(kind=i_def) :: np_xy_qr2" in code
+    assert "integer(kind=i_def) :: np_z_qr2" in code
     assert ("real(kind=r_def), pointer :: weights_xy_qr(:) => null()"
-            in gen_code)
-    assert "real(kind=r_def), pointer :: weights_z_qr(:) => null()" in gen_code
-    assert "integer(kind=i_def) :: np_xy_qr" in gen_code
-    assert "integer(kind=i_def) :: np_z_qr" in gen_code
-    assert "integer(kind=i_def) :: nlayers_f1" in gen_code
-    assert "integer(kind=i_def) :: nlayers_g1" in gen_code
+            in code)
+    assert "real(kind=r_def), pointer :: weights_z_qr(:) => null()" in code
+    assert "integer(kind=i_def) :: np_xy_qr" in code
+    assert "integer(kind=i_def) :: np_z_qr" in code
+    assert "integer(kind=i_def) :: nlayers_f1" in code
+    assert "integer(kind=i_def) :: nlayers_g1" in code
     assert ("real(kind=r_def), pointer, dimension(:) :: n2_data => null()"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), pointer, dimension(:) :: n1_data => null()"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), pointer, dimension(:) :: g2_data => null()"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), pointer, dimension(:) :: g1_data => null()"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), pointer, dimension(:) :: m2_data => null()"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), pointer, dimension(:) :: m1_data => null()"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), pointer, dimension(:) :: f2_data => null()"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), pointer, dimension(:) :: f1_data => null()"
-            in gen_code)
-    assert "type(field_proxy_type) :: f1_proxy" in gen_code
-    assert "type(field_proxy_type) :: f2_proxy" in gen_code
-    assert "type(field_proxy_type) :: m1_proxy" in gen_code
-    assert "type(field_proxy_type) :: m2_proxy" in gen_code
-    assert "type(field_proxy_type) :: g1_proxy" in gen_code
-    assert "type(field_proxy_type) :: g2_proxy" in gen_code
-    assert "type(field_proxy_type) :: n1_proxy" in gen_code
-    assert "type(field_proxy_type) :: n2_proxy" in gen_code
-    assert "type(quadrature_xyoz_proxy_type) :: qr_proxy" in gen_code
-    assert "type(quadrature_xyoz_proxy_type) :: qr2_proxy" in gen_code
-    assert "integer(kind=i_def), pointer :: map_w1(:,:) => null()" in gen_code
-    assert "integer(kind=i_def), pointer :: map_w2(:,:) => null()" in gen_code
-    assert "integer(kind=i_def), pointer :: map_w3(:,:) => null()" in gen_code
-    assert "integer(kind=i_def) :: ndf_w1" in gen_code
-    assert "integer(kind=i_def) :: undf_w1" in gen_code
-    assert "integer(kind=i_def) :: ndf_w2" in gen_code
-    assert "integer(kind=i_def) :: undf_w2" in gen_code
-    assert "integer(kind=i_def) :: ndf_w3" in gen_code
-    assert "integer(kind=i_def) :: undf_w3" in gen_code
-    assert "integer(kind=i_def), pointer :: map_w1(:,:) => null()" in gen_code
-    assert "integer(kind=i_def), pointer :: map_w2(:,:) => null()" in gen_code
-    assert "integer(kind=i_def), pointer :: map_w3(:,:) => null()" in gen_code
+            in code)
+    assert "type(field_proxy_type) :: f1_proxy" in code
+    assert "type(field_proxy_type) :: f2_proxy" in code
+    assert "type(field_proxy_type) :: m1_proxy" in code
+    assert "type(field_proxy_type) :: m2_proxy" in code
+    assert "type(field_proxy_type) :: g1_proxy" in code
+    assert "type(field_proxy_type) :: g2_proxy" in code
+    assert "type(field_proxy_type) :: n1_proxy" in code
+    assert "type(field_proxy_type) :: n2_proxy" in code
+    assert "type(quadrature_xyoz_proxy_type) :: qr_proxy" in code
+    assert "type(quadrature_xyoz_proxy_type) :: qr2_proxy" in code
+    assert "integer(kind=i_def), pointer :: map_w1(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_w2(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_w3(:,:) => null()" in code
+    assert "integer(kind=i_def) :: ndf_w1" in code
+    assert "integer(kind=i_def) :: undf_w1" in code
+    assert "integer(kind=i_def) :: ndf_w2" in code
+    assert "integer(kind=i_def) :: undf_w2" in code
+    assert "integer(kind=i_def) :: ndf_w3" in code
+    assert "integer(kind=i_def) :: undf_w3" in code
+    assert "integer(kind=i_def), pointer :: map_w1(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_w2(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_w3(:,:) => null()" in code
     expected_code = (
         "    ! Look-up quadrature variables\n"
         "    qr_proxy = qr%get_quadrature_proxy()\n"
@@ -528,10 +528,10 @@ def test_two_qr_same_shape(tmpdir):
         "    call qr2%compute_function(DIFF_BASIS, "
         "n2_proxy%vspace, diff_dim_w3, ndf_w3, diff_basis_w3_qr2)\n"
         "\n")
-    assert expected_code in gen_code
+    assert expected_code in code
     assert ("    loop0_stop = f1_proxy%vspace%get_ncell()\n"
             "    loop1_start = 1\n"
-            "    loop1_stop = g1_proxy%vspace%get_ncell()\n" in gen_code)
+            "    loop1_stop = g1_proxy%vspace%get_ncell()\n" in code)
     expected_kern_call = (
         "    ! Call kernels\n"
         "    do cell = loop0_start, loop0_stop, 1\n"
@@ -556,7 +556,7 @@ def test_two_qr_same_shape(tmpdir):
         "basis_w3_qr2, diff_basis_w2_qr, diff_basis_w2_qr2, diff_basis_w3_qr, "
         "diff_basis_w3_qr2)\n"
     )
-    assert expected_kern_call in gen_code
+    assert expected_kern_call in code
 
 
 def test_two_identical_qr(tmpdir):
@@ -566,7 +566,7 @@ def test_two_identical_qr(tmpdir):
         os.path.join(BASE_PATH, "1.1.3_single_invoke_2_identical_qr.f90"),
         api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -578,7 +578,7 @@ def test_two_identical_qr(tmpdir):
         "    weights_xy_qr => qr_proxy%weights_xy\n"
         "    weights_z_qr => qr_proxy%weights_z\n"
         "\n")
-    assert expected_init in gen_code
+    assert expected_init in code
     expected_alloc = (
         "\n"
         "    dim_w1 = f1_proxy%vspace%get_dim_space()\n"
@@ -592,7 +592,7 @@ def test_two_identical_qr(tmpdir):
         "    ALLOCATE(diff_basis_w3_qr(diff_dim_w3,ndf_w3,np_xy_qr,"
         "np_z_qr))\n"
         "\n")
-    assert expected_alloc in gen_code
+    assert expected_alloc in code
     expected_basis_init = (
         "\n"
         "    call qr%compute_function(BASIS, f1_proxy%vspace, "
@@ -604,10 +604,10 @@ def test_two_identical_qr(tmpdir):
         "    call qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
         "\n")
-    assert expected_basis_init in gen_code
+    assert expected_basis_init in code
     assert ("    loop0_stop = f1_proxy%vspace%get_ncell()\n"
             "    loop1_start = 1\n"
-            "    loop1_stop = g1_proxy%vspace%get_ncell()\n" in gen_code)
+            "    loop1_stop = g1_proxy%vspace%get_ncell()\n" in code)
     expected_kern_call = (
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_qr_code(nlayers_f1, f1_data, f2_data,"
@@ -623,11 +623,11 @@ def test_two_identical_qr(tmpdir):
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         "    enddo\n")
-    assert expected_kern_call in gen_code
+    assert expected_kern_call in code
     expected_dealloc = (
         "DEALLOCATE(basis_w1_qr, basis_w3_qr, diff_basis_w2_qr, "
         "diff_basis_w3_qr)")
-    assert expected_dealloc in gen_code
+    assert expected_dealloc in code
 
 
 def test_two_qr_different_shapes(tmpdir):
@@ -637,37 +637,37 @@ def test_two_qr_different_shapes(tmpdir):
                                         "1.1.8_single_invoke_2qr_shapes.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    print(gen_code)
-    assert "type(quadrature_face_proxy_type) :: qrf_proxy" in gen_code
-    assert "type(quadrature_xyoz_proxy_type) :: qr_proxy" in gen_code
+    print(code)
+    assert "type(quadrature_face_proxy_type) :: qrf_proxy" in code
+    assert "type(quadrature_xyoz_proxy_type) :: qr_proxy" in code
 
-    assert "qr_proxy = qr%get_quadrature_proxy()" in gen_code
-    assert "np_xy_qr = qr_proxy%np_xy" in gen_code
-    assert "np_z_qr = qr_proxy%np_z" in gen_code
-    assert "weights_xy_qr => qr_proxy%weights_xy" in gen_code
-    assert "weights_z_qr => qr_proxy%weights_z" in gen_code
+    assert "qr_proxy = qr%get_quadrature_proxy()" in code
+    assert "np_xy_qr = qr_proxy%np_xy" in code
+    assert "np_z_qr = qr_proxy%np_z" in code
+    assert "weights_xy_qr => qr_proxy%weights_xy" in code
+    assert "weights_z_qr => qr_proxy%weights_z" in code
 
-    assert "qrf_proxy = qrf%get_quadrature_proxy()" in gen_code
-    assert "np_xyz_qrf = qrf_proxy%np_xyz" in gen_code
-    assert "nfaces_qrf = qrf_proxy%nfaces" in gen_code
-    assert "weights_xyz_qrf => qrf_proxy%weights_xyz" in gen_code
+    assert "qrf_proxy = qrf%get_quadrature_proxy()" in code
+    assert "np_xyz_qrf = qrf_proxy%np_xyz" in code
+    assert "nfaces_qrf = qrf_proxy%nfaces" in code
+    assert "weights_xyz_qrf => qrf_proxy%weights_xyz" in code
 
     assert ("call testkern_qr_code(nlayers_f1, f1_data, f2_data, "
             "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
             "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
             "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
             "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)"
-            in gen_code)
+            in code)
     assert ("call testkern_qr_faces_code(nlayers_f1, f1_data, "
             "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), basis_w1_qrf, ndf_w2, undf_w2, map_w2(:,cell), "
             "diff_basis_w2_qrf, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qrf,"
             " diff_basis_w3_qrf, nfaces_qrf, np_xyz_qrf, weights_xyz_qrf)"
-            in gen_code)
+            in code)
 
 
 def test_anyw2(tmpdir, dist_mem):
@@ -717,87 +717,87 @@ def test_qr_plus_eval(tmpdir):
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.2_qr_eval_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "use constants_mod\n" in gen_code
-    assert "use field_mod, only : field_proxy_type, field_type" in gen_code
+    assert "use constants_mod\n" in code
+    assert "use field_mod, only : field_proxy_type, field_type" in code
 
-    assert "subroutine invoke_0(f0, f1, f2, m1, a, m2, istp, qr)" in gen_code
-    assert "use testkern_qr_mod, only : testkern_qr_code" in gen_code
-    assert "use testkern_eval_mod, only : testkern_eval_code" in gen_code
+    assert "subroutine invoke_0(f0, f1, f2, m1, a, m2, istp, qr)" in code
+    assert "use testkern_qr_mod, only : testkern_qr_code" in code
+    assert "use testkern_eval_mod, only : testkern_eval_code" in code
     assert ("use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, "
-            "quadrature_xyoz_type") in gen_code
-    assert "use function_space_mod, only : BASIS, DIFF_BASIS" in gen_code
-    assert "real(kind=r_def), intent(in) :: a" in gen_code
-    assert "integer(kind=i_def), intent(in) :: istp" in gen_code
-    assert "type(field_type), intent(in) :: f0" in gen_code
-    assert "type(field_type), intent(in) :: f1" in gen_code
-    assert "type(field_type), intent(in) :: f2" in gen_code
-    assert "type(field_type), intent(in) :: m1" in gen_code
-    assert "type(field_type), intent(in) :: m2" in gen_code
-    assert "type(quadrature_xyoz_type), intent(in) :: qr" in gen_code
-    assert "integer(kind=i_def) :: cell" in gen_code
-    assert "integer(kind=i_def) :: loop4_start" in gen_code
-    assert "integer(kind=i_def) :: loop4_stop" in gen_code
-    assert "integer(kind=i_def) :: loop5_start" in gen_code
-    assert "integer(kind=i_def) :: loop5_stop" in gen_code
-    assert "integer(kind=i_def) :: df_nodal" in gen_code
-    assert "integer(kind=i_def) :: df_w0" in gen_code
-    assert "integer(kind=i_def) :: df_w1" in gen_code
-    assert "real(kind=r_def), allocatable :: basis_w0_on_w0(:,:,:)" in gen_code
+            "quadrature_xyoz_type") in code
+    assert "use function_space_mod, only : BASIS, DIFF_BASIS" in code
+    assert "real(kind=r_def), intent(in) :: a" in code
+    assert "integer(kind=i_def), intent(in) :: istp" in code
+    assert "type(field_type), intent(in) :: f0" in code
+    assert "type(field_type), intent(in) :: f1" in code
+    assert "type(field_type), intent(in) :: f2" in code
+    assert "type(field_type), intent(in) :: m1" in code
+    assert "type(field_type), intent(in) :: m2" in code
+    assert "type(quadrature_xyoz_type), intent(in) :: qr" in code
+    assert "integer(kind=i_def) :: cell" in code
+    assert "integer(kind=i_def) :: loop4_start" in code
+    assert "integer(kind=i_def) :: loop4_stop" in code
+    assert "integer(kind=i_def) :: loop5_start" in code
+    assert "integer(kind=i_def) :: loop5_stop" in code
+    assert "integer(kind=i_def) :: df_nodal" in code
+    assert "integer(kind=i_def) :: df_w0" in code
+    assert "integer(kind=i_def) :: df_w1" in code
+    assert "real(kind=r_def), allocatable :: basis_w0_on_w0(:,:,:)" in code
     assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
-            in gen_code)
-    assert "real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)" in gen_code
-    assert "real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)" in gen_code
+            in code)
+    assert "real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)" in code
+    assert "real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)" in code
     assert ("real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)"
-            in gen_code)
-    assert "integer(kind=i_def) :: dim_w0" in gen_code
-    assert "integer(kind=i_def) :: diff_dim_w1" in gen_code
-    assert "integer(kind=i_def) :: dim_w1" in gen_code
-    assert "integer(kind=i_def) :: diff_dim_w2" in gen_code
-    assert "integer(kind=i_def) :: dim_w3" in gen_code
-    assert "integer(kind=i_def) :: diff_dim_w3" in gen_code
-    assert "real(kind=r_def), pointer :: nodes_w0(:,:) => null()" in gen_code
+            in code)
+    assert "integer(kind=i_def) :: dim_w0" in code
+    assert "integer(kind=i_def) :: diff_dim_w1" in code
+    assert "integer(kind=i_def) :: dim_w1" in code
+    assert "integer(kind=i_def) :: diff_dim_w2" in code
+    assert "integer(kind=i_def) :: dim_w3" in code
+    assert "integer(kind=i_def) :: diff_dim_w3" in code
+    assert "real(kind=r_def), pointer :: nodes_w0(:,:) => null()" in code
     assert ("real(kind=r_def), pointer :: weights_xy_qr(:) => null()"
-            in gen_code)
-    assert "real(kind=r_def), pointer :: weights_z_qr(:) => null()" in gen_code
-    assert "integer(kind=i_def) :: np_xy_qr" in gen_code
-    assert "integer(kind=i_def) :: np_z_qr" in gen_code
-    assert "integer(kind=i_def) :: nlayers_f0" in gen_code
-    assert "integer(kind=i_def) :: nlayers_f1" in gen_code
+            in code)
+    assert "real(kind=r_def), pointer :: weights_z_qr(:) => null()" in code
+    assert "integer(kind=i_def) :: np_xy_qr" in code
+    assert "integer(kind=i_def) :: np_z_qr" in code
+    assert "integer(kind=i_def) :: nlayers_f0" in code
+    assert "integer(kind=i_def) :: nlayers_f1" in code
     assert ("real(kind=r_def), pointer, dimension(:) :: m2_data => null()"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), pointer, dimension(:) :: m1_data => null()"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), pointer, dimension(:) :: f2_data => null()"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), pointer, dimension(:) :: f1_data => null()"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), pointer, dimension(:) :: f0_data => null()"
-            in gen_code)
+            in code)
 
-    assert "type(field_proxy_type) :: f0_proxy" in gen_code
-    assert "type(field_proxy_type) :: f1_proxy" in gen_code
-    assert "type(field_proxy_type) :: f2_proxy" in gen_code
-    assert "type(field_proxy_type) :: m1_proxy" in gen_code
-    assert "type(field_proxy_type) :: m2_proxy" in gen_code
-    assert "type(quadrature_xyoz_proxy_type) :: qr_proxy" in gen_code
-    assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in gen_code
-    assert "integer(kind=i_def), pointer :: map_w1(:,:) => null()" in gen_code
-    assert "integer(kind=i_def), pointer :: map_w2(:,:) => null()" in gen_code
-    assert "integer(kind=i_def), pointer :: map_w3(:,:) => null()" in gen_code
-    assert "integer(kind=i_def) :: ndf_w0" in gen_code
-    assert "integer(kind=i_def) :: undf_w0" in gen_code
-    assert "integer(kind=i_def) :: ndf_w1" in gen_code
-    assert "integer(kind=i_def) :: undf_w1" in gen_code
-    assert "integer(kind=i_def) :: ndf_w2" in gen_code
-    assert "integer(kind=i_def) :: undf_w2" in gen_code
-    assert "integer(kind=i_def) :: ndf_w3" in gen_code
-    assert "integer(kind=i_def) :: undf_w3" in gen_code
+    assert "type(field_proxy_type) :: f0_proxy" in code
+    assert "type(field_proxy_type) :: f1_proxy" in code
+    assert "type(field_proxy_type) :: f2_proxy" in code
+    assert "type(field_proxy_type) :: m1_proxy" in code
+    assert "type(field_proxy_type) :: m2_proxy" in code
+    assert "type(quadrature_xyoz_proxy_type) :: qr_proxy" in code
+    assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_w1(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_w2(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_w3(:,:) => null()" in code
+    assert "integer(kind=i_def) :: ndf_w0" in code
+    assert "integer(kind=i_def) :: undf_w0" in code
+    assert "integer(kind=i_def) :: ndf_w1" in code
+    assert "integer(kind=i_def) :: undf_w1" in code
+    assert "integer(kind=i_def) :: ndf_w2" in code
+    assert "integer(kind=i_def) :: undf_w2" in code
+    assert "integer(kind=i_def) :: ndf_w3" in code
+    assert "integer(kind=i_def) :: undf_w3" in code
 
     output_setup = (
         "    ndf_w3 = m2_proxy%vspace%get_ndf()\n"
@@ -852,10 +852,10 @@ def test_qr_plus_eval(tmpdir):
         "dim_w3, ndf_w3, basis_w3_qr)\n"
         "    call qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n")
-    assert output_setup in gen_code
+    assert output_setup in code
     assert ("    loop4_stop = f0_proxy%vspace%get_ncell()\n"
             "    loop5_start = 1\n"
-            "    loop5_stop = f1_proxy%vspace%get_ncell()\n" in gen_code)
+            "    loop5_stop = f1_proxy%vspace%get_ncell()\n" in code)
     output_kern_call = (
         "    do cell = loop4_start, loop4_stop, 1\n"
         "      call testkern_eval_code(nlayers_f0, f0_data, "
@@ -869,11 +869,11 @@ def test_qr_plus_eval(tmpdir):
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         "    enddo\n")
-    assert output_kern_call in gen_code
+    assert output_kern_call in code
     output_dealloc = (
         "    DEALLOCATE(basis_w0_on_w0, basis_w1_qr, basis_w3_qr, "
         "diff_basis_w1_on_w0, diff_basis_w2_qr, diff_basis_w3_qr)\n")
-    assert output_dealloc in gen_code
+    assert output_dealloc in code
 
 
 def test_two_eval_same_space(tmpdir):
@@ -883,7 +883,7 @@ def test_two_eval_same_space(tmpdir):
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.3_2eval_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -898,7 +898,7 @@ def test_two_eval_same_space(tmpdir):
         "    diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
         "    ALLOCATE(basis_w0_on_w0(dim_w0,ndf_w0,ndf_w0))\n"
         "    ALLOCATE(diff_basis_w1_on_w0(diff_dim_w1,ndf_w1,ndf_w0))\n")
-    assert output_init in gen_code
+    assert output_init in code
     output_code = (
         "\n"
         "    ! Compute basis/diff-basis arrays\n"
@@ -933,7 +933,7 @@ def test_two_eval_same_space(tmpdir):
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "    enddo\n"
     )
-    assert output_code in gen_code
+    assert output_code in code
 
 
 def test_two_eval_diff_space(tmpdir):
@@ -943,7 +943,7 @@ def test_two_eval_diff_space(tmpdir):
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.4_2eval_op_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -970,7 +970,7 @@ def test_two_eval_diff_space(tmpdir):
         "    ALLOCATE(diff_basis_w1_on_w0(diff_dim_w1,ndf_w1,ndf_w0))\n"
         "    ALLOCATE(basis_w2_on_w0(dim_w2,ndf_w2,ndf_w0))\n"
         "    ALLOCATE(diff_basis_w3_on_w0(diff_dim_w3,ndf_w3,ndf_w0))\n")
-    assert expected_init in gen_code
+    assert expected_init in code
     expected_code = (
         "    ! Compute basis/diff-basis arrays\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
@@ -1016,7 +1016,7 @@ def test_two_eval_diff_space(tmpdir):
         "basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), "
         "diff_basis_w3_on_w0)\n"
         "    enddo\n")
-    assert expected_code in gen_code
+    assert expected_code in code
 
 
 def test_two_eval_same_var_same_space(tmpdir):
@@ -1027,22 +1027,22 @@ def test_two_eval_same_var_same_space(tmpdir):
                                         "6.7_2eval_same_var_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # We should only get one set of basis and diff-basis functions in the
     # generated code
-    assert gen_code.count(
+    assert code.count(
         "ndf_adspc1_f0 = f0_proxy%vspace%get_ndf()") == 1
-    assert gen_code.count(
+    assert code.count(
         "    do df_nodal = 1, ndf_adspc1_f0, 1\n"
         "      do df_w0 = 1, ndf_w0, 1\n"
         "        basis_w0_on_adspc1_f0(:,df_w0,df_nodal) = f1_proxy%vspace"
         "%call_function(BASIS, df_w0, nodes_adspc1_f0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
-    assert gen_code.count(
+    assert code.count(
         "    do df_nodal = 1, ndf_adspc1_f0, 1\n"
         "      do df_w1 = 1, ndf_w1, 1\n"
         "        diff_basis_w1_on_adspc1_f0(:,df_w1,df_nodal) = f2_proxy"
@@ -1050,7 +1050,7 @@ def test_two_eval_same_var_same_space(tmpdir):
         "df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
-    assert gen_code.count(
+    assert code.count(
         "DEALLOCATE(basis_w0_on_adspc1_f0, diff_basis_w1_on_adspc1_f0)") == 1
 
 
@@ -1064,7 +1064,7 @@ def test_two_eval_op_to_space(tmpdir):
                                         "6.5_2eval_op_to_invoke.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -1083,7 +1083,7 @@ def test_two_eval_op_to_space(tmpdir):
         "    nodes_w0 => f0_proxy%vspace%get_nodes()\n"
         "    nodes_w3 => f2_proxy%vspace%get_nodes()\n"
     )
-    assert init_code in gen_code
+    assert init_code in code
     alloc_code = (
         "    dim_w0 = f0_proxy%vspace%get_dim_space()\n"
         "    diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
@@ -1099,7 +1099,7 @@ def test_two_eval_op_to_space(tmpdir):
         "    ALLOCATE(diff_basis_w3_on_w3(diff_dim_w3,ndf_w3,"
         "ndf_w3))\n"
     )
-    assert alloc_code in gen_code
+    assert alloc_code in code
     # testkern_eval requires diff-basis fns on W1 and testkern_eval_op_to
     # requires them on W2 and W3.
     basis_comp = (
@@ -1133,11 +1133,11 @@ def test_two_eval_op_to_space(tmpdir):
         "call_function(DIFF_BASIS, df_w3, nodes_w3(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n")
-    assert basis_comp in gen_code
+    assert basis_comp in code
     assert ("    loop10_start = 1\n"
             "    loop10_stop = f0_proxy%vspace%get_ncell()\n"
             "    loop11_start = 1\n"
-            "    loop11_stop = f2_proxy%vspace%get_ncell()\n" in gen_code)
+            "    loop11_stop = f2_proxy%vspace%get_ncell()\n" in code)
     kernel_calls = (
         "    do cell = loop10_start, loop10_stop, 1\n"
         "      call testkern_eval_code(nlayers_f0, f0_data, "
@@ -1151,7 +1151,7 @@ def test_two_eval_op_to_space(tmpdir):
         "undf_w3, map_w3(:,cell), diff_basis_w3_on_w3)\n"
         "    enddo\n"
     )
-    assert kernel_calls in gen_code
+    assert kernel_calls in code
 
 
 def test_eval_diff_nodal_space(tmpdir):
@@ -1170,7 +1170,7 @@ def test_eval_diff_nodal_space(tmpdir):
                      "6.6_2eval_diff_nodal_space_invoke.f90"),
         api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -1189,7 +1189,7 @@ def test_eval_diff_nodal_space(tmpdir):
         "    ALLOCATE(diff_basis_w2_on_w0(diff_dim_w2,ndf_w2,ndf_w0))\n"
         "    ALLOCATE(diff_basis_w3_on_w0(diff_dim_w3,ndf_w3,ndf_w0))\n"
     )
-    assert expected_alloc in gen_code
+    assert expected_alloc in code
     expected_compute = (
         "    do df_nodal = 1, ndf_w3, 1\n"
         "      do df_w2 = 1, ndf_w2, 1\n"
@@ -1228,12 +1228,12 @@ def test_eval_diff_nodal_space(tmpdir):
         "      enddo\n"
         "    enddo\n"
     )
-    assert expected_compute in gen_code
+    assert expected_compute in code
 
     assert ("    loop12_start = 1\n"
             "    loop12_stop = f1_proxy%vspace%get_ncell()\n"
             "    loop13_start = 1\n"
-            "    loop13_stop = f2_proxy%vspace%get_ncell()\n" in gen_code)
+            "    loop13_stop = f2_proxy%vspace%get_ncell()\n" in code)
 
     expected_kern_call = (
         "    do cell = loop12_start, loop12_stop, 1\n"
@@ -1250,14 +1250,14 @@ def test_eval_diff_nodal_space(tmpdir):
         "diff_basis_w3_on_w0)\n"
         "    enddo\n"
     )
-    assert expected_kern_call in gen_code
+    assert expected_kern_call in code
     expected_dealloc = (
         "    ! Deallocate basis arrays\n"
         "    DEALLOCATE("
         "basis_w2_on_w0, basis_w2_on_w3, diff_basis_w2_on_w0, "
         "diff_basis_w2_on_w3, diff_basis_w3_on_w0, diff_basis_w3_on_w3)\n"
     )
-    assert expected_dealloc in gen_code
+    assert expected_dealloc in code
 
 
 def test_eval_2fs(tmpdir):
@@ -1267,22 +1267,22 @@ def test_eval_2fs(tmpdir):
         os.path.join(BASE_PATH,
                      "6.8_eval_2fs_invoke.f90"), api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w1(:,:,:)"
-            in gen_code)
-    assert "integer(kind=i_def) :: diff_dim_w1" in gen_code
+            in code)
+    assert "integer(kind=i_def) :: diff_dim_w1" in code
     assert ("    diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
             "    ALLOCATE(diff_basis_w1_on_w0(diff_dim_w1,ndf_w1,"
             "ndf_w0))\n"
             "    ALLOCATE(diff_basis_w1_on_w1(diff_dim_w1,ndf_w1,"
-            "ndf_w1))\n" in gen_code)
+            "ndf_w1))\n" in code)
     assert ("call testkern_eval_2fs_code(nlayers_f0, f0_data, "
             "f1_data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, "
             "map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)" in
-            gen_code)
+            code)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -1294,23 +1294,23 @@ def test_2eval_2fs(tmpdir):
         os.path.join(BASE_PATH,
                      "6.9_2eval_2fs_invoke.f90"), api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w1(:,:,:)"
-            in gen_code)
+            in code)
     # Check for duplication
     for idx in range(2):
-        assert gen_code.count(f"real(kind=r_def), pointer :: nodes_w{idx}(:,:)"
-                              f" => null()") == 1
-        assert gen_code.count(
+        assert code.count(f"real(kind=r_def), pointer :: nodes_w{idx}(:,:)"
+                          f" => null()") == 1
+        assert code.count(
             f"    nodes_w{idx} => f{idx}_proxy%vspace%get_nodes()\n") == 1
 
-        assert gen_code.count(f"ALLOCATE(diff_basis_w1_on_w{idx}(diff_dim_w1,"
-                              f"ndf_w1,ndf_w{idx}))") == 1
+        assert code.count(f"ALLOCATE(diff_basis_w1_on_w{idx}(diff_dim_w1,"
+                          f"ndf_w1,ndf_w{idx}))") == 1
 
-        assert gen_code.count(
+        assert code.count(
             f"diff_basis_w1_on_w{idx}(:,df_w1,df_nodal) = f1_proxy%vspace%"
             f"call_function(DIFF_BASIS, df_w1, nodes_w{idx}(:,df_nodal))") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -1323,37 +1323,37 @@ def test_2eval_1qr_2fs(tmpdir):
         os.path.join(BASE_PATH,
                      "6.10_2eval_2fs_qr_invoke.f90"), api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
-            in gen_code)
+            in code)
     assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w1(:,:,:)"
-            in gen_code)
-    assert "real(kind=r_def), allocatable :: basis_w2_on_w0(:,:,:)" in gen_code
+            in code)
+    assert "real(kind=r_def), allocatable :: basis_w2_on_w0(:,:,:)" in code
     assert ("real(kind=r_def), allocatable :: diff_basis_w3_on_w0(:,:,:)"
-            in gen_code)
-    assert "real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)" in gen_code
+            in code)
+    assert "real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)" in code
     assert ("real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)"
-            in gen_code)
-    assert "real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)" in gen_code
+            in code)
+    assert "real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)" in code
     assert ("real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)"
-            in gen_code)
+            in code)
 
     # 1st kernel requires diff basis on W1, evaluated at W0 and W1
     # 2nd kernel requires diff basis on W3, evaluated at W0
-    assert gen_code.count(
+    assert code.count(
         "    diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n") == 1
-    assert gen_code.count(
+    assert code.count(
         "    ALLOCATE(diff_basis_w1_on_w0(diff_dim_w1,ndf_w1,ndf_w0))\n"
         "    ALLOCATE(diff_basis_w1_on_w1(diff_dim_w1,ndf_w1,"
         "ndf_w1))\n") == 1
-    assert gen_code.count(
+    assert code.count(
         "    diff_dim_w3 = m2_proxy%vspace%get_dim_space_diff()\n") == 1
-    assert gen_code.count(
+    assert code.count(
         "    ALLOCATE(diff_basis_w3_on_w0(diff_dim_w3,ndf_w3,"
         "ndf_w0))\n") == 1
 
-    assert gen_code.count(
+    assert code.count(
         "    do df_nodal = 1, ndf_w0, 1\n"
         "      do df_w1 = 1, ndf_w1, 1\n"
         "        diff_basis_w1_on_w0(:,df_w1,df_nodal) = "
@@ -1361,14 +1361,14 @@ def test_2eval_1qr_2fs(tmpdir):
         "df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
-    assert gen_code.count(
+    assert code.count(
         "    do df_nodal = 1, ndf_w1, 1\n"
         "      do df_w1 = 1, ndf_w1, 1\n"
         "        diff_basis_w1_on_w1(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS, df_w1, nodes_w1(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
-    assert gen_code.count(
+    assert code.count(
         "    do df_nodal = 1, ndf_w0, 1\n"
         "      do df_w3 = 1, ndf_w3, 1\n"
         "        diff_basis_w3_on_w0(:,df_w3,df_nodal) = m2_proxy%vspace%"
@@ -1378,12 +1378,12 @@ def test_2eval_1qr_2fs(tmpdir):
 
     # 2nd kernel requires basis on W2 and diff-basis on W3, both evaluated
     # on W0 (the to-space of the operator that is written to)
-    assert gen_code.count(
+    assert code.count(
         "    dim_w2 = op1_proxy%fs_from%get_dim_space()\n") == 1
-    assert gen_code.count(
+    assert code.count(
         "    ALLOCATE(basis_w2_on_w0(dim_w2,ndf_w2,ndf_w0))\n") == 1
 
-    assert gen_code.count(
+    assert code.count(
         "    do df_nodal = 1, ndf_w0, 1\n"
         "      do df_w2 = 1, ndf_w2, 1\n"
         "        basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
@@ -1393,10 +1393,10 @@ def test_2eval_1qr_2fs(tmpdir):
 
     # 3rd kernel requires XYoZ quadrature: basis on W1, diff basis on W2 and
     # basis+diff basis on W3.
-    assert gen_code.count(
+    assert code.count(
         "    call qr%compute_function(DIFF_BASIS, f2_proxy%vspace, "
         "diff_dim_w2, ndf_w2, diff_basis_w2_qr)\n") == 1
-    assert gen_code.count(
+    assert code.count(
         "    call qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n") == 1
 
@@ -1405,7 +1405,7 @@ def test_2eval_1qr_2fs(tmpdir):
             "    loop9_start = 1\n"
             "    loop9_stop = op1_proxy%fs_from%get_ncell()\n"
             "    loop10_start = 1\n"
-            "    loop10_stop = f1_proxy%vspace%get_ncell()\n" in gen_code)
+            "    loop10_stop = f1_proxy%vspace%get_ncell()\n" in code)
 
     assert ("    do cell = loop8_start, loop8_stop, 1\n"
             "      call testkern_eval_2fs_code(nlayers_f0, f0_data, "
@@ -1425,9 +1425,9 @@ def test_2eval_1qr_2fs(tmpdir):
             "map_w2(:,cell), diff_basis_w2_qr, ndf_w3, undf_w3, "
             "map_w3(:,cell), basis_w3_qr, diff_basis_w3_qr, np_xy_qr, "
             "np_z_qr, weights_xy_qr, weights_z_qr)\n"
-            "    enddo\n" in gen_code)
+            "    enddo\n" in code)
 
-    assert gen_code.count(
+    assert code.count(
         "DEALLOCATE(basis_w1_qr, basis_w2_on_w0, basis_w3_qr, "
         "diff_basis_w1_on_w0, diff_basis_w1_on_w1, diff_basis_w2_qr, "
         "diff_basis_w3_on_w0, diff_basis_w3_qr)\n") == 1
@@ -1442,11 +1442,11 @@ def test_eval_agglomerate(tmpdir):
         os.path.join(BASE_PATH,
                      "6.11_2eval_2kern_invoke.f90"), api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
     # We should compute differential basis functions for W1 evaluated on both
     # W0 and W1.
-    assert gen_code.count("diff_basis_w1_on_w0(:,df_w1,df_nodal) = ") == 1
-    assert gen_code.count("diff_basis_w1_on_w1(:,df_w1,df_nodal) = ") == 1
+    assert code.count("diff_basis_w1_on_w0(:,df_w1,df_nodal) = ") == 1
+    assert code.count("diff_basis_w1_on_w1(:,df_w1,df_nodal) = ") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 

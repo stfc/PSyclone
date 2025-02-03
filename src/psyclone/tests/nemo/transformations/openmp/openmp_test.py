@@ -155,13 +155,13 @@ def test_omp_parallel_multi(fortran_reader, fortran_writer):
     # loop nests (Python's slice notation is such that the expression below
     # gives elements 2-3).
     otrans.apply(schedule[0].loop_body[2:4])
-    gen_code = fortran_writer(psyir).lower()
+    code = fortran_writer(psyir).lower()
     assert ("    !$omp parallel default(shared), private(ji,jj,zabe1,zcof1,"
             "zmsku)\n"
             "    do jj = 1, jpjm1, 1\n"
             "      do ji = 1, jpim1, 1\n"
             "        zabe1 = pahu(ji,jj,jk) * e2_e1u(ji,jj) * "
-            "e3u_n(ji,jj,jk)\n" in gen_code)
+            "e3u_n(ji,jj,jk)\n" in code)
     assert ("    do jj = 2, jpjm1, 1\n"
             "      do ji = 2, jpim1, 1\n"
             "        pta(ji,jj,jk,jn) = pta(ji,jj,jk,jn) + "
@@ -170,7 +170,7 @@ def test_omp_parallel_multi(fortran_reader, fortran_writer):
             "e3t_n(ji,jj,jk)\n"
             "      enddo\n"
             "    enddo\n"
-            "    !$omp end parallel\n" in gen_code)
+            "    !$omp end parallel\n" in code)
     directive = schedule[0].loop_body[2]
     assert isinstance(directive, OMPParallelDirective)
 
@@ -208,7 +208,7 @@ def test_omp_do_code_gen(fortran_reader, fortran_writer):
                     .else_body[0].else_body[0])
     loop_trans.apply(schedule[0].loop_body[1]
                      .else_body[0].else_body[0].dir_body[0])
-    gen_code = fortran_writer(psyir).lower()
+    code = fortran_writer(psyir).lower()
     correct = '''        !$omp parallel default(shared), private(ji,jj)
         !$omp do schedule(auto)
         do jj = 1, jpj, 1
@@ -219,7 +219,7 @@ wmask(ji,jj,jk)
         enddo
         !$omp end do
         !$omp end parallel'''
-    assert correct in gen_code
+    assert correct in code
     directive = schedule[0].loop_body[1].else_body[0].else_body[0].dir_body[0]
     assert isinstance(directive, OMPDoDirective)
 

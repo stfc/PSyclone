@@ -610,7 +610,7 @@ def test_qr_plus_eval_stub_gen(fortran_writer):
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
-    gen_code = fortran_writer(kernel.gen_stub)
+    code = fortran_writer(kernel.gen_stub)
     assert (
         "subroutine testkern_qr_eval_code(nlayers, field_1_w1, field_2_w2,"
         " field_3_w2, field_4_w3, ndf_w1, undf_w1, map_w1, basis_w1_qr_face, "
@@ -618,10 +618,10 @@ def test_qr_plus_eval_stub_gen(fortran_writer):
         "diff_basis_w2_on_w1, ndf_w3, undf_w3, map_w3, basis_w3_qr_face, "
         "basis_w3_on_w1, diff_basis_w3_qr_face, diff_basis_w3_on_w1, "
         "nfaces_qr_face, np_xyz_qr_face, weights_xyz_qr_face)"
-        in gen_code)
+        in code)
     assert ("    integer(kind=i_def), intent(in) :: np_xyz_qr_face\n"
             "    integer(kind=i_def), intent(in) :: nfaces_qr_face\n"
-            in gen_code)
+            in code)
     assert (
         "    real(kind=r_def), dimension(3,ndf_w1,np_xyz_qr_face"
         ",nfaces_qr_face), intent(in) :: basis_w1_qr_face\n"
@@ -640,7 +640,7 @@ def test_qr_plus_eval_stub_gen(fortran_writer):
         "    real(kind=r_def), dimension(3,ndf_w3,ndf_w1), intent(in) :: "
         "diff_basis_w3_on_w1\n"
         "    real(kind=r_def), dimension(np_xyz_qr_face,"
-        "nfaces_qr_face), intent(in) :: weights_xyz_qr_face" in gen_code)
+        "nfaces_qr_face), intent(in) :: weights_xyz_qr_face" in code)
 
 
 SUB_NAME = '''

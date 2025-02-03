@@ -962,11 +962,11 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     assert LFRicBuild(tmpdir).code_compiles(psy)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
     # Check that the qr-related variables are all declared
     assert ("    type(quadrature_xyoz_type), intent(in) :: qr_xyoz\n"
             "    type(quadrature_face_type), intent(in) :: qr_face\n"
-            in gen_code)
+            in code)
     assert """
     real(kind=r_def), allocatable :: basis_w2_qr_xyoz(:,:,:,:)
     real(kind=r_def), allocatable :: basis_w2_qr_face(:,:,:,:)
@@ -976,11 +976,11 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
     real(kind=r_def), allocatable :: diff_basis_adspc1_f3_qr_xyoz(:,:,:,:)
     real(kind=r_def), allocatable :: basis_adspc1_f3_qr_face(:,:,:,:)
     real(kind=r_def), allocatable :: diff_basis_adspc1_f3_qr_face(:,:,:,:)
-""" in gen_code
+""" in code
     assert ("    real(kind=r_def), pointer, dimension(:,:) :: "
-            "weights_xyz_qr_face => null()\n" in gen_code)
-    assert "    integer(kind=i_def) :: np_xyz_qr_face\n" in gen_code
-    assert "    integer(kind=i_def) :: nfaces_qr_face\n" in gen_code
+            "weights_xyz_qr_face => null()\n" in code)
+    assert "    integer(kind=i_def) :: np_xyz_qr_face\n" in code
+    assert "    integer(kind=i_def) :: nfaces_qr_face\n" in code
     assert (
             "    integer(kind=i_def) :: np_xy_qr_xyoz\n"
             "    integer(kind=i_def) :: np_z_qr_xyoz\n"
@@ -988,9 +988,9 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
             "null()\n"
             "    real(kind=r_def), pointer :: weights_z_qr_xyoz(:) => "
             "null()\n"
-            in gen_code)
-    assert "type(quadrature_face_proxy_type) :: qr_face_proxy\n" in gen_code
-    assert "type(quadrature_xyoz_proxy_type) :: qr_xyoz_proxy\n" in gen_code
+            in code)
+    assert "type(quadrature_face_proxy_type) :: qr_face_proxy\n" in code
+    assert "type(quadrature_xyoz_proxy_type) :: qr_xyoz_proxy\n" in code
     # Allocation and computation of (some of) the basis/differential
     # basis functions
     assert ("    ALLOCATE(basis_adspc1_f3_qr_xyoz(dim_adspc1_f3,"
@@ -1001,7 +1001,7 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
             "ndf_adspc1_f3,np_xyz_qr_face,nfaces_qr_face))\n"
             "    ALLOCATE(diff_basis_adspc1_f3_qr_face(diff_dim_adspc1_f3,"
             "ndf_adspc1_f3,np_xyz_qr_face,nfaces_qr_face))\n"
-            in gen_code)
+            in code)
     assert ("    call qr_xyoz%compute_function(BASIS, f3_proxy%vspace, "
             "dim_adspc1_f3, ndf_adspc1_f3, basis_adspc1_f3_qr_xyoz)\n"
             "    call qr_xyoz%compute_function(DIFF_BASIS, "
@@ -1011,7 +1011,7 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
             "dim_adspc1_f3, ndf_adspc1_f3, basis_adspc1_f3_qr_face)\n"
             "    call qr_face%compute_function(DIFF_BASIS, "
             "f3_proxy%vspace, diff_dim_adspc1_f3, ndf_adspc1_f3, "
-            "diff_basis_adspc1_f3_qr_face)\n" in gen_code)
+            "diff_basis_adspc1_f3_qr_face)\n" in code)
     # Check that the kernel call itself is correct
     assert (
         "testkern_2qr_int_field_code(nlayers_f1, f1_data, "
@@ -1023,7 +1023,7 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
         "basis_adspc1_f3_qr_face, diff_basis_adspc1_f3_qr_xyoz, "
         "diff_basis_adspc1_f3_qr_face, np_xy_qr_xyoz, np_z_qr_xyoz, "
         "weights_xy_qr_xyoz, weights_z_qr_xyoz, nfaces_qr_face, "
-        "np_xyz_qr_face, weights_xyz_qr_face)\n" in gen_code)
+        "np_xyz_qr_face, weights_xyz_qr_face)\n" in code)
 
 
 # Tests for Invokes calling kernels that contain real- and

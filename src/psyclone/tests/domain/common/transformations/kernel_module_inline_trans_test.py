@@ -442,17 +442,16 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     assert (kern_call.ancestor(Container).symbol_table.
             lookup("compute_cv_code").is_modulevar)
 
-    # We should see it in the output of both:
-    # - the backend
-    code = fortran_writer(schedule.root)
+    # Generate the code
+    code = str(psy.gen)
     assert 'subroutine compute_cv_code(i, j, cv, p, v)' in code
 
     # And the import has been remove from both, so check that the associated
     # use no longer exists
     assert 'use compute_cv_mod' not in code.lower()
 
-    # Do the gen_code check again because repeating the call resets some
-    # aspects and we need to see if the second call still works as expected
+    # Do the check again because repeating the call resets some aspects and we
+    # need to see if the second call still works as expected
     gen = str(psy.gen)
     assert 'subroutine compute_cv_code(i, j, cv, p, v)' in gen
     assert 'use compute_cv_mod' not in gen

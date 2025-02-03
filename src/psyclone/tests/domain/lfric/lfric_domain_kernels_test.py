@@ -283,19 +283,19 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     _, info = parse(os.path.join(BASE_PATH, "25.0_domain.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-    gen_code = str(psy.gen).lower()
+    code = str(psy.gen).lower()
 
     # A domain kernel needs the number of columns in the mesh. Therefore
     # we require a mesh object.
-    assert "type(mesh_type), pointer :: mesh => null()" in gen_code
-    assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code
-    assert "integer(kind=i_def) :: ncell_2d_no_halos" in gen_code
-    assert "ncell_2d_no_halos = mesh%get_last_edge_cell()" in gen_code
+    assert "type(mesh_type), pointer :: mesh => null()" in code
+    assert "mesh => f1_proxy%vspace%get_mesh()" in code
+    assert "integer(kind=i_def) :: ncell_2d_no_halos" in code
+    assert "ncell_2d_no_halos = mesh%get_last_edge_cell()" in code
 
     # Kernel call should include whole dofmap and not be within a loop
     assert ("    call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, "
-            "b, f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
-    assert "do " not in gen_code
+            "b, f1_data, ndf_w3, undf_w3, map_w3)" in code)
+    assert "do " not in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -307,10 +307,10 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
     _, info = parse(os.path.join(BASE_PATH, "25.1_2kern_domain.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-    gen_code = str(psy.gen).lower()
+    code = str(psy.gen).lower()
 
-    assert "mesh => f2_proxy%vspace%get_mesh()" in gen_code
-    assert "integer(kind=i_def) :: ncell_2d_no_halos" in gen_code
+    assert "mesh => f2_proxy%vspace%get_mesh()" in code
+    assert "integer(kind=i_def) :: ncell_2d_no_halos" in code
 
     expected = (
         "    enddo\n")
@@ -323,12 +323,12 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
     expected += (
         "    call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, b, "
         "f1_data, ndf_w3, undf_w3, map_w3)\n")
-    assert expected in gen_code
+    assert expected in code
     if dist_mem:
         assert (
                 # "    ! set halos dirty/clean for fields modified in the "
                 # "above kernel\n"
-                "  call f1_proxy%set_dirty()\n" in gen_code)
+                "  call f1_proxy%set_dirty()\n" in code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -341,16 +341,16 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     _, info = parse(os.path.join(BASE_PATH, "25.2_multikern_domain.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-    gen_code = str(psy.gen).lower()
+    code = str(psy.gen).lower()
 
     # Check that we only have one last-edge-cell assignment
-    assert gen_code.count("ncell_2d_no_halos = mesh%get_last_edge_cell()") == 1
+    assert code.count("ncell_2d_no_halos = mesh%get_last_edge_cell()") == 1
 
     expected = (
                 "    call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, "
                 "b, f1_data, ndf_w3, undf_w3, map_w3)\n")
     if dist_mem:
-        assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in gen_code
+        assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in code
         expected += (
                      "\n"
                      "    ! set halos dirty/clean for fields modified in "
@@ -367,9 +367,9 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
                      "    end if\n"
                      "    call f1_proxy%halo_exchange(depth=1)\n")
     else:
-        assert "loop1_stop = f2_proxy%vspace%get_ncell()\n" in gen_code
+        assert "loop1_stop = f2_proxy%vspace%get_ncell()\n" in code
     expected += "    do cell = loop1_start, loop1_stop, 1\n"
-    assert expected in gen_code
+    assert expected in code
 
     expected = (
         "    enddo\n")
@@ -382,14 +382,14 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     expected += (
         "    call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, c, "
         "f1_data, ndf_w3, undf_w3, map_w3)\n")
-    assert expected in gen_code
+    assert expected in code
     if dist_mem:
         assert (
                 "    ! set halos dirty/clean for fields modified in the "
                 "above loop(s)\n"
                 "    call f5_proxy%set_dirty()\n"
                 "\n"
-                "  end subroutine invoke_0" in gen_code)
+                "  end subroutine invoke_0" in code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -402,17 +402,17 @@ def test_domain_plus_cma_kernels(dist_mem, tmpdir):
     _, info = parse(os.path.join(BASE_PATH, "25.3_multikern_domain_cma.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-    gen_code = str(psy.gen).lower()
+    code = str(psy.gen).lower()
 
-    assert "type(mesh_type), pointer :: mesh => null()" in gen_code
-    assert "integer(kind=i_def) :: ncell_2d" in gen_code
-    assert "integer(kind=i_def) :: ncell_2d_no_halos" in gen_code
-    assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code
-    assert "ncell_2d = mesh%get_ncells_2d()" in gen_code
-    assert "ncell_2d_no_halos = mesh%get_last_edge_cell()" in gen_code
+    assert "type(mesh_type), pointer :: mesh => null()" in code
+    assert "integer(kind=i_def) :: ncell_2d" in code
+    assert "integer(kind=i_def) :: ncell_2d_no_halos" in code
+    assert "mesh => f1_proxy%vspace%get_mesh()" in code
+    assert "ncell_2d = mesh%get_ncells_2d()" in code
+    assert "ncell_2d_no_halos = mesh%get_last_edge_cell()" in code
     assert ("call testkern_domain_code(nlayers_f1, ncell_2d_no_halos, b, "
-            "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
+            "f1_data, ndf_w3, undf_w3, map_w3)" in code)
     assert ("call columnwise_op_asm_kernel_code(cell, nlayers_lma_op1, "
-            "ncell_2d, lma_op1_proxy%ncell_3d," in gen_code)
+            "ncell_2d, lma_op1_proxy%ncell_3d," in code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)

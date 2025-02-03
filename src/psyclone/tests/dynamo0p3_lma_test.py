@@ -638,25 +638,25 @@ def test_operator_nofield(tmpdir):
                                         "10.1_operator_nofield.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    gen_code_str = str(psy.gen)
+    code_str = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
         "subroutine invoke_0_testkern_operator_nofield_type(mm_w2, coord, qr)"
-        in gen_code_str)
-    assert "type(operator_type), intent(in) :: mm_w2" in gen_code_str
-    assert "type(operator_proxy_type) :: mm_w2_proxy" in gen_code_str
-    assert "mm_w2_proxy = mm_w2%get_proxy()" in gen_code_str
-    assert "mm_w2_local_stencil => mm_w2_proxy%local_stencil" in gen_code_str
-    assert "undf_w2" not in gen_code_str
-    assert "map_w2" not in gen_code_str
+        in code_str)
+    assert "type(operator_type), intent(in) :: mm_w2" in code_str
+    assert "type(operator_proxy_type) :: mm_w2_proxy" in code_str
+    assert "mm_w2_proxy = mm_w2%get_proxy()" in code_str
+    assert "mm_w2_local_stencil => mm_w2_proxy%local_stencil" in code_str
+    assert "undf_w2" not in code_str
+    assert "map_w2" not in code_str
     assert ("call testkern_operator_nofield_code(cell, nlayers_mm_w2, "
             "mm_w2_proxy%ncell_3d, mm_w2_local_stencil, "
             "coord_1_data, coord_2_data, coord_3_data, "
             "ndf_w2, basis_w2_qr, ndf_w0, undf_w0, "
             "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
-            "weights_xy_qr, weights_z_qr)" in gen_code_str)
+            "weights_xy_qr, weights_z_qr)" in code_str)
 
 
 def test_operator_nofield_different_space(tmpdir):
@@ -708,10 +708,10 @@ def test_operator_no_dofmap_lookup():
                                         "10.9_operator_first.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
     # Check that we use the field and not the operator to look-up the dofmap
-    assert "theta_proxy%vspace%get_whole_dofmap()" in gen_code
-    assert gen_code.count("get_whole_dofmap") == 1
+    assert "theta_proxy%vspace%get_whole_dofmap()" in code
+    assert code.count("get_whole_dofmap") == 1
 
 
 def test_operator_read_level1_halo(tmpdir):

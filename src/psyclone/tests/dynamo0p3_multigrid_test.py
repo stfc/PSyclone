@@ -282,7 +282,7 @@ def test_field_prolong(tmpdir, dist_mem):
                                         "22.0_intergrid_prolong.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    gen_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -293,21 +293,21 @@ def test_field_prolong(tmpdir, dist_mem):
         "    type(field_type), intent(in) :: field1\n"
         "    type(field_type), intent(in) :: field2\n"
         "    integer(kind=i_def) :: cell\n")
-    assert expected in gen_code
+    assert expected in code
 
-    assert "integer(kind=i_def) :: ncell_field1" in gen_code
-    assert "integer(kind=i_def) :: ncpc_field1_field2_x" in gen_code
-    assert "integer(kind=i_def) :: ncpc_field1_field2_y" in gen_code
+    assert "integer(kind=i_def) :: ncell_field1" in code
+    assert "integer(kind=i_def) :: ncpc_field1_field2_x" in code
+    assert "integer(kind=i_def) :: ncpc_field1_field2_y" in code
     assert ("integer(kind=i_def), pointer :: "
-            "cell_map_field2(:,:,:) => null()\n" in gen_code)
+            "cell_map_field2(:,:,:) => null()\n" in code)
     assert ("type(mesh_map_type), pointer :: "
-            "mmap_field1_field2 => null()\n" in gen_code)
+            "mmap_field1_field2 => null()\n" in code)
     if dist_mem:
-        assert "integer(kind=i_def) :: max_halo_depth_mesh_field2" in gen_code
-    assert "type(mesh_type), pointer :: mesh_field2 => null()\n" in gen_code
+        assert "integer(kind=i_def) :: max_halo_depth_mesh_field2" in code
+    assert "type(mesh_type), pointer :: mesh_field2 => null()\n" in code
     if dist_mem:
-        assert "integer(kind=i_def) :: max_halo_depth_mesh_field1" in gen_code
-    assert "type(mesh_type), pointer :: mesh_field1 => null()\n" in gen_code
+        assert "integer(kind=i_def) :: max_halo_depth_mesh_field1" in code
+    assert "type(mesh_type), pointer :: mesh_field1 => null()\n" in code
 
     expected = (
         "    ! Look-up mesh objects and loop limits for inter-grid "
@@ -336,21 +336,21 @@ def test_field_prolong(tmpdir, dist_mem):
         "get_ntarget_cells_per_source_x()\n"
         "    ncpc_field1_field2_y = mmap_field1_field2%"
         "get_ntarget_cells_per_source_y()\n")
-    assert expected in gen_code
+    assert expected in code
 
     if dist_mem:
         # We are writing to a continuous field on the fine mesh, we
         # only need to halo swap to depth one on the coarse.
         assert ("loop0_stop = mesh_field2%get_last_halo_cell(1)\n" in
-                gen_code)
+                code)
         expected = (
             "    if (field2_proxy%is_dirty(depth=1)) then\n"
             "      call field2_proxy%halo_exchange(depth=1)\n"
             "    end if\n"
             "    do cell = loop0_start, loop0_stop, 1\n")
-        assert expected in gen_code
+        assert expected in code
     else:
-        assert "loop0_stop = field2_proxy%vspace%get_ncell()\n" in gen_code
+        assert "loop0_stop = field2_proxy%vspace%get_ncell()\n" in code
 
     expected = (
         "      call prolong_test_kernel_code(nlayers_field1, "
@@ -359,11 +359,11 @@ def test_field_prolong(tmpdir, dist_mem):
         "field2_data, ndf_w1, undf_w1, map_w1, undf_w2, "
         "map_w2(:,cell))\n"
         "    enddo\n")
-    assert expected in gen_code
+    assert expected in code
 
     if dist_mem:
         set_dirty = "    call field1_proxy%set_dirty()\n"
-        assert set_dirty in gen_code
+        assert set_dirty in code
 
 
 def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
