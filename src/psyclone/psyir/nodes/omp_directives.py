@@ -1807,11 +1807,6 @@ class OMPDoDirective(OMPRegionDirective):
     @collapse.setter
     def collapse(self, value):
         '''
-        TODO #1648: Note that gen_code ignores the collapse clause but the
-        generated code is still valid. Since gen_code is going to be removed
-        and it is only used for LFRic (which does not support GPU offloading
-        that gets improved with the collapse clause) it will not be supported.
-
         :param value: optional number of nested loop to collapse into a
                       single iteration space to parallelise. Defaults to None.
         :type value: int or NoneType.
@@ -2209,11 +2204,6 @@ class OMPLoopDirective(OMPRegionDirective):
     @collapse.setter
     def collapse(self, value):
         '''
-        TODO #1648: Note that gen_code ignores the collapse clause but the
-        generated code is still valid. Since gen_code is going to be removed
-        and it is only used for LFRic (which does not support GPU offloading
-        that gets improved with the collapse clause) it will not be supported.
-
         :param value: optional number of nested loop to collapse into a
                       single iteration space to parallelise. Defaults to None.
         :type value: int or NoneType.

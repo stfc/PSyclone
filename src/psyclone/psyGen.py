@@ -1442,7 +1442,7 @@ class CodedKern(Kern):
                 f"'True' since module-inlining is irreversible. But found:"
                 f" '{value}'.")
         # Do the same to all kernels in this invoke with the same name.
-        # This is needed because gen_code/lowering would otherwise add
+        # This is needed because lowering would otherwise add
         # an import with the same name and shadow the module-inline routine
         # symbol.
         # TODO 1823: The transformation could have more control about this by

@@ -53,8 +53,7 @@ class LFRicInvoke(Invoke):
     '''
     The LFRic-specific Invoke class. This passes the LFRic-specific
     InvokeSchedule class to the base class so it creates the one we
-    require.  Also overrides the 'gen_code' method so that we generate
-    dynamo specific invocation code.
+    require.
 
     :param alg_invocation: object containing the invoke call information.
     :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`

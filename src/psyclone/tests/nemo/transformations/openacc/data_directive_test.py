@@ -42,7 +42,6 @@
 import os
 import pytest
 
-from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import ACCDataDirective, Schedule, Routine
 from psyclone.psyir.transformations import TransformationError, ACCKernelsTrans
@@ -101,19 +100,6 @@ def test_data_single_node(fortran_reader):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule[0])
     assert isinstance(schedule[0], ACCDataDirective)
-
-
-def test_data_no_gen_code(fortran_reader):
-    ''' Check that the ACCDataDirective.gen_code() method raises the
-    expected InternalError as it should not be called. '''
-    psyir = fortran_reader.psyir_from_source(EXPLICIT_DO)
-    schedule = psyir.walk(Routine)[0]
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    acc_trans.apply(schedule.children[0:2])
-    with pytest.raises(InternalError) as err:
-        schedule.children[0].gen_code(schedule)
-    assert ("ACCDataDirective.gen_code should not have "
-            "been called" in str(err.value))
 
 
 def test_explicit_directive(fortran_reader, fortran_writer):

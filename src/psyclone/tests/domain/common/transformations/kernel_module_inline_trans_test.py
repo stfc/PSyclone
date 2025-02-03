@@ -447,10 +447,6 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     code = fortran_writer(schedule.root)
     assert 'subroutine compute_cv_code(i, j, cv, p, v)' in code
 
-    # - the gen_code
-    gen = str(psy.gen)
-    assert 'subroutine compute_cv_code(i, j, cv, p, v)' in gen
-
     # And the import has been remove from both, so check that the associated
     # use no longer exists
     assert 'use compute_cv_mod' not in code.lower()

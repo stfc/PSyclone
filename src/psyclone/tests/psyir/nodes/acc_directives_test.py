@@ -44,7 +44,6 @@ import pytest
 
 from psyclone.core import Signature
 from psyclone.errors import GenerationError
-from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import (ACCKernelsDirective,
@@ -116,8 +115,8 @@ def test_accregiondir_signatures():
 # Class ACCEnterDataDirective start
 
 
-# (1/4) Method gen_code
-def test_accenterdatadirective_gencode_1():
+# (1/4) Method lower_to_language_level
+def test_accenterdatadirective_lowering_1():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, raises the expected exception as there is no
     following OpenACC Parallel or OpenACC Kernels directive as at
@@ -130,14 +129,6 @@ def test_accenterdatadirective_gencode_1():
     psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     acc_enter_trans.apply(sched)
-    with pytest.raises(GenerationError) as excinfo:
-        str(psy.gen)
-    assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
-            "there are no ACCParallel or ACCKernels directives within the "
-            "region?" in str(excinfo.value))
-
-    # Test that the same error is produced by the begin_string() which is used
-    # by the PSyIR backend
     directive = sched.walk(ACCDirective)[0].lower_to_language_level()
     with pytest.raises(GenerationError) as excinfo:
         directive.begin_string()
@@ -146,8 +137,8 @@ def test_accenterdatadirective_gencode_1():
             "region?" in str(excinfo.value))
 
 
-# (2/4) Method gen_code
-def test_accenterdatadirective_gencode_2():
+# (2/4) Method lower_to_language_level
+def test_accenterdatadirective_lowering_2():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with multiple loops, raises the expected exception, as there is no
     following OpenACC Parallel or OpenACCKernels directive and at
@@ -167,9 +158,9 @@ def test_accenterdatadirective_gencode_2():
             "region?" in str(excinfo.value))
 
 
-# (3/4) Method gen_code
+# (3/4) Method lower_to_language_level
 @pytest.mark.parametrize("trans", [ACCParallelTrans, ACCKernelsTrans])
-def test_accenterdatadirective_gencode_3(trans):
+def test_accenterdatadirective_lowering_3(trans):
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, produces the expected code (there should be
     "copy in" data as there is a following OpenACC parallel or kernels
@@ -191,13 +182,13 @@ def test_accenterdatadirective_gencode_3(trans):
         "undf_w1,undf_w2,undf_w3)\n" in code)
 
 
-# (4/4) Method gen_code
+# (4/4) Method lower_to_language_level
 @pytest.mark.parametrize("trans1,trans2",
                          [(ACCParallelTrans, ACCParallelTrans),
                           (ACCParallelTrans, ACCKernelsTrans),
                           (ACCKernelsTrans, ACCParallelTrans),
                           (ACCKernelsTrans, ACCKernelsTrans)])
-def test_accenterdatadirective_gencode_4(trans1, trans2):
+def test_accenterdatadirective_lowering_4(trans1, trans2):
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with multiple loops and multiple OpenACC parallel and/or Kernel
     directives, produces the expected code (when the same argument is
@@ -401,11 +392,11 @@ def test_acckernelsdirective_init():
     assert not directive._default_present
 
 
-# (1/1) Method gen_code
+# (1/1) Method lower_to_language_level
 @pytest.mark.parametrize("default_present", [False, True])
-def test_acckernelsdirective_gencode(default_present):
-    '''Check that the gen_code method in the ACCKernelsDirective class
-    generates the expected code. Use the lfric API.
+def test_acckernelsdirective_lowering(default_present):
+    '''Check that the lower_to_language_level method in the ACCKernelsDirective
+    class generates the expected code. Use the lfric API.
 
     '''
     API = "lfric"
@@ -453,10 +444,6 @@ def test_acc_routine_directive_constructor_and_strings():
     # Defaults to sequential.
     assert target.begin_string() == "acc routine seq"
     assert str(target) == "ACCRoutineDirective[]"
-
-    temporary_module = ModuleGen("test")
-    target.gen_code(temporary_module)
-    assert "!$acc routine seq\n" in str(temporary_module.root)
 
     target2 = ACCRoutineDirective("VECTOR")
     assert target2.parallelism == "vector"

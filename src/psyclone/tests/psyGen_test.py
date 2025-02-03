@@ -436,16 +436,16 @@ def test_invokeschedule_can_be_printed():
     assert "InvokeSchedule:\n" in output
 
 
-def test_invokeschedule_gen_code_with_preexisting_globals():
-    ''' Check the InvokeSchedule gen_code adds pre-existing SymbolTable global
-    variables into the generated f2pygen code. Multiple globals imported from
-    the same module will be part of a single USE statement.'''
+def test_invokeschedule_lowering_with_preexisting_globals():
+    ''' Check the InvokeSchedule lowering adds pre-existing SymbolTable global
+    variables. Multiple globals imported from the same module will be part of
+    a single USE statement.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="lfric")
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
 
-    # Add some globals into the SymbolTable before calling gen_code()
+    # Add some globals into the SymbolTable before calling the backend
     schedule = psy.invokes.invoke_list[0].schedule
     my_mod = ContainerSymbol("my_mod")
     schedule.symbol_table.add(my_mod)
@@ -530,7 +530,7 @@ def test_codedkern_module_inline_getter_and_setter():
             in str(err.value))
 
 
-def test_codedkern_module_inline_gen_code(tmpdir):
+def test_codedkern_module_inline_lowering(tmpdir):
     ''' Check that a CodedKern with module-inline gets copied into the
     local module appropriately when the PSy-layer is generated'''
     # Use LFRic example with a repeated CodedKern
@@ -563,7 +563,7 @@ def test_codedkern_module_inline_gen_code(tmpdir):
 
     gen = str(psy.gen)
     assert "use ru_kernel_mod, only : ru_code" not in gen
-    # assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):

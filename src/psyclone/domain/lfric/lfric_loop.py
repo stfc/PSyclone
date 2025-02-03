@@ -983,7 +983,7 @@ class LFRicLoop(PSyLoop):
                 return True
         except (InternalError, KeyError):
             # LFRic still has symbols that don't exist in the symbol_table
-            # until the gen_code() step, so the dependency analysis raises
+            # until the lowering step, so the dependency analysis raises
             # errors in some cases.
             # TODO #1648 - when a transformation colours a loop we must
             # ensure "last_[halo]_cell_all_colours" is added to the symbol

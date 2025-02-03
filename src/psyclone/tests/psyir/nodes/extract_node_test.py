@@ -68,8 +68,8 @@ def test_extract_node_constructor():
     assert en.extract_body is schedule
 
 
-def test_extract_node_gen_code(fortran_writer):
-    '''Test the ExtractNode's gen_code function if there is no ReadWriteInfo
+def test_extract_node_lowering(fortran_writer):
+    '''Test the ExtractNode's lowering function if there is no ReadWriteInfo
     object specified in the options. Since the transformations will always
     do that, we need to manually insert the ExtractNode into a schedule:
 

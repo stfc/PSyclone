@@ -159,7 +159,7 @@ class PSyDataNode(Statement):
         # query the actual name of a region (e.g. during generation of a driver
         # for an extract node). If the user does not define a name, i.e.
         # module_name and region_name are empty, a unique name will be
-        # computed in gen_code() or lower_to_language_level(). If this name was
+        # computed in lower_to_language_level(). If this name was
         # stored in module_name and region_name, and gen() is called again, the
         # names would not be computed again, since the code detects already
         # defined module and region names. This can then result in duplicated
@@ -168,10 +168,10 @@ class PSyDataNode(Statement):
         # another profile region is added, and gen() is called again. The
         # second profile region would compute a new name, which then happens
         # to be the same as the name computed for the first region in the
-        # first gen_code call (which indeed implies that the name of the
+        # first lowering call (which indeed implies that the name of the
         # first profile region is different the second time it is computed).
         # So in order to guarantee that the computed module and region names
-        # are unique when gen_code is called more than once, we
+        # are unique when lowering is called more than once, we
         # cannot store a computed name in module_name and region_name.
         self._region_identifier = ("", "")
         # Name of the region.

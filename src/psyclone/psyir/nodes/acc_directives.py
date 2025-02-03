@@ -45,8 +45,7 @@ nodes.'''
 import abc
 
 from psyclone.core import Signature
-from psyclone.f2pygen import DirectiveGen
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
                                               ACCCopyOutClause)
 from psyclone.psyir.nodes.assignment import Assignment
@@ -187,20 +186,6 @@ class ACCRoutineDirective(ACCStandaloneDirective):
                 f"Expected one of {self.SUPPORTED_PARALLELISM} for the level "
                 f"of parallelism but got '{value}'")
         self._parallelism = value.lower()
-
-    def gen_code(self, parent):
-        '''Generate the Fortran ACC Routine Directive and any associated code.
-
-        :param parent: the parent Node in the Schedule to which to add our
-                       content.
-        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
-        '''
-        # Check the constraints are correct
-        self.validate_global_constraints()
-
-        # Generate the code for this Directive
-        parent.add(DirectiveGen(parent, "acc", "begin", "routine",
-                                f"{self.parallelism}"))
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -665,16 +650,6 @@ class ACCDataDirective(ACCRegionDirective):
     in the PSyIR.
 
     '''
-    def gen_code(self, _):
-        '''
-        :raises InternalError: the ACC data directive is currently only \
-                               supported for the NEMO API and that uses the \
-                               PSyIR backend to generate code.
-                               fparser2 parse tree.
-
-        '''
-        raise InternalError(
-            "ACCDataDirective.gen_code should not have been called.")
 
     @staticmethod
     def _validate_child(position, child):

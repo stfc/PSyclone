@@ -228,7 +228,7 @@ def test_nemo_array_range(fortran_reader):
 def test_goloop():
     ''' Check the handling of non-NEMO do loops.
     TODO #440: Does not work atm, GOLoops also have start/stop as
-    strings, which are even not defined. Only after gen_code() is called will
+    strings, which are even not defined. Only after lowering is called will
     they be defined.
     '''
 

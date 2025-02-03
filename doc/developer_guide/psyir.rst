@@ -700,8 +700,7 @@ psyclone.psyir.nodes.html#psyclone.psyir.nodes.Directive`.
 .. warning::
     Some parts of some Clauses are still under development, and not all clauses
     are encoded in Clauses classes yet (for example OpenACC clauses). These
-    clause strings are instead generated inside the ``begin_string`` or
-    ``gen_code`` methods during code generation.
+    clause strings are instead generated inside the ``begin_string``.
 
 .. _named_arguments-label:
 
@@ -1087,9 +1086,8 @@ correspond to and how the arguments relate to each other (they just
 output strings).
 
 The logic and declaration of kernel variables is handled separately by
-the ``gen_stub`` method in ``LFRicKern`` and the ``gen_code`` method in
-``LFRicInvoke``. In both cases these methods make use of the subclasses
-of ``LFRicCollection`` to declare variables.
+the ``stub_declarations`` and ``invoke_declarations`` methods in the
+appropirate ``LFRicCollection``.
 
 When using the symbol table in the LFRic PSyIR we naturally capture
 arguments and datatypes together. The ``KernelInterface`` class is

@@ -821,7 +821,6 @@ def test_field_bc_kernel(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
     assert ("integer(kind=i_def), pointer :: boundary_dofs_a(:,:) => "
             "null()" in gen_code)
     assert "boundary_dofs_a => a_proxy%vspace%get_boundary_dofs()" in gen_code

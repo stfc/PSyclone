@@ -153,11 +153,6 @@ class GOInvoke(Invoke):
     '''
     The GOcean specific invoke class. This passes the GOcean specific
     schedule class to the base class so it creates the one we require.
-    A set of GOcean infrastructure reserved names are also passed to
-    ensure that there are no name clashes. Also overrides the gen_code
-    method so that we generate GOcean specific invocation code and
-    provides three methods which separate arguments that are arrays from
-    arguments that are {integer, real} scalars.
 
     :param alg_invocation: Node in the AST describing the invoke call.
     :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
@@ -831,7 +826,7 @@ class GOLoop(PSyLoop):
 
     def _validate_loop(self):
         ''' Validate that the GOLoop has all necessary boundaries information
-        to lower or gen_code to f2pygen.
+        to lower to language-level PSyIR.
 
         :raises GenerationError: if we can't find an enclosing Schedule.
         :raises GenerationError: if this loop does not enclose a Kernel.
@@ -936,11 +931,10 @@ class GOKern(CodedKern):
     '''
     Stores information about GOcean Kernels as specified by the Kernel
     metadata. Uses this information to generate appropriate PSy layer
-    code for the Kernel instance. Specialises the gen_code method to
-    create the appropriate GOcean specific kernel call.
+    code for the Kernel instance.
 
-    :param call: information on the way in which this kernel is called \
-                 from the Algorithm layer.
+    :param call: information on the way in which this kernel is called
+        from the Algorithm layer.
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
     :param parent: optional node where the kernel call will be inserted.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`

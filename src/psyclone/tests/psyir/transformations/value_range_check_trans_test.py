@@ -175,10 +175,7 @@ def test_value_range_check_psyir_visitor(fortran_writer):
 
 # -----------------------------------------------------------------------------
 def test_value_range_check_lfric():
-    '''Check that the value range check transformation works in LFRic.
-    Use the old-style gen_code based implementation.
-
-    '''
+    '''Check that the value range check transformation works in LFRic.'''
     psy, invoke = get_invoke("1.2_multi_invoke.f90", api="lfric",
                              idx=0, dist_mem=False)
 
