@@ -990,9 +990,7 @@ The Kernel-layer subclasses will be used to:
    translated into LFRic PSyIR using the expected datatypes as
    specified by the kernel metadata and associated LFRic rules.
 
-3) replace the existing kernel stub generation implementation so that
-   the PSyIR back ends can be used and PSyclone will rely less on
-   ``f2pygen`` and ``fparser1``. At the moment ``kernel_interface``
+3) At the moment ``kernel_interface``
    provides the same functionality as ``kern_stub_arg_list``, except
    that it uses the symbol table (which keeps datatypes and their
    declarations together).
