@@ -392,3 +392,36 @@ def test_reference_accesses_unknown_type():
     sched.reference_accesses(vai)
     assert Signature("r_def") in vai.all_signatures
     assert Signature("big") in vai.all_signatures
+
+
+def test_reference_accesses_generic_interface(fortran_reader):
+    '''
+    Test that reference_accesses() records the references to RoutineSymbols
+    from within an interface.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+      interface facade
+        module procedure stucco, tudor
+      end interface facade
+    contains
+      subroutine my_sub()
+        integer :: arg
+        call facade(arg)
+      end subroutine my_sub
+      subroutine stucco(iarg)
+        integer :: iarg
+      end subroutine stucco
+      subroutine tudor(rarg)
+        real :: rarg
+      end subroutine tudor
+    end module my_mod
+    ''')
+    ctr = psyir.children[0]
+    vai = VariablesAccessInfo()
+    ctr.reference_accesses(vai)
+    stucco_acc = vai[Signature("stucco")]
+    assert len(stucco_acc.all_accesses) == 1
+    assert stucco_acc.all_accesses[0].node is ctr
+    assert not stucco_acc.has_data_access()

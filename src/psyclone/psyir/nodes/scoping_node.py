@@ -39,8 +39,8 @@
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import (
-    ArrayType, DataType, DataTypeSymbol, RoutineSymbol, StructureType, Symbol,
-    SymbolError, SymbolTable, UnsupportedFortranType)
+    ArrayType, DataType, DataTypeSymbol, GenericInterfaceSymbol, RoutineSymbol,
+    StructureType, Symbol, SymbolError, SymbolTable, UnsupportedFortranType)
 
 
 class ScopingNode(Node):
@@ -232,6 +232,14 @@ class ScopingNode(Node):
         # Examine the definition of each DataTypeSymbol.
         for sym in self._symbol_table.datatypesymbols:
             _get_accesses(sym.datatype, access_info)
+
+        # Examine any routine interfaces.
+        for name, sym in self._symbol_table.symbols_dict.items():
+            if not isinstance(sym, GenericInterfaceSymbol):
+                continue
+            for rt in sym.routines:
+                access_info.add_access(Signature(rt.symbol.name),
+                                       AccessType.TYPE_INFO, self)
 
         super().reference_accesses(access_info)
 
