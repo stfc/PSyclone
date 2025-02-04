@@ -1164,8 +1164,7 @@ def test_elemental_function_to_loop(fortran_reader, fortran_writer):
     out = fortran_writer(psyir)
     assert correct in out
 
-    # Imported function has unknown elemental status. Only the import error
-    # is testable at the moment.
+    # Imported function has unknown elemental status.
     code = '''
     subroutine test
     use mod, only: somefunc

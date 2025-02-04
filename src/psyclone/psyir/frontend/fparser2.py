@@ -4405,6 +4405,10 @@ class Fparser2Reader():
             call_ancestor = ref.ancestor(Call)
             elemental_ancestor = (call_ancestor is None or
                                   call_ancestor.is_elemental)
+            if call_ancestor and call_ancestor.is_elemental is None:
+                raise NotImplementedError(
+                        "Found a function call with unknown elemental status "
+                        "inside a WHERE clause, which is unsupported.")
             if isinstance(ref.symbol.interface, ImportInterface):
                 raise NotImplementedError(
                         "PSyclone doesn't yet support reference to imported "
