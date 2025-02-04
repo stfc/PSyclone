@@ -248,6 +248,43 @@ def test_colour_trans(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
+def test_colour_trans_tiled(tmpdir, dist_mem):
+    ''' Test of the colouring transformation of a single loop. We test
+    when distributed memory is both off and on. '''
+    psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
+                             name="invoke_0_testkern_type",
+                             dist_mem=dist_mem)
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
+
+    if dist_mem:
+        index = 4
+    else:
+        index = 0
+
+    # Colour the loop
+    ctrans.apply(schedule.children[index], options={"tiling": True})
+
+    # Store the results of applying this code transformation as
+    # a string (Fortran is not case sensitive)
+    gen = str(psy.gen).lower()
+    if not dist_mem:
+        assert """
+      do colour = loop0_start, loop0_stop, 1
+        do tile = loop1_start, mesh%get_last_halo_tile_per_colour(colour), 1
+          do cell = loop2_start, mesh%get_last_halo_cell_per_colour_and_tile\
+(colour,tile), 1
+        """ in gen
+    else:
+        assert """
+      do colour = loop0_start, loop0_stop, 1
+        do tile = loop1_start, mesh%get_last_halo_tile_per_colour\
+(colour,1), 1
+          do cell = loop2_start, mesh%get_last_halo_cell_per_colour_and_tile\
+(colour,tile,1), 1
+        """ in gen
+
+
 def test_colour_trans_operator(tmpdir, dist_mem):
     '''test of the colouring transformation of a single loop with an
     operator. We check that the first argument is a colourmap lookup,
@@ -430,6 +467,7 @@ def test_colour_continuous_writer_intergrid(tmpdir, dist_mem):
     assert ("integer(kind=i_def), allocatable :: "
             "last_edge_cell_all_colours_field1(:)" in result)
     # Initialisation.
+    print(result)
     assert ("last_edge_cell_all_colours_field1 = mesh_field1%"
             "get_last_edge_cell_all_colours()" in result)
     # Usage. Since there is no need to loop into the halo, the upper loop
