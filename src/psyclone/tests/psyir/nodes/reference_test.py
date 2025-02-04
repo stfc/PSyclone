@@ -583,6 +583,7 @@ def test_reference_is_read(fortran_reader):
     code = """subroutine my_subroutine()
         b = a
         call somecall(c)
+        b = lbound(d)
     end subroutine"""
 
     psyir = fortran_reader.psyir_from_source(code)
@@ -591,6 +592,8 @@ def test_reference_is_read(fortran_reader):
     assert references[1].is_read
     assert references[3].symbol.name == "c"
     assert references[3].is_read
+    assert references[6].symbol.name == "d"
+    assert not references[6].is_read
 
 
 def test_reference_is_write(fortran_reader):
