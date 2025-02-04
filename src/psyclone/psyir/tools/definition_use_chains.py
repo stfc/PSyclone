@@ -461,7 +461,7 @@ class DefinitionUseChain:
                 # If its parent is an inquiry function then its neither
                 # a read nor write.
                 if (isinstance(reference.parent, IntrinsicCall) and
-                    reference.parent.is_inquiry):
+                        reference.parent.is_inquiry):
                     continue
                 if isinstance(reference, CodeBlock):
                     # CodeBlocks only find symbols, so we can only do as good
@@ -714,7 +714,7 @@ class DefinitionUseChain:
                 # If its parent is an inquiry function then its neither
                 # a read nor write.
                 if (isinstance(reference.parent, IntrinsicCall) and
-                    reference.parent.is_inquiry):
+                        reference.parent.is_inquiry):
                     continue
                 if isinstance(reference, CodeBlock):
                     # CodeBlocks only find symbols, so we can only do as good

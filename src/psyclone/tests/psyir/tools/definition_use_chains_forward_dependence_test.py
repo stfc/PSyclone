@@ -989,4 +989,5 @@ def test_definition_use_chains_backward_accesses_inquiry_func(
     routine = psyir.walk(Routine)[0]
     chains = DefinitionUseChain(routine.children[0].lhs)
     reaches = chains.find_forward_accesses()
-    assert len(reaches) == 0 
+    assert len(reaches) == 0
+
