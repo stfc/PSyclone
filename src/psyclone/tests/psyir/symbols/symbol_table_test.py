@@ -160,6 +160,51 @@ def test_symboltable_is_empty():
     assert sym_table.is_empty() is True
 
 
+def test_symboltable_remove(fortran_reader, fortran_writer):
+    '''
+    Test that the remove() method performs the necessary checks.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+      use kinds_mod, only: i_def, r_def
+      use other_mod, only: sub2
+    contains
+      subroutine sub1
+        integer :: idx = 1_i_def
+        real(kind=r_def) :: other_var
+        real :: var
+        var = 2.0_r_def
+        call sub2(var)
+      end subroutine sub1
+    end module my_mod''')
+    sub1 = psyir.walk(Routine)[0]
+    rdef = sub1.symbol_table.lookup("r_def")
+    var = sub1.symbol_table.lookup("var")
+    with pytest.raises(ValueError) as err:
+        sub1.symbol_table.remove(var)
+    assert ("Cannot remove DataSymbol 'var' because it is accessed in "
+            "'var = 2.0_r_def'" in str(err.value))
+    ctr_table = psyir.children[0].symbol_table
+    idef = ctr_table.lookup("i_def")
+    with pytest.raises(ValueError) as err:
+        ctr_table.remove(idef)
+    assert ("Cannot remove DataSymbol 'i_def' because it is accessed in "
+            "'idx = 1_i_def'" in str(err.value))
+    # Remove the assignment to 'var' so that 'r_def' is only referenced within
+    # the declaration of 'other_var'.
+    sub1[0].detach()
+    rdef = ctr_table.lookup("r_def")
+    with pytest.raises(ValueError) as err:
+        ctr_table.remove(rdef)
+    assert ("remove DataSymbol 'r_def' because it is accessed as part of a "
+            "declaration in: " in str(err.value))
+    sub2 = ctr_table.lookup("sub2")
+    with pytest.raises(ValueError) as err:
+        ctr_table.remove(sub2)
+    assert ("Cannot remove RoutineSymbol 'sub2' because it is referenced by "
+            "'call sub2(var)" in str(err.value))
+
+
 def test_next_available_name_1():
     '''Test that the next_available_name method returns names that are not
     already in the symbol table.
@@ -686,6 +731,8 @@ def test_check_for_clashes_imports():
     clash2 = symbols.DataSymbol("prefect", symbols.INTEGER_TYPE,
                                 interface=symbols.ImportInterface(csym2))
     table2.add(clash2)
+    # Sanity check that calling it for the same table does nothing.
+    table1.check_for_clashes(table1)
     # No clash as the containers are the same, just with different
     # capitalisation.
     table1.check_for_clashes(table2)
@@ -808,6 +855,30 @@ def test_check_for_clashes_wildcard_import():
     table2.remove(table2.lookup("romula"))
     # Now that we are confident that 'stavro' must come from container 'beta'
     # in both tables we know there isn't a clash.
+    table1.check_for_clashes(table2)
+
+
+def test_check_for_clashes_one_common_wildcard_import(fortran_reader):
+    '''Test check_for_clashes() in the presence of a single wildcard import in
+    an outer scope that is common to two child scopes..'''
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+      implicit none
+      use magic_mod
+    contains
+      subroutine sub1
+        mystery = 1
+      end subroutine sub1
+      subroutine sub2
+        mystery = 2
+      end subroutine sub2
+    end module my_mod''')
+    routines = psyir.walk(Routine)
+    table1 = routines[0].symbol_table
+    # Make 'mystery' in sub1 resolved.
+    table1.lookup("mystery").interface = symbols.ImportInterface(
+        table1.lookup("magic_mod"))
+    table2 = routines[1].symbol_table
     table1.check_for_clashes(table2)
 
 
