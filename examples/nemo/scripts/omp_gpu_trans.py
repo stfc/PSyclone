@@ -37,7 +37,7 @@
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
-# import os
+import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
     enhance_tree_information, PASSTHROUGH_ISSUES, PARALLELISATION_ISSUES,
@@ -97,6 +97,23 @@ PRIVATISATION_ISSUES = [
     "ldftra.f90",  # Wrong runtime results
 ]
 
+# A environment variable can inform if this is targeting NEMOv4, in which case
+# array privatisation is disabled and some more files excluded
+NEMOV4 = os.environ.get('NEMOV4', False)
+
+NEMOV4_EXCLUSIONS = [
+    "domvvl.f90",
+    "domzgr.f90",
+    "dtatsd.f90",
+    "dynnxt.f90",
+    "sbcisf.f90",
+    "sshwzv.f90",
+    "step.f90",
+    "zdfmxl.f90",
+    "traadv_fct.f90",
+    "traadv.f90",
+]
+
 
 def trans(psyir):
     ''' Add OpenMP Target and Loop directives to all loops, including the
@@ -121,6 +138,9 @@ def trans(psyir):
         return
 
     if psyir.name in SKIP_FOR_PERFORMANCE:
+        return
+
+    if NEMOV4 and psyir.name in NEMOV4_EXCLUSIONS:
         return
 
     # ICE routines do not perform well on GPU, so we skip them
@@ -209,5 +229,6 @@ def trans(psyir):
             insert_explicit_loop_parallelism(
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
-                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
+                    privatise_arrays=(not NEMOV4 and
+                                      psyir.name not in PRIVATISATION_ISSUES)
             )
