@@ -4405,6 +4405,9 @@ class Fparser2Reader():
             call_ancestor = ref.ancestor(Call)
             elemental_ancestor = (call_ancestor is None or
                                   call_ancestor.is_elemental)
+            # TODO 2884: We should be able to handle this imported symbol
+            # better. If we can, we need to handle a case where is_elemental
+            # can be None.
             if isinstance(ref.symbol.interface, ImportInterface):
                 raise NotImplementedError(
                         "PSyclone doesn't yet support reference to imported "
