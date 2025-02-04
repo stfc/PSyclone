@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1220,13 +1220,6 @@ class GOKern(CodedKern):
                                                    Reference(symbol_j)])
         super().reference_accesses(var_accesses)
         var_accesses.next_location()
-
-    def local_vars(self):
-        '''Return a list of the variable (names) that are local to this loop
-        (and must therefore be e.g. threadprivate if doing OpenMP)
-
-        '''
-        return []
 
     @property
     def index_offset(self):

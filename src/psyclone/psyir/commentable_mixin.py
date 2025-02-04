@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -63,6 +63,8 @@ class CommentableMixin:
     def preceding_comment(self, comment):
         '''
         :param str comment: comment preceding this statement.
+
+        :raises TypeError: if the comment is not a string.
         '''
         if not isinstance(comment, str):
             raise TypeError(f"The preceding_comment must be a string but"
@@ -73,6 +75,8 @@ class CommentableMixin:
         '''
         :param str comment: comment to append after an newline in this
             statement-preceding comment.
+
+        :raises TypeError: if the comment is not a string.
         '''
         if not isinstance(comment, str):
             raise TypeError(f"The preceding_comment must be a string but"
@@ -94,10 +98,16 @@ class CommentableMixin:
     def inline_comment(self, comment):
         '''
         :param str comment: inline comment associated with this statement.
+
+        :raises TypeError: if the comment is not a string.
+        :raises ValueError: if the comment contains a newline character.
         '''
         if not isinstance(comment, str):
             raise TypeError(f"The inline_comment must be a string but"
                             f" found '{type(comment).__name__}'.")
+        if '\n' in comment:
+            raise ValueError(f"The inline_comment must be a single line but "
+                             f"found a newline character in '{comment}'.")
         self._inline_comment = comment
 
 

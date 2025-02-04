@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Union
 
+from psyclone.configuration import Config
 from psyclone.errors import InternalError
+from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.symbol import Symbol
@@ -218,7 +220,7 @@ class UnsupportedFortranType(UnsupportedType):
         string_reader = FortranStringReader(self._declaration)
         # Set reader to free format.
         string_reader.set_format(FortranFormat(True, False))
-        ParserFactory().create(std="f2008")
+        ParserFactory().create(std=Config.get().fortran_standard)
         try:
             ptree = Fortran2003.Specification_Part(
                 string_reader)
@@ -640,8 +642,8 @@ class ArrayType(DataType):
         :type extents: List[
             :py:class:`psyclone.psyir.symbols.ArrayType.Extent` | int
             | :py:class:`psyclone.psyir.nodes.DataNode` |
-            Tuple[int | :py:class:`psyclone.psyir.nodes.DataNode |
-                  :py:class:`psyclone.psyir.symbols.ArrayType.Extent]]
+            Tuple[int | :py:class:`psyclone.psyir.nodes.DataNode` |
+                  :py:class:`psyclone.psyir.symbols.ArrayType.Extent`]]
 
         :raises TypeError: if extents is not a list.
         :raises TypeError: if one or more of the supplied extents is a
@@ -909,7 +911,7 @@ class StructureType(DataType):
 
     '''
     @dataclass(frozen=True)
-    class ComponentType:
+    class ComponentType(CommentableMixin):
         '''
         Represents a member of a StructureType.
 
@@ -931,19 +933,34 @@ class StructureType(DataType):
     def __str__(self):
         return "StructureType<>"
 
+    def __copy__(self):
+        '''
+        :returns: a copy of this StructureType.
+        :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
+        '''
+        new = StructureType()
+        for name, component in self.components.items():
+            new.add(name, component.datatype, component.visibility,
+                    component.initial_value, component.preceding_comment,
+                    component.inline_comment)
+        return new
+
     @staticmethod
     def create(components):
         '''
         Creates a StructureType from the supplied list of properties.
 
         :param components: the name, type, visibility (whether public or
-            private) and initial value (if any) of each component.
+            private), initial value (if any), preceding comment (if any)
+            and inline comment (if any) of each component.
         :type components: List[tuple[
             str,
             :py:class:`psyclone.psyir.symbols.DataType` |
             :py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility`,
-            Optional[:py:class:`psyclone.psyir.symbols.DataNode`]
+            Optional[:py:class:`psyclone.psyir.symbols.DataNode`],
+            Optional[str],
+            Optional[str]
             ]]
 
         :returns: the new type object.
@@ -952,10 +969,11 @@ class StructureType(DataType):
         '''
         stype = StructureType()
         for component in components:
-            if len(component) != 4:
+            if len(component) not in (4, 5, 6):
                 raise TypeError(
-                    f"Each component must be specified using a 4-tuple of "
-                    f"(name, type, visibility, initial_value) but found a "
+                    f"Each component must be specified using a 4 to 6-tuple "
+                    f"of (name, type, visibility, initial_value, "
+                    f"preceding_comment, inline_comment) but found a "
                     f"tuple with {len(component)} members: {component}")
             stype.add(*component)
         return stype
@@ -968,7 +986,8 @@ class StructureType(DataType):
         '''
         return self._components
 
-    def add(self, name, datatype, visibility, initial_value):
+    def add(self, name, datatype, visibility, initial_value,
+            preceding_comment="", inline_comment=""):
         '''
         Create a component with the supplied attributes and add it to
         this StructureType.
@@ -982,6 +1001,11 @@ class StructureType(DataType):
         :param initial_value: the initial value of the new component.
         :type initial_value: Optional[
             :py:class:`psyclone.psyir.nodes.DataNode`]
+        :param preceding_comment: a comment that precedes this component.
+        :type preceding_comment: Optional[str]
+        :param inline_comment: a comment that follows this component on the
+                               same line.
+        :type inline_comment: Optional[str]
 
         :raises TypeError: if any of the supplied values are of the wrong type.
 
@@ -1016,17 +1040,36 @@ class StructureType(DataType):
                 f"The initial value of a component of a StructureType must "
                 f"be None or an instance of 'DataNode', but got "
                 f"'{type(initial_value).__name__}'.")
+        if not isinstance(preceding_comment, str):
+            raise TypeError(
+                f"The preceding_comment of a component of a StructureType "
+                f"must be a 'str' but got "
+                f"'{type(preceding_comment).__name__}'")
+        if not isinstance(inline_comment, str):
+            raise TypeError(
+                f"The inline_comment of a component of a StructureType must "
+                f"be a 'str' but got "
+                f"'{type(inline_comment).__name__}'")
 
-        self._components[name] = self.ComponentType(
-            name, datatype, visibility, initial_value)
+        key_name = name.lower()
+        self._components[key_name] = self.ComponentType(name, datatype,
+                                                        visibility,
+                                                        initial_value)
+        # Use object.__setattr__ due to the frozen nature of ComponentType
+        object.__setattr__(self._components[key_name],
+                           "_preceding_comment",
+                           preceding_comment)
+        object.__setattr__(self._components[key_name],
+                           "_inline_comment",
+                           inline_comment)
 
     def lookup(self, name):
         '''
-        :returns: the ComponentType tuple describing the named member of this \
+        :returns: the ComponentType tuple describing the named member of this
                   StructureType.
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
         '''
-        return self._components[name]
+        return self._components[name.lower()]
 
     def __eq__(self, other):
         '''
@@ -1071,7 +1114,8 @@ class StructureType(DataType):
             if component.initial_value:
                 component.initial_value.replace_symbols_using(table)
             # Construct the new ComponentType
-            new_components[component.name] = StructureType.ComponentType(
+            key_name = component.name.lower()
+            new_components[key_name] = StructureType.ComponentType(
                 component.name, new_type, component.visibility,
                 component.initial_value)
         self._components = new_components

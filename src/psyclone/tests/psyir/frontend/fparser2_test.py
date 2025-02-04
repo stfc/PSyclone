@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1694,7 +1694,7 @@ def test_process_use_stmts_resolving_external_imports(
     # Add the path to the include_path and set up a frontend instance
     # witth the module_to_resolve names
     monkeypatch.setattr(Config.get(), '_include_paths', [tmpdir])
-    processor = Fparser2Reader(value)
+    processor = Fparser2Reader(resolve_modules=value)
     reader = FortranStringReader('''
     module test
         use other1
@@ -1936,6 +1936,29 @@ def test_handling_parenthesis():
     # the new node is connected directly to parent
     new_node = fake_parent[0].rhs
     assert isinstance(new_node, BinaryOperation)
+
+
+@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
+def test_handling_parenthesis_over_binary_op():
+    ''' Test that fparser2 parenthesis are recorded in the appropriate
+    attribute when they are explicit over BinaryOperations.
+    '''
+    reader = FortranStringReader("a = (a + b) + (c + d)")
+    fparser2parenthesis = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Schedule()
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [fparser2parenthesis])
+
+    bop1 = fake_parent[0].rhs
+    bop2 = bop1.children[0]
+    bop3 = bop1.children[1]
+
+    # The parent addition does not have explicit parenthesis
+    assert not bop1.has_explicit_grouping
+    # But the two inner ones have explict parenthesis syntax
+    assert bop2.has_explicit_grouping
+    assert bop3.has_explicit_grouping
 
 
 @pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")

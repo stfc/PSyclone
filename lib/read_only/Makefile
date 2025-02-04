@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,10 +48,10 @@ F90FLAGS ?=
 PSYDATA_LIB_DIR ?= ./..
 # -----------------------------------------------------------------------------
 
-# The read-only verification library is implemented for int, real and
-# double scalars and 2-dimension arrays
-PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
-		       -dims=2
+# The read-only verification library is implemented for int, logical,
+# characters, real, and double precision scalars and 1 to 4 dimensional arrays
+PROCESS_ARGS = -prefix=read_only_verify_ -types=char,int,logical,real,double \
+		       -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
 default: read_only_base.o psy_data_base.o
@@ -63,6 +63,7 @@ process: read_only_base.f90
 all:
 	$(MAKE) -C dl_esm_inf
 	$(MAKE) -C lfric
+	$(MAKE) -C generic
 
 %.f90:	%.jinja
 	$(PROCESS) $(PROCESS_ARGS) $< > $*.f90
@@ -78,6 +79,7 @@ read_only_base.o: psy_data_base.o
 clean:
 	rm -f read_only_base.f90 psy_data_base.f90 *.o *.mod
 
-allclean:
+allclean: clean
 	$(MAKE) -C dl_esm_inf allclean
 	$(MAKE) -C lfric allclean
+	$(MAKE) -C generic allclean

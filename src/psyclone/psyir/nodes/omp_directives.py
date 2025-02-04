@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1596,6 +1596,8 @@ class OMPParallelDirective(OMPRegionDirective):
         var_accesses = VariablesAccessInfo()
         self.reference_accesses(var_accesses)
         for signature in var_accesses.all_signatures:
+            if not var_accesses[signature].has_data_access():
+                continue
             accesses = var_accesses[signature].all_accesses
             # TODO #2094: var_name only captures the top-level
             # component in the derived type accessor. If the attributes
@@ -1619,7 +1621,7 @@ class OMPParallelDirective(OMPRegionDirective):
                 continue
 
             # All arrays not explicitly marked as threadprivate are shared
-            if accesses[0].is_array():
+            if any(accs.is_array() for accs in accesses):
                 continue
 
             # If a variable is only accessed once, it is either an error

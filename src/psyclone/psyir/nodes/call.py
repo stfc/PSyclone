@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -315,16 +315,20 @@ class Call(Statement, DataNode):
             # We conservatively default to READWRITE otherwise (TODO #446).
             default_access = AccessType.READWRITE
 
-        # TODO #2271: This may skip references in inner expressions of
-        # structure calls, but to implement properly we new a new kind of
-        # AccessType that represents being called (USED but not READ, maybe
-        # the same that we need for INQUIRY type attributes?)
+        # The RoutineSymbol has a CALL access.
+        sig, indices_list = self.routine.get_signature_and_indices()
+        var_accesses.add_access(sig, AccessType.CALL, self.routine)
+        # Continue processing references in any index expressions.
+        for indices in indices_list:
+            for idx in indices:
+                idx.reference_accesses(var_accesses)
+
         for arg in self.arguments:
             if isinstance(arg, Reference):
                 # This argument is pass-by-reference.
                 sig, indices_list = arg.get_signature_and_indices()
                 var_accesses.add_access(sig, default_access, arg)
-                # Any symbols referenced in any index expressions are READ.
+                # Continue processing references in any index expressions.
                 for indices in indices_list:
                     for idx in indices:
                         idx.reference_accesses(var_accesses)
@@ -373,12 +377,13 @@ class Call(Statement, DataNode):
     @property
     def is_pure(self):
         '''
-        :returns: whether the routine being called is pure (guaranteed to \
-            return the same result when provided with the same argument \
+        :returns: whether the routine being called is pure (guaranteed to
+            return the same result when provided with the same argument
             values).  If this information is not known then it returns None.
         :rtype: NoneType | bool
         '''
-        if self.routine and self.routine.symbol:
+        if (self.routine and self.routine.symbol and
+                isinstance(self.routine.symbol, RoutineSymbol)):
             return self.routine.symbol.is_pure
         return None
 
@@ -766,7 +771,6 @@ class Call(Statement, DataNode):
         '''
 
         routine_list = self.get_callees()
-        assert len(routine_list) != 0
 
         err_info_list = []
 

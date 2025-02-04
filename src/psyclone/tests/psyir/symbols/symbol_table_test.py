@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -2875,6 +2875,20 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     # In this case check that the visibility stays PRIVATE
     assert isinstance(a_2, symbols.DataSymbol)
     assert a_2.visibility == symbols.Symbol.Visibility.PRIVATE
+
+
+def test_resolve_imports_missing_container(monkeypatch):
+    '''
+    Test that a clean failure to get Container PSyIR does not cause problems.
+    '''
+    table = symbols.SymbolTable()
+    csym = symbols.ContainerSymbol("a_mod")
+    # Monkeypatch the find_container_psyir() method of this ContainerSymbol
+    # so that it returns None.
+    monkeypatch.setattr(csym, "find_container_psyir", lambda local_node: None)
+    table.add(csym)
+    # Resolving imports should run without problems.
+    table.resolve_imports()
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -2141,5 +2141,7 @@ def test_field_access_info_for_arrays_in_builtins():
 
     assert Signature("f2_data") in vai
 
-    assert ("a: READ, df: READ+WRITE, f1_data: READ, f2_data: WRITE, "
-            "loop0_start: READ, loop0_stop: READ" == str(vai))
+    assert (
+        "a: READ, df: READ+WRITE, f1_data: READ, f2_data: WRITE, "
+        "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, loop0_start: "
+        "READ, loop0_stop: READ, r_def: NO_DATA_ACCESS" == str(vai))
