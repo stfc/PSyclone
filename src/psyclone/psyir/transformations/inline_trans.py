@@ -37,17 +37,17 @@
 This module contains the InlineTrans transformation.
 
 '''
-from psyclone.errors import LazyString
+from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
-    CodeBlock, IntrinsicCall, Node, Range, Routine, Reference,
-    Return, Literal, Statement, StructureMember, StructureReference)
+    CodeBlock, Container, IntrinsicCall, Literal, Node, Range, Routine,
+    Reference, Return, ScopingNode, Statement, StructureMember,
+    StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
-    ArgumentInterface, ArrayType, DataSymbol, UnresolvedType, INTEGER_TYPE,
-    StaticInterface, SymbolError, UnknownInterface,
-    UnsupportedType, IntrinsicSymbol)
+    ArrayType, UnresolvedType, INTEGER_TYPE,
+    SymbolError, UnknownInterface, UnsupportedType)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
@@ -133,10 +133,15 @@ class InlineTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
         :param bool options["force"]: whether or not to permit the inlining
             of Routines containing CodeBlocks. Default is False.
+
+        :raises InternalError: if the merge of the symbol tables fails.
+            In theory this should never happen because validate() should
+            catch such a situation.
+
         '''
         self.validate(node, options)
         # The table associated with the scoping region holding the Call.
-        table = node.scope.symbol_table
+        table = node.ancestor(Routine).symbol_table
         # Find the routine to be inlined.
         orig_routine = node.get_callees()[0]
 
@@ -148,7 +153,9 @@ class InlineTrans(Transformation):
 
         # Ensure we don't modify the original Routine by working with a
         # copy of it.
-        routine = orig_routine.copy()
+        container = orig_routine.ancestor(Container).copy()
+        routine = container.find_routine_psyir(orig_routine.name,
+                                               allow_private=True)
         routine_table = routine.symbol_table
 
         # Construct lists of the nodes that will be inserted and all of the
@@ -161,8 +168,14 @@ class InlineTrans(Transformation):
 
         # Shallow copy the symbols from the routine into the table at the
         # call site.
-        table.merge(routine_table,
-                    symbols_to_skip=routine_table.argument_list[:])
+        try:
+            table.merge(routine_table,
+                        symbols_to_skip=routine_table.argument_list[:])
+        except SymbolError as err:
+            raise InternalError(
+                f"Error copying routine symbols to call site. This should "
+                f"have been caught by the validate() method. Original error "
+                f"was {err}")
 
         # When constructing new references to replace references to formal
         # args, we need to know whether any of the actual arguments are array
@@ -184,11 +197,6 @@ class InlineTrans(Transformation):
         for ref in refs[:]:
             self._replace_formal_arg(ref, node, formal_args)
 
-        # Store the Routine level symbol table and node's current scope
-        # so we can merge symbol tables later if required.
-        ancestor_table = node.ancestor(Routine).scope.symbol_table
-        scope = node.scope
-
         # Copy the nodes from the Routine into the call site.
         # TODO #924 - while doing this we should ensure that any References
         # to common/shared Symbols in the inlined code are updated to point
@@ -206,7 +214,6 @@ class InlineTrans(Transformation):
             for child in new_stmts:
                 idx += 1
                 parent.addchild(child, idx)
-            table = parent.scope.symbol_table
             # Avoid a potential name clash with the original function
             table.rename_symbol(
                 routine.return_symbol, table.next_available_name(
@@ -220,16 +227,6 @@ class InlineTrans(Transformation):
             for child in new_stmts[1:]:
                 idx += 1
                 parent.addchild(child, idx)
-
-        # If the scope we merged the inlined function's symbol table into
-        # is not a Routine scope then we now merge that symbol table into
-        # the ancestor Routine. This avoids issues like #2424 when
-        # applying ParallelLoopTrans to loops containing inlined calls.
-        if ancestor_table is not scope.symbol_table:
-            ancestor_table.merge(scope.symbol_table)
-            replacement = type(scope.symbol_table)()
-            scope.symbol_table.detach()
-            replacement.attach(scope)
 
     def _replace_formal_arg(self, ref, call_node, formal_args):
         '''
@@ -599,6 +596,7 @@ class InlineTrans(Transformation):
             and the 'force' option is not True.
         :raises TransformationError: if the called routine has a named
             argument.
+        :raises TransformationError: if the call-site is not within a Routine.
         :raises TransformationError: if any of the variables declared within
             the called routine are of UnknownInterface.
         :raises TransformationError: if any of the variables declared within
@@ -633,6 +631,13 @@ class InlineTrans(Transformation):
                 f"Cannot inline an IntrinsicCall ('{node.routine.name}')")
         name = node.routine.name
 
+        # The call site must be within a Routine (i.e. not detached)
+        parent_routine = node.ancestor(Routine)
+        if not parent_routine:
+            raise TransformationError(
+                f"Routine '{name}' cannot be inlined because the call site "
+                f"('{node.debug_string().strip()}') is not inside a Routine.")
+
         # Check that we can find the source of the routine being inlined.
         # TODO #924 allow for multiple routines (interfaces).
         try:
@@ -661,8 +666,8 @@ class InlineTrans(Transformation):
             # CodeBlocks to be included.
             raise TransformationError(
                 f"Routine '{name}' contains one or more CodeBlocks and "
-                "therefore cannot be inlined. (If you are confident that "
-                "the code may safely be inlined despite this then use "
+                f"therefore cannot be inlined. (If you are confident that "
+                f"the code may safely be inlined despite this then use "
                 "`options={'force': True}` to override.)")
 
         # Support for routines with named arguments is not yet implemented.
@@ -673,109 +678,48 @@ class InlineTrans(Transformation):
                     f"Routine '{routine.name}' cannot be inlined because it "
                     f"has a named argument '{arg}' (TODO #924).")
 
-        table = node.scope.symbol_table
-        routine_table = routine.symbol_table
-
-        for sym in routine_table.datasymbols:
-            # We don't inline symbols that have an UnsupportedType and are
-            # arguments since we don't know if a simple assignment if
-            # enough (e.g. pointers)
-            if isinstance(sym.interface, ArgumentInterface):
-                if isinstance(sym.datatype, UnsupportedType):
+        for scope in routine.walk(ScopingNode):
+            routine_table = scope.symbol_table
+            for sym in routine_table.symbols:
+                # We don't inline symbols that have an UnsupportedType and are
+                # arguments since we don't know if a simple assignment if
+                # enough (e.g. pointers)
+                if sym.is_argument and isinstance(sym.datatype,
+                                                  UnsupportedType):
+                    raise TransformationError(
+                        f"Routine '{routine.name}' cannot be inlined "
+                        f"because it contains a Symbol '{sym.name}' which "
+                        f"is an Argument of UnsupportedType: "
+                        f"'{sym.datatype.declaration}'")
+                # We don't inline symbols that have an UnknownInterface, as we
+                # don't know how they are brought into this scope.
+                if isinstance(sym.interface, UnknownInterface):
                     raise TransformationError(
                         f"Routine '{routine.name}' cannot be inlined because "
-                        f"it contains a Symbol '{sym.name}' which is an "
-                        f"Argument of UnsupportedType: "
-                        f"'{sym.datatype.declaration}'")
-            # We don't inline symbols that have an UnknownInterface, as we
-            # don't know how they are brought into this scope.
-            if isinstance(sym.interface, UnknownInterface):
-                raise TransformationError(
-                    f"Routine '{routine.name}' cannot be inlined because it "
-                    f"contains a Symbol '{sym.name}' with an UnknownInterface:"
-                    f" '{sym.datatype.declaration}'")
-            # Check that there are no static variables in the routine (because
-            # we don't know whether the routine is called from other places).
-            if (isinstance(sym.interface, StaticInterface) and
-                    not sym.is_constant):
-                raise TransformationError(
-                    f"Routine '{routine.name}' cannot be inlined because it "
-                    f"has a static (Fortran SAVE) interface for Symbol "
-                    f"'{sym.name}'.")
-
-        # We can't handle a clash between (apparently) different symbols that
-        # share a name but are imported from different containers.
-        try:
-            table.check_for_clashes(
-                routine_table,
-                symbols_to_skip=routine_table.argument_list[:])
-        except SymbolError as err:
-            raise TransformationError(
-                f"One or more symbols from routine '{routine.name}' cannot be "
-                f"added to the table at the call site.") from err
+                        f"it contains a Symbol '{sym.name}' with an "
+                        f"UnknownInterface: '{sym.datatype.declaration}'. You "
+                        f"may be able to work around this limitation by "
+                        f"adding the name of the module containing this Symbol"
+                        f" to RESOLVE_IMPORTS in the transformation script.")
+                # Check that there are no static variables in the routine
+                # (because we don't know whether the routine is called from
+                # other places).
+                if sym.is_static and not sym.is_constant:
+                    raise TransformationError(
+                        f"Routine '{routine.name}' cannot be inlined because "
+                        f"it has a static (Fortran SAVE) interface for Symbol "
+                        f"'{sym.name}'.")
 
         # Check for unresolved symbols or for any accessed from the Container
         # containing the target routine.
-        # TODO #1792 - kind parameters will not be found by simply doing
-        # `walk(Reference)`. Although SymbolTable has the
-        # `precision_datasymbols` property, this only returns those Symbols
-        # that are used to define the precision of other Symbols in the same
-        # table. If a precision symbol is only used within Statements then we
-        # don't currently capture the fact that it is a precision symbol.
-        ref_or_lits = routine.walk((Reference, Literal))
-        # Check for symbols in any initial-value expressions
-        # (including Fortran parameters) or array dimensions.
-        for sym in routine_table.datasymbols:
-            if sym.initial_value:
-                ref_or_lits.extend(
-                    sym.initial_value.walk((Reference, Literal)))
-            if isinstance(sym.datatype, ArrayType):
-                for dim in sym.shape:
-                    if isinstance(dim, ArrayType.ArrayBounds):
-                        if isinstance(dim.lower, Node):
-                            ref_or_lits.extend(dim.lower.walk(Reference,
-                                                              Literal))
-                        if isinstance(dim.upper, Node):
-                            ref_or_lits.extend(dim.upper.walk(Reference,
-                                                              Literal))
-        # Keep a reference to each Symbol that we check so that we can avoid
-        # repeatedly checking the same Symbol.
-        _symbol_cache = set()
-        for lnode in ref_or_lits:
-            if isinstance(lnode, Literal):
-                if not isinstance(lnode.datatype.precision, DataSymbol):
-                    continue
-                sym = lnode.datatype.precision
-            else:
-                sym = lnode.symbol
-            # If we've already seen this Symbol then we can skip it.
-            if sym in _symbol_cache:
-                continue
-            _symbol_cache.add(sym)
-            if isinstance(sym, IntrinsicSymbol):
-                continue
-            # We haven't seen this Symbol before.
-            if sym.is_unresolved:
-                try:
-                    routine_table.resolve_imports(symbol_target=sym)
-                except KeyError:
-                    # The symbol is not (directly) imported into the symbol
-                    # table local to the routine.
-                    # pylint: disable=raise-missing-from
-                    raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined "
-                        f"because it accesses variable '{sym.name}' and this "
-                        f"cannot be found in any of the containers directly "
-                        f"imported into its symbol table.")
-            else:
-                if sym.name not in routine_table:
-                    raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
-                        f"it accesses variable '{sym.name}' from its "
-                        f"parent container.")
+        # TODO refactor this functionality
+        from psyclone.domain.common.transformations import (
+            KernelModuleInlineTrans)
+        KernelModuleInlineTrans.check_data_accesses(node, routine, "routine")
 
         # Check that the shapes of any formal array arguments are the same as
         # those at the call site.
+        routine_table = routine.symbol_table
         if len(routine_table.argument_list) != len(node.arguments):
             raise TransformationError(LazyString(
                 lambda: f"Cannot inline '{node.debug_string().strip()}' "

@@ -527,7 +527,7 @@ end module my_mod
     with pytest.raises(ValueError) as err:
         table.remove(my_sub)
     assert ("Cannot remove RoutineSymbol 'my_sub' because it is referenced by "
-            "'call my_sub()" in str(err))
+            "'call my_sub()" in str(err.value))
 
     # Add the routine symbol into the filecontainer then we should be able
     # to remove it from the module - this validates the
@@ -627,10 +627,7 @@ def test_remove_unsupported_types():
     # We should not be able to remove a Symbol that is not currently supported
     var1 = symbols.DataSymbol("var1", symbols.REAL_TYPE)
     sym_table.add(var1)
-    with pytest.raises(NotImplementedError) as err:
-        sym_table.remove(var1)
-    assert ("remove() currently only supports generic Symbol, ContainerSymbol "
-            "and RoutineSymbol types but got: 'DataSymbol'" in str(err.value))
+    sym_table.remove(var1)
 
 
 @pytest.mark.parametrize("sym_name", ["var1", "vAr1", "VAR1"])
@@ -1414,7 +1411,7 @@ def test_wildcard_imports():
     ''' Test the wildcard_imports() method. '''
     sched_table, container_table = create_hierarchy()
     # We have no wildcard imports initially
-    assert sched_table.wildcard_imports() == set()
+    assert sched_table.wildcard_imports() == []
     assert not container_table.wildcard_imports()
     csym = symbols.ContainerSymbol("some_mod")
     container_table.add(csym)
@@ -1422,8 +1419,8 @@ def test_wildcard_imports():
     assert not container_table.wildcard_imports()
     # Now give it a wildcard import
     csym.wildcard_import = True
-    assert container_table.wildcard_imports() == set([csym.name])
-    assert sched_table.wildcard_imports() == set([csym.name])
+    assert container_table.wildcard_imports() == [csym]
+    assert sched_table.wildcard_imports() == [csym]
 
 
 def test_view():
@@ -2775,14 +2772,14 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
             "found 'str' instead." in str(err.value))
 
     with pytest.raises(TypeError) as err:
-        subroutine.symbol_table.resolve_imports(container_symbols="my_mod")
-    assert ("The resolve_imports container_symbols argument must be a list "
-            "but found 'str' instead." in str(err.value))
+        subroutine.symbol_table.resolve_imports(container_symbols=1)
+    assert ("The 'container_symbols' argument to resolve_imports() must be an "
+            "Iterable but found 'int' instead." in str(err.value))
 
     with pytest.raises(TypeError) as err:
         subroutine.symbol_table.resolve_imports(container_symbols=["my_mod"])
-    assert ("The resolve_imports container_symbols argument list elements "
-            "must be ContainerSymbols, but found a 'str' instead."
+    assert ("The 'container_symbols' argument to resolve_imports() must be an "
+            "Iterable containing ContainerSymbols, but found a 'str' instead."
             in str(err.value))
 
     # Try to resolve a symbol that is not in the provided container
