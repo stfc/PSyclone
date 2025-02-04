@@ -4194,6 +4194,19 @@ class Fparser2Reader():
                 # ignore it.
                 continue
 
+            # If it has a Call ancestor we need to check if its a
+            # non-elemental function, in which case we should skip
+            # changing it.
+            call_ancestor = array.ancestor(Call)
+            if call_ancestor:
+                if call_ancestor.is_elemental is None:
+                    raise NotImplementedError(
+                        f"Found a function call inside a where clause with "
+                        f"unknown elemental status: "
+                        f"{call_ancestor.debug_string()}")
+                if not call_ancestor.is_elemental:
+                    continue
+
             if first_rank:
                 if rank != first_rank:
                     raise NotImplementedError(
@@ -4389,13 +4402,17 @@ class Fparser2Reader():
         # regarding UnresolvedInterface and Elemental calls?
         references = fake_parent.walk(Reference)
         for ref in references:
+            call_ancestor = ref.ancestor(Call)
+            elemental_ancestor = (call_ancestor is None or
+                                  call_ancestor.is_elemental)
+            if call_ancestor and call_ancestor.is_elemental is None:
+                raise NotImplementedError(
+                        "Found a function call with unknown elemental status "
+                        "inside a WHERE clause, which is unsupported.")
             if isinstance(ref.symbol.interface, ImportInterface):
                 raise NotImplementedError(
                         "PSyclone doesn't yet support reference to imported "
                         "symbols inside WHERE clauses.")
-            call_ancestor = ref.ancestor(Call)
-            elemental_ancestor = (call_ancestor is None or
-                                  call_ancestor.is_elemental)
             if (isinstance(ref.symbol, DataSymbol) and
                     elemental_ancestor):
                 try:
