@@ -527,7 +527,7 @@ end module my_mod
     with pytest.raises(ValueError) as err:
         table.remove(my_sub)
     assert ("Cannot remove RoutineSymbol 'my_sub' because it is referenced by "
-            "'call my_sub()" in str(err))
+            "'call my_sub()" in str(err.value))
 
     # Add the routine symbol into the filecontainer then we should be able
     # to remove it from the module - this validates the
@@ -627,10 +627,7 @@ def test_remove_unsupported_types():
     # We should not be able to remove a Symbol that is not currently supported
     var1 = symbols.DataSymbol("var1", symbols.REAL_TYPE)
     sym_table.add(var1)
-    with pytest.raises(NotImplementedError) as err:
-        sym_table.remove(var1)
-    assert ("remove() currently only supports generic Symbol, ContainerSymbol "
-            "and RoutineSymbol types but got: 'DataSymbol'" in str(err.value))
+    sym_table.remove(var1)
 
 
 @pytest.mark.parametrize("sym_name", ["var1", "vAr1", "VAR1"])
