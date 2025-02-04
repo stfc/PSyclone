@@ -968,3 +968,25 @@ def test_definition_use_chains_forward_accesses_empty_schedules(
     assert reaches[0] is routine.children[4].rhs.children[0]
     assert reaches[1] is routine.children[4].rhs.children[1]
     assert reaches[2] is routine.children[4].lhs
+
+
+def test_definition_use_chains_backward_accesses_inquiry_func(
+    fortran_reader,
+):
+    '''Coverave to handle the case where we have an inquiry function
+    accessing the symbol of interest.'''
+    code = """
+    subroutine x()
+    use some_mod, only: func
+    integer, dimension(100) :: a
+    integer :: b
+
+    a = 1
+    b = func(lbound(a))
+    end subroutine
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    chains = DefinitionUseChain(routine.children[0].lhs)
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 0 
