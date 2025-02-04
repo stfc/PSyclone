@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council
+# Copyright (c) 2025, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,50 +31,46 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
-# Modified by J. Henrichs, Bureau of Meteorology
+# Authors: S. Siso, STFC Daresbury Lab
 
+''' File containing a PSyclone transformation script for the LFRic
+API to apply tiled-colouring and OpenMP threading.'''
 
-''' File containing a PSyclone transformation script for the Dynamo0p3
-API to apply colouring and OpenMP generically. This can be applied via
-the -s option in the "psyclone" script. '''
-from __future__ import print_function, absolute_import
 from psyclone.transformations import Dynamo0p3ColourTrans, \
     DynamoOMPParallelLoopTrans
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Routine
 from psyclone.domain.lfric import LFRicConstants
 
 
-def trans(psy):
-    ''' PSyclone transformation script for the dynamo0p3 api to apply
-    colouring and OpenMP generically.'''
+def trans(psyir):
+    ''' PSyclone transformation script to apply tiled-colouring and OpenMP
+    threading.
+
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    
+    '''
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
     const = LFRicConstants()
 
-    # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
+    for subroutine in psyir.walk(Routine):
 
-        print("Transforming invoke '"+invoke.name+"'...")
-        schedule = invoke.schedule
+        print(f"Transforming invoke '{subroutine.name}'...")
 
-        # Colour all of the loops over cells unless they are on
-        # discontinuous spaces
-        for child in schedule.children:
+        # Colour all of the loops over cells (with the tiling option)
+        # unless they are on discontinuous spaces
+        for child in subroutine.children:
             if isinstance(child, Loop) \
                and child.field_space.orig_name \
                not in const.VALID_DISCONTINUOUS_NAMES \
                and child.iteration_space == "cell_column":
                 ctrans.apply(child, options={"tiling": True})
+
         # Then apply OpenMP to each of the colour loop
-        for child in schedule.children:
+        for child in subroutine.children:
             if isinstance(child, Loop):
                 if child.loop_type == "colours":
                     otrans.apply(child.loop_body[0])
                 else:
                     otrans.apply(child)
-
-        print(schedule.view())
-
-    return psy

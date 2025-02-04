@@ -502,7 +502,7 @@ class LFRicLoop(PSyLoop):
                         f"All kernels within a loop over colours must have "
                         f"been coloured but kernel '{kern.name}' has not")
             return kernels[0].ntilecolours_var
-        if self._upper_bound_name == "last_halo_tile_per_colour":
+        if self._upper_bound_name == "ntiles_per_colour":
             if Config.get().distributed_memory:
                 return (f"{self._mesh_name}%get_last_halo_tile_per_colour("
                         f"{halo_index})")
@@ -516,10 +516,10 @@ class LFRicLoop(PSyLoop):
             raise GenerationError(
                 "'last_halo_cell_per_colour_and_tile' is not a valid loop "
                 "upper bound for non-distributed-memory code")
-        if self._upper_bound_name == "last_edge_tile_per_colour":
+        if self._upper_bound_name == "ntiles_per_colour":
             raise GenerationError(
                 "FIXME: 'last_egde_tile_per_colour'")
-        if self._upper_bound_name == "last_edge_tile_per_colour":
+        if self._upper_bound_name == "ntiles_per_colour":
             raise GenerationError(
                 "FIXME: 'last_edge_cell_per_coloured_tile")
 

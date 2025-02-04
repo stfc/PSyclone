@@ -248,7 +248,7 @@ def test_colour_trans(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_colour_trans_tiled(tmpdir, dist_mem):
+def test_colour_trans_tiled_with_halos(dist_mem):
     ''' Test of the colouring transformation of a single loop. We test
     when distributed memory is both off and on. '''
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,

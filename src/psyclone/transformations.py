@@ -1245,8 +1245,21 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
     def _create_tiled_colours_loops(self, node):
         '''
-        Creates a nested loop (colours, and cells of a given colour) which
-        can be used to replace the supplied loop over cells.
+        Creates a nested loop hierarchy (colours, tiles and cells of a given
+        colour inside a tile) which can be used to replace the supplied loop
+        over cells. If it iterates over halos it will look like:
+
+        do colour = 1, ntilecolours
+          do tile = 1, mesh%get_last_halo_tile_per_colour(colour)
+            do cell =  1, mesh%get_last_halo_cell_per_colour_and_tile(
+                                                                tile, colour)
+
+        If it does not iterate over halos it will look like:
+
+        do colour = 1, ntilecolours
+          do tile = 1, mesh%get_last_edge_tile_per_colour(colour)
+            do cell =  1, mesh%get_last_edge_cell_per_colour_and_tile(
+                                                                tile, colour)
 
         :param node: the loop for which to create a coloured version.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
@@ -1276,10 +1289,10 @@ class Dynamo0p3ColourTrans(ColourTrans):
             # If the original loop went into the halo then this coloured loop
             # must also go into the halo.
             index = node.upper_bound_halo_depth
-            colour_loop.set_upper_bound("last_halo_tile_per_colour", index)
+            colour_loop.set_upper_bound("ntiles_per_colour_halo", index)
         else:
             # No halo access.
-            colour_loop.set_upper_bound("last_edge_tile_per_colour")
+            colour_loop.set_upper_bound("ntiles_per_colour")
 
         # Add this loop as a child of our loop over colours
         colours_loop.loop_body.addchild(colour_loop)
@@ -1297,11 +1310,11 @@ class Dynamo0p3ColourTrans(ColourTrans):
             # If the original loop went into the halo then this coloured loop
             # must also go into the halo.
             index = node.upper_bound_halo_depth
-            tile_loop.set_upper_bound("last_halo_cell_per_colour_and_tile",
+            tile_loop.set_upper_bound("ncells_per_coloured_tile",
                                       index)
         else:
             # No halo access.
-            tile_loop.set_upper_bound("last_edge_cell_per_coloured_tile")
+            tile_loop.set_upper_bound("ncells_per_coloured_tile")
 
         # Add this loop as a child of our loop over colours
         colour_loop.loop_body.addchild(tile_loop)

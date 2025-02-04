@@ -712,12 +712,12 @@ class LFRicMeshProperties(LFRicCollection):
         #     rhs = f"{mesh}%get_last_halo_tile_per_colour()"
         #     parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
         #     lhs = self._symbol_table.find_or_create_tag(
-        #         "last_halo_cell_per_colour_and_tiel").name
+        #         "last_halo_cell_per_colour_and_tile").name
         #     rhs = f"{mesh}%get_last_halo_cell_per_colour_and_tile()"
         #     parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
         # if need_tilecolour_limits:
         #     lhs = self._symbol_table.find_or_create_tag(
-        #         "last_edge_tile_per_colour").name
+        #         "ntiles_per_colour").name
         #     rhs = f"{mesh}%get_last_edge_tile_per_colour()"
         #     parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
         #     lhs = self._symbol_table.find_or_create_tag(
@@ -4783,8 +4783,8 @@ class HaloReadAccess(HaloDepth):
                  and loop.upper_bound_name in [
                         "cell_halo",
                         "colour_halo",
-                        "last_halo_tile_per_colour",
-                        "last_halo_cell_per_colour_and_tile",
+                        "ntile_per_colour_halo",
+                        "ncell_per_coloured_tile_halo",
                  ]))
         # now we have the parent loop we can work out what part of the
         # halo this field accesses
@@ -4796,8 +4796,8 @@ class HaloReadAccess(HaloDepth):
                 # loop redundant computation is to the maximum depth
                 self._max_depth = True
         elif loop.upper_bound_name in ("ncolour",
-                                       "last_edge_tile_per_colour",
-                                       "last_edge_cell_per_coloured_tile"):
+                                       "ntiles_per_colour",
+                                       "ncells_per_coloured_tile"):
             # Loop is coloured but does not access the halo.
             pass
         elif loop.upper_bound_name in ["ncells", "nannexed"]:

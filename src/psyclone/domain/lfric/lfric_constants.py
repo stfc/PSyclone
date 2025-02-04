@@ -171,44 +171,43 @@ class LFRicConstants():
         LFRicConstants.HALO_ACCESS_LOOP_BOUNDS = [
             "cell_halo",
             "dof_halo",
+            # Like ncolour but with halos
             "colour_halo",
-            "last_halo_tile_per_colour",
-            "last_halo_cell_per_colour_and_tile",
+            # Like ntiles_per_colour but with halos
+            "ntiles_per_colour_halo",
+            # Like ncells_per_coloured_tile but with halos
+            "ncells_per_coloured_tile_halo",
         ]
 
-        LFRicConstants.VALID_LOOP_BOUNDS_NAMES = (
-            ["start",     # the starting
-                          # index. Currently this is
-                          # always 1
-             "cell_halo_start",  # the first cell in the halo region.
-             "inner",     # a placeholder for when we
-                          # support loop splitting into
-                          # work that does not access
-                          # the halo and work that does.
-                          # This will be used to help
-                          # overlap computation and
-                          # communication
-             "ncolour",   # the number of cells with
-                          # the current colour
-             "ncolours",  # the number of colours in a
-                          # coloured loop
-             "ntilecolours",     # the number of colours in a
-                                 # coloured tiled loop
-             "last_edge_tile_per_colour",
-             "last_edge_cell_per_coloured_tile",
-             "ncells",    # the number of owned cells
-             "ndofs",     # the number of owned dofs
-             "nannexed"]  # the number of owned dofs
-                          # plus the number of annexed
-                          # dofs. As the indices of
-                          # dofs are arranged that
-                          # owned dofs have lower
-                          # indices than annexed dofs,
-                          # having this value as an
-                          # upper bound will compute
-                          # both owned and annexed
-                          # dofs.
-            + LFRicConstants.HALO_ACCESS_LOOP_BOUNDS)
+        LFRicConstants.VALID_LOOP_BOUNDS_NAMES = ([
+            # The field strting index, set to 1.
+            "start",
+            # The first cell in the halo region.
+            "cell_halo_start",
+            # A placeholder for when we support loop splitting into work that
+            # does not access the halo and work that does. This will be used
+            # to help overlap computation and communication.
+            "inner",
+            # The number of colours in a coloured loop
+            "ncolours",
+            # The number of tiles in a tile-coloured loop
+            "ntilecolours",
+            # The number of cells in the current colour
+            "ncolour",
+            # The number of tiles in the current colour
+            "ntiles_per_colour",
+            # The number of cells in the current coloured-tile
+            "ncells_per_coloured_tile",
+            # The number of owned cells
+            "ncells",
+            # The number of owned dofs
+            "ndofs",
+            # The number of owned dofs plus the number of annexed dofs. As the
+            # indices of dofs are arranged that owned dofs have lower indices
+            # than annexed dofs, having this value as an upper bound will
+            # compute both owned and annexed dofs.
+            "nannexed"
+         ] + LFRicConstants.HALO_ACCESS_LOOP_BOUNDS)
 
         # Valid LFRic loop types. The default is "" which is over cell columns
         # (in the horizontal plane). A "null" loop doesn't iterate over
