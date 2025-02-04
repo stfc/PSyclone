@@ -652,7 +652,7 @@ class SymbolTable():
                         f"interface '{this_sym.interface}' but the supplied "
                         f"table imports it via '{other_sym.interface}'.")
                 continue
-                    
+
             if other_sym.is_unresolved and this_sym.is_unresolved:
                 # Both Symbols are unresolved.
                 if shared_wildcard_imports and not unique_wildcard_imports:
@@ -1135,7 +1135,7 @@ class SymbolTable():
         norm_name = SymbolTable._normalize(test_symbol.name)
 
         from psyclone.core.variables_access_info import VariablesAccessInfo
-        from psyclone.psyir.nodes import Call, Literal, ScopingNode, Reference
+        from psyclone.psyir.nodes import Call, Literal, Reference
         vai = VariablesAccessInfo()
         node.reference_accesses(vai)
         for sig in vai.all_signatures:
@@ -1146,12 +1146,12 @@ class SymbolTable():
                     # This is just the symbol table associated
                     # with a ScopingNode.
                     continue
-                if access.node.scope.symbol_table.lookup(norm_name) is test_symbol:
+                if (access.node.scope.symbol_table.lookup(norm_name)
+                        is test_symbol):
                     if isinstance(access.node, Reference):
                         access.node.symbol = outer_sym
                     elif isinstance(access.node, Call):
-                        import pdb; pdb.set_trace()
-                        print(access.node)
+                        access.node.routine.symbol = outer_sym
                     elif isinstance(access.node, Literal):
                         oldtype = access.node.datatype
                         newtype = ScalarType(oldtype.intrinsic,
@@ -1159,8 +1159,7 @@ class SymbolTable():
                         access.node.replace_with(
                             Literal(access.node.value, newtype))
                     else:
-                        import pdb; pdb.set_trace()
-                        print("oh dear")
+                        assert 0, f"Node {access.node} not supported"
 
     def _validate_remove_routinesymbol(self, symbol):
         '''
@@ -1267,7 +1266,8 @@ class SymbolTable():
         if isinstance(symbol, RoutineSymbol):
             self._validate_remove_routinesymbol(symbol)
         elif self.node:
-            from psyclone.psyir.nodes import Call, Literal, Reference, ScopingNode
+            from psyclone.psyir.nodes import (Call, Literal, Reference,
+                                              ScopingNode)
             from psyclone.core.variables_access_info import VariablesAccessInfo
             vai = VariablesAccessInfo()
             self.node.reference_accesses(vai)
@@ -1290,25 +1290,28 @@ class SymbolTable():
                     elif isinstance(access.node, Literal):
                         this_sym = access.node.datatype.precision
                     else:
-                        import pdb; pdb.set_trace()
-                        print("oh dear2")
+                        assert 0, f"Node {access.node} unsupported 2"
+
                     if this_sym is not symbol:
+                        # This access is not to the target symbol.
                         continue
-                    # This access does refer to the target symbol.
-                    if symbol.find_symbol_table(access.node) is self:
-                        # The symbol we've found an access of is the one
-                        # in this table. Therefore, we can only remove it
-                        # provided that it also exists in an outer scope.
-                        outer_sym = self.parent_symbol_table().lookup(
-                            norm_name, otherwise=None)
-                        if outer_sym is not symbol:
-                            from psyclone.psyir.nodes import Statement
-                            stmt = access.node.ancestor(Statement)
-                            if not stmt:
-                                stmt = access.node
-                            raise ValueError(
-                                f"Cannot remove {type(symbol).__name__} '{symbol.name}' because it is "
-                                f"accessed in '{stmt.debug_string().strip()}'")
+
+                    if symbol.find_symbol_table(access.node) is not self:
+                        continue
+                    # The symbol we've found an access of is the one
+                    # in this table. Therefore, we can only remove it
+                    # provided that it also exists in an outer scope.
+                    outer_sym = self.parent_symbol_table().lookup(
+                        norm_name, otherwise=None)
+                    if outer_sym is not symbol:
+                        from psyclone.psyir.nodes import Statement
+                        stmt = access.node.ancestor(Statement)
+                        if not stmt:
+                            stmt = access.node
+                        raise ValueError(
+                            f"Cannot remove {type(symbol).__name__} "
+                            f"'{symbol.name}' because it is "
+                            f"accessed in '{stmt.debug_string().strip()}'")
 
         # If the symbol had a tag, it should be disassociated
         for tag, tagged_symbol in list(self._tags.items()):
@@ -1780,9 +1783,9 @@ class SymbolTable():
                         pass
                     else:
                         raise SymbolError(
-                            f"Found a name clash with symbol '{imported_sym.name}' "
-                            f"when importing symbols from container "
-                            f"'{c_symbol.name}'.")
+                            f"Found a name clash with symbol "
+                            f"'{imported_sym.name}' when importing symbols "
+                            f"from container '{c_symbol.name}'.")
 
                     # If the external symbol is a subclass of the local
                     # symbol_match, copy the external symbol properties,
@@ -1815,20 +1818,15 @@ class SymbolTable():
                         outer_sym.visibility = self.default_visibility
                         self.add(outer_sym)
 
-                # Determine if there is an Unresolved Symbol in a
-                # descendent symbol table that matches the name of the
-                # symbol we are importing. If so, move it to this symbol table
-                # provided that a symbol with the same name does not
-                # already exist in this symbol table.
-
-                # There are potential issues with this approach and
-                # with the routine in general which are captured in
-                # issue #2331. Issue #2271 may also help/fix some or
-                # all of the problems too.
+                # Determine if there is an Unresolved Symbol in a descendent
+                # symbol table that matches the name of the symbol we are
+                # importing. If so, move it to this symbol table provided that
+                # a symbol with the same name does not already exist in this
+                # symbol table.
 
                 # Import here to avoid circular dependencies
                 # pylint: disable=import-outside-toplevel
-                from psyclone.psyir.nodes import Call, Literal, ScopingNode, Reference
+                from psyclone.psyir.nodes import ScopingNode
                 # Walk down through the scopes below this one.
                 for scoping_node in self.node.walk(ScopingNode):
                     if scoping_node is self.node:
