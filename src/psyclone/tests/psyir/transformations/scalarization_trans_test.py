@@ -616,3 +616,32 @@ end subroutine test
     out = fortran_writer(psyir)
     assert correct == out
     assert Compile(tmpdir).string_compiles(out)
+
+
+def test_noscalarize(fortran_reader, fortran_writer):
+    '''TODO'''
+    code ='''
+    subroutine test
+    integer :: i, j, k
+    real , dimension(1:1000, 1:1000, 1:5) :: arr
+
+    do i = 1,1000
+      do j = 1,1000
+        do k = 1,5
+          arr(i,j,k) = 0.0
+        end do
+      end do
+    end do
+    arr(:,:,1) = 0.0
+    end subroutine
+    '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    from psyclone.psyir.nodes import Loop
+    loops = psyir.walk(Loop)
+    for loop in loops:
+        strans.apply(loop)
+    out = fortran_writer(psyir)
+    print(out)
+    assert "arr_scalar" not in out
+    assert False
