@@ -1185,6 +1185,25 @@ symbols inside WHERE clauses.
     out = fortran_writer(psyir)
     assert correct in out
 
+    code = '''
+    subroutine test
+    use mod
+    real, dimension(100) :: a, b
+    where(somefunc(a) < 2)
+        b = a
+    end where
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0].children[0], CodeBlock)
+    correct = '''! PSyclone CodeBlock (unsupported code) reason:
+  !  - PSyclone doesn't yet support reference to imported \
+symbols inside WHERE clauses.
+  WHERE (somefunc(a) < 2)
+    b = a
+  END WHERE'''
+    out = fortran_writer(psyir)
+    assert correct in out
+
 
 def test_array_syntax_to_indexed_unknown_elemental(fortran_reader):
     # Check we get a codeblock if we have an function of unknown elemental
