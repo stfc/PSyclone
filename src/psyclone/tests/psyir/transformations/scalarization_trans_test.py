@@ -620,7 +620,7 @@ end subroutine test
 
 def test_noscalarize(fortran_reader, fortran_writer):
     '''TODO'''
-    code ='''
+    code = '''
     subroutine test
     integer :: i, j, k
     real , dimension(1:1000, 1:1000, 1:5) :: arr
