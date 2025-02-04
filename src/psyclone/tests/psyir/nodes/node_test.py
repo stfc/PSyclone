@@ -1904,3 +1904,22 @@ def test_following(fortran_reader):
     assert routines[1] not in loops[1].following(include_children=False)
     assert routines[1] in loops[1].following(same_routine_scope=False,
                                              include_children=False)
+
+
+def test_is_descendent_of(fortran_reader):
+    '''Test the is_descendent_of function of the Node class'''
+    code = '''
+    subroutine test()
+        integer :: i, j, k
+        do i = 1, 100
+          j = i
+        end do
+        k = 1
+    end subroutine test
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    assigns = psyir.walk(Assignment)
+
+    assert assigns[0].is_descendent_of(loop)
+    assert not assigns[1].is_descendent_of(loop)
