@@ -41,7 +41,7 @@ import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
     enhance_tree_information, PASSTHROUGH_ISSUES, PARALLELISATION_ISSUES,
-    NEMO_MODULES_TO_IMPORT)
+    NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
 from psyclone.psyir.nodes import (
     Loop, Routine, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
@@ -93,10 +93,6 @@ OFFLOADING_ISSUES = [
     "zdftke.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
 ]
 
-PRIVATISATION_ISSUES = [
-    "ldftra.f90",  # Wrong runtime results
-]
-
 # A environment variable can inform if this is targeting NEMOv4, in which case
 # array privatisation is disabled and some more files excluded
 NEMOV4 = os.environ.get('NEMOV4', False)
@@ -124,9 +120,15 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    # import os
-    # if psyir.name not in (os.environ['ONLY_FILE'], "lib_fortran.f90"):
-    #     return
+    # If the environemnt has ONLY_FILE defined, only process that one file and
+    # known-good files that need a "declare target" inside. This is useful for
+    # file-by-file exhaustive tests.
+    only_do_file = os.environ.get('ONLY_FILE', False)
+    if only_do_file and psyir.name not in (only_do_file,
+                                           "lib_fortran.f90",
+                                           "solfrac_mod.f90"):
+        return
+
     omp_target_trans = OMPTargetTrans()
     omp_gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
     omp_gpu_loop_trans.omp_directive = "teamsloop"

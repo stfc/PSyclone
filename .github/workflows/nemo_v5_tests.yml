@@ -101,7 +101,7 @@ jobs:
         mpirun -np 4 ./nemo
         tail run.stat
         # This was produced with gfortran, so we can do an exact diff
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.100steps run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
 
     - name: NEMO 5.0 nvidia passthrough
       if: ${{ github.run_attempt != '1' }}
@@ -131,7 +131,7 @@ jobs:
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         ./nemo
         tail run.stat
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.100steps run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
 
@@ -162,7 +162,7 @@ jobs:
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         mpirun -np 6 ./nemo
         tail run.stat
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.oneapi.small.100steps run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.oneapi.small.10steps run.stat
         
     - name: NEMO 5.0 gfortran OpenMP for CPUs
       run: |

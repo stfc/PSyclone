@@ -160,6 +160,10 @@ PARALLELISATION_ISSUES = [
     "dynspg_ts.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
 ]
 
+PRIVATISATION_ISSUES = [
+    "ldftra.f90",  # Wrong runtime results
+]
+
 
 def _it_should_be(symbol, of_type, instance):
     ''' Make sure that symbol has the datatype as provided.

@@ -791,7 +791,7 @@ class IntrinsicCall(Call):
             IntrinsicCall.Intrinsic.DPROD, IntrinsicCall.Intrinsic.EXP,
             IntrinsicCall.Intrinsic.IAND, IntrinsicCall.Intrinsic.IEOR,
             IntrinsicCall.Intrinsic.INT, IntrinsicCall.Intrinsic.IOR,
-            IntrinsicCall.Intrinsic.LOG, IntrinsicCall.Intrinsic.LOG10,
+            IntrinsicCall.Intrinsic.LOG,
             IntrinsicCall.Intrinsic.MAX, IntrinsicCall.Intrinsic.MIN,
             IntrinsicCall.Intrinsic.MOD, IntrinsicCall.Intrinsic.NINT,
             IntrinsicCall.Intrinsic.NOT, IntrinsicCall.Intrinsic.REAL,
@@ -799,6 +799,10 @@ class IntrinsicCall(Call):
             IntrinsicCall.Intrinsic.SINH, IntrinsicCall.Intrinsic.SQRT,
             IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH,
             IntrinsicCall.Intrinsic.UBOUND, IntrinsicCall.Intrinsic.MERGE,
+            # The ones below can be offloaded but provide numerical differences
+            # even with the -gpu=uniform_math flag, ideally it should be
+            # configurable if these are allowed or not.
+            # IntrinsicCall.Intrinsic.LOG10,
             # The one below are not documented on nvidia compiler
             IntrinsicCall.Intrinsic.PRODUCT, IntrinsicCall.Intrinsic.SIZE,
             IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,

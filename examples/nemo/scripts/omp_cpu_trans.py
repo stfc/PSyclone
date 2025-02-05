@@ -41,7 +41,7 @@ import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
     enhance_tree_information, PASSTHROUGH_ISSUES, PARALLELISATION_ISSUES,
-    NEMO_MODULES_TO_IMPORT)
+    NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
@@ -72,6 +72,13 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+
+    # If the environemnt has ONLY_FILE defined, only process that one file and
+    # nothing else. This is useful for file-by-file exhaustive tests.
+    only_do_file = os.environ.get('ONLY_FILE', False)
+    if only_do_file and psyir.name != only_do_file:
+        return
+
     omp_parallel_trans = None
     omp_loop_trans = OMPLoopTrans(omp_schedule="static")
     omp_loop_trans.omp_directive = "paralleldo"
@@ -98,5 +105,6 @@ def trans(psyir):
                     region_directive_trans=omp_parallel_trans,
                     loop_directive_trans=omp_loop_trans,
                     collapse=False,
-                    privatise_arrays=not NEMOV4,
+                    privatise_arrays=(not NEMOV4 and
+                                      psyir.name not in PRIVATISATION_ISSUES)
             )
