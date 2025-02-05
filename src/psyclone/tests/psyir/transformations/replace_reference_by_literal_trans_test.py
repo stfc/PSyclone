@@ -393,8 +393,8 @@ def test_rrbl_annotating_fortran_code_because_str_not_literal(
     assert 'x = "toto"' not in written_code
     toto_var_name = '"toto"'
     assert (
-        f"{ReplaceReferenceByLiteralTrans._ERROR_MSG_START} only support constant "
-        + "(parameter) but UnsupportedFortranType"
+        f"{ReplaceReferenceByLiteralTrans._ERROR_MSG_START} only "
+        + "support constant (parameter) but UnsupportedFortranType"
         + f"('CHARACTER(LEN = 4), PARAMETER :: a = {toto_var_name}') "
         + "is not seen by Psyclone as a constant."
         in written_code
@@ -424,7 +424,7 @@ def test_rrbl_annotating_fortran_code_because_more_than_just_literal(
     written_code = fortran_writer(routine_foo.ancestor(Container))
     assert "x = 15 + b" in written_code
     assert (
-        f"{ReplaceReferenceByLiteralTrans._ERROR_MSG_START} only supports symbols which"
-        + " have a Literal as their initial value"
+        f"{ReplaceReferenceByLiteralTrans._ERROR_MSG_START} only supports "
+        + "symbols which have a Literal as their initial value"
         in written_code
     )
