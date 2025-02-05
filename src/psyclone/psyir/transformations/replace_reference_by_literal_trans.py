@@ -36,7 +36,7 @@
 """Module providing a transformation that replace PsyIR Node representing a
 static, constant value with a Literal Node when possible. """
 
-from typing import Dict, List, Union
+from typing import Union, Any, Optional
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
@@ -62,6 +62,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
     This transformation takes a psyir Routine and replace all Reference psyir
     Nodes by Literal if the corresponding symbol from the symbol table is
     constant. That is to say the symbol is a Fortran parameter.
+    NOTE: this transformation does not handle parent scopes recursively yet.
     For example:
 
 
@@ -126,9 +127,9 @@ class ReplaceReferenceByLiteralTrans(Transformation):
     <BLANKLINE>
 
     '''
-
-    _ERROR_MSG = (
-        "Psyclone(ReplaceReferenceByLiteral): only "
+    _ERROR_MSG_START: str = "Psyclone(ReplaceReferenceByLiteralTrans):"
+    _ERROR_MSG_ONLY_INITVAL = (
+        f"{_ERROR_MSG_START} only "
         + "supports symbols which have a Literal as their initial value but "
     )
 
@@ -136,13 +137,13 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         super().__init__()
         # Dictionary with Literal values of the corresponding symbol
         # from symbol_table (based on symbol name as a string).
-        self._param_table: Dict[str, Literal] = {}
+        self._param_table: dict[str, Literal] = {}
 
     def _update_param_table(
         self,
-        param_table: Dict[str, Literal],
+        param_table: dict[str, Literal],
         symbol_table: SymbolTable,
-    ) -> Dict[str, Literal]:
+    ) -> dict[str, Literal]:
         """This methods takes a param_table as entry, updates this dictionary
         and then returns the same dictionary updated.
 
@@ -155,52 +156,61 @@ class ReplaceReferenceByLiteralTrans(Transformation):
 
         :param param_table: To be updated
         :param symbol_table: scope symbol table to look for the symbols.
+
         :return: the updated param_table (same reference as the entry one)
-        :rtype: Dict[str, Literal]
         """
         for sym in symbol_table.datasymbols:
             sym: DataSymbol
             if sym.is_constant:
                 sym_name = sym.name
-                print(sym_name)
-                print(type(sym.initial_value))
-                print(param_table.get(sym_name))
                 if param_table.get(sym_name):
                     message = (
-                        "Psyclone(ReplaceReferenceByLiteralTrans):"
-                        + f" Symbol already found {sym_name}."
+                        f"{ReplaceReferenceByLiteralTrans._ERROR_MSG_START}"
+                        + f" Symbol already found '{sym_name}'."
                         + " A conflict is possible."
-                        + "To avoid replacing by wrong value, "
-                        + "symbol is removed from param_table."
+                        + "To avoid replacing the symbol with the wrong value,"
+                        + " we skip this symbol."
                     )
                     sym.preceding_comment += message
                     param_table.pop(sym_name)
                     continue
                 if not isinstance(sym.initial_value, Literal):
+
                     message = (
-                        ReplaceReferenceByLiteralTrans._ERROR_MSG
-                        + f"{sym_name} is assigned "
+                        ReplaceReferenceByLiteralTrans._ERROR_MSG_ONLY_INITVAL
+                        + f"'{sym_name}' is assigned "
                         + f"a {type(sym.initial_value)}"
                     )
                     sym.preceding_comment += message
-                    print(sym.preceding_comment)
                     continue
                 new_literal: Literal = sym.initial_value.copy().detach()
                 param_table[sym_name] = new_literal
+            else:
+                if isinstance(sym.datatype, UnsupportedFortranType):
+                    if "PARAMETER" in sym.datatype.declaration:
+                        message = (
+                            ReplaceReferenceByLiteralTrans._ERROR_MSG_START
+                            + " only support constant (parameter) but "
+                            + f"{sym.datatype} is not seen by "
+                            + "Psyclone as a constant."
+                        )
+                        sym.preceding_comment += message
         return param_table
 
     def _replace_bounds(
         self,
-        current_shape: List[Union[Literal, Reference]],
-        param_table: Dict[str, Literal],
-    ) -> List[Union[Literal, Reference]]:
+        current_shape: list[Union[Literal, Reference]],
+        param_table: dict[str, Literal],
+    ) -> list[Union[Literal, Reference]]:
         """From the param_table and the current_shape of an array,
         this method create a new_shape with the reference replaced by literal
         when they are found in the param_table.
 
         :param current_shape: shape before transformation
-        :param param_table: table of parameters Literal values.
-        :return: the new shape with replaced reference by literal.
+        :param param_table: map of parameters to Literal values.
+
+        :return: the new shape with any references to constants replaced by
+        their Literal values.
         """
         new_shape = []
         for dim in current_shape:
@@ -224,7 +234,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         return new_shape
 
     # ------------------------------------------------------------------------
-    def apply(self, node: Routine, options=None):
+    def apply(self, node: Routine, options: Optional[dict[str, Any]] = None):
         """Applies the transformation to a Routine node:
         * First update a dictionary (param_table) with the Literal of constant
         (parameter) symbol from node.parent symbol_table, and from
@@ -232,12 +242,15 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         * Second, use this updated param_table to replace reference in node
         psyir_tree with the corresponsing Literal.
         * Third, use this updated param_table to replace reference in node
-        symbol_table DataSymbol array's dimensions with the corresponsing
+        symbol_table DataSymbol array's dimensions with the corresponding
         Literal.
 
-        :param node: _description_
-        :param options: not used, defaults to None
-        :type options: _type_, optional
+        Note: If an update cannot be performed for any reason then the
+        substitution is skipped and a comment starting with
+        'Psyclone(ReplaceReferenceByLiteral):' is added to the generated code.
+
+        :param node: node on which the transformation is applied
+        :param options: a dictionary with options for transformations.
         """
         ## Reset the param table for the current Routine
         self._param_table = {}
@@ -245,14 +258,10 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         ## NOTE: (From Andrew) We may want to look at all symbols in scope
         # rather than just those in the parent symbol table?
         if node.parent is not None and isinstance(node.parent, Container):
-            if node.parent.symbol_table is not None:
-                self._param_table = self._update_param_table(
-                    self._param_table, node.parent.symbol_table
-                )
-        ## NOTE: and other parent scopes?
-        # symbol_table.parent_symbol_table
+            self._param_table = self._update_param_table(
+                self._param_table, node.parent.symbol_table
+            )
 
-        ## node.symbol_table is not None (in validate)
         self._param_table = self._update_param_table(
             self._param_table, node.symbol_table
         )
@@ -267,7 +276,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
             sym: DataSymbol
             if sym.is_array:
                 if not isinstance(sym.datatype, UnsupportedFortranType):
-                    new_shape: List[Union[Literal, Reference]] = (
+                    new_shape: list[Union[Literal, Reference]] = (
                         self._replace_bounds(sym.shape, self._param_table)
                     )
                     sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
@@ -281,6 +290,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         :param node: the node that is being checked.
         :param options: not used, defaults to None
         :type options: _type_, optional
+
         :raises TransformationError: if the node argument is not a Routine.
         """
         if not isinstance(node, Routine):
