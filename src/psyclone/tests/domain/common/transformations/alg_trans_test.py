@@ -38,7 +38,6 @@
 Algorithm PSyIR.
 
 '''
-from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.transformations import TransformationError

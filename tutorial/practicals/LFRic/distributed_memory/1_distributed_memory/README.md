@@ -73,14 +73,14 @@ in the description means `cells`!) with an upper loop bound of
 ```bash
 InvokeSchedule[invoke='invoke_0', dm=False]
      0: Loop[type='dofs', field_space='any_space_1', it_space='dof', upper_bound='ndofs']
-         Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
-         Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
+         Reference[name:'loop0_start']
+         Reference[name:'loop0_stop']
          Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
          Schedule[]
              0: BuiltIn setval_c(grad_p,0.0_r_def)
      1: Loop[type='', field_space='any_space_1', it_space='cell_column', upper_bound='ncells']
-         Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
-         Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
+         Reference[name:'loop1_start']
+         Reference[name:'loop1_stop']
          Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
          Schedule[]
              0: CodedKern scaled_matrix_vector_code(grad_p,p,div_star,hb_inv) [module_inline=False]
@@ -98,7 +98,7 @@ Take a look at the generated psy-layer Fortran code:
 As you will see, there is quite a bit of lookup code generated which
 extracts the appropriate values from the infrastructure and the data
 objects passed from the algorithm layer, however, the code performing
-the looping (after the `Call our kernels` comment) is relatively short
+the looping (after the `Call kernels` comment) is relatively short
 and concise.
 
 You should see that the upper bound for the builtin kernel loop is the
@@ -149,8 +149,8 @@ whilst the rest have `check_dirty=True`.
 ```bash
 InvokeSchedule[invoke='invoke_0', dm=True]
     0: Loop[type='dofs', field_space='any_space_1', it_space='dof', upper_bound='ndofs']
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
+        Reference[name:'loop0_start']
+        Reference[name:'loop0_stop']
         Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
         Schedule[]
             0: BuiltIn setval_c(grad_p,0.0_r_def)
@@ -159,8 +159,8 @@ InvokeSchedule[invoke='invoke_0', dm=True]
     3: HaloExchange[field='div_star', type='region', depth=1, check_dirty=True]
     4: HaloExchange[field='hb_inv', type='region', depth=1, check_dirty=True]
     5: Loop[type='', field_space='any_space_1', it_space='cell_column', upper_bound='cell_halo(1)']
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
-        Literal[value:'NOT_INITIALISED', Scalar<INTEGER, UNDEFINED>]
+        Reference[name:'loop1_start']
+        Reference[name:'loop1_stop']
         Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
         Schedule[]
             0: CodedKern scaled_matrix_vector_code(grad_p,p,div_star,hb_inv) [module_inline=False]
@@ -186,20 +186,16 @@ loops.
 
 ```fortran
       ! Call kernels and communication routines
-      !
-      DO df=1,grad_p_proxy%vspace%get_last_dof_owned()
+      do df=1,grad_p_proxy%vspace%get_last_dof_owned()
         grad_p_proxy%data(df) = 0.0_r_def
-      END DO
-      !
+      enddo
+
       ! Set halos dirty/clean for fields modified in the above loop
-      !
-      CALL grad_p_proxy%set_dirty()
-      !
-      CALL grad_p_proxy%halo_exchange(depth=1)
-      !
-      IF (p_proxy%is_dirty(depth=1)) THEN
-        CALL p_proxy%halo_exchange(depth=1)
-      END IF
+      call grad_p_proxy%set_dirty()
+      call grad_p_proxy%halo_exchange(depth=1)
+      if (p_proxy%is_dirty(depth=1)) then
+        call p_proxy%halo_exchange(depth=1)
+      end if
       ...
 ```
 

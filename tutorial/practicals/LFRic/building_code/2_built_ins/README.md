@@ -300,7 +300,7 @@ The generated code for the specific mathematical operation here
 
 ```fortran
       !
-      ! Call our kernels
+      ! Call kernels
       !
       ...
       DO df=1,undf_aspc1_field_out_w0

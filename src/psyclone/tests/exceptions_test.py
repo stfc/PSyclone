@@ -35,8 +35,6 @@
 
 ''' Test exception classes to ensure consistent __repr__ & __str__ methods. '''
 
-from __future__ import absolute_import
-
 import pkgutil
 import inspect
 import importlib

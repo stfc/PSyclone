@@ -42,9 +42,8 @@ test file. '''
 import os
 import pytest
 
-from psyclone.domain.lfric import LFRicDofmaps
+from psyclone.domain.lfric.lfric_dofmaps import LFRicDofmaps
 from psyclone.errors import GenerationError, InternalError
-from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -58,7 +57,7 @@ TEST_API = "lfric"
 # Error tests
 def test_lfricdofmap_stubdecln_err():
     '''
-    Check that LFRicDofmaps._stub_declarations raises the expected errors
+    Check that LFRicDofmaps.stub_declarations raises the expected errors
     if the stored CMA information is invalid.
 
     '''
@@ -66,20 +65,30 @@ def test_lfricdofmap_stubdecln_err():
                                         "20.5_multi_cma_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    dofmaps = LFRicDofmaps(psy.invokes.invoke_list[0])
-    mod = ModuleGen(name="test_module")
-    for cma in dofmaps._unique_indirection_maps.values():
-        cma["direction"] = "not-a-direction"
-    with pytest.raises(InternalError) as err:
-        dofmaps._stub_declarations(mod)
-    assert ("Invalid direction ('not-a-direction') found for CMA operator "
-            "when collecting indirection dofmaps" in str(err.value))
+
+    # Test invalid cbanded kernel
+    kernel_cbanded = psy.invokes.invoke_list[0].schedule.kernels()[0]
+    # Need and nlayers symbols because it is looked-up by the LFRicDofmaps
+    kernel_cbanded._stub_symbol_table.find_or_create("nlayers")
+    dofmaps = LFRicDofmaps(kernel_cbanded)
     for cma in dofmaps._unique_cbanded_maps.values():
         cma["direction"] = "not-a-direction"
     with pytest.raises(InternalError) as err:
-        dofmaps._stub_declarations(mod)
+        dofmaps.stub_declarations()
     assert ("Invalid direction ('not-a-direction') found for CMA operator "
             "when collecting column-banded dofmaps" in str(err.value))
+
+    # Test invalid direction kernel
+    kernel_direction = psy.invokes.invoke_list[0].schedule.kernels()[1]
+    # Need and nlayers symbols because it is looked-up by the LFRicDofmaps
+    kernel_direction._stub_symbol_table.find_or_create("nlayers")
+    dofmaps = LFRicDofmaps(kernel_direction)
+    for cma in dofmaps._unique_indirection_maps.values():
+        cma["direction"] = "not-a-direction"
+    with pytest.raises(InternalError) as err:
+        dofmaps.stub_declarations()
+    assert ("Invalid direction ('not-a-direction') found for CMA operator "
+            "when collecting indirection dofmaps" in str(err.value))
 
 
 def test_cma_asm_cbanded_dofmap_error():
@@ -152,9 +161,8 @@ def test_cbanded_test_comments():
     code = str(psy.gen)
 
     output = (
-        "      !\n"
-        "      ! Look-up required column-banded dofmaps\n"
-        "      !\n"
+        "\n"
+        "    ! Look-up required column-banded dofmaps\n"
     )
 
     assert output in code
@@ -172,9 +180,8 @@ def test_unique_fs_comments():
     code = str(psy.gen)
 
     output = (
-        "      !\n"
-        "      ! Look-up dofmaps for each function space\n"
-        "      !\n"
+        "\n"
+        "    ! Look-up dofmaps for each function space\n"
         )
 
     assert output in code
@@ -186,12 +193,12 @@ def test_stub_decl_dofmaps():
 
     '''
 
-    result = generate(os.path.join(BASE_PATH,
-                                   "columnwise_op_asm_kernel_mod.F90"),
-                      api=TEST_API)
+    stub_text = generate(os.path.join(BASE_PATH,
+                                      "columnwise_op_asm_kernel_mod.F90"),
+                         api=TEST_API)
 
-    assert ("INTEGER(KIND=i_def), intent(in) :: cma_op_2_nrow, cma_op_2_ncol"
-            in str(result))
+    assert "integer(kind=i_def), intent(in) :: cma_op_2_ncol" in stub_text
+    assert "integer(kind=i_def), intent(in) :: cma_op_2_nrow" in stub_text
 
 
 def test_lfricdofmaps_stub_gen():
@@ -200,12 +207,12 @@ def test_lfricdofmaps_stub_gen():
     two fields and one CMA operator as arguments.
 
     '''
-    result = generate(os.path.join(BASE_PATH,
-                                   "columnwise_op_app_kernel_mod.F90"),
-                      api=TEST_API)
+    stub_text = generate(os.path.join(BASE_PATH,
+                                      "columnwise_op_app_kernel_mod.F90"),
+                         api=TEST_API)
 
     expected = (
-        "    SUBROUTINE columnwise_op_app_kernel_code(cell, ncell_2d, "
+        "  subroutine columnwise_op_app_kernel_code(cell, ncell_2d, "
         "field_1_aspc1_field_1, field_2_aspc2_field_2, cma_op_3, "
         "cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, "
         "cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p, "
@@ -214,4 +221,4 @@ def test_lfricdofmaps_stub_gen():
         "undf_aspc2_field_2, map_aspc2_field_2, "
         "cma_indirection_map_aspc2_field_2)\n"
         )
-    assert expected in str(result)
+    assert expected in stub_text

@@ -227,10 +227,6 @@ def _adduse(location, name, only=None, funcnames=None):
     tree. This will be added at the first valid location before the
     current location.
 
-    This function should be part of the fparser2 replacement for
-    f2pygen (which uses fparser1) but is kept here until this is
-    developed, see issue #240.
-
     :param location: the current location (node) in the parse tree to which \
                      to add a USE.
     :type location: :py:class:`fparser.two.utils.Base`

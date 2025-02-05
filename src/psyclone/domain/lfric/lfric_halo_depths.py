@@ -42,8 +42,8 @@ into the halo cells.
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
-from psyclone.f2pygen import DeclGen
 from psyclone.psyir.nodes import Literal, Reference
+from psyclone.psyir.symbols import ArgumentInterface, DataSymbol
 
 
 class LFRicHaloDepths(LFRicCollection):
@@ -66,7 +66,7 @@ class LFRicHaloDepths(LFRicCollection):
             # No distributed memory so there are no halo regions.
             return
         depth_names = set()
-        for kern in self._calls:
+        for kern in self.kernel_calls:
             if not kern.halo_depth:
                 continue
             if not isinstance(kern.halo_depth, Literal):
@@ -84,23 +84,27 @@ class LFRicHaloDepths(LFRicCollection):
                     depth_names.add(name)
                     self._halo_depth_vars.add(kern.halo_depth.symbol)
 
-    def _invoke_declarations(self, parent):
+    def invoke_declarations(self):
         '''
-        Creates the f2pygen declarations for the depths to which any 'halo'
+        Creates the declarations for the depths to which any 'halo'
         kernels iterate into the halos.
 
-        :param parent: the node in the f2pygen AST representing the PSy-layer
-                       routine to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
         '''
+        super().invoke_declarations()
         # Add the Invoke subroutine argument declarations for the
         # different halo depths. They are declared as intent "in".
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric import LFRicTypes
         if self._halo_depth_vars:
             var_names = [sym.name for sym in self._halo_depth_vars]
             var_names.sort()
-            parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=var_names, intent="in"))
+            for name in var_names:
+                sym = self.symtab.find_or_create(
+                    name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                sym.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+                self.symtab.append_argument(sym)
 
 
 # ---------- Documentation utils -------------------------------------------- #

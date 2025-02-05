@@ -38,7 +38,6 @@
     PSyIR front-end. Also tests the associated utility used to create arguments
     for the LBOUND and UBOUND array-query operations. '''
 
-from __future__ import absolute_import
 import pytest
 from fparser.two.Fortran2003 import Execution_Part
 from fparser.common.readfortran import FortranStringReader

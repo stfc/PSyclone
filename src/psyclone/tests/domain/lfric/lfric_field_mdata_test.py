@@ -48,7 +48,6 @@ from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
                                    LFRicFields, LFRicKernMetadata)
-from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.utils import ParseError
@@ -501,7 +500,7 @@ def test_lfricfields_call_err():
     fld_arg = kernel.arguments.args[0]
     fld_arg._intrinsic_type = "triple-type"
     with pytest.raises(InternalError) as err:
-        LFRicFields(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
+        LFRicFields(invoke).invoke_declarations()
     test_str = str(err.value)
     assert ("Found unsupported intrinsic types for the field arguments "
             "['f1'] to Invoke 'invoke_0_testkern_fs_type'. Supported "

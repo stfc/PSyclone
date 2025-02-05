@@ -357,28 +357,28 @@ def test_valid_config_files():
 
     gen = str(psy.gen)
     new_loop1 = '''\
-      DO j = 1, 2, 1
-        DO i = 3, 4, 1
-          CALL compute_kern1_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        END DO
-      END DO'''
+    do j = 1, 2, 1
+      do i = 3, 4, 1
+        call compute_kern1_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+      enddo
+    enddo'''
     assert new_loop1 in gen
 
     new_loop2 = '''\
-      DO j = 2, jstop, 1
-        DO i = 1, istop + 1, 1
-          CALL compute_kern2_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        END DO
-      END DO'''
+    do j = 2, jstop, 1
+      do i = 1, istop + 1, 1
+        call compute_kern2_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+      enddo
+    enddo'''
     assert new_loop2 in gen
 
     # The third kernel tests {start} and {stop}
     new_loop3 = '''\
-      DO j = 2 - 2, 1, 1
-        DO i = istop, istop + 1, 1
-          CALL compute_kern3_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
-        END DO
-      END DO'''
+    do j = 2 - 2, 1, 1
+      do i = istop, istop + 1, 1
+        call compute_kern3_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+      enddo
+    enddo'''
     assert new_loop3 in gen
 
     # Note that this file can not be compiled, since the new iteration space
