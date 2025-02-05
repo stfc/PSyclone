@@ -2124,7 +2124,7 @@ class DynMeshes():
             # don't already have one.
             colour_map = non_intergrid_kern.tilecolourmap
             # No. of colours
-            ntilecolours = self.symtab.find_or_create(
+            _ = self.symtab.find_or_create(
                 "ntilecolour", tag="ntilecolour",
                 symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")()
@@ -3905,7 +3905,7 @@ class LFRicHaloExchange(HaloExchange):
         depth_info_list = self._compute_halo_read_depth_info()
         if len(depth_info_list) == 1:
             psyir = depth_info_list[0].psyir_expression()
-        if len(depth_info_list) == 0:
+        elif len(depth_info_list) == 0:
             # Thats an error
             psyir = Literal("10", INTEGER_TYPE)
         else:
