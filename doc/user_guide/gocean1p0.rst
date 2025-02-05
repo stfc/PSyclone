@@ -650,9 +650,7 @@ Rules
 #####
 
 Kernel arguments follow a set of rules which have been specified for
-the GOcean 1.0 API. These rules are encoded in the ``gen_code()``
-method of the ``GOKern`` class in the ``gocean1p0.py`` file. The
-rules, along with PSyclone's naming conventions, are:
+the GOcean 1.0 API. The rules, along with PSyclone's naming conventions, are:
 
 1) Every kernel has the indices of the current grid point as the first two arguments, ``i`` and ``j``. These are integers and have intent ``in``.
 
