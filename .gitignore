@@ -27,6 +27,8 @@ src/*.egg-info
 .idea
 .rtx.toml
 .venv
+.vscode
+venv
 cov.xml
 .coverage.*
 *.psycache
