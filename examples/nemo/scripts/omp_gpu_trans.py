@@ -37,14 +37,16 @@
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
+import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
-from psyclone.psyGen import TransInfo
+    enhance_tree_information, PASSTHROUGH_ISSUES, PARALLELISATION_ISSUES,
+    NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import (
     Loop, Routine, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
-from psyclone.transformations import OMPDeclareTargetTrans, TransformationError
+from psyclone.transformations import (
+    OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
 
 PROFILING_ENABLED = False
 
@@ -53,7 +55,64 @@ PROFILING_ENABLED = False
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT
+FILES_TO_SKIP = PASSTHROUGH_ISSUES + [
+    "sbcblk.f90",   # Compiler error: Vector expression used where scalar
+                    # expression required
+    "sbcflx.f90",  # NEMOv4 sbc_dyc causes NVFORTRAN-S-0083-Vector expression
+                    # used where scalar expression required
+    "fldread.f90",  # Wrong runtime results
+    "zdfddm.f90",  # Wrong results
+    "zdfiwm.f90",  # Wrong results
+    "zdfswm.f90",  # fort2 terminated by signal 11
+]
+
+SKIP_FOR_PERFORMANCE = [
+    # Check if these work with NEMOv4
+    "iom.f90",
+    "iom_nf90.f90",
+    "iom_def.f90",
+    "timing.f90",
+    "prtctl.f90",
+    "trazdf.f90",
+    "dynzdf.f90",
+]
+
+DONT_HOIST = [
+    # Incorrect hoisting
+    "lbcnfd.f90",
+]
+
+OFFLOADING_ISSUES = [
+    "trcrad.f90",  # Illegal address during kernel execution, unless the
+                   # dimensions are small
+    "traatf_qco.f90",  # Runtime: Failed to find device function (BENCH)
+    "lbclnk.f90",  # Improve performance until #2751
+    "traqsr.f90",
+    "ldftra.f90",  # Wrong runtime results
+    "geo2ocean.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
+    "zdftke.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
+]
+
+PRIVATISATION_ISSUES = [
+    "ldftra.f90",  # Wrong runtime results
+]
+
+# A environment variable can inform if this is targeting NEMOv4, in which case
+# array privatisation is disabled and some more files excluded
+NEMOV4 = os.environ.get('NEMOV4', False)
+
+NEMOV4_EXCLUSIONS = [
+    "domvvl.f90",
+    "domzgr.f90",
+    "dtatsd.f90",
+    "dynnxt.f90",
+    "sbcisf.f90",
+    "sshwzv.f90",
+    "step.f90",
+    "zdfmxl.f90",
+    "traadv_fct.f90",
+    "traadv.f90",
+]
 
 
 def trans(psyir):
@@ -65,22 +124,42 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    # import os
+    # if psyir.name not in (os.environ['ONLY_FILE'], "lib_fortran.f90"):
+    #     return
     omp_target_trans = OMPTargetTrans()
-    omp_loop_trans = TransInfo().get_trans_name('OMPLoopTrans')
-    omp_loop_trans.omp_directive = "loop"
+    omp_gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
+    omp_gpu_loop_trans.omp_directive = "teamsloop"
+    omp_cpu_loop_trans = OMPLoopTrans(omp_schedule="static")
+    omp_cpu_loop_trans.omp_directive = "paralleldo"
 
-    # TODO #2317: Has structure accesses that can not be offloaded and has
-    # a problematic range to loop expansion of (1:1)
+    # Many of the obs_ files have problems to be offloaded to the GPU
     if psyir.name.startswith("obs_"):
-        print("Skipping file", psyir.name)
+        return
+
+    if psyir.name in SKIP_FOR_PERFORMANCE:
+        return
+
+    if NEMOV4 and psyir.name in NEMOV4_EXCLUSIONS:
+        return
+
+    # ICE routines do not perform well on GPU, so we skip them
+    if psyir.name.startswith("ice"):
         return
 
     for subroutine in psyir.walk(Routine):
 
-        if PROFILING_ENABLED:
-            add_profiling(subroutine.children)
+        # Skip things from the initialisation
+        if (subroutine.name.endswith('_alloc') or
+                subroutine.name.endswith('_init') or
+                subroutine.name.startswith('Agrif') or
+                subroutine.name.startswith('dia_') or
+                subroutine.name == 'dom_msk' or
+                subroutine.name == 'dom_zgr' or
+                subroutine.name == 'dom_ngb'):
+            continue
 
-        print(f"Transforming subroutine: {subroutine.name}")
+        print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
 
         enhance_tree_information(subroutine)
 
@@ -90,17 +169,27 @@ def trans(psyir):
                 convert_array_notation=True,
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
-                hoist_expressions=True
+                hoist_expressions=(psyir.name not in DONT_HOIST)
         )
 
-        # Thes are functions that are called from inside parallel regions,
+        # These are functions that are called from inside parallel regions,
         # annotate them with 'omp declare target'
-        if subroutine.name.lower().startswith("sign_"):
-            OMPDeclareTargetTrans().apply(subroutine)
-            print(f"Marked {subroutine.name} as GPU-enabled")
+        if (
+            subroutine.name.lower().startswith("sign_") or
+            subroutine.name.lower() == "solfrac" or
+            (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop))
+        ):
+            try:
+                OMPDeclareTargetTrans().apply(subroutine)
+                print(f"Marked {subroutine.name} as GPU-enabled")
+            except TransformationError as err:
+                print(err)
             # We continue parallelising inside the routine, but this could
             # change if the parallelisation directives added below are not
             # nestable, in that case we could add a 'continue' here
+        elif PROFILING_ENABLED:
+            # We annotate the rest with profiling hooks if requested
+            add_profiling(subroutine.children)
 
         # For now this is a special case for stpctl.f90 because it forces
         # loops to parallelise without many safety checks
@@ -113,7 +202,7 @@ def trans(psyir):
                 if loop.ancestor(Directive):
                     continue
                 try:
-                    omp_loop_trans.apply(loop, options={"force": True})
+                    omp_gpu_loop_trans.apply(loop, options={"force": True})
                 except TransformationError:
                     continue
                 omp_target_trans.apply(loop.parent.parent)
@@ -127,10 +216,19 @@ def trans(psyir):
                         parent.addchild(atomic)
             continue
 
-        insert_explicit_loop_parallelism(
-                subroutine,
-                region_directive_trans=omp_target_trans,
-                loop_directive_trans=omp_loop_trans,
-                # Collapse is necessary to give GPUs enough parallel items
-                collapse=True
-        )
+        if psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES:
+            insert_explicit_loop_parallelism(
+                    subroutine,
+                    region_directive_trans=omp_target_trans,
+                    loop_directive_trans=omp_gpu_loop_trans,
+                    collapse=True,
+                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
+            )
+        elif psyir.name not in PARALLELISATION_ISSUES:
+            # This have issues offloading, but we can still do OpenMP threading
+            insert_explicit_loop_parallelism(
+                    subroutine,
+                    loop_directive_trans=omp_cpu_loop_trans,
+                    privatise_arrays=(not NEMOV4 and
+                                      psyir.name not in PRIVATISATION_ISSUES)
+            )

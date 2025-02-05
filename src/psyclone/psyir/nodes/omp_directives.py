@@ -2118,6 +2118,8 @@ class OMPDoDirective(OMPRegionDirective):
                         f"'{self}' has a collapse={self._collapse} and the "
                         f"nested body at depth {depth} cannot be "
                         f"collapsed.")
+                if len(cursor.loop_body.children) == 0:
+                    break
                 cursor = cursor.loop_body.children[0]
 
     def _validate_single_loop(self):
@@ -2414,6 +2416,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 class OMPTeamsDistributeParallelDoDirective(OMPParallelDoDirective):
     ''' Class representing the OMP teams distribute parallel do directive. '''
     _directive_string = "teams distribute parallel do"
+
+
+class OMPTeamsLoopDirective(OMPParallelDoDirective):
+    ''' Class representing the OMP teams loop directive. '''
+    _directive_string = "teams loop"
 
 
 class OMPTargetDirective(OMPRegionDirective):

@@ -53,11 +53,15 @@ PROFILING_ENABLED = False
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # A environment variable can inform if this is targeting NEMOv5, in which case
-# array privatisation is enabled.
-NEMOV5 = os.environ.get('NEMOV5', False)
+# array privatisation is disabled.
+NEMOV4 = os.environ.get('NEMOV4', False)
 
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = PASSTHROUGH_ISSUES
+
+if PROFILING_ENABLED:
+    # Fails with profiling enabled. issue #2723
+    FILES_TO_SKIP.append("mppini.f90")
 
 
 def trans(psyir):
@@ -94,5 +98,5 @@ def trans(psyir):
                     region_directive_trans=omp_parallel_trans,
                     loop_directive_trans=omp_loop_trans,
                     collapse=False,
-                    privatise_arrays=NEMOV5 and psyir.name != "ldftra.f90",
+                    privatise_arrays=not NEMOV4,
             )
