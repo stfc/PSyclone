@@ -180,7 +180,7 @@ class ScopingNode(Node):
         that any Symbols appearing in precision specifications, array shapes or
         initialisation expressions are captured.
 
-        :param var_accesses: VariablesAccessInfo instance that stores the
+        :param access_info: VariablesAccessInfo instance that stores the
             information about variable accesses.
 
         '''
@@ -232,6 +232,12 @@ class ScopingNode(Node):
         # Examine the definition of each DataTypeSymbol.
         for sym in self._symbol_table.datatypesymbols:
             _get_accesses(sym.datatype, access_info)
+
+        # Examine any interface symbols.
+        for sym in self._symbol_table.interface_symbols:
+            for rt_info in sym.routines:
+                access_info.add_access(Signature(rt_info.symbol.name),
+                                       AccessType.TYPE_INFO, self)
 
         super().reference_accesses(access_info)
 
