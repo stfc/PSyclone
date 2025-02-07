@@ -222,6 +222,11 @@ class ScopingNode(Node):
                 # Recurse to examine partial datatype information.
                 _get_accesses(dtype.partial_datatype, info)
 
+        if not self._symbol_table:
+            # During the creation of a new Routine from an existing one we
+            # detach the SymbolTable from the latter.
+            return
+
         # Examine the datatypes and initial values of all DataSymbols.
         for sym in self._symbol_table.datasymbols:
             _get_accesses(sym.datatype, access_info)

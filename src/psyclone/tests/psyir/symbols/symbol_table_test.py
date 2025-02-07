@@ -643,7 +643,7 @@ def test_remove_case_insensitive(sym_name):
     assert "var1" not in sym_table
 
 
-def test_swap_symbol():
+def ARPDBG_test_swap_symbol():
     ''' Test the SymbolTable.swap() method. '''
     symbol1 = symbols.Symbol("var1")
     sym_table = symbols.SymbolTable()

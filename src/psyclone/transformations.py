@@ -2882,22 +2882,16 @@ class KernelImportsToArguments(Transformation):
         invoke_symtab = node.ancestor(InvokeSchedule).symbol_table
         count_imported_vars_removed = 0
 
+        # Resolve the types of the imported symbols.
+        kernel.symbol_table.resolve_imports()
+
         # Transform each imported variable into an argument.
         # TODO #11: When support for logging is added, we could warn the user
         # if no imports are found in the kernel.
         for imported_var in kernel.symbol_table.imported_symbols[:]:
             count_imported_vars_removed += 1
 
-            # Resolve the data type information if it is not available
-            # pylint: disable=unidiomatic-typecheck
-            if (type(imported_var) is Symbol or
-                    isinstance(imported_var.datatype, UnresolvedType)):
-                updated_sym = imported_var.resolve_type()
-                # If we have a new symbol then we must update the symbol table
-                if updated_sym is not imported_var:
-                    kernel.symbol_table.swap(imported_var, updated_sym)
-            # pylint: enable=unidiomatic-typecheck
-
+            updated_sym = imported_var
             # Copy the imported symbol into the InvokeSchedule SymbolTable
             invoke_symtab.copy_external_import(
                 updated_sym, tag="AlgArgs_" + updated_sym.name)

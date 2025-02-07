@@ -1097,19 +1097,8 @@ class SymbolTable():
         return [symbol for symbol in self.imported_symbols if
                 symbol.interface.container_symbol is csymbol]
 
-    def swap(self, old_symbol, new_symbol):
+    def replace_symbol(self, old_symbol, new_symbol):
         '''
-        Remove the `old_symbol` from the table and replace it with the
-        `new_symbol`.
-
-        :param old_symbol: the symbol to remove from the table.
-        :type old_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
-        :param new_symbol: the symbol to add to the table.
-        :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
-
-        :raises TypeError: if either old/new_symbol are not Symbols.
-        :raises SymbolError: if `old_symbol` and `new_symbol` don't have
-                             the same name (after normalising).
         '''
         if not isinstance(old_symbol, Symbol):
             raise TypeError(f"Symbol to remove must be of type Symbol but "
@@ -1121,92 +1110,14 @@ class SymbolTable():
             raise SymbolError(
                 f"Cannot swap symbols that have different names, got: "
                 f"'{old_symbol.name}' and '{new_symbol.name}'")
-        self._replace_symbol(self.node, old_symbol, new_symbol)
-        self.remove(old_symbol)
-        self.add(new_symbol)
+        new_table = SymbolTable()
+        new_table.add(new_symbol)
+        norm_name = self._normalize(new_symbol.name)
+        for sym in self.symbols:
+            if sym is old_symbol:
+                self._symbols[norm_name] = new_symbol
+            sym.replace_symbols_using(new_table)
 
-    @staticmethod
-    def _replace_symbol(node, test_symbol, outer_sym):
-        '''
-        '''
-        if not node:
-            return
-
-        norm_name = SymbolTable._normalize(test_symbol.name)
-
-        from psyclone.core.variables_access_info import VariablesAccessInfo
-        from psyclone.psyir.nodes import Call, Literal, Reference
-        vai = VariablesAccessInfo()
-        node.reference_accesses(vai)
-        for sig in vai.all_signatures:
-            if sig.var_name.lower() != norm_name:
-                continue
-            for access in vai[sig].all_accesses:
-                if access.node.scope is access.node:
-                    # This is just the symbol table associated
-                    # with a ScopingNode.
-                    continue
-                if (access.node.scope.symbol_table.lookup(norm_name)
-                        is test_symbol):
-                    if isinstance(access.node, Reference):
-                        access.node.symbol = outer_sym
-                    elif isinstance(access.node, Call):
-                        access.node.routine.symbol = outer_sym
-                    elif isinstance(access.node, Literal):
-                        oldtype = access.node.datatype
-                        newtype = ScalarType(oldtype.intrinsic,
-                                             outer_sym)
-                        access.node.replace_with(
-                            Literal(access.node.value, newtype))
-                    else:
-                        assert 0, f"Node {access.node} not supported"
-
-    def _validate_remove_routinesymbol(self, symbol):
-        '''
-        Checks whether the supplied RoutineSymbol can be removed from this
-        table.
-
-        If the symbol is the target of a Call or is a member of an interface
-        definition then removal is not possible.
-
-        :param symbol: the Symbol to validate for removal.
-        :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
-
-        :raises ValueError: if the Symbol cannot be removed.
-
-        '''
-        parent_table = self.parent_symbol_table()
-        if parent_table:
-            try:
-                # If the supplied symbol object has already been added to an
-                # outer scope then we can safely delete its entry in this table
-                # as all references to it will remain valid.
-                outer_sym = parent_table.lookup(symbol.name)
-                if outer_sym is symbol:
-                    return
-            except KeyError:
-                pass
-
-        # Check for Calls or GenericInterfaceSymbols that reference it.
-        # TODO #2271 - this walk will fail to find some symbols (e.g. in
-        # variable initialisation expressions or CodeBlocks).
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Call
-        all_calls = self.node.walk(Call) if self.node else []
-        for call in all_calls:
-            if call.routine.symbol is symbol:
-                raise ValueError(
-                    f"Cannot remove RoutineSymbol '{symbol.name}' "
-                    f"because it is referenced by '{call.debug_string()}'")
-        # Check for any references to it within interfaces.
-        for sym in self._symbols.values():
-            if not isinstance(sym, GenericInterfaceSymbol):
-                continue
-            for rt_info in sym.routines:
-                if rt_info.symbol is symbol:
-                    raise ValueError(
-                        f"Cannot remove RoutineSymbol '{symbol.name}' "
-                        f"because it is referenced in interface '{sym.name}'")
 
     def remove(self, symbol):
         '''
@@ -1261,13 +1172,9 @@ class SymbolTable():
                 f" {[sym.name for sym in self.symbols_imported_from(symbol)]} "
                 f"are imported from it - remove them first.")
 
-        # RoutineSymbols require special consideration as they may be the
-        # target of a Call or a member of a GenericInterfaceSymbol.
-        #if isinstance(symbol, RoutineSymbol):
-        #    self._validate_remove_routinesymbol(symbol)
         if self.node:
-            from psyclone.psyir.nodes import (Call, Literal, Reference,
-                                              ScopingNode)
+            from psyclone.psyir.nodes import (Call, CodeBlock, Literal,
+                                              Reference, ScopingNode)
             from psyclone.core.variables_access_info import VariablesAccessInfo
             vai = VariablesAccessInfo()
             self.node.reference_accesses(vai)
@@ -1293,10 +1200,20 @@ class SymbolTable():
                             continue
                         raise ValueError(
                             f"Cannot remove {type(symbol).__name__} "
-                            f"'{symbol.name}' because it is referenced within "
+                            f"'{norm_name}' because it is referenced within "
                             f"the definition of another Symbol in {table}")
+                    elif isinstance(access.node, CodeBlock):
+                        if norm_name in access.node.get_symbol_names():
+                            raise ValueError(
+                                f"Cannot remove {type(symbol).__name__} "
+                                f"'{norm_name}' because a symbol with that "
+                                f"name is referenced within a CodeBlock:\n"
+                                f"{access.node.debug_string()}")
                     else:
-                        assert 0, f"Node {access.node} unsupported 2"
+                        raise InternalError(
+                            f"Checking which symbols are referenced by a node "
+                            f"of type '{type(access.node).__name__}' is not "
+                            f"supported.")
 
                     if this_sym is not symbol:
                         # This access is not to the target symbol.
@@ -1865,7 +1782,10 @@ class SymbolTable():
 
                     # We want to replace the local symbol with the new one
                     # in the outer scope (`outer_sym`).
-                    self._replace_symbol(scoping_node, test_symbol, outer_sym)
+                    self.replace_symbol(test_symbol, outer_sym)
+                    new_table = SymbolTable()
+                    new_table.add(outer_sym) # or just use the outer table?
+                    self.node.replace_symbols_using(new_table)
                     symbol_table.remove(test_symbol)
 
                 if symbol_target:

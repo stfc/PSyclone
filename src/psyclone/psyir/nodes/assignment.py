@@ -44,6 +44,7 @@ from psyclone.errors import InternalError
 from psyclone.f2pygen import PSyIRGen
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.array_reference import ArrayReference
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall, REDUCTION_INTRINSICS)
@@ -189,17 +190,23 @@ class Assignment(Statement):
         accesses_left = VariablesAccessInfo(options=var_accesses.options())
         self.lhs.reference_accesses(accesses_left)
         # Now change the (one) access to the assigned variable to be WRITE:
-        sig, _ = self.lhs.get_signature_and_indices()
-        var_info = accesses_left[sig]
-        try:
-            var_info.change_read_to_write()
-        except InternalError as err:
-            # An internal error typically indicates that the same variable
-            # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
-            # supported in PSyclone.
-            raise NotImplementedError(f"The variable '{self.lhs.name}' appears"
-                                      f" more than once on the left-hand side "
-                                      f"of an assignment.") from err
+        if not isinstance(self.lhs, CodeBlock):
+            sig, _ = self.lhs.get_signature_and_indices()
+            var_info = accesses_left[sig]
+            try:
+                var_info.change_read_to_write()
+            except InternalError as err:
+                # An internal error typically indicates that the same variable
+                # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
+                # supported in PSyclone.
+                raise NotImplementedError(
+                    f"The variable '{self.lhs.name}' appears"
+                    f" more than once on the left-hand side "
+                    f"of an assignment.") from err
+        else:
+            # The LHS is a CodeBlock and so all variables accessed will have
+            # been marked as readwrite.
+            pass
 
         # Merge the data (that shows now WRITE for the variable) with the
         # parameter to this function. It is important that first the
