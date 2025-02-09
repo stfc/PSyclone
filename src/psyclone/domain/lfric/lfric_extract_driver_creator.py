@@ -488,7 +488,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
             if isinstance(datatype, DataTypeSymbol):
                 # This is a structure. We need to create a flattened name
-                # and fine the base type of the member involved
+                # and find the base type of the member involved
                 datatype = datatype.datatype
                 for member in signature[1:]:
                     datatype = datatype.components[member].datatype
