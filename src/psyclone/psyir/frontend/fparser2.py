@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2024, Science and Technology Facilities Council.
+# Copyright (c) 2017-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -3445,7 +3445,7 @@ class Fparser2Reader():
             f"subroutine dummy()\n"
             f"  {datatype.declaration}\n"
             f"end subroutine\n")
-        parser = ParserFactory().create(std="f2008")
+        parser = ParserFactory().create(std=Config.get().fortran_standard)
         reader = FortranStringReader(dummy_code)
         fp2_ast = parser(reader)
         type_decl_stmt = fp2_ast.children[0].children[1].children[0]
@@ -3695,7 +3695,8 @@ class Fparser2Reader():
 
         # Parse the the created Fortran text to an fparser2 tree and
         # store the resulting tree in a PSyIR CodeBlock.
-        parser = ParserFactory().create(std="f2008")
+        std = Config.get().fortran_standard
+        parser = ParserFactory().create(std=std)
         reader = FortranStringReader(code)
         fp2_program = parser(reader)
         # Ignore the program part of the fparser2 tree
@@ -4895,7 +4896,17 @@ class Fparser2Reader():
         # Use the items[1] content of the node as it contains the required
         # information (items[0] and items[2] just contain the left and right
         # brackets as strings so can be disregarded.
-        return self._create_child(node.items[1], parent)
+        new_node = self._create_child(node.items[1], parent)
+
+        # Explicit parenthesis on BinaryOperations are sometimes needed for
+        # reproducibility (because a Fortran compiler may evaluate any
+        # mathematically-equivalent expression, provided that the integrity
+        # of parentheses is not violated - Fortran2008 section 7.1.5.2.4),
+        # so we store the fact that they are here.
+        if isinstance(new_node, BinaryOperation):
+            new_node.has_explicit_grouping = True
+
+        return new_node
 
     def _part_ref_handler(self, node, parent):
         '''

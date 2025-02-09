@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -89,21 +89,13 @@ NEMO_FUNCTIONS = ["alpha_charn", "cd_neutral_10m", "cpl_freq", "cp_air",
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
 # These files change the results from baseline when psyclone processes them
-PASSTHROUGH_ISSUES = [
-    "ldfslp.f90",  # It has a '!dir$ NOVECTOR' that gets deleted by fparser
-]
+PASSTHROUGH_ISSUES = []
 
 # These files change the results from the baseline when psyclone adds
 # parallelisation dirctives
 PARALLELISATION_ISSUES = [
     "ldfc1d_c2d.f90",
     "tramle.f90",
-    # These files get the same results when parallelised by: "nvfortran -O1
-    # -Kieee -nofma -Mnovect" but had to be excluded by other compiler/flags
-    # TODO #2787: May solve these issues.
-    "icedyn_rhg_evp.f90",
-    "domqco.f90",
-    "dynspg_ts.f90",
 ]
 
 

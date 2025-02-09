@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -116,14 +116,6 @@ def test_determine_postfix():
     read_write_info.add_write(Signature("var_post0"))
     postfix = ExtractTrans.determine_postfix(read_write_info)
     assert postfix == "_post1"
-
-
-# --------------------------------------------------------------------------- #
-def test_get_default_options():
-    '''Check the default options.'''
-
-    etrans = ExtractTrans()
-    assert etrans.get_default_options() == {"COLLECT-ARRAY-SHAPE-READS": True}
 
 
 # -----------------------------------------------------------------------------

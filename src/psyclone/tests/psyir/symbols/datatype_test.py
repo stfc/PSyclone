@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -894,8 +894,11 @@ def test_structure_type():
     stype = StructureType()
     assert str(stype) == "StructureType<>"
     assert not stype.components
-    stype.add("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)
+    stype.add("flaG", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)
+    # Lookup is not case sensitive
     flag = stype.lookup("flag")
+    # But we retain information on the original capitalisation
+    assert flag.name == "flaG"
     assert not flag.initial_value
     assert isinstance(flag, StructureType.ComponentType)
     stype.add("flag2", INTEGER_TYPE, Symbol.Visibility.PUBLIC,

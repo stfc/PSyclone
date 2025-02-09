@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -104,6 +104,10 @@ class Directive(Statement, metaclass=abc.ABCMeta):
             vinfo = var_info[sig]
             node = vinfo.all_accesses[0].node
             sym = table.lookup(sig.var_name)
+
+            if not vinfo.has_data_access():
+                # Ignore references that don't correspond to data accesses.
+                continue
 
             if isinstance(sym.datatype, ScalarType):
                 # We ignore scalars as these are typically copied by value.

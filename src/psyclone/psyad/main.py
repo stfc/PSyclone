@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 #             T. Vockerodt, Met Office
+# Modified by A. Pirrie, Met Office
 
 '''Top-level driver functions for PSyAD : the PSyclone Adjoint
 support. Transforms an LFRic tangent linear kernel to its adjoint.
@@ -59,6 +60,11 @@ def main(args):
                       been invoked with.
 
     '''
+    # Make sure we have the supported APIs defined in the Config singleton,
+    # but postpone loading the config file till the command line was parsed
+    # in case that the user specifies a different config file.
+    Config.get(do_not_load_file=True)
+
     # pylint: disable=too-many-statements, too-many-branches
     # TODO #1863 - expose line-length limiting as a command-line flag.
     line_length_limit = True
@@ -73,7 +79,7 @@ def main(args):
         '''Function to overide the argpass usage message'''
         return ("psyad [-h] [-oad OAD] [-v] [-t] [-api API] "
                 "[-coord-arg COORD_ARG] [-panel-id-arg PANEL_ID_ARG] "
-                "[-otest TEST_FILENAME] "
+                "[-otest TEST_FILENAME] [-c CONFIG] "
                 "-a ACTIVE [ACTIVE ...] -- filename")
 
     parser = argparse.ArgumentParser(
@@ -82,6 +88,8 @@ def main(args):
     parser.add_argument(
         '-a', '--active', nargs='+', help='names of active variables',
         required=True)
+    parser.add_argument(
+        '-c', '--config', help='config file with PSyclone specific options')
     parser.add_argument(
         '-v', '--verbose', help='increase the verbosity of the output',
         action='store_true')
@@ -108,12 +116,12 @@ def main(args):
 
     args = parser.parse_args(args)
 
+    # If no config file name is specified, args.config is none
+    # and config will load the default config file.
+    Config.get().load(args.config)
+
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
-
-    # Create a config file so we don't trigger the 'LFRicConstants' created
-    # before config file was read exception
-    Config.get()
 
     # Specifying an output file for the test harness is taken to mean that
     # the user wants us to generate it.

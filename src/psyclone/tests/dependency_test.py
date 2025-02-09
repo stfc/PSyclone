@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -291,10 +291,11 @@ def test_lfric():
     var_accesses = VariablesAccessInfo(schedule)
     assert str(var_accesses) == (
         "a: READ, cell: READ+WRITE, f1_data: READ+WRITE, f2_data: READ, "
-        "loop0_start: READ, loop0_stop: READ, m1_data: READ, "
-        "m2_data: READ, map_w1: READ, map_w2: READ, "
-        "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "
-        "nlayers_f1: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ")
+        "field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, loop0_start: "
+        "READ, loop0_stop: READ, m1_data: READ, m2_data: READ, map_w1: READ, "
+        "map_w2: READ, map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ,"
+        " nlayers_f1: READ, r_def: NO_DATA_ACCESS, undf_w1: READ, undf_w2: "
+        "READ, undf_w3: READ")
 
 
 def test_lfric_kern_cma_args():

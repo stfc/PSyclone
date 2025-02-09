@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2024, Science and Technology Facilities Council.
+# Copyright (c) 2019-2025, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -110,39 +110,6 @@ class PSyDataTrans(RegionTrans):
         '''
 
         return self.__class__.__name__
-
-    # -------------------------------------------------------------------------
-    def get_default_options(self):
-        '''Returns a new dictionary with additional options, specific to the
-        transformation, that will be added to the user option. Any values
-        specified by the user will take precedence.
-
-        :returns: a dictionary with additional options.
-        :rtype: Dict[str, Any]
-        '''
-
-        return {}
-
-    # -------------------------------------------------------------------------
-    def merge_in_default_options(self, options):
-        '''This function returns a new dictionary which contains the default
-        options for this transformation plus al user-specified options.
-        Any user-specified option will take precedence over the default
-        values.
-
-        :param options: a dictionary with options for transformations.
-        :type options: Dict[str, Any]
-        :returns: a new dictionary which merges the default options with \
-            the user-specified options.
-        :rtype: Dict[str:Any]
-
-        '''
-        new_options = self.get_default_options()
-        if options:
-            # Update will overwrite any existing setting with the ones
-            # specified by the user:
-            new_options.update(options)
-        return new_options
 
     # ------------------------------------------------------------------------
     def get_unique_region_name(self, nodes, options):
@@ -254,9 +221,10 @@ class PSyDataTrans(RegionTrans):
             raise TransformationError("A PSyData node cannot be inserted "
                                       "inside an OpenACC region.")
 
-        my_options = self.merge_in_default_options(options)
-        if "region_name" in my_options:
-            name = my_options["region_name"]
+        if options is None:
+            options = {}
+        if "region_name" in options:
+            name = options["region_name"]
             # pylint: disable=too-many-boolean-expressions
             if not isinstance(name, tuple) or not len(name) == 2 or \
                not name[0] or not isinstance(name[0], str) or \
@@ -265,9 +233,9 @@ class PSyDataTrans(RegionTrans):
                     f"Error in {self.name}. User-supplied region name "
                     f"must be a tuple containing two non-empty strings.")
             # pylint: enable=too-many-boolean-expressions
-        prefix = my_options.get("prefix", None)
-        if "prefix" in my_options:
-            prefix = my_options.get("prefix", None)
+        prefix = options.get("prefix", None)
+        if "prefix" in options:
+            prefix = options.get("prefix", None)
             if prefix not in Config.get().valid_psy_data_prefixes:
                 raise TransformationError(
                     f"Error in 'prefix' parameter: found '{prefix}', while"
@@ -276,7 +244,7 @@ class PSyDataTrans(RegionTrans):
 
         # We have to create an instance of the node that will be inserted in
         # order to find out what module name it will use.
-        pdata_node = self._node_class(options=my_options)
+        pdata_node = self._node_class(options=options)
         table = node_list[0].scope.symbol_table
         for name in ([sym.name for sym in pdata_node.imported_symbols] +
                      [pdata_node.fortran_module]):
@@ -295,7 +263,7 @@ class PSyDataTrans(RegionTrans):
                 except KeyError:
                     pass
 
-        super().validate(node_list, my_options)
+        super().validate(node_list, options)
 
     # ------------------------------------------------------------------------
     def apply(self, nodes, options=None):
@@ -322,10 +290,8 @@ class PSyDataTrans(RegionTrans):
         '''
         node_list = self.get_node_list(nodes)
 
-        # Add any transformation-specific settings that are required:
-        my_options = self.merge_in_default_options(options)
         # Perform validation checks
-        self.validate(node_list, my_options)
+        self.validate(node_list, options)
 
         # Get useful references
         parent = node_list[0].parent
@@ -345,7 +311,7 @@ class PSyDataTrans(RegionTrans):
             node.detach()
 
         psy_data_node = self._node_class.create(
-            node_list, symbol_table=table, options=my_options)
+            node_list, symbol_table=table, options=options)
         parent.addchild(psy_data_node, position)
 
 
