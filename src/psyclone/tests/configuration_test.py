@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: I. Kavcic and O. Brunt, Met Office,
-#          R. W. Ford, STFC Daresbury Lab
+#           R. W. Ford, STFC Daresbury Lab
 #           J. Henrichs, Bureau of Meteorology
 #           N. Nobre, STFC Daresbury Lab
 #           S. Siso, STFC Daresbury Lab
@@ -74,6 +74,7 @@ VALID_PSY_DATA_PREFIXES = profile, extract
 OCL_DEVICES_PER_NODE = 1
 IGNORE_MODULES = netcdf, mpi
 BACKEND_CHECKS_ENABLED = false
+FORTRAN_STANDARD = f2003
 [lfric]
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
@@ -262,15 +263,24 @@ def test_search_path(monkeypatch):
         pkg_share_idx = min(err_msg.find(dir) for dir in pkg_share_dir)
         assert pkg_share_idx != -1
 
+        # source directory to be used for installation in editable mode
+        dev_dir_tmp = os.path.dirname(__file__)
+        dev_dir_tmp = os.path.split(dev_dir_tmp)[0]  # Go down one level
+        dev_dir_tmp = os.path.split(dev_dir_tmp)[0]  # Go down another level
+        dev_dir_tmp = os.path.split(dev_dir_tmp)[0]  # Go down another level
+        dev_dir = os.path.join(dev_dir_tmp, "config")  # Add config
+        dev_idx = err_msg.find(dev_dir)
+        assert dev_idx != -1
+
         # Check the order of the various directories, which depends on
         # whether we are in a virtualenv or not:
         if inside_venv:
             # When inside a virtual environment, the 'share' directory of
             # that environment takes precedence over the user's home
             # directory
-            assert cwd_idx < share_idx < home_idx < pkg_share_idx
+            assert cwd_idx < share_idx < home_idx < pkg_share_idx < dev_idx
         else:
-            assert cwd_idx < home_idx < share_idx < pkg_share_idx
+            assert cwd_idx < home_idx < share_idx < pkg_share_idx < dev_idx
 
 
 @pytest.mark.usefixtures("change_into_tmpdir")
@@ -757,3 +767,35 @@ def test_aliased_api_names(tmpdir):
     assert "lfric" in config._api_conf
     assert "dynamo0.3" not in config._api_conf
     assert config._api_conf['lfric'].num_any_space == 13
+
+
+def test_fortran_standard(tmpdir):
+    '''Test the handling of the Fortran standard. The dummy
+    config content here specifies f2003 in the config file,
+    so we can check that we get the expected default of f2008
+    if it is removed.
+    '''
+    # Check that we read the expected value in the config file:
+    config_file = tmpdir.join("config")
+    content = _CONFIG_CONTENT
+    config = get_config(config_file, content)
+    assert config.fortran_standard == "f2003"
+    # Remove the Fortran_standard from the config file, in
+    # which case we must get the default of f2008:
+    content = re.sub(r"^FORTRAN_STANDARD = f2003$", "",
+                     content, flags=re.MULTILINE)
+    config = get_config(config_file, content)
+    assert config.fortran_standard == "f2008"
+
+    # Check that an invalid Fortran standard raises an exception.
+    content = _CONFIG_CONTENT
+    # Set an invalid Fortran_standard
+    content = re.sub(r"^FORTRAN_STANDARD = f2003",
+                     "FORTRAN_STANDARD = invalid",
+                     content, flags=re.MULTILINE)
+    with pytest.raises(ConfigurationError) as err:
+        get_config(config_file, content)
+
+    assert ("PSyclone configuration error: Invalid Fortran standard 'invalid' "
+            "specified in config file. Must be one of['f2003', 'f2008']"
+            in str(err.value))

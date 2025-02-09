@@ -263,16 +263,17 @@ DataAccess class i.e. the `_field_write_arguments()` and
 Variable Accesses
 =================
 
-Especially in the NEMO API, it is not possible to rely on pre-defined
-kernel information to determine dependencies between loops. So an additional,
-somewhat lower-level API has been implemented that can be used to determine
-variable accesses (READ, WRITE etc.), which is based on the PSyIR information.
-The only exception to this is if a kernel is called, in which case the
-metadata for the kernel declaration will be used to determine the variable
-accesses for the call statement. The information about all variable usage
-of a PSyIR node or a list of nodes can be gathered by creating an object of
-type `psyclone.core.VariablesAccessInfo`.
-This class uses a `Signature` object to keep track of the variables used.
+When using PSyclone with generic Fortran code, it is not possible to
+rely on pre-defined kernel information to determine dependencies
+between loops. So an additional, somewhat lower-level API has been
+implemented that can be used to determine variable accesses (READ,
+WRITE etc.), which is based on the PSyIR information.  The only
+exception to this is if a kernel is called, in which case the metadata
+for the kernel declaration will be used to determine the variable
+accesses for the call statement. The information about all variable
+usage of a PSyIR node or a list of nodes can be gathered by creating
+an object of type `psyclone.core.VariablesAccessInfo`.  This class
+uses a `Signature` object to keep track of the variables used.
 
 Signature
 ---------
@@ -289,6 +290,14 @@ a single component.
     :members:
     :special-members: __hash__, __eq__, __lt__
 
+AccessType
+----------
+
+An individual access to a ``Signature`` is described by an instance of the
+``AccessType`` enumeration:
+
+.. autoclass:: psyclone.core.access_type.AccessType
+    :members:
 
 VariablesAccessInfo
 -------------------
@@ -319,22 +328,7 @@ instance is holding information about.
 VariablesAccessInfo Options
 +++++++++++++++++++++++++++
 
-By default, `VariablesAccessInfo` will not report the first argument of
-the PSyIR operators `lbound`, `ubound`, or `size` as read accesses,
-since these functions do not actually access the content of the array,
-they only query the size. If these accesses are required (e.g. in kernel
-extraction this could be important if an array is only used in these
-intrinsic - a driver would still need these arrays in order to query
-the size), the optional `options` parameter of the `VariablesAccessInfo`
-constructor can be used: add the key
-`COLLECT-ARRAY-SHAPE-READS` and set it to true::
-
-    vai = VariablesAccessInfo(options={'COLLECT-ARRAY-SHAPE-READS': True})
-
-In this case all arrays specified as first parameter to one of the
-PSyIR operators above will be reported as read access.
-
-Fortran also allows to rename a symbol locally when it is being imported,
+Fortran allows an imported symbol to be renamed locally
 (`use some_mod, only: renamed => original_name`). Depending on use case,
 it might be useful to get the non-local, original name. By default,
 `VariablesAccessInfo` will report the local name (i.e. the renamed name),
@@ -666,12 +660,12 @@ can be parallelised:
 DefinitionUseChain
 ==================
 PSyclone also provides a DefinitionUseChain class, which can search for forward
-dependencies (backward NYI) for a given Reference inside a region of code. This
+and backward dependencies for a given Reference inside a region of code. This
 implementation differs from the DependencyTools as it is control-flow aware, so
 can find many dependencies for a single Reference in a given Routine or scope.
 
-This is primarily used to implement the `References.next_accesses` function, but can be
-used directly as follows:
+This is primarily used to implement the `Reference.next_accesses` and
+`Reference.previous_accessess` functions, but can be used directly as follows:
 
 .. code::
 

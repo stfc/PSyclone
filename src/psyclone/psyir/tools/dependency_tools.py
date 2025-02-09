@@ -48,7 +48,7 @@ from psyclone.core import (AccessType, Signature, SymbolicMaths,
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Node, Range
 
 
 # pylint: disable=too-many-lines
@@ -283,6 +283,50 @@ class DependencyTools():
 
     # -------------------------------------------------------------------------
     @staticmethod
+    def _ranges_overlap(range1: Node,
+                        range2: Node) -> bool:
+        '''This function tests if two ranges overlap. It also accepts a simple
+        index as 'range' (e.g. just `i`), which will be converted into `i:i:1`
+        before comparing. At this stage, this function simple checks if one of
+        the ranges starts after the other (e.g. 1:3, and 5:7). It will handle
+        unspecified ranges (":"), and will report an overlap.
+        Additional tests e.g. using the step value are not yet implemented
+        (e.g. 1:10:2 and 2:10:2 will not overlap, but this will not be
+        detected atm).
+
+        :param range1: The first range or expression.
+        :param range2: The second range or expression.
+
+        :returns: whether the ranges (or an index expression with a range)
+            overlap or not
+
+        '''
+        if not isinstance(range1, Range):
+            # Not a range, must be some index `i`. Create a range `i:i:1`
+            range1 = Range.create(range1.copy(), range1.copy())
+        if not isinstance(range2, Range):
+            # Not a range, must be some index `i`. Create a range `i:i:1`
+            range2 = Range.create(range2.copy(), range2.copy())
+
+        sm = SymbolicMaths.get()
+
+        # Check if the first range is smaller than the second one, e.g.:
+        # 1:3:1 and 4:6:1
+        if sm.greater_than(range2.start, range1.stop) == sm.Fuzzy.TRUE:
+            # The first range is before the second range, so no overlap
+            return False
+        # Check if the second range is smaller than the first one, e.g.:
+        # 4:6:1 and 1:3:1
+        if sm.greater_than(range1.start, range2.stop) == sm.Fuzzy.TRUE:
+            # The second range is before the first range, so no overlap
+            return False
+
+        # We could do additional tests here, e.g. including step to determine
+        # that 1:10:2 does not overlap with 2:10:2
+        return True
+
+    # -------------------------------------------------------------------------
+    @staticmethod
     def _independent_0_var(index_exp1, index_exp2):
         '''Checks if the two index expressions, that are not dependent on any
         loop variable, are independent or not. E.g. `a(3)` and `a(5)`
@@ -296,6 +340,9 @@ class DependencyTools():
         :type index_exp2: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
+        if isinstance(index_exp1, Range) or isinstance(index_exp2, Range):
+            return not DependencyTools._ranges_overlap(index_exp1, index_exp2)
+
         sym_maths = SymbolicMaths.get()
 
         # If the indices can be shown to be never equal, the accesses
@@ -610,6 +657,9 @@ class DependencyTools():
             # including itself (to detect write-write race conditions:
             # a((i-2)**2) = b(i): i=1 and i=3 would write to a(1))
             for other_access in var_info:
+                if not other_access.is_data_access:
+                    # Not a data access so can ignore.
+                    continue
                 if not self._is_loop_carried_dependency(loop_variables,
                                                         write_access,
                                                         other_access):

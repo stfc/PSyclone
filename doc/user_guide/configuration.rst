@@ -76,6 +76,10 @@ locations searched is now:
 2. ``<python-base-dir>/share/psyclone/``
 3. ``${HOME}/.local/share/psyclone/``
 
+As a last resort, the location
+``<psyclone-src-base>/config/``
+is searched in case PSyclone was installed in editable mode.
+
 Note that for developers a slightly different configuration handling
 is implemented, see :ref:`dev_guide:dev_configuration` for details.
 
@@ -94,6 +98,7 @@ section e.g.:
     REPROD_PAD_SIZE = 8
     PSYIR_ROOT_NAME = psyir_tmp
     VALID_PSY_DATA_PREFIXES = profile, extract
+    FORTRAN_STANDARD = f2008
 
 and an optional API specific section, for example for the
 ``lfric`` section:
@@ -172,6 +177,9 @@ BACKEND_CHECKS_ENABLED  Optional (defaults to True). Whether or not the PSyIR   
                         backend should validate the tree that it is passed.
                         Can be overridden by the ``--backend`` command-line
                         flag (see :ref:`backend-options`).
+FORTRAN_STANDARD        Optional (defaults to f2008). The Fortran standard      str
+                        that should be used by fparser. Valid values are
+                        f2003 and f2008.
 ======================= ======================================================= ===========
 
 Common Sections
