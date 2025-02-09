@@ -543,13 +543,16 @@ def test_lfric_driver_field_array_write():
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
     code = str(invoke.gen())
-    # The variable coord is an output variable, it should
-    # be provided once, the extraction library will write these
-    # accesses as individual fields using the names "coord_post%1",
-    # ..., "coord_post%3"
+    # The variable coord is an output variable, but it still must
+    # be provided as input field (since a kernel might only write
+    # some parts of a field - e.g. most kernels won't update halo
+    # regions) - to make sure a driver can reproduce the valued
+    # of the elements that are not being updated. The extraction
+    # library will write these accesses as individual fields using
+    # the names "coord_post%1", ..., "coord_post%3"
     assert "ProvideVariable(\"coord_post\", coord)" in code
     # The variable is not read, so it shouldn't be listed:
-    assert "ProvideVariable(\"coord\", coord)" not in code
+    assert "ProvideVariable(\"coord\", coord)" in code
 
     filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
@@ -557,6 +560,8 @@ def test_lfric_driver_field_array_write():
 
     for i in range(1, 4):
         assert (f"ReadVariable('coord_post%{i}', coord_{i}_data_post)"
+                in driver)
+        assert (f"ReadVariable('coord%{i}', coord_{i}_data)"
                 in driver)
         assert (f"compare('coord_{i}_data', coord_{i}_data, "
                 f"coord_{i}_data_post)" in driver)
