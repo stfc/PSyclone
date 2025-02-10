@@ -1334,7 +1334,6 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-@pytest.mark.xfail(reason="cma_op1_proxy symbol does not exist")
 def test_loop_fuse_cma(tmpdir, dist_mem):
     ''' Test that we can loop fuse two loops when one contains a
     call to a CMA-related kernel.
@@ -1359,26 +1358,22 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
                  {"same_space": True})
     code = str(psy.gen)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
     assert (
-        "      ! Look-up required column-banded dofmaps\n"
-        "      !\n"
-        "      cbanded_map_aspc1_afield => "
+        "    ! Look-up required column-banded dofmaps\n"
+        "    cbanded_map_aspc1_afield => "
         "cma_op1_proxy%column_banded_dofmap_to\n"
-        "      cbanded_map_aspc2_lma_op1 => "
+        "    cbanded_map_aspc2_lma_op1 => "
         "cma_op1_proxy%column_banded_dofmap_from\n") in code
     assert (
-        "      ! Look-up information for each CMA operator\n"
-        "      !\n"
-        "      cma_op1_cma_matrix => cma_op1_proxy%columnwise_matrix\n"
-        "      cma_op1_nrow = cma_op1_proxy%nrow\n"
-        "      cma_op1_ncol = cma_op1_proxy%ncol\n"
-        "      cma_op1_bandwidth = cma_op1_proxy%bandwidth\n"
-        "      cma_op1_alpha = cma_op1_proxy%alpha\n"
-        "      cma_op1_beta = cma_op1_proxy%beta\n"
-        "      cma_op1_gamma_m = cma_op1_proxy%gamma_m\n"
-        "      cma_op1_gamma_p = cma_op1_proxy%gamma_p\n"
+        "    ! Look-up information for each CMA operator\n"
+        "    cma_op1_cma_matrix => cma_op1_proxy%columnwise_matrix\n"
+        "    cma_op1_nrow = cma_op1_proxy%nrow\n"
+        "    cma_op1_ncol = cma_op1_proxy%ncol\n"
+        "    cma_op1_bandwidth = cma_op1_proxy%bandwidth\n"
+        "    cma_op1_alpha = cma_op1_proxy%alpha\n"
+        "    cma_op1_beta = cma_op1_proxy%beta\n"
+        "    cma_op1_gamma_m = cma_op1_proxy%gamma_m\n"
+        "    cma_op1_gamma_p = cma_op1_proxy%gamma_p\n"
     ) in code
     assert (
         "call columnwise_op_asm_field_kernel_code(cell, nlayers_afield, "
@@ -1389,11 +1384,13 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "undf_aspc1_afield, map_aspc1_afield(:,cell), "
         "cbanded_map_aspc1_afield, ndf_aspc2_lma_op1, "
         "cbanded_map_aspc2_lma_op1)\n"
-        "        call testkern_two_real_scalars_code(nlayers_afield, scalar1, "
+        "      call testkern_two_real_scalars_code(nlayers_afield, scalar1, "
         "afield_data, bfield_data, cfield_data, "
         "dfield_data, scalar2, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))\n") in code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
 
 
 def test_omp_par_and_halo_exchange_error():
@@ -1492,8 +1489,6 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
         otrans.apply(child)
     result = str(psy.gen)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
     if dist_mem:  # annexed can be True or False
         for idx in range(1, 4):
             if annexed:
@@ -1569,6 +1564,7 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      f3_data(df) = ginger\n"
             "    enddo\n"
             "    !$omp end parallel do\n") in result
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1592,8 +1588,6 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
     # Apply OpenMP parallelisation to the loop
     otrans.apply(schedule.children[0])
     result = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:  # annexed can be True or False
         if annexed:
@@ -1645,6 +1639,7 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      f3_data(df) = ginger\n"
             "    enddo\n"
             "    !$omp end parallel do") in result
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1916,6 +1911,8 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
             "      asum = asum + f1_data(df) * f2_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n") in code
 
@@ -1960,6 +1957,8 @@ def test_reduction_real_do(tmpdir, dist_mem):
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n") in code
     else:
@@ -2007,6 +2006,8 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      asum = asum + f1_data(df) * f2_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n"
             "\n"
@@ -2019,6 +2020,8 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      asum = asum + f1_data(df) * f2_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n") in code
     else:
@@ -2107,6 +2110,8 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "    ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()")
         assert expected_output in result
@@ -2201,6 +2206,8 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      asum = asum + l_asum(1,th_idx)\n"
             "    enddo\n"
             "    DEALLOCATE(l_asum)\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()")
         assert expected_output in result
@@ -2288,8 +2295,12 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()")
     else:
@@ -2386,8 +2397,12 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      bsum = bsum + l_bsum(1,th_idx)\n"
             "    enddo\n"
             "    DEALLOCATE(l_bsum)\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()")
     else:
@@ -2434,7 +2449,6 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
     assert expected_output in result
 
 
-@pytest.mark.xfail(reason="reduction name clashes not supported")
 def test_multi_reduction_same_name_real_do():
     '''test that we raise an exception when we have multiple reductions in
     an invoke with the same name as this is not supported (it would
@@ -2458,7 +2472,7 @@ def test_multi_reduction_same_name_real_do():
                 # in general it could be valid to move the global sum
                 del schedule.children[1]
             rtrans.apply(schedule.children[0:2])
-            with pytest.raises(GenerationError) as excinfo:
+            with pytest.raises(VisitorError) as excinfo:
                 _ = str(psy.gen)
             assert (
                 "Reduction variables can only be used once in an "
@@ -2523,6 +2537,8 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      asum = asum + f1_data(df) * f2_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n"
             "\n"
@@ -2535,6 +2551,8 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      bsum = bsum + f1_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()\n") in code
     else:
@@ -2605,6 +2623,8 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      asum = asum + f1_data(df) * f2_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n"
             "    !$omp parallel do default(shared), private(df), "
@@ -2701,7 +2721,8 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "    ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
-            # "\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n")
         if not annexed:
@@ -2789,6 +2810,8 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "    ! Set halos dirty/clean for fields modified in the "
                 "above loop(s)\n"
                 "    call f1_proxy%set_dirty()\n"
+                "\n"
+                "    ! Perform global sum\n"
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
         else:  # not distmem. annexed can be True or False
@@ -2873,6 +2896,8 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "    ! Set halos dirty/clean for fields modified in the "
                 "above loop(s)\n"
                 "    call f1_proxy%set_dirty()\n"
+                "\n"
+                "    ! Perform global sum\n"
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
         else:  # not distmem, annexed is True or False
@@ -2950,6 +2975,8 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "      asum = asum + f1_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n")
         assert code in result
@@ -3027,6 +3054,8 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "    ! Set halos dirty/clean for fields modified in the "
                 "above loop(s)\n"
                 "    call f1_proxy%set_dirty()\n"
+                "\n"
+                "    ! Perform global sum\n"
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
         else:  # not distmem. annexed can be True or False
@@ -3104,6 +3133,8 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "    ! Set halos dirty/clean for fields modified in the "
                 "above loop(s)\n"
                 "    call f1_proxy%set_dirty()\n"
+                "\n"
+                "    ! Perform global sum\n"
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n")
         else:  # not distmem. annexed can be True or False
@@ -3224,6 +3255,8 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      asum = asum + l_asum(1,th_idx)\n"
             "    enddo\n"
             "    DEALLOCATE(l_asum)\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()") in code
     else:
@@ -3352,6 +3385,8 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      asum = asum + l_asum(1,th_idx)\n"
             "    enddo\n"
             "    DEALLOCATE(l_asum)\n"
+            "\n"
+            "    ! Perform global sum\n"
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n")
         assert code in result
@@ -3466,6 +3501,8 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      asum = asum + l_asum(1,th_idx)\n"
                 "    enddo\n"
                 "    DEALLOCATE(l_asum)\n"
+                "\n"
+                "    ! Perform global sum\n"
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n") in result
         else:  # not distmem. annexed can be True or False
@@ -3562,6 +3599,8 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      asum = asum + l_asum(1,th_idx)\n"
                 "    enddo\n"
                 "    DEALLOCATE(l_asum)\n"
+                "\n"
+                "    ! Perform global sum\n"
                 "    global_sum%value = asum\n"
                 "    asum = global_sum%get_sum()\n") in result
         else:  # distmem is False. annexed can be True or False
@@ -3651,6 +3690,8 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 names["lvar"] + "(1,th_idx)\n"
                 "    enddo\n"
                 "    DEALLOCATE(" + names["lvar"] + ")\n"
+                "\n"
+                "    ! Perform global sum\n"
                 "    global_sum%value = " + names["var"] + "\n"
                 "    " + names["var"] + " = "
                 "global_sum%get_sum()\n") in code

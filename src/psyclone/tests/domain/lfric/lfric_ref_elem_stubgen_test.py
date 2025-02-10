@@ -85,7 +85,6 @@ def test_refelem_stub_gen(fortran_writer):
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = fortran_writer(kernel.gen_stub)
-    print(gen)
 
     assert """\
 module testkern_ref_elem_mod

@@ -2789,7 +2789,7 @@ class DynBasisFunctions(LFRicCollection):
                 interface=ImportInterface(
                     self.symtab.lookup("constants_mod")))
 
-            # All quatratures are REAL, the the PSyIR type
+            # All quatratures are REAL
             intr_type = ScalarType(ScalarType.Intrinsic.REAL, kind_sym)
 
             if shape == "gh_quadrature_xyoz":
@@ -3704,6 +3704,7 @@ class DynGlobalSum(GlobalSum):
             lhs=StructureReference.create(sum_name, ["value"]),
             rhs=Reference(tmp_var)
         )
+        assign1.preceding_comment = "Perform global sum"
         self.parent.addchild(assign1, self.position)
         assign2 = Assignment.create(
             lhs=Reference(tmp_var),
@@ -4215,6 +4216,7 @@ class LFRicHaloExchange(HaloExchange):
         else:
             haloex = if_body
 
+        haloex.preceding_comment = self.preceding_comment
         self.replace_with(haloex)
         return haloex
 

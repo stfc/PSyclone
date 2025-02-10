@@ -331,54 +331,6 @@ def test_lfricscalars_call_err1():
             in str(err.value))
 
 
-def test_lfricscalars_call_err2():
-    '''Check that LFRicScalarArgs _create_declarations method raises the
-    expected internal errors for real, integer and logical scalars if
-    neither invoke nor kernel is set.
-
-    '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.7_single_invoke_3scalar.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    scalar_args = LFRicScalarArgs(invoke)
-    # Set up information that _create_declarations requires. Note,
-    # this method also calls _create_declarations.
-    scalar_args.invoke_declarations()
-
-    # Sabotage code so that a call to _create declarations raises the
-    # required exceptions.
-    scalar_args._invoke = None
-
-    return
-    # The first exception comes from real scalars.
-    with pytest.raises(InternalError) as error:
-        scalar_args._create_declarations(0)
-    assert ("Expected the declaration of the scalar kernel arguments to be "
-            "for either an invoke or a kernel stub, but it is neither."
-            in str(error.value))
-
-    # Remove real scalars so we get the exception for integer scalars.
-    for intent in FORTRAN_INTENT_NAMES:
-        scalar_args._real_scalars[intent] = None
-    with pytest.raises(InternalError) as error:
-        scalar_args._create_declarations(0)
-    assert ("Expected the declaration of the scalar kernel arguments to "
-            "be for either an invoke or a kernel stub, but it is neither."
-            in str(error.value))
-
-    # Remove integer scalars so we get the exception for logical scalars.
-    for intent in FORTRAN_INTENT_NAMES:
-        scalar_args._integer_scalars[intent] = None
-    with pytest.raises(InternalError) as error:
-        scalar_args._create_declarations(0)
-    assert ("Expected the declaration of the scalar kernel arguments to "
-            "be for either an invoke or a kernel stub, but it is neither."
-            in str(error.value))
-
-
 def test_lfricscalarargs_mp():
     '''Check that the precision of a new scalar integer datatype is
     declared in the psy-layer.

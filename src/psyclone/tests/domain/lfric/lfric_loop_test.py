@@ -68,7 +68,7 @@ TEST_API = "lfric"
 
 def test_constructor_loop_bound_names():
     ''' Check that the constructor creates the appropriate loop bound
-    references (with names with a sequencially ascending index)
+    references (with names with a sequentially ascending index)
     '''
     with pytest.raises(InternalError) as err:
         _ = LFRicLoop(loop_type="null")

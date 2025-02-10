@@ -676,7 +676,6 @@ def test_multi_prefix_profile(monkeypatch):
     assert ("  type(tool1_PSyDataType), save, target :: tool1_psy_data"
             in result)
     assert (
-            # "    ! Call kernels and communication routines\n"
             "    CALL tool1_psy_data % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r0\", 0, 0)\n"
             "    if (f1_proxy%is_dirty(depth=1)) then\n" in result)

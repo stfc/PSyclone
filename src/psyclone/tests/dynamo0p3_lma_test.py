@@ -605,6 +605,8 @@ ndf_w2, diff_basis_w2_qr)
     ! Set-up all of the loop bounds
     loop0_start = 1
     loop0_stop = mesh%get_last_halo_cell(1)
+
+    ! Call kernels and communication routines
     if (coord_proxy(1)%is_dirty(depth=1)) then
       call coord_proxy(1)%halo_exchange(depth=1)
     end if

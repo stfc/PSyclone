@@ -206,8 +206,8 @@ def test_field_xyoz(tmpdir):
         "    ! Set-up all of the loop bounds\n"
         "    loop0_start = 1\n"
         "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-        # "\n"
-        # "    ! Call kernels and communication routines\n"
+        "\n"
+        "    ! Call kernels and communication routines\n"
         "    if (f1_proxy%is_dirty(depth=1)) then\n"
         "      call f1_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
@@ -428,8 +428,8 @@ def test_face_qr(tmpdir, dist_mem):
     if dist_mem:
         init_output2 += (
             "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-            # "\n"
-            # "    ! Call kernels and communication routines\n"
+            "\n"
+            "    ! Call kernels and communication routines\n"
             "    if (f1_proxy%is_dirty(depth=1)) then\n"
             "      call f1_proxy%halo_exchange(depth=1)\n"
             "    end if\n"

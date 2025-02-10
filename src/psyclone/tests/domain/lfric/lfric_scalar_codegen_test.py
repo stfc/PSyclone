@@ -65,8 +65,6 @@ def test_real_scalar(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
     expected = (
         "  subroutine invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "    use mesh_mod, only : mesh_type\n"
@@ -137,8 +135,8 @@ def test_real_scalar(tmpdir):
         "    ! Set-up all of the loop bounds\n"
         "    loop0_start = 1\n"
         "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-        # "\n"
-        # "    ! Call kernels and communication routines\n"
+        "\n"
+        "    ! Call kernels and communication routines\n"
         "    if (f1_proxy%is_dirty(depth=1)) then\n"
         "      call f1_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
@@ -156,6 +154,7 @@ def test_real_scalar(tmpdir):
         " m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_int_scalar(tmpdir):
@@ -169,8 +168,6 @@ def test_int_scalar(tmpdir):
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected = (
         "  subroutine invoke_0_testkern_one_int_scalar_type"
@@ -244,8 +241,8 @@ def test_int_scalar(tmpdir):
         "    ! Set-up all of the loop bounds\n"
         "    loop0_start = 1\n"
         "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-        # "\n"
-        # "    ! Call kernels and communication routines\n"
+        "\n"
+        "    ! Call kernels and communication routines\n"
         "    if (f1_proxy%is_dirty(depth=1)) then\n"
         "      call f1_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
@@ -264,6 +261,7 @@ def test_int_scalar(tmpdir):
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))\n")
     assert expected in generated_code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_two_real_scalars(tmpdir):
@@ -277,8 +275,6 @@ def test_two_real_scalars(tmpdir):
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected = (
         "  subroutine invoke_0_testkern_two_real_scalars_type(a, f1, f2, "
@@ -353,8 +349,8 @@ def test_two_real_scalars(tmpdir):
         "    ! Set-up all of the loop bounds\n"
         "    loop0_start = 1\n"
         "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-        # "\n"
-        # "    ! Call kernels and communication routines\n"
+        "\n"
+        "    ! Call kernels and communication routines\n"
         "    if (f1_proxy%is_dirty(depth=1)) then\n"
         "      call f1_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
@@ -373,6 +369,7 @@ def test_two_real_scalars(tmpdir):
         "b, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_two_int_scalars(tmpdir):
@@ -385,8 +382,6 @@ def test_two_int_scalars(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected = (
         "  subroutine invoke_0(iflag, f1, f2, m1, m2, istep)\n"
@@ -464,8 +459,8 @@ def test_two_int_scalars(tmpdir):
         "    loop0_stop = mesh%get_last_halo_cell(1)\n"
         "    loop1_start = 1\n"
         "    loop1_stop = mesh%get_last_halo_cell(1)\n"
-        # "\n"
-        # "    ! Call kernels and communication routines\n"
+        "\n"
+        "    ! Call kernels and communication routines\n"
         "    if (f1_proxy%is_dirty(depth=1)) then\n"
         "      call f1_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
@@ -492,6 +487,7 @@ def test_two_int_scalars(tmpdir):
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_three_scalars(tmpdir):
@@ -503,8 +499,6 @@ def test_three_scalars(tmpdir):
                                         "1.7_single_invoke_3scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     generated_code = str(psy.gen)
     expected = (
@@ -588,6 +582,8 @@ def test_three_scalars(tmpdir):
         "    ! Set-up all of the loop bounds\n"
         "    loop0_start = 1\n"
         "    loop0_stop = mesh%get_last_halo_cell(1)\n"
+        "\n"
+        "    ! Call kernels and communication routines\n"
         "    if (f1_proxy%is_dirty(depth=1)) then\n"
         "      call f1_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
@@ -606,3 +602,4 @@ def test_three_scalars(tmpdir):
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
         " map_w3(:,cell))\n")
     assert expected in generated_code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
