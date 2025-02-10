@@ -250,16 +250,16 @@ def test_rename_suffix_if_name_clash():
     # contain out_fld_post for the input variable out_fld_post,
     # and "out_fld_post0" for the output value of out_fld.
     expected = """
-      CALL extract_psy_data%PreDeclareVariable("out_fld_post", out_fld_post)
-      CALL extract_psy_data%PreDeclareVariable("in_out_fld_post0", in_out_fld)
-      CALL extract_psy_data%PreDeclareVariable("out_fld_post0", out_fld)
-      CALL extract_psy_data%ProvideVariable("in_out_fld", in_out_fld)
-      CALL extract_psy_data%ProvideVariable("out_fld_post", out_fld_post)
-      CALL extract_psy_data%ProvideVariable("in_out_fld_post0", in_out_fld)
-      CALL extract_psy_data%ProvideVariable("out_fld_post0", out_fld)"""
+      CALL extract_psy_data % PreDeclareVariable("out_fld_post", out_fld_post)
+      CALL extract_psy_data % PreDeclareVariable("in_out_fld_post0", in_out_fld)
+      CALL extract_psy_data % PreDeclareVariable("out_fld_post0", out_fld)
+      CALL extract_psy_data % ProvideVariable("in_out_fld", in_out_fld)
+      CALL extract_psy_data % ProvideVariable("out_fld_post", out_fld_post)
+      CALL extract_psy_data % ProvideVariable("in_out_fld_post0", in_out_fld)
+      CALL extract_psy_data % ProvideVariable("out_fld_post0", out_fld)"""
     expected_lines = expected.split("\n")
     for line in expected_lines:
-        assert line in expected_lines
+        assert line in extract_code
 
     # Now we also need to check that the driver uses the new suffix,
     # i.e. both as key for ReadVariable, as well as for the variable
