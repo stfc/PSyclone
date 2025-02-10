@@ -802,9 +802,6 @@ class SymbolTable():
                             trying to add to self.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        :raises InternalError: if the supplied symbol is imported from a
-            Container that is not represented in this table.
-
         '''
         if old_sym.is_import:
             # This symbol is imported from a Container so should
@@ -813,10 +810,13 @@ class SymbolTable():
             self_csym = self.lookup(old_sym.interface.container_symbol.name)
             if old_sym.interface.container_symbol is self_csym:
                 return
-            raise InternalError(
-                f"Symbol '{old_sym.name}' imported from '{self_csym.name}' "
-                f"has not been updated to refer to the corresponding "
-                f"container in the current table.")
+            elif self._has_same_name(old_sym.interface.container_symbol,
+                                     self_csym):
+                # The Containers have the same name so must in fact be the
+                # same. Update the symbol's interface to point to the Container
+                # that is in scope here.
+                old_sym.interface.container_symbol = self_csym
+                return
 
         self_sym = self.lookup(old_sym.name)
         if old_sym.is_unresolved and self_sym.is_unresolved:
@@ -944,7 +944,6 @@ class SymbolTable():
             visibility: Optional[Union[Symbol.Visibility,
                                        List[Symbol.Visibility]]] = None,
             scope_limit=None,
-            symbol_type: Optional[type] = None,
             otherwise: Any = DEFAULT_SENTINEL) -> Any:
         '''Look up a symbol in the symbol table. The lookup can be limited
         by visibility (e.g. just show public methods) or by scope_limit (e.g.
@@ -1006,19 +1005,6 @@ class SymbolTable():
                         f"Symbol '{name}' exists in the Symbol Table but has "
                         f"visibility '{symbol.visibility.name}' which does not"
                         f" match with the requested visibility: {vis_names}")
-            if symbol_type and not isinstance(symbol, symbol_type):
-                # A Symbol type was specified and the symbol we've found is not
-                # of the correct type so keep looking in outer scopes.
-                table = self.parent_symbol_table(scope_limit=scope_limit)
-                if not table:
-                    raise KeyError(
-                        f"Only found one Symbol named '{name}' and it is of "
-                        f"type '{type(symbol).__name__}' rather than "
-                        f"'{symbol_type}'")
-                symbol = table.lookup(name, visibility=visibility,
-                                      scope_limit=scope_limit,
-                                      symbol_type=symbol_type,
-                                      otherwise=otherwise)
             return symbol
         except KeyError as err:
             if otherwise is DEFAULT_SENTINEL:
@@ -1143,8 +1129,8 @@ class SymbolTable():
                 continue
             for access in vai[sig].all_accesses:
                 if access.node.scope is access.node:
-                    # This is just the symbol table associated
-                    # with a ScopingNode.
+                    # This the symbol table associated with a ScopingNode.
+                    # It could contain references to this symbol.
                     continue
                 if (access.node.scope.symbol_table.lookup(norm_name)
                         is test_symbol):
@@ -1159,7 +1145,9 @@ class SymbolTable():
                         access.node.replace_with(
                             Literal(access.node.value, newtype))
                     else:
-                        assert 0, f"Node {access.node} not supported"
+                        raise InternalError(
+                            f"Node of type '{type(access.node).__name__}' not "
+                            f"supported in SymbolTable._replace_symbol.")
 
     def _validate_remove_routinesymbol(self, symbol):
         '''
@@ -1265,53 +1253,6 @@ class SymbolTable():
         # target of a Call or a member of a GenericInterfaceSymbol.
         if isinstance(symbol, RoutineSymbol):
             self._validate_remove_routinesymbol(symbol)
-        elif self.node:
-            from psyclone.psyir.nodes import (Call, Literal, Reference,
-                                              ScopingNode)
-            from psyclone.core.variables_access_info import VariablesAccessInfo
-            vai = VariablesAccessInfo()
-            self.node.reference_accesses(vai)
-            for sig in vai.all_signatures:
-                if sig.var_name.lower() != norm_name:
-                    continue
-                # The variable associated with this signature has the same
-                # name as the target symbol. Now look at each access...
-                for access in vai[sig].all_accesses:
-                    if isinstance(access.node, ScopingNode):
-                        continue
-                    # We need to know whether this access is the actual
-                    # symbol we want to remove, not whether it just has the
-                    # same name...
-                    # TODO
-                    if isinstance(access.node, Reference):
-                        this_sym = access.node.symbol
-                    elif isinstance(access.node, Call):
-                        this_sym = access.node.routine.symbol
-                    elif isinstance(access.node, Literal):
-                        this_sym = access.node.datatype.precision
-                    else:
-                        assert 0, f"Node {access.node} unsupported 2"
-
-                    if this_sym is not symbol:
-                        # This access is not to the target symbol.
-                        continue
-
-                    if symbol.find_symbol_table(access.node) is not self:
-                        continue
-                    # The symbol we've found an access of is the one
-                    # in this table. Therefore, we can only remove it
-                    # provided that it also exists in an outer scope.
-                    outer_sym = self.parent_symbol_table().lookup(
-                        norm_name, otherwise=None)
-                    if outer_sym is not symbol:
-                        from psyclone.psyir.nodes import Statement
-                        stmt = access.node.ancestor(Statement)
-                        if not stmt:
-                            stmt = access.node
-                        raise ValueError(
-                            f"Cannot remove {type(symbol).__name__} "
-                            f"'{symbol.name}' because it is "
-                            f"accessed in '{stmt.debug_string().strip()}'")
 
         # If the symbol had a tag, it should be disassociated
         for tag, tagged_symbol in list(self._tags.items()):

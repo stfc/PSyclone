@@ -686,6 +686,8 @@ def test_check_for_clashes_imports():
     clash2 = symbols.DataSymbol("prefect", symbols.INTEGER_TYPE,
                                 interface=symbols.ImportInterface(csym2))
     table2.add(clash2)
+    # No clash if passed itself.
+    table1.check_for_clashes(table1)
     # No clash as the containers are the same, just with different
     # capitalisation.
     table1.check_for_clashes(table2)
@@ -1042,27 +1044,6 @@ def test_add_container_symbols_from_table():
     assert aclash.name != "aclash"
     assert bclash_in_1 in table1.symbols
     assert bclash_in_1.name != "bclash"
-
-
-def test_add_symbols_from_table_import_error():
-    '''Test that the 'internal' _add_symbols_from_table() method raises
-    the expected error if a Container import has not been updated before
-    it is called.'''
-    table1 = symbols.SymbolTable()
-    table2 = symbols.SymbolTable()
-    csym = symbols.ContainerSymbol("ford")
-    csym2 = csym.copy()
-    table1.add(csym)
-    table2.add(csym2)
-    table1.add(symbols.DataSymbol("prefect", symbols.INTEGER_TYPE,
-                                  interface=symbols.ImportInterface(csym2)))
-    table2.add(symbols.DataSymbol("prefect", symbols.INTEGER_TYPE,
-                                  interface=symbols.ImportInterface(csym2)))
-    with pytest.raises(InternalError) as err:
-        table1._add_symbols_from_table(table2, {})
-    assert ("Symbol 'prefect' imported from 'ford' has not been updated to "
-            "refer to the corresponding container in the current table."
-            in str(err.value))
 
 
 def test_add_symbols_from_table_wildcard_import():
