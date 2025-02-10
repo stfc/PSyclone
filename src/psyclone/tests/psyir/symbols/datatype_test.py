@@ -894,8 +894,11 @@ def test_structure_type():
     stype = StructureType()
     assert str(stype) == "StructureType<>"
     assert not stype.components
-    stype.add("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)
+    stype.add("flaG", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)
+    # Lookup is not case sensitive
     flag = stype.lookup("flag")
+    # But we retain information on the original capitalisation
+    assert flag.name == "flaG"
     assert not flag.initial_value
     assert isinstance(flag, StructureType.ComponentType)
     stype.add("flag2", INTEGER_TYPE, Symbol.Visibility.PUBLIC,
