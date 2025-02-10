@@ -1392,7 +1392,6 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-
 def test_omp_par_and_halo_exchange_error():
     ''' Tests that we raise an error if we try to apply an OMP parallel
     transformation to a list containing halo_exchange calls. If this is

@@ -1206,4 +1206,3 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         assert halo2_flags in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-

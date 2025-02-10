@@ -52,7 +52,7 @@ from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import FORTRAN_INTENT_NAMES, PSyFactory
+from psyclone.psyGen import PSyFactory
 
 # Constants
 BASE_PATH = os.path.join(

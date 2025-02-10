@@ -131,7 +131,6 @@ class KernCallArgList(ArgOrdering):
                                              symbol_type=ContainerSymbol)
             mod_sym_tab = self._symtab
 
-
         # The user-defined type must be declared in the same symbol
         # table as the container (otherwise errors will happen later):
         user_type_symbol = mod_sym_tab.find_or_create(

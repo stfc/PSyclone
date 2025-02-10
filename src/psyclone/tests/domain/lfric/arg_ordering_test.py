@@ -44,14 +44,13 @@ import pytest
 from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.domain.lfric import (KernCallArgList, KernStubArgList,
                                    LFRicConstants, LFRicKern,
-                                   LFRicKernMetadata, LFRicLoop,
-                                   LFRicSymbolTable)
+                                   LFRicKernMetadata, LFRicLoop)
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import ArrayReference, Literal, Reference
-from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
+from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 

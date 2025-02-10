@@ -585,9 +585,6 @@ def test_indirect_dofmap(fortran_writer):
         assert (psyir_args[i].symbol.datatype ==
                 LFRicTypes("LFRicIntegerScalarDataType")())
 
-    # Create a dummy LFRic symbol table to simplify creating
-    # standard LFRic types:
-    dummy_sym_tab = LFRicSymbolTable()
     # Test all 1D real arrays:
     for i in [2, 3]:
         # The datatype of a field reference is of UnsupportedFortranType

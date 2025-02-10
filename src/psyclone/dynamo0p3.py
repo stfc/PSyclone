@@ -1662,7 +1662,6 @@ class DynCMAOperators(LFRicCollection):
                         if not self._first_cma_arg:
                             self._first_cma_arg = arg
 
-
     def initialise(self, cursor: int) -> int:
         '''
         Generates the calls to the LFRic infrastructure that look-up
@@ -1761,7 +1760,7 @@ class DynCMAOperators(LFRicCollection):
             for param in self._cma_ops[op_name]["params"]:
                 name = f"{op_name}_{param}"
                 tag = f"{op_name}:{param}:{suffix}"
-                sym = self.symtab.find_or_create(
+                self.symtab.find_or_create(
                     name, tag=tag,
                     symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")()

@@ -417,7 +417,7 @@ def test_profile_kernels_dynamo0p3(fortran_writer):
                   "end.*"
                   r"CALL (?P=profile2) % PostEnd")
 
-    groups = re.search(correct_re, code, re.I)
+    # groups = re.search(correct_re, code, re.I)
     # assert groups is not None
     # Check that the variables are different
     # assert groups.group(1) != groups.group(2)
