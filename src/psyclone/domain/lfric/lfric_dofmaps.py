@@ -50,7 +50,7 @@ LFRicDofmaps is used in the LFRicInvoke module.
 from collections import OrderedDict
 
 from psyclone import psyGen
-from psyclone.domain.lfric import LFRicCollection, LFRicTypes
+from psyclone.domain.lfric import LFRicCollection, LFRicTypes, LFRicConstants
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import Assignment, Reference, StructureReference
 from psyclone.psyir.symbols import (
@@ -298,18 +298,22 @@ class LFRicDofmaps(LFRicCollection):
             self.symtab.append_argument(dmap_symbol)
 
         # CMA operator indirection dofmaps
+        const = LFRicConstants()
+        suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
         for dmap, cma in self._unique_indirection_maps.items():
             if cma["direction"] == "to":
-                dim_name = cma["argument"].name + "_nrow"
+                param = "nrow"
             elif cma["direction"] == "from":
-                dim_name = cma["argument"].name + "_ncol"
+                param = "ncol"
             else:
                 raise InternalError(
                     f"Invalid direction ('{cma['''direction''']}') found for "
                     f"CMA operator when collecting indirection dofmaps. "
                     f"Should be either 'to' or 'from'.")
-            dim = self.symtab.find_or_create(
-                dim_name, symbol_type=DataSymbol,
+            dim = self.symtab.find_or_create_tag(
+                f"{cma["argument"].name}:{param}:{suffix}",
+                root_name=f"{cma["argument"]}_{param}",
+                symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             dim.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(dim)

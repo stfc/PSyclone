@@ -486,6 +486,8 @@ def test_dynamo0p3_builtin():
     CALL extract_psy_data % ProvideVariable("f5_data_post", f5_data)
     CALL extract_psy_data % PostEnd"""
     assert output in code
+    # TODO #706: Compilation for LFRic extraction not supported yet.
+    # assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_extract_single_builtin_dynamo0p3():

@@ -258,6 +258,7 @@ def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
+    psy.invokes.invoke_list[0].setup_psy_layer_symbols()
     kernel = schedule.kernels()[0]
 
     create_arg_list = KernCallArgList(kernel)
@@ -274,12 +275,10 @@ def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
     psyir_arglist = create_arg_list.psyir_arglist
 
-    sym_tab = LFRicSymbolTable()
-    arr_2d = sym_tab.find_or_create_array("doesnt_matter", 2,
-                                          ScalarType.Intrinsic.INTEGER)
     # Check datatype of the cbanded_map parameters are indeed 2d int arrays
     for i in [14, 16]:
-        assert psyir_arglist[i].datatype == arr_2d.datatype
+        assert "integer" in psyir_arglist[i].datatype.declaration
+        assert "(:,:)" in psyir_arglist[i].datatype.declaration
 
 
 def test_arg_ordering_mdata_index():

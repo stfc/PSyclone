@@ -1662,36 +1662,6 @@ class DynCMAOperators(LFRicCollection):
                         if not self._first_cma_arg:
                             self._first_cma_arg = arg
 
-        # Create all the necessary Symbols here so that they are available
-        # without the need to do a 'gen'.
-        symtab = self.symtab
-        const = LFRicConstants()
-        suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
-        for op_name in self._cma_ops:
-            new_name = self.symtab.next_available_name(
-                f"{op_name}_{suffix}")
-            tag = f"{op_name}:{suffix}"
-            arg = self._cma_ops[op_name]["arg"]
-            precision = LFRicConstants().precision_for_type(arg.data_type)
-            array_type = ArrayType(
-                LFRicTypes("LFRicRealScalarDataType")(precision),
-                [ArrayType.Extent.DEFERRED]*3)
-            index_str = ",".join(3*[":"])
-            dtype = UnsupportedFortranType(
-                f"real(kind={arg.precision}), pointer, "
-                f"dimension({index_str}) :: {new_name} => null()",
-                partial_datatype=array_type)
-            symtab.new_symbol(new_name,
-                              symbol_type=DataSymbol,
-                              datatype=dtype,
-                              tag=tag)
-            # Now the various integer parameters of the operator.
-            for param in self._cma_ops[op_name]["params"]:
-                symtab.find_or_create(
-                    f"{op_name}_{param}",
-                    tag=f"{op_name}:{param}:{suffix}",
-                    symbol_type=DataSymbol,
-                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
     def initialise(self, cursor: int) -> int:
         '''
@@ -1715,8 +1685,9 @@ class DynCMAOperators(LFRicCollection):
         for op_name in self._cma_ops:
             # First, assign a pointer to the array containing the actual
             # matrix.
-            cma_name = self.symtab.lookup_with_tag(
-                f"{op_name}:{suffix}")
+            cma_name = self.symtab.find_or_create_tag(
+                f"{op_name}:{suffix}", op_name,
+                symbol_type=DataSymbol, datatype=UnresolvedType())
             stmt = Assignment.create(
                     lhs=Reference(cma_name),
                     rhs=StructureReference.create(
@@ -1768,9 +1739,25 @@ class DynCMAOperators(LFRicCollection):
         const = LFRicConstants()
         suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
         for op_name in self._cma_ops:
+            new_name = self.symtab.next_available_name(
+                f"{op_name}_{suffix}")
+            tag = f"{op_name}:{suffix}"
+            arg = self._cma_ops[op_name]["arg"]
+            precision = LFRicConstants().precision_for_type(arg.data_type)
+            array_type = ArrayType(
+                LFRicTypes("LFRicRealScalarDataType")(precision),
+                [ArrayType.Extent.DEFERRED]*3)
+            index_str = ",".join(3*[":"])
+            dtype = UnsupportedFortranType(
+                f"real(kind={arg.precision}), pointer, "
+                f"dimension({index_str}) :: {new_name} => null()",
+                partial_datatype=array_type)
+            self.symtab.new_symbol(new_name,
+                                   symbol_type=DataSymbol,
+                                   datatype=dtype,
+                                   tag=tag)
 
             # Declare the associated integer parameters
-            param_names = []
             for param in self._cma_ops[op_name]["params"]:
                 name = f"{op_name}_{param}"
                 tag = f"{op_name}:{param}:{suffix}"
@@ -1779,7 +1766,6 @@ class DynCMAOperators(LFRicCollection):
                     symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")()
                 )
-                param_names.append(sym.name)
 
     def stub_declarations(self):
         '''

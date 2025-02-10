@@ -188,8 +188,6 @@ def test_single_kern_eval(tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
     # Check module declarations
     assert "use constants_mod\n" in code
     assert "use field_mod, only : field_proxy_type, field_type" in code
@@ -295,6 +293,7 @@ def test_single_kern_eval(tmpdir):
         "  end subroutine invoke_0_testkern_eval_type\n"
     )
     assert dealloc_code in code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_single_kern_eval_op(tmpdir):
@@ -305,8 +304,6 @@ def test_single_kern_eval_op(tmpdir):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Kernel writes to an operator, the 'to' space of which is W0. Kernel
     # requires basis on W2 ('from'-space of operator) and diff-basis on
@@ -372,6 +369,7 @@ def test_single_kern_eval_op(tmpdir):
         "    enddo\n")
     assert kern_call in code
     assert "    DEALLOCATE(basis_w2_on_w0, diff_basis_w3_on_w0)\n" in code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_two_qr_same_shape(tmpdir):
@@ -382,8 +380,6 @@ def test_two_qr_same_shape(tmpdir):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "use constants_mod\n" in code
     assert "use field_mod, only : field_proxy_type, field_type" in code
@@ -557,6 +553,7 @@ def test_two_qr_same_shape(tmpdir):
         "diff_basis_w3_qr2)\n"
     )
     assert expected_kern_call in code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_two_identical_qr(tmpdir):
@@ -567,8 +564,6 @@ def test_two_identical_qr(tmpdir):
         api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected_init = (
         "    ! Look-up quadrature variables\n"
@@ -628,6 +623,7 @@ def test_two_identical_qr(tmpdir):
         "DEALLOCATE(basis_w1_qr, basis_w3_qr, diff_basis_w2_qr, "
         "diff_basis_w3_qr)")
     assert expected_dealloc in code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_two_qr_different_shapes(tmpdir):
@@ -639,9 +635,6 @@ def test_two_qr_different_shapes(tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    print(code)
     assert "type(quadrature_face_proxy_type) :: qrf_proxy" in code
     assert "type(quadrature_xyoz_proxy_type) :: qr_proxy" in code
 
@@ -680,8 +673,6 @@ def test_anyw2(tmpdir, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
     output = (
         "    ! Initialise number of DoFs for any_w2\n"
         "    ndf_any_w2 = f1_proxy%vspace%get_ndf()\n"
@@ -709,6 +700,7 @@ def test_anyw2(tmpdir, dist_mem):
         "    call qr%compute_function(DIFF_BASIS, f1_proxy%vspace, "
         "diff_dim_any_w2, ndf_any_w2, diff_basis_any_w2_qr)")
     assert output in generated_code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_qr_plus_eval(tmpdir):
@@ -718,8 +710,6 @@ def test_qr_plus_eval(tmpdir):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "use constants_mod\n" in code
     assert "use field_mod, only : field_proxy_type, field_type" in code
@@ -885,8 +875,6 @@ def test_two_eval_same_space(tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
     output_init = (
         "\n"
         "    ! Initialise evaluator-related quantities for the target "
@@ -934,6 +922,7 @@ def test_two_eval_same_space(tmpdir):
         "    enddo\n"
     )
     assert output_code in code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_two_eval_diff_space(tmpdir):
@@ -944,8 +933,6 @@ def test_two_eval_diff_space(tmpdir):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # The first kernel in the invoke (testkern_eval_type) requires basis and
     # diff basis functions for the spaces of the first and second field
@@ -1017,6 +1004,7 @@ def test_two_eval_diff_space(tmpdir):
         "diff_basis_w3_on_w0)\n"
         "    enddo\n")
     assert expected_code in code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_two_eval_same_var_same_space(tmpdir):
@@ -1028,8 +1016,6 @@ def test_two_eval_same_var_same_space(tmpdir):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # We should only get one set of basis and diff-basis functions in the
     # generated code
@@ -1052,6 +1038,7 @@ def test_two_eval_same_var_same_space(tmpdir):
         "    enddo\n") == 1
     assert code.count(
         "DEALLOCATE(basis_w0_on_adspc1_f0, diff_basis_w1_on_adspc1_f0)") == 1
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_two_eval_op_to_space(tmpdir):

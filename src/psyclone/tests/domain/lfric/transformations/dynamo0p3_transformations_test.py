@@ -3285,7 +3285,6 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "    DEALLOCATE(l_asum)\n") in code
 
 
-@pytest.mark.xfail(reason="FIXME")
 def test_no_global_sum_in_parallel_region():
     '''test that we raise an error if we try to put a parallel region
     around loops with a global sum. '''
@@ -3304,7 +3303,8 @@ def test_no_global_sum_in_parallel_region():
         with pytest.raises(VisitorError) as excinfo:
             _ = str(psy.gen)
         assert ("Cannot correctly generate code for an OpenMP parallel region "
-                "containing children of different types") in str(excinfo.value)
+                "with reductions and containing children of different types"
+                in str(excinfo.value))
 
 
 def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
@@ -4212,9 +4212,6 @@ def test_rc_continuous_no_depth():
                 f"      call {fname}_proxy%halo_exchange(depth=max_halo_"
                 f"depth_mesh)" in result)
     assert "loop0_stop = mesh%get_last_halo_cell()" in result
-    assert "do cell = loop0_start, loop0_stop" in result
-    assert ("    call f1_proxy%set_dirty()\n"
-            "    call f1_proxy%set_clean(max_halo_depth_mesh - 1)") in result
     assert "do cell = loop0_start, loop0_stop" in result
     assert ("    call f1_proxy%set_dirty()\n"
             "    call f1_proxy%set_clean(max_halo_depth_mesh - 1)") in result

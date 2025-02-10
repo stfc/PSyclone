@@ -1337,6 +1337,8 @@ cbanded_map_adspc1_op_1
     integer(kind=i_def), intent(in) :: ndf_adspc2_op_1
     integer(kind=i_def), dimension(ndf_adspc2_op_1,nlayers), intent(in) :: \
 cbanded_map_adspc2_op_1
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: ncell_2d
     integer(kind=i_def), intent(in) :: cma_op_2_nrow
     integer(kind=i_def), intent(in) :: cma_op_2_ncol
     integer(kind=i_def), intent(in) :: cma_op_2_bandwidth
@@ -1344,15 +1346,11 @@ cbanded_map_adspc2_op_1
     integer(kind=i_def), intent(in) :: cma_op_2_beta
     integer(kind=i_def), intent(in) :: cma_op_2_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_2_gamma_p
-    integer(kind=i_def), intent(in) :: cell
-    integer(kind=i_def), intent(in) :: ncell_2d
     real(kind=r_def), dimension(cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d)\
 , intent(inout) :: cma_op_2
     integer(kind=i_def), intent(in) :: op_1_ncell_3d
     real(kind=r_def), dimension(op_1_ncell_3d,ndf_adspc1_op_1,ndf_adspc2_op_1)\
 , intent(in) :: op_1
-    real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_2_cma_matrix \
-=> null()
 
 
   end subroutine columnwise_op_asm_kernel_code
@@ -1394,6 +1392,8 @@ cbanded_map_aspc1_field_1
     integer(kind=i_def), dimension(ndf_aspc2_op_2,nlayers), intent(in) :: \
 cbanded_map_aspc2_op_2
     integer(kind=i_def), intent(in) :: undf_aspc1_field_1
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: ncell_2d
     integer(kind=i_def), intent(in) :: cma_op_3_nrow
     integer(kind=i_def), intent(in) :: cma_op_3_ncol
     integer(kind=i_def), intent(in) :: cma_op_3_bandwidth
@@ -1401,8 +1401,6 @@ cbanded_map_aspc2_op_2
     integer(kind=i_def), intent(in) :: cma_op_3_beta
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
-    integer(kind=i_def), intent(in) :: cell
-    integer(kind=i_def), intent(in) :: ncell_2d
     real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
 , intent(inout) :: cma_op_3
     real(kind=r_def), dimension(undf_aspc1_field_1), intent(in) :: \
@@ -1410,8 +1408,6 @@ field_1_aspc1_field_1
     integer(kind=i_def), intent(in) :: op_2_ncell_3d
     real(kind=r_def), dimension(op_2_ncell_3d,ndf_aspc1_field_1,\
 ndf_aspc2_op_2), intent(in) :: op_2
-    real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_3_cma_matrix \
-=> null()
 
 
   end subroutine columnwise_op_asm_field_kernel_code
@@ -1450,14 +1446,14 @@ map_aspc1_op_1
     integer(kind=i_def), dimension(ndf_aspc2_op_1,nlayers), intent(in) :: \
 cbanded_map_aspc2_op_1
     integer(kind=i_def), intent(in) :: undf_aspc1_op_1
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: ncell_2d
     integer(kind=i_def), intent(in) :: cma_op_3_nrow
     integer(kind=i_def), intent(in) :: cma_op_3_bandwidth
     integer(kind=i_def), intent(in) :: cma_op_3_alpha
     integer(kind=i_def), intent(in) :: cma_op_3_beta
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
-    integer(kind=i_def), intent(in) :: cell
-    integer(kind=i_def), intent(in) :: ncell_2d
     real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
 , intent(inout) :: cma_op_3
     real(kind=r_def), dimension(undf_aspc1_op_1), intent(in) :: \
@@ -1465,8 +1461,6 @@ field_2_aspc1_op_1
     integer(kind=i_def), intent(in) :: op_1_ncell_3d
     real(kind=r_def), dimension(op_1_ncell_3d,ndf_aspc1_op_1,ndf_aspc2_op_1)\
 , intent(in) :: op_1
-    real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_3_cma_matrix \
-=> null()
 
 
   end subroutine columnwise_op_asm_same_fs_kernel_code
@@ -1512,24 +1506,20 @@ cma_indirection_map_aspc1_field_1
 cma_indirection_map_aspc2_field_2
     integer(kind=i_def), intent(in) :: undf_aspc1_field_1
     integer(kind=i_def), intent(in) :: undf_aspc2_field_2
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: ncell_2d
     integer(kind=i_def), intent(in) :: cma_op_3_bandwidth
     integer(kind=i_def), intent(in) :: cma_op_3_alpha
     integer(kind=i_def), intent(in) :: cma_op_3_beta
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
-    integer(kind=i_def), intent(in) :: cell
-    integer(kind=i_def), intent(in) :: ncell_2d
-    real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow_1,\
+    real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,\
 ncell_2d), intent(in) :: cma_op_3
     real(kind=r_def), dimension(undf_aspc1_field_1), intent(inout) :: \
 field_1_aspc1_field_1
     real(kind=r_def), dimension(undf_aspc2_field_2), intent(in) :: \
 field_2_aspc2_field_2
     integer(kind=i_def) :: nlayers
-    real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_3_cma_matrix \
-=> null()
-    integer(kind=i_def) :: cma_op_3_nrow_1
-    integer(kind=i_def) :: cma_op_3_ncol_1
 
 
   end subroutine columnwise_op_app_kernel_code
@@ -1568,23 +1558,20 @@ map_aspc2_field_1
     integer(kind=i_def), dimension(cma_op_3_nrow), intent(in) :: \
 cma_indirection_map_aspc2_field_1
     integer(kind=i_def), intent(in) :: undf_aspc2_field_1
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: ncell_2d
     integer(kind=i_def), intent(in) :: cma_op_3_bandwidth
     integer(kind=i_def), intent(in) :: cma_op_3_alpha
     integer(kind=i_def), intent(in) :: cma_op_3_beta
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
-    integer(kind=i_def), intent(in) :: cell
-    integer(kind=i_def), intent(in) :: ncell_2d
-    real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow_1,\
+    real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,\
 ncell_2d), intent(in) :: cma_op_3
     real(kind=r_def), dimension(undf_aspc2_field_1), intent(inout) :: \
 field_1_aspc2_field_1
     real(kind=r_def), dimension(undf_aspc2_field_1), intent(in) :: \
 field_2_aspc2_field_1
     integer(kind=i_def) :: nlayers
-    real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_3_cma_matrix \
-=> null()
-    integer(kind=i_def) :: cma_op_3_nrow_1
 
 
   end subroutine columnwise_op_app_same_fs_kernel_code
@@ -1614,6 +1601,8 @@ cma_op_2_gamma_m, cma_op_2_gamma_p, cma_op_3, cma_op_3_nrow, cma_op_3_ncol, \
 cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, \
 cma_op_3_gamma_p)
     use constants_mod
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: ncell_2d
     integer(kind=i_def), intent(in) :: cma_op_1_nrow
     integer(kind=i_def), intent(in) :: cma_op_1_ncol
     integer(kind=i_def), intent(in) :: cma_op_1_bandwidth
@@ -1621,6 +1610,8 @@ cma_op_3_gamma_p)
     integer(kind=i_def), intent(in) :: cma_op_1_beta
     integer(kind=i_def), intent(in) :: cma_op_1_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_1_gamma_p
+    real(kind=r_def), dimension(cma_op_1_bandwidth,cma_op_1_nrow,ncell_2d)\
+, intent(in) :: cma_op_1
     integer(kind=i_def), intent(in) :: cma_op_2_nrow
     integer(kind=i_def), intent(in) :: cma_op_2_ncol
     integer(kind=i_def), intent(in) :: cma_op_2_bandwidth
@@ -1628,6 +1619,8 @@ cma_op_3_gamma_p)
     integer(kind=i_def), intent(in) :: cma_op_2_beta
     integer(kind=i_def), intent(in) :: cma_op_2_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_2_gamma_p
+    real(kind=r_def), dimension(cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d)\
+, intent(in) :: cma_op_2
     integer(kind=i_def), intent(in) :: cma_op_3_nrow
     integer(kind=i_def), intent(in) :: cma_op_3_ncol
     integer(kind=i_def), intent(in) :: cma_op_3_bandwidth
@@ -1635,21 +1628,9 @@ cma_op_3_gamma_p)
     integer(kind=i_def), intent(in) :: cma_op_3_beta
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
-    integer(kind=i_def), intent(in) :: cell
-    integer(kind=i_def), intent(in) :: ncell_2d
-    real(kind=r_def), dimension(cma_op_1_bandwidth,cma_op_1_nrow,ncell_2d)\
-, intent(in) :: cma_op_1
-    real(kind=r_def), dimension(cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d)\
-, intent(in) :: cma_op_2
     real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
 , intent(in) :: cma_op_3
     integer(kind=i_def) :: nlayers
-    real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_1_cma_matrix \
-=> null()
-    real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_2_cma_matrix \
-=> null()
-    real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_3_cma_matrix \
-=> null()
 
 
   end subroutine columnwise_op_mul_kernel_code
@@ -1680,6 +1661,8 @@ cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p, rscalar_4, cma_op_5, \
 cma_op_5_nrow, cma_op_5_ncol, cma_op_5_bandwidth, cma_op_5_alpha, \
 cma_op_5_beta, cma_op_5_gamma_m, cma_op_5_gamma_p)
     use constants_mod
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: ncell_2d
     integer(kind=i_def), intent(in) :: cma_op_1_nrow
     integer(kind=i_def), intent(in) :: cma_op_1_ncol
     integer(kind=i_def), intent(in) :: cma_op_1_bandwidth
@@ -1687,6 +1670,8 @@ cma_op_5_beta, cma_op_5_gamma_m, cma_op_5_gamma_p)
     integer(kind=i_def), intent(in) :: cma_op_1_beta
     integer(kind=i_def), intent(in) :: cma_op_1_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_1_gamma_p
+    real(kind=r_def), dimension(cma_op_1_bandwidth,cma_op_1_nrow,ncell_2d)\
+, intent(in) :: cma_op_1
     integer(kind=i_def), intent(in) :: cma_op_3_nrow
     integer(kind=i_def), intent(in) :: cma_op_3_ncol
     integer(kind=i_def), intent(in) :: cma_op_3_bandwidth
@@ -1694,6 +1679,8 @@ cma_op_5_beta, cma_op_5_gamma_m, cma_op_5_gamma_p)
     integer(kind=i_def), intent(in) :: cma_op_3_beta
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
+    real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
+, intent(in) :: cma_op_3
     integer(kind=i_def), intent(in) :: cma_op_5_nrow
     integer(kind=i_def), intent(in) :: cma_op_5_ncol
     integer(kind=i_def), intent(in) :: cma_op_5_bandwidth
@@ -1701,23 +1688,11 @@ cma_op_5_beta, cma_op_5_gamma_m, cma_op_5_gamma_p)
     integer(kind=i_def), intent(in) :: cma_op_5_beta
     integer(kind=i_def), intent(in) :: cma_op_5_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_5_gamma_p
-    integer(kind=i_def), intent(in) :: cell
-    integer(kind=i_def), intent(in) :: ncell_2d
-    real(kind=r_def), dimension(cma_op_1_bandwidth,cma_op_1_nrow,ncell_2d)\
-, intent(in) :: cma_op_1
-    real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
-, intent(in) :: cma_op_3
     real(kind=r_def), dimension(cma_op_5_bandwidth,cma_op_5_nrow,ncell_2d)\
 , intent(in) :: cma_op_5
     real(kind=r_def), intent(in) :: rscalar_2
     real(kind=r_def), intent(in) :: rscalar_4
     integer(kind=i_def) :: nlayers
-    real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_1_cma_matrix\
- => null()
-    real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_3_cma_matrix\
- => null()
-    real(kind=r_solver), pointer, dimension(:,:,:) :: cma_op_5_cma_matrix\
- => null()
 
 
   end subroutine columnwise_op_mul_2scalars_kernel_code

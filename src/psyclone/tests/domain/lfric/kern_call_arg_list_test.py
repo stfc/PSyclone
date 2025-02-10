@@ -561,6 +561,7 @@ def test_indirect_dofmap(fortran_writer):
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
+    psy.invokes.invoke_list[0].setup_psy_layer_symbols()
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert (create_arg_list._arglist == [
@@ -606,16 +607,12 @@ def test_indirect_dofmap(fortran_writer):
     assert len(psyir_args[4].datatype.partial_datatype.shape) == 3
 
     # Test all 1D integer arrays:
-    i1d = dummy_sym_tab.find_or_create_array("doesnt_matter1dint", 1,
-                                             ScalarType.Intrinsic.INTEGER)
     for i in [15, 19]:
-        assert psyir_args[i].datatype == i1d.datatype
+        assert "(:)" in psyir_args[i].datatype.declaration
 
     # Test all 2D integer arrays:
-    i2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
-                                             ScalarType.Intrinsic.INTEGER)
     for i in [14, 18]:
-        assert psyir_args[i].symbol.datatype.partial_datatype == i2d.datatype
+        assert "(:,:)" in psyir_args[i].symbol.datatype.declaration
 
 
 def test_ref_element_handling(fortran_writer):
