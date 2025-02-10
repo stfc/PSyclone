@@ -865,8 +865,12 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
     # function which we create using lambda.
     monkeypatch.setattr(arg, "ref_name",
                         lambda function_space=None: "vspace")
-    with pytest.raises(VisitorError):
+    with pytest.raises(VisitorError) as err:
         _ = psy.gen
+    const = LFRicConstants()
+    assert (f"Expected an argument of {const.VALID_FIELD_NAMES} type "
+            f"from which to look-up boundary dofs for kernel "
+            "enforce_bc_code but got 'gh_operator'" in str(err.value))
 
 
 def test_bc_kernel_anyspace1_only():
@@ -3179,7 +3183,6 @@ def test_anyw2_vectors():
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
-        print(generated_code)
         assert "f3_proxy(1) = f3(1)%get_proxy()" in generated_code
         assert "f3_proxy(2) = f3(2)%get_proxy()" in generated_code
         assert "f3_1_data, f3_2_data" in generated_code
@@ -4136,9 +4139,9 @@ def test_dynruntimechecks_builtins(tmpdir, monkeypatch):
     assert "use mesh_mod, only : mesh_type" in generated_code
     assert "type(field_type), intent(in) :: f3" in generated_code
     expected_code2 = (
-        # "      f2_proxy = f2%get_proxy()\n"
-        # "      f2_data => f2_proxy%data\n"
-        # "      !\n"
+        "    f2_proxy = f2%get_proxy()\n"
+        "    f2_data => f2_proxy%data\n"
+        "\n"
         "    ! Perform run-time checks\n"
         "    ! Check that read-only fields are not modified\n"
         "    if (f3_proxy%vspace%is_readonly()) then\n"

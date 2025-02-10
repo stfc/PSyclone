@@ -124,12 +124,13 @@ class KernCallArgList(ArgOrdering):
         try:
             # Check if the module is already declared:
             module = self._symtab.lookup(module_name)
+            # Get the symbol table in which the module is declared:
+            mod_sym_tab = module.find_symbol_table(self._kern)
         except KeyError:
             module = self._symtab.new_symbol(module_name,
                                              symbol_type=ContainerSymbol)
+            mod_sym_tab = self._symtab
 
-        # Get the symbol table in which the module is declared:
-        mod_sym_tab = module.find_symbol_table(self._kern)
 
         # The user-defined type must be declared in the same symbol
         # table as the container (otherwise errors will happen later):

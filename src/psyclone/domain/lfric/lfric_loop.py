@@ -987,7 +987,7 @@ class LFRicLoop(PSyLoop):
             # LFRic still has symbols that don't exist in the symbol_table
             # until the lowering step, so the dependency analysis raises
             # errors in some cases.
-            # TODO #1648 - when a transformation colours a loop we must
+            # TODO #2874 - when a transformation colours a loop we must
             # ensure "last_[halo]_cell_all_colours" is added to the symbol
             # table.
             return True

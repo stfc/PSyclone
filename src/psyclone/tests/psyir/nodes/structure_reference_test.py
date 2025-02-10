@@ -118,8 +118,8 @@ def test_struc_ref_create_errors():
     ''' Tests for the validation checks in the create method. '''
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(None, [])
-    assert ("A StructureReference must refer to a symbol that is (or could be)"
-            " a structure, has been given a 'None' with name: 'unknown'")
+    assert ("The 'symbol' argument to StructureReference.create() should be a"
+            " DataSymbol but found 'NoneType'" in str(err.value))
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
             symbols.DataSymbol("grid", symbols.UnresolvedType()), [],
@@ -130,7 +130,8 @@ def test_struc_ref_create_errors():
         _ = nodes.StructureReference.create(
             symbols.DataSymbol("fake", symbols.INTEGER_TYPE), [])
     assert ("A StructureReference must refer to a symbol that is (or could be)"
-            " a structure, has been given a 'Scalar' with name: 'unknown'")
+            " a structure, however symbol 'fake' has type 'Scalar"
+            in str(err.value))
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
             symbols.DataSymbol("grid", symbols.UnresolvedType()), 1)
