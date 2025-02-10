@@ -66,15 +66,6 @@ class LFRicCellIterators(LFRicCollection):
         # (for invokes) the kernel argument to which each corresponds.
         self._nlayers_names = {}
 
-    # def invoke_declarations(self):
-    #     '''
-    #     Creates the necessary declarations for variables needed in order to
-    #     provide mesh properties to a kernel call.
-
-    #     :raises InternalError: if an unsupported mesh property is found.
-
-    #     '''
-    #     super().invoke_declarations()
         if not self._invoke:
             # We are dealing with a single Kernel so there is only one
             # 'nlayers' variable and we don't need to store the associated
