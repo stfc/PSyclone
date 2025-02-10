@@ -150,6 +150,8 @@ class LFRicKern(CodedKern):
         create_arg_list = KernCallArgList(self)
         # KernCallArgList creates symbols (sometimes with wrong type), we don't
         # want those to be kept in the SymbolTable, so we copy the symbol table
+        # TODO #2874: The design could be improved so that only the right
+        # symbols are created
         tmp_symtab = self.ancestor(InvokeSchedule).symbol_table.deep_copy()
         create_arg_list._forced_symtab = tmp_symtab
         create_arg_list.generate(var_accesses)
@@ -469,7 +471,7 @@ class LFRicKern(CodedKern):
         return self._intergrid_ref is not None
 
     @property
-    def colourmap(self: DataSymbol):
+    def colourmap(self) -> DataSymbol:
         '''
         :returns: the symbol representing the colourmap for this kernel call.
 
@@ -543,8 +545,7 @@ class LFRicKern(CodedKern):
                                 f"coloured loop.")
         if self.is_intergrid:
             ncols_sym = self._intergrid_ref.ncolours_var_symbol
-            if ncols_sym is not None:
-                return ncols_sym.name
+            return ncols_sym.name if ncols_sym is not None else None
 
         return self.scope.symbol_table.lookup_with_tag("ncolour").name
 

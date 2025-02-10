@@ -1347,7 +1347,7 @@ cbanded_map_adspc2_op_1
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
     real(kind=r_def), dimension(cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d)\
-, intent(in) :: cma_op_2
+, intent(inout) :: cma_op_2
     integer(kind=i_def), intent(in) :: op_1_ncell_3d
     real(kind=r_def), dimension(op_1_ncell_3d,ndf_adspc1_op_1,ndf_adspc2_op_1)\
 , intent(in) :: op_1
@@ -1404,7 +1404,7 @@ cbanded_map_aspc2_op_2
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
     real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
-, intent(in) :: cma_op_3
+, intent(inout) :: cma_op_3
     real(kind=r_def), dimension(undf_aspc1_field_1), intent(in) :: \
 field_1_aspc1_field_1
     integer(kind=i_def), intent(in) :: op_2_ncell_3d
@@ -1459,7 +1459,7 @@ cbanded_map_aspc2_op_1
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
     real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
-, intent(in) :: cma_op_3
+, intent(inout) :: cma_op_3
     real(kind=r_def), dimension(undf_aspc1_op_1), intent(in) :: \
 field_2_aspc1_op_1
     integer(kind=i_def), intent(in) :: op_1_ncell_3d

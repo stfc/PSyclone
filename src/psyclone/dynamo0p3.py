@@ -1525,7 +1525,7 @@ class DynLMAOperators(LFRicCollection):
     def stub_declarations(self):
         '''
         Declare all LMA-related quantities in a Kernel stub. Note that argument
-        order will be defined later by ArgOrderig.
+        order will be defined later by ArgOrdering.
 
         '''
         super().stub_declarations()
@@ -1563,7 +1563,7 @@ class DynLMAOperators(LFRicCollection):
                 intr_type = ScalarType(ScalarType.Intrinsic.INTEGER, kind_sym)
             else:
                 raise NotImplementedError(
-                    f"Only REAL and INTEGER LMAOperator types are supported, "
+                    f"Only REAL and INTEGER LMA Operator types are supported, "
                     f"but found '{op_dtype}'")
             if arg.intent == "in":
                 intent = ArgumentInterface.Access.READ
@@ -1594,7 +1594,7 @@ class DynLMAOperators(LFRicCollection):
         # Add the Invoke subroutine argument declarations for operators
         op_args = self._invoke.unique_declarations(
                                         argument_types=["gh_operator"])
-        # Declare the operators
+        # Update the operator intents
         for arg in op_args:
             symbol = self.symtab.lookup(arg.declaration_name)
             symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
@@ -1847,8 +1847,12 @@ class DynCMAOperators(LFRicCollection):
                     LFRicTypes("LFRicRealScalarDataType")(),
                     [Reference(bandwidth), Reference(nrow),
                      Reference(symtab.lookup("ncell_2d"))]))
-            op.interface = ArgumentInterface(
-                    ArgumentInterface.Access.READ)
+            if self._kernel.cma_operation == 'assembly':
+                op.interface = ArgumentInterface(
+                        ArgumentInterface.Access.READWRITE)
+            else:
+                op.interface = ArgumentInterface(
+                        ArgumentInterface.Access.READ)
             symtab.append_argument(op)
 
 
@@ -2756,7 +2760,6 @@ class DynBasisFunctions(LFRicCollection):
                                         ArgumentInterface.Access.READ)
                 self.symtab.append_argument(arg)
 
-        # Allocate basis arrays
         for basis in basis_arrays:
             dims = []
             for value in basis_arrays[basis]:
@@ -3001,6 +3004,7 @@ class DynBasisFunctions(LFRicCollection):
 
         _, basis_arrays = self._basis_fn_declns()
 
+        # Allocate basis arrays
         for basis in basis_arrays:
             dims = "("+",".join([":"]*len(basis_arrays[basis]))+")"
             symbol = self.symtab.find_or_create(

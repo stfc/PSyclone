@@ -106,8 +106,8 @@ class LFRicCellIterators(LFRicCollection):
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
             for name in self._nlayers_names:
                 sym = self.symtab.lookup(name)
-                # Symbols are created thinking for the Invoke context, so make
-                # sure the are arguments when we are in a Stub context.
+                # Symbols are created as though for an Invoke context, so make
+                # sure they are arguments when we are in a Stub context.
                 sym.interface = ArgumentInterface(
                     ArgumentInterface.Access.READ)
                 self.symtab.append_argument(sym)

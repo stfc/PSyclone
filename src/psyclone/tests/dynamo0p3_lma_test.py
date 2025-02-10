@@ -975,7 +975,7 @@ end module dummy_mod
     lma_args[0]._intrinsic_type = "logical"
     with pytest.raises(NotImplementedError) as err:
         _ = kernel.gen_stub
-    assert ("Only REAL and INTEGER LMAOperator types are supported, but found"
+    assert ("Only REAL and INTEGER LMA Operator types are supported, but found"
             " 'logical'" in str(err.value))
 
 
