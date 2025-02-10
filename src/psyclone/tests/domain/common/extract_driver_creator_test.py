@@ -124,8 +124,7 @@ def test_driver_creation1():
   call extract_psy_data%OpenReadModuleRegion('psy_extract_example_with_various_variable_''' \
   '''access_patterns', 'invoke_0_compute_kernel-compute_kernel_code-r0')
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
-  ALLOCATE(out_fld, mold=out_fld_post)
-  out_fld = 0
+  call extract_psy_data%ReadVariable('out_fld', out_fld)
   call extract_psy_data%ReadVariable('in_fld', in_fld)
   call extract_psy_data%ReadVariable('in_out_fld_post', in_out_fld_post)
   call extract_psy_data%ReadVariable('dx', dx)
@@ -251,9 +250,12 @@ def test_rename_suffix_if_name_clash():
     # and "out_fld_post0" for the output value of out_fld.
     expected = """
       CALL extract_psy_data % PreDeclareVariable("out_fld_post", out_fld_post)
-      CALL extract_psy_data % PreDeclareVariable("in_out_fld_post0", in_out_fld)
+      CALL extract_psy_data % PreDeclareVariable("in_out_fld_post0", """\
+      """in_out_fld)
       CALL extract_psy_data % PreDeclareVariable("out_fld_post0", out_fld)
+      CALL extract_psy_data % PreDeclareVariable("out_fld", out_fld)
       CALL extract_psy_data % ProvideVariable("in_out_fld", in_out_fld)
+      CALL extract_psy_data % ProvideVariable("out_fld", out_fld)
       CALL extract_psy_data % ProvideVariable("out_fld_post", out_fld_post)
       CALL extract_psy_data % ProvideVariable("in_out_fld_post0", in_out_fld)
       CALL extract_psy_data % ProvideVariable("out_fld_post0", out_fld)"""
@@ -279,7 +281,7 @@ def test_rename_suffix_if_name_clash():
   call extract_psy_data%ReadVariable('in_out_fld', in_out_fld)
   call extract_psy_data%ReadVariable('in_out_fld_post0', in_out_fld_post0)
   call extract_psy_data%ReadVariable('out_fld_post0', out_fld_post0)
-  ALLOCATE(out_fld, mold=out_fld_post0)
+  call extract_psy_data%ReadVariable('out_fld', out_fld)
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)"""
 
     for line in expected.split("\n"):
@@ -301,10 +303,10 @@ def test_rename_suffix_if_name_clash():
     extract_code = str(psy.gen)
 
     # Check that *out_fld* is declared correctly: it is only declared as
-    # output value, so must use key out_fld_post1 once, and not be declared
-    # as input value:
+    # output value, but it must also be added as input field, to make sure
+    # we have all values of a field, even if the kernel doesn't update them:
     assert 'PreDeclareVariable("out_fld_post1", out_fld)' in extract_code
-    assert 'PreDeclareVariable("out_fld", out_fld)' not in extract_code
+    assert 'PreDeclareVariable("out_fld", out_fld)' in extract_code
 
     # Check that *out_fld_post* (input/output) is declared correctly. It
     # must be declared twice: once for the input value using the original
