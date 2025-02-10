@@ -79,7 +79,7 @@ read_only_base.o: psy_data_base.o
 clean:
 	rm -f read_only_base.f90 psy_data_base.f90 *.o *.mod
 
-allclean:
+allclean: clean
 	$(MAKE) -C dl_esm_inf allclean
 	$(MAKE) -C lfric allclean
 	$(MAKE) -C generic allclean

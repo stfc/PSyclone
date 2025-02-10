@@ -114,7 +114,6 @@ def parse_fp2(filename):
     :raises ParseError: if the file could not be parsed.
 
     '''
-    parser = ParserFactory().create(std="f2008")
     # We get the directories to search for any Fortran include files from
     # our configuration object.
     config = Config.get()
@@ -124,6 +123,7 @@ def parse_fp2(filename):
         raise ParseError(
             f"algorithm.py:parse_fp2: Failed to parse file '{filename}'. "
             f"Error returned was ' {error} '.") from error
+    parser = ParserFactory().create(std=config.fortran_standard)
     try:
         parse_tree = parser(reader)
     except FortranSyntaxError as msg:
