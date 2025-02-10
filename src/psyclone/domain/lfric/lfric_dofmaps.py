@@ -310,9 +310,10 @@ class LFRicDofmaps(LFRicCollection):
                     f"Invalid direction ('{cma['''direction''']}') found for "
                     f"CMA operator when collecting indirection dofmaps. "
                     f"Should be either 'to' or 'from'.")
+            arg_name = cma["argument"].name
             dim = self.symtab.find_or_create_tag(
-                f"{cma["argument"].name}:{param}:{suffix}",
-                root_name=f"{cma["argument"]}_{param}",
+                f"{arg_name}:{param}:{suffix}",
+                root_name=f"{arg_name}_{param}",
                 symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             dim.interface = ArgumentInterface(ArgumentInterface.Access.READ)
