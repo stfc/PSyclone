@@ -85,7 +85,7 @@ module oned_conservative_flux_alg_mod
 
     rho_fs => function_space_collection%get_fs( mesh_id, element_order_h, &
                                                 element_order_v,          &
-                                              rho_in%which_function_space() )
+                                                rho_in%which_function_space() )
 
     a0 = field_type( vector_space = rho_fs )
     a1 = field_type( vector_space = rho_fs )

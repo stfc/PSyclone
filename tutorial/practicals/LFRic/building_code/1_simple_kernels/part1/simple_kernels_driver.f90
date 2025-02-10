@@ -79,9 +79,9 @@ program simple_kernels_driver
   ! Vertical extrusion parameters
   integer(kind=i_def) :: number_of_layers
   real(kind=r_def)    :: domain_top
-  ! Finite element method (FEM) order in the horizontal direction
+  ! Finite-element method (FEM) order in the horizontal direction
   integer(kind=i_def) :: element_order_h
-  ! Finite element method (FEM) order in the vertical direction
+  ! Finite-element method (FEM) order in the vertical direction
   integer(kind=i_def) :: element_order_v
 
   !-----------------------------------------------------------------------------
