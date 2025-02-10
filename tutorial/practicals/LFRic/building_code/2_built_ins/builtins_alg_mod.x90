@@ -32,6 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: I. Kavcic, Met Office
+! Modified by: J. Dendy, Met Office
 !
 ! -----------------------------------------------------------------------------
 ! A module that creates fields on W0 and W3 function spaces and uses PSyclone
@@ -57,14 +58,17 @@ contains
 
   !> @brief Creates and adds fields on W0 and W3 function spaces using built-ins
   !> @param[in] mesh Partitioned 3D mesh object
-  !> @param[in] element_order Finite-element method (FEM) order
-  subroutine builtins_alg(mesh, element_order)
+  !> @param[in] element_order_h Finite-element method (FEM) order in the
+  !>                            horizontal direction
+  !> @param[in] element_order_v Finite-element method (FEM) order in the
+  !>                            vertical direction
+  subroutine builtins_alg(mesh, element_order_h, element_order_v)
 
     implicit none
 
     ! Input arguments from the driver: Mesh and FEM order
     type(mesh_type), intent(in)        :: mesh
-    integer(i_def),  intent(in)        :: element_order
+    integer(i_def),  intent(in)        :: element_order_h, element_order_v
     ! Function spaces W0 and W3 and fields on them
     type(function_space_type), target  :: fs_w0
     type(function_space_type), target  :: fs_w3
@@ -82,9 +86,11 @@ contains
     call log_event( "builtins_alg: Running algorithm", LOG_LEVEL_INFO )
 
     ! Create W0 and W3 function spaces with single-valued data points
-    fs_w0 = function_space_type( mesh, element_order, W0, ndata_sz )
+    fs_w0 = function_space_type( mesh, element_order_h, element_order_v, W0, &
+                                 ndata_sz )
     fs_w0_ptr => fs_w0
-    fs_w3 = function_space_type( mesh, element_order, W3, ndata_sz )
+    fs_w3 = function_space_type( mesh, element_order_h, element_order_v, W3, &
+                                 ndata_sz )
     fs_w3_ptr => fs_w3
 
     ! Create fields on W0 function space
