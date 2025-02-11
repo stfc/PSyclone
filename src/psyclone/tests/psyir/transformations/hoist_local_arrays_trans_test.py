@@ -39,8 +39,9 @@
 
 import pytest
 
-from psyclone.psyir.nodes import Routine, Container, FileContainer
-from psyclone.psyir.symbols import ArrayType, Symbol
+from psyclone.psyir.nodes import (
+    Routine, Container, FileContainer, IntrinsicCall, Literal)
+from psyclone.psyir.symbols import ArrayType, Symbol, INTEGER_TYPE
 from psyclone.psyir.transformations import (HoistLocalArraysTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
@@ -639,6 +640,12 @@ def test_apply_2d_allocatable(fortran_reader, fortran_writer, tmpdir):
         end module my_mod
     """
     psyir = fortran_reader.psyir_from_source(code)
+    alloc1 = psyir.walk(IntrinsicCall)[0]
+    # the fparser reader always puts ranges in the allocate indices, but for
+    # 'a' force it to be somthing else
+    alloc1.arguments[0].children[0].replace_with(
+        Literal("10", INTEGER_TYPE)
+    )
     routine = psyir.walk(Routine)[0]
     hoist_trans = HoistLocalArraysTrans()
     hoist_trans.apply(routine)
@@ -667,7 +674,7 @@ module my_mod
 
     if (var == 3) then
       if (.NOT.ALLOCATED(a)) then
-        ALLOCATE(a(1:10))
+        ALLOCATE(a(10))
       end if
       if (.NOT.ALLOCATED(b) .OR. UBOUND(b, dim=1) /= var) then
         if (ALLOCATED(b)) then
