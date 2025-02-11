@@ -53,7 +53,8 @@ from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, DataTypeSymbol, GenericInterfaceSymbol,
     ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
-from psyclone.psyir.symbols.datatypes import ScalarType
+from psyclone.psyir.symbols.datatypes import (
+    ArrayType, ScalarType, StructureType, UnsupportedFortranType)
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
@@ -259,7 +260,7 @@ class SymbolTable():
         new_st._default_visibility = self.default_visibility
         return new_st
 
-    def deep_copy(self):
+    def deep_copy(self, node=None):
         '''Create a copy of the symbol table with new instances of the
         top-level data structures and also new instances of the symbols
         contained in these data structures. Modifying a symbol attribute
@@ -275,6 +276,8 @@ class SymbolTable():
         '''
         # pylint: disable=protected-access
         new_st = type(self)()
+        if node:
+            new_st._node = node
 
         # Make a copy of each symbol in the symbol table
         for symbol in self.symbols:
@@ -713,7 +716,18 @@ class SymbolTable():
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        for csym in other_table.containersymbols:
+        # Check for symbol dependencies that are imported.
+        from psyclone.core.variables_access_info import VariablesAccessInfo
+        vai = VariablesAccessInfo()
+        other_table.reference_accesses(vai)
+        cntr_symbols = set()
+        for sig in vai.all_signatures:
+            sym = other_table.lookup(sig.var_name)
+            if sym.is_import:
+                cntr_symbols.add(sym.interface.container_symbol)
+
+        cntr_symbols.update(other_table.containersymbols)
+        for csym in cntr_symbols:
             if csym.name in self:
                 # We have a clash with another symbol in this table.
                 self_csym = self.lookup(csym.name)
@@ -1904,6 +1918,84 @@ class SymbolTable():
 
         # Re-insert modified symbol
         self.add(symbol)
+
+    def reference_accesses(self, access_info):
+        '''
+        Get all variable access information *within* this table. This ensures
+        that any Symbols appearing in precision specifications, array shapes,
+        initialisation expressions or routine interfaces are captured.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the
+            information about variable accesses.
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
+        from psyclone.core import AccessType, Signature
+
+        def _get_accesses(dtype, info):
+            '''
+            Store information on any symbols referenced within the supplied
+            datatype.
+
+            :param dtype: the datatype to query.
+            :type dtype: :py:class:`psyclone.psyir.symbols.DataType`
+            :param info: the VariablesAccessInfo instance in which to store
+                         information.
+            :type info: :py:class:`psyclone.core.VariablesAccessInfo`
+            '''
+            if (hasattr(dtype, "precision") and isinstance(dtype.precision,
+                                                           Symbol)):
+                # The use of a Symbol to specify precision does not constitute
+                # a read (since it is resolved at compile time).
+                access_info.add_access(
+                    Signature(dtype.precision.name),
+                    AccessType.TYPE_INFO, self.node)
+
+            if isinstance(dtype, DataTypeSymbol):
+                # The use of a DataTypeSymbol in a declaration is a compile-
+                # time access.
+                info.add_access(Signature(dtype.name),
+                                AccessType.TYPE_INFO, self.node)
+            elif isinstance(dtype, StructureType):
+                for cmpt in sym.datatype.components.values():
+                    # Recurse for members of a StructureType
+                    _get_accesses(cmpt.datatype, info)
+                    if cmpt.initial_value:
+                        cmpt.initial_value.reference_accesses(info)
+            elif isinstance(dtype, ArrayType):
+                for dim in dtype.shape:
+                    if isinstance(dim, ArrayType.ArrayBounds):
+                        dim.lower.reference_accesses(access_info)
+                        dim.upper.reference_accesses(access_info)
+            elif (isinstance(dtype, UnsupportedFortranType) and
+                  dtype.partial_datatype):
+                # Recurse to examine partial datatype information.
+                _get_accesses(dtype.partial_datatype, info)
+
+        # Examine the datatypes and initial values of all DataSymbols.
+        for sym in self.datasymbols:
+            _get_accesses(sym.datatype, access_info)
+
+            if sym.initial_value:
+                sym.initial_value.reference_accesses(access_info)
+
+        # Examine the definition of each DataTypeSymbol.
+        for sym in self.datatypesymbols:
+            _get_accesses(sym.datatype, access_info)
+
+        # Examine any interface definitions
+        for isym in self.interface_symbols:
+            for rt_info in isym.routines:
+                access_info.add_access(Signature(rt_info.symbol.name),
+                                       AccessType.TYPE_INFO, self.node)
+
+    @property
+    def interface_symbols(self) -> List[GenericInterfaceSymbol]:
+        '''
+        :returns: the GenericInterfaceSymbols in this table.
+        '''
+        return [sym for sym in self.symbols if
+                isinstance(sym, GenericInterfaceSymbol)]
 
     def wildcard_imports(self) -> List[ContainerSymbol]:
         '''

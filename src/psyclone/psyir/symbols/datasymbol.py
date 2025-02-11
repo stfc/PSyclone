@@ -357,8 +357,19 @@ class DataSymbol(TypedSymbol):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
+        from psyclone.psyir.symbols.datatypes import ArrayType
+
         super().replace_symbols_using(table)
 
         # Ensure any Symbols referenced in the initial value are updated.
         if self.initial_value:
             self.initial_value.replace_symbols_using(table)
+
+        # Ensure any Symbols referenced in the shape are updated.
+        from psyclone.psyir import nodes
+        for dim in self.shape:
+            if isinstance(dim, ArrayType.Extent):
+                continue
+            for bnd in [dim.lower, dim.upper]:
+                for ref in bnd.walk(nodes.Reference):
+                    ref.symbol.replace_symbols_using(table)
