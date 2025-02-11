@@ -98,6 +98,8 @@ OFFLOADING_ISSUES = [
 NEMOV4 = os.environ.get('NEMOV4', False)
 
 NEMOV4_EXCLUSIONS = [
+    "sbcdcy.f90",
+    "sbcmod.f90",
     "domvvl.f90",
     "domzgr.f90",
     "dtatsd.f90",

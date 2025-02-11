@@ -216,7 +216,7 @@ jobs:
         # We compile at -O1 to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O1 -nofma -Mnovect -g -mp=gpu -gpu=managed,math_uniform"
+        export FCFLAGS="-i4 -Mr8 -O1 -nofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
         
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
@@ -255,7 +255,7 @@ jobs:
         # We compile at "-O1 -nofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O1 -nofma -Mnovect -g -mp=gpu -gpu=managed,math_uniform"
+        export FCFLAGS="-i4 -Mr8 -O1 -nofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
         
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
@@ -264,7 +264,7 @@ jobs:
           add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
 
         # Run test (disabled because it is currently too slow)
-        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
+        cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
         ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca1.nvhpc.10steps run.stat
         export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
