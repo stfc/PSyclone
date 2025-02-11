@@ -158,33 +158,13 @@ then
             already_allocatable = any(dim == ArrayType.Extent.DEFERRED
                                       for dim in sym.shape)
 
-            # Keep a copy of the original shape of the array.
-            orig_shape = sym.datatype.shape[:]
-            # Modify the *existing* symbol so that any references to it
-            # remain valid.
-            new_type = copy.copy(sym.datatype)
-            # pylint: disable=protected-access
-            new_type._shape = len(orig_shape)*[ArrayType.Extent.DEFERRED]
-            # pylint: enable=protected-access
-            sym.datatype = new_type
-            # Ensure that the promoted symbol is private to the container.
-            sym.visibility = Symbol.Visibility.PRIVATE
-            # We must allow for the situation where there's a clash with a
-            # symbol name already present at container scope. (The validate()
-            # method will already have checked for tag clashes.)
-            try:
-                container.symbol_table.add(sym, tag=tags_dict.get(sym))
-            except KeyError:
-                new_name = container.symbol_table.next_available_name(
-                    sym.name, other_table=node.symbol_table)
-                node.symbol_table.rename_symbol(sym, new_name)
-                container.symbol_table.add(sym, tag=tags_dict.get(sym))
-
             # Find or Create the array reference that will be the argument to
             # the new memory allocation statement.
             if already_allocatable:
                 # If it was already an allocatable, we should be able to find
                 # it
+                original_allocate = None
+                not_supported = False
                 for ref in node.walk(ArrayReference):
                     if (
                         isinstance(ref.parent, IntrinsicCall) and
@@ -192,7 +172,26 @@ then
                             IntrinsicCall.Intrinsic.ALLOCATE) and
                         ref.symbol is sym
                     ):
-                        previous_allocate = ref.parent
+                        if original_allocate is not None:
+                            # This would be the second match, so just warn the
+                            # user and skip this symbol
+                            original_allocate.append_preceding_comment(
+                                f"PSyclone warning: {self.name} found more "
+                                f"than one ALLOCATE for this variable, but "
+                                f"currently it just supports cases with "
+                                f"single allocations")
+                            not_supported = True
+                            break
+                        original_allocate = ref.parent
+                        # alloc-options are captured as argument_names in the
+                        # PSyIR
+                        if any(original_allocate.argument_names):
+                            original_allocate.append_preceding_comment(
+                                f"PSyclone warning: {self.name} found an "
+                                f"ALLOCATE with alloc-options, this is "
+                                f"not supported")
+                            not_supported = True
+                            break
                         aref = ref.copy()
                         orig_shape = []
                         for child in aref.children:
@@ -205,17 +204,36 @@ then
                             orig_shape.append(
                                 ArrayType.ArrayBounds(lbound, ubound)
                             )
-                        break
-                else:
-                    raise TransformationError(
-                        f"{self.name} was not able to find the ALLOCATE "
-                        f"statement of '{ref.name}' in '{node.name}'. Check"
-                        f"that it exists and is not in a CodeBlock")
+                if not_supported:
+                    continue
 
             else:
+                # Keep a copy of the original shape of the array.
+                orig_shape = sym.datatype.shape[:]
+                # Modify the *existing* symbol so that any references to it
+                # remain valid.
+                new_type = copy.copy(sym.datatype)
+                # pylint: disable=protected-access
+                new_type._shape = len(orig_shape)*[ArrayType.Extent.DEFERRED]
+                # pylint: enable=protected-access
+                sym.datatype = new_type
                 dim_list = [Range.create(dim.lower.copy(), dim.upper.copy())
                             for dim in orig_shape]
                 aref = ArrayReference.create(sym, dim_list)
+
+            # We must allow for the situation where there's a clash with a
+            # symbol name already present at container scope. (The validate()
+            # method will already have checked for tag clashes.)
+            try:
+                container.symbol_table.add(sym, tag=tags_dict.get(sym))
+            except KeyError:
+                new_name = container.symbol_table.next_available_name(
+                    sym.name, other_table=node.symbol_table)
+                node.symbol_table.rename_symbol(sym, new_name)
+                container.symbol_table.add(sym, tag=tags_dict.get(sym))
+
+            # Ensure that the promoted symbol is private to the container.
+            sym.visibility = Symbol.Visibility.PRIVATE
 
             # Add a conditional expression to avoid repeating the allocation
             # if its already done
@@ -243,28 +261,34 @@ then
                                     BinaryOperation.Operator.OR,
                                     cond_expr, expr)
                 # The upper check must always be added
-                expr = BinaryOperation.create(
-                        BinaryOperation.Operator.NE,
-                        IntrinsicCall.create(
-                            IntrinsicCall.Intrinsic.UBOUND,
-                            [Reference(sym),
-                             ("dim", Literal(str(idx+1), INTEGER_TYPE))]),
-                        dim.upper.copy())
-                # We chain the new check to the already existing cond_expr
-                # which starts with the 'not allocated' condition added
-                # before this loop.
-                cond_expr = BinaryOperation.create(
-                                BinaryOperation.Operator.OR,
-                                cond_expr, expr)
+                if not isinstance(dim.upper, Literal):
+                    expr = BinaryOperation.create(
+                            BinaryOperation.Operator.NE,
+                            IntrinsicCall.create(
+                                IntrinsicCall.Intrinsic.UBOUND,
+                                [Reference(sym),
+                                 ("dim", Literal(str(idx+1), INTEGER_TYPE))]),
+                            dim.upper.copy())
+                    # We chain the new check to the already existing cond_expr
+                    # which starts with the 'not allocated' condition added
+                    # before this loop.
+                    cond_expr = BinaryOperation.create(
+                                    BinaryOperation.Operator.OR,
+                                    cond_expr, expr)
 
             if_stmt = IfBlock.create(cond_expr, [
-                IfBlock.create(
-                    allocated_expr.copy(),
-                    [IntrinsicCall.create(
-                        IntrinsicCall.Intrinsic.DEALLOCATE,
-                        [Reference(sym)])]),
                 IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, [aref])
             ])
+            # If any bound-check was added, also insert a deallocate statement
+            if isinstance(cond_expr, BinaryOperation):
+                if_stmt.if_body.addchild(
+                    IfBlock.create(
+                        allocated_expr.copy(),
+                        [IntrinsicCall.create(
+                            IntrinsicCall.Intrinsic.DEALLOCATE,
+                            [Reference(sym)])]),
+                    index=0
+                )
 
             if already_allocatable:
                 # Find and remove the deallocate statements
@@ -286,26 +310,25 @@ then
                                 if child == ref:
                                     child.detach()
                 # Now insert guarded allocate expression
-                previous_allocate.parent.children.insert(
-                        previous_allocate.position, if_stmt)
+                original_allocate.parent.children.insert(
+                        original_allocate.position, if_stmt)
                 # Remove the unguarded allocate, if its the only reference in
                 # a allocate statement, remove the full statement, otherwise
                 # just the relevant reference
-                if len(previous_allocate.arguments) == 1:
-                    previous_allocate.detach()
+                if len(original_allocate.arguments) == 1:
+                    original_allocate.detach()
                 else:
-                    for child in previous_allocate.arguments:
+                    for child in original_allocate.arguments:
                         if child == aref:
                             child.detach()
 
             else:
-                # Insert the conditional allocation at the start of the supplied
-                # routine.
+                # Insert the conditional allocation at the start of the
+                # supplied routine.
                 node.children.insert(0, if_stmt)
 
-        # Finally, remove the hoisted symbols (and any associated tags)
-        # from the routine scope.
-        for sym in automatic_arrays:
+            # Finally, remove the hoisted symbols (and any associated tags)
+            # from the routine scope.
             # TODO #898: Currently the SymbolTable.remove() method does not
             # support DataSymbols.
             # pylint: disable=protected-access

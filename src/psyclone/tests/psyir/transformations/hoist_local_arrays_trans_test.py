@@ -404,8 +404,9 @@ def test_get_local_arrays(fortran_reader):
     routine = psyir.walk(Routine)[0]
     hoist_trans = HoistLocalArraysTrans()
     symbols = hoist_trans._get_local_arrays(routine)
-    assert len(symbols) == 1
+    assert len(symbols) == 2
     assert symbols[0] is routine.symbol_table.lookup("wrk")
+    assert symbols[1] is routine.symbol_table.lookup("wrk2")
 
 
 def test_get_local_arrays_codeblock(fortran_reader):
@@ -608,19 +609,31 @@ def test_apply_2d_allocatable(fortran_reader, fortran_writer, tmpdir):
     code = """
         module my_mod
         contains
-        subroutine test(arg)
+        subroutine test(arg, var)
           integer :: i
-          real, allocatable, dimension(:,:), intent(in) :: arg
-          real, allocatable, dimension(:,:) :: a, b, c
+          real, allocatable, dimension(:), intent(in) :: arg
+          integer, intent(in) :: var
+          real, allocatable, dimension(:) :: a, b, c  ! This will be hoisted
+          real, allocatable, dimension(:) :: d, e  ! This won't be hoisted
 
-          if (.true.) then  ! Allocate is only done inside this condition
-              ALLOCATE(a(10), b(10:20))
-              ALLOCATE(c(30))
+          if (var == 3) then  ! Allocate is only done inside this condition
+              ALLOCATE(a(10), b(10:var))
+              ALLOCATE(c(var-5:var+5))
+
+              ! d uses a ALLOCATE parameter, which is not supported
+              ALLOCATE(d(10), MOLD=arg)
+
+              ! e is allocated and deallocated two times
+              ALLOCATE(e(10))
+              DEALLOCATE(e)
+              ALLOCATE(e(20))
+              DEALLOCATE(e)
+
               do i=1,10
                 a(i) = 1.0
               end do
               DEALLOCATE(a,c)
-              DEALLOCATE(b)
+              DEALLOCATE(b,d)
           endif
         end subroutine test
         end module my_mod
@@ -631,44 +644,57 @@ def test_apply_2d_allocatable(fortran_reader, fortran_writer, tmpdir):
     hoist_trans.apply(routine)
     output = fortran_writer(psyir)
     # Check that:
-    # - Local declarations has been hoisted
+    # - Local allocatable declarations has been hoisted unless they have
+    #   multiple allocation statements or one with named arguments
     # - Their ALLOCATEs have been guarded in-place
     # - Their DEALLOCATEs have been removed
+    # - Warning messages for non-hoisted allocatables have been added
     assert output == """\
 module my_mod
   implicit none
-  real, allocatable, dimension(:,:), private :: a
-  real, allocatable, dimension(:,:), private :: b
-  real, allocatable, dimension(:,:), private :: c
+  real, allocatable, dimension(:), private :: a
+  real, allocatable, dimension(:), private :: b
+  real, allocatable, dimension(:), private :: c
   public
 
   contains
-  subroutine test(arg)
-    real, allocatable, dimension(:,:), intent(in) :: arg
+  subroutine test(arg, var)
+    real, allocatable, dimension(:), intent(in) :: arg
+    integer, intent(in) :: var
     integer :: i
+    real, allocatable, dimension(:) :: d
+    real, allocatable, dimension(:) :: e
 
-    if (.true.) then
-      if (.NOT.ALLOCATED(a) .OR. UBOUND(a, dim=1) /= 10) then
-        if (ALLOCATED(a)) then
-          DEALLOCATE(a)
-        end if
+    if (var == 3) then
+      if (.NOT.ALLOCATED(a)) then
         ALLOCATE(a(1:10))
       end if
-      if (.NOT.ALLOCATED(b) .OR. UBOUND(b, dim=1) /= 20) then
+      if (.NOT.ALLOCATED(b) .OR. UBOUND(b, dim=1) /= var) then
         if (ALLOCATED(b)) then
           DEALLOCATE(b)
         end if
-        ALLOCATE(b(10:20))
+        ALLOCATE(b(10:var))
       end if
-      if (.NOT.ALLOCATED(c) .OR. UBOUND(c, dim=1) /= 30) then
+      if (.NOT.ALLOCATED(c) .OR. LBOUND(c, dim=1) /= var - 5 .OR. \
+UBOUND(c, dim=1) /= var + 5) then
         if (ALLOCATED(c)) then
           DEALLOCATE(c)
         end if
-        ALLOCATE(c(1:30))
+        ALLOCATE(c(var - 5:var + 5))
       end if
+      ! PSyclone warning: HoistLocalArraysTrans found an ALLOCATE with \
+alloc-options, this is not supported
+      ALLOCATE(d(1:10), MOLD=arg)
+      ! PSyclone warning: HoistLocalArraysTrans found more than one ALLOCATE \
+for this variable, but currently it just supports cases with single allocations
+      ALLOCATE(e(1:10))
+      DEALLOCATE(e)
+      ALLOCATE(e(1:20))
+      DEALLOCATE(e)
       do i = 1, 10, 1
         a(i) = 1.0
       enddo
+      DEALLOCATE(d)
     end if
 
   end subroutine test
