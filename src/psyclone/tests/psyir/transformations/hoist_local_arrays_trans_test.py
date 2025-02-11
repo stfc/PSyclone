@@ -602,6 +602,81 @@ def test_validate_tagged_symbol_clash(fortran_reader):
             str(err.value))
 
 
+def test_apply_2d_allocatable(fortran_reader, fortran_writer, tmpdir):
+    ''' Test the apply method correctly handles an automatic arrays with
+    allocatable attributes and simple allocatable statements. '''
+    code = """
+        module my_mod
+        contains
+        subroutine test(arg)
+          integer :: i
+          real, allocatable, dimension(:,:), intent(in) :: arg
+          real, allocatable, dimension(:,:) :: a, b, c
+
+          if (.true.) then  ! Allocate is only done inside this condition
+              ALLOCATE(a(10), b(10:20))
+              ALLOCATE(c(30))
+              do i=1,10
+                a(i) = 1.0
+              end do
+              DEALLOCATE(a,c)
+              DEALLOCATE(b)
+          endif
+        end subroutine test
+        end module my_mod
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    hoist_trans.apply(routine)
+    output = fortran_writer(psyir)
+    # Check that:
+    # - Local declarations has been hoisted
+    # - Their ALLOCATEs have been guarded in-place
+    # - Their DEALLOCATEs have been removed
+    assert output == """\
+module my_mod
+  implicit none
+  real, allocatable, dimension(:,:), private :: a
+  real, allocatable, dimension(:,:), private :: b
+  real, allocatable, dimension(:,:), private :: c
+  public
+
+  contains
+  subroutine test(arg)
+    real, allocatable, dimension(:,:), intent(in) :: arg
+    integer :: i
+
+    if (.true.) then
+      if (.NOT.ALLOCATED(a) .OR. UBOUND(a, dim=1) /= 10) then
+        if (ALLOCATED(a)) then
+          DEALLOCATE(a)
+        end if
+        ALLOCATE(a(1:10))
+      end if
+      if (.NOT.ALLOCATED(b) .OR. UBOUND(b, dim=1) /= 20) then
+        if (ALLOCATED(b)) then
+          DEALLOCATE(b)
+        end if
+        ALLOCATE(b(10:20))
+      end if
+      if (.NOT.ALLOCATED(c) .OR. UBOUND(c, dim=1) /= 30) then
+        if (ALLOCATED(c)) then
+          DEALLOCATE(c)
+        end if
+        ALLOCATE(c(1:30))
+      end if
+      do i = 1, 10, 1
+        a(i) = 1.0
+      enddo
+    end if
+
+  end subroutine test
+
+end module my_mod
+"""
+    assert Compile(tmpdir).string_compiles(output)
+
 # str
 
 

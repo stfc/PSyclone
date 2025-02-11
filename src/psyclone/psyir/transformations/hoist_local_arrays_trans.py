@@ -154,6 +154,10 @@ then
         tags_dict = node.symbol_table.get_reverse_tags_dict()
 
         for sym in automatic_arrays:
+            # Check if the original is already an ALLOCATABLE variable
+            already_allocatable = any(dim == ArrayType.Extent.DEFERRED
+                                      for dim in sym.shape)
+
             # Keep a copy of the original shape of the array.
             orig_shape = sym.datatype.shape[:]
             # Modify the *existing* symbol so that any references to it
@@ -176,11 +180,42 @@ then
                 node.symbol_table.rename_symbol(sym, new_name)
                 container.symbol_table.add(sym, tag=tags_dict.get(sym))
 
-            # Create the array reference that will be the argument to the
-            # new memory allocation statement.
-            dim_list = [Range.create(dim.lower.copy(), dim.upper.copy())
-                        for dim in orig_shape]
-            aref = ArrayReference.create(sym, dim_list)
+            # Find or Create the array reference that will be the argument to
+            # the new memory allocation statement.
+            if already_allocatable:
+                # If it was already an allocatable, we should be able to find
+                # it
+                for ref in node.walk(ArrayReference):
+                    if (
+                        isinstance(ref.parent, IntrinsicCall) and
+                        (ref.parent.intrinsic ==
+                            IntrinsicCall.Intrinsic.ALLOCATE) and
+                        ref.symbol is sym
+                    ):
+                        previous_allocate = ref.parent
+                        aref = ref.copy()
+                        orig_shape = []
+                        for child in aref.children:
+                            if isinstance(child, Range):
+                                lbound = child.start
+                                ubound = child.stop
+                            else:
+                                lbound = Literal("1", INTEGER_TYPE)
+                                ubound = child
+                            orig_shape.append(
+                                ArrayType.ArrayBounds(lbound, ubound)
+                            )
+                        break
+                else:
+                    raise TransformationError(
+                        f"{self.name} was not able to find the ALLOCATE "
+                        f"statement of '{ref.name}' in '{node.name}'. Check"
+                        f"that it exists and is not in a CodeBlock")
+
+            else:
+                dim_list = [Range.create(dim.lower.copy(), dim.upper.copy())
+                            for dim in orig_shape]
+                aref = ArrayReference.create(sym, dim_list)
 
             # Add a conditional expression to avoid repeating the allocation
             # if its already done
@@ -192,7 +227,6 @@ then
 
             # Add runtime checks to verify that the boundaries haven't changed
             # (we skip literals as we know they can't have changed)
-            check_added = False
             for idx, dim in enumerate(orig_shape):
                 if not isinstance(dim.lower, Literal):
                     expr = BinaryOperation.create(
@@ -208,37 +242,66 @@ then
                     cond_expr = BinaryOperation.create(
                                     BinaryOperation.Operator.OR,
                                     cond_expr, expr)
-                    check_added = True
-                if not isinstance(dim.upper, Literal):
-                    expr = BinaryOperation.create(
-                            BinaryOperation.Operator.NE,
-                            IntrinsicCall.create(
-                                IntrinsicCall.Intrinsic.UBOUND,
-                                [Reference(sym),
-                                 ("dim", Literal(str(idx+1), INTEGER_TYPE))]),
-                            dim.upper.copy())
-                    # We chain the new check to the already existing cond_expr
-                    # which starts with the 'not allocated' condition added
-                    # before this loop.
-                    cond_expr = BinaryOperation.create(
-                                    BinaryOperation.Operator.OR,
-                                    cond_expr, expr)
-                    check_added = True
+                # The upper check must always be added
+                expr = BinaryOperation.create(
+                        BinaryOperation.Operator.NE,
+                        IntrinsicCall.create(
+                            IntrinsicCall.Intrinsic.UBOUND,
+                            [Reference(sym),
+                             ("dim", Literal(str(idx+1), INTEGER_TYPE))]),
+                        dim.upper.copy())
+                # We chain the new check to the already existing cond_expr
+                # which starts with the 'not allocated' condition added
+                # before this loop.
+                cond_expr = BinaryOperation.create(
+                                BinaryOperation.Operator.OR,
+                                cond_expr, expr)
 
-            body = []
-            if check_added:
-                body.append(
-                    IfBlock.create(
-                        allocated_expr.copy(),
-                        [IntrinsicCall.create(
-                            IntrinsicCall.Intrinsic.DEALLOCATE,
-                            [Reference(sym)])]))
-            body.append(
-                IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
-                                     [aref]))
-            # Insert the conditional allocation at the start of the supplied
-            # routine.
-            node.children.insert(0, IfBlock.create(cond_expr, body))
+            if_stmt = IfBlock.create(cond_expr, [
+                IfBlock.create(
+                    allocated_expr.copy(),
+                    [IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.DEALLOCATE,
+                        [Reference(sym)])]),
+                IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, [aref])
+            ])
+
+            if already_allocatable:
+                # Find and remove the deallocate statements
+                for ref in node.walk(Reference):
+                    if (
+                        isinstance(ref.parent, IntrinsicCall) and
+                        (ref.parent.intrinsic ==
+                            IntrinsicCall.Intrinsic.DEALLOCATE) and
+                        ref.symbol is sym
+                    ):
+                        # If its the only reference in the deallocate
+                        # statement, remove the full statement, otherwise
+                        # just the relevant reference
+                        deallocate_stmt = ref.parent
+                        if len(deallocate_stmt.arguments) == 1:
+                            deallocate_stmt.detach()
+                        else:
+                            for child in deallocate_stmt.arguments:
+                                if child == ref:
+                                    child.detach()
+                # Now insert guarded allocate expression
+                previous_allocate.parent.children.insert(
+                        previous_allocate.position, if_stmt)
+                # Remove the unguarded allocate, if its the only reference in
+                # a allocate statement, remove the full statement, otherwise
+                # just the relevant reference
+                if len(previous_allocate.arguments) == 1:
+                    previous_allocate.detach()
+                else:
+                    for child in previous_allocate.arguments:
+                        if child == aref:
+                            child.detach()
+
+            else:
+                # Insert the conditional allocation at the start of the supplied
+                # routine.
+                node.children.insert(0, if_stmt)
 
         # Finally, remove the hoisted symbols (and any associated tags)
         # from the routine scope.
@@ -281,6 +344,8 @@ then
             # Check whether all of the bounds of the array are defined - an
             # allocatable array will have array dimensions of
             # ArrayType.Extent.DEFERRED
+            if all(dim == ArrayType.Extent.DEFERRED for dim in sym.shape):
+                local_arrays[sym.name] = sym
             if all(isinstance(dim, ArrayType.ArrayBounds)
                    for dim in sym.shape):
                 local_arrays[sym.name] = sym
