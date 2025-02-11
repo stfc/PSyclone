@@ -52,7 +52,7 @@ PROFILING_ENABLED = False
 # PSyIR tree in order to use the symbol information from those modules
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
-# A environment variable can inform if this is targeting NEMOv5, in which case
+# A environment variable can inform if this is targeting NEMOv4, in which case
 # array privatisation is disabled.
 NEMOV4 = os.environ.get('NEMOV4', False)
 

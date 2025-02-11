@@ -67,7 +67,6 @@ FILES_TO_SKIP = PASSTHROUGH_ISSUES + [
 ]
 
 SKIP_FOR_PERFORMANCE = [
-    # Check if these work with NEMOv4
     "iom.f90",
     "iom_nf90.f90",
     "iom_def.f90",
@@ -98,18 +97,9 @@ OFFLOADING_ISSUES = [
 NEMOV4 = os.environ.get('NEMOV4', False)
 
 NEMOV4_EXCLUSIONS = [
-    "sbcdcy.f90",
-    "sbcmod.f90",
-    "domvvl.f90",
-    "domzgr.f90",
-    "dtatsd.f90",
-    "dynnxt.f90",
-    "sbcisf.f90",
-    "sshwzv.f90",
-    "step.f90",
-    "zdfmxl.f90",
-    "traadv_fct.f90",
-    "traadv.f90",
+    "dynvor.f90",
+    "tranxt.f90",
+    "trabbl.f90",
 ]
 
 
@@ -132,8 +122,12 @@ def trans(psyir):
         return
 
     omp_target_trans = OMPTargetTrans()
-    omp_gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
-    omp_gpu_loop_trans.omp_directive = "teamsloop"
+    if NEMOV4:
+        omp_gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
+        omp_gpu_loop_trans.omp_directive = "loop"
+    else:
+        omp_gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
+        omp_gpu_loop_trans.omp_directive = "teamsloop"
     omp_cpu_loop_trans = OMPLoopTrans(omp_schedule="static")
     omp_cpu_loop_trans.omp_directive = "paralleldo"
 
