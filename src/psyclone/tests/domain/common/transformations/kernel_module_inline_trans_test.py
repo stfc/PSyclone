@@ -83,8 +83,16 @@ def test_check_data_accesses(config_instance):
     # Now try where there's only a single wildcard import so we know the origin
     # of the symbol.
     kcall0 = schedule.walk(CodedKern)[0]
-    trans.check_data_accesses(kcall0, kcall0.get_kernel_schedule(), "Kernel")
-    table = kcall0.get_kernel_schedule().symbol_table
+    ksched = kcall0.get_kernel_schedule()
+    ctable = ksched.ancestor(Container).symbol_table
+    # To do this, we manually remove all ContainerSymbols apart from the one
+    # from which 'go_wp' is imported.
+    for sym in ctable.wildcard_imports():
+        if sym.name != "kind_params_mod":
+            ctable._symbols.pop(sym.name)
+
+    trans.check_data_accesses(kcall0, ksched, "Kernel")
+    table = ksched.symbol_table
     assert (table.lookup("go_wp").interface.container_symbol.name ==
             "kind_params_mod")
 

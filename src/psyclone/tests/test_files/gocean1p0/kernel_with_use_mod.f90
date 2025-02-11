@@ -32,6 +32,9 @@
 ! Author: A. R. Porter, STFC Daresbury Lab
 
 module kernel_with_use_mod
+  use argument_mod
+  use grid_mod
+  use kernel_mod
   use kind_params_mod
   implicit none
 

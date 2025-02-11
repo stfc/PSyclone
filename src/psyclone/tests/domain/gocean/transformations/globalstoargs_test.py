@@ -53,6 +53,15 @@ API = "gocean"
 BASEPATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))), "test_files")
 
+def make_external_module(monkeypatch, fortran_reader, code: str):
+    '''
+    '''
+    from psyclone.parse import ModuleInfo, FileInfo, ModuleManager
+    minfo = ModuleInfo("model_mod", FileInfo("model_mod.f90"))
+    minfo._psyir_container_node = fortran_reader.psyir_from_source(code).children[0]
+    mman = ModuleManager.get()
+    monkeypatch.setitem(mman._modules, "model_mod", minfo)
+
 
 def test_kernelimportstoargumentstrans_wrongapi():
     ''' Check the KernelImportsToArguments with an API other than GOcean1p0'''
@@ -345,26 +354,23 @@ def test_kernelimportstoarguments_noimports(fortran_writer):
     # no imports were found.
 
 
-def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch):
+def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch, fortran_reader):
     ''' Check the KernelImportsToArguments transformation with a symbol name
     clash produces the expected error.'''
+    make_external_module(monkeypatch, fortran_reader, """\
+    module model_mod
+    use kind_params_mod
+    real(go_wp), parameter :: rdt = 1.0
+    real(go_wp) :: magic
+    real(go_wp) :: cbfr
+    end module model_mod""")
 
     trans = KernelImportsToArguments()
     # Construct a testing InvokeSchedule
-    _, invoke_info = parse(os.path.join(BASEPATH, "gocean1p0",
-                                        "single_invoke_kern_with_use.f90"),
-                           api=API)
-    psy = PSyFactory(API).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    psy, invoke = get_invoke("single_invoke_kern_with_use.f90", idx=0, api=API)
+    #psy = PSyFactory(API).create(invoke_info)
+    #invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
-
-    # Monkeypatch Symbol.resolve_type to avoid module searching and
-    # importing in this test. In this case we assume the symbol is a
-    # DataSymbol of REAL type.
-    def create_real(variable):
-        return DataSymbol(variable.name, REAL_TYPE,
-                          interface=variable.interface)
-    monkeypatch.setattr(Symbol, "resolve_type", create_real)
 
     # Add 'rdt' into the symbol table
     kernel.ancestor(InvokeSchedule).symbol_table.add(
@@ -373,6 +379,7 @@ def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch):
     # Test transforming a single kernel
     with pytest.raises(KeyError) as err:
         trans.apply(kernel)
-    assert ("Couldn't copy 'rdt: DataSymbol<Scalar<REAL, UNDEFINED>, "
-            "Import(container='model_mod')>' into the SymbolTable. The name "
-            "'rdt' is already used by another symbol." in str(err.value))
+    assert ("Couldn't copy 'rdt: DataSymbol<Scalar<REAL, go_wp: "
+            in str(err.value))
+    assert (" into the SymbolTable. The name 'rdt' is already used by another "
+            "symbol." in str(err.value))
