@@ -4204,8 +4204,11 @@ class Fparser2Reader():
                         f"Found a function call inside a where clause with "
                         f"unknown elemental status: "
                         f"{call_ancestor.debug_string()}")
+                # If it is none-elemental, we leave this array reference as it
+                # is
                 if not call_ancestor.is_elemental:
                     continue
+                # Otherwise, we continue replacing the range with the loop idx
 
             if first_rank:
                 if rank != first_rank:
