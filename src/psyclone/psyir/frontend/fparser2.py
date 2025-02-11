@@ -1646,7 +1646,7 @@ class Fparser2Reader():
                                             interface=type_symbol.interface,
                                             visibility=type_symbol.visibility)
                 table = type_symbol.find_symbol_table(parent)
-                table.swap(type_symbol, new_symbol)
+                table.replace_symbol(type_symbol, new_symbol)
                 type_symbol = new_symbol
             elif not isinstance(type_symbol, DataTypeSymbol):
                 raise SymbolError(

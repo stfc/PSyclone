@@ -486,6 +486,12 @@ class ArrayType(DataType):
             '''
             return copy.copy(self)
 
+        def reference_accesses(self, _):
+            '''
+            An Extent cannot contain any variable accesses so there's nothing
+            to do.
+            '''
+
     @dataclass(frozen=True)
     class ArrayBounds:
         '''

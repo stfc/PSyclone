@@ -53,6 +53,16 @@ BASEPATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))), "test_files")
 
 
+def make_external_module(monkeypatch, fortran_reader, code: str):
+    '''
+    '''
+    from psyclone.parse import ModuleInfo, FileInfo, ModuleManager
+    minfo = ModuleInfo("model_mod", FileInfo("model_mod.f90"))
+    minfo._psyir_container_node = fortran_reader.psyir_from_source(code).children[0]
+    mman = ModuleManager.get()
+    monkeypatch.setitem(mman._modules, "model_mod", minfo)
+
+
 def test_kernelimportstoargumentstrans_wrongapi():
     ''' Check the KernelImportsToArguments with an API other than GOcean1p0'''
 
@@ -188,12 +198,11 @@ def test_kernelimportstoargumentstrans(monkeypatch):
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
-def test_kernelimportstoargumentstrans_constant(monkeypatch):
+def test_kernelimportstoargumentstrans_constant(monkeypatch,
+                                                fortran_reader,
+                                                fortran_writer):
     ''' Check the KernelImportsToArguments transformation when the import is
     also a constant value, in this case the argument should be read-only.'''
-    from psyclone.psyir.backend.fortran import FortranWriter
-    from psyclone.psyir.nodes import Literal
-
     trans = KernelImportsToArguments()
 
     # Construct a testing InvokeSchedule
@@ -203,31 +212,26 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch):
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
-
-    # Monkeypatch resolve_type to avoid module searching and importing
-    # in this test. In this case we assume it is a constant INTEGER
-    def create_data_symbol(arg):
-        symbol = DataSymbol(arg.name, INTEGER_TYPE,
-                            interface=arg.interface,
-                            is_constant=True,
-                            initial_value=Literal("1", INTEGER_TYPE))
-        return symbol
-
-    monkeypatch.setattr(DataSymbol, "resolve_type", create_data_symbol)
-    monkeypatch.setattr(Symbol, "resolve_type", create_data_symbol)
+    make_external_module(monkeypatch, fortran_reader, """\
+    module model_mod
+    use kind_params_mod
+    real(go_wp), parameter :: rdt = 1.0
+    real(go_wp) :: magic
+    real(go_wp) :: cbfr
+    end module model_mod""")
 
     # Test transforming a single kernel
     trans.apply(kernel)
 
-    fwriter = FortranWriter()
-    kernel_code = fwriter(kernel.get_kernel_schedule())
+    kernel_code = fortran_writer(kernel.get_kernel_schedule())
 
     assert ("subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
             "magic)" in kernel_code)
-    assert "integer, intent(in) :: rdt" in kernel_code
+    assert "real(kind=go_wp), intent(in) :: rdt" in kernel_code
 
 
-def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
+def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(
+        monkeypatch, fortran_reader):
     ''' Check the KernelImportsToArguments transformation when the import is
     a type not supported by the GOcean infrastructure raises an Error'''
 
@@ -243,11 +247,13 @@ def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
 
     # In this case we set it to be of type CHARACTER as that is not supported
     # in the GOcean infrastructure.
-    def create_data_symbol(arg):
-        symbol = DataSymbol(arg.name, CHARACTER_TYPE,
-                            interface=arg.interface)
-        return symbol
-    monkeypatch.setattr(Symbol, "resolve_type", create_data_symbol)
+    make_external_module(monkeypatch, fortran_reader, """\
+    module model_mod
+    use kind_params_mod
+    character :: rdt = "a"
+    real(go_wp) :: magic
+    real(go_wp) :: cbfr
+    end module model_mod""")
 
     # Test transforming a single kernel
     with pytest.raises(TypeError) as err:
@@ -259,7 +265,9 @@ def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
-def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
+def test_kernelimportstoarguments_multiple_kernels(monkeypatch,
+                                                   fortran_reader,
+                                                   fortran_writer):
     ''' Check the KernelImportsToArguments transformation with an invoke with
     three kernel calls, two of them duplicated and the third one sharing the
     same imported module'''
@@ -280,22 +288,21 @@ def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
     expected = [
         ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
          "magic)",
-         "real, intent(inout) :: rdt"],
+         "real(kind=go_wp), intent(inout) :: rdt"],
         ["subroutine kernel_with_use2_code(ji, jj, istep, ssha, tmask, cbfr,"
          " rdt)",
-         "real, intent(inout) :: cbfr\n  real, intent(inout) :: rdt"],
+         "real(kind=go_wp), intent(inout) :: cbfr\n  real, intent(inout) :: rdt"],
         ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
          "magic)",
-         "real, intent(inout) :: rdt\n  real, intent(inout) :: magic"]]
+         "real(kind=go_wp), intent(inout) :: rdt\n  real, intent(inout) :: magic"]]
 
-    # Monkeypatch the resolve_type() methods to avoid searching and
-    # importing of module during this test.
-    def create_data_symbol(arg):
-        symbol = DataSymbol(arg.name, REAL_TYPE,
-                            interface=arg.interface)
-        return symbol
-    monkeypatch.setattr(Symbol, "resolve_type", create_data_symbol)
-    monkeypatch.setattr(DataSymbol, "resolve_type", create_data_symbol)
+    make_external_module(monkeypatch, fortran_reader, """\
+    module model_mod
+    use kind_params_mod
+    real(go_wp), parameter :: rdt = 1.0
+    real(go_wp) :: magic
+    real(go_wp) :: cbfr
+    end module model_mod""")
 
     for num, kernel in enumerate(invoke.schedule.coded_kernels()):
         kschedule = kernel.get_kernel_schedule()

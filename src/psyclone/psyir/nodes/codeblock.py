@@ -183,7 +183,7 @@ class CodeBlock(Statement, DataNode):
                 # `node.parent.children.index(node)` because of fparser #174.
                 if (len(node.parent.children) == 1 or
                         node is node.parent.children[0]):
-                    result.append(node.string)
+                    result.append(node.string.lower())
             elif not isinstance(node.parent,
                                 (Fortran2003.Cycle_Stmt,
                                  Fortran2003.End_Do_Stmt,
@@ -191,7 +191,7 @@ class CodeBlock(Statement, DataNode):
                                  Fortran2003.Else_Stmt,
                                  Fortran2003.End_If_Stmt)):
                 # We don't want labels associated with loop or branch control.
-                result.append(node.string)
+                result.append(node.string.lower())
         # Precision on literals requires special attention since they are just
         # stored in the tree as str (fparser/#456).
         for node in walk(parse_tree, (Fortran2003.Int_Literal_Constant,
@@ -199,14 +199,20 @@ class CodeBlock(Statement, DataNode):
                                       Fortran2003.Logical_Literal_Constant,
                                       Fortran2003.Char_Literal_Constant)):
             if node.items[1]:
-                result.append(node.items[1])
+                result.append(node.items[1].lower())
         # Complex literals require even more special attention.
         for node in walk(parse_tree, Fortran2003.Complex_Literal_Constant):
             # A complex literal constant has a real part and an imaginary part.
             # Each of these can have a kind.
             for part in node.items:
                 if part.items[1]:
-                    result.append(part.items[1])
+                    result.append(part.items[1].lower())
+        # The name in a data-reference is not stored as a Name but as a bare
+        # string (unless it is indexed).
+        for node in walk(parse_tree, Fortran2003.Data_Ref):
+            if isinstance(node.items[0], str):
+                result.append(node.items[0].lower())
+
         return result
 
     def reference_accesses(self, var_accesses: VariablesAccessInfo):
