@@ -53,8 +53,8 @@ from psyclone.psyir.transformations.transformation_error \
 
 
 class HoistLocalArraysTrans(Transformation):
-    '''This transformation takes a Routine and promotes any local, 'automatic'
-    arrays to Container scope:
+    '''This transformation takes a Routine and promotes any local arrays to
+    Container scope:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
@@ -140,9 +140,8 @@ then
 
         container = node.ancestor(Container)
 
-        # Identify all arrays that are local to the target routine,
-        # do not explicitly use dynamic memory allocation and are not
-        # accessed within a CodeBlock.
+        # Identify all arrays that are local to the target routine
+        # (automatic interface) and not accessed within a CodeBlock.
         automatic_arrays = self._get_local_arrays(node)
 
         if not automatic_arrays:
@@ -260,7 +259,6 @@ then
                     cond_expr = BinaryOperation.create(
                                     BinaryOperation.Operator.OR,
                                     cond_expr, expr)
-                # The upper check must always be added
                 if not isinstance(dim.upper, Literal):
                     expr = BinaryOperation.create(
                             BinaryOperation.Operator.NE,
@@ -367,7 +365,7 @@ then
             # Check whether all of the bounds of the array are defined - an
             # allocatable array will have array dimensions of
             # ArrayType.Extent.DEFERRED
-            if all(dim == ArrayType.Extent.DEFERRED for dim in sym.shape):
+            if any(dim == ArrayType.Extent.DEFERRED for dim in sym.shape):
                 local_arrays[sym.name] = sym
             if all(isinstance(dim, ArrayType.ArrayBounds)
                    for dim in sym.shape):
