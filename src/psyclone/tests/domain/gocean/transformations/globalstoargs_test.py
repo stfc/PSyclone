@@ -39,13 +39,14 @@
 
 import os
 import pytest
+from psyclone.parse import ModuleInfo, FileInfo, ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InvokeSchedule
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
-    CHARACTER_TYPE, Symbol
+from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE, INTEGER_TYPE,
+                                    CHARACTER_TYPE, Symbol)
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import KernelImportsToArguments, \
-    TransformationError
+from psyclone.transformations import (KernelImportsToArguments,
+                                      TransformationError)
 
 API = "gocean"
 
@@ -53,14 +54,26 @@ API = "gocean"
 BASEPATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))), "test_files")
 
-def make_external_module(monkeypatch, fortran_reader, code: str):
+
+def make_external_module(monkeypatch,
+                         fortran_reader,
+                         mod_name: str,
+                         code: str):
     '''
+    Utility to add an 'external' module into the ModuleManager. This saves us
+    from having to create and then search for a specific module file.
+
+    :param monkeypatch: the monkeypatch fixture to use.
+    :param fortran_reader: the FortranReader fixture to use.
+    :param mod_name: the name of the module to create.
+    :param code: the Fortran source for the module.
+
     '''
-    from psyclone.parse import ModuleInfo, FileInfo, ModuleManager
-    minfo = ModuleInfo("model_mod", FileInfo("model_mod.f90"))
-    minfo._psyir_container_node = fortran_reader.psyir_from_source(code).children[0]
+    minfo = ModuleInfo(mod_name, FileInfo(f"{mod_name}.f90"))
+    cntr = fortran_reader.psyir_from_source(code).children[0]
+    minfo._psyir_container_node = cntr
     mman = ModuleManager.get()
-    monkeypatch.setitem(mman._modules, "model_mod", minfo)
+    monkeypatch.setitem(mman._modules, mod_name, minfo)
 
 
 def test_kernelimportstoargumentstrans_wrongapi():
@@ -354,10 +367,11 @@ def test_kernelimportstoarguments_noimports(fortran_writer):
     # no imports were found.
 
 
-def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch, fortran_reader):
+def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch,
+                                                         fortran_reader):
     ''' Check the KernelImportsToArguments transformation with a symbol name
     clash produces the expected error.'''
-    make_external_module(monkeypatch, fortran_reader, """\
+    make_external_module(monkeypatch, fortran_reader, "model_mod", """\
     module model_mod
     use kind_params_mod
     real(go_wp), parameter :: rdt = 1.0
@@ -368,11 +382,9 @@ def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch, fortran_re
     trans = KernelImportsToArguments()
     # Construct a testing InvokeSchedule
     psy, invoke = get_invoke("single_invoke_kern_with_use.f90", idx=0, api=API)
-    #psy = PSyFactory(API).create(invoke_info)
-    #invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Add 'rdt' into the symbol table
+    # Add 'rdt' into the symbol table of this Invoke.
     kernel.ancestor(InvokeSchedule).symbol_table.add(
         DataSymbol("rdt", REAL_TYPE))
 
