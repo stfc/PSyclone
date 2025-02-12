@@ -260,7 +260,7 @@ class SymbolTable():
         new_st._default_visibility = self.default_visibility
         return new_st
 
-    def deep_copy(self, node=None):
+    def deep_copy(self, new_node=None):
         '''Create a copy of the symbol table with new instances of the
         top-level data structures and also new instances of the symbols
         contained in these data structures. Modifying a symbol attribute
@@ -276,8 +276,8 @@ class SymbolTable():
         '''
         # pylint: disable=protected-access
         new_st = type(self)()
-        if node:
-            new_st._node = node
+        if new_node:
+            new_st._node = new_node
 
         # Make a copy of each symbol in the symbol table
         for symbol in self.symbols:
