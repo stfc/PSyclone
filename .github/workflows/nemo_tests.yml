@@ -102,13 +102,15 @@ jobs:
         . .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMO
-        export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
         cd $PSYCLONE_NEMO_DIR
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
+        make clean
+        export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
+        nvfortran --version
         make -j 4 openmp_gpu
-        make -j 4 compile-openmp_gpu
+        make -j 1 compile-openmp_gpu
         export NV_ACC_POOL_THRESHOLD=75
         make run-openmp_gpu |& tee output.txt
         # Check the output is as expected (TODO #2895: improve numerical reproducibility)
@@ -138,6 +140,7 @@ jobs:
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
+        make clean
         make -j 4 openacc_kernels
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j 4 compile-openacc_kernels
         export NV_ACC_POOL_THRESHOLD=75
@@ -169,6 +172,7 @@ jobs:
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
+        make clean
         make -j 4 openacc_loops
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j 4 compile-openacc_loops
         export NV_ACC_POOL_THRESHOLD=75
@@ -208,6 +212,7 @@ jobs:
         export INPUT_DIR=/archive/NEMO_INPUTS/NEMOv4/ECMWF/eORCA1_GO8/
         export MPI_INC_DIR=${I_MPI_ROOT}/include
         cd $PSYCLONE_NEMO_DIR
+        make clean
         make -j 4 openmp_cpu
         make -j 4 compile-openmp_cpu
         export OMP_NUM_THREADS=4
