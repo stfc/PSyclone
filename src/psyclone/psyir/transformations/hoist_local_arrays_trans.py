@@ -203,7 +203,7 @@ then
                             orig_shape.append(
                                 ArrayType.ArrayBounds(lbound, ubound)
                             )
-                if not_supported:
+                if not_supported or original_allocate is None:
                     continue
 
             else:
