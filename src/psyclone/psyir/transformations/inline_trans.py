@@ -171,10 +171,10 @@ class InlineTrans(Transformation):
         try:
             # At this point routine_table.lookup("jpnij").interface.
             # container_symbol is NOT routine_table.lookup("in_out_manager")
-            # but IS the same a orig_routine.symbol_table.lookup(
+            # but IS the same as orig_routine.symbol_table.lookup(
             # "in_out_manager") i.e. it still points to the symbol in the
             # original table, not the one in the copy.
-              table.merge(routine_table,
+            table.merge(routine_table,
                         symbols_to_skip=routine_table.argument_list[:])
         except SymbolError as err:
             raise InternalError(

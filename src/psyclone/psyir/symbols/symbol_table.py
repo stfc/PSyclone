@@ -748,9 +748,28 @@ class SymbolTable():
                     if csym.wildcard_import:
                         self_csym.wildcard_import = True
             else:
-                self.add(csym)
+                # No symbol with this name is present in this table but is
+                # there one in an outer scope?
+                outer_sym = self.lookup(csym.name, otherwise=None)
+                if not outer_sym:
+                    self.add(csym)
+                else:
+                    # There is a match in an outer scope.
+                    if not isinstance(outer_sym, ContainerSymbol):
+                        # The match is not for a ContainerSymbol so can it
+                        # be renamed?
+                        outer_table = outer_sym.find_symbol_table(self.node)
+                        next_name = outer_table.next_available_name(
+                            outer_sym.name,
+                            other_table=other_table)
+                        outer_table.rename_symbol(outer_sym, next_name)
+                    else:
+                        # The symbol in an outer scope is also a
+                        # ContainerSymbol.
+                        if csym.wildcard_import:
+                            outer_sym.wildcard_import = True
             # We must update all references to this ContainerSymbol
-            # so that they point to the one in this table instead.
+            # so that they point to the one in scope in this table instead.
             imported_syms = other_table.symbols_imported_from(csym)
             for isym in imported_syms:
                 if isym.name in self:
