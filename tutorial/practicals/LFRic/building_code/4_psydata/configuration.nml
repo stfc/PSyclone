@@ -19,7 +19,8 @@
 
 &finite_element
   cellshape        = 'quadrilateral'
-  element_order    = 0
+  element_order_h  = 0
+  element_order_v  = 0
   coordinate_order = 1
 /
 
