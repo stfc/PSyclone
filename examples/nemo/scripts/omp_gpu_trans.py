@@ -97,6 +97,7 @@ OFFLOADING_ISSUES = [
 NEMOV4 = os.environ.get('NEMOV4', False)
 
 NEMOV4_EXCLUSIONS = [
+    # TODO 2895: Maybe because NEMOv4 is compiled with aggressive opt flags?
     "dynvor.f90",
     "tranxt.f90",
     "trabbl.f90",
@@ -123,6 +124,7 @@ def trans(psyir):
 
     omp_target_trans = OMPTargetTrans()
     if NEMOV4:
+        # TODO #2895: Explore why loop/teams loop diverge for NEMOv4
         omp_gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
         omp_gpu_loop_trans.omp_directive = "loop"
     else:

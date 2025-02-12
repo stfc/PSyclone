@@ -224,7 +224,7 @@ jobs:
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
           add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
 
-        # Run test (disabled because it is currently too slow)
+        # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
         ./nemo
@@ -265,7 +265,7 @@ jobs:
 
         # Run test
         cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
-        ln -s /archive/NEMO_INPUTS/NEMOv5_MO_original_files/ancil/eORCA1/link/* .
+        ln -sf /archive/NEMO_INPUTS/NEMOv5_MO_original_files/ancil/eORCA1/link/* .
         ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca1.nvhpc.10steps run.stat
         export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
