@@ -250,6 +250,31 @@ class Signature:
         return self._signature >= other._signature
 
     # ------------------------------------------------------------------------
+    def create_reference(self, symbol):
+        '''Creates a reference to the signature using the specified symbol.
+        The reference can either be a StructureReference, or a normal
+        Reference (depending if the signature is a structure or not)
+
+        :param symbol: the symbol to use when creating the
+            (Structure)Reference
+        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :returns: a reference to the signature using the specified symbol.
+        :rtype: :py:class:`psyclone.psyir.nodes.Reference`
+
+        '''
+
+        # Avoid circular import (Reference uses VariableAccessInfo)
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Reference, StructureReference
+
+        if self.is_structure:
+            ref = StructureReference.create(symbol, list(self._signature[1:]))
+        else:
+            ref = Reference(symbol)
+        return ref
+
+    # ------------------------------------------------------------------------
     @property
     def var_name(self):
         ''':returns: the actual variable name, i.e. the first component of

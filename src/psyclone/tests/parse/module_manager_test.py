@@ -285,6 +285,10 @@ def test_mod_man_sort_modules(capsys):
     deps = {"a": {"b", "c"}, "b": set(), "c": {"b"}}
     assert mod_man.sort_modules(deps) == ["b", "c", "a"]
 
+    # Test that case is ignored:
+    deps = {"A": {"b", "c"}, "b": set(), "c": {"B"}}
+    assert mod_man.sort_modules(deps) == ["b", "c", "a"]
+
     deps = {"a": {"b", "c"}, "b": set(), "c": {"netcdf", "b"}}
     deps_sorted = mod_man.sort_modules(deps)
     assert deps_sorted == ["b", "c", "a"]

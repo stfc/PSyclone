@@ -36,15 +36,16 @@
 
 '''This module tests the Signature class.'''
 
-from __future__ import absolute_import
 import pytest
 
 from psyclone.core import ComponentIndices, Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Reference
-from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
+from psyclone.psyir.nodes import Reference, StructureReference
+from psyclone.psyir.symbols import (DataSymbol, DataTypeSymbol,
+                                    INTEGER_SINGLE_TYPE,
+                                    StructureType, Symbol)
 
 
 def test_signature():
@@ -239,3 +240,28 @@ def test_output_languages():
     assert sig.to_language(comp) == "a(1)%b%c(i,j)"
     assert sig.to_language(comp, f_writer) == "a(1)%b%c(i,j)"
     assert sig.to_language(comp, c_writer) == "a[1].b.c[i + j * cLEN1]"
+
+
+def test_create_reference(fortran_writer):
+    '''Tests the create_reference function.
+    '''
+
+    # First define a structure type:
+    grid_type = StructureType.create([("nx", INTEGER_SINGLE_TYPE,
+                                       Symbol.Visibility.PUBLIC, None)])
+    grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
+    symbol = DataSymbol("a", grid_type_symbol)
+
+    sig = Signature("a")
+
+    # Test a non-structure reference:
+    ref = sig.create_reference(symbol)
+    # pylint: disable=unidiomatic-typecheck
+    assert type(ref) is Reference
+    assert fortran_writer(ref) == "a"
+
+    # Test a structure reference:
+    sig = Signature(["a", "b"])
+    struct_ref = sig.create_reference(symbol)
+    assert type(struct_ref) is StructureReference
+    assert fortran_writer(struct_ref) == "a%b"
