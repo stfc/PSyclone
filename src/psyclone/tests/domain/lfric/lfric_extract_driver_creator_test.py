@@ -594,7 +594,7 @@ def test_lfric_driver_field_array_inc():
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
-def test_lfric_driver_external_symbols():
+def test_lfric_driver_external_symbolsX():
     '''Test the handling of symbols imported from other modules, or calls to
     external functions that use module variables. Also make sure to test
     access to structure variables:
@@ -667,7 +667,9 @@ def test_lfric_driver_external_symbols():
     assert ("call extract_psy_data%ReadVariable('user_var%member_write_post@"
             "module_with_var_mod', &\n"
             "&user_var_member_write_module_with_var_mod_post" in driver)
-    assert "user_var%member_write = 0" in driver
+    assert ("call extract_psy_data%ReadVariable('user_var%member_write@"
+            "module_with_var_mod', user_var%member_write)" in driver)
+    #assert "user_var%member_write = 0" in driver
     assert ("call compare('user_var%member_read_write', user_var%member_read"
             "_write, user_var_member_read_write_module_with_var_mod_post)"
             in driver)
