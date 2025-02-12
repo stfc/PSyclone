@@ -101,6 +101,7 @@ NEMOV4_EXCLUSIONS = [
     "dynvor.f90",
     "tranxt.f90",
     "trabbl.f90",
+    "trabbc.f90"
 ]
 
 
