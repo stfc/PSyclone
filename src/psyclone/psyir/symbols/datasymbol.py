@@ -371,5 +371,7 @@ class DataSymbol(TypedSymbol):
             if isinstance(dim, ArrayType.Extent):
                 continue
             for bnd in [dim.lower, dim.upper]:
+                if not isinstance(bnd, nodes.Node):
+                    continue
                 for ref in bnd.walk(nodes.Reference):
                     ref.symbol.replace_symbols_using(table)
