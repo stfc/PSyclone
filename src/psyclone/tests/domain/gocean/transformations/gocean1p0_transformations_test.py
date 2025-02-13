@@ -1224,11 +1224,7 @@ def test_acc_data_parallel_commute(tmpdir):
 
     code2 = str(psy.gen)
 
-    # Remove the USE statements as their ordering can vary.
-    pat = re.compile(r"^\s*use \w*(, only: \w*)?$", re.I | re.M)
-    new1 = pat.sub("", code1)
-    new2 = pat.sub("", code2)
-    assert new1 == new2
+    assert code1 == code2
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
