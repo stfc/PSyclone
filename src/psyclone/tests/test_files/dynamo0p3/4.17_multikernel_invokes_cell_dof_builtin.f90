@@ -47,9 +47,10 @@ program multikernel_invokes_cell_dof_builtin
 
   type(field_type) :: f1, f2, f3, f4, m1, m2
   real(kind=r_def) :: a, scalar_arg
+  type(field_type) :: field_vec(3)
 
   call invoke(                                         &
-       testkern_dofs_type(f1, f2, f3, f4, scalar_arg), &
+       testkern_dofs_type(f1, f2, f3, f4, scalar_arg, field_vec), &
        testkern_type(a, f1, f2, m1, m2),               &
        inc_aX_plus_Y(0.5_r_def, f1, f2)                &
           )

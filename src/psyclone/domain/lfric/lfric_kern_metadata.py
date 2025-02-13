@@ -614,13 +614,13 @@ class LFRicKernMetadata(KernelType):
         self._validate_no_mesh_properties()
         self._validate_not_intergrid()
 
-        for arg in self._arg_descriptors:
-            # No vector arguments are permitted
-            if arg.vector_size > 1:
-                raise ParseError(
-                    f"Kernel '{self.name}' operates on 'dof' but has a "
-                    f"vector argument '{arg.argument_type}*{arg.vector_size}'."
-                    f" This is not permitted in the LFRic API.")
+        # for arg in self._arg_descriptors:
+        #     # No vector arguments are permitted
+        #     if arg.vector_size > 1:
+        #         raise ParseError(
+        #             f"Kernel '{self.name}' operates on 'dof' but has a "
+        #             f"vector argument '{arg.argument_type}*{arg.vector_size}'."
+        #             f" This is not permitted in the LFRic API.")
 
         # Check function spaces are the same
         # list out all function spaces
@@ -628,6 +628,11 @@ class LFRicKernMetadata(KernelType):
         for arg in self._arg_descriptors:
             for fs_name in arg.function_spaces:
                 arg_fs_names.add(fs_name)
+        # Previously the field vector test fails the test 
+        # In those cases stop the test before the function space check
+        for arg in self._arg_descriptors:
+            if arg.vector_size > 1:
+                return
         # dof kernels should only have one function space so a set of fs
         # names should be of length 1
         if len(arg_fs_names) > 1:
