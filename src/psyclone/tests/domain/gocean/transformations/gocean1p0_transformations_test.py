@@ -1324,6 +1324,9 @@ def test_acc_enter_directive_infrastructure_setup():
 
     # Check that the read_from_device routine has been generated
     expected = """\
+    SUBROUTINE read_from_device(from, to, startx, starty, nx, ny, blocking)
+      USE iso_c_binding, ONLY: c_ptr
+      USE kind_params_mod, ONLY: go_wp
       TYPE(c_ptr), intent(in) :: from
       REAL(KIND=go_wp), DIMENSION(:, :), INTENT(INOUT), TARGET :: to
       INTEGER, intent(in) :: startx
@@ -1335,10 +1338,6 @@ def test_acc_enter_directive_infrastructure_setup():
       !$acc update host(to)
 
     END SUBROUTINE read_from_device"""
-    assert ("SUBROUTINE read_from_device(from, to, startx, starty, nx, ny, "
-            "blocking)" in gen)
-    assert "USE iso_c_binding, ONLY: c_ptr" in gen
-    assert "USE kind_params_mod, ONLY: go_wp" in gen
     assert expected in gen
 
     # Check that the routine has been introduced to the tree (with the
