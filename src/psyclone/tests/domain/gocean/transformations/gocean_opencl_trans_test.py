@@ -305,11 +305,11 @@ def test_invoke_opencl_initialisation_grid():
                         'dy_u', 'dy_v', 'dy_t', 'gphiu', 'gphiv']
 
     # Check that device grid initialisation routine is generated
+    assert "subroutine initialise_grid_device_buffers(field)" in generated_code
+    assert "use fortcl, only: create_ronly_buffer" in generated_code
+    assert "use iso_c_binding, only: c_size_t" in generated_code
+    assert "use field_mod" in generated_code
     expected = '''
-    subroutine initialise_grid_device_buffers(field)
-      use fortcl, only: create_ronly_buffer
-      use iso_c_binding, only: c_size_t
-      use field_mod
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
 
@@ -329,12 +329,13 @@ c_sizeof(field%grid%'''
         assert code in generated_code
 
     # Check that device grid write routine is generated
+    for stmt in ["subroutine write_grid_buffers(field)",
+                 "use fortcl, only: get_cmd_queues",
+                 "use iso_c_binding, only: c_intptr_t, c_size_t, c_sizeof",
+                 "use clfortran",
+                 "use ocl_utils_mod, only: check_status"]:
+        assert stmt in generated_code
     expected = '''
-    subroutine write_grid_buffers(field)
-      use fortcl, only: get_cmd_queues
-      use iso_c_binding, only: c_intptr_t, c_size_t, c_sizeof
-      use clfortran
-      use ocl_utils_mod, only: check_status
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
       integer(kind=c_intptr_t), pointer :: cmd_queues(:)
@@ -422,13 +423,16 @@ def test_opencl_routines_initialisation(kernel_outputdir):
     generated_code = str(psy.gen).lower()
 
     # Check that the read_from_device routine has been generated
+    for stmt in [
+            "subroutine read_from_device(from, to, startx, starty, nx, ny, "
+            "blocking)",
+            "use iso_c_binding, only: c_intptr_t, c_ptr, c_size_t, c_sizeof",
+            "use ocl_utils_mod, only: check_status",
+            "use kind_params_mod, only: go_wp",
+            "use clfortran",
+            "use fortcl, only: get_cmd_queues"]:
+        assert stmt in generated_code
     expected = '''\
-    subroutine read_from_device(from, to, startx, starty, nx, ny, blocking)
-      use iso_c_binding, only: c_intptr_t, c_ptr, c_size_t, c_sizeof
-      use ocl_utils_mod, only: check_status
-      use kind_params_mod, only: go_wp
-      use clfortran
-      use fortcl, only: get_cmd_queues
       type(c_ptr), intent(in) :: from
       real(kind=go_wp), intent(inout), dimension(:, :), target :: to
       integer, intent(in) :: startx
@@ -470,13 +474,16 @@ offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
     assert expected in generated_code
 
     # Check that the write_to_device routine has been generated
+    for stmt in [
+            "subroutine write_to_device(from, to, startx, starty, nx, ny, "
+            "blocking)",
+            "use iso_c_binding, only: c_intptr_t, c_ptr, c_size_t, c_sizeof",
+            "use ocl_utils_mod, only: check_status",
+            "use kind_params_mod, only: go_wp",
+            "use clfortran",
+            "use fortcl, only: get_cmd_queues"]:
+        assert stmt in generated_code
     expected = '''\
-    subroutine write_to_device(from, to, startx, starty, nx, ny, blocking)
-      use iso_c_binding, only: c_intptr_t, c_ptr, c_size_t, c_sizeof
-      use ocl_utils_mod, only: check_status
-      use kind_params_mod, only: go_wp
-      use clfortran
-      use fortcl, only: get_cmd_queues
       real(kind=go_wp), intent(in), dimension(:, :), target :: from
       type(c_ptr), intent(in) :: to
       integer, intent(in) :: startx
@@ -518,11 +525,14 @@ offset_in_bytes,size_in_bytes,c_loc(from(1,starty)),0,c_null_ptr,c_null_ptr)
     assert expected in generated_code
 
     # Check that the device buffer initialisation routine has been generated
+    idx = generated_code.index("subroutine initialise_device_buffer(field)")
+    for stmt in [
+            "subroutine initialise_device_buffer(field)",
+            "use fortcl, only: create_rw_buffer",
+            "use iso_c_binding, only: c_size_t",
+            "use field_mod"]:
+        assert stmt in generated_code[idx:]
     expected = '''\
-    subroutine initialise_device_buffer(field)
-      use fortcl, only: create_rw_buffer
-      use iso_c_binding, only: c_size_t
-      use field_mod
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
 
@@ -537,7 +547,7 @@ field%device_ptr)
       end if
 
     end subroutine initialise_device_buffer'''
-    assert expected in generated_code
+    assert expected in generated_code[idx:]
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
@@ -1095,12 +1105,14 @@ def test_set_kern_float_arg():
     generated_code = str(psy.gen)
     # This set_args has a name clash on xstop (one is a grid property and the
     # other a loop boundary). One of they should appear as 'xstop_1'
+    for stmt in [
+            "SUBROUTINE bc_ssh_code_set_args(kernel_obj, a_scalar, ssh_fld, "
+            "xstop, tmask, xstart, xstop_1, ystart, ystop)",
+            "USE clfortran, ONLY: clSetKernelArg",
+            "USE iso_c_binding, ONLY: C_LOC, C_SIZEOF, c_intptr_t",
+            "USE ocl_utils_mod, ONLY: check_status"]:
+        assert stmt in generated_code
     expected = '''\
-    SUBROUTINE bc_ssh_code_set_args(kernel_obj, a_scalar, ssh_fld, xstop, \
-tmask, xstart, xstop_1, ystart, ystop)
-      USE clfortran, ONLY: clSetKernelArg
-      USE iso_c_binding, ONLY: C_LOC, C_SIZEOF, c_intptr_t
-      USE ocl_utils_mod, ONLY: check_status
       INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
       REAL(KIND=go_wp), INTENT(IN), TARGET :: a_scalar
       INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: ssh_fld

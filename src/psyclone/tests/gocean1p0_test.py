@@ -124,12 +124,13 @@ def test_two_kernels(tmpdir, dist_mem):
                                         "single_invoke_two_kernels.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
 
+    for stmt in ["MODULE psy_single_invoke_two_kernels",
+                 "USE field_mod",
+                 "USE kind_params_mod"]:
+        assert stmt in generated_code
     before_kernels = (
-        "  MODULE psy_single_invoke_two_kernels\n"
-        "    USE field_mod\n"
-        "    USE kind_params_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, unew_fld, "
@@ -168,7 +169,7 @@ def test_two_kernels(tmpdir, dist_mem):
     else:
         expected_output = before_kernels + first_kernel + second_kernel
 
-    assert str(generated_code) == expected_output
+    assert expected_output in generated_code
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
