@@ -34,7 +34,7 @@
 
 module testkern_qr_mod
 
-    use constants_mod, only: i_def, r_def
+    use constants_mod
     use argument_mod
     use fs_continuity_mod
     use kernel_mod
