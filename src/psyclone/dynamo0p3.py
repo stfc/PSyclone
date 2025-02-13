@@ -3616,7 +3616,8 @@ class DynBoundaryConditions(LFRicCollection):
                 Assignment.create(
                     lhs=Reference(self.symtab.lookup(name)),
                     rhs=dofs.argument.generate_method_call(
-                                                "get_boundary_dofs"),
+                        "get_boundary_dofs",
+                        function_space=dofs.function_space),
                     is_pointer=True
                 ),
                 cursor)

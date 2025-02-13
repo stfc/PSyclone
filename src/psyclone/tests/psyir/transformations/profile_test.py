@@ -396,31 +396,17 @@ def test_profile_kernels_dynamo0p3(fortran_writer):
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
-    code = fortran_writer(invoke.schedule).replace("\n", "")
+    code = fortran_writer(invoke.schedule)
 
-    correct_re = ("subroutine invoke.*"
-                  "use profile_psy_data_mod, only : profile_PSyDataType.*"
-                  r"type\(profile_PSyDataType\), save, target :: "
-                  r"(?P<profile2>\w*) .*"
-                  r"type\(profile_PSyDataType\), save, target :: "
-                  r"(?P<profile1>\w*) .*"
-                  r"CALL (?P=profile1) % PreStart\(\"multi_invoke_psy\", "
-                  r"\"invoke_0-testkern_code-r0\", 0, 0\).*"
-                  "do cell.*"
-                  "call.*"
-                  "end.*"
-                  r"CALL (?P=profile1) % PostEnd.*"
-                  r"CALL (?P=profile2) % PreStart\(\"multi_invoke_psy\", "
-                  r"\"invoke_0-testkern_code-r1\", 0, 0\).*"
-                  "do cell.*"
-                  "call.*"
-                  "end.*"
-                  r"CALL (?P=profile2) % PostEnd")
-
-    # groups = re.search(correct_re, code, re.I)
-    # assert groups is not None
     # Check that the variables are different
-    # assert groups.group(1) != groups.group(2)
+    assert ("type(profile_PSyDataType), save, target :: profile_psy_data\n"
+            in code)
+    assert ("type(profile_PSyDataType), save, target :: profile_psy_data_1\n"
+            in code)
+    assert ("CALL profile_psy_data % PreStart(\"multi_invoke_psy\", "
+            "\"invoke_0-testkern_code-r0\", 0, 0)" in code)
+    assert ("CALL profile_psy_data_1 % PreStart(\"multi_invoke_psy\", "
+            "\"invoke_0-testkern_code-r1\", 0, 0)" in code)
 
     Profiler._options = []
 
