@@ -620,8 +620,15 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             else:
                 sym = symbol_table.lookup_with_tag(str(signature))
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
-            self.add_call(program, read_var,
-                          [name_lit, Reference(sym)])
+            if sym.is_array and not sym.datatype.is_allocatable:
+                # In case of a non-allocatable array (e.g. a constant
+                # size array from a module), call the ReadVariable
+                # function that does not require an allocatable field
+                self.add_call(program, read_var+"NonAlloc",
+                              [name_lit, Reference(sym)])
+            else:
+                self.add_call(program, read_var,
+                              [name_lit, Reference(sym)])
 
         # Then handle all variables that are written (note that some
         # variables might be read and written)
