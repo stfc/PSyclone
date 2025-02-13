@@ -721,10 +721,17 @@ class SymbolTable():
         vai = VariablesAccessInfo()
         other_table.reference_accesses(vai)
         cntr_symbols = set()
-        for sig in vai.all_signatures:
+        if False:   # ARPDBG for sig in vai.all_signatures:
+            # This is just looking at container symbols referenced by symbols
+            # in this table - the container symbols may not actually be in
+            # this table so we don't actually want to handle them here.
             sym = other_table.lookup(sig.var_name)
             if sym.is_import:
-                cntr_symbols.add(sym.interface.container_symbol)
+                src_cntr = sym.interface.container_symbol
+                cntr = self.lookup(src_cntr.name, otherwise=None)
+                if not cntr:
+                    cntr = src_cntr
+                    cntr_symbols.add(src_cntr)
 
         cntr_symbols.update(other_table.containersymbols)
         for csym in cntr_symbols:
