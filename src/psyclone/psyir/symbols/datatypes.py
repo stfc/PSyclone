@@ -613,6 +613,14 @@ class ArrayType(DataType):
         return self._precision
 
     @property
+    def is_allocatable(self) -> bool:
+        '''
+        :returns: whether this array is allocatable or not.
+        '''
+        # A 'deferred' array extent means this is an allocatable array
+        return ArrayType.Extent.DEFERRED in self.shape
+
+    @property
     def shape(self):
         '''
         :returns: the (validated) shape of the symbol in column-major order

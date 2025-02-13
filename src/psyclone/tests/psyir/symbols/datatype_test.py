@@ -361,11 +361,13 @@ def test_arraytype():
         scalar_type, [ArrayType.Extent.DEFERRED,
                       ArrayType.Extent.DEFERRED])
     assert array_type.shape[1] == ArrayType.Extent.DEFERRED
+    assert array_type.is_allocatable
     # Provided as an attribute extent
     array_type = ArrayType(
         scalar_type, [ArrayType.Extent.ATTRIBUTE,
                       (2, ArrayType.Extent.ATTRIBUTE)])
     assert array_type.shape[1].upper == ArrayType.Extent.ATTRIBUTE
+    assert not array_type.is_allocatable
 
 
 def test_arraytype_invalid_datatype():
