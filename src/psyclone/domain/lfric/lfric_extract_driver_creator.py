@@ -620,6 +620,9 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             else:
                 sym = symbol_table.lookup_with_tag(str(signature))
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
+
+            # TODO #2898: the test for array can be removed if
+            # `is_allocatable` is supported for non-arrays.
             if sym.is_array and not sym.datatype.is_allocatable:
                 # In case of a non-allocatable array (e.g. a constant
                 # size array from a module), call the ReadVariable
@@ -627,6 +630,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                 self.add_call(program, read_var+"NonAlloc",
                               [name_lit, Reference(sym)])
             else:
+                # In case of an allocatable array, call the ReadVariable
+                # function that will also allocate this array.
                 self.add_call(program, read_var,
                               [name_lit, Reference(sym)])
 

@@ -291,6 +291,20 @@ class UnsupportedFortranType(UnsupportedType):
             return self.partial_datatype.intrinsic
         return None
 
+    @property
+    def is_allocatable(self) -> bool:
+        '''If we have enough information in the partial_datatype,
+        determines if this data type is allocatable, and False otherwise.
+        # TODO #2898 If we support non-array allocatable types, the
+        test for arrays can be removed
+        :returns: whether this UnsupportedFortranType is known to be
+            allocatable. Note that atm PSyclone only supports allocatable
+            arrays.'''
+        if (self.partial_datatype and
+                isinstance(self.partial_datatype, ArrayType)):
+            return self.partial_datatype.is_allocatable
+        return False
+
 
 class ScalarType(DataType):
     '''Describes a scalar datatype (and its precision).
