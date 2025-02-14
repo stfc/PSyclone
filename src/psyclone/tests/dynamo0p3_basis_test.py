@@ -199,8 +199,8 @@ def test_single_kern_eval(tmpdir):
     assert "    type(field_type), intent(in) :: f0" in code
     assert "    type(field_type), intent(in) :: cmap" in code
     assert "    integer(kind=i_def) :: cell" in code
-    assert "    integer(kind=i_def) :: loop4_start" in code
-    assert "    integer(kind=i_def) :: loop4_stop" in code
+    assert "    integer(kind=i_def) :: loop0_start" in code
+    assert "    integer(kind=i_def) :: loop0_stop" in code
     assert "    integer(kind=i_def) :: df_nodal" in code
     assert "    integer(kind=i_def) :: df_w0" in code
     assert "    integer(kind=i_def) :: df_w1" in code
@@ -276,11 +276,11 @@ def test_single_kern_eval(tmpdir):
         "    enddo\n"
         "\n"
         "    ! Set-up all of the loop bounds\n"
-        "    loop4_start = 1\n"
-        "    loop4_stop = f0_proxy%vspace%get_ncell()\n"
+        "    loop0_start = 1\n"
+        "    loop0_stop = f0_proxy%vspace%get_ncell()\n"
         "\n"
         "    ! Call kernels\n"
-        "    do cell = loop4_start, loop4_stop, 1\n"
+        "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_eval_code(nlayers_f0, f0_data, "
         "cmap_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
@@ -312,8 +312,8 @@ def test_single_kern_eval_op(tmpdir):
     assert "type(field_type), intent(in) :: f1" in code
     assert "type(operator_type), intent(in) :: op1" in code
     assert "integer(kind=i_def) :: cell" in code
-    assert "integer(kind=i_def) :: loop4_start" in code
-    assert "integer(kind=i_def) :: loop4_stop" in code
+    assert "integer(kind=i_def) :: loop0_start" in code
+    assert "integer(kind=i_def) :: loop0_stop" in code
     assert "integer(kind=i_def) :: df_nodal" in code
     assert "integer(kind=i_def) :: df_w2" in code
     assert "integer(kind=i_def) :: df_w3" in code
@@ -359,9 +359,9 @@ def test_single_kern_eval_op(tmpdir):
         "    enddo\n"
     )
     assert init_output in code
-    assert "loop4_stop = op1_proxy%fs_from%get_ncell()\n" in code
+    assert "loop0_stop = op1_proxy%fs_from%get_ncell()\n" in code
     kern_call = (
-        "    do cell = loop4_start, loop4_stop, 1\n"
+        "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_eval_op_code(cell, nlayers_op1, "
         "op1_proxy%ncell_3d, op1_local_stencil, f1_data, ndf_w0, ndf_w2, "
         "basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), "
@@ -730,10 +730,10 @@ def test_qr_plus_eval(tmpdir):
     assert "type(field_type), intent(in) :: m2" in code
     assert "type(quadrature_xyoz_type), intent(in) :: qr" in code
     assert "integer(kind=i_def) :: cell" in code
-    assert "integer(kind=i_def) :: loop4_start" in code
-    assert "integer(kind=i_def) :: loop4_stop" in code
-    assert "integer(kind=i_def) :: loop5_start" in code
-    assert "integer(kind=i_def) :: loop5_stop" in code
+    assert "integer(kind=i_def) :: loop0_start" in code
+    assert "integer(kind=i_def) :: loop0_stop" in code
+    assert "integer(kind=i_def) :: loop1_start" in code
+    assert "integer(kind=i_def) :: loop1_stop" in code
     assert "integer(kind=i_def) :: df_nodal" in code
     assert "integer(kind=i_def) :: df_w0" in code
     assert "integer(kind=i_def) :: df_w1" in code
@@ -844,16 +844,16 @@ def test_qr_plus_eval(tmpdir):
         "    call qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n")
     assert output_setup in code
-    assert ("    loop4_stop = f0_proxy%vspace%get_ncell()\n"
-            "    loop5_start = 1\n"
-            "    loop5_stop = f1_proxy%vspace%get_ncell()\n" in code)
+    assert ("    loop0_stop = f0_proxy%vspace%get_ncell()\n"
+            "    loop1_start = 1\n"
+            "    loop1_stop = f1_proxy%vspace%get_ncell()\n" in code)
     output_kern_call = (
-        "    do cell = loop4_start, loop4_stop, 1\n"
+        "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_eval_code(nlayers_f0, f0_data, "
         "f1_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "    enddo\n"
-        "    do cell = loop5_start, loop5_stop, 1\n"
+        "    do cell = loop1_start, loop1_stop, 1\n"
         "      call testkern_qr_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
@@ -906,18 +906,18 @@ def test_two_eval_same_space(tmpdir):
         "    enddo\n"
         "\n"
         "    ! Set-up all of the loop bounds\n"
-        "    loop4_start = 1\n"
-        "    loop4_stop = f0_proxy%vspace%get_ncell()\n"
-        "    loop5_start = 1\n"
-        "    loop5_stop = f2_proxy%vspace%get_ncell()\n"
+        "    loop0_start = 1\n"
+        "    loop0_stop = f0_proxy%vspace%get_ncell()\n"
+        "    loop1_start = 1\n"
+        "    loop1_stop = f2_proxy%vspace%get_ncell()\n"
         "\n"
         "    ! Call kernels\n"
-        "    do cell = loop4_start, loop4_stop, 1\n"
+        "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_eval_code(nlayers_f0, f0_data, "
         "f1_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "    enddo\n"
-        "    do cell = loop5_start, loop5_stop, 1\n"
+        "    do cell = loop1_start, loop1_stop, 1\n"
         "      call testkern_eval_code(nlayers_f2, f2_data, "
         "f3_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
@@ -988,18 +988,18 @@ def test_two_eval_diff_space(tmpdir):
         "    enddo\n"
         "\n"
         "    ! Set-up all of the loop bounds\n"
-        "    loop8_start = 1\n"
-        "    loop8_stop = f0_proxy%vspace%get_ncell()\n"
-        "    loop9_start = 1\n"
-        "    loop9_stop = op1_proxy%fs_from%get_ncell()\n"
+        "    loop0_start = 1\n"
+        "    loop0_stop = f0_proxy%vspace%get_ncell()\n"
+        "    loop1_start = 1\n"
+        "    loop1_stop = op1_proxy%fs_from%get_ncell()\n"
         "\n"
         "    ! Call kernels\n"
-        "    do cell = loop8_start, loop8_stop, 1\n"
+        "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_eval_code(nlayers_f0, f0_data, "
         "f1_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "    enddo\n"
-        "    do cell = loop9_start, loop9_stop, 1\n"
+        "    do cell = loop1_start, loop1_stop, 1\n"
         "      call testkern_eval_op_code(cell, nlayers_op1, "
         "op1_proxy%ncell_3d, op1_local_stencil, f2_data, ndf_w0, ndf_w2, "
         "basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), "
@@ -1123,17 +1123,17 @@ def test_two_eval_op_to_space(tmpdir):
         "      enddo\n"
         "    enddo\n")
     assert basis_comp in code
-    assert ("    loop10_start = 1\n"
-            "    loop10_stop = f0_proxy%vspace%get_ncell()\n"
-            "    loop11_start = 1\n"
-            "    loop11_stop = f2_proxy%vspace%get_ncell()\n" in code)
+    assert ("    loop0_start = 1\n"
+            "    loop0_stop = f0_proxy%vspace%get_ncell()\n"
+            "    loop1_start = 1\n"
+            "    loop1_stop = f2_proxy%vspace%get_ncell()\n" in code)
     kernel_calls = (
-        "    do cell = loop10_start, loop10_stop, 1\n"
+        "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_eval_code(nlayers_f0, f0_data, "
         "f1_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "    enddo\n"
-        "    do cell = loop11_start, loop11_stop, 1\n"
+        "    do cell = loop1_start, loop1_stop, 1\n"
         "      call testkern_eval_op_to_code(cell, nlayers_op1, "
         "op1_proxy%ncell_3d, op1_local_stencil, f2_data, "
         "ndf_w2, basis_w2_on_w3, diff_basis_w2_on_w3, ndf_w0, ndf_w3, "
@@ -1219,19 +1219,19 @@ def test_eval_diff_nodal_space(tmpdir):
     )
     assert expected_compute in code
 
-    assert ("    loop12_start = 1\n"
-            "    loop12_stop = f1_proxy%vspace%get_ncell()\n"
-            "    loop13_start = 1\n"
-            "    loop13_stop = f2_proxy%vspace%get_ncell()\n" in code)
+    assert ("    loop0_start = 1\n"
+            "    loop0_stop = f1_proxy%vspace%get_ncell()\n"
+            "    loop1_start = 1\n"
+            "    loop1_stop = f2_proxy%vspace%get_ncell()\n" in code)
 
     expected_kern_call = (
-        "    do cell = loop12_start, loop12_stop, 1\n"
+        "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_eval_op_to_code(cell, nlayers_op2, "
         "op2_proxy%ncell_3d, op2_local_stencil, f1_data, "
         "ndf_w2, basis_w2_on_w3, diff_basis_w2_on_w3, ndf_w0, ndf_w3, "
         "undf_w3, map_w3(:,cell), diff_basis_w3_on_w3)\n"
         "    enddo\n"
-        "    do cell = loop13_start, loop13_stop, 1\n"
+        "    do cell = loop1_start, loop1_stop, 1\n"
         "      call testkern_eval_op_to_w0_code(cell, nlayers_op1, "
         "op1_proxy%ncell_3d, op1_local_stencil, f0_data, "
         "f2_data, ndf_w2, basis_w2_on_w0, diff_basis_w2_on_w0, "
@@ -1389,25 +1389,25 @@ def test_2eval_1qr_2fs(tmpdir):
         "    call qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n") == 1
 
-    assert ("    loop8_start = 1\n"
-            "    loop8_stop = f0_proxy%vspace%get_ncell()\n"
-            "    loop9_start = 1\n"
-            "    loop9_stop = op1_proxy%fs_from%get_ncell()\n"
-            "    loop10_start = 1\n"
-            "    loop10_stop = f1_proxy%vspace%get_ncell()\n" in code)
+    assert ("    loop0_start = 1\n"
+            "    loop0_stop = f0_proxy%vspace%get_ncell()\n"
+            "    loop1_start = 1\n"
+            "    loop1_stop = op1_proxy%fs_from%get_ncell()\n"
+            "    loop2_start = 1\n"
+            "    loop2_stop = f1_proxy%vspace%get_ncell()\n" in code)
 
-    assert ("    do cell = loop8_start, loop8_stop, 1\n"
+    assert ("    do cell = loop0_start, loop0_stop, 1\n"
             "      call testkern_eval_2fs_code(nlayers_f0, f0_data, "
             "f1_data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1,"
             " map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)\n"
             "    enddo\n"
-            "    do cell = loop9_start, loop9_stop, 1\n"
+            "    do cell = loop1_start, loop1_stop, 1\n"
             "      call testkern_eval_op_code(cell, nlayers_op1, "
             "op1_proxy%ncell_3d, op1_local_stencil, m2_data, "
             "ndf_w0, ndf_w2, basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell),"
             " diff_basis_w3_on_w0)\n"
             "    enddo\n"
-            "    do cell = loop10_start, loop10_stop, 1\n"
+            "    do cell = loop2_start, loop2_stop, 1\n"
             "      call testkern_qr_code(nlayers_f1, f1_data, "
             "f2_data, m1_data, a, m2_data, istp, ndf_w1, "
             "undf_w1, map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, "

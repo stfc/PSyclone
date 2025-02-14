@@ -39,7 +39,7 @@
 ''' This module provides the LFRicLoopBounds Class that handles all variables
     required for specifying loop limits within an LFRic PSy-layer routine.'''
 
-from psyclone.domain.lfric import LFRicCollection
+from psyclone.domain.lfric import LFRicCollection, LFRicLoop
 from psyclone.psyir.nodes import Assignment, Reference, Loop
 
 
@@ -59,7 +59,8 @@ class LFRicLoopBounds(LFRicCollection):
         :returns: Updated cursor value.
 
         '''
-        loops = self._invoke.schedule.loops()
+        loops = filter(lambda x: isinstance(x, LFRicLoop),
+                       self._invoke.schedule.loops())
 
         if not loops:
             return cursor
