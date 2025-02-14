@@ -417,6 +417,8 @@ def test_arraytype_unsupportedtype():
     # Since no partial datatype is provided, these return None
     assert utype.partial_datatype is None
     assert utype.intrinsic is None
+    # Test the allocatable flag
+    assert not utype.is_allocatable
 
 
 def test_arraytype_invalid_shape():
@@ -816,6 +818,30 @@ def test_unsupported_fortran_type_eq():
     # Just sanity check that the type of a SAVE != that of a common.
     assert (UnsupportedFortranType("common /how_common/ a, b, cc") !=
             UnsupportedFortranType("save :: blue_blood"))
+
+
+def test_unsupported_fortran_type_is_allocatable(fortran_reader):
+    '''Test the copy() method of UnsupportedFortranType.'''
+    code = '''
+    subroutine test
+      use some_mod, only: some_type, start, stop
+      integer, parameter :: nelem = 4
+      type(some_type), pointer :: var(nelem), var2(start:stop)
+      type(some_type), target, allocatable :: var_alloc(:)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    vsym = routine.symbol_table.lookup("var")
+    # Make sure we do indeed test the UnsupportedFortranType
+    assert isinstance(vsym.datatype, UnsupportedFortranType)
+    assert not vsym.datatype.is_allocatable
+
+    # Now test an allocatable array in an UnsupportedFortranType:
+    vsym_alloc = routine.symbol_table.lookup("var_alloc")
+    # Make sure we do indeed test the UnsupportedFortranType
+    assert isinstance(vsym_alloc.datatype, UnsupportedFortranType)
+    assert vsym_alloc.datatype.is_allocatable
 
 
 def test_unsupported_fortran_type_copy(fortran_reader):
