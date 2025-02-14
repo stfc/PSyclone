@@ -40,7 +40,7 @@
     required for specifying loop limits within an LFRic PSy-layer routine.'''
 
 from psyclone.domain.lfric import LFRicCollection, LFRicLoop
-from psyclone.psyir.nodes import Assignment, Reference, Loop
+from psyclone.psyir.nodes import Assignment, Reference
 
 
 class LFRicLoopBounds(LFRicCollection):
