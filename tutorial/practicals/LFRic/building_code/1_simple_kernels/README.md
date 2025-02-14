@@ -145,7 +145,7 @@ however the specific calls may be different).
 1) Create a `W0` function space object with single-valued field data
    points (`ndata_sz`) and initialise a pointer to it
    ```fortran
-   fs_w0 = function_space_type( mesh, element_order, W0, ndata_sz )
+   fs_w0 = function_space_type( mesh, element_order_h, element_order_v, W0, ndata_sz )
    fs_w0_ptr => fs_w0
    ```
 
