@@ -428,7 +428,7 @@ contains
               + nvert_g*ndof_vert
 
     nullify(reference_element)
-
+    
   end subroutine ndof_setup
 
   !---------------------------------------------------------------------------
@@ -517,7 +517,6 @@ contains
                                           ! 1D element (used in horizontal)
     real(r_def) :: x1v(element_order_v+2) ! Evenly spaces nodes of continuous
                                           ! 1D element (used in vertical)
-
     real(r_def) :: x2h(element_order_h+2) ! Evenly spaces nodes of discontinuous
                                           ! 1D element (used in horizontal).
                                           ! Note: one larger than required

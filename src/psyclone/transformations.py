@@ -2218,28 +2218,28 @@ class Dynamo0p3KernelConstTrans(Transformation):
         :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param str options["cellshape"]: the shape of the cells. This is\
-            provided as it helps determine the number of dofs a field has\
-            for a particular function space. Currently only "quadrilateral"\
+        :param str options["cellshape"]: the shape of the cells. This is
+            provided as it helps determine the number of dofs a field has
+            for a particular function space. Currently only "quadrilateral"
             is supported which is also the default value.
-        :param int options["element_order_h"]: the polynomial order of the\
-            cell in the horizontal. In combination with cellshape and\
-            element_order_v, this determines the number of dofs a field has\
-            for a particular function space. If it is set to None (the\
-            default), then the dofs values are not set as constants in the\
+        :param int options["element_order_h"]: the polynomial order of the
+            cell in the horizontal. In combination with cellshape and
+            element_order_v, this determines the number of dofs a field has
+            for a particular function space. If it is set to None (the
+            default), then the dofs values are not set as constants in the
             kernel, otherwise they are.
-        :param int options["element_order_v"]: the polynomial order of the\
-            cell in the vertical. In combination with cellshape and\
-            element_order_h, this determines the number of dofs a field has\
-            for a particular function space. If it is set to None (the\
-            default), then the dofs values are not set as constants in the\
+        :param int options["element_order_v"]: the polynomial order of the
+            cell in the vertical. In combination with cellshape and
+            element_order_h, this determines the number of dofs a field has
+            for a particular function space. If it is set to None (the
+            default), then the dofs values are not set as constants in the
             kernel, otherwise they are.
-        :param int options["number_of_layers"]: the number of vertical \
-            layers in the LFRic model mesh used for this particular run. If \
-            this is set to None (the default) then the nlayers value is not \
+        :param int options["number_of_layers"]: the number of vertical 
+            layers in the LFRic model mesh used for this particular run. If 
+            this is set to None (the default) then the nlayers value is not
             set as a constant in the kernel, otherwise it is.
-        :param bool options["quadrature"]: whether the number of quadrature \
-            points values are set as constants in the kernel (True) or not \
+        :param bool options["quadrature"]: whether the number of quadrature
+            points values are set as constants in the kernel (True) or not
             (False). The default is False.
 
         '''

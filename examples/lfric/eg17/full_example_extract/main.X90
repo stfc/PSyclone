@@ -30,6 +30,7 @@
 ! -----------------------------------------------------------------------------
 ! Author: J. Henrichs, Bureau of Meteorology
 ! Modifications: A. R. Porter, STFC Daresbury Laboratory
+!                J. Dendy, Met Office
 
 program main
     !> This program is a simple LFRic program that contains two invokes,

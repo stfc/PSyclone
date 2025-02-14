@@ -118,6 +118,7 @@ contains
         ! Use project u.grad(theta) into the theta function space
         qr = quadrature_xyoz_type(element_order_h+3, element_order_h+3, &
                                   element_order_v+3, quadrature_rule)
+
         ! Quadrature rule on lateral faces only
         qrf = quadrature_face_type(nqp_h_exact, nqp_v_exact, .true., .false., &
                                    reference_element, quadrature_rule)

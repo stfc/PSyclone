@@ -3445,7 +3445,7 @@ class Fparser2Reader():
             f"subroutine dummy()\n"
             f"  {datatype.declaration}\n"
             f"end subroutine\n")
-        parser = ParserFactory().create(std="f2008")
+        parser = ParserFactory().create(std=Config.get().fortran_standard)
         reader = FortranStringReader(dummy_code)
         fp2_ast = parser(reader)
         type_decl_stmt = fp2_ast.children[0].children[1].children[0]
@@ -3695,7 +3695,8 @@ class Fparser2Reader():
 
         # Parse the the created Fortran text to an fparser2 tree and
         # store the resulting tree in a PSyIR CodeBlock.
-        parser = ParserFactory().create(std="f2008")
+        std = Config.get().fortran_standard
+        parser = ParserFactory().create(std=std)
         reader = FortranStringReader(code)
         fp2_program = parser(reader)
         # Ignore the program part of the fparser2 tree
@@ -4193,6 +4194,22 @@ class Fparser2Reader():
                 # ignore it.
                 continue
 
+            # If it has a Call ancestor we need to check if its a
+            # non-elemental function, in which case we should skip
+            # changing it.
+            call_ancestor = array.ancestor(Call)
+            if call_ancestor:
+                if call_ancestor.is_elemental is None:
+                    raise NotImplementedError(
+                        f"Found a function call inside a where clause with "
+                        f"unknown elemental status: "
+                        f"{call_ancestor.debug_string()}")
+                # If it is none-elemental, we leave this array reference as it
+                # is
+                if not call_ancestor.is_elemental:
+                    continue
+                # Otherwise, we continue replacing the range with the loop idx
+
             if first_rank:
                 if rank != first_rank:
                     raise NotImplementedError(
@@ -4388,13 +4405,18 @@ class Fparser2Reader():
         # regarding UnresolvedInterface and Elemental calls?
         references = fake_parent.walk(Reference)
         for ref in references:
+            call_ancestor = ref.ancestor(Call)
+            elemental_ancestor = (call_ancestor is None or
+                                  call_ancestor.is_elemental)
+            # TODO 2884: We should be able to handle this imported symbol
+            # better. If we can, we need to handle a case where is_elemental
+            # can be None.
             if isinstance(ref.symbol.interface, ImportInterface):
                 raise NotImplementedError(
                         "PSyclone doesn't yet support reference to imported "
                         "symbols inside WHERE clauses.")
-            intrinsic_ancestor = ref.ancestor(IntrinsicCall)
             if (isinstance(ref.symbol, DataSymbol) and
-                    not intrinsic_ancestor):
+                    elemental_ancestor):
                 try:
                     Reference2ArrayRangeTrans().apply(ref)
                 except TransformationError:
@@ -4895,7 +4917,17 @@ class Fparser2Reader():
         # Use the items[1] content of the node as it contains the required
         # information (items[0] and items[2] just contain the left and right
         # brackets as strings so can be disregarded.
-        return self._create_child(node.items[1], parent)
+        new_node = self._create_child(node.items[1], parent)
+
+        # Explicit parenthesis on BinaryOperations are sometimes needed for
+        # reproducibility (because a Fortran compiler may evaluate any
+        # mathematically-equivalent expression, provided that the integrity
+        # of parentheses is not violated - Fortran2008 section 7.1.5.2.4),
+        # so we store the fact that they are here.
+        if isinstance(new_node, BinaryOperation):
+            new_node.has_explicit_grouping = True
+
+        return new_node
 
     def _part_ref_handler(self, node, parent):
         '''

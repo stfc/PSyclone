@@ -34,6 +34,7 @@
 .. Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 ..             A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 ..             I. Kavcic, Met Office
+..             J. Dendy, Met Office
 
 .. _transformations:
 

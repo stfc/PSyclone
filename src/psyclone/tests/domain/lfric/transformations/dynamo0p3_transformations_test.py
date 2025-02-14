@@ -7333,7 +7333,7 @@ def test_kern_const_name():
 
 def test_kern_const_apply(capsys, monkeypatch):
     '''Check that we generate the expected output from the apply method
-    with different valid combinations of the element_order arguments,
+    with different valid combinations of the element_order_<h,v> arguments,
     number_of_layers and quadrature arguments.
 
     '''
@@ -7351,7 +7351,7 @@ def test_kern_const_apply(capsys, monkeypatch):
         "    Modified nqp_h, arg position 21, value 3.\n"
         "    Modified nqp_v, arg position 22, value 3.\n")
 
-    # element_order only
+    # element_order_<h,v> only
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     result, _ = capsys.readouterr()
     assert result == element_order_expected
@@ -7362,21 +7362,21 @@ def test_kern_const_apply(capsys, monkeypatch):
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected
 
-    # element_order and quadrature
+    # element_order_<h,v> and quadrature
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
                            "quadrature": True})
     result, _ = capsys.readouterr()
     assert result == quadrature_expected + element_order_expected
 
-    # element_order and nlayers
+    # element_order_<h,v> and nlayers
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
                            "number_of_layers": 20})
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected + element_order_expected
 
-    # element_order, nlayers and quadrature
+    # element_order_<h,v>, nlayers and quadrature
     kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
     kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0,
                            "number_of_layers": 20, "quadrature": True})
@@ -7605,8 +7605,6 @@ def test_kern_const_ndofs():
                      98,   128,  162,  200]}
 
     kct = Dynamo0p3KernelConstTrans()
-    # Until lfric #4462, split element orders are not fully enabled but we can
-    # still test the numbers of dofs the function space would have here
     for order_h in range(10):
         for order_v in range(10):
             for function_space in ["w3", "w2", "w1", "w0", "wtheta", "w2h",

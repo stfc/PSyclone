@@ -241,7 +241,7 @@ class LFRicAlg:
         '''
         Adds PSyIR to the supplied Routine that declares and intialises
         the specified function spaces. The order of these spaces is
-        set by the element_order variable which is provided by the
+        set by the element_order_<h,v> variables which are provided by the
         LFRic finite_element_config_mod module.
 
         :param prog: the routine to which to add declarations and \

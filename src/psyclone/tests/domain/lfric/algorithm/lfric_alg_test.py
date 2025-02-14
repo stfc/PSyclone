@@ -67,7 +67,7 @@ def setup():
 
 
 @pytest.fixture(name="prog", scope="function")
-def create_prog_fixture(parser):
+def create_prog_fixture():
     '''
     :returns: a PSyIR Routine node representing a program.
     :rtype: :py:class:`psyclone.psyir.nodes.Routine`
