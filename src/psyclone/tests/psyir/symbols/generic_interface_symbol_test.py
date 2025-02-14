@@ -37,8 +37,9 @@
 ''' This module contains pytest tests for GenericInterfaceSymbol.'''
 
 import pytest
-from psyclone.psyir.symbols import (GenericInterfaceSymbol, INTEGER_TYPE,
-                                    RoutineSymbol, SymbolTable, Symbol)
+from psyclone.psyir.symbols import (
+    ContainerSymbol, GenericInterfaceSymbol, ImportInterface, INTEGER_TYPE,
+    RoutineSymbol, SymbolTable, Symbol, UnresolvedInterface)
 
 
 def test_gis_constructor():
@@ -137,6 +138,29 @@ def test_gis_copy():
     rsyms = [item.symbol for item in spinney.routines]
     assert ash in rsyms
     assert holly in rsyms
+
+
+def test_gis_copy_properties():
+    '''
+    Test the copy_properties() method of GenericInterfaceSymbol.
+    '''
+    ash = RoutineSymbol("ash")
+    holly = RoutineSymbol("holly")
+    coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False)])
+    oak = RoutineSymbol("oak")
+    new_sym = GenericInterfaceSymbol("spinney", [(oak, True)],
+                                     interface=UnresolvedInterface())
+    new_sym.copy_properties(coppice)
+    assert ([info.symbol.name for info in new_sym.routines] ==
+            [info.symbol.name for info in coppice.routines])
+    # Check that if the interface symbol has an import interface then so do
+    # its constituent RoutineSymbols.
+    csym = ContainerSymbol("woodland")
+    coppice2 = GenericInterfaceSymbol("coppice2", [(ash, True)],
+                                      interface=ImportInterface(csym))
+    new_sym.copy_properties(coppice2)
+    for info in new_sym.routines:
+        assert info.symbol.interface.container_symbol is csym
 
 
 def test_gis_replace_symbols_using():
