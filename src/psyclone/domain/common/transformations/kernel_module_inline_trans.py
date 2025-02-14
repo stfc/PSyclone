@@ -258,10 +258,14 @@ class KernelModuleInlineTrans(Transformation):
         # We can't handle a clash between (apparently) different symbols that
         # share a name but are imported from different containers.
         routine_arg_list = schedule.symbol_table.argument_list[:]
-        callsite_routine = call.ancestor(Routine)
+        callsite_scopes = []
+        cursor = call
+        while cursor.ancestor(ScopingNode):
+            callsite_scopes.append(cursor.ancestor(ScopingNode))
+            cursor = cursor.ancestor(ScopingNode)
         for scope in schedule.walk(ScopingNode):
             scope_table = scope.symbol_table
-            for callsite_scope in callsite_routine.walk(ScopingNode):
+            for callsite_scope in callsite_scopes:
                 table = callsite_scope.symbol_table
                 try:
                     table.check_for_clashes(

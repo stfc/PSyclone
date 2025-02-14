@@ -97,6 +97,64 @@ def test_check_data_accesses(config_instance):
             "kind_params_mod")
 
 
+def test_check_data_accesses_indirect_import(monkeypatch):
+    '''
+    Test the case where a symbol cannot be resolved because it is imported
+    indirectly.
+
+    '''
+    _, invoke = get_invoke("single_invoke_three_kernels_with_use.f90",
+                           "gocean", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    kcall = schedule.walk(CodedKern)[1]
+    ksched = kcall.get_kernel_schedule()
+    # Monkeypatch SymbolTable.resolve_imports() so that it does nothing. This
+    # then exercises the code path where we quietly fail to resolve a symbol.
+    monkeypatch.setattr(ksched.symbol_table, "resolve_imports",
+                        lambda container_symbols=None,
+                        symbol_target=None: None)
+    with pytest.raises(TransformationError) as err:
+        KernelModuleInlineTrans.check_data_accesses(kcall, ksched, "Kernel")
+    assert ("Kernel 'kernel_with_use2_code' contains accesses to 'go_wp' "
+            "which is unresolved" in str(err.value))
+    assert ("Failed to resolve the type of Symbol 'go_wp'. It is probably an "
+            "indirect import." in str(err.value))
+
+
+def test_check_data_accesses_import_clash(fortran_reader):
+    '''
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+      use my_kernel_mod, only: a_routine
+    contains
+      subroutine call_it()
+
+        if(.TRUE.)then
+          call a_routine()
+        end if
+      end subroutine call_it
+    end module my_mod
+    ''')
+    rt_psyir = fortran_reader.psyir_from_source('''\
+    subroutine a_routine()
+      use other_mod, only: a_clash
+    end subroutine a_routine
+    ''')
+    kern_call = psyir.walk(Call)[0]
+    csym = ContainerSymbol("money")
+    kern_call.scope.symbol_table.add(csym)
+    kern_call.scope.symbol_table.add(Symbol("a_clash",
+                                            interface=ImportInterface(csym)))
+    sched = rt_psyir.children[0]
+    with pytest.raises(TransformationError) as err:
+        KernelModuleInlineTrans.check_data_accesses(kern_call, sched, "Call")
+    assert ("One or more symbols from routine 'a_routine' cannot be added to "
+            "the table at the call site" in str(err.value))
+    assert ("This table has an import of 'a_clash' via interface" in
+            str(err.value))
+
+
 def test_validate_inline_error_if_not_kernel(fortran_reader):
     ''' Test that the inline transformation fails if the object being
     passed is not a kernel or a Call or if it is an IntrinsicCall.'''
