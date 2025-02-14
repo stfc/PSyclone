@@ -62,14 +62,10 @@ class LFRicLoopBounds(LFRicCollection):
         loops = filter(lambda x: isinstance(x, LFRicLoop),
                        self._invoke.schedule.loops())
 
-        if not loops:
-            return cursor
-
         first = True
         for idx, loop in enumerate(loops):
 
-            # pylint: disable=unidiomatic-typecheck
-            if type(loop) is Loop or loop.loop_type == "null":
+            if loop.loop_type == "null":
                 # Generic or 'null' loops don't need any variables to be set
                 continue
 
