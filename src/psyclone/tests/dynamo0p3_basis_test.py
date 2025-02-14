@@ -661,6 +661,7 @@ def test_two_qr_different_shapes(tmpdir):
             "diff_basis_w2_qrf, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qrf,"
             " diff_basis_w3_qrf, nfaces_qrf, np_xyz_qrf, weights_xyz_qrf)"
             in code)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_anyw2(tmpdir, dist_mem):
@@ -864,6 +865,7 @@ def test_qr_plus_eval(tmpdir):
         "    DEALLOCATE(basis_w0_on_w0, basis_w1_qr, basis_w3_qr, "
         "diff_basis_w1_on_w0, diff_basis_w2_qr, diff_basis_w3_qr)\n")
     assert output_dealloc in code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_two_eval_same_space(tmpdir):

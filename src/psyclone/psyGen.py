@@ -1120,7 +1120,7 @@ class Kern(Statement):
                 f"'{var_arg.intrinsic_type}'.")
 
         # Retrieve the variable and precision information
-        kind_str = f"kind={var_arg.precision}" if var_arg.precision else ""
+        kind_str = f"(kind={var_arg.precision})" if var_arg.precision else ""
         variable = self.scope.symbol_table.lookup(variable_name)
         insert_loc = self.ancestor(PSyLoop)
         # If it has ancestor directive keep going up
@@ -1138,7 +1138,7 @@ class Kern(Statement):
             local_var = self.scope.symbol_table.find_or_create_tag(
                 local_var_name, symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
-                    f"{var_data_type}({kind_str}), allocatable, "
+                    f"{var_data_type}{kind_str}, allocatable, "
                     f"dimension(:,:) :: {local_var_name}"
                 ))
             nthreads = \

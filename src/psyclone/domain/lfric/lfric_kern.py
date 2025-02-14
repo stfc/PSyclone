@@ -719,11 +719,6 @@ class LFRicKern(CodedKern):
         arg_list = []
         for argument_name in create_arg_list.arglist:
             arg_list.append(stub_routine.symbol_table.lookup(argument_name))
-        # If a previous argument has not been given an order by KernStubArgList
-        # ignore it.
-        for argument in stub_routine.symbol_table.argument_list:
-            if argument not in arg_list:
-                argument.interface = UnknownInterface()
         stub_routine.symbol_table.specify_argument_list(arg_list)
 
         return stub_module
