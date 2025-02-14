@@ -813,6 +813,25 @@ def test_check_for_clashes_wildcard_import():
     table1.check_for_clashes(table2)
 
 
+def test_check_for_clashes_shared_wildcard_import():
+    '''Test check_for_clashes() when the two tables share a wildcard import
+    and one Symbol is resolved while the other isn't.'''
+    table1 = symbols.SymbolTable()
+    csym1 = symbols.ContainerSymbol("really_wild", wildcard_import=True)
+    table1.add(csym1)
+    table1.add(symbols.Symbol("things",
+                              interface=symbols.ImportInterface(csym1)))
+    table2 = symbols.SymbolTable()
+    table2.add(csym1.copy())
+    table2.add(symbols.Symbol("things",
+                              interface=symbols.UnresolvedInterface()))
+    # There should be no clash and the symbol in table2 should now be
+    # resolved.
+    table1.check_for_clashes(table2)
+    assert (table2.lookup("things").interface.container_symbol.name ==
+            "really_wild")
+
+
 def test_table_merge():
     ''' Test the SymbolTable.merge method. '''
     table1 = symbols.SymbolTable()

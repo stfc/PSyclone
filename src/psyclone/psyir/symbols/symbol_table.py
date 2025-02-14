@@ -717,54 +717,40 @@ class SymbolTable():
 
         '''
         for csym in other_table.containersymbols:
-            if csym.name in self:
-                # We have a clash with another symbol in this table.
-                self_csym = self.lookup(csym.name)
-                if not isinstance(self_csym, ContainerSymbol):
-                    # The symbol in *this* table is not a Container so we
-                    # may be able to rename it.
-                    self.rename_symbol(
-                            self_csym,
-                            self.next_available_name(
-                                csym.name, other_table=other_table))
-                    # We can then add an import from the Container.
-                    self.add(csym)
-                else:
-                    # The symbol in *this* table is also a ContainerSymbol so
-                    # must refer to the same Container. If there is a wildcard
-                    # import from this Container then we'll need that in this
-                    # Table too.
-                    if csym.wildcard_import:
-                        self_csym.wildcard_import = True
+            outer_sym = self.lookup(csym.name, otherwise=None)
+            if not outer_sym:
+                # No clash so add the symbol.
+                self.add(csym)
             else:
-                # No symbol with this name is present in this table but is
-                # there one in an outer scope?
-                outer_sym = self.lookup(csym.name, otherwise=None)
-                if not outer_sym:
-                    self.add(csym)
+                # There is a match but which scope is it in?
+                if not self.node:
+                    outer_table = self
                 else:
-                    # There is a match in an outer scope.
-                    if not isinstance(outer_sym, ContainerSymbol):
-                        # The match is not for a ContainerSymbol so can it
-                        # be renamed?
-                        outer_table = outer_sym.find_symbol_table(self.node)
-                        next_name = outer_table.next_available_name(
-                            outer_sym.name,
-                            other_table=other_table)
-                        outer_table.rename_symbol(outer_sym, next_name)
-                    else:
-                        # The symbol in an outer scope is also a
-                        # ContainerSymbol.
-                        if csym.wildcard_import:
-                            outer_sym.wildcard_import = True
+                    outer_table = outer_sym.find_symbol_table(self.node)
+                if not isinstance(outer_sym, ContainerSymbol):
+                    # The match is not for a ContainerSymbol so can it
+                    # be renamed?
+                    next_name = outer_table.next_available_name(
+                        outer_sym.name,
+                        other_table=other_table)
+                    outer_table.rename_symbol(outer_sym, next_name)
+                    outer_table.add(csym)
+                else:
+                    # The symbol in an outer scope is also a
+                    # ContainerSymbol so must refer to the same Container.
+                    # If there is a wildcard import from this Container
+                    # then we update the one in the outer scope to have
+                    # that too.
+                    if csym.wildcard_import:
+                        outer_sym.wildcard_import = True
             # We must update all references to this ContainerSymbol
             # so that they point to the one in scope in this table instead.
             imported_syms = other_table.symbols_imported_from(csym)
             for isym in imported_syms:
-                if isym.name in self:
+                other_sym = self.lookup(isym.name, otherwise=None)
+                if other_sym:
                     # We have a potential clash with a symbol imported
                     # into the other table.
-                    other_sym = self.lookup(isym.name)
                     if not other_sym.is_import:
                         # The calling merge() method has already checked that
                         # we don't have a clash between symbols of the same
@@ -832,13 +818,18 @@ class SymbolTable():
             self_csym = self.lookup(old_sym.interface.container_symbol.name)
             if old_sym.interface.container_symbol is self_csym:
                 return
-            elif self._has_same_name(old_sym.interface.container_symbol,
-                                     self_csym):
-                # The Containers have the same name so must in fact be the
-                # same. Update the symbol's interface to point to the Container
-                # that is in scope here.
-                old_sym.interface.container_symbol = self_csym
-                return
+            import pdb; pdb.set_trace()
+            raise InternalError(
+                f"Symbol '{old_sym.name}' imported from '{self_csym.name}' "
+                f"has not been updated to refer to the corresponding "
+                f"container in the current table.")
+             #elif self._has_same_name(old_sym.interface.container_symbol,
+             #                        self_csym):
+             #   # The Containers have the same name so must in fact be the
+             #   # same. Update the symbol's interface to point to the Container
+             #   # that is in scope here.
+             #   old_sym.interface.container_symbol = self_csym
+             #   return
 
         self_sym = self.lookup(old_sym.name)
         if old_sym.is_unresolved and self_sym.is_unresolved:
