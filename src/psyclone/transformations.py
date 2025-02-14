@@ -2234,8 +2234,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
             for a particular function space. If it is set to None (the
             default), then the dofs values are not set as constants in the
             kernel, otherwise they are.
-        :param int options["number_of_layers"]: the number of vertical 
-            layers in the LFRic model mesh used for this particular run. If 
+        :param int options["number_of_layers"]: the number of vertical
+            layers in the LFRic model mesh used for this particular run. If
             this is set to None (the default) then the nlayers value is not
             set as a constant in the kernel, otherwise it is.
         :param bool options["quadrature"]: whether the number of quadrature
