@@ -61,9 +61,9 @@ def test_datatype():
     # was plural. Python >= 3.12 tweaks the error message yet again to mention
     # the lack of an implementation and to quote the method name.
     # We split the check to accomodate for this.
-    assert ("Can't instantiate abstract class DataType with" in msg)
-    assert ("abstract method" in msg)
-    assert ("__str__" in msg)
+    assert "Can't instantiate abstract class DataType with" in msg
+    assert "abstract method" in msg
+    assert "__str__" in msg
 
 
 # UnresolvedType class
@@ -874,8 +874,8 @@ def test_unsupported_fortran_type_copy(fortran_reader):
     # The intrinsic type of the partial type should also be the same Symbol
     # in both cases.
     stype = routine.symbol_table.lookup("some_type")
-    assert vtype.partial_datatype.intrinsic is stype
-    assert cpytype.partial_datatype.intrinsic is stype
+    assert vtype.intrinsic is stype
+    assert cpytype.intrinsic is stype
     # Repeat check when array lower bound is also a Reference.
     var2 = routine.symbol_table.lookup("var2")
     v2type = var2.datatype
