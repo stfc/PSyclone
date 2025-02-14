@@ -1519,7 +1519,6 @@ ncell_2d), intent(in) :: cma_op_3
 field_1_aspc1_field_1
     real(kind=r_def), dimension(undf_aspc2_field_2), intent(in) :: \
 field_2_aspc2_field_2
-    integer(kind=i_def) :: nlayers
 
 
   end subroutine columnwise_op_app_kernel_code
@@ -1571,7 +1570,6 @@ ncell_2d), intent(in) :: cma_op_3
 field_1_aspc2_field_1
     real(kind=r_def), dimension(undf_aspc2_field_1), intent(in) :: \
 field_2_aspc2_field_1
-    integer(kind=i_def) :: nlayers
 
 
   end subroutine columnwise_op_app_same_fs_kernel_code
@@ -1630,7 +1628,6 @@ cma_op_3_gamma_p)
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
     real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
 , intent(in) :: cma_op_3
-    integer(kind=i_def) :: nlayers
 
 
   end subroutine columnwise_op_mul_kernel_code
@@ -1692,7 +1689,6 @@ cma_op_5_beta, cma_op_5_gamma_m, cma_op_5_gamma_p)
 , intent(in) :: cma_op_5
     real(kind=r_def), intent(in) :: rscalar_2
     real(kind=r_def), intent(in) :: rscalar_4
-    integer(kind=i_def) :: nlayers
 
 
   end subroutine columnwise_op_mul_2scalars_kernel_code

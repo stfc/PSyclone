@@ -288,7 +288,14 @@ class LFRicDofmaps(LFRicCollection):
             symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(symbol)
 
-            nlayers = self.symtab.lookup("nlayers")
+            nlayers = self.symtab.find_or_create_tag(
+                "nlayers",
+                symbol_type=LFRicTypes("MeshHeightDataSymbol")
+            )
+            nlayers.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+            self.symtab.append_argument(nlayers)
+
             dmap_symbol = self.symtab.find_or_create(
                 dmap, symbol_type=DataSymbol,
                 datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
