@@ -309,10 +309,10 @@ index f1c607e9..03b76ff1 100644
      class(key_value_type), allocatable :: key_value_pair
  
    contains
-diff --git a/lfric/infrastructure/source/configuration/namelist_mod.f90 b/lfric/infrastructure/source/configuration/namelist_mod.f90
+diff --git a/lfric/infrastructure/source/configuration/namelist_mod.F90 b/lfric/infrastructure/source/configuration/namelist_mod.F90
 index 5ddacf53..bad1d81a 100644
---- a/lfric/infrastructure/source/configuration/namelist_mod.f90
-+++ b/lfric/infrastructure/source/configuration/namelist_mod.f90
+--- a/lfric/infrastructure/source/configuration/namelist_mod.F90
++++ b/lfric/infrastructure/source/configuration/namelist_mod.F90
 @@ -23,6 +23,13 @@ module namelist_mod
                                    LOG_LEVEL_INFO
    use constants_mod,        only: imdi, rmdi, cmdi, str_def, i_def
@@ -716,18 +716,6 @@ index 54507eec..4b3859c6 100644
          do i=1, size(double_names)
            double_names(i) = trim(double_names(i))//'_double'
          end do
-diff --git a/lfric_apps/build/extract/target-map.txt b/lfric_apps/build/extract/target-map.txt
-index 1da724e6..036b4cf5 100644
---- a/lfric_apps/build/extract/target-map.txt
-+++ b/lfric_apps/build/extract/target-map.txt
-@@ -1,5 +1,7 @@
- generic-x86:  gfortran: meto-x86-gcc-ifort
- generic-x86:  ifort:    meto-x86-gcc-ifort
-+generic-x86:  nvfortran:meto-x86-gcc-ifort
-+generic-x86:  flang:    meto-x86-gcc-ifort
- meto-spice:   gfortran: meto-x86-gcc-ifort
- meto-spice:   ifort:    meto-x86-gcc-ifort
- meto-xc40:    crayftn:  meto-xc40-cce
 diff --git a/lfric_apps/science/gungho/source/driver/gungho_model_mod.F90 b/lfric_apps/science/gungho/source/driver/gungho_model_mod.F90
 index 0ffb6dde..f136b599 100644
 --- a/lfric_apps/science/gungho/source/driver/gungho_model_mod.F90

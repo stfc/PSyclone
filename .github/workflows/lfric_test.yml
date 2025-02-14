@@ -46,7 +46,8 @@ jobs:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     env:
-      LFRIC_APPS_REV: 3269
+      LFRIC_APPS_REV: 7536
+      LFRIC_CORE_REV: 52054
       PYTHON_VERSION: 3.13.2
 
     steps:
@@ -88,9 +89,9 @@ jobs:
         rm -rf ${HOME}/LFRic/gpu_build
         mkdir -p ${HOME}/LFRic/gpu_build
         cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV} ${HOME}/LFRic/gpu_build/lfric_apps
-        cp -r ${HOME}/LFRic/lfric_core_50869 ${HOME}/LFRic/gpu_build/lfric
+        cp -r ${HOME}/LFRic/lfric_core_${LFRIC_CORE_REV} ${HOME}/LFRic/gpu_build/lfric
         cd ${HOME}/LFRic/gpu_build
-        patch -p1 < ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_${LFRIC_APPS_REV}_nvidia.patch
+        patch -p1 < ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_nvidia.patch
         # Update the compiler definitions to build for GPU
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/nvfortran_acc.mk lfric/infrastructure/build/fortran/nvfortran.mk
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/nvc++.mk lfric/infrastructure/build/cxx/.
@@ -110,7 +111,8 @@ jobs:
         LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -a gungho_model -p psyclone-test
         cd applications/gungho_model/example
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its.nml configuration.nml
-        mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
+        rm -f timer.txt  # In case there was a timer.txt from a previous run
+        mpirun -n 1 ../bin/gungho_model configuration.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its_checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
@@ -140,7 +142,7 @@ jobs:
         rm -rf ${HOME}/LFRic/gpu_build
         mkdir -p ${HOME}/LFRic/gpu_build
         cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV} ${HOME}/LFRic/gpu_build/lfric_apps
-        cp -r ${HOME}/LFRic/lfric_core_50869 ${HOME}/LFRic/gpu_build/lfric
+        cp -r ${HOME}/LFRic/lfric_core_${LFRIC_CORE_REV} ${HOME}/LFRic/gpu_build/lfric
         cd ${HOME}/LFRic/gpu_build
         patch -p1 < ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_${LFRIC_APPS_REV}_nvidia.patch
         # Update the compiler definitions to build for GPU
@@ -162,7 +164,8 @@ jobs:
         LFRIC_OFFLOAD_DIRECTIVES=acc ./build/local_build.py -a gungho_model -p psyclone-test
         cd applications/gungho_model/example
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its.nml configuration.nml
-        mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
+        rm -f timer.txt  # In case there was a timer.txt from a previous run
+        mpirun -n 1 ../bin/gungho_model configuration.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its_checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
@@ -195,7 +198,8 @@ jobs:
         # Run
         cd applications/gungho_model/example
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its.nml configuration.nml
-        mpirun -n 6 ../bin/gungho_model configuration.nml |& tee output.txt
+        rm -f timer.txt  # In case there was a timer.txt from a previous run
+        mpirun -n 6 ../bin/gungho_model configuration.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its_checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
@@ -233,7 +237,8 @@ jobs:
         cd applications/gungho_model/example
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its.nml configuration.nml
         export OMP_NUM_THREADS=6
-        mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
+        rm -f timer.txt  # In case there was a timer.txt from a previous run
+        mpirun -n 1 ../bin/gungho_model configuration.nml
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its_checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
