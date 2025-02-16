@@ -47,7 +47,13 @@ from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import (
     OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
 
+
+# This environment variable informs if profiling hooks have to be inserted.
 PROFILING_ENABLED = os.environ.get('ENABLE_PROFILING', False)
+
+# This environment variable informs if this is targeting NEMOv4, in which case
+# array privatisation is disabled and some more files excluded
+NEMOV4 = os.environ.get('NEMOV4', False)
 
 # List of all module names that PSyclone will chase during the creation of the
 # PSyIR tree in order to use the symbol information from those modules
@@ -115,10 +121,6 @@ OFFLOADING_ISSUES = [
     "zdftke.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
 ]
 
-# A environment variable can inform if this is targeting NEMOv4, in which case
-# array privatisation is disabled and some more files excluded
-NEMOV4 = os.environ.get('NEMOV4', False)
-
 
 def trans(psyir):
     ''' Add OpenMP Target and Loop directives to all loops, including the
@@ -149,37 +151,27 @@ def trans(psyir):
     omp_cpu_loop_trans = OMPLoopTrans(omp_schedule="static")
     omp_cpu_loop_trans.omp_directive = "paralleldo"
 
-    # The exclusion below could be in the FILES_TO_SKIP global parameter, but
-    # in this script, for testing purposes, we exclude them here so PSyclone
-    # frontend and backend are still tested for this files (making passthrough
-    # redundant). It also allows us to insert profiling hooks.
-    if psyir.name in SKIP_FOR_PERFORMANCE:
-        for subroutine in psyir.walk(Routine):
-            print(f"Adding profiling hooks to subroutine: {subroutine.name}")
-            add_profiling(subroutine.children)
-        return
-    if NEMOV4 and psyir.name in NEMOV4_EXCLUSIONS:
-        for subroutine in psyir.walk(Routine):
-            print(f"Adding profiling hooks to subroutine: {subroutine.name}")
-            add_profiling(subroutine.children)
-        return
-    if not NEMOV4 and psyir.name in NEMOV5_EXCLUSIONS:
-        for subroutine in psyir.walk(Routine):
-            print(f"Adding profiling hooks to subroutine: {subroutine.name}")
-            add_profiling(subroutine.children)
-        return
-
-    # ICE routines do not perform well on GPU, so we skip them
-    if psyir.name.startswith("ice"):
-        return
-
-    # Many of the obs_ files have problems to be offloaded to the GPU
-    if psyir.name.startswith("obs_"):
-        return
+    disable_profiling_for = []
 
     for subroutine in psyir.walk(Routine):
 
-        # Skip things from the initialisation
+        # The exclusion below could be in the FILES_TO_SKIP global parameter,
+        # but in this script, for testing purposes, we exclude them here so the
+        # PSyclone frontend and backend are still tested and it also allows to
+        # insert profiling hooks later on.
+        if psyir.name in SKIP_FOR_PERFORMANCE:
+            continue
+        if NEMOV4 and psyir.name in NEMOV4_EXCLUSIONS:
+            continue
+        if not NEMOV4 and psyir.name in NEMOV5_EXCLUSIONS:
+            continue
+        # ICE routines do not perform well on GPU, so we skip them
+        if psyir.name.startswith("ice"):
+            continue
+        # Many of the obs_ files have problems to be offloaded to the GPU
+        if psyir.name.startswith("obs_"):
+            continue
+        # Skip initialisation subroutines
         if (subroutine.name.endswith('_alloc') or
                 subroutine.name.endswith('_init') or
                 subroutine.name.startswith('Agrif') or
@@ -214,12 +206,10 @@ def trans(psyir):
             # We continue parallelising inside the routine, but this could
             # change if the parallelisation directives added below are not
             # nestable, in that case we could add a 'continue' here
-        elif PROFILING_ENABLED:
-            # We annotate the rest with profiling hooks if requested
-            print(f"Adding profiling hooks to subroutine: {subroutine.name}")
-            add_profiling(subroutine.children)
+            disable_profiling_for.append(subroutine.name)
 
-        if NEMOV4 or psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES:
+        if NEMOV4 or psyir.name not in (PARALLELISATION_ISSUES +
+                                        OFFLOADING_ISSUES):
             print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
             insert_explicit_loop_parallelism(
                     subroutine,
@@ -237,3 +227,9 @@ def trans(psyir):
                     privatise_arrays=(not NEMOV4 and
                                       psyir.name not in PRIVATISATION_ISSUES)
             )
+
+    # Iterate again and add profiling hooks when needed
+    for subroutine in psyir.walk(Routine):
+        if PROFILING_ENABLED and subroutine.name not in disable_profiling_for:
+            print(f"Adding profiling hooks to subroutine: {subroutine.name}")
+            add_profiling(subroutine.children)
