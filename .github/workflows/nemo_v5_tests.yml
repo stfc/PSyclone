@@ -146,12 +146,12 @@ jobs:
         export PSYCLONE_HOME=${PWD}/.runner_venv
         export NEMO_DIR=${HOME}/${NEMODIR_NAME}
         export TEST_DIR=BENCH_PASSTHROUGH_ONEAPI
-        
+
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-i4 -r8 -O2 -fp-model precise -fno-alias -g"
-        
+
         # Clean up and compile
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
@@ -163,7 +163,7 @@ jobs:
         mpirun -np 6 ./nemo
         tail run.stat
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.oneapi.small.10steps run.stat
-        
+
     - name: NEMO 5.0 gfortran OpenMP for CPUs
       run: |
         # Set up environment
@@ -174,12 +174,12 @@ jobs:
         export PSYCLONE_HOME=${PWD}/.runner_venv
         export NEMO_DIR=${HOME}/${NEMODIR_NAME}
         export TEST_DIR=BENCH_OMP_THREADING_GCC
-        
+
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-fdefault-real-8 -O2 -fcray-pointer -ffree-line-length-none -g -fopenmp"
-        
+
         # Clean up and compile
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py \
@@ -200,7 +200,7 @@ jobs:
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "NEMOv5 OpenMP for CPU", nemo_version: "NEMOv5", system: "GlaDos",
           compiler:"gfortran-14" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
-        
+
     - name: NEMO 5.0 nvidia OpenMP for GPUs (BENCH - managed memory)
       run: |
         # Set up environment
@@ -211,13 +211,13 @@ jobs:
         export PSYCLONE_HOME=${PWD}/.runner_venv
         export NEMO_DIR=${HOME}/${NEMODIR_NAME}
         export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC
-        
+
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         # We compile at -O1 to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-i4 -Mr8 -O1 -nofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
-        
+
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
@@ -250,13 +250,13 @@ jobs:
         export PSYCLONE_HOME=${PWD}/.runner_venv
         export NEMO_DIR=${HOME}/${NEMODIR_NAME}
         export TEST_DIR=ORCA1_OMP_OFFLOAD_NVHPC
-        
+
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         # We compile at "-O1 -nofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         export FCFLAGS="-i4 -Mr8 -O1 -nofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
-        
+
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
         ./makenemo -r GOSI10p0.0_like_eORCA1 -m linux_spack -n ${TEST_DIR} clean -y
@@ -268,6 +268,44 @@ jobs:
         ln -sf /archive/NEMO_INPUTS/NEMOv5_MO_original_files/ancil/eORCA1/link/* .
         ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca1.nvhpc.10steps run.stat
+        export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "NEMOv5 OpenMP for GPU (ORCA1)", nemo_version: "NEMOv5", system: "GlaDos",
+          compiler:"nvhpc-24.5" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
+
+    - name: NEMO 5.0 nvidia OpenMP for GPUs (UKMO ORCA2 - managed memory)
+      run: |
+        # Set up environment
+        source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment%nvhpc@24.5
+        source .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export PSYCLONE_HOME=${PWD}/.runner_venv
+        export NEMO_DIR=${HOME}/${NEMODIR_NAME}
+        export TEST_DIR=ORCA2_OMP_OFFLOAD_NVHPC
+
+        # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
+        # We compile at "-O1 -nofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
+        cd $NEMO_DIR
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        export FCFLAGS="-i4 -Mr8 -O1 -nofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+
+        # Clean up and compile
+        # Without key_mpi_off it fails to compile (even without psyclone)
+        ./makenemo -r ORCA2_ICE_PISCES -m linux_spack -n ${TEST_DIR} clean -y
+        ./makenemo -r ORCA2_ICE_PISCES -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
+          add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
+
+        # Run test
+        cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
+        ln -s /archive/NEMO_INPUTS/NEMOv5_MO_original_files/ORCA2_ICE_v4.2.0/* .
+        ./nemo
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
         export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \

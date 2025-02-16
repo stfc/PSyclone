@@ -40,8 +40,8 @@ directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, PASSTHROUGH_ISSUES, PARALLELISATION_ISSUES,
-    NEMO_MODULES_TO_IMPORT, PRIVATISATION_ISSUES)
+    enhance_tree_information, PARALLELISATION_ISSUES, NEMO_MODULES_TO_IMPORT,
+    PRIVATISATION_ISSUES)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
@@ -57,7 +57,7 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 NEMOV4 = os.environ.get('NEMOV4', False)
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = PASSTHROUGH_ISSUES
+FILES_TO_SKIP = []
 
 if PROFILING_ENABLED:
     # Fails with profiling enabled. issue #2723
