@@ -129,7 +129,7 @@ jobs:
         cd ${LFRIC_DIR}
         # Update the PSyclone commands to ensure transformed kernels are written
         # to working directory.
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk ../lfric_core/infrastructure/build/psyclone/.
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk ../lfric/infrastructure/build/psyclone/.
         # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
         mkdir -p ${OPT_DIR}
@@ -176,7 +176,7 @@ jobs:
         cd ${LFRIC_DIR}
         # Update the PSyclone commands to ensure transformed kernels are written
         # to working directory.
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk ../lfric_core/infrastructure/build/psyclone/.
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk ../lfric/infrastructure/build/psyclone/.
         # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
         mkdir -p ${OPT_DIR}
