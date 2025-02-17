@@ -91,10 +91,9 @@ jobs:
         ./build/local_build.py -a gungho_model -v
         # Run
         cd applications/gungho_model/example
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its.nml configuration.nml
-        rm -f timer.txt  # In case there was a timer.txt from a previous run
+        rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         mpirun -n 6 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its_checksums.txt gungho_model-checksums.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gundho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
@@ -144,10 +143,9 @@ jobs:
         rm -rf applications/gungho_model/working
         LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -a gungho_model -p psyclone-test
         cd applications/gungho_model/example
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its.nml configuration.nml
-        rm -f timer.txt  # In case there was a timer.txt from a previous run
-        mpirun -n 1 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its_checksums.txt gungho_model-checksums.txt
+        rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
+        mpirun -n 6 ../bin/gungho_model configuration.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gundho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
@@ -197,10 +195,9 @@ jobs:
         rm -rf applications/gungho_model/working
         LFRIC_OFFLOAD_DIRECTIVES=acc ./build/local_build.py -a gungho_model -p psyclone-test
         cd applications/gungho_model/example
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its.nml configuration.nml
-        rm -f timer.txt  # In case there was a timer.txt from a previous run
-        mpirun -n 1 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its_checksums.txt gungho_model-checksums.txt
+        rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
+        mpirun -n 6 ../bin/gungho_model configuration.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gundho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
@@ -235,11 +232,10 @@ jobs:
         ./build/local_build.py -a gungho_model -p psyclone-test -v
         # Run
         cd applications/gungho_model/example
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its.nml configuration.nml
-        export OMP_NUM_THREADS=6
-        rm -f timer.txt  # In case there was a timer.txt from a previous run
-        mpirun -n 1 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gungho_configuration_4its_checksums.txt gungho_model-checksums.txt
+        export OMP_NUM_THREADS=2
+        rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
+        mpirun -n 6 ../bin/gungho_model configuration.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gundho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
