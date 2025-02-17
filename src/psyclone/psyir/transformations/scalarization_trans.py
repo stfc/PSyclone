@@ -36,7 +36,7 @@
 '''This module provides the sclarization transformation class.'''
 
 import itertools
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 
 from psyclone.core import VariablesAccessInfo, Signature, SymbolicMaths
 from psyclone.psyGen import Kern
@@ -188,7 +188,7 @@ class ScalarizationTrans(LoopTrans):
 
     @staticmethod
     def _get_index_values_from_indices(
-            node: Node, indices: List[Node]) -> tuple[bool, List[Node]]:
+            node: Node, indices: List[Node]) -> Tuple[bool, List[Node]]:
         '''
         TODO
         '''
