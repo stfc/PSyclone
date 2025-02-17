@@ -115,26 +115,13 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        # The LFRic source must be patched to workaround bugs in the NVIDIA
-        # compiler's namelist handling.
-        rm -rf ${HOME}/LFRic/gpu_build
-        mkdir -p ${HOME}/LFRic/gpu_build
-        cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV} ${HOME}/LFRic/gpu_build/lfric_apps
-        cp -r ${HOME}/LFRic/lfric_core_${LFRIC_CORE_REV} ${HOME}/LFRic/gpu_build/lfric
-        cd ${HOME}/LFRic/gpu_build
-        patch -p1 < ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_nvidia.patch
-        # Update the compiler definitions to build for GPU
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/nvfortran_acc.mk lfric/infrastructure/build/fortran/nvfortran.mk
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/nvc++.mk lfric/infrastructure/build/cxx/.
+        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
+        cd ${LFRIC_DIR}
         # Update the PSyclone commands to ensure transformed kernels are written
         # to working directory.
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk lfric/infrastructure/build/psyclone/.
-        # Update dependencies.sh to point to our patched lfric core.
-        sed -i -e 's/export lfric_core_sources=.*$/export lfric_core_sources\=\/home\/gh_runner\/LFRic\/gpu_build\/lfric/' lfric_apps/dependencies.sh
-        export LFRIC_DIR=${HOME}/LFRic/gpu_build/lfric_apps
-        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
-        cd ${LFRIC_DIR}
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk ../lfric_core_${LFRIC_CORE_REV}/infrastructure/build/psyclone/.
         # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
@@ -165,26 +152,13 @@ jobs:
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
-        # The LFRic source must be patched to workaround bugs in the NVIDIA
-        # compiler's namelist handling.
-        rm -rf ${HOME}/LFRic/gpu_build
-        mkdir -p ${HOME}/LFRic/gpu_build
-        cp -r ${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV} ${HOME}/LFRic/gpu_build/lfric_apps
-        cp -r ${HOME}/LFRic/lfric_core_${LFRIC_CORE_REV} ${HOME}/LFRic/gpu_build/lfric
-        cd ${HOME}/LFRic/gpu_build
-        patch -p1 < ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_${LFRIC_APPS_REV}_nvidia.patch
-        # Update the compiler definitions to build for GPU
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/nvfortran_acc.mk lfric/infrastructure/build/fortran/nvfortran.mk
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/nvc++.mk lfric/infrastructure/build/cxx/.
+        export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
+        cd ${LFRIC_DIR}
         # Update the PSyclone commands to ensure transformed kernels are written
         # to working directory.
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk lfric/infrastructure/build/psyclone/.
-        # Update dependencies.sh to point to our patched lfric core.
-        sed -i -e 's/export lfric_core_sources=.*$/export lfric_core_sources\=\/home\/gh_runner\/LFRic\/gpu_build\/lfric/' lfric_apps/dependencies.sh
-        export LFRIC_DIR=${HOME}/LFRic/gpu_build/lfric_apps
-        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
-        cd ${LFRIC_DIR}
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/psyclone.mk ../lfric_core_${LFRIC_CORE_REV}/infrastructure/build/psyclone/.
         # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
         mkdir -p ${OPT_DIR}
         cp ${PSYCLONE_LFRIC_DIR}/gpu_offloading.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
@@ -216,9 +190,9 @@ jobs:
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=${HOME}/LFRic/lfric_apps_${LFRIC_APPS_REV}
-        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
         cd ${LFRIC_DIR}
         # PSyclone scripts must now be under 'optimisation' and be called 'global.py'
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
         mkdir -p applications/gungho_model/optimisation/psyclone-test
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py ${OPT_DIR}/global.py
         # Clean previous version and compile again
