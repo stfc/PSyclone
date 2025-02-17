@@ -337,36 +337,37 @@ class ScalarizationTrans(LoopTrans):
                 # If either of the start of stop points of the original
                 # access range are a reference, we need to make sure that
                 # reference has not been written to between the locations.
-                if isinstance(next_index.stop, Reference):
-                    # Find the containing Routine
-                    if routine_var_accesses is None:
-                        routine = loop.ancestor(Routine)
-                        routine_var_accesses = VariablesAccessInfo(
-                                nodes=routine
-                        )
-                    stop_sig = Signature(next_index.stop.symbol.name)
-                    if not routine_var_accesses[stop_sig].is_read_only():
-                        stop_savi = routine_var_accesses[stop_sig]
-                        for access in stop_savi.all_write_accesses:
-                            pos = access.node.abs_position
-                            if (pos > loop.abs_position and
-                                    pos < next_access.abs_position):
-                                return False
-                if isinstance(next_index.start, Reference):
-                    # Find the containing Routine
-                    if routine_var_accesses is None:
-                        routine = loop.ancestor(Routine)
-                        routine_var_accesses = VariablesAccessInfo(
-                                nodes=routine
-                        )
-                    start_sig = Signature(next_index.start.symbol.name)
-                    if not routine_var_accesses[start_sig].is_read_only():
-                        start_savi = routine_var_accesses[start_sig]
-                        for access in start_savi.all_write_accesses:
-                            pos = access.node.abs_position
-                            if (pos > loop.abs_position and
-                                    pos < next_access.abs_position):
-                                return False
+                # FIXME Commented these out at they don't seem needed.
+                #if isinstance(next_index.stop, Reference):
+                #    # Find the containing Routine
+                #    if routine_var_accesses is None:
+                #        routine = loop.ancestor(Routine)
+                #        routine_var_accesses = VariablesAccessInfo(
+                #                nodes=routine
+                #        )
+                #    stop_sig = Signature(next_index.stop.symbol.name)
+                #    if not routine_var_accesses[stop_sig].is_read_only():
+                #        stop_savi = routine_var_accesses[stop_sig]
+                #        for access in stop_savi.all_write_accesses:
+                #            pos = access.node.abs_position
+                #            if (pos > loop.abs_position and
+                #                    pos < next_access.abs_position):
+                #                return False
+                #if isinstance(next_index.start, Reference):
+                #    # Find the containing Routine
+                #    if routine_var_accesses is None:
+                #        routine = loop.ancestor(Routine)
+                #        routine_var_accesses = VariablesAccessInfo(
+                #                nodes=routine
+                #        )
+                #    start_sig = Signature(next_index.start.symbol.name)
+                #    if not routine_var_accesses[start_sig].is_read_only():
+                #        start_savi = routine_var_accesses[start_sig]
+                #        for access in start_savi.all_write_accesses:
+                #            pos = access.node.abs_position
+                #            if (pos > loop.abs_position and
+                #                    pos < next_access.abs_position):
+                #                return False
 
         return True
 

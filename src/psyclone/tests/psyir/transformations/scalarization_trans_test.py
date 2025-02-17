@@ -480,6 +480,108 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
                                                            node.loop_body,
                                                            var_accesses)
 
+    # Test having a non-unit stride prevents scalarization
+    code = '''subroutine test()
+        use my_mod
+        integer :: i
+        integer :: k
+        real, dimension(1:100) :: arr
+
+          do i = 1, 100, 2
+            arr(i) = exp(arr(i))
+          end do
+          do i = 1, 100
+            arr(i) = 1
+          end do
+        end subroutine test
+        '''
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[0]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    keys = list(var_accesses.keys())
+    # Test arr
+    assert var_accesses[keys[1]].var_name == "arr"
+    assert not ScalarizationTrans._value_unused_after_loop(keys[1],
+                                                           node.loop_body,
+                                                           var_accesses)
+
+    # Test having a loop bound as a structure element prevents scalarization
+    code = '''subroutine test()
+        use my_mod
+        integer :: i
+        integer :: k
+        real, dimension(1:100) :: arr
+
+          do i = 1, ele%stop
+            arr(i) = exp(arr(i))
+          end do
+          do i = 1, 100
+            arr(i) = 1
+          end do
+        end subroutine test
+        '''
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[0]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    keys = list(var_accesses.keys())
+    # Test arr
+    assert var_accesses[keys[1]].var_name == "arr"
+    assert not ScalarizationTrans._value_unused_after_loop(keys[1],
+                                                           node.loop_body,
+                                                           var_accesses)
+
+    # Test having an index as a reference to a non-loop variable prevents
+    # scalarization
+    code = '''subroutine test()
+        use my_mod
+        integer :: i
+        integer :: k
+        real, dimension(1:100) :: arr
+
+          do i = 1, 100
+            arr(k) = arr(k) + exp(arr(i))
+          end do
+          do i = 1, 100
+            arr(i) = 1
+          end do
+        end subroutine test
+        '''
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[0]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    keys = list(var_accesses.keys())
+    # Test arr
+    assert var_accesses[keys[1]].var_name == "arr"
+    assert not ScalarizationTrans._value_unused_after_loop(keys[1],
+                                                           node.loop_body,
+                                                           var_accesses)
+
+    # Test that the next access having a non-unit stride prevents
+    # scalarization
+    code = '''subroutine test()
+        use my_mod
+        integer :: i
+        integer :: k
+        real, dimension(1:100) :: arr
+
+          do i = 1, 100
+            arr(i) = exp(arr(i))
+          end do
+          do i = 1, 100, 2
+            arr(i) = 1
+          end do
+        end subroutine test
+        '''
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[0]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    keys = list(var_accesses.keys())
+    # Test arr
+    assert var_accesses[keys[1]].var_name == "arr"
+    assert not ScalarizationTrans._value_unused_after_loop(keys[1],
+                                                           node.loop_body,
+                                                           var_accesses)
+
 
 def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
     ''' Test the application of the scalarization transformation.'''
@@ -637,6 +739,29 @@ def test_scalarization_trans_noscalarize(fortran_reader, fortran_writer):
       end do
     end do
     arr(:,:,1) = 0.0
+    end subroutine
+    '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    for loop in loops:
+        strans.apply(loop)
+    out = fortran_writer(psyir)
+    assert "arr_scalar" not in out
+
+    code = '''
+    subroutine test
+    integer :: i, j, k
+    real , dimension(1:1000, 1:1000, 1:5) :: arr
+
+    do i = 1,1000
+      do j = 1,1000
+        do k = 2,5
+          arr(i,j,k) = 0.0
+        end do
+      end do
+    end do
+    arr(:,:,3:5) = 0.0
     end subroutine
     '''
     strans = ScalarizationTrans()
