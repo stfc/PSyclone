@@ -97,8 +97,6 @@ jobs:
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
-        export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
-        echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_passthrough_performance_history
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
@@ -106,8 +104,7 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic Passthrough with DM", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
-          compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"',
-          num_of_halo_exchanges: '"$VAR_HALOS"'})'
+          compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
     # PSyclone, compile and run MetOffice gungho_model on GPU
     - name: LFRic GungHo with OpenMP offload
@@ -150,8 +147,6 @@ jobs:
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
-        export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
-        echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_omp_performance_history
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
@@ -159,8 +154,7 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic OpenMP offloading", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
-          compiler:"spack-nvhpc-24.5", date: new Date(), elapsed_time: '"$VAR_TIME"',
-          num_of_halo_exchanges: '"$VAR_HALOS"'})'
+          compiler:"spack-nvhpc-24.5", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
     # PSyclone, compile and run MetOffice gungho_model on GPU
     - name: LFRic GungHo with OpenACC offload
@@ -203,8 +197,6 @@ jobs:
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
-        export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
-        echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_acc_performance_history
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
@@ -212,8 +204,7 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic OpenACC", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
-          compiler:"spack-nvhpc-24.5", date: new Date(), elapsed_time: '"$VAR_TIME"',
-          num_of_halo_exchanges: '"$VAR_HALOS"'})'
+          compiler:"spack-nvhpc-24.5", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
     # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 OpenMP threads
     - name: LFRic with all transformations
@@ -242,8 +233,6 @@ jobs:
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
-        export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
-        echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_optimised_performance_history
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
@@ -251,5 +240,4 @@ jobs:
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic all transformations", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
-          system: "GlaDos", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"',
-          num_of_halo_exchanges: '"$VAR_HALOS"'})'
+          system: "GlaDos", compiler:"spack-gfortran-14", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
