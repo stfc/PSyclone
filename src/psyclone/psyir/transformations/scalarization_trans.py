@@ -36,13 +36,13 @@
 '''This module provides the sclarization transformation class.'''
 
 import itertools
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
-from psyclone.core import VariablesAccessInfo, Signature
+from psyclone.core import VariablesAccessInfo, Signature, SymbolicMaths
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Call, CodeBlock, \
-        Loop, Reference, Routine, StructureReference
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol
+from psyclone.psyir.nodes import Call, CodeBlock, Literal, \
+        Loop, Node, Range, Reference, Routine, StructureReference
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 
 
@@ -187,6 +187,57 @@ class ScalarizationTrans(LoopTrans):
         return False
 
     @staticmethod
+    def _get_index_values_from_indices(
+            node: Node, indices: List[Node]) -> tuple[bool, List[Node]]:
+        '''
+        TODO
+        '''
+        index_values = []
+        has_complex_index = False
+        for index in indices:
+            # If the index is an array or structure and there are any more
+            # accesses to the signature we're trying to scalarize, then we
+            # should not scalarize.
+            if (type(index) is not Range and type(index) is not Reference and
+                    type(index) is not Literal):
+                has_complex_index = True
+            index_values.append(None)
+
+        one_literal = Literal("1", INTEGER_TYPE)
+        ancestor_loop = node.ancestor(Loop)
+        # For Range or Literal array indices this is easy.
+        for i, index in enumerate(indices):
+            if isinstance(index, (Range, Literal)):
+                index_values[i] = index
+
+        while ancestor_loop is not None and not has_complex_index:
+            for i, index in enumerate(indices):
+                # Skip over indices we already set.
+                if index_values[i] is not None:
+                    continue
+                if ancestor_loop.variable == index.symbol:
+                    start_val = ancestor_loop.start_expr
+                    stop_val = ancestor_loop.stop_expr
+                    step_val = ancestor_loop.step_expr
+                    # If the step value is not exactly 1 then we treat
+                    # this as a complex index, as we can't currently
+                    # do precise comparisons on non-unit stride accesses.
+                    if step_val != one_literal:
+                        has_complex_index = True
+                    # Create a range for this and add it to the index values.
+                    index_range = Range.create(start_val.copy(), stop_val.copy())
+                    index_values[i] = index_range
+            ancestor_loop = ancestor_loop.ancestor(Loop)
+
+        # If we couldn't work out any of the index_values, then we treat this
+        # as a complex index
+        for index in index_values:
+            if index is None:
+                has_complex_index = True
+
+        return has_complex_index, index_values
+
+    @staticmethod
     def _value_unused_after_loop(sig: Signature,
                                  loop: Loop,
                                  var_accesses: VariablesAccessInfo) -> bool:
@@ -198,15 +249,32 @@ class ScalarizationTrans(LoopTrans):
         :returns: whether the value computed in the loop containing
                   sig is read from after the loop.
         '''
+        routine_var_accesses = None
         # Find the last access of the signature
         last_access = var_accesses[sig].all_accesses[-1].node
+        # Compute the indices used in this loop. We know that all of the
+        # indices used in this loop must be the same.
+        indices = last_access.indices
+
         # Find the next accesses to this symbol
         next_accesses = last_access.next_accesses()
+
+        # Compute the indices ranges.
+        has_complex_index, index_values = \
+                ScalarizationTrans._get_index_values_from_indices(
+                        last_access, indices
+        )
+
         for next_access in next_accesses:
             # next_accesses looks backwards to the start of the loop,
             # but we don't care about those accesses here.
             if next_access.is_descendent_of(loop):
                 continue
+
+            # If we have a next_access outside of the loop and have a complex
+            # index then we do not scalarize this at the moment.
+            if has_complex_index:
+                return False
 
             # If next access is a Call or CodeBlock or Kern then
             # we have to assume the value is used. These nodes don't
@@ -218,6 +286,86 @@ class ScalarizationTrans(LoopTrans):
             # If the access is a read, then return False
             if next_access.is_read:
                 return False
+
+            # We need to ensure that the following write accesses the same
+            # or more of the array.
+            next_indices = next_access.indices
+            next_complex_index, next_values = \
+                    ScalarizationTrans._get_index_values_from_indices(
+                            next_access, next_indices
+            )
+            # If we can't compute the indices of the next access then we
+            # cannot scalarize
+            if next_complex_index:
+                return False
+            # If the two accesses don't have the same number of indices then
+            # we won't scalarize - FIXME Can this happen?
+            if len(next_values) != len(index_values):
+                return False
+            # Check the indices of next_access are greater than or equal to
+            # that of the potential scalarization.
+            valid_indexes = True
+            for i in range(len(next_values)):
+                # If the next index is a full range we can skip it as it must
+                # cover the previous access
+                if next_access.is_full_range(i):
+                    continue
+                # Convert both to ranges if either was a literal
+                next_index = next_values[i]
+                orig_index = index_values[i]
+                if not isinstance(next_index, Range):
+                    next_index = Range.create(next_index.copy(),
+                                              next_index.copy())
+                if not isinstance(orig_index, Range):
+                    orig_index = Range.create(orig_index.copy(),
+                                              orig_index.copy())
+                sm = SymbolicMaths.get()
+                # Need to check that next_index stop point is >= orig_index.
+                # If its not then this can't cover the full range so we can
+                # return False to not Scalarize this.
+                if not (sm.greater_than(next_index.stop, orig_index.stop)
+                        == SymbolicMaths.Fuzzy.TRUE or 
+                        sm.equal(next_index.stop, orig_index.stop)):
+                    return False
+                # Need to check the next_index start point is <= orig_index
+                if not (sm.less_than(next_index.start, orig_index.start)
+                        == SymbolicMaths.Fuzzy.TRUE or
+                        sm.equal(next_index.start, orig_index.start)):
+                    return False
+                # If either of the start of stop points of the original
+                # access range are a reference, we need to make sure that
+                # reference has not been written to between the locations.
+                if (isinstance(next_index.stop, Reference)):
+                    # Find the containing Routine
+                    if(routine_var_accesses is None):
+                        routine = loop.ancestor(Routine)
+                        routine_var_accesses = VariablesAccessInfo(
+                                nodes=routine
+                        )
+                    stop_sig = Signature(next_index.stop.symbol.name)
+                    if not routine_var_accesses[stop_sig].is_read_only():
+                       stop_savi = routine_var_accesses[stop_sig]
+                       print(type(stop_savi))
+                       for access in stop_savi.all_write_accesses:
+                           pos = access.node.abs_position
+                           if (pos > loop.abs_position and 
+                               pos < next_access.abs_position):
+                               return False
+                if (isinstance(next_index.start, Reference)):
+                    # Find the containing Routine
+                    if(routine_var_accesses is None):
+                        routine = loop.ancestor(Routine)
+                        routine_var_accesses = VariablesAccessInfo(
+                                nodes=routine
+                        )
+                    start_sig = Signature(next_index.start.symbol.name)
+                    if not routine_var_accesses[start_sig].is_read_only():
+                       start_savi = routine_var_accesses[start_sig]
+                       for access in start_savi.all_write_accesses:
+                           pos = access.node.abs_position
+                           if (pos > loop.abs_position and 
+                               pos < next_access.abs_position):
+                               return False
 
         return True
 
@@ -257,7 +405,7 @@ class ScalarizationTrans(LoopTrans):
 
         var_accesses = VariablesAccessInfo(nodes=node.loop_body)
 
-        # Find all the ararys that are only accessed by a single index, and
+        # Find all the arrays that are only accessed by a single index, and
         # that index is only read inside the loop.
         potential_targets = filter(
                 lambda sig:

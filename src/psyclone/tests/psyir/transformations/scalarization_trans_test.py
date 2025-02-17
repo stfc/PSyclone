@@ -37,6 +37,7 @@
 '''
 
 from psyclone.core import VariablesAccessInfo
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import ScalarizationTrans
 from psyclone.tests.utilities import Compile
 
@@ -618,8 +619,11 @@ end subroutine test
     assert Compile(tmpdir).string_compiles(out)
 
 
-def test_noscalarize(fortran_reader, fortran_writer):
-    '''TODO'''
+def test_scalarization_trans_noscalarize(fortran_reader, fortran_writer):
+    '''
+    Test that the scalarization transformation won't scalarize some patterns
+    we expect to not be scalarized.
+    '''
     code = '''
     subroutine test
     integer :: i, j, k
@@ -637,11 +641,126 @@ def test_noscalarize(fortran_reader, fortran_writer):
     '''
     strans = ScalarizationTrans()
     psyir = fortran_reader.psyir_from_source(code)
-    from psyclone.psyir.nodes import Loop
     loops = psyir.walk(Loop)
     for loop in loops:
         strans.apply(loop)
     out = fortran_writer(psyir)
-    print(out)
     assert "arr_scalar" not in out
-    assert False
+
+    code = '''
+    subroutine test
+    integer :: i, j, k, l
+    real, dimension(1:1000, 1:1000, 1:5) :: arr
+    l = 100
+
+    do i = 1, l
+      do j = 1, 1000
+        do k = 1,5
+          arr(i,j,k) = 0.0
+        end do
+      end do
+    end do
+    l = 50
+    do i = 1, l
+      do j = 1, 1000
+        do k = 1,5
+          arr(i,j,k) = 0.0
+        end do
+      end do
+    end do
+    end subroutine
+    '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    strans.apply(loops[0])
+    out = fortran_writer(psyir)
+    assert "arr_scalar" not in out
+
+    code = '''
+    subroutine test
+    integer :: i, j, k, l
+    real, dimension(1:1000, 1:1000, 1:5) :: arr
+    l = 1
+
+    do i = l, 1000
+      do j = 1, 1000
+        do k = 1,5
+          arr(i,j,k) = 0.0
+        end do
+      end do
+    end do
+    l = 50
+    do i = l, 1000
+      do j = 1, 1000
+        do k = 1,5
+          arr(i,j,k) = 0.0
+        end do
+      end do
+    end do
+    end subroutine
+    '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    strans.apply(loops[0])
+    out = fortran_writer(psyir)
+    assert "arr_scalar" not in out
+
+    code = '''
+    subroutine test
+    integer :: i, j, k, l
+    real, dimension(1:1000, 1:1000, 1:5) :: arr
+    l = 50
+
+    do i = 51, 1000
+      do j = 1, 1000
+        do k = 1,5
+          arr(i,j,k) = 0.0
+        end do
+      end do
+    end do
+    do i = l, 1000
+      do j = 1, 1000
+        do k = 1,5
+          arr(i,j,k) = 0.0
+        end do
+      end do
+    end do
+    end subroutine
+    '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    strans.apply(loops[0])
+    out = fortran_writer(psyir)
+    assert "arr_scalar" not in out
+
+    code = '''
+    subroutine test
+    integer :: i, j, k, l
+    real, dimension(1:1000, 1:1000, 1:5) :: arr
+    l = 950
+
+    do i = 51, 1000
+      do j = 1, 1000
+        do k = 1,5
+          arr(i,j,k) = 0.0
+        end do
+      end do
+    end do
+    do i = 1, l
+      do j = 1, 1000
+        do k = 1,5
+          arr(i,j,k) = 0.0
+        end do
+      end do
+    end do
+    end subroutine
+    '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    strans.apply(loops[0])
+    out = fortran_writer(psyir)
+    assert "arr_scalar" not in out
