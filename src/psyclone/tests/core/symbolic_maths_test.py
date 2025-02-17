@@ -296,7 +296,7 @@ def test_symbolic_maths_less_than(
     ir1 = fortran_reader.psyir_from_expression(exp1)
     ir2 = fortran_reader.psyir_from_expression(exp2)
     assert sym_maths.less_than(ir1, ir2,
-                                  all_variables_positive=positive) == result
+                               all_variables_positive=positive) == result
 
 
 @pytest.mark.parametrize("exp1, exp2, result", [("i", "2*i+1", set([-1])),

@@ -225,7 +225,10 @@ class ScalarizationTrans(LoopTrans):
                     if step_val != one_literal:
                         has_complex_index = True
                     # Create a range for this and add it to the index values.
-                    index_range = Range.create(start_val.copy(), stop_val.copy())
+                    index_range = Range.create(
+                            start_val.copy(),
+                            stop_val.copy()
+                    )
                     index_values[i] = index_range
             ancestor_loop = ancestor_loop.ancestor(Loop)
 
@@ -261,9 +264,9 @@ class ScalarizationTrans(LoopTrans):
 
         # Compute the indices ranges.
         has_complex_index, index_values = \
-                ScalarizationTrans._get_index_values_from_indices(
+            ScalarizationTrans._get_index_values_from_indices(
                         last_access, indices
-        )
+            )
 
         for next_access in next_accesses:
             # next_accesses looks backwards to the start of the loop,
@@ -291,9 +294,9 @@ class ScalarizationTrans(LoopTrans):
             # or more of the array.
             next_indices = next_access.indices
             next_complex_index, next_values = \
-                    ScalarizationTrans._get_index_values_from_indices(
+                ScalarizationTrans._get_index_values_from_indices(
                             next_access, next_indices
-            )
+                )
             # If we can't compute the indices of the next access then we
             # cannot scalarize
             if next_complex_index:
@@ -304,7 +307,6 @@ class ScalarizationTrans(LoopTrans):
                 return False
             # Check the indices of next_access are greater than or equal to
             # that of the potential scalarization.
-            valid_indexes = True
             for i in range(len(next_values)):
                 # If the next index is a full range we can skip it as it must
                 # cover the previous access
@@ -324,7 +326,7 @@ class ScalarizationTrans(LoopTrans):
                 # If its not then this can't cover the full range so we can
                 # return False to not Scalarize this.
                 if not (sm.greater_than(next_index.stop, orig_index.stop)
-                        == SymbolicMaths.Fuzzy.TRUE or 
+                        == SymbolicMaths.Fuzzy.TRUE or
                         sm.equal(next_index.stop, orig_index.stop)):
                     return False
                 # Need to check the next_index start point is <= orig_index
@@ -335,37 +337,36 @@ class ScalarizationTrans(LoopTrans):
                 # If either of the start of stop points of the original
                 # access range are a reference, we need to make sure that
                 # reference has not been written to between the locations.
-                if (isinstance(next_index.stop, Reference)):
+                if isinstance(next_index.stop, Reference):
                     # Find the containing Routine
-                    if(routine_var_accesses is None):
+                    if routine_var_accesses is None:
                         routine = loop.ancestor(Routine)
                         routine_var_accesses = VariablesAccessInfo(
                                 nodes=routine
                         )
                     stop_sig = Signature(next_index.stop.symbol.name)
                     if not routine_var_accesses[stop_sig].is_read_only():
-                       stop_savi = routine_var_accesses[stop_sig]
-                       print(type(stop_savi))
-                       for access in stop_savi.all_write_accesses:
-                           pos = access.node.abs_position
-                           if (pos > loop.abs_position and 
-                               pos < next_access.abs_position):
-                               return False
-                if (isinstance(next_index.start, Reference)):
+                        stop_savi = routine_var_accesses[stop_sig]
+                        for access in stop_savi.all_write_accesses:
+                            pos = access.node.abs_position
+                            if (pos > loop.abs_position and
+                                    pos < next_access.abs_position):
+                                return False
+                if isinstance(next_index.start, Reference):
                     # Find the containing Routine
-                    if(routine_var_accesses is None):
+                    if routine_var_accesses is None:
                         routine = loop.ancestor(Routine)
                         routine_var_accesses = VariablesAccessInfo(
                                 nodes=routine
                         )
                     start_sig = Signature(next_index.start.symbol.name)
                     if not routine_var_accesses[start_sig].is_read_only():
-                       start_savi = routine_var_accesses[start_sig]
-                       for access in start_savi.all_write_accesses:
-                           pos = access.node.abs_position
-                           if (pos > loop.abs_position and 
-                               pos < next_access.abs_position):
-                               return False
+                        start_savi = routine_var_accesses[start_sig]
+                        for access in start_savi.all_write_accesses:
+                            pos = access.node.abs_position
+                            if (pos > loop.abs_position and
+                                    pos < next_access.abs_position):
+                                return False
 
         return True
 
