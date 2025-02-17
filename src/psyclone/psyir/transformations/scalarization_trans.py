@@ -291,6 +291,12 @@ class ScalarizationTrans(LoopTrans):
             if next_access.is_read:
                 return False
 
+            # If the next access is a Reference then we had a full range
+            # access described without any range, which means a full
+            # range access so we can skip the followup checks.
+            if type(next_access) is Reference:
+                continue
+
             # We need to ensure that the following write accesses the same
             # or more of the array.
             next_indices = next_access.indices
@@ -301,10 +307,6 @@ class ScalarizationTrans(LoopTrans):
             # If we can't compute the indices of the next access then we
             # cannot scalarize
             if next_complex_index:
-                return False
-            # If the two accesses don't have the same number of indices then
-            # we won't scalarize - FIXME Can this happen?
-            if len(next_values) != len(index_values):
                 return False
             # Check the indices of next_access are greater than or equal to
             # that of the potential scalarization.

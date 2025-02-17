@@ -512,8 +512,8 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
         integer :: k
         real, dimension(1:100) :: arr
 
-          do i = 1, ele%stop
-            arr(i) = exp(arr(i))
+          do i = 1, 100
+            arr(ele%stop) = arr(ele%stop) + exp(arr(i))
           end do
           do i = 1, 100
             arr(i) = 1
@@ -581,6 +581,52 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     assert not ScalarizationTrans._value_unused_after_loop(keys[1],
                                                            node.loop_body,
                                                            var_accesses)
+
+    # Test that the next access being a Reference allows scalarization
+    code = '''subroutine test()
+        use my_mod
+        integer :: i
+        integer :: k
+        real, dimension(1:100) :: arr
+
+          do i = 1, 100
+            arr(i) = exp(arr(i))
+          end do
+          arr = 1
+        end subroutine test
+        '''
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[0]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    keys = list(var_accesses.keys())
+    # Test arr
+    assert var_accesses[keys[1]].var_name == "arr"
+    assert ScalarizationTrans._value_unused_after_loop(keys[1],
+                                                       node.loop_body,
+                                                       var_accesses)
+
+    # Test that having a scalar array index doesn't prevent scalarization
+    code = '''subroutine test()
+        use my_mod
+        integer :: i
+        integer :: k
+        real, dimension(1:100, 1:5) :: arr
+
+          do i = 1, 100
+            arr(i, 1) = exp(arr(i, 1))
+          end do
+          arr(1:100, 1:5) = 1
+        end subroutine test
+        '''
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[0]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    keys = list(var_accesses.keys())
+    # Test arr
+    assert var_accesses[keys[1]].var_name == "arr"
+    assert ScalarizationTrans._value_unused_after_loop(keys[1],
+                                                       node.loop_body,
+                                                       var_accesses)
 
 
 def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
