@@ -226,6 +226,9 @@ class Config:
         # checks which can be useful in the case of unimplemented features.
         self._backend_checks_enabled = True
 
+        # The Fortran standard that fparser should use
+        self._fortran_standard = None
+
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
         '''Loads a configuration file.
@@ -368,6 +371,16 @@ class Config:
         mod_manager = ModuleManager.get()
         for module_name in ignore_modules:
             mod_manager.add_ignore_module(module_name)
+
+        # Get the Fortran standard to use:
+        self._fortran_standard = \
+            self._config['DEFAULT'].get("FORTRAN_STANDARD", "f2008").lower()
+        valid_standard = ["f2003", "f2008"]
+        if self._fortran_standard not in valid_standard:
+            raise ConfigurationError(f"Invalid Fortran standard "
+                                     f"'{self._fortran_standard}' specified "
+                                     f"in config file. Must be one of"
+                                     f"{valid_standard}")
 
         # Set the flag that the config file has been loaded now.
         Config._HAS_CONFIG_BEEN_INITIALISED = True
@@ -697,6 +710,12 @@ class Config:
         ''':returns: The number of OpenCL devices per node.
         :rtype: int'''
         return self._ocl_devices_per_node
+
+    @property
+    def fortran_standard(self) -> str:
+        ''':returns: The Fortran standard to be used by fparser.
+        '''
+        return self._fortran_standard
 
     def get_default_keys(self):
         '''Returns all keys from the default section.
