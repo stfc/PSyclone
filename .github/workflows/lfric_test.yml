@@ -92,8 +92,9 @@ jobs:
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration.nml .
         mpirun -n 6 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gundho_model-checksums.txt gungho_model-checksums.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
@@ -144,8 +145,9 @@ jobs:
         LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -a gungho_model -p psyclone-test
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration.nml .
         mpirun -n 6 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gundho_model-checksums.txt gungho_model-checksums.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
@@ -196,8 +198,9 @@ jobs:
         LFRIC_OFFLOAD_DIRECTIVES=acc ./build/local_build.py -a gungho_model -p psyclone-test
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration.nml .
         mpirun -n 6 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gundho_model-checksums.txt gungho_model-checksums.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
@@ -234,8 +237,9 @@ jobs:
         cd applications/gungho_model/example
         export OMP_NUM_THREADS=2
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration.nml .
         mpirun -n 6 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gundho_model-checksums.txt gungho_model-checksums.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
