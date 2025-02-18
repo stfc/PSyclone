@@ -67,32 +67,18 @@ NEMOV5_EXCLUSIONS = [
                     # expression required
     "sbcflx.f90",  # NEMOv4 sbc_dyc causes NVFORTRAN-S-0083-Vector expression
                     # used where scalar expression required
-    "fldread.f90",  # Wrong runtime results
     "zdfddm.f90",  # Wrong results
     "zdfiwm.f90",  # Wrong results
     "zdfswm.f90",  # fort2 terminated by signal 11
-    # The files below fail with Metoffice ORCA2
-    "domhgr.f90",
-    "domutl.f90",
-    "domzgr.f90",
-    "icbutl.f90",
-    "sbcrnf.f90",
-    "sbcssm.f90",
-    "stp2d.f90",
-    "stprk3.f90",
-    "stprk3_stg.f90",
-    "trasqr.f90",
+    "ldftra.f90",
+    "traqsr.f90",
+    "fldread.f90",  # Wrong runtime results
 ]
 
 NEMOV4_EXCLUSIONS = [
-    # TODO 2895: Maybe because NEMOv4 is compiled with aggressive opt flags?
-    # "dynvor.f90",
+    "dynspg_ts.f90",
     "tranxt.f90",
-    "trabbl.f90",
-    "trabbc.f90",
-    "step.f90",
     "dynldf.f90",  # fails with PROFILING_ENABLED
-    "fldread.f90",
 ]
 
 SKIP_FOR_PERFORMANCE = [
@@ -208,8 +194,17 @@ def trans(psyir):
             # nestable, in that case we could add a 'continue' here
             disable_profiling_for.append(subroutine.name)
 
-        if NEMOV4 or psyir.name not in (PARALLELISATION_ISSUES +
-                                        OFFLOADING_ISSUES):
+        if NEMOV4:
+            # For nemo4 always offload but without privatisation
+            print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
+            insert_explicit_loop_parallelism(
+                    subroutine,
+                    region_directive_trans=omp_target_trans,
+                    loop_directive_trans=omp_gpu_loop_trans,
+                    collapse=True,
+                    privatise_arrays=False
+            )
+        elif psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES:
             print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
             insert_explicit_loop_parallelism(
                     subroutine,
@@ -224,8 +219,7 @@ def trans(psyir):
             insert_explicit_loop_parallelism(
                     subroutine,
                     loop_directive_trans=omp_cpu_loop_trans,
-                    privatise_arrays=(not NEMOV4 and
-                                      psyir.name not in PRIVATISATION_ISSUES)
+                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
             )
 
     # Iterate again and add profiling hooks when needed

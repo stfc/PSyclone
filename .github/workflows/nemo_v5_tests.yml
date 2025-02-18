@@ -118,7 +118,7 @@ jobs:
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O1 -nofma -Mnovect"
+        export FCFLAGS="-i4 -Mr8 -O2 -nofma -Mnovect"
         
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
@@ -213,10 +213,10 @@ jobs:
         export TEST_DIR=BENCH_OMP_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
-        # We compile at -O1 to permit comparison of the results.
+        # We compile at -O2 to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O1 -nofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export FCFLAGS="-i4 -Mr8 -O2 -nofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
 
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
@@ -252,10 +252,10 @@ jobs:
         export TEST_DIR=ORCA1_OMP_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
-        # We compile at "-O1 -nofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
+        # We compile at "-O2 -nofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O1 -nofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export FCFLAGS="-i4 -Mr8 -O2 -nofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
 
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
@@ -290,10 +290,10 @@ jobs:
         export TEST_DIR=ORCA2_OMP_OFFLOAD_NVHPC
 
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
-        # We compile at "-O1 -nofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
+        # We compile at "-O2 -nofma -Mnovect -gpu=math_uniform" to permit comparison of the results.
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O1 -nofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export FCFLAGS="-i4 -Mr8 -O2 -nofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
 
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
@@ -303,7 +303,7 @@ jobs:
 
         # Run test
         cd $NEMO_DIR/cfgs/${TEST_DIR}/EXP00
-        ln -s /archive/NEMO_INPUTS/NEMOv5_MO_original_files/ORCA2_ICE_v4.2.0/* .
+        ln -sf ../../../ORCA2_ICE_v4.2.0/* .
         ./nemo
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.orca2.nvhpc.10steps run.stat
         export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
