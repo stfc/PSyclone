@@ -372,9 +372,10 @@ class KernCallArgList(ArgOrdering):
                 dof_sym = self._symtab.find_or_create_integer_symbol(
                     "df", tag="dof_loop_idx")
 
-                self.append_array_reference(cmpt_sym.name, [Reference(dof_sym)],
-                                        ScalarType.Intrinsic.INTEGER,
-                                        symbol=cmpt_sym)
+                self.append_array_reference(cmpt_sym.name,
+                                            [Reference(dof_sym)],
+                                            ScalarType.Intrinsic.INTEGER,
+                                            symbol=cmpt_sym)
                 # Append the dof symbol
                 text = f"{cmpt_sym.name}({dof_sym.name})"
             else:
