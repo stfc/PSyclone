@@ -32,6 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author O. Brunt, Met Office
+! Modified A. Pirrie, Met Office
 
 program multikernel_invokes_cell_dof_builtin
 

@@ -35,6 +35,7 @@
 # Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+# Modified A. Pirrie, Met Office
 
 ''' This module implements the PSyclone LFRic API by capturing the Kernel
 subroutine code and metadata describing the subroutine for the LFRic API.'''

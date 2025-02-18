@@ -30,7 +30,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, O. Brunt, Met Office
+! Modified I. Kavcic, O. Brunt, and A. Pirrie, Met Office
 
 module testkern_dofs_mod
 

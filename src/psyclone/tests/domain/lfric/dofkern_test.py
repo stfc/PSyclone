@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author O. Brunt, Met Office
+# Modified A. Pirrie, Met Office
 
 '''
 This module tests metadata validation and code generation of
