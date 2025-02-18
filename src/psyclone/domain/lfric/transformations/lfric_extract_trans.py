@@ -150,6 +150,20 @@ class LFRicExtractTrans(ExtractTrans):
         # Get the input- and output-parameters of the node list
         read_write_info = \
             ctu.get_in_out_parameters(nodes, collect_non_local_symbols=True)
+
+        # Even variables that are output-only need to be written with their
+        # values at the time the kernel is called: many kernels will only
+        # write to part of a field (e.g. in case of MPI the halo region
+        # will not be written). Since the comparison in the driver uses
+        # the whole field (including values not updated), we need to write
+        # the current value of an output-only field as well. This is
+        # achieved by adding any written-only field to the list of fields
+        # read. This will trigger to write the values in the extraction,
+        # and the driver code created will read in their values.
+        for sig in read_write_info.write_list:
+            if sig not in read_write_info.read_list:
+                read_write_info.read_list.append(sig)
+
         # Determine a unique postfix to be used for output variables
         # that avoid any name clashes
         postfix = ExtractTrans.determine_postfix(read_write_info,
