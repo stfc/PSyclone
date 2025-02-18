@@ -627,8 +627,8 @@ def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     assert ScalarizationTrans._value_unused_after_loop(keys[1],
                                                        node.loop_body,
                                                        var_accesses)
-                 
-                 
+
+
 def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
     ''' Test the application of the scalarization transformation.'''
     code = '''subroutine test()
