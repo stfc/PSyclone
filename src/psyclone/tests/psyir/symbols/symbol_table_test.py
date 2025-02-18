@@ -1111,6 +1111,34 @@ def test_add_symbols_from_table_rename_existing():
     assert isinstance(new_sym.datatype, symbols.UnresolvedType)
 
 
+def test_add_symbols_from_table_import_parent_scope():
+    '''
+    Test that _add_symbols_from_table() works successfully when
+    the clashing symbols is an import but the associated ContainerSymbol
+    is in an outer scope.
+
+    '''
+    cntr = Container("outer_scope")
+    csym = symbols.ContainerSymbol("some_mod")
+    cntr.symbol_table.add(csym)
+    sub = Routine.create("sub", children=[])
+    cntr.addchild(sub)
+    clash = symbols.Symbol("strummer",
+                           interface=symbols.ImportInterface(csym))
+    sub.symbol_table.add(clash)
+    new_cntr = cntr.copy()
+    new_sub = new_cntr.children[0]
+    # Both the original and copied subroutine symbol table will contain
+    # "strummer" which would be a clash but for the fact they are both
+    # imported from a Container of the same name. Therefore, calling
+    # _add_symbols_from_table should do nothing.
+    new_sub.symbol_table._add_symbols_from_table(sub.symbol_table)
+    new_strummer = new_sub.symbol_table.lookup("strummer")
+    assert new_strummer is not clash
+    assert (new_strummer.interface.container_symbol is
+            new_cntr.symbol_table.lookup("some_mod"))
+
+
 def test_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
     # pylint: disable=too-many-statements
@@ -2245,6 +2273,11 @@ def test_deep_copy():
     assert "symbol2" in symtab
     assert "symbol3" not in symtab
     assert "symbol3" not in symtab2
+
+    # Check that a new Node can be associated with the copied SymbolTable.
+    cnode = Container("a_test")
+    newtab1 = symtab2.deep_copy(cnode)
+    assert newtab1.node is cnode
 
 
 def test_get_symbols():

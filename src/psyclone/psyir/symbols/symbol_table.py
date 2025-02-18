@@ -270,6 +270,10 @@ class SymbolTable():
         The only attribute not copied is the _node reference to the scope,
         since that scope can only have one symbol table associated to it.
 
+        :param new_node: the PSyIR Node with which the copied table is to be
+            associated (if different from self.node).
+        :type new_node: :py:class:`psyclone.psyir.nodes.Node`
+
         :returns: a deep copy of this symbol table.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
@@ -812,24 +816,27 @@ class SymbolTable():
 
         '''
         if old_sym.is_import:
-            # This symbol is imported from a Container so should
-            # already have been updated so as to be imported from the
-            # corresponding container in this table.
+            # The clashing symbol is imported from a Container. If the
+            # ContainerSymbol is in `other_table` it should already have been
+            # replaced with the corresponding symbol that is in scope in this
+            # table. However, if it isn't in `other_table` then it won't have
+            # been updated.
             self_csym = self.lookup(old_sym.interface.container_symbol.name)
             if old_sym.interface.container_symbol is self_csym:
                 return
-            import pdb; pdb.set_trace()
+
+            elif self._has_same_name(old_sym.interface.container_symbol,
+                                     self_csym):
+                # The Containers have the same name so must in fact be the
+                # same. Update the symbol's interface to point to the Container
+                # that is in scope here.
+                old_sym.interface.container_symbol = self_csym
+                return
+
             raise InternalError(
                 f"Symbol '{old_sym.name}' imported from '{self_csym.name}' "
                 f"has not been updated to refer to the corresponding "
                 f"container in the current table.")
-             #elif self._has_same_name(old_sym.interface.container_symbol,
-             #                        self_csym):
-             #   # The Containers have the same name so must in fact be the
-             #   # same. Update the symbol's interface to point to the Container
-             #   # that is in scope here.
-             #   old_sym.interface.container_symbol = self_csym
-             #   return
 
         self_sym = self.lookup(old_sym.name)
         if old_sym.is_unresolved and self_sym.is_unresolved:
