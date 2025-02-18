@@ -151,7 +151,7 @@ class LFRicExtractTrans(ExtractTrans):
         read_write_info = \
             ctu.get_in_out_parameters(nodes, collect_non_local_symbols=True)
 
-        # Even variables that are output only need to be written with their
+        # Even variables that are output-only need to be written with their
         # values at the time the kernel is called: many kernels will only
         # write to part of a field (e.g. in case of MPI the halo region
         # will not be written). Since the comparison in the driver uses
