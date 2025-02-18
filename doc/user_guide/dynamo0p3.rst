@@ -273,14 +273,14 @@ basis/differential-basis functions required by the kernel are to be evaluated.
 
 The arguments ``nqp_h_exact`` and ``nqp_v_exact`` are namelist options from the
 finite-element configuration file, generated as a function of the
-FEM order in the horizontal and vertical directions (see
+finite-element model (FEM) order in the horizontal and vertical directions (see
 :ref:`lfric-function-space`). They specify the number of quadrature
 points in the horizontal and vertical directions, respectively.
 
 Here, ``qr_face`` has been passed the horizontal and vertical numbers of
 quadrature points, meaning that the face in question is normal to a horizontal
 plane. In general, ``qr_xyoz`` takes the number of quadrature points in each
-direction (*x*, *y*, and *z* in that order), whereas ``qr_face`` takes the
+direction (*x*, *y*, and *z*, in that order), whereas ``qr_face`` takes the
 number of quadrature points in each direction tangential to the face in
 question.
 
@@ -1476,6 +1476,24 @@ vector variables are:
   ``0`` when it becomes the ``W0`` space (i.e. fully continuous).
   Please see the next section for more details on this function space.
 
+The previously mentioned FEM order can be specified in the horizontal
+and vertical directions independently, through the ``element_order_h`` and
+``element_order_v`` arguments in the function space initialisation. These
+element orders dictate the polynomial order of the basis functions used to
+represent a field. In most cases these element orders will be set to *0* in
+LFRic, and increasing them will result in an increased number of DoFs per cell.
+Increasing the element order in either direction will never change the
+continuity of a space; however, it can increase the number of shared DoFs per
+entity.
+
+For example, the ``W3`` space has a single DoF per cell at the lowest order,
+situated in the cell volume. The basis functions are constant over the
+cell, and the space is discontinuous. Increasing to ``element_order_v=1``
+(the so-called 'next-to-lowest order' in the vertical direction) will result
+in a second volume DoF per cell, yielding linear basis functions vertically,
+and constant basis functions horizontally. The space remains discontinuous
+in both directions.
+
 In addition to the specific function space metadata, there are also
 three generic function space metadata descriptors mentioned in
 sections above:
@@ -1539,24 +1557,6 @@ function space ``Wtheta`` is given in ``examples/lfric/eg9``, with the
 ``GH_READWRITE`` access descriptor denoting an update to the relevant
 fields. This example also demonstrates how to only colour loops over
 continuous function spaces when transformations are applied.
-
-The previously mentioned **FEM order** can be specified in the horizontal
-and vertical directions independently, through the ``element_order_h`` and
-``element_order_v`` arguments in the function space initialisation. These
-element orders dictate the polynomial order of the basis functions used to
-represent the field. In most cases these element orders will be set to *0* in
-LFRic, and increasing them will result in an increased number of DoFs per cell.
-Increasing the element order in either direction will never change the
-continuity of a space; however, it can increase the number of shared dofs per
-entity.
-
-For example, the ``W3`` space has a single DoF per cell at the lowest order,
-situated in the cell volume. The basis functions are constant over the
-cell, and the space is discontinuous. Increasing to ``element_order_v=1``
-(the so-called 'next-to-lowest order' in the vertical direction) will result
-in a second volume DoF per cell, yielding linear basis functions vertically,
-and constant basis functions horizontally. The space remains discontinuous
-in both directions.
 
 .. _lfric-ro-function-space:
 
