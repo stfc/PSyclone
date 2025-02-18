@@ -183,7 +183,6 @@ def test_indexed_field_args(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    print(code)
     expected = ("CALL testkern_dofs_code(f1_data(df), f2_data(df), "
                 "f3_data(df), f4_data(df), field_vec_1_data(df), "
                 "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)")
