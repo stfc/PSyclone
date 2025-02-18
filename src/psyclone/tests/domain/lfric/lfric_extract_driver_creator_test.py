@@ -546,12 +546,14 @@ def test_lfric_driver_field_array_write():
     # The variable coord is an output variable, but it still must
     # be provided as input field (since a kernel might only write
     # some parts of a field - e.g. most kernels won't update halo
-    # regions) - to make sure a driver can reproduce the valued
+    # regions) to make sure a driver can reproduce the values
     # of the elements that are not being updated. The extraction
     # library will write these accesses as individual fields using
     # the names "coord_post%1", ..., "coord_post%3"
     assert "ProvideVariable(\"coord_post\", coord)" in code
-    # The variable is not read, so it shouldn't be listed:
+    # The variable coord is an output value, but we still need to
+    # provide its input value (in case of kernels that only updates
+    # partial fields)
     assert "ProvideVariable(\"coord\", coord)" in code
 
     filename = "driver-field-test.F90"

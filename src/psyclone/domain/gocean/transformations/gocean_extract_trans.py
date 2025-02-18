@@ -168,7 +168,7 @@ class GOceanExtractTrans(ExtractTrans):
         read_write_info = ctu.get_in_out_parameters(
             nodes, include_non_data_accesses=True)
 
-        # Even variables that are output only need to be written with their
+        # Even variables that are output-only need to be written with their
         # values at the time the kernel is called: many kernels will only
         # write to part of a field (e.g. in case of MPI the halo region
         # will not be written). Since the comparison in the driver uses
@@ -197,4 +197,4 @@ class GOceanExtractTrans(ExtractTrans):
                                               region_name=region_name)
 
         my_options["read_write_info"] = read_write_info
-        super().apply(nodes, my_options)
+        super().apply(nodes, options=my_options)
