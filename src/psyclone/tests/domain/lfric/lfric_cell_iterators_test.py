@@ -61,10 +61,10 @@ def test_lfriccelliterators_kernel():
     sched = invoke.schedule
     kern = sched.walk(LFRicKern)[0]
     obj = LFRicCellIterators(kern)
-    # We should have a single 'nlayers'.
+    # We should have no 'nlayers' (it's up to the stub_declarations to bring
+    # them when needed)
     assert isinstance(obj._nlayers_names, dict)
-    assert len(obj._nlayers_names.keys()) == 1
-    assert "nlayers" in obj._nlayers_names
+    assert len(obj._nlayers_names.keys()) == 0
 
 
 def test_lfriccelliterators_kernel_stub_declns(fortran_writer):

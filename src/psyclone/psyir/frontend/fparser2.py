@@ -4194,6 +4194,22 @@ class Fparser2Reader():
                 # ignore it.
                 continue
 
+            # If it has a Call ancestor we need to check if its a
+            # non-elemental function, in which case we should skip
+            # changing it.
+            call_ancestor = array.ancestor(Call)
+            if call_ancestor:
+                if call_ancestor.is_elemental is None:
+                    raise NotImplementedError(
+                        f"Found a function call inside a where clause with "
+                        f"unknown elemental status: "
+                        f"{call_ancestor.debug_string()}")
+                # If it is none-elemental, we leave this array reference as it
+                # is
+                if not call_ancestor.is_elemental:
+                    continue
+                # Otherwise, we continue replacing the range with the loop idx
+
             if first_rank:
                 if rank != first_rank:
                     raise NotImplementedError(
@@ -4389,13 +4405,18 @@ class Fparser2Reader():
         # regarding UnresolvedInterface and Elemental calls?
         references = fake_parent.walk(Reference)
         for ref in references:
+            call_ancestor = ref.ancestor(Call)
+            elemental_ancestor = (call_ancestor is None or
+                                  call_ancestor.is_elemental)
+            # TODO 2884: We should be able to handle this imported symbol
+            # better. If we can, we need to handle a case where is_elemental
+            # can be None.
             if isinstance(ref.symbol.interface, ImportInterface):
                 raise NotImplementedError(
                         "PSyclone doesn't yet support reference to imported "
                         "symbols inside WHERE clauses.")
-            intrinsic_ancestor = ref.ancestor(IntrinsicCall)
             if (isinstance(ref.symbol, DataSymbol) and
-                    not intrinsic_ancestor):
+                    elemental_ancestor):
                 try:
                     Reference2ArrayRangeTrans().apply(ref)
                 except TransformationError:

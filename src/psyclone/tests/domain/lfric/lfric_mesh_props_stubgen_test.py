@@ -125,7 +125,6 @@ def test_mesh_props_quad_stub_gen(fortran_writer):
     kernel.load_meta(metadata)
     gen = fortran_writer(kernel.gen_stub)
 
-    print(gen)
     assert """\
 module testkern_mesh_prop_quad_mod
   implicit none

@@ -68,11 +68,11 @@ TEST_API = "lfric"
 
 def test_constructor_loop_bound_names():
     ''' Check that the constructor creates the appropriate loop bound
-    references (with names with a sequencially ascending index)
+    references (with names with a sequentially ascending index)
     '''
     with pytest.raises(InternalError) as err:
         _ = LFRicLoop(loop_type="null")
-    assert ("LFRic loops can only be inside a InvokeSchedule, a parent "
+    assert ("LFRic loops must be inside an InvokeSchedule, a parent "
             "argument is mandatory when they are created." in str(err.value))
 
     schedule = LFRicInvokeSchedule.create("test")

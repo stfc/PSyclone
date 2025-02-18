@@ -460,7 +460,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
         # up-to-date values for it in the L1 halo.
         if not annexed:
             halo_exchs = (
-                # "    ! Call kernels and communication routines\n"
+                "    ! Call kernels and communication routines\n"
                 "    if (field1_proxy%is_dirty(depth=1)) then\n"
                 "      call field1_proxy%halo_exchange(depth=1)\n"
                 "    end if\n"
@@ -470,7 +470,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
                 "    do cell = loop0_start, loop0_stop, 1\n")
         else:
             halo_exchs = (
-                # "    ! Call kernels and communication routines\n"
+                "    ! Call kernels and communication routines\n"
                 "    if (field2_proxy%is_dirty(depth=2)) then\n"
                 "      call field2_proxy%halo_exchange(depth=2)\n"
                 "    end if\n"

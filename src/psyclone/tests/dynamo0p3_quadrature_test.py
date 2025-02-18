@@ -76,8 +76,6 @@ def test_field_xyoz(tmpdir):
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
     module_declns = (
         "  use constants_mod\n"
         "  use field_mod, only : field_proxy_type, field_type\n")
@@ -206,8 +204,8 @@ def test_field_xyoz(tmpdir):
         "    ! Set-up all of the loop bounds\n"
         "    loop0_start = 1\n"
         "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-        # "\n"
-        # "    ! Call kernels and communication routines\n"
+        "\n"
+        "    ! Call kernels and communication routines\n"
         "    if (f1_proxy%is_dirty(depth=1)) then\n"
         "      call f1_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
@@ -239,6 +237,7 @@ def test_field_xyoz(tmpdir):
         "  end subroutine invoke_0_testkern_qr_type"
     )
     assert compute_output in generated_code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_edge_qr(tmpdir, dist_mem):
@@ -288,7 +287,6 @@ def test_face_qr(tmpdir, dist_mem):
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.1.6_face_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
 
     module_declns = (
@@ -428,8 +426,8 @@ def test_face_qr(tmpdir, dist_mem):
     if dist_mem:
         init_output2 += (
             "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-            # "\n"
-            # "    ! Call kernels and communication routines\n"
+            "\n"
+            "    ! Call kernels and communication routines\n"
             "    if (f1_proxy%is_dirty(depth=1)) then\n"
             "      call f1_proxy%halo_exchange(depth=1)\n"
             "    end if\n"
@@ -472,6 +470,7 @@ def test_face_qr(tmpdir, dist_mem):
         "  end subroutine invoke_0_testkern_qr_faces_type"
     )
     assert compute_output in generated_code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_face_and_edge_qr(dist_mem, tmpdir):
@@ -481,9 +480,8 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
                                         "1.1.7_face_and_edge_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    assert LFRicBuild(tmpdir).code_compiles(psy)
     code = str(psy.gen)
-    print(code)
+
     # Check that the qr-related variables are all declared
     assert ("    type(quadrature_face_type), intent(in) :: qr_face\n"
             "    type(quadrature_edge_type), intent(in) :: qr_edge\n"
@@ -548,6 +546,7 @@ nedges_qr_edge))""" in code
         "diff_basis_w3_qr_face, diff_basis_w3_qr_edge, "
         "nfaces_qr_face, np_xyz_qr_face, weights_xyz_qr_face, "
         "nedges_qr_edge, np_xyz_qr_edge, weights_xyz_qr_edge)" in code)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_field_qr_deref(tmpdir):

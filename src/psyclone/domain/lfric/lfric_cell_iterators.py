@@ -66,35 +66,28 @@ class LFRicCellIterators(LFRicCollection):
         # (for invokes) the kernel argument to which each corresponds.
         self._nlayers_names = {}
 
-        if not self._invoke:
-            # We are dealing with a single Kernel so there is only one
-            # 'nlayers' variable and we don't need to store the associated
+        if self._invoke:
+            # Each kernel that operates on either the domain or cell-columns
+            # needs an 'nlayers' obtained from the first field/operator
             # argument.
-            self._nlayers_names[self.symtab.find_or_create_tag(
-                "nlayers",
-                symbol_type=LFRicTypes("MeshHeightDataSymbol")).name] = None
-            # We're not generating a PSy layer so we're done here.
-            return
+            for kern in self._invoke.schedule.walk(LFRicKern):
+                if kern.iterates_over != "dof":
+                    arg = kern.arguments.first_field_or_operator
+                    sym = self.symtab.find_or_create_tag(
+                        f"nlayers_{arg.name}",
+                        symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+                    self._nlayers_names[sym.name] = arg
 
-        # Each kernel that operates on either the domain or cell-columns needs
-        # an 'nlayers' obtained from the first field/operator argument.
-        for kern in self._invoke.schedule.walk(LFRicKern):
-            if kern.iterates_over != "dof":
-                arg = kern.arguments.first_field_or_operator
-                sym = self.symtab.find_or_create_tag(
-                    f"nlayers_{arg.name}",
-                    symbol_type=LFRicTypes("MeshHeightDataSymbol"))
-                self._nlayers_names[sym.name] = arg
-
-        first_var = None
-        for var in self._invoke.psy_unique_vars:
-            if not var.is_scalar:
-                first_var = var
-                break
-        if not first_var:
-            raise GenerationError(
-                "Cannot create an Invoke with no field/operator arguments.")
-        self._first_var = first_var
+            first_var = None
+            for var in self._invoke.psy_unique_vars:
+                if not var.is_scalar:
+                    first_var = var
+                    break
+            if not first_var:
+                raise GenerationError(
+                    "Cannot create an Invoke with no field/operator "
+                    "arguments.")
+            self._first_var = first_var
 
     def stub_declarations(self):
         '''
@@ -104,13 +97,13 @@ class LFRicCellIterators(LFRicCollection):
         '''
         super().stub_declarations()
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
-            for name in self._nlayers_names:
-                sym = self.symtab.lookup(name)
-                # Symbols are created thinking for the Invoke context, so make
-                # sure the are arguments when we are in a Stub context.
-                sym.interface = ArgumentInterface(
-                    ArgumentInterface.Access.READ)
-                self.symtab.append_argument(sym)
+            nlayers = self.symtab.find_or_create_tag(
+                "nlayers",
+                symbol_type=LFRicTypes("MeshHeightDataSymbol")
+            )
+            nlayers.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+            self.symtab.append_argument(nlayers)
 
     def initialise(self, cursor):
         '''

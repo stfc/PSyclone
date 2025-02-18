@@ -382,10 +382,12 @@ class Compile():
                 code = str(psy_ast.gen)
                 psy_file.write(fll.process(code))
 
-            # Not everything is captured by PSyIR as Symbols (e.g. multiple
-            # versions of coded kernels), in these cases we still need to
-            # import the kernel modules used in these PSy-layers, but we know
-            # they follow the '_mod' naming convention.
+            # Not all dependencies are captured by PSyIR as ContainerSymbols
+            # (e.g. multiple versions of coded kernels are not given a module
+            # name until code-generation dependening on what already exist in
+            # the filesystem), in these cases we take advantage that PSy-layer
+            # always use the _mod convention to look into the output code for
+            # these additional dependencies that we need to compile.
             for name in code.split():
                 if name.endswith(('_mod', '_mod,')):
                     # Delete the , if the case of 'use name, only ...'

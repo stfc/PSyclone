@@ -27,7 +27,8 @@ stretching_method='linear',
 
 &finite_element
   cellshape        = 'quadrilateral'
-  element_order    = 0
+  element_order_h  = 0
+  element_order_v  = 0
   rehabilitate     = .true.
   vorticity_in_w1  = .false.
   coord_order      = 1

@@ -303,8 +303,12 @@ def test_lfric_kern_cma_args():
     psy = PSyFactory("lfric", distributed_memory=False).create(info)
     invoke_read = psy.invokes.get('invoke_read')
     invoke_write = psy.invokes.get('invoke_write')
-    var_accesses_read = VariablesAccessInfo(invoke_read.schedule)
-    var_accesses_write = VariablesAccessInfo(invoke_write.schedule)
+    invoke_read.setup_psy_layer_symbols()
+    invoke_write.setup_psy_layer_symbols()
+    var_accesses_read = VariablesAccessInfo(
+                                invoke_read.schedule.coded_kernels())
+    var_accesses_write = VariablesAccessInfo(
+                                invoke_write.schedule.coded_kernels())
 
     # Check the parameters that will change access type according to read or
     # write declaration of the argument:
@@ -437,6 +441,7 @@ def test_lfric_cma(fortran_writer):
 
     '''
     _, invoke_info = get_invoke("20.0_cma_assembly.f90", "lfric", idx=0)
+    invoke_info.setup_psy_layer_symbols()
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "ncell_2d: READ" in var_info
     assert "cma_op1_alpha: READ" in var_info
@@ -446,7 +451,7 @@ def test_lfric_cma(fortran_writer):
     assert "cma_op1_gamma_p: READ" in var_info
     assert "cma_op1_cma_matrix: WRITE" in var_info
     assert "cma_op1_ncol: READ" in var_info
-    assert "cma_op1_nrow: READ," in var_info
+    assert "cma_op1_nrow: READ" in var_info
     assert "cbanded_map_adspc1_lma_op1: READ" in var_info
     assert "cbanded_map_adspc2_lma_op1: READ" in var_info
     assert "lma_op1_local_stencil: READ" in var_info

@@ -772,7 +772,7 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     # check that the subroutine has been inlined
     assert 'subroutine ru_code(' in gen
     # check that the associated psy "use" does not exist
-    assert 'use ru_kernel_mod, only : ru_code' not in gen
+    assert 'use ru_kernel_mod' not in gen
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)

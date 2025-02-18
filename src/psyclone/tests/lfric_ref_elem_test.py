@@ -200,7 +200,6 @@ def test_refelem_gen(tmpdir):
     psy, _ = get_invoke("23.1_ref_elem_invoke.f90", TEST_API,
                         dist_mem=False, idx=0)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
     assert "use reference_element_mod, only : reference_element_type" in gen
     assert "integer(kind=i_def) :: nfaces_re_h" in gen
@@ -227,6 +226,7 @@ def test_refelem_gen(tmpdir):
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_duplicate_refelem_gen(tmpdir):
@@ -235,7 +235,6 @@ def test_duplicate_refelem_gen(tmpdir):
     psy, _ = get_invoke("23.2_multi_ref_elem_invoke.f90", TEST_API,
                         dist_mem=False, idx=0)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
     assert gen.count(
         "real(kind=r_def), allocatable, dimension(:,:) :: "
@@ -263,6 +262,7 @@ def test_duplicate_refelem_gen(tmpdir):
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_union_refelem_gen(tmpdir):
@@ -271,7 +271,6 @@ def test_union_refelem_gen(tmpdir):
     psy, _ = get_invoke("23.3_shared_ref_elem_invoke.f90", TEST_API,
                         dist_mem=False, idx=0)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
 
     assert (
@@ -297,6 +296,7 @@ def test_union_refelem_gen(tmpdir):
             " map_w3(:,cell), nfaces_re_v, nfaces_re_h, "
             "out_normals_to_vert_faces, normals_to_vert_faces, "
             "out_normals_to_horiz_faces)" in gen)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_all_faces_refelem_gen(tmpdir):

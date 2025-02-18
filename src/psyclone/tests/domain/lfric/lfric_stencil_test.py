@@ -268,8 +268,6 @@ def test_stencil_args_unique_1(dist_mem, tmpdir):
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
 
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
     # we use f2_stencil_size for extent and nlayers_f1 for direction
     # as arguments
     assert ("  subroutine invoke_0_testkern_stencil_xory1d_type(f1, "
@@ -300,6 +298,7 @@ def test_stencil_args_unique_1(dist_mem, tmpdir):
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))")
     assert output7 in result
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_stencil_args_unique_2(dist_mem, tmpdir):

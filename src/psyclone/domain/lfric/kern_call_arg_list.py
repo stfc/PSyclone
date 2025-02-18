@@ -56,7 +56,8 @@ from psyclone.psyir.nodes import (
     ArrayReference, Reference, StructureReference)
 from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
-    ImportInterface, ScalarType, ArrayType, UnsupportedFortranType)
+    ImportInterface, ScalarType, ArrayType, UnsupportedFortranType,
+    ArgumentInterface)
 
 # psyir has classes created at runtime
 # pylint: disable=no-member
@@ -123,12 +124,12 @@ class KernCallArgList(ArgOrdering):
         try:
             # Check if the module is already declared:
             module = self._symtab.lookup(module_name)
+            # Get the symbol table in which the module is declared:
+            mod_sym_tab = module.find_symbol_table(self._kern)
         except KeyError:
             module = self._symtab.new_symbol(module_name,
                                              symbol_type=ContainerSymbol)
-
-        # Get the symbol table in which the module is declared:
-        mod_sym_tab = module.find_symbol_table(self._kern)
+            mod_sym_tab = self._symtab
 
         # The user-defined type must be declared in the same symbol
         # table as the container (otherwise errors will happen later):
@@ -331,12 +332,19 @@ class KernCallArgList(ArgOrdering):
                 # REAL(KIND=r_solver), pointer:: cma_op1_matrix(:,:,:)
                 #    = > null()
                 mode = arg.access
-                sym = self._symtab.lookup_with_tag(f"{arg.name}:{suffix}")
+                sym = self._symtab.find_or_create_tag(
+                    f"{arg.name}:{suffix}", arg.name,
+                    symbol_type=DataSymbol, datatype=UnresolvedType(),
+                )
                 self.psyir_append(ArrayReference.create(sym, [":", ":", ":"]))
             else:
                 # All other variables are scalar integers
-                name = self._symtab.lookup_with_tag(
-                    f"{arg.name}:{component}:{suffix}").name
+                name = self._symtab.find_or_create_tag(
+                    f"{arg.name}:{component}:{suffix}", arg.name,
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")(),
+                    interface=ArgumentInterface(ArgumentInterface.Access.READ)
+                ).name
                 mode = AccessType.READ
                 sym = self.append_integer_reference(
                     name, tag=f"{arg.name}:{component}:{suffix}")

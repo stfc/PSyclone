@@ -68,6 +68,8 @@ class LFRicLoop(PSyLoop):
     :type kwargs: unwrapped dict.
 
     :raises InternalError: if an unrecognised loop_type is specified.
+    :raises InternalError: if a parent that is descendant from an
+        InvokeSchedule is not provided.
 
     '''
     # pylint: disable=too-many-instance-attributes
@@ -113,11 +115,11 @@ class LFRicLoop(PSyLoop):
         ischedule = self.ancestor(InvokeSchedule)
         if not ischedule:
             raise InternalError(
-                "LFRic loops can only be inside a InvokeSchedule, a parent "
+                "LFRic loops must be inside an InvokeSchedule, a parent "
                 "argument is mandatory when they are created.")
         # The loop bounds names are given by the number of previous LFRic loops
         # already present in the Schedule. Since this are inserted in order it
-        # will produce sequencially ascending loop bound names.
+        # will produce sequentially ascending loop bound names.
         idx = len(ischedule.loops())
         start_name = f"loop{idx}_start"
         stop_name = f"loop{idx}_stop"
@@ -1047,7 +1049,7 @@ class LFRicLoop(PSyLoop):
             # LFRic still has symbols that don't exist in the symbol_table
             # until the lowering step, so the dependency analysis raises
             # errors in some cases.
-            # TODO #1648 - when a transformation colours a loop we must
+            # TODO #2874 - when a transformation colours a loop we must
             # ensure "last_[halo]_cell_all_colours" is added to the symbol
             # table.
             return True

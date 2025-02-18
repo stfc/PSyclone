@@ -44,6 +44,7 @@ from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicPSy, LFRicInvokes
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSy
+from psyclone.tests.lfric_build import LFRicBuild
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          os.pardir, os.pardir, "test_files", "dynamo0p3")
@@ -127,7 +128,7 @@ def test_lfricpsy_gen_no_invoke():
     assert str(result) == expected_result
 
 
-def test_lfricpsy_gen(monkeypatch):
+def test_lfricpsy_gen(monkeypatch, tmpdir):
     '''Check that the gen() method of LFRicPSy behaves as expected when
     generating a psy-layer from an algorithm layer containing invoke
     calls. Simply check that the PSy-layer code for the invoke call is
@@ -167,3 +168,4 @@ def test_lfricpsy_gen(monkeypatch):
         "scalar value)\n"
         "      f1_data(df) = 0.0_r_def\n"
         "    enddo\n" in result)
+    assert LFRicBuild(tmpdir).code_compiles(lfric_psy)

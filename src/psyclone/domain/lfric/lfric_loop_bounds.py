@@ -39,8 +39,8 @@
 ''' This module provides the LFRicLoopBounds Class that handles all variables
     required for specifying loop limits within an LFRic PSy-layer routine.'''
 
-from psyclone.domain.lfric import LFRicCollection
-from psyclone.psyir.nodes import Assignment, Reference, Loop
+from psyclone.domain.lfric import LFRicCollection, LFRicLoop
+from psyclone.psyir.nodes import Assignment, Reference
 
 
 class LFRicLoopBounds(LFRicCollection):
@@ -59,16 +59,13 @@ class LFRicLoopBounds(LFRicCollection):
         :returns: Updated cursor value.
 
         '''
-        loops = self._invoke.schedule.loops()
-
-        if not loops:
-            return cursor
+        loops = filter(lambda x: isinstance(x, LFRicLoop),
+                       self._invoke.schedule.loops())
 
         first = True
         for idx, loop in enumerate(loops):
 
-            # pylint: disable=unidiomatic-typecheck
-            if type(loop) is Loop or loop.loop_type == "null":
+            if loop.loop_type == "null":
                 # Generic or 'null' loops don't need any variables to be set
                 continue
 

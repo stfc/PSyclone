@@ -605,6 +605,8 @@ ndf_w2, diff_basis_w2_qr)
     ! Set-up all of the loop bounds
     loop0_start = 1
     loop0_stop = mesh%get_last_halo_cell(1)
+
+    ! Call kernels and communication routines
     if (coord_proxy(1)%is_dirty(depth=1)) then
       call coord_proxy(1)%halo_exchange(depth=1)
     end if
@@ -739,9 +741,11 @@ def test_operator_read_level1_halo(tmpdir):
 
 
 def test_operator_bc_kernel(tmpdir):
-    ''' Tests that a kernel with a particular name is recognised as
-    a kernel that applies boundary conditions to operators and that
-    appropriate code is added to support this.
+    ''' Tests that a kernel with a particular name (starting by
+    'bounday_dofs_') is recognised as a kernel that applies boundary conditions
+    to operators and that appropriate code is added to support this: the
+    function space to get the boundary_dofs is the fs_to of the associated
+    operator).
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -752,7 +756,7 @@ def test_operator_bc_kernel(tmpdir):
     output1 = (
         "integer(kind=i_def), pointer :: boundary_dofs_op_a(:,:) => null()")
     assert output1 in generated_code
-    output2 = "boundary_dofs_op_a => op_a_proxy%fs_from%get_boundary_dofs()"
+    output2 = "boundary_dofs_op_a => op_a_proxy%fs_to%get_boundary_dofs()"
     assert output2 in generated_code
     output3 = (
         "call enforce_operator_bc_code(cell, nlayers_op_a, "
@@ -975,7 +979,7 @@ end module dummy_mod
     lma_args[0]._intrinsic_type = "logical"
     with pytest.raises(NotImplementedError) as err:
         _ = kernel.gen_stub
-    assert ("Only REAL and INTEGER LMAOperator types are supported, but found"
+    assert ("Only REAL and INTEGER LMA Operator types are supported, but found"
             " 'logical'" in str(err.value))
 
 

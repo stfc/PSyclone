@@ -1085,7 +1085,7 @@ output strings).
 
 The logic and declaration of kernel variables is handled separately by
 the ``stub_declarations`` and ``invoke_declarations`` methods in the
-appropirate ``LFRicCollection``.
+appropriate ``LFRicCollection``.
 
 When using the symbol table in the LFRic PSyIR we naturally capture
 arguments and datatypes together. The ``KernelInterface`` class is

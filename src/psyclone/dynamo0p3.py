@@ -1525,7 +1525,7 @@ class DynLMAOperators(LFRicCollection):
     def stub_declarations(self):
         '''
         Declare all LMA-related quantities in a Kernel stub. Note that argument
-        order will be defined later by ArgOrderig.
+        order will be defined later by ArgOrdering.
 
         '''
         super().stub_declarations()
@@ -1563,7 +1563,7 @@ class DynLMAOperators(LFRicCollection):
                 intr_type = ScalarType(ScalarType.Intrinsic.INTEGER, kind_sym)
             else:
                 raise NotImplementedError(
-                    f"Only REAL and INTEGER LMAOperator types are supported, "
+                    f"Only REAL and INTEGER LMA Operator types are supported, "
                     f"but found '{op_dtype}'")
             if arg.intent == "in":
                 intent = ArgumentInterface.Access.READ
@@ -1594,7 +1594,7 @@ class DynLMAOperators(LFRicCollection):
         # Add the Invoke subroutine argument declarations for operators
         op_args = self._invoke.unique_declarations(
                                         argument_types=["gh_operator"])
-        # Declare the operators
+        # Update the operator intents
         for arg in op_args:
             symbol = self.symtab.lookup(arg.declaration_name)
             symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
@@ -1662,37 +1662,6 @@ class DynCMAOperators(LFRicCollection):
                         if not self._first_cma_arg:
                             self._first_cma_arg = arg
 
-        # Create all the necessary Symbols here so that they are available
-        # without the need to do a 'gen'.
-        symtab = self.symtab
-        const = LFRicConstants()
-        suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
-        for op_name in self._cma_ops:
-            new_name = self.symtab.next_available_name(
-                f"{op_name}_{suffix}")
-            tag = f"{op_name}:{suffix}"
-            arg = self._cma_ops[op_name]["arg"]
-            precision = LFRicConstants().precision_for_type(arg.data_type)
-            array_type = ArrayType(
-                LFRicTypes("LFRicRealScalarDataType")(precision),
-                [ArrayType.Extent.DEFERRED]*3)
-            index_str = ",".join(3*[":"])
-            dtype = UnsupportedFortranType(
-                f"real(kind={arg.precision}), pointer, "
-                f"dimension({index_str}) :: {new_name} => null()",
-                partial_datatype=array_type)
-            symtab.new_symbol(new_name,
-                              symbol_type=DataSymbol,
-                              datatype=dtype,
-                              tag=tag)
-            # Now the various integer parameters of the operator.
-            for param in self._cma_ops[op_name]["params"]:
-                symtab.find_or_create(
-                    f"{op_name}_{param}",
-                    tag=f"{op_name}:{param}:{suffix}",
-                    symbol_type=DataSymbol,
-                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-
     def initialise(self, cursor: int) -> int:
         '''
         Generates the calls to the LFRic infrastructure that look-up
@@ -1715,8 +1684,9 @@ class DynCMAOperators(LFRicCollection):
         for op_name in self._cma_ops:
             # First, assign a pointer to the array containing the actual
             # matrix.
-            cma_name = self.symtab.lookup_with_tag(
-                f"{op_name}:{suffix}")
+            cma_name = self.symtab.find_or_create_tag(
+                f"{op_name}:{suffix}", op_name,
+                symbol_type=DataSymbol, datatype=UnresolvedType())
             stmt = Assignment.create(
                     lhs=Reference(cma_name),
                     rhs=StructureReference.create(
@@ -1768,18 +1738,33 @@ class DynCMAOperators(LFRicCollection):
         const = LFRicConstants()
         suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
         for op_name in self._cma_ops:
+            new_name = self.symtab.next_available_name(
+                f"{op_name}_{suffix}")
+            tag = f"{op_name}:{suffix}"
+            arg = self._cma_ops[op_name]["arg"]
+            precision = LFRicConstants().precision_for_type(arg.data_type)
+            array_type = ArrayType(
+                LFRicTypes("LFRicRealScalarDataType")(precision),
+                [ArrayType.Extent.DEFERRED]*3)
+            index_str = ",".join(3*[":"])
+            dtype = UnsupportedFortranType(
+                f"real(kind={arg.precision}), pointer, "
+                f"dimension({index_str}) :: {new_name} => null()",
+                partial_datatype=array_type)
+            self.symtab.new_symbol(new_name,
+                                   symbol_type=DataSymbol,
+                                   datatype=dtype,
+                                   tag=tag)
 
             # Declare the associated integer parameters
-            param_names = []
             for param in self._cma_ops[op_name]["params"]:
                 name = f"{op_name}_{param}"
                 tag = f"{op_name}:{param}:{suffix}"
-                sym = self.symtab.find_or_create(
+                self.symtab.find_or_create(
                     name, tag=tag,
                     symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")()
                 )
-                param_names.append(sym.name)
 
     def stub_declarations(self):
         '''
@@ -1847,8 +1832,12 @@ class DynCMAOperators(LFRicCollection):
                     LFRicTypes("LFRicRealScalarDataType")(),
                     [Reference(bandwidth), Reference(nrow),
                      Reference(symtab.lookup("ncell_2d"))]))
-            op.interface = ArgumentInterface(
-                    ArgumentInterface.Access.READ)
+            if self._kernel.cma_operation == 'assembly':
+                op.interface = ArgumentInterface(
+                        ArgumentInterface.Access.READWRITE)
+            else:
+                op.interface = ArgumentInterface(
+                        ArgumentInterface.Access.READ)
             symtab.append_argument(op)
 
 
@@ -2796,7 +2785,6 @@ class DynBasisFunctions(LFRicCollection):
                                         ArgumentInterface.Access.READ)
                 self.symtab.append_argument(arg)
 
-        # Allocate basis arrays
         for basis in basis_arrays:
             dims = []
             for value in basis_arrays[basis]:
@@ -2826,7 +2814,7 @@ class DynBasisFunctions(LFRicCollection):
                 interface=ImportInterface(
                     self.symtab.lookup("constants_mod")))
 
-            # All quatratures are REAL, the the PSyIR type
+            # All quatratures are REAL
             intr_type = ScalarType(ScalarType.Intrinsic.REAL, kind_sym)
 
             if shape == "gh_quadrature_xyoz":
@@ -3041,6 +3029,7 @@ class DynBasisFunctions(LFRicCollection):
 
         _, basis_arrays = self._basis_fn_declns()
 
+        # Allocate basis arrays
         for basis in basis_arrays:
             dims = "("+",".join([":"]*len(basis_arrays[basis]))+")"
             symbol = self.symtab.find_or_create(
@@ -3667,7 +3656,8 @@ class DynBoundaryConditions(LFRicCollection):
                 Assignment.create(
                     lhs=Reference(self.symtab.lookup(name)),
                     rhs=dofs.argument.generate_method_call(
-                                                "get_boundary_dofs"),
+                        "get_boundary_dofs",
+                        function_space=dofs.function_space),
                     is_pointer=True
                 ),
                 cursor)
@@ -3740,6 +3730,7 @@ class DynGlobalSum(GlobalSum):
             lhs=StructureReference.create(sum_name, ["value"]),
             rhs=Reference(tmp_var)
         )
+        assign1.preceding_comment = "Perform global sum"
         self.parent.addchild(assign1, self.position)
         assign2 = Assignment.create(
             lhs=Reference(tmp_var),
@@ -4254,6 +4245,7 @@ class LFRicHaloExchange(HaloExchange):
         else:
             haloex = if_body
 
+        haloex.preceding_comment = self.preceding_comment
         self.replace_with(haloex)
         return haloex
 

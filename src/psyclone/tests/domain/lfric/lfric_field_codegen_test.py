@@ -258,7 +258,7 @@ def test_field_deref(tmpdir, dist_mem):
     if dist_mem:
         assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
         output = (
-            # "    ! Call kernels and communication routines\n"
+            "    ! Call kernels and communication routines\n"
             "    if (f1_proxy%is_dirty(depth=1)) then\n"
             "      call f1_proxy%halo_exchange(depth=1)\n"
             "    end if\n"
@@ -511,8 +511,8 @@ f6, m5, m6, m7)
         "    ! Set-up all of the loop bounds\n"
         "    loop0_start = 1\n"
         "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-        # "\n"
-        # "    ! Call kernels and communication routines\n"
+        "\n"
+        "    ! Call kernels and communication routines\n"
         "    if (f1_proxy%is_dirty(depth=1)) then\n"
         "      call f1_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
@@ -639,8 +639,6 @@ def test_int_field_fs(tmpdir):
                      "1.5.5_single_invoke_write_multi_fs_int_field.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     generated_code = str(psy.gen)
     assert """module single_invoke_fs_int_field_psy
@@ -871,8 +869,8 @@ m4, f5, f6, m5, m6, f7, f8, m7)
         "    ! Set-up all of the loop bounds\n"
         "    loop0_start = 1\n"
         "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-        # "\n"
-        # "    ! Call kernels and communication routines\n"
+        "\n"
+        "    ! Call kernels and communication routines\n"
         "    if (f1_proxy%is_dirty(depth=1)) then\n"
         "      call f1_proxy%halo_exchange(depth=1)\n"
         "    end if\n"
@@ -947,6 +945,7 @@ m4, f5, f6, m5, m6, f7, f8, m7)
         "\n"
         "end module single_invoke_fs_int_field_psy\n")
     assert output in generated_code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_int_field_2qr_shapes(dist_mem, tmpdir):
@@ -961,7 +960,6 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
                      "1.1.9_single_invoke_2qr_shapes_int_field.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
-    assert LFRicBuild(tmpdir).code_compiles(psy)
     code = str(psy.gen)
     # Check that the qr-related variables are all declared
     assert ("    type(quadrature_xyoz_type), intent(in) :: qr_xyoz\n"
@@ -1024,6 +1022,7 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
         "diff_basis_adspc1_f3_qr_face, np_xy_qr_xyoz, np_z_qr_xyoz, "
         "weights_xy_qr_xyoz, weights_z_qr_xyoz, nfaces_qr_face, "
         "np_xyz_qr_face, weights_xyz_qr_face)\n" in code)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 # Tests for Invokes calling kernels that contain real- and
@@ -1041,8 +1040,6 @@ def test_int_real_field_fs(dist_mem, tmpdir):
                      "4.14_multikernel_invokes_real_int_field_fs.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     generated_code = str(psy.gen)
 
@@ -1207,3 +1204,5 @@ def test_int_real_field_fs(dist_mem, tmpdir):
             "    call f3_proxy%set_clean(1)\n")
         assert halo1_flags in generated_code
         assert halo2_flags in generated_code
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
