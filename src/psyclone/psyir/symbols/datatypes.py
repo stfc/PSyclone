@@ -297,6 +297,7 @@ class UnsupportedFortranType(UnsupportedType):
         determines if this data type is allocatable, and False otherwise.
         # TODO #2898 If we support non-array allocatable types, the
         test for arrays can be removed
+
         :returns: whether this UnsupportedFortranType is known to be
             allocatable. Note that atm PSyclone only supports allocatable
             arrays.'''
