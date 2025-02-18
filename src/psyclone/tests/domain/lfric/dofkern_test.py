@@ -184,8 +184,8 @@ def test_indexed_field_args(tmpdir):
 
     print(code)
     expected = ("CALL testkern_dofs_code(f1_data(df), f2_data(df), "
-                "f3_data(df), f4_data(df), field_vec_1_data, "
-                "field_vec_2_data, field_vec_3_data, scalar_arg)")
+                "f3_data(df), f4_data(df), field_vec_1_data(df), "
+                "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)")
 
     assert expected in code
     # Check compilation
@@ -292,8 +292,8 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     output = (
         "      DO df = loop0_start, loop0_stop, 1\n"
         "        CALL testkern_dofs_code(f1_data(df), f2_data(df), "
-        "f3_data(df), f4_data(df), field_vec_1_data, "
-        "field_vec_2_data, field_vec_3_data, scalar_arg)\n"
+        "f3_data(df), f4_data(df), field_vec_1_data(df), "
+        "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)\n"
         "      END DO\n"
     )
     assert output in code
@@ -306,8 +306,8 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
             output = (
                 "      DO df = loop0_start, loop0_stop, 1\n"
                 "        CALL testkern_dofs_code(f1_data(df), f2_data(df), "
-                "f3_data(df), f4_data(df), field_vec_1_data, "
-                "field_vec_2_data, field_vec_3_data, scalar_arg)\n"
+                "f3_data(df), f4_data(df), field_vec_1_data(df), "
+                "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)\n"
                 "      END DO\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
@@ -322,8 +322,8 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
             output = (
                 "      DO df = loop0_start, loop0_stop, 1\n"
                 "        CALL testkern_dofs_code(f1_data(df), f2_data(df), "
-                "f3_data(df), f4_data(df), field_vec_1_data, "
-                "field_vec_2_data, field_vec_3_data, scalar_arg)\n"
+                "f3_data(df), f4_data(df), field_vec_1_data(df), "
+                "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)\n"
                 "      END DO\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "

@@ -358,14 +358,28 @@ class KernCallArgList(ArgOrdering):
         '''
         suffix = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING[
             argvect.argument_type]
+
         # The range function below returns values from
         # 1 to the vector size which is what we
         # require in our Fortran code
         for idx in range(1, argvect.vector_size + 1):
+            # Look-up the name of the variable that stores the reference to
+            # the data in this field.
             cmpt_sym = self._symtab.lookup_with_tag(
                 f"{argvect.name}_{idx}:{suffix}")
-            self.psyir_append(Reference(cmpt_sym))
-            text = cmpt_sym.name
+            if self._kern.iterates_over == "dof":
+                # If dof kernel, add access to the field by dof ref
+                dof_sym = self._symtab.find_or_create_integer_symbol(
+                    "df", tag="dof_loop_idx")
+
+                self.append_array_reference(cmpt_sym.name, [Reference(dof_sym)],
+                                        ScalarType.Intrinsic.INTEGER,
+                                        symbol=cmpt_sym)
+                # Append the dof symbol
+                text = f"{cmpt_sym.name}({dof_sym.name})"
+            else:
+                self.psyir_append(Reference(cmpt_sym))
+                text = cmpt_sym.name
             self.append(text, metadata_posn=argvect.metadata_index)
 
         if var_accesses is not None:
