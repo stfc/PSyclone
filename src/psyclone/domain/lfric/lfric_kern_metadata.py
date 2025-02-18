@@ -621,12 +621,6 @@ class LFRicKernMetadata(KernelType):
             for fs_name in arg.function_spaces:
                 arg_fs_names.add(fs_name)
 
-        # Previously the field vector test fails before this
-        # In those cases stop the test before the function space check
-        for arg in self._arg_descriptors:
-            if arg.vector_size > 1:
-                return
-
         # dof kernels should only have one function space so a set of fs
         # names should be of length 1
         if len(arg_fs_names) > 1:

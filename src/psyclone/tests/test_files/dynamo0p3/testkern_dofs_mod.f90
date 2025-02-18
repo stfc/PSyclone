@@ -43,13 +43,12 @@ module testkern_dofs_mod
 
   type, extends(kernel_type) :: testkern_dofs_type
      type(arg_type), dimension(6) :: meta_args =          &
-          (/ arg_type(gh_field, gh_real, gh_write, w1),   &
-             arg_type(gh_field, gh_real, gh_read,  w1),   &
-             arg_type(gh_field, gh_real, gh_read,  w1),   &
-             arg_type(gh_field, gh_real, gh_read,  w1),   &
-             arg_type(gh_scalar, gh_real, gh_read),       &
-             arg_type(gh_field*3, gh_real, gh_read,  &
-              ANY_SPACE_1)                                &
+          (/ arg_type(gh_field,   gh_real, gh_write, w1), &
+             arg_type(gh_field,   gh_real, gh_read,  w1), &
+             arg_type(gh_field,   gh_real, gh_read,  w1), &
+             arg_type(gh_field,   gh_real, gh_read,  w1), &
+             arg_type(gh_field*3, gh_real, gh_read, w1),  &
+             arg_type(gh_scalar,  gh_real, gh_read)       &
            /)
 
      integer :: operates_on = DOF
@@ -59,13 +58,17 @@ module testkern_dofs_mod
 
 contains
 
-  subroutine testkern_dofs_code(a, b, c, d, scalar_arg, field_vec)
+  subroutine testkern_dofs_code(a, b, c, d,  &
+                                field_vec_1, &
+                                field_vec_2, &
+                                field_vec_3, &
+                                scalar_arg)
     implicit none
 
-    real(kind=r_def),    intent(inout) :: a
-    real(kind=r_def),    intent(in)    :: b, c, d
-    real(kind=r_def),    intent(in)    :: scalar_arg
-    type(field_type),    intent(in)    :: field_vec(3)
+    real(kind=r_def),                   intent(inout) :: a
+    real(kind=r_def),                   intent(in)    :: b, c, d
+    real(kind=r_def),                   intent(in)    :: field_vec_1, field_vec_2, field_vec_3
+    real(kind=r_def),                   intent(in)    :: scalar_arg
 
   end subroutine testkern_dofs_code
 

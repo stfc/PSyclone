@@ -182,6 +182,7 @@ def test_indexed_field_args(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
+    print(code)
     expected = ("CALL testkern_dofs_code(f1_data(df), f2_data(df), "
                 "f3_data(df), f4_data(df), scalar_arg, "
                 "field_vec_1_data, field_vec_2_data, field_vec_3_data)")
@@ -295,6 +296,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
         "field_vec_2_data, field_vec_3_data)\n"
         "      END DO\n"
     )
+    print(output)
     assert output in code
 
     # Now check that correct halo exchanges and set clean/dirty are
@@ -348,6 +350,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
                 "        CALL testkern_code"
                 )
         output += common_halo_exchange_code     # Append common
+        print(output)
         assert output in code
 
     # Check cell-column kern is called correctly
