@@ -92,9 +92,9 @@ jobs:
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration.nml .
-        mpirun -n 6 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
+        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
@@ -139,9 +139,10 @@ jobs:
         LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -a gungho_model -p psyclone-test
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration.nml .
-        mpirun -n 6 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
+        export OMP_NUM_THREADS=1
+        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
@@ -186,9 +187,10 @@ jobs:
         LFRIC_OFFLOAD_DIRECTIVES=acc ./build/local_build.py -a gungho_model -p psyclone-test
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration.nml .
-        mpirun -n 6 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
+        export OMP_NUM_THREADS=1
+        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
@@ -200,7 +202,7 @@ jobs:
           ci_test: "LFRic OpenACC", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
           compiler:"spack-nvhpc-24.5", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
-    # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 OpenMP threads
+    # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 mpi ranks each with 2 OpenMP threads
     - name: LFRic with all transformations
       run: |
         # Set up environment
@@ -220,11 +222,11 @@ jobs:
         ./build/local_build.py -a gungho_model -p psyclone-test -v
         # Run
         cd applications/gungho_model/example
-        export OMP_NUM_THREADS=2
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration.nml .
-        mpirun -n 6 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/configuration_c16_10it.nml .
+        export OMP_NUM_THREADS=2
+        mpirun -n 6 ../bin/gungho_model configuration_c16_10it.nml
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model_c16_10it-checksums.txt gungho_model-checksums.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
