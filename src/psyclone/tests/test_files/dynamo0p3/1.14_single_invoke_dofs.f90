@@ -45,11 +45,11 @@ program single_invoke_dofs
   implicit none
 
   type(field_type) :: f1, f2, f3, f4
-  real(kind=r_def) :: scalar_arg
   type(field_type) :: field_vec(3)
+  real(kind=r_def) :: scalar_arg
 
-  call invoke(                            &
-       testkern_dofs_type(f1, f2, f3, f4, scalar_arg, field_vec) &
+  call invoke(                                                   &
+       testkern_dofs_type(f1, f2, f3, f4, field_vec, scalar_arg) &
           )
 
 end program single_invoke_dofs
