@@ -61,10 +61,10 @@ psycloned-passthrough/%.f90: ${ROOT_SRC}%.f90 psycloned-passthrough
 	psyclone -s passthrough.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openmp_cpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_cpu
-	psyclone -s omp_cpu_trans.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
+	NEMOV4=1 psyclone -s omp_cpu_trans.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openmp_gpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_gpu
-	psyclone -s omp_gpu_trans.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
+	NEMOV4=1 psyclone -s omp_gpu_trans.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openacc_kernels/%.f90: ${ROOT_SRC}%.f90 psycloned-openacc_kernels
 	psyclone -s acc_kernels_trans.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
@@ -96,11 +96,26 @@ compile-serial:
 
 # Run NEMO
 run-%:
-	 # Symlink nc files as they are big, but cp namelists so they can be modified
-	 ln -sf ${INPUT_DIR}/*.nc ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
-	 cp ${INPUT_DIR}/namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
-	 cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; ./nemo
-	 cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; cat timing.output; cat run.stat
+	# Make sure we don't have leftovers from previous runs
+	cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; rm -f timing.output run.stat
+	# Symlink nc files as they are big, but cp namelists so they can be modified
+	ln -sf ${INPUT_DIR}/*.nc ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	cp ${INPUT_DIR}/namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; ./nemo
+	cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; cat timing.output; cat run.stat
+
+gdb-%:
+	# Symlink nc files as they are big, but cp namelists so they can be modified
+	ln -sf ${INPUT_DIR}/*.nc ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	cp ${INPUT_DIR}/namelist_* ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00/.
+	cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; gdb ./nemo
+
+# Print output files
+output-%:
+	cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; cat run.stat
+
+time-%:
+	cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; cat timing.output
 
 # Run NEMO with NVPROF
 nvprof-%:

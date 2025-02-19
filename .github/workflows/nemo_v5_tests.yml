@@ -92,7 +92,7 @@ jobs:
         export FCFLAGS="-fdefault-real-8 -O2 -fcray-pointer -ffree-line-length-none -g"
 
         # Clean up and compile
-        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
+        rm -rf tests/${TEST_DIR}
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
             add_key "key_nosignedzero" -j 4 -v 1
 
@@ -124,7 +124,7 @@ jobs:
         
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
-        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
+        rm -rf tests/${TEST_DIR}
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
           add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
 
@@ -156,7 +156,7 @@ jobs:
         export FCFLAGS="-i4 -r8 -O2 -fp-model precise -fno-alias -g"
 
         # Clean up and compile
-        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
+        rm -rf tests/${TEST_DIR}
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/passthrough.py \
           add_key "key_nosignedzero" -j 4 -v 1
 
@@ -184,7 +184,7 @@ jobs:
         export FCFLAGS="-fdefault-real-8 -O2 -fcray-pointer -ffree-line-length-none -g -fopenmp"
 
         # Clean up and compile
-        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
+        rm -rf tests/${TEST_DIR}
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py \
           add_key "key_nosignedzero" -j 4 -v 1
 
@@ -223,7 +223,7 @@ jobs:
 
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
-        ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} clean -y
+        rm -rf tests/${TEST_DIR}
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
           add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
 
@@ -262,7 +262,7 @@ jobs:
 
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
-        ./makenemo -r GOSI10p0.0_like_eORCA1 -m linux_spack -n ${TEST_DIR} clean -y
+        rm -rf cfgs/${TEST_DIR}
         ./makenemo -r GOSI10p0.0_like_eORCA1 -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
           add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
 
@@ -300,7 +300,7 @@ jobs:
 
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
-        ./makenemo -r ORCA2_ICE_PISCES -m linux_spack -n ${TEST_DIR} clean -y
+        rm -rf cfgs/${TEST_DIR}
         ./makenemo -r ORCA2_ICE_PISCES -m linux_spack -n ${TEST_DIR} -p ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py \
           add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
 
