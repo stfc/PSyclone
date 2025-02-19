@@ -84,6 +84,7 @@ jobs:
 
     # PSyclone passthrough for MetOffice NEMO
     - name: NEMO MetOffice Passthrough
+      # Only bother doing passthrough if this is a re-run of a previous test.
       if: ${{ github.run_attempt != '1' }}
       run: |
         . .runner_venv/bin/activate
