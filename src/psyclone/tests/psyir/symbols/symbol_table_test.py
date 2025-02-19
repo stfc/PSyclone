@@ -784,19 +784,19 @@ def test_check_for_clashes_wildcard_import():
     # Both symbols unresolved and not an intrinsic.
     with pytest.raises(symbols.SymbolError) as err:
         table1.check_for_clashes(table2)
-    assert ("A symbol named 'stavro' is present but unresolved in one or "
+    assert ("A symbol named 'stavro' is present but unresolved in "
             "both tables." in str(err.value))
     # Both symbols unresolved but no common wildcard import.
     table1.add(symbols.ContainerSymbol("beta", wildcard_import=True))
     with pytest.raises(symbols.SymbolError) as err:
         table1.check_for_clashes(table2)
-    assert ("A symbol named 'stavro' is present but unresolved in one or "
+    assert ("A symbol named 'stavro' is present but unresolved in "
             "both tables." in str(err.value))
     # Add a wildcard import to the second table but from a different container.
     table2.add(symbols.ContainerSymbol("romula", wildcard_import=True))
     with pytest.raises(symbols.SymbolError) as err:
         table1.check_for_clashes(table2)
-    assert ("A symbol named 'stavro' is present but unresolved in one or "
+    assert ("A symbol named 'stavro' is present but unresolved in "
             "both tables." in str(err.value))
     # Add a wildcard import from the same container as in the first table.
     table2.add(symbols.ContainerSymbol("beta", wildcard_import=True))
@@ -804,7 +804,7 @@ def test_check_for_clashes_wildcard_import():
     # brought into scope from different containers.
     with pytest.raises(symbols.SymbolError) as err:
         table1.check_for_clashes(table2)
-    assert ("A symbol named 'stavro' is present but unresolved in one or "
+    assert ("A symbol named 'stavro' is present but unresolved in "
             "both tables." in str(err.value))
     # Remove the wildcard import that is unique to table2.
     table2.remove(table2.lookup("romula"))
@@ -814,8 +814,8 @@ def test_check_for_clashes_wildcard_import():
 
 
 def test_check_for_clashes_shared_wildcard_import():
-    '''Test check_for_clashes() when the two tables share a wildcard import
-    and one Symbol is resolved while the other isn't.'''
+    '''Test check_for_clashes() when the two tables share a single wildcard
+    import and one Symbol is resolved while the other isn't.'''
     table1 = symbols.SymbolTable()
     csym1 = symbols.ContainerSymbol("really_wild", wildcard_import=True)
     table1.add(csym1)
@@ -825,11 +825,37 @@ def test_check_for_clashes_shared_wildcard_import():
     table2.add(csym1.copy())
     table2.add(symbols.Symbol("things",
                               interface=symbols.UnresolvedInterface()))
+    table3 = table2.deep_copy()
     # There should be no clash and the symbol in table2 should now be
     # resolved.
     table1.check_for_clashes(table2)
     assert (table2.lookup("things").interface.container_symbol.name ==
             "really_wild")
+    # It shouldn't matter which way round check_for_clashes is called.
+    table3.check_for_clashes(table1)
+    assert (table2.lookup("things").interface.container_symbol.name ==
+            "really_wild")
+
+
+def test_check_for_clashes_no_shared_wildcard_imports():
+    '''Test check_for_clashes() when the two tables do not share a
+    wildcard import and one Symbol is resolved while the other isn't.'''
+    table1 = symbols.SymbolTable()
+    csym1 = symbols.ContainerSymbol("really_wild", wildcard_import=True)
+    table1.add(csym1)
+    table1.add(symbols.Symbol("things",
+                              interface=symbols.ImportInterface(csym1)))
+    table2 = symbols.SymbolTable()
+    csym2 = symbols.ContainerSymbol("froody", wildcard_import=True)
+    table2.add(csym2)
+    table2.add(symbols.Symbol("things",
+                              interface=symbols.UnresolvedInterface()))
+    with pytest.raises(symbols.SymbolError) as err:
+        table2.check_for_clashes(table1)
+    assert ("A symbol named 'things' is present in both tables but is "
+            "unresolved in one. That scope does not "
+            "contain a direct wildcard import from the module 'really_wild' "
+            "from which it is imported in the other scope" in str(err.value))
 
 
 def test_table_merge():

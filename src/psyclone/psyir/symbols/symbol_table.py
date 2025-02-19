@@ -683,37 +683,36 @@ class SymbolTable():
                 # We can't rename a symbol if we don't know its origin.
                 raise SymbolError(
                     f"A symbol named '{this_sym.name}' is present but "
-                    f"unresolved in one or both tables.")
+                    f"unresolved in both tables.")
 
             elif other_sym.is_unresolved or this_sym.is_unresolved:
                 # Only one is unresolved. Could it be imported from the same
                 # location?
-                usym = this_sym if this_sym.is_unresolved else other_sym
-                if len(shared_wildcard_imports) == 1:
-                    (name,) = shared_wildcard_imports
-                    csym = self.lookup(name)
+                if this_sym.is_unresolved:
+                    rsym = other_sym
+                    usym = this_sym
+                    utable = self
+                    imports = self_imports
+                else:
+                    rsym = this_sym
+                    usym = other_sym
+                    utable = other_table
+                    imports = other_imports
+                import_source = rsym.interface.container_symbol.name
+                if import_source in imports:
+                    # It is being imported from the same location so we can
+                    # update its interface.
+                    csym = utable.lookup(import_source)
                     usym.interface = ImportInterface(csym)
                     continue
-                # We don't know which container it's coming from so attempt to
-                # resolve it.
-                self.resolve_imports(
-                    container_symbols=[self.lookup(cnm) for cnm
-                                       in shared_wildcard_imports],
-                    symbol_target=usym)
-                if usym.is_unresolved:
-                    # We couldn't resolve it.
-                    raise SymbolError(
-                        f"A symbol named '{this_sym.name}' is present in both "
-                        f"tables but is unresolved in one and could be "
-                        f"imported from one of: {shared_wildcard_imports}")
-                if this_sym.interface != other_sym.interface:
-                    # We did resolve it and now we know it comes from a
-                    # different Container.
-                    raise SymbolError(
-                        f"This table has an import of '{this_sym.name}' via "
-                        f"interface '{this_sym.interface}' but the supplied "
-                        f"table imports it via '{other_sym.interface}'.")
-                continue
+
+                raise SymbolError(
+                    f"A symbol named '{this_sym.name}' is present in both "
+                    f"tables but is unresolved in one. That scope does not "
+                    f"contain a direct wildcard import from the module "
+                    f"'{import_source}' from which it is "
+                    f"imported in the other scope.")
+
             # Can either of them be renamed?
             try:
                 self.rename_symbol(this_sym, "", dry_run=True)
