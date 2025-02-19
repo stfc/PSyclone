@@ -45,8 +45,7 @@ nodes.'''
 import abc
 
 from psyclone.core import Signature
-from psyclone.f2pygen import DirectiveGen, CommentGen
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
                                               ACCCopyOutClause)
 from psyclone.psyir.nodes.assignment import Assignment
@@ -188,20 +187,6 @@ class ACCRoutineDirective(ACCStandaloneDirective):
                 f"of parallelism but got '{value}'")
         self._parallelism = value.lower()
 
-    def gen_code(self, parent):
-        '''Generate the Fortran ACC Routine Directive and any associated code.
-
-        :param parent: the parent Node in the Schedule to which to add our
-                       content.
-        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
-        '''
-        # Check the constraints are correct
-        self.validate_global_constraints()
-
-        # Generate the code for this Directive
-        parent.add(DirectiveGen(parent, "acc", "begin", "routine",
-                                f"{self.parallelism}"))
-
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
         "acc routine". The visitor is responsible for adding the
@@ -231,33 +216,6 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         self._acc_dirs = None  # List of parallel directives
 
         self._sig_set = set()
-
-    def gen_code(self, parent):
-        '''Generate the elements of the f2pygen AST for this Node in the
-        Schedule.
-
-        :param parent: node in the f2pygen AST to which to add node(s).
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        :raises GenerationError: if no data is found to copy in.
-
-        '''
-        self.validate_global_constraints()
-        self.lower_to_language_level()
-        # Leverage begin_string() to raise an exception if there are no
-        # variables to copyin but discard the generated string since it is
-        # incompatible with class DirectiveGen() we are using below.
-        self.begin_string()
-
-        # Add the enter data directive.
-        sym_list = _sig_set_to_string(self._sig_set)
-        copy_in_str = f"copyin({sym_list})"
-        parent.add(DirectiveGen(parent, "acc", "begin", "enter data",
-                                copy_in_str))
-        # Call an API-specific subclass of this class in case
-        # additional declarations are required.
-        self.data_on_device(parent)
-        parent.add(CommentGen(parent, ""))
 
     def lower_to_language_level(self):
         '''
@@ -336,26 +294,6 @@ class ACCParallelDirective(ACCRegionDirective):
     def __init__(self, default_present=True, **kwargs):
         super().__init__(**kwargs)
         self.default_present = default_present
-
-    def gen_code(self, parent):
-        '''
-        Generate the elements of the f2pygen AST for this Node in the Schedule.
-
-        :param parent: node in the f2pygen AST to which to add node(s).
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        self.validate_global_constraints()
-
-        parent.add(DirectiveGen(parent, "acc", "begin",
-                                *self.begin_string().split()[1:]))
-
-        for child in self.children:
-            child.gen_code(parent)
-
-        parent.add(DirectiveGen(parent, *self.end_string().split()))
-
-        self.gen_post_region_code(parent)
 
     def begin_string(self):
         '''
@@ -596,28 +534,6 @@ class ACCLoopDirective(ACCRegionDirective):
 
         super().validate_global_constraints()
 
-    def gen_code(self, parent):
-        '''
-        Generate the f2pygen AST entries in the Schedule for this OpenACC
-        loop directive.
-
-        :param parent: the parent Node in the Schedule to which to add our
-                       content.
-        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
-        :raises GenerationError: if this "!$acc loop" is not enclosed within \
-                                 an ACC Parallel region.
-        '''
-        self.validate_global_constraints()
-
-        # Add any clauses to the directive. We use self.begin_string() to avoid
-        # code duplication.
-        options_str = self.begin_string(leading_acc=False)
-
-        parent.add(DirectiveGen(parent, "acc", "begin", "loop", options_str))
-
-        for child in self.children:
-            child.gen_code(parent)
-
     def begin_string(self, leading_acc=True):
         ''' Returns the opening statement of this directive, i.e.
         "acc loop" plus any qualifiers. If `leading_acc` is False then
@@ -701,29 +617,6 @@ class ACCKernelsDirective(ACCRegionDirective):
         '''
         return self._default_present
 
-    def gen_code(self, parent):
-        '''
-        Generate the f2pygen AST entries in the Schedule for this
-        OpenACC Kernels directive.
-
-        :param parent: the parent Node in the Schedule to which to add this \
-                       content.
-        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        self.validate_global_constraints()
-
-        # We re-use the 'begin_string' method but must skip the leading 'acc'
-        # that it includes.
-        parent.add(DirectiveGen(parent, "acc", "begin",
-                                *self.begin_string().split()[1:]))
-        for child in self.children:
-            child.gen_code(parent)
-
-        parent.add(DirectiveGen(parent, *self.end_string().split()))
-
-        self.gen_post_region_code(parent)
-
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
         "acc kernels ...". The backend is responsible for adding the
@@ -757,16 +650,6 @@ class ACCDataDirective(ACCRegionDirective):
     in the PSyIR.
 
     '''
-    def gen_code(self, _):
-        '''
-        :raises InternalError: the ACC data directive is currently only \
-                               supported for the NEMO API and that uses the \
-                               PSyIR backend to generate code.
-                               fparser2 parse tree.
-
-        '''
-        raise InternalError(
-            "ACCDataDirective.gen_code should not have been called.")
 
     @staticmethod
     def _validate_child(position, child):

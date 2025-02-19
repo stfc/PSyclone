@@ -18,7 +18,6 @@
 <polyline fill="none" stroke="#000000" points="171.5,-220.5 344.5,-220.5 "/>
 <text text-anchor="start" x="179.5" y="-205.3" font-family="Times,serif" font-size="14.00" fill="#000000">arg_for_funcspace()</text>
 <text text-anchor="start" x="179.5" y="-190.3" font-family="Times,serif" font-size="14.00" fill="#000000">field_on_space()</text>
-<text text-anchor="start" x="179.5" y="-175.3" font-family="Times,serif" font-size="14.00" fill="#000000">gen_code()</text>
 <text text-anchor="start" x="179.5" y="-160.3" font-family="Times,serif" font-size="14.00" fill="#000000">is_coloured()</text>
 <text text-anchor="start" x="179.5" y="-145.3" font-family="Times,serif" font-size="14.00" fill="#000000">unique_fss()</text>
 <text text-anchor="start" x="179.5" y="-130.3" font-family="Times,serif" font-size="14.00" fill="#000000">unique_proxy_declarations()</text>
@@ -48,7 +47,6 @@
 <polyline fill="none" stroke="#000000" points="190.5,-402.5 351.5,-402.5 "/>
 <text text-anchor="start" x="198.5" y="-387.3" font-family="Times,serif" font-size="14.00" fill="#000000">first_access()</text>
 <text text-anchor="start" x="198.5" y="-372.3" font-family="Times,serif" font-size="14.00" fill="#000000">gen()</text>
-<text text-anchor="start" x="198.5" y="-357.3" font-family="Times,serif" font-size="14.00" fill="#000000">gen_code()</text>
 <text text-anchor="start" x="198.5" y="-342.3" font-family="Times,serif" font-size="14.00" fill="#000000">unique_declarations()</text>
 <text text-anchor="start" x="198.5" y="-327.3" font-family="Times,serif" font-size="14.00" fill="#000000">unique_declns_by_intent()</text>
 </g>
@@ -81,7 +79,6 @@
 <text text-anchor="middle" x="415" y="-222.3" font-family="Times,serif" font-size="14.00" fill="#000000">InvokeSchedule</text>
 <polyline fill="none" stroke="#000000" points="363,-214.5 467,-214.5 "/>
 <polyline fill="none" stroke="#000000" points="363,-190.5 467,-190.5 "/>
-<text text-anchor="start" x="371" y="-175.3" font-family="Times,serif" font-size="14.00" fill="#000000">gen_code()</text>
 <text text-anchor="start" x="371" y="-160.3" font-family="Times,serif" font-size="14.00" fill="#000000">view()</text>
 </g>
 <!-- 21&#45;&gt;46 -->
@@ -113,7 +110,6 @@
 <text text-anchor="middle" x="151" y="-743.8" font-family="Times,serif" font-size="14.00" fill="#000000">Invokes</text>
 <polyline fill="none" stroke="#000000" points="104.5,-736 197.5,-736 "/>
 <polyline fill="none" stroke="#000000" points="104.5,-712 197.5,-712 "/>
-<text text-anchor="start" x="112.5" y="-696.8" font-family="Times,serif" font-size="14.00" fill="#000000">gen_code()</text>
 <text text-anchor="start" x="112.5" y="-681.8" font-family="Times,serif" font-size="14.00" fill="#000000">gen_ocl_init()</text>
 <text text-anchor="start" x="112.5" y="-666.8" font-family="Times,serif" font-size="14.00" fill="#000000">get()</text>
 </g>
@@ -169,7 +165,6 @@
 <text text-anchor="start" x="348.5" y="-764.3" font-family="Times,serif" font-size="14.00" fill="#000000">following()</text>
 <text text-anchor="start" x="348.5" y="-749.3" font-family="Times,serif" font-size="14.00" fill="#000000">forward_dependence()</text>
 <text text-anchor="start" x="348.5" y="-734.3" font-family="Times,serif" font-size="14.00" fill="#000000">gen_c_code()</text>
-<text text-anchor="start" x="348.5" y="-719.3" font-family="Times,serif" font-size="14.00" fill="#000000">gen_code()</text>
 <text text-anchor="start" x="348.5" y="-704.3" font-family="Times,serif" font-size="14.00" fill="#000000">indent()</text>
 <text text-anchor="start" x="348.5" y="-689.3" font-family="Times,serif" font-size="14.00" fill="#000000">is_openmp_parallel()</text>
 <text text-anchor="start" x="348.5" y="-674.3" font-family="Times,serif" font-size="14.00" fill="#000000">is_valid_location()</text>

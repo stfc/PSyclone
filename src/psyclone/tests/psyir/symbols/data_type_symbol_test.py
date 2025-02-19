@@ -37,7 +37,6 @@
 
 ''' This module contains pytest tests for the DataTypeSymbol class. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir.symbols import DataTypeSymbol, UnresolvedType, Symbol, \
     UnresolvedInterface, ArrayType, REAL_SINGLE_TYPE
