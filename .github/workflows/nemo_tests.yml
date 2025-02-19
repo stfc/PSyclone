@@ -216,7 +216,7 @@ jobs:
         make output-openmp_cpu | grep -q "|U|_max:  0.148" || (echo "Error: '|U|_max:  0.148' not found!" & false)
         make output-openmp_cpu | grep -q "S_min:  0.10" || (echo "Error: 'S_min:  0.10' not found!" & false)
         make output-openmp_cpu | grep -q "S_max:  0.404" || (echo "Error: 'S_max:  0.404' not found!" & false)
-        export VAR_TIME=$(grep -A 1 "Elapsed Time" <(make -s time-openacc_kernels) | head -n 2 | tail -n 1 | awk '{print $1}')
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" <(make -s time-openmp_cpu) | head -n 2 | tail -n 1 | awk '{print $1}')
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
