@@ -305,7 +305,7 @@ def test_single_node_dynamo0p3():
     code = str(psy.gen)
     output = '''\
     CALL extract_psy_data % PreStart("single_invoke_psy", \
-"invoke_0_testkern_type-testkern_code-r0", 17, 2)
+"invoke_0_testkern_type-testkern_code-r0", 18, 2)
     CALL extract_psy_data % PreDeclareVariable("a", a)
     CALL extract_psy_data % PreDeclareVariable("f1_data", f1_data)
     CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
@@ -323,6 +323,7 @@ def test_single_node_dynamo0p3():
     CALL extract_psy_data % PreDeclareVariable("undf_w1", undf_w1)
     CALL extract_psy_data % PreDeclareVariable("undf_w2", undf_w2)
     CALL extract_psy_data % PreDeclareVariable("undf_w3", undf_w3)
+    CALL extract_psy_data % PreDeclareVariable("cell", cell)
     CALL extract_psy_data % PreDeclareVariable("cell_post", cell)
     CALL extract_psy_data % PreDeclareVariable("f1_data_post", f1_data)
     CALL extract_psy_data % PreEndDeclaration
@@ -343,6 +344,7 @@ def test_single_node_dynamo0p3():
     CALL extract_psy_data % ProvideVariable("undf_w1", undf_w1)
     CALL extract_psy_data % ProvideVariable("undf_w2", undf_w2)
     CALL extract_psy_data % ProvideVariable("undf_w3", undf_w3)
+    CALL extract_psy_data % ProvideVariable("cell", cell)
     CALL extract_psy_data % PreEnd
     do cell = loop0_start, loop0_stop, 1
       call testkern_code(nlayers_f1, a, f1_data, f2_data, ''' + \
@@ -371,7 +373,7 @@ def test_node_list_dynamo0p3():
     code = str(psy.gen)
     output = """\
     CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy", \
-"invoke_0-r0", 11, 5)
+"invoke_0-r0", 15, 5)
     CALL extract_psy_data % PreDeclareVariable("f3_data", f3_data)
     CALL extract_psy_data % PreDeclareVariable("loop0_start", loop0_start)
     CALL extract_psy_data % PreDeclareVariable("loop0_stop", loop0_stop)
@@ -383,6 +385,10 @@ def test_node_list_dynamo0p3():
     CALL extract_psy_data % PreDeclareVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % PreDeclareVariable("nlayers_f3", nlayers_f3)
     CALL extract_psy_data % PreDeclareVariable("undf_w2", undf_w2)
+    CALL extract_psy_data % PreDeclareVariable("cell", cell)
+    CALL extract_psy_data % PreDeclareVariable("df", df)
+    CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
+    CALL extract_psy_data % PreDeclareVariable("f5_data", f5_data)
     CALL extract_psy_data % PreDeclareVariable("cell_post", cell)
     CALL extract_psy_data % PreDeclareVariable("df_post", df)
     CALL extract_psy_data % PreDeclareVariable("f2_data_post", f2_data)
@@ -400,6 +406,10 @@ def test_node_list_dynamo0p3():
     CALL extract_psy_data % ProvideVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % ProvideVariable("nlayers_f3", nlayers_f3)
     CALL extract_psy_data % ProvideVariable("undf_w2", undf_w2)
+    CALL extract_psy_data % ProvideVariable("cell", cell)
+    CALL extract_psy_data % ProvideVariable("df", df)
+    CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
+    CALL extract_psy_data % ProvideVariable("f5_data", f5_data)
     CALL extract_psy_data % PreEnd
     do df = loop0_start, loop0_stop, 1
       ! Built-in: setval_c (set a real-valued field to a real scalar value)
@@ -448,6 +458,10 @@ def test_dynamo0p3_builtin():
     CALL extract_psy_data % PreDeclareVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % PreDeclareVariable("nlayers_f3", nlayers_f3)
     CALL extract_psy_data % PreDeclareVariable("undf_w2", undf_w2)
+    CALL extract_psy_data % PreDeclareVariable("cell", cell)
+    CALL extract_psy_data % PreDeclareVariable("df", df)
+    CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
+    CALL extract_psy_data % PreDeclareVariable("f5_data", f5_data)
     CALL extract_psy_data % PreDeclareVariable("cell_post", cell)
     CALL extract_psy_data % PreDeclareVariable("df_post", df)
     CALL extract_psy_data % PreDeclareVariable("f2_data_post", f2_data)
@@ -465,6 +479,10 @@ def test_dynamo0p3_builtin():
     CALL extract_psy_data % ProvideVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % ProvideVariable("nlayers_f3", nlayers_f3)
     CALL extract_psy_data % ProvideVariable("undf_w2", undf_w2)
+    CALL extract_psy_data % ProvideVariable("cell", cell)
+    CALL extract_psy_data % ProvideVariable("df", df)
+    CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
+    CALL extract_psy_data % ProvideVariable("f5_data", f5_data)
     CALL extract_psy_data % PreEnd
     do df = loop0_start, loop0_stop, 1
       ! Built-in: setval_c (set a real-valued field to a real scalar value)
@@ -507,14 +525,18 @@ def test_extract_single_builtin_dynamo0p3():
     code = str(psy.gen)
     output = """\
     CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy", \
-"invoke_0-setval_c-r0", 2, 2)
+"invoke_0-setval_c-r0", 4, 2)
     CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
     CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
+    CALL extract_psy_data % PreDeclareVariable("df", df)
+    CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
     CALL extract_psy_data % PreDeclareVariable("df_post", df)
     CALL extract_psy_data % PreDeclareVariable("f2_data_post", f2_data)
     CALL extract_psy_data % PreEndDeclaration
     CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
     CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
+    CALL extract_psy_data % ProvideVariable("df", df)
+    CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
     CALL extract_psy_data % PreEnd
     do df = loop1_start, loop1_stop, 1
       ! Built-in: setval_c (set a real-valued field to a real scalar value)
@@ -537,11 +559,12 @@ def test_extract_single_builtin_dynamo0p3():
     code_omp = str(psy.gen)
     output = """\
     CALL extract_psy_data % PreStart("single_invoke_psy", \
-"invoke_0-inc_ax_plus_y-r0", 4, 2)
+"invoke_0-inc_ax_plus_y-r0", 5, 2)
     CALL extract_psy_data % PreDeclareVariable("f1_data", f1_data)
     CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
     CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
     CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
+    CALL extract_psy_data % PreDeclareVariable("df", df)
     CALL extract_psy_data % PreDeclareVariable("df_post", df)
     CALL extract_psy_data % PreDeclareVariable("f1_data_post", f1_data)
     CALL extract_psy_data % PreEndDeclaration
@@ -549,6 +572,7 @@ def test_extract_single_builtin_dynamo0p3():
     CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
     CALL extract_psy_data % ProvideVariable("loop1_start", loop1_start)
     CALL extract_psy_data % ProvideVariable("loop1_stop", loop1_stop)
+    CALL extract_psy_data % ProvideVariable("df", df)
     CALL extract_psy_data % PreEnd
     !$omp parallel do default(shared), private(df), schedule(static)
     do df = loop1_start, loop1_stop, 1
@@ -578,7 +602,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
     code = str(psy.gen)
     output = """\
     CALL extract_psy_data % PreStart("single_invoke_builtin_then_kernel_psy", \
-"invoke_0-r0", 9, 4)
+"invoke_0-r0", 12, 4)
     CALL extract_psy_data % PreDeclareVariable("f3_data", f3_data)
     CALL extract_psy_data % PreDeclareVariable("loop1_start", loop1_start)
     CALL extract_psy_data % PreDeclareVariable("loop1_stop", loop1_stop)
@@ -588,6 +612,9 @@ def test_extract_kernel_and_builtin_dynamo0p3():
     CALL extract_psy_data % PreDeclareVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % PreDeclareVariable("nlayers_f3", nlayers_f3)
     CALL extract_psy_data % PreDeclareVariable("undf_w2", undf_w2)
+    CALL extract_psy_data % PreDeclareVariable("cell", cell)
+    CALL extract_psy_data % PreDeclareVariable("df", df)
+    CALL extract_psy_data % PreDeclareVariable("f2_data", f2_data)
     CALL extract_psy_data % PreDeclareVariable("cell_post", cell)
     CALL extract_psy_data % PreDeclareVariable("df_post", df)
     CALL extract_psy_data % PreDeclareVariable("f2_data_post", f2_data)
@@ -602,6 +629,9 @@ def test_extract_kernel_and_builtin_dynamo0p3():
     CALL extract_psy_data % ProvideVariable("ndf_w2", ndf_w2)
     CALL extract_psy_data % ProvideVariable("nlayers_f3", nlayers_f3)
     CALL extract_psy_data % ProvideVariable("undf_w2", undf_w2)
+    CALL extract_psy_data % ProvideVariable("cell", cell)
+    CALL extract_psy_data % ProvideVariable("df", df)
+    CALL extract_psy_data % ProvideVariable("f2_data", f2_data)
     CALL extract_psy_data % PreEnd
     do df = loop1_start, loop1_stop, 1
       ! Built-in: setval_c (set a real-valued field to a real scalar value)
@@ -661,7 +691,7 @@ def test_extract_colouring_omp_dynamo0p3(fortran_writer):
     code = str(psy.gen)
     output = ("""
     CALL extract_psy_data % PreStart("multikernel_invokes_7_psy", \
-"invoke_0-ru_code-r0", 28, 3)
+"invoke_0-ru_code-r0", 30, 3)
     CALL extract_psy_data % PreDeclareVariable("a_data", a_data)
     CALL extract_psy_data % PreDeclareVariable("b_data", b_data)
     CALL extract_psy_data % PreDeclareVariable("basis_w0_qr", basis_w0_qr)
@@ -692,6 +722,8 @@ diff_basis_w2_qr)
     CALL extract_psy_data % PreDeclareVariable("undf_w3", undf_w3)
     CALL extract_psy_data % PreDeclareVariable("weights_xy_qr", weights_xy_qr)
     CALL extract_psy_data % PreDeclareVariable("weights_z_qr", weights_z_qr)
+    CALL extract_psy_data % PreDeclareVariable("cell", cell)
+    CALL extract_psy_data % PreDeclareVariable("colour", colour)
     CALL extract_psy_data % PreDeclareVariable("b_data_post", b_data)
     CALL extract_psy_data % PreDeclareVariable("cell_post", cell)
     CALL extract_psy_data % PreDeclareVariable("colour_post", colour)
@@ -726,6 +758,8 @@ diff_basis_w2_qr)
     CALL extract_psy_data % ProvideVariable("undf_w3", undf_w3)
     CALL extract_psy_data % ProvideVariable("weights_xy_qr", weights_xy_qr)
     CALL extract_psy_data % ProvideVariable("weights_z_qr", weights_z_qr)
+    CALL extract_psy_data % ProvideVariable("cell", cell)
+    CALL extract_psy_data % ProvideVariable("colour", colour)
     CALL extract_psy_data % PreEnd
     do colour = loop4_start, loop4_stop, 1
       !$omp parallel do default(shared), private(cell), schedule(static)
