@@ -72,9 +72,9 @@ def a_or_an(string):
 
 
 def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
-    def get_inherited_parameters(cls):
+    def get_inherited_parameters(cls, inheriting_func):
         docs = cls.apply.__doc__
-        parent_docstring = cls.__mro__[1].__dict__["apply"].__doc__
+        parent_docstring = inheriting_func.__doc__
         if parent_docstring is not None:
             parent_lines = parent_docstring.splitlines()
         else:
@@ -155,8 +155,8 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                         added_docs += type_doc + "\n"
         return added_docs
 
-    def update_apply(cls, added_parameters):
-        doc = cls.apply.__doc__
+    def update_func_docstring(func, added_parameters):
+        doc = func.__doc__
         # Find the last instance of :param or :type
         doc_lines = doc.splitlines()
         for i, line in enumerate(doc_lines):
@@ -185,15 +185,19 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
 
         # Remove any trailing whitespace, then add a newline
         new_docs = new_docs.rstrip() + "\n"
-        cls.apply.__doc__ = new_docs
+        func.__doc__ = new_docs
 
     def wrapper():
         if inherit:
-            added_parameters = get_inherited_parameters(cls)
+            added_parameters = get_inherited_parameters(
+                    cls.__mro__[1].__dict__["apply"].__doc__
+            )
         else:
             added_parameters = ""
-        update_apply(cls, added_parameters)
-        # TODO VALIDATE isn't updated yet.
+        update_func_docstring(cls.apply, added_parameters)
+        # Update the validate docstring
+        add_parameters = get_inherited_parameters(cls.apply)
+        update_func_docstring(cls.validate, add_parameters)
 
         return cls
     return wrapper(*args, **kwargs)
