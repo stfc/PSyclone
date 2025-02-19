@@ -612,17 +612,34 @@ class LFRicMeshProperties(LFRicCollection):
         # it now, rather than when this class was first constructed.
         need_colour_limits = False
         need_colour_halo_limits = False
+        need_tilecolour_limits = False
+        need_tilecolour_halo_limits = False
         for call in self.kernel_calls:
             if call.is_coloured() and not call.is_intergrid:
                 loop = call.parent.parent
-                # Record whether or not this coloured loop accesses the halo.
-                if loop.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
-                    need_colour_halo_limits = True
+                is_tiled = loop.loop_type == "tile"
+                # Record which colour maps will be needed
+                if is_tiled:
+                    has_halo = (loop.parent.parent.upper_bound_name in
+                                const.HALO_ACCESS_LOOP_BOUNDS)
+                    if has_halo:
+                        need_tilecolour_halo_limits = True
+                    else:
+                        need_tilecolour_limits = True
                 else:
-                    need_colour_limits = True
+                    has_halo = (loop.upper_bound_name in
+                                const.HALO_ACCESS_LOOP_BOUNDS)
+                    if has_halo:
+                        need_colour_halo_limits = True
+                    else:
+                        need_colour_limits = True
 
-        if not self._properties and not (need_colour_limits or
-                                         need_colour_halo_limits):
+        needs_colour_maps = (need_colour_limits or
+                             need_colour_halo_limits or
+                             need_tilecolour_limits or
+                             need_tilecolour_halo_limits)
+
+        if not self._properties and not needs_colour_maps:
             # If no mesh properties are required and there's no colouring
             # (which requires a mesh object to lookup loop bounds) then we
             # need do nothing.
@@ -692,6 +709,40 @@ class LFRicMeshProperties(LFRicCollection):
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_edge_cell_all_colours"])))
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
+        if need_tilecolour_halo_limits:
+            lhs = self.symtab.find_or_create_tag(
+                "last_halo_tile_per_colour")
+            assignment = Assignment.create(
+                    lhs=Reference(lhs),
+                    rhs=Call.create(StructureReference.create(
+                        mesh, ["get_last_halo_tile_per_colour"])))
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
+            lhs = self.symtab.find_or_create_tag(
+                "last_halo_cell_per_colour_and_tile")
+            assignment = Assignment.create(
+                    lhs=Reference(lhs),
+                    rhs=Call.create(StructureReference.create(
+                        mesh, ["get_last_halo_cell_per_colour_and_tile"])))
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
+        if need_tilecolour_limits:
+            lhs = self.symtab.find_or_create_tag(
+                "last_edge_tile_per_colour")
+            assignment = Assignment.create(
+                    lhs=Reference(lhs),
+                    rhs=Call.create(StructureReference.create(
+                        mesh, ["get_last_edge_tile_per_colour"])))
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
+            lhs = self.symtab.find_or_create_tag(
+                "last_edge_cell_per_colour_and_tile")
+            assignment = Assignment.create(
+                    lhs=Reference(lhs),
+                    rhs=Call.create(StructureReference.create(
+                        mesh, ["get_last_edge_cell_per_colour_and_tile"])))
             self._invoke.schedule.addchild(assignment, cursor)
             cursor += 1
         return cursor
@@ -2004,17 +2055,20 @@ class DynMeshes():
             # Keep a record of whether or not any kernels (loops) in this
             # invoke have been coloured and, if so, whether the associated loop
             # is tiled or it goes into the halo.
-            is_tiled = call.parent.parent.loop_type == "tile"
-            has_halo = (call.parent.parent.upper_bound_name in
-                        const.HALO_ACCESS_LOOP_BOUNDS)
-            if has_halo:
-                if is_tiled:
+            loop = call.parent.parent
+            is_tiled = loop.loop_type == "tile"
+            if is_tiled:
+                has_halo = (loop.parent.parent.upper_bound_name in
+                            const.HALO_ACCESS_LOOP_BOUNDS)
+                if has_halo:
                     self._needs_colourtilemap_halo = True
                 else:
-                    self._needs_colourmap_halo = True
-            else:
-                if is_tiled:
                     self._needs_colourtilemap = True
+            else:
+                has_halo = (loop.upper_bound_name in
+                            const.HALO_ACCESS_LOOP_BOUNDS)
+                if has_halo:
+                    self._needs_colourmap_halo = True
                 else:
                     self._needs_colourmap = True
 
@@ -2120,20 +2174,34 @@ class DynMeshes():
             ).name
             if self._needs_colourtilemap_halo:
                 self.symtab.find_or_create(
-                    "last_halo_cell_all_colours",
+                    "last_halo_tile_per_colour",
                     symbol_type=DataSymbol,
                     datatype=ArrayType(
                             LFRicTypes("LFRicIntegerScalarDataType")(),
                             [ArrayType.Extent.DEFERRED]*2),
-                    tag="last_halo_cell_all_colours")
+                    tag="last_halo_tile_per_colour")
+                self.symtab.find_or_create(
+                    "last_halo_cell_per_colour_and_tile",
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*3),
+                    tag="last_halo_cell_per_colour_and_tile")
             if self._needs_colourtilemap:
                 self.symtab.find_or_create(
-                    "last_edge_cell_all_colours",
+                    "last_edge_tile_per_colour",
                     symbol_type=DataSymbol,
                     datatype=ArrayType(
                             LFRicTypes("LFRicIntegerScalarDataType")(),
                             [ArrayType.Extent.DEFERRED]*1),
-                    tag="last_edge_cell_all_colours")
+                    tag="last_edge_tile_per_colour")
+                self.symtab.find_or_create(
+                    "last_edge_cell_per_colour_and_tile",
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*2),
+                    tag="last_edge_cell_per_colour_and_tile")
 
     def invoke_declarations(self):
         '''
@@ -4813,7 +4881,7 @@ class HaloReadAccess(HaloDepth):
                 self._max_depth = True
         elif loop.upper_bound_name in ("ncolour",
                                        "ntiles_per_colour",
-                                       "ncells_per_coloured_tile"):
+                                       "ncells_per_colour_and_tile"):
             # Loop is coloured but does not access the halo.
             pass
         elif loop.upper_bound_name in ["ncells", "nannexed"]:

@@ -175,8 +175,8 @@ class LFRicConstants():
             "colour_halo",
             # Like ntiles_per_colour but with halos
             "ntiles_per_colour_halo",
-            # Like ncells_per_coloured_tile but with halos
-            "ncells_per_coloured_tile_halo",
+            # Like ncells_per_colour_and_tile but with halos
+            "ncells_per_colour_and_tile_halo",
         ]
 
         LFRicConstants.VALID_LOOP_BOUNDS_NAMES = ([
@@ -197,7 +197,7 @@ class LFRicConstants():
             # The number of tiles in the current colour
             "ntiles_per_colour",
             # The number of cells in the current coloured-tile
-            "ncells_per_coloured_tile",
+            "ncells_per_colour_and_tile",
             # The number of owned cells
             "ncells",
             # The number of owned dofs

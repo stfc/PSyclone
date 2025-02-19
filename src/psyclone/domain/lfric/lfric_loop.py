@@ -629,49 +629,36 @@ class LFRicLoop(PSyLoop):
                 "'inner' is not a valid loop upper bound for "
                 "sequential/shared-memory code")
         if self._upper_bound_name == "ntiles_per_colour":
-            result = Call.create(
-                StructureReference.create(
-                    sym_tab.lookup(self._mesh_name),
-                    ["get_last_edge_tile_per_coloured_tile"]
-                )
+            result = ArrayReference.create(
+                sym_tab.lookup_with_tag("last_edge_tile_per_colour"),
+                [Reference(sym_tab.lookup_with_tag("colours_loop_idx"))]
             )
-            result.addchild(Reference(
-                sym_tab.lookup_with_tag("colours_loop_idx")))
             return result
-        if self._upper_bound_name == "ncells_per_coloured_tile":
-            result = Call.create(
-                StructureReference.create(
-                    sym_tab.lookup(self._mesh_name),
-                    ["get_last_edge_cell_per_coloured_tile"]
-                )
+        if self._upper_bound_name == "ncells_per_colour_and_tile":
+            result = ArrayReference.create(
+                sym_tab.lookup_with_tag("last_edge_cell_per_colour_and_tile"),
+                [Reference(sym_tab.lookup_with_tag("colours_loop_idx")),
+                 Reference(sym_tab.lookup_with_tag("tile_loop_idx"))]
             )
-            result.addchild(
-                Reference(sym_tab.lookup_with_tag("colours_loop_idx")))
-            result.addchild(
-                Reference(sym_tab.lookup_with_tag("tile_loop_idx")))
             return result
         if self._upper_bound_name == "ntiles_per_colour_halo":
             if Config.get().distributed_memory:
-                result = Call.create(
-                    StructureReference.create(
-                        sym_tab.lookup(self._mesh_name),
-                        ["get_last_halo_tile_per_colour"]
-                    )
+                result = ArrayReference.create(
+                    sym_tab.lookup_with_tag("last_halo_tile_per_colour"),
+                    [Reference(sym_tab.lookup_with_tag("colours_loop_idx"))]
                 )
-                result.addchild(halo_index)
                 return result
             raise GenerationError(
                 "'last_halo_tile_per_colour' is not a valid loop upper bound "
                 "for non-distributed-memory code")
-        if self._upper_bound_name == "ncells_per_coloured_tile_halo":
+        if self._upper_bound_name == "ncells_per_colour_and_tile_halo":
             if Config.get().distributed_memory:
-                result = Call.create(
-                    StructureReference.create(
-                        sym_tab.lookup(self._mesh_name),
-                        ["get_last_halo_cell_per_colour_and_tile"]
-                    )
+                result = ArrayReference.create(
+                    sym_tab.lookup_with_tag(
+                                    "last_halo_cell_per_colour_and_tile"),
+                    [Reference(sym_tab.lookup_with_tag("colours_loop_idx")),
+                     Reference(sym_tab.lookup_with_tag("tile_loop_idx"))]
                 )
-                result.addchild(halo_index)
                 return result
             raise GenerationError(
                 "'last_halo_cell_per_colour_and_tile' is not a valid loop "

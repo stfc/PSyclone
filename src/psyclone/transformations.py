@@ -1249,16 +1249,14 @@ class Dynamo0p3ColourTrans(ColourTrans):
         over cells. If it iterates over halos it will look like:
 
         do colour = 1, ntilecolours
-          do tile = 1, mesh%get_last_halo_tile_per_colour(colour)
-            do cell =  1, mesh%get_last_halo_cell_per_colour_and_tile(
-                                                                tile, colour)
+          do tile = 1, last_halo_tile_per_colour(colour, 1)
+            do cell =  1, last_halo_cell_per_colour_and_tile(tile, colour, 1)
 
         If it does not iterate over halos it will look like:
 
         do colour = 1, ntilecolours
-          do tile = 1, mesh%get_last_edge_tile_per_colour(colour)
-            do cell =  1, mesh%get_last_edge_cell_per_colour_and_tile(
-                                                                tile, colour)
+          do tile = 1, last_edge_tile_per_colour(colour)
+            do cell =  1, last_edge_cell_per_colour_and_tile(tile, colour)
 
         :param node: the loop for which to create a coloured version.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
@@ -1309,11 +1307,11 @@ class Dynamo0p3ColourTrans(ColourTrans):
             # If the original loop went into the halo then this coloured loop
             # must also go into the halo.
             index = node.upper_bound_halo_depth
-            tile_loop.set_upper_bound("ncells_per_coloured_tile",
+            tile_loop.set_upper_bound("ncells_per_colour_and_tile",
                                       index)
         else:
             # No halo access.
-            tile_loop.set_upper_bound("ncells_per_coloured_tile")
+            tile_loop.set_upper_bound("ncells_per_colour_and_tile")
 
         # Add this loop as a child of our loop over colours
         colour_loop.loop_body.addchild(tile_loop)
