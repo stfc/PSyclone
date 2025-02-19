@@ -154,7 +154,7 @@ CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 PARALLELISATION_ISSUES = [
     "ldfc1d_c2d.f90",
     "tramle.f90",
-    "dynspg_ts.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
+    "dynspg_ts.f90",
 ]
 
 PRIVATISATION_ISSUES = [

@@ -63,22 +63,13 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 FILES_TO_SKIP = []
 
 NEMOV5_EXCLUSIONS = [
-    "sbcblk.f90",   # Compiler error: Vector expression used where scalar
-                    # expression required
-    "sbcflx.f90",  # NEMOv4 sbc_dyc causes NVFORTRAN-S-0083-Vector expression
-                    # used where scalar expression required
-    "zdfddm.f90",  # Wrong results
-    "zdfiwm.f90",  # Wrong results
-    "zdfswm.f90",  # fort2 terminated by signal 11
-    "ldftra.f90",
-    "traqsr.f90",
-    "fldread.f90",  # Wrong runtime results
+    # Produces different output results
+    "fldread.f90",
 ]
 
 NEMOV4_EXCLUSIONS = [
     "dynspg_ts.f90",
     "tranxt.f90",
-    "dynldf.f90",  # fails with PROFILING_ENABLED
 ]
 
 SKIP_FOR_PERFORMANCE = [
@@ -86,25 +77,13 @@ SKIP_FOR_PERFORMANCE = [
     "iom_nf90.f90",
     "iom_def.f90",
     "timing.f90",
-    "prtctl.f90",
-    "trazdf.f90",
-    "dynzdf.f90",
-]
-
-DONT_HOIST = [
-    # Incorrect hoisting
-    "lbcnfd.f90",
 ]
 
 OFFLOADING_ISSUES = [
-    "trcrad.f90",  # Illegal address during kernel execution, unless the
-                   # dimensions are small
-    "traatf_qco.f90",  # Runtime: Failed to find device function (BENCH)
-    "lbclnk.f90",  # Improve performance until #2751
-    "traqsr.f90",
-    "ldftra.f90",  # Wrong runtime results
-    "geo2ocean.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
-    "zdftke.f90",  # Uses MATH function calls (EXCLUDE FOR TESTING #2856)
+    # Runtime Error on BENCH: Illegal address during kernel execution
+    "trcrad.f90",
+    # Produces different output results
+    "zdftke.f90",
 ]
 
 
@@ -174,7 +153,7 @@ def trans(psyir):
                 convert_array_notation=True,
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
-                hoist_expressions=(psyir.name not in DONT_HOIST)
+                hoist_expressions=True
         )
 
         # These are functions that are called from inside parallel regions,
