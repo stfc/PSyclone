@@ -403,8 +403,8 @@ class LFRicAlg:
             order_h = table.lookup_with_tag("element_order_h")
             order_v = table.lookup_with_tag("element_order_v")
             expr = reader.psyir_from_expression(
-                f"quadrature_xyoz_type(MAX({order_h.name},{order_v.name})+3, "
-                f"{qr_rule_sym.name})",
+                f"quadrature_xyoz_type({order_h.name}+3,{order_h.name}+3,"
+                f"{order_v.name}+3,{qr_rule_sym.name})",
                 table)
             prog.addchild(Assignment.create(Reference(qr_sym), expr))
 
