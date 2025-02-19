@@ -118,7 +118,7 @@ jobs:
         # Set up FCM: PATHs are loaded from SPACK, we only need to set the FCFLAGS
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
-        export FCFLAGS="-i4 -Mr8 -O2 -nofma -Mnovect"
+        export FCFLAGS="-i4 -Mr8 -O2 -nofma -Mnovect -g"
         
         # Clean up and compile
         # Without key_mpi_off it fails to compile (even without psyclone)
