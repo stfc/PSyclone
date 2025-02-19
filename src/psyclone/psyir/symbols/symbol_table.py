@@ -1161,8 +1161,9 @@ class SymbolTable():
 
     def _replace_symbol_refs(self, old_sym: Symbol, new_sym: Symbol):
         '''
-        Looks through all Symbols referenced in the definitions of the Symbols
-        in this table and replaces any instances of `old_sym` with `new_sym`.
+        Looks through all Symbols referenced in the *definitions* of the
+        Symbols in this table and replaces any instances of `old_sym` with
+        `new_sym`.
 
         Note, this method does not attempt to update any PSyIR tree that may
         be associated with this table. That should be done separately using
@@ -1170,6 +1171,9 @@ class SymbolTable():
 
         :param old_sym: the existing symbol to replace.
         :param new_sym: the replacement symbol.
+
+        :raises InternalError: if an access is found in an unexpected type
+            of Node.
 
         '''
         norm_name = SymbolTable._normalize(old_sym.name)
@@ -1189,8 +1193,6 @@ class SymbolTable():
                 sym.replace_symbols_using(new_table)
             elif isinstance(access.node, Reference):
                 access.node.symbol = new_sym
-            elif isinstance(access.node, Call):
-                access.node.routine.symbol = new_sym
             elif isinstance(access.node, Literal):
                 oldtype = access.node.datatype
                 newtype = ScalarType(oldtype.intrinsic,
@@ -1200,7 +1202,8 @@ class SymbolTable():
             else:
                 raise InternalError(
                     f"Node of type '{type(access.node).__name__}' not "
-                    f"supported in SymbolTable._replace_symbol.")
+                    f"supported in SymbolTable._replace_symbol() while "
+                    f"looking for accesses of '{old_sym.name}'.")
 
     def _validate_remove_routinesymbol(self, symbol):
         '''

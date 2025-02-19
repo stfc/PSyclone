@@ -653,13 +653,34 @@ def test_replace_symbol_refs():
     table.add(oldie)
     wp = symbols.DataSymbol("wp", symbols.INTEGER_TYPE)
     table.add(wp)
+    # An array with precision defined by a Symbol and a dimension also defined
+    # by an expression.
     scalar_type = symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER, wp)
     atype = symbols.ArrayType(scalar_type, [Reference(oldie)])
     array = symbols.DataSymbol("array", atype)
     table.add(array)
     wp2 = symbols.DataSymbol("wp", symbols.INTEGER_TYPE)
+    goldie = symbols.DataSymbol("oldie", symbols.INTEGER_TYPE)
     table._replace_symbol_refs(wp, wp2)
     assert array.datatype.precision is wp2
+    table._replace_symbol_refs(oldie, goldie)
+    assert array.datatype.shape[0].upper.symbol is goldie
+    # Scalar with an initial-value expression.
+    exprn = BinaryOperation.create(
+        BinaryOperation.Operator.MUL,
+        Literal("2", scalar_type),
+        IntrinsicCall.create(IntrinsicCall.Intrinsic.COS, [Reference(oldie)]))
+    var = symbols.DataSymbol("var", symbols.REAL_TYPE, initial_value=exprn)
+    table.add(var)
+    table._replace_symbol_refs(wp, wp2)
+    table._replace_symbol_refs(oldie, goldie)
+    assert var.initial_value.children[0].datatype.precision is wp2
+    assert (var.initial_value.walk(IntrinsicCall)[0].arguments[0].symbol is
+            goldie)
+    # Scalar with an initial value given by a CodeBlock.
+    cblock = CodeBlock()
+    cbeebies = symbols.DataSymbol("cbeebies", symbols.REAL_TYPE,
+                                  initial_value=cblock)
 
 
 def test_swap_symbol():
