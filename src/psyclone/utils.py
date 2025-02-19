@@ -72,8 +72,8 @@ def a_or_an(string):
 
 
 def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
-    def get_inherited_parameters(cls, inheriting_func):
-        docs = cls.apply.__doc__
+    def get_inherited_parameters(cls, func, inheriting_func):
+        docs = func.__doc__
         parent_docstring = inheriting_func.__doc__
         if parent_docstring is not None:
             parent_lines = parent_docstring.splitlines()
@@ -102,7 +102,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                                     ":param ([a-zA-Z0-9_]*):", line
                             )
                             param_name = param_str.group(1)
-                            valid_opts = cls.__mro__[1].get_valid_options()
+                            valid_opts = cls.get_valid_options()
                             if param_name not in valid_opts.keys():
                                 raise InternalError(
                                     f"Invalid documentation found when "
@@ -135,7 +135,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                                 ":param ([a-zA-Z0-9_]*):", line
                         )
                         param_name = param_name_grp.group(1)
-                        valid_opts = cls.__mro__[1].get_valid_options()
+                        valid_opts = cls.get_valid_options()
                         if param_name not in valid_opts.keys():
                             raise InternalError(
                                 f"Invalid documentation found when "
@@ -190,13 +190,14 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
     def wrapper():
         if inherit:
             added_parameters = get_inherited_parameters(
+                    cls.__mro__[1], cls.apply,
                     cls.__mro__[1].__dict__["apply"].__doc__
             )
         else:
             added_parameters = ""
         update_func_docstring(cls.apply, added_parameters)
         # Update the validate docstring
-        add_parameters = get_inherited_parameters(cls.apply)
+        add_parameters = get_inherited_parameters(cls, cls.validate, cls.apply)
         update_func_docstring(cls.validate, add_parameters)
 
         return cls
