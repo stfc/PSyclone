@@ -80,17 +80,19 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         else:
             parent_lines = []
         added_docs = ""
+        print(parent_docstring)
         for x, line in enumerate(parent_lines):
             if ":param" in line:
-                param_str = re.search(":[a-zA-Z0-9\\s]*:", line)
+                param_str = re.search(":[a-zA-Z0-9_\\s]*:", line)
                 if param_str is None or param_str.group() in docs:
                     continue
                 added_docs += line + "\n"
                 z = x+1
                 type_found = False
                 while z < len(parent_lines):
-                    if (":param" in parent_lines[z]
-                       or ":raises" in parent_lines[z]):
+                    # or ":raises" in parent_lines[z]):
+                    # FIXME Raises not yet handled
+                    if (":param" in parent_lines[z]):
                         # If we didn't find the :type: docstring,
                         # we need to create it to inherit the docstring
                         # correctly.
@@ -99,11 +101,15 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                         if not type_found:
                             # Find the parameter name
                             param_name_grp = re.search(
-                                    ":param ([a-zA-Z0-9_]*):", line
+                                    "([a-zA-Z0-9_]*):",
+                                    line[line.index(":param")+6:]
                             )
-                            param_name = param_str.group(1)
+                            param_name = param_name_grp.group(0)
+                            param_name = param_name[:param_name.index(":")]
                             valid_opts = cls.get_valid_options()
                             if param_name not in valid_opts.keys():
+                                print(param_name)
+                                print(valid_opts.keys())
                                 raise InternalError(
                                     f"Invalid documentation found when "
                                     f"generating inherited documentation "
@@ -191,7 +197,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         if inherit:
             added_parameters = get_inherited_parameters(
                     cls.__mro__[1], cls.apply,
-                    cls.__mro__[1].__dict__["apply"].__doc__
+                    cls.__mro__[1].__dict__["apply"]
             )
         else:
             added_parameters = ""
