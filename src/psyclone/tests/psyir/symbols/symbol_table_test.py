@@ -1137,6 +1137,18 @@ def test_add_symbols_from_table_import_parent_scope():
     assert new_strummer is not clash
     assert (new_strummer.interface.container_symbol is
             new_cntr.symbol_table.lookup("some_mod"))
+    # Now add a symbol which is imported from different containers.
+    new_csym = symbols.ContainerSymbol("image")
+    new_cntr.symbol_table.add(new_csym)
+    new_sub.symbol_table.add(
+        symbols.Symbol("levene", interface=symbols.ImportInterface(new_csym)))
+    sub.symbol_table.add(
+        symbols.Symbol("levene", interface=symbols.ImportInterface(csym)))
+    with pytest.raises(InternalError) as err:
+        new_sub.symbol_table._add_symbols_from_table(sub.symbol_table)
+    assert ("'levene' imported from 'image' clashes with a Symbol of the same "
+            "name imported from 'some_mod'. This should have been caught by"
+            in str(err.value))
 
 
 def test_swap_symbol_properties():
