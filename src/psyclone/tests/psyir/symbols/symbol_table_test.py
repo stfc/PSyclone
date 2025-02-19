@@ -642,6 +642,26 @@ def test_remove_case_insensitive(sym_name):
     assert "var1" not in sym_table
 
 
+def test_replace_symbol_refs():
+    '''
+    Tests for the _replace_symbol_refs() method.
+    '''
+    table = symbols.SymbolTable()
+    oldie = symbols.DataSymbol("oldie", symbols.INTEGER_TYPE)
+    # Should do nothing on an empty table.
+    table._replace_symbol_refs(oldie, oldie.copy())
+    table.add(oldie)
+    wp = symbols.DataSymbol("wp", symbols.INTEGER_TYPE)
+    table.add(wp)
+    scalar_type = symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER, wp)
+    atype = symbols.ArrayType(scalar_type, [Reference(oldie)])
+    array = symbols.DataSymbol("array", atype)
+    table.add(array)
+    wp2 = symbols.DataSymbol("wp", symbols.INTEGER_TYPE)
+    table._replace_symbol_refs(wp, wp2)
+    assert array.datatype.precision is wp2
+
+
 def test_swap_symbol():
     ''' Test the SymbolTable.swap() method. '''
     symbol1 = symbols.Symbol("var1")

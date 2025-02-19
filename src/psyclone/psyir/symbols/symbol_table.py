@@ -1173,32 +1173,34 @@ class SymbolTable():
 
         '''
         norm_name = SymbolTable._normalize(old_sym.name)
-
+        from psyclone.core import Signature
         from psyclone.core.variables_access_info import VariablesAccessInfo
         from psyclone.psyir.nodes import Call, Literal, Reference
         vai = VariablesAccessInfo()
         self.reference_accesses(vai)
-        for sig in vai.all_signatures:
-            if sig.var_name.lower() != norm_name:
-                continue
-            for access in vai[sig].all_accesses:
-                if access.node is self.node:
-                    # This just means this signature is in this table.
-                    continue
-                if isinstance(access.node, Reference):
-                    access.node.symbol = new_sym
-                elif isinstance(access.node, Call):
-                    access.node.routine.symbol = new_sym
-                elif isinstance(access.node, Literal):
-                    oldtype = access.node.datatype
-                    newtype = ScalarType(oldtype.intrinsic,
-                                         new_sym)
-                    access.node.replace_with(
-                        Literal(access.node.value, newtype))
-                else:
-                    raise InternalError(
-                        f"Node of type '{type(access.node).__name__}' not "
-                        f"supported in SymbolTable._replace_symbol.")
+        sig = Signature(norm_name)
+        if sig not in vai:
+            return
+        new_table = SymbolTable()
+        new_table.add(new_sym)
+        for access in vai[sig].all_accesses:
+            if isinstance(access.node, Symbol):
+                sym = access.node
+                sym.replace_symbols_using(new_table)
+            elif isinstance(access.node, Reference):
+                access.node.symbol = new_sym
+            elif isinstance(access.node, Call):
+                access.node.routine.symbol = new_sym
+            elif isinstance(access.node, Literal):
+                oldtype = access.node.datatype
+                newtype = ScalarType(oldtype.intrinsic,
+                                     new_sym)
+                access.node.replace_with(
+                    Literal(access.node.value, newtype))
+            else:
+                raise InternalError(
+                    f"Node of type '{type(access.node).__name__}' not "
+                    f"supported in SymbolTable._replace_symbol.")
 
     def _validate_remove_routinesymbol(self, symbol):
         '''
@@ -1856,7 +1858,8 @@ class SymbolTable():
                 from psyclone.core import VariablesAccessInfo
                 vai = VariablesAccessInfo()
                 if isinstance(outer_sym, TypedSymbol):
-                    self._get_datatype_accesses(outer_sym.datatype, vai)
+                    self._get_datatype_accesses(outer_sym, outer_sym.datatype,
+                                                vai)
                 if (hasattr(outer_sym, "initial_value") and
                         outer_sym.initial_value):
                     outer_sym.initial_value.reference_accesses(vai)
@@ -1980,7 +1983,7 @@ class SymbolTable():
         # Re-insert modified symbol
         self.add(symbol)
 
-    def _get_datatype_accesses(self, dtype, access_info):
+    def _get_datatype_accesses(self, sym, dtype, access_info):
         '''
         Collect information on any symbols referenced within the supplied
         datatype.
@@ -1999,17 +2002,17 @@ class SymbolTable():
             # a read (since it is resolved at compile time).
             access_info.add_access(
                 Signature(dtype.precision.name),
-                AccessType.TYPE_INFO, self.node)
+                AccessType.TYPE_INFO, sym)
 
         if isinstance(dtype, DataTypeSymbol):
             # The use of a DataTypeSymbol in a declaration is a compile-
             # time access.
             access_info.add_access(Signature(dtype.name),
-                                   AccessType.TYPE_INFO, self.node)
+                                   AccessType.TYPE_INFO, sym)
         elif isinstance(dtype, StructureType):
             for cmpt in dtype.components.values():
                 # Recurse for members of a StructureType
-                self._get_datatype_accesses(cmpt.datatype, access_info)
+                self._get_datatype_accesses(sym, cmpt.datatype, access_info)
                 if cmpt.initial_value:
                     cmpt.initial_value.reference_accesses(access_info)
         elif isinstance(dtype, ArrayType):
@@ -2020,7 +2023,8 @@ class SymbolTable():
         elif (isinstance(dtype, UnsupportedFortranType) and
               dtype.partial_datatype):
             # Recurse to examine partial datatype information.
-            self._get_datatype_accesses(dtype.partial_datatype, access_info)
+            self._get_datatype_accesses(sym, dtype.partial_datatype,
+                                        access_info)
 
     def reference_accesses(self, access_info):
         '''
@@ -2038,20 +2042,20 @@ class SymbolTable():
 
         # Examine the datatypes and initial values of all DataSymbols.
         for sym in self.datasymbols:
-            self._get_datatype_accesses(sym.datatype, access_info)
+            self._get_datatype_accesses(sym, sym.datatype, access_info)
 
             if sym.initial_value:
                 sym.initial_value.reference_accesses(access_info)
 
         # Examine the definition of each DataTypeSymbol.
         for sym in self.datatypesymbols:
-            self._get_datatype_accesses(sym.datatype, access_info)
+            self._get_datatype_accesses(sym, sym.datatype, access_info)
 
         # Examine any (routine) interface definitions
         for isym in self.interface_symbols:
             for rt_info in isym.routines:
                 access_info.add_access(Signature(rt_info.symbol.name),
-                                       AccessType.TYPE_INFO, self.node)
+                                       AccessType.TYPE_INFO, isym)
 
     @property
     def interface_symbols(self) -> List[GenericInterfaceSymbol]:
