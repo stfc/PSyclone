@@ -111,7 +111,7 @@ jobs:
         make -j 4 openmp_gpu
         make -j 4 compile-openmp_gpu
         export NV_ACC_POOL_THRESHOLD=75
-        make run-openmp_gpu |& tee output.txt
+        make run-openmp_gpu
         # Check the output is as expected (TODO #2895: improve numerical reproducibility)
         tail -n 1 output.txt | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
         tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
@@ -143,7 +143,7 @@ jobs:
         make -j 4 openacc_kernels
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j 4 compile-openacc_kernels
         export NV_ACC_POOL_THRESHOLD=75
-        make run-openacc_kernels |& tee output.txt
+        make run-openacc_kernels
         # Check the output is as expected for the first 6 digits (if not exit with error message)
         tail -n 1 output.txt | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
         tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
@@ -175,7 +175,7 @@ jobs:
         make -j 4 openacc_loops
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j 4 compile-openacc_loops
         export NV_ACC_POOL_THRESHOLD=75
-        make run-openacc_loops |& tee output.txt
+        make run-openacc_loops
         # Check the output is as expected for the first 6 digits (if not exit with error message)
         tail -n 1 output.txt | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
         tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
@@ -215,7 +215,7 @@ jobs:
         make -j 4 openmp_cpu
         make -j 4 compile-openmp_cpu
         export OMP_NUM_THREADS=4
-        make run-openmp_cpu |& tee output.txt
+        make run-openmp_cpu
         # Check the output is as expected (TODO #2895: improve numerical reproducibility)
         tail -n 1 output.txt | grep -q " it :      10" || (echo "Error: 'it :      10' not found!" & false)
         tail -n 1 output.txt | grep -q "|ssh|_max:  0.199" || (echo "Error: '|ssh|_max:  0.199' not found!" & false)
