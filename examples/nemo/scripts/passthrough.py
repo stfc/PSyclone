@@ -36,13 +36,13 @@
 
 ''' Process Nemo code with PSyclone but don't do any changes. This file is only
 needed to provide a FILES_TO_SKIP list. '''
-from utils import PASSTHROUGH_ISSUES
+
 # TODO Remove
 from psyclone.psyir.transformations import ScalarizationTrans
 from psyclone.psyir.nodes import Routine, Loop
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = PASSTHROUGH_ISSUES
+FILES_TO_SKIP = []
 
 
 def trans(psyir):

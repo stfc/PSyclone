@@ -182,7 +182,8 @@ subroutine compute_si_operators(ref_state)
   type(evaluator_xyz_type)             :: evaluator
   real(kind=r_solver)                  :: const2 = 1.0_r_solver
 
-  qr = quadrature_type(MAX(element_order_h, element_order_v)+3, GAUSSIAN)
+  qr = quadrature_type(element_order_h+3, element_order_h+3, &
+                       element_order_v+3, GAUSSIAN)
   theta  => ref_state(2)
   rho    => ref_state(3)
   chi    => get_coordinates()
