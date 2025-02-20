@@ -277,6 +277,3 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
                 AccessType.TYPE_INFO, self)
         else:
             self.datatype.reference_accesses(self, access_info)
-
-        if hasattr(self, "initial_value") and self.initial_value:
-            self.initial_value.reference_accesses(access_info)
