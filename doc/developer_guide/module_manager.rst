@@ -204,7 +204,6 @@ A cache file name will then be created based on the hashsum of each
 source code file. The combination of the provided `cache_path` and
 the cache file name will then be used as the storage location.
 
-A standard storage path could be, e.g., `$HOME/.cache/psyclone`.
 Note, that the cache path directory must exist.
 
 

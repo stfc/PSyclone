@@ -326,8 +326,19 @@ class ModuleInfo:
             return None
 
     def get_routine_by_name(
-        self, routine_name: str, trigger_exception: bool = True
+        self,
+        routine_name: str,
+        trigger_exception: bool = True
     ) -> Routine:
+        """Return the routine with the given name.
+        This only searches in the current module and doesn't look up
+        routines in other modules.
+
+        :param routine_name: Name of the routine in this module.
+        :param trigger_exception: Whether an exception should be triggered
+            or not if the routine is not found. If it is not found,
+            None is returned.
+        """
         routine_found: Routine = None
 
         for routine in self.get_psyir().walk(Routine):

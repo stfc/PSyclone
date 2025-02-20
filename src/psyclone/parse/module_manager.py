@@ -42,7 +42,7 @@ import copy
 from difflib import SequenceMatcher
 import os
 import re
-from typing import List, Set, Union
+from typing import List, Iterable, Union
 
 from psyclone.errors import InternalError
 from psyclone.parse.file_info import FileInfo
@@ -77,6 +77,12 @@ class ModuleManager:
             can happen, but this shouldn't lead to wrong results. However,
             that's untested so far.
 
+        :param cache_path: If set, the cache file will be stored in the given
+            path (directory) using a hashsum of the source code to create
+            a unique cache file name. If `None`, a cache file will be created
+            in the same directory as the source file with a new
+            file ending `.psycache`.
+
         '''
         if not ModuleManager._instance:
             ModuleManager._instance = ModuleManager(cache_active, cache_path)
@@ -89,6 +95,17 @@ class ModuleManager:
                 cache_active: bool = None,
                 cache_path: str = None
             ):
+            """
+            Set up the module manager. Module manager is actually a singleton
+            and should not be created directly. Use `ModuleManager.get()`
+            instead.
+
+            :param cache_active: Whether to use (`True`) or
+                disable (`False`) caching
+            :param cache_path: Path to the cache directory. If `None`, the
+                cache file will be created in the same directory as the source
+                file with a new file ending `.psycache`.
+            """
 
         if ModuleManager._instance is not None:
             raise InternalError("You need to use 'ModuleManager.get()' "
@@ -112,12 +129,12 @@ class ModuleManager:
         # Ordered dictionary to lookup file info from file path
         self._filepath_to_file_info: OrderedDict[str, FileInfo] = OrderedDict()
 
-        # Ordered dictionary to lookup modules of all files
+        # Ordered dictionary to lookup ModuleInfo from a file path
         # Note that there can be multiple modules per file
         self._filepath_to_module_info: OrderedDict[str, List[ModuleInfo]] = \
             OrderedDict()
 
-        # Dictionary of modules to lookup module info
+        # Dictionary of ModuleInfo objects, indexed by module name
         self._modules: OrderedDict[str, ModuleInfo] = \
             OrderedDict()
 
@@ -243,8 +260,9 @@ class ModuleManager:
         '''
         return self._ignore_modules
 
-    def add_files(self, filepaths: Union[str, List[str], Set[str]]) -> None:
-        """Add a file to the list of files
+    def add_files(self, filepaths: Union[str, Iterable[str]]) -> None:
+        """Utility to add multiple files to the ModuleManager.
+        Any file already found to be present in the ModuleManager is skipped.
 
         :param filepaths: Filename or list of filenames
         """
@@ -263,7 +281,7 @@ class ModuleManager:
                 cache_path=self._cache_path,
             )
 
-    def load_all_source_codes(self, verbose: bool = False) -> None:
+    def load_all_source_files(self, verbose: bool = False) -> None:
         """Routine to load the source of all files previously added
         to the module manager
 
@@ -274,7 +292,7 @@ class ModuleManager:
             fileinfo: FileInfo
             fileinfo.get_source_code(verbose=verbose)
 
-    def load_all_fparser_trees(self, verbose: bool = False) -> None:
+    def create_all_fparser_trees(self, verbose: bool = False) -> None:
         """
         Routine to load the fparser tree of all files added
         to the module manager
@@ -286,7 +304,7 @@ class ModuleManager:
             fileinfo: FileInfo
             fileinfo.get_fparser_tree(verbose=verbose)
 
-    def load_all_psyir_nodes(self, verbose: bool = False) -> None:
+    def create_all_psyir_nodes(self, verbose: bool = False) -> None:
         """
         Routine to load the psyir nodes of all files added
         to the module manager
@@ -299,7 +317,8 @@ class ModuleManager:
             fileinfo.get_psyir(verbose=verbose)
 
     def load_all_module_infos(self, verbose: bool = False, indent: str = ""):
-        """Load the module info using psyir nodes
+        """Load the module info using psyir nodes for all FileInfo objects
+        in the ModuleManager.
 
         :param verbose: If `True`, print verbose information
         :param indent: Prefix used as indentation for each line of
@@ -359,13 +378,16 @@ class ModuleManager:
     def get_all_module_infos(self) -> List[ModuleInfo]:
         """
         Return a list of all module infos
-        """
 
+        :returns: list of all module infos.
+        """
         return list(self._modules.values())
 
     def get_all_file_infos(self) -> List[FileInfo]:
         """
         Return a list of all FileInfo objects
+
+        :returns: List of all FileInfo objects.
         """
         return list(self._filepath_to_file_info.values())
 
@@ -443,16 +465,22 @@ class ModuleManager:
 
         return [name.lower() for name in mod_names]
 
-    def get_all_recursively_used_module_infos(
+    def get_all_recursively_used_module_infos_for_module_info_name(
         self,
         module_info_name: str,
         verbose: bool = False,
         indent: str = "",
     ) -> List[ModuleInfo]:
         """This function collects all modules which are recursively used
-        by the specified module. It returns a list of module infos in the
+        by the specified module bane. It returns a list of module infos in the
         order of dependencies, i.e. a module which is used by another module
         is listed before the module which uses it.
+
+        The differences to `get_all_dependencies_recursively` are as follows:
+        - A list of ModuleInfos is returned in the same order as the
+            dependencies are found.
+        - The input is a single module name, not a set of modules.
+        - It is for a specific module info name rather than for all modules.
 
         :param module_info_name: the module info name for which to collect
             all recursively used modules.
@@ -552,7 +580,7 @@ class ModuleManager:
 
         If a module cannot be found (e.g. its path was not given to the
         ModuleManager, or it might be a system module for which the sources
-        are not available, a message will be printed, and this module will
+        are not available), a message will be printed, and this module will
         be ignored (i.e. not listed in any dependencies).
         # TODO 2120: allow a choice to abort or ignore.
 

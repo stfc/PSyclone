@@ -126,7 +126,7 @@ class FileInfo:
         # Psyir node
         self._psyir_node: FileContainer = None
 
-        # Filepath to cache
+        # Filepath of cache
         self._cache_filename = None
 
         # This reference to `_CacheFileInfo` is created when loading
@@ -143,7 +143,7 @@ class FileInfo:
         # is requested.
         self._cache_data_save: _CacheFileInfo = None
 
-    def _get_filepath_cache(self):
+    def _get_cache_filepath(self):
         """Return the filepath of the cache.
 
         This also supports having a shared caching directory,
@@ -154,11 +154,6 @@ class FileInfo:
         constructor since the hashcode of the source code
         is required first.
         """
-
-        assert self._source_code_hash_sum is not None
-
-        assert self._cache_active, (
-            "Cache file path requested, but caching disabled")
 
         if self._cache_filename is not None:
             return self._cache_filename
@@ -173,8 +168,18 @@ class FileInfo:
             return self._cache_filename
 
         # Cache path was specified.
-        # We assume this path is shared amongst many.
+        # We assume this path is shared amongst different projects
+        # where psyclone is used for. We can't just use the file
+        # name of the source file itself, since the same one
+        # could be used in different projects and lead to
+        # conflicting file names. Hence, we use a hashsum based
+        # on the content of the source code itself.
+        # This also avoids having separate cache files for files
+        # with the same content spread across different projects.
+
         # Therefore, we associate each cache file to a hashsum.
+        # The hashsum is truncated so that the entire filename
+        # fits in a 64 byte character string.
         return os.path.join(
             self._cache_path, self._source_code_hash_sum[:55] + ".psycache"
         )
@@ -284,19 +289,19 @@ class FileInfo:
         # basically garbage. This will lead either to an Exception from the
         # unpickling or a non-matching checksum which is both caught below.
         try:
-            filehandler = open(self._get_filepath_cache(), "rb")
+            filehandler = open(self._get_cache_filepath(), "rb")
             if verbose:
                 # TODO #11: Use logging for this
                 print(
                     f"{indent}- Using cache file "
-                    f"'{self._get_filepath_cache()}'"
+                    f"'{self._get_cache_filepath()}'"
                 )
         except FileNotFoundError:
             if verbose:
                 # TODO #11: Use logging for this
                 print(
                     f"{indent}- No cache file "
-                    f"'{self._get_filepath_cache()}' found"
+                    f"'{self._get_cache_filepath()}' found"
                 )
             return None
 
@@ -391,15 +396,15 @@ class FileInfo:
             # This is not a perfect solution, but avoids parallel
             # writing access of the same file.
 
-            # We first remove a potentially existing file
+            # We first remove a potentially existing file.
             try:
-                os.remove(self._get_filepath_cache())
+                os.remove(self._get_cache_filepath())
             except FileNotFoundError:
                 pass
 
             # Then we open it in exclusive mode.
             # If it already exists, an exception would be raised.
-            fd = os.open(self._get_filepath_cache(),
+            fd = os.open(self._get_cache_filepath(),
                          os.O_CREAT | os.O_WRONLY | os.O_EXCL)
 
             filehandler = os.fdopen(fd, "wb")
