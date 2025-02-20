@@ -159,6 +159,8 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                         type_doc = "        "
                         type_doc += f":type {param_name}: {type_string}"
                         added_docs += type_doc + os.linesep
+        # Add an extra indented blank line?
+        added_docs += 8*" " + os.linesep
         return added_docs
 
     def update_func_docstring(func, added_parameters):
