@@ -223,6 +223,8 @@ class GenericInterfaceSymbol(RoutineSymbol):
         for routine in self.routines:
             try:
                 new_rt = table.lookup(routine.symbol.name)
+                if not isinstance(new_rt, RoutineSymbol):
+                    new_rt.specialise(RoutineSymbol)
             except KeyError:
                 new_rt = routine.symbol
             new_routines.append((new_rt, routine.from_container))

@@ -685,7 +685,8 @@ class SymbolTable():
                     f"unresolved in both tables.")
 
             elif other_sym.is_unresolved or this_sym.is_unresolved:
-                # Only one is unresolved. Could it be imported from the same
+                # Only one is unresolved. If the resolved one is imported,
+                # could the unresolved one be imported from the same
                 # location?
                 if this_sym.is_unresolved:
                     rsym = other_sym
@@ -697,20 +698,21 @@ class SymbolTable():
                     usym = other_sym
                     utable = other_table
                     imports = other_imports
-                import_source = rsym.interface.container_symbol.name
-                if import_source in imports:
-                    # It is being imported from the same location so we can
-                    # update its interface.
-                    csym = utable.lookup(import_source)
-                    usym.interface = ImportInterface(csym)
-                    continue
+                if rsym.is_import:
+                    import_source = rsym.interface.container_symbol.name
+                    if import_source in imports:
+                        # It is being imported from the same location so we can
+                        # update its interface.
+                        csym = utable.lookup(import_source)
+                        usym.interface = ImportInterface(csym)
+                        continue
 
-                raise SymbolError(
-                    f"A symbol named '{this_sym.name}' is present in both "
-                    f"tables but is unresolved in one. That scope does not "
-                    f"contain a direct wildcard import from the module "
-                    f"'{import_source}' from which it is "
-                    f"imported in the other scope.")
+                    raise SymbolError(
+                        f"A symbol named '{this_sym.name}' is present in both "
+                        f"tables but is unresolved in one. That scope does "
+                        f"not contain a direct wildcard import from the "
+                        f"module '{import_source}' from which it is "
+                        f"imported in the other scope.")
 
             # Can either of them be renamed?
             try:
