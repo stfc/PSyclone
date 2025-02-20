@@ -61,9 +61,9 @@ def test_datatype():
     # was plural. Python >= 3.12 tweaks the error message yet again to mention
     # the lack of an implementation and to quote the method name.
     # We split the check to accomodate for this.
-    assert ("Can't instantiate abstract class DataType with" in msg)
-    assert ("abstract method" in msg)
-    assert ("__str__" in msg)
+    assert "Can't instantiate abstract class DataType with" in msg
+    assert "abstract method" in msg
+    assert "__str__" in msg
 
 
 # UnresolvedType class
@@ -361,11 +361,13 @@ def test_arraytype():
         scalar_type, [ArrayType.Extent.DEFERRED,
                       ArrayType.Extent.DEFERRED])
     assert array_type.shape[1] == ArrayType.Extent.DEFERRED
+    assert array_type.is_allocatable
     # Provided as an attribute extent
     array_type = ArrayType(
         scalar_type, [ArrayType.Extent.ATTRIBUTE,
                       (2, ArrayType.Extent.ATTRIBUTE)])
     assert array_type.shape[1].upper == ArrayType.Extent.ATTRIBUTE
+    assert not array_type.is_allocatable
 
 
 def test_arraytype_invalid_datatype():
@@ -415,6 +417,8 @@ def test_arraytype_unsupportedtype():
     # Since no partial datatype is provided, these return None
     assert utype.partial_datatype is None
     assert utype.intrinsic is None
+    # Test the allocatable flag
+    assert not utype.is_allocatable
 
 
 def test_arraytype_invalid_shape():
@@ -816,6 +820,30 @@ def test_unsupported_fortran_type_eq():
             UnsupportedFortranType("save :: blue_blood"))
 
 
+def test_unsupported_fortran_type_is_allocatable(fortran_reader):
+    '''Test the copy() method of UnsupportedFortranType.'''
+    code = '''
+    subroutine test
+      use some_mod, only: some_type, start, stop
+      integer, parameter :: nelem = 4
+      type(some_type), pointer :: var(nelem), var2(start:stop)
+      type(some_type), target, allocatable :: var_alloc(:)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    vsym = routine.symbol_table.lookup("var")
+    # Make sure we do indeed test the UnsupportedFortranType
+    assert isinstance(vsym.datatype, UnsupportedFortranType)
+    assert not vsym.datatype.is_allocatable
+
+    # Now test an allocatable array in an UnsupportedFortranType:
+    vsym_alloc = routine.symbol_table.lookup("var_alloc")
+    # Make sure we do indeed test the UnsupportedFortranType
+    assert isinstance(vsym_alloc.datatype, UnsupportedFortranType)
+    assert vsym_alloc.datatype.is_allocatable
+
+
 def test_unsupported_fortran_type_copy(fortran_reader):
     '''Test the copy() method of UnsupportedFortranType.'''
     code = '''
@@ -846,8 +874,8 @@ def test_unsupported_fortran_type_copy(fortran_reader):
     # The intrinsic type of the partial type should also be the same Symbol
     # in both cases.
     stype = routine.symbol_table.lookup("some_type")
-    assert vtype.partial_datatype.intrinsic is stype
-    assert cpytype.partial_datatype.intrinsic is stype
+    assert vtype.intrinsic is stype
+    assert cpytype.intrinsic is stype
     # Repeat check when array lower bound is also a Reference.
     var2 = routine.symbol_table.lookup("var2")
     v2type = var2.datatype
