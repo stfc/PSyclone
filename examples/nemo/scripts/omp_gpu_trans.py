@@ -37,14 +37,16 @@
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
+# import os
 from utils import (
     insert_explicit_loop_parallelism, normalise_loops, add_profiling,
-    enhance_tree_information, NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
-from psyclone.psyGen import TransInfo
+    enhance_tree_information, PASSTHROUGH_ISSUES, PARALLELISATION_ISSUES,
+    NEMO_MODULES_TO_IMPORT)
 from psyclone.psyir.nodes import (
     Loop, Routine, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
-from psyclone.transformations import OMPDeclareTargetTrans, TransformationError
+from psyclone.transformations import (
+    OMPLoopTrans, OMPDeclareTargetTrans, TransformationError)
 
 PROFILING_ENABLED = False
 
@@ -53,7 +55,39 @@ PROFILING_ENABLED = False
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = NOT_PERFORMANT
+FILES_TO_SKIP = PASSTHROUGH_ISSUES + [
+    "iom.f90",
+    "iom_nf90.f90",
+    "iom_def.f90",
+    "timing.f90",   # Compiler error: Subscript, substring, or argument illegal
+    "lbcnfd.f90",   # Illegal address during kernel execution
+                    # - line 1012: lbc_nfd_dp
+    "lib_mpp.f90",  # Compiler error: Illegal substring expression
+    "prtctl.f90",   # Compiler error: Illegal substring expression
+    "sbcblk.f90",   # Compiler error: Vector expression used where scalar
+                    # expression required
+    "sbcflx.f90",   # NEMOv4 sbc_dyc causes NVFORTRAN-S-0083-Vector expression
+                    # used where scalar expression required
+    "fldread.f90",  # Wrong runtime results
+]
+
+OFFLOADING_ISSUES = [
+    "trcrad.f90",  # Illegal address during kernel execution, unless the
+                   # dimensions are small
+    "tranxt.f90",  # String comparison not allowed inside omp teams
+                   # (this worked fine with omp loop)
+    "trazdf.f90",  # String comparison not allowed inside omp teams
+    "crsdom.f90",  # String comparison not allowed inside omp teams
+    "zdftke.f90",  # returned error 700 (CUDA_ERROR_ILLEGAL_ADDRESS):
+                   # Illegal address during kernel execution
+    "traatf_qco.f90",  # Runtime: Failed to find device function
+    "lbclnk.f90",  # Improve performance until #2751
+    "dynzdf.f90",  # Wrong runtime results
+]
+
+PRIVATISATION_ISSUES = [
+    "ldftra.f90",  # Wrong runtime results
+]
 
 
 def trans(psyir):
@@ -65,22 +99,38 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    # import os
+    # if psyir.name not in (os.environ['ONLY_FILE'], "lib_fortran.f90"):
+    #     return
     omp_target_trans = OMPTargetTrans()
-    omp_loop_trans = TransInfo().get_trans_name('OMPLoopTrans')
-    omp_loop_trans.omp_directive = "loop"
+    omp_gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
+    omp_gpu_loop_trans.omp_directive = "teamsdistributeparalleldo"
+    omp_cpu_loop_trans = OMPLoopTrans(omp_schedule="static")
+    omp_cpu_loop_trans.omp_directive = "paralleldo"
 
-    # TODO #2317: Has structure accesses that can not be offloaded and has
-    # a problematic range to loop expansion of (1:1)
+    # Many of the obs_ files have problems to be offloaded to the GPU
     if psyir.name.startswith("obs_"):
-        print("Skipping file", psyir.name)
+        return
+
+    # ICE routines do not perform well on GPU, so we skip them
+    if psyir.name.startswith("ice"):
         return
 
     for subroutine in psyir.walk(Routine):
 
+        # Skip things from the initialisation
+        if (subroutine.name.endswith('_alloc') or
+                subroutine.name.endswith('_init') or
+                subroutine.name.startswith('Agrif') or
+                subroutine.name.startswith('dia_') or
+                subroutine.name == 'dom_msk' or
+                subroutine.name == 'dom_ngb'):
+            continue
+
         if PROFILING_ENABLED:
             add_profiling(subroutine.children)
 
-        print(f"Transforming subroutine: {subroutine.name}")
+        print(f"Adding OpenMP offloading to subroutine: {subroutine.name}")
 
         enhance_tree_information(subroutine)
 
@@ -92,6 +142,17 @@ def trans(psyir):
                 convert_range_loops=True,
                 hoist_expressions=True
         )
+
+        if (psyir.name == "sbc_phy.f90" and not subroutine.walk(Loop)) or \
+                psyir.name == "solfrac_mod.f90":
+            try:
+                # We need the 'force' option.
+                # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
+                # array notation. (TODO #717)
+                OMPDeclareTargetTrans().apply(subroutine,
+                                              options={"force": True})
+            except TransformationError as err:
+                print(err)
 
         # Thes are functions that are called from inside parallel regions,
         # annotate them with 'omp declare target'
@@ -113,7 +174,7 @@ def trans(psyir):
                 if loop.ancestor(Directive):
                     continue
                 try:
-                    omp_loop_trans.apply(loop, options={"force": True})
+                    omp_gpu_loop_trans.apply(loop, options={"force": True})
                 except TransformationError:
                     continue
                 omp_target_trans.apply(loop.parent.parent)
@@ -127,10 +188,18 @@ def trans(psyir):
                         parent.addchild(atomic)
             continue
 
-        insert_explicit_loop_parallelism(
-                subroutine,
-                region_directive_trans=omp_target_trans,
-                loop_directive_trans=omp_loop_trans,
-                # Collapse is necessary to give GPUs enough parallel items
-                collapse=True
-        )
+        if psyir.name not in PARALLELISATION_ISSUES + OFFLOADING_ISSUES:
+            insert_explicit_loop_parallelism(
+                    subroutine,
+                    region_directive_trans=omp_target_trans,
+                    loop_directive_trans=omp_gpu_loop_trans,
+                    collapse=True,
+                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
+            )
+        elif psyir.name not in PARALLELISATION_ISSUES:
+            # This have issues offloading, but we can still do OpenMP threading
+            insert_explicit_loop_parallelism(
+                    subroutine,
+                    loop_directive_trans=omp_cpu_loop_trans,
+                    privatise_arrays=(psyir.name not in PRIVATISATION_ISSUES)
+            )

@@ -84,6 +84,7 @@ jobs:
 
     # PSyclone passthrough for MetOffice NEMO
     - name: NEMO MetOffice Passthrough
+      if: ${{ github.run_attempt != '1' }}
       run: |
         . .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts

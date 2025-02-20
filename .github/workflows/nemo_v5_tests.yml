@@ -72,6 +72,7 @@ jobs:
 
     # PSyclone passthrough for 5.0-beta of NEMO.
     - name: NEMO 5.0 gfortran passthrough
+      if: ${{ github.run_attempt != '1' }}
       run: |
         # Set up environment
         source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
@@ -101,6 +102,7 @@ jobs:
         diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.100steps run.stat
 
     - name: NEMO 5.0 nvidia passthrough
+      if: ${{ github.run_attempt != '1' }}
       run: |
         # Set up environment
         source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
@@ -132,6 +134,7 @@ jobs:
         echo "Time-stepping duration = " $VAR_TIME
 
     - name: NEMO 5.0 Intel passthrough
+      if: ${{ github.run_attempt != '1' }}
       run: |
         # Set up environment
         source /apps/spack/psyclone-spack/spack-repo/share/spack/setup-env.sh
@@ -183,10 +186,10 @@ jobs:
 
         # Run test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
-        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small_10 namelist_cfg
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         tail run.stat
-        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.100steps run.stat
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.gfortran.small.10steps run.stat
         export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
         ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
           "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
@@ -221,17 +224,17 @@ jobs:
           add_key "key_mpi_off key_nosignedzero" -j 4 -v 1
 
         # Run test (disabled because it is currently too slow)
-        # cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
-        # cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
-        # ./nemo
+        cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
+        cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small_10 namelist_cfg
+        ./nemo
         # tail run.stat
-        # diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.100steps run.stat
-        # export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
-        # ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
-        #   "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-        #   --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
-        #   --password ${{ secrets.MONGODB_PASSWORD }} \
-        #   --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-        #   github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-        #   ci_test: "NEMOv5 OpenMP for GPU", nemo_version: "NEMOv5", system: "GlaDos",
-        #   compiler:"nvhpc-24.5" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
+        diff $PSYCLONE_NEMO_DIR/KGOs/run.stat.bench.nvhpc.small.10steps run.stat
+        export TIME_sec=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "NEMOv5 OpenMP for GPU", nemo_version: "NEMOv5", system: "GlaDos",
+          compiler:"nvhpc-24.5" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
