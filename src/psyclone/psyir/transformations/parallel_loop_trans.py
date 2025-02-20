@@ -297,7 +297,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         Apply the Loop transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
         corresponds to wrapping the generated code with directives,
-        e.g. for OpenMP
+        e.g. for OpenMP:
 
         .. code-block:: fortran
 
