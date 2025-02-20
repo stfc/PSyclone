@@ -2085,18 +2085,17 @@ class DynMeshes():
             array_type = ArrayType(
                 LFRicTypes("LFRicRealScalarDataType")(),
                 [ArrayType.Extent.DEFERRED]*2)
-            colour_map = self.symtab.find_or_create(
+            colour_map = self.symtab.find_or_create_tag(
                 base_name,
                 symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
                     f"integer(kind=i_def), pointer, dimension(:,:) :: "
                     f"{base_name} => null()",
-                    partial_datatype=array_type),
-                tag=base_name)
+                    partial_datatype=array_type))
             # No. of colours
             base_name = "ncolour_" + carg_name
-            ncolours = self.symtab.find_or_create(
-                base_name, tag=base_name,
+            ncolours = self.symtab.find_or_create_tag(
+                base_name,
                 symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")()
             )
@@ -2106,24 +2105,22 @@ class DynMeshes():
                 # This will require a loop into the halo and so the array is
                 # 2D (indexed by colour *and* halo depth).
                 base_name = "last_halo_cell_all_colours_" + carg_name
-                last_cell = self.symtab.find_or_create(
+                last_cell = self.symtab.find_or_create_tag(
                     base_name,
                     symbol_type=DataSymbol,
                     datatype=ArrayType(
                             LFRicTypes("LFRicIntegerScalarDataType")(),
-                            [ArrayType.Extent.DEFERRED]*2),
-                    tag=base_name)
+                            [ArrayType.Extent.DEFERRED]*2))
             else:
                 # Array holding the last edge cell of a given colour. Just 1D
                 # as indexed by colour only.
                 base_name = "last_edge_cell_all_colours_" + carg_name
-                last_cell = self.symtab.find_or_create(
+                last_cell = self.symtab.find_or_create_tag(
                     base_name,
                     symbol_type=DataSymbol,
                     datatype=ArrayType(
                             LFRicTypes("LFRicIntegerScalarDataType")(),
-                            [ArrayType.Extent.DEFERRED]*1),
-                    tag=base_name)
+                            [ArrayType.Extent.DEFERRED]*1))
             # Add these symbols into the DynInterGrid entry for this kernel
             call._intergrid_ref.set_colour_info(colour_map, ncolours,
                                                 last_cell)
@@ -2167,8 +2164,8 @@ class DynMeshes():
             # don't already have one.
             colour_map = non_intergrid_kern.tilecolourmap
             # No. of colours
-            _ = self.symtab.find_or_create(
-                "ntilecolour", tag="ntilecolour",
+            _ = self.symtab.find_or_create_tag(
+                "ntilecolours",
                 symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")()
             ).name
@@ -2188,20 +2185,18 @@ class DynMeshes():
                             [ArrayType.Extent.DEFERRED]*3),
                     tag="last_halo_cell_per_colour_and_tile")
             if self._needs_colourtilemap:
-                self.symtab.find_or_create(
+                self.symtab.find_or_create_tag(
                     "last_edge_tile_per_colour",
                     symbol_type=DataSymbol,
                     datatype=ArrayType(
                             LFRicTypes("LFRicIntegerScalarDataType")(),
-                            [ArrayType.Extent.DEFERRED]*1),
-                    tag="last_edge_tile_per_colour")
-                self.symtab.find_or_create(
+                            [ArrayType.Extent.DEFERRED]*1))
+                self.symtab.find_or_create_tag(
                     "last_edge_cell_per_colour_and_tile",
                     symbol_type=DataSymbol,
                     datatype=ArrayType(
                             LFRicTypes("LFRicIntegerScalarDataType")(),
-                            [ArrayType.Extent.DEFERRED]*2),
-                    tag="last_edge_cell_per_colour_and_tile")
+                            [ArrayType.Extent.DEFERRED]*2))
 
     def invoke_declarations(self):
         '''
@@ -2223,18 +2218,15 @@ class DynMeshes():
                 datatype=UnresolvedType(),
                 interface=ImportInterface(csym))
 
-        if not self.intergrid_kernels and (self._needs_colourmap or
-                                           self._needs_colourmap_halo):
-            # There aren't any inter-grid kernels but we do need
-            # colourmap information
-            csym = self.symtab.lookup_with_tag("cmap")
-            # Add declarations for these variables
-            if self._needs_colourmap_halo:
-                self.symtab.find_or_create_tag(
-                    "last_halo_cell_all_colours")
-            if self._needs_colourmap:
-                self.symtab.find_or_create_tag(
-                    "last_edge_cell_all_colours")
+        if not self.intergrid_kernels:
+            if self._needs_colourmap or self._needs_colourmap_halo:
+                # There aren't any inter-grid kernels but we do need
+                # colourmap information
+                csym = self.symtab.lookup_with_tag("cmap")
+            if self._needs_colourtilemap or self._needs_colourtilemap_halo:
+                # There aren't any inter-grid kernels but we do need
+                # colourmap information
+                csym = self.symtab.lookup_with_tag("tmap")
 
     def initialise(self, cursor: int) -> int:
         '''
@@ -2292,6 +2284,26 @@ class DynMeshes():
                         lhs=Reference(cmap),
                         rhs=Call.create(StructureReference.create(
                             mesh_sym, ["get_colour_map"])),
+                        is_pointer=True)
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
+            if self._needs_colourtilemap or self._needs_colourtilemap_halo:
+                # Look-up variable names for colourmap and number of colours
+                tmap = self.symtab.find_or_create_tag("tmap")
+                ntc = self.symtab.find_or_create_tag("ntilecolours")
+                # Get the number of colours
+                assignment = Assignment.create(
+                        lhs=Reference(ntc),
+                        rhs=Call.create(StructureReference.create(
+                            mesh_sym, ["get_ntilecolours"])))
+                assignment.preceding_comment = "Get the tiled colourmap"
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
+                # Get the colour map
+                assignment = Assignment.create(
+                        lhs=Reference(tmap),
+                        rhs=Call.create(StructureReference.create(
+                            mesh_sym, ["get_coloured_tiling_map"])),
                         is_pointer=True)
                 self._invoke.schedule.addchild(assignment, cursor)
                 cursor += 1

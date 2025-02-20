@@ -601,7 +601,7 @@ class LFRicKern(CodedKern):
                 return None
             return ncols_sym.name
 
-        return self.scope.symbol_table.lookup_with_tag("ntilecolour").name
+        return self.scope.symbol_table.lookup_with_tag("ntilecolours").name
 
     @property
     def fs_descriptors(self):

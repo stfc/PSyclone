@@ -1246,11 +1246,13 @@ class Dynamo0p3ColourTrans(ColourTrans):
         '''
         Creates a nested loop hierarchy (colours, tiles and cells of a given
         colour inside a tile) which can be used to replace the supplied loop
-        over cells. If it iterates over halos it will look like:
+        over cells.
+
+        If it iterates over halos it will look like:
 
         do colour = 1, ntilecolours
-          do tile = 1, last_halo_tile_per_colour(colour, 1)
-            do cell =  1, last_halo_cell_per_colour_and_tile(tile, colour, 1)
+          do tile = 1, last_halo_tile_per_colour(colour, hdepth)
+            do cell =  1, last_halo_cell_per_colour_and_tile(tile, colour, hd)
 
         If it does not iterate over halos it will look like:
 
@@ -1307,7 +1309,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
             # If the original loop went into the halo then this coloured loop
             # must also go into the halo.
             index = node.upper_bound_halo_depth
-            tile_loop.set_upper_bound("ncells_per_colour_and_tile",
+            tile_loop.set_upper_bound("ncells_per_colour_and_tile_halo",
                                       index)
         else:
             # No halo access.
