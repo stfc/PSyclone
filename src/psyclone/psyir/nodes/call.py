@@ -437,7 +437,7 @@ class Call(Statement, DataNode):
     def __str__(self):
         return self.node_str(False)
 
-    def copy(self):
+    def copy(self, new_parent=None):
         '''Return a copy of this node. This is a bespoke implementation for
         a Call node that ensures that any internal id's are
         consistent before and after copying.
@@ -450,7 +450,7 @@ class Call(Statement, DataNode):
         # before copying.
         self._reconcile()
         # copy
-        new_copy = super().copy()
+        new_copy = super().copy(new_parent=new_parent)
         # Fix invalid id's in _argument_names after copying.
         # pylint: disable=protected-access
         new_list = []

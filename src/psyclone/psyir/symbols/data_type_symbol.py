@@ -127,6 +127,18 @@ class DataTypeSymbol(Symbol):
         super(DataTypeSymbol, self).copy_properties(symbol_in)
         self._datatype = symbol_in.datatype
 
+    def reference_accesses(self, access_info):
+        '''
+        Update the supplied VariablesAccessInfo with information on the symbols
+        referenced by the definition of this Symbol.
+
+        :param access_info: the object in which to accumulate access
+                            information.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        '''
+        super().reference_accesses(access_info)
+        self.datatype.reference_accesses(self, access_info)
+
 
 # For automatic documentation generation
 __all__ = ['DataTypeSymbol']
