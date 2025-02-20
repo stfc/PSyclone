@@ -316,5 +316,5 @@ jobs:
           --password ${{ secrets.MONGODB_PASSWORD }} \
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
-          ci_test: "NEMOv5 OpenMP for GPU (ORCA1)", nemo_version: "NEMOv5", system: "GlaDos",
+          ci_test: "NEMOv5 OpenMP for GPU (ORCA2)", nemo_version: "NEMOv5", system: "GlaDos",
           compiler:"nvhpc-24.5" , date: new Date(), elapsed_time: '"${TIME_sec}"'})'
