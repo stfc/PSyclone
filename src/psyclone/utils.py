@@ -86,7 +86,8 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                 param_str = re.search(":[a-zA-Z0-9_\\s]*:", line)
                 if param_str is None or param_str.group() in docs:
                     continue
-                added_docs += line + os.linesep
+                param_line = line + os.linesep
+#                added_docs += line + os.linesep
                 z = x+1
                 type_found = False
                 while z < len(parent_lines):
@@ -121,9 +122,12 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                                     f"for class '{cls.__name__}' as the "
                                     f"'{param_name}' arg has no known type."
                                 )
-                            type_doc = 8*" "
-                            type_doc += f":type {param_name}: {type_string}"
-                            added_docs += type_doc + os.linesep
+                            # Add the type into the param string
+                            param_index = line.index(":param")
+                            param_line = (param_line[:param_index+7]
+                                          + type_string + " " +
+                                          param_line[param_index+7:])
+                            added_docs += param_line
                         break
                     if ":type" in parent_lines[z]:
                         type_found = True
@@ -131,7 +135,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                         added_docs += 8*" " + stripped_line + os.linesep
                     elif not parent_lines[z].isspace():
                         stripped_line = parent_lines[z].lstrip()
-                        added_docs += 12*" " + stripped_line + os.linesep
+                        param_line += 12*" " + stripped_line + os.linesep
                     z = z + 1
                 else:
                     # If we don't break out of the loop we still need to check
@@ -139,9 +143,11 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                     if not type_found:
                         # Find the parameter name
                         param_name_grp = re.search(
-                                ":param ([a-zA-Z0-9_]*):", line
+                                "([a-zA-Z0-9_]*):",
+                                line[line.index(":param")+6:]
                         )
-                        param_name = param_name_grp.group(1)
+                        param_name = param_name_grp.group(0)
+                        param_name = param_name[:param_name.index(":")]
                         valid_opts = cls.get_valid_options()
                         if param_name not in valid_opts.keys():
                             raise InternalError(
@@ -157,9 +163,15 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                                 f"for class '{cls.__name__}' as the "
                                 f"'{param_name}' arg has no known type."
                             )
-                        type_doc = "        "
-                        type_doc += f":type {param_name}: {type_string}"
-                        added_docs += type_doc + os.linesep
+                        #type_doc = "        "
+                        #type_doc += f":type {param_name}: {type_string}"
+                        #added_docs += type_doc + os.linesep
+                        # Add the type into the param string
+                        param_index = line.index(":param")
+                        param_line = (param_line[:param_index+7]
+                                      + type_string + " " +
+                                      param_line[param_index+7:])
+                        added_docs += param_line
         # Add an extra indented blank line?
         added_docs += 8*" " + os.linesep
         return added_docs
