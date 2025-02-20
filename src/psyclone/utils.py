@@ -127,9 +127,10 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                         break
                     if ":type" in parent_lines[z]:
                         type_found = True
-                    if not parent_lines[z].isspace():
                         stripped_line = parent_lines[z].lstrip()
-
+                        added_docs += 8*" " + stripped_line + os.linesep
+                    elif not parent_lines[z].isspace():
+                        stripped_line = parent_lines[z].lstrip()
                         added_docs += 12*" " + stripped_line + os.linesep
                     z = z + 1
                 else:
