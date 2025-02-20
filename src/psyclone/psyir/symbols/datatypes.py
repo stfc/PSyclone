@@ -90,6 +90,14 @@ class DataType(metaclass=abc.ABCMeta):
 
         '''
 
+    def reference_accesses(self, sym, access_info):
+        '''
+        Get all symbols referenced in this datatype.
+
+        :param sym:
+        :param access_info:
+       
+        '''
 
 class UnresolvedType(DataType):
     # pylint: disable=too-few-public-methods
@@ -291,6 +299,19 @@ class UnsupportedFortranType(UnsupportedType):
             return self.partial_datatype.intrinsic
         return None
 
+    def reference_accesses(self, sym, access_info):
+        '''
+        Get all symbols referenced in this datatype.
+
+        :param sym:
+        :param access_info:
+       
+        '''
+        super().reference_accesses(sym, access_info)
+
+        if self.partial_datatype:
+            self.partial_datatype.reference_accesses(sym, access_info)
+
 
 class ScalarType(DataType):
     '''Describes a scalar datatype (and its precision).
@@ -436,6 +457,26 @@ class ScalarType(DataType):
                 self._precision = table.lookup(self.precision.name)
             except KeyError:
                 pass
+
+    def reference_accesses(self, sym, access_info):
+        '''
+        Get all symbols referenced in this datatype.
+
+        :param sym:
+        :param access_info:
+       
+        '''
+        super().reference_accesses(sym, access_info)
+
+        from psyclone.core.signature import Signature
+
+        if isinstance(self.precision, Symbol):
+            from psyclone.core.signature import Signature
+            from psyclone.core.access_type import AccessType
+
+            access_info.add_access(
+                Signature(self.precision.name),
+                AccessType.TYPE_INFO, sym)
 
 
 class ArrayType(DataType):
@@ -903,6 +944,28 @@ class ArrayType(DataType):
                 if isinstance(bnd, Node):
                     bnd.replace_symbols_using(table)
 
+    def reference_accesses(self, sym, access_info):
+        '''
+        Get all symbols referenced in this datatype.
+
+        :param sym:
+        :param access_info:
+       
+        '''
+        super().reference_accesses(sym, access_info)
+
+        if isinstance(self.precision, Symbol):
+            from psyclone.core.signature import Signature
+            from psyclone.core.access_type import AccessType
+            access_info.add_access(
+                Signature(self.precision.name),
+                AccessType.TYPE_INFO, sym)
+
+        for dim in self.shape:
+            if isinstance(dim, ArrayType.ArrayBounds):
+                dim.lower.reference_accesses(access_info)
+                dim.upper.reference_accesses(access_info)
+
 
 class StructureType(DataType):
     '''
@@ -1125,6 +1188,24 @@ class StructureType(DataType):
                 component.name, new_type, component.visibility,
                 component.initial_value)
         self._components = new_components
+
+    def reference_accesses(self, sym, access_info):
+        '''
+        Get all symbols referenced in this datatype.
+
+        :param sym:
+        :param access_info:
+       
+        '''
+        super().reference_accesses(sym, access_info)
+        for cmpt in self.components.values():
+            # Recurse for members of a StructureType
+            if isinstance(cmpt.datatype, DataTypeSymbol):
+                cmpt.datatype.reference_accesses(access_info)
+            else:
+                cmpt.datatype.reference_accesses(sym, access_info)
+            if cmpt.initial_value:
+                cmpt.initial_value.reference_accesses(access_info)
 
 
 # Create common scalar datatypes

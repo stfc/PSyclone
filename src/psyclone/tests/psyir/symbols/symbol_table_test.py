@@ -3103,6 +3103,57 @@ def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
+def test_resolve_imports_routine_interface(fortran_reader, tmpdir, monkeypatch):
+    ''' Tests the SymbolTable resolve_imports method for a routine interface
+    and the routine symbols it references. '''
+
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            private
+            interface woodland
+              module procedure :: coppice, dell, spinney
+            end interface woodland
+            public :: woodland
+        contains
+            subroutine coppice(arg)
+              logical :: arg
+            end subroutine coppice
+            subroutine dell(arg)
+              integer :: arg
+            end subroutine dell
+            subroutine spinney(arg)
+              real :: arg
+            end subroutine spinney
+        end module a_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        module test_mod
+            contains
+            subroutine test()
+                use a_mod
+                integer :: acorn
+                call woodland(acorn)
+            end subroutine test
+        end module test_mod
+    ''')
+    subroutine = psyir.walk(Routine)[0]
+    symtab = subroutine.symbol_table
+
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+
+    a_mod = symtab.lookup("a_mod")
+    symtab.resolve_imports([a_mod])
+    woodland = symtab.lookup("woodland")
+    assert isinstance(woodland, symbols.GenericInterfaceSymbol)
+    coppice = symtab.lookup("coppice")
+    assert isinstance(coppice, symbols.Symbol)
+    assert coppice.interface.container_symbol is a_mod
+
+
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_private_symbols(fortran_reader, tmpdir, monkeypatch):
     ''' Tests the SymbolTable resolve_imports respects the accessibility
     statements when importing symbol information from external containers. '''

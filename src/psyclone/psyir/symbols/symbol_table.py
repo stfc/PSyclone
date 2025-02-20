@@ -1864,13 +1864,7 @@ class SymbolTable():
                 # symbols (in its precision, shape or initial value).
                 from psyclone.core import VariablesAccessInfo
                 vai = VariablesAccessInfo()
-                if isinstance(outer_sym, TypedSymbol):
-                    self._get_datatype_accesses(outer_sym, outer_sym.datatype,
-                                                vai)
-                if (hasattr(outer_sym, "initial_value") and
-                        outer_sym.initial_value):
-                    outer_sym.initial_value.reference_accesses(vai)
-
+                outer_sym.reference_accesses(vai)
                 for sig in vai.all_signatures:
                     # It does - if they're not already in scope then also add
                     # them to this table with the same interface as the
@@ -1990,49 +1984,6 @@ class SymbolTable():
         # Re-insert modified symbol
         self.add(symbol)
 
-    def _get_datatype_accesses(self, sym, dtype, access_info):
-        '''
-        Collect information on any symbols referenced within the supplied
-        datatype.
-
-        :param dtype: the datatype to query.
-        :type dtype: :py:class:`psyclone.psyir.symbols.DataType`
-        :param access_info: the VariablesAccessInfo instance in which to store
-                            information.
-        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
-
-        '''
-        from psyclone.core import AccessType, Signature
-        if (hasattr(dtype, "precision") and isinstance(dtype.precision,
-                                                       Symbol)):
-            # The use of a Symbol to specify precision does not constitute
-            # a read (since it is resolved at compile time).
-            access_info.add_access(
-                Signature(dtype.precision.name),
-                AccessType.TYPE_INFO, sym)
-
-        if isinstance(dtype, DataTypeSymbol):
-            # The use of a DataTypeSymbol in a declaration is a compile-
-            # time access.
-            access_info.add_access(Signature(dtype.name),
-                                   AccessType.TYPE_INFO, sym)
-        elif isinstance(dtype, StructureType):
-            for cmpt in dtype.components.values():
-                # Recurse for members of a StructureType
-                self._get_datatype_accesses(sym, cmpt.datatype, access_info)
-                if cmpt.initial_value:
-                    cmpt.initial_value.reference_accesses(access_info)
-        elif isinstance(dtype, ArrayType):
-            for dim in dtype.shape:
-                if isinstance(dim, ArrayType.ArrayBounds):
-                    dim.lower.reference_accesses(access_info)
-                    dim.upper.reference_accesses(access_info)
-        elif (isinstance(dtype, UnsupportedFortranType) and
-              dtype.partial_datatype):
-            # Recurse to examine partial datatype information.
-            self._get_datatype_accesses(sym, dtype.partial_datatype,
-                                        access_info)
-
     def reference_accesses(self, access_info):
         '''
         Get all variable access information *within* this table. This ensures
@@ -2044,25 +1995,8 @@ class SymbolTable():
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core import AccessType, Signature
-
-        # Examine the datatypes and initial values of all DataSymbols.
-        for sym in self.datasymbols:
-            self._get_datatype_accesses(sym, sym.datatype, access_info)
-
-            if sym.initial_value:
-                sym.initial_value.reference_accesses(access_info)
-
-        # Examine the definition of each DataTypeSymbol.
-        for sym in self.datatypesymbols:
-            self._get_datatype_accesses(sym, sym.datatype, access_info)
-
-        # Examine any (routine) interface definitions
-        for isym in self.interface_symbols:
-            for rt_info in isym.routines:
-                access_info.add_access(Signature(rt_info.symbol.name),
-                                       AccessType.TYPE_INFO, isym)
+        for sym in self.symbols:
+            sym.reference_accesses(access_info)
 
     @property
     def interface_symbols(self) -> List[GenericInterfaceSymbol]:

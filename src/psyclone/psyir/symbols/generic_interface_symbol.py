@@ -228,6 +228,22 @@ class GenericInterfaceSymbol(RoutineSymbol):
             new_routines.append((new_rt, routine.from_container))
         self.routines = new_routines
 
+    def reference_accesses(self, access_info):
+        '''
+        Update the supplied VariablesAccessInfo with information on the symbols
+        referenced by the definition of this Symbol.
+
+        :param access_info: the object in which to accumulate access
+                            information.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        '''
+        super().reference_accesses(access_info)
+
+        from psyclone.core import AccessType, Signature
+        for rt_info in self.routines:
+            access_info.add_access(Signature(rt_info.symbol.name),
+                                   AccessType.TYPE_INFO, self)
+
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ["GenericInterfaceSymbol"]
