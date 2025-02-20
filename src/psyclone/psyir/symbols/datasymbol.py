@@ -370,6 +370,8 @@ class DataSymbol(TypedSymbol):
             if isinstance(dim, ArrayType.Extent):
                 continue
             for bnd in [dim.lower, dim.upper]:
+                if isinstance(bnd, ArrayType.Extent):
+                    continue
                 bnd.replace_symbols_using(table)
 
     def reference_accesses(self, access_info):
