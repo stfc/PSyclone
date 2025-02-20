@@ -34,14 +34,20 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
-'''This module tests the inlining transformation.
-'''
+'''This module tests the inlining transformation.'''
 
 import os
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine, Loop
+from psyclone.psyir.nodes import (
+    Call,
+    IntrinsicCall,
+    Loop,
+    Node,
+    Reference,
+    Routine,
+)
 from psyclone.psyir.symbols import (
     AutomaticInterface, DataSymbol, UnresolvedType)
 from psyclone.psyir.transformations import (
@@ -101,6 +107,50 @@ def test_apply_empty_routine(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
 
 
+def test_apply_argument_clash(fortran_reader, fortran_writer, tmpdir):
+    '''
+    Check that the formal arguments to the inlined routine are not included
+    when checking for clashes (since they will be replaced by the actual
+    arguments to the call).
+    '''
+
+    code_clash = """
+  subroutine sub(Istr)
+    integer :: Istr
+    real :: x
+    x = 2.0*x
+    call sub_sub(Istr)
+  end subroutine sub
+
+  subroutine sub_sub(Istr)
+    integer :: i
+    integer :: Istr
+    real :: b(10)
+
+    b(Istr:10) = 1.0
+  end subroutine sub_sub"""
+
+    psyir = fortran_reader.psyir_from_source(code_clash)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    expected = '''\
+subroutine sub(istr)
+  integer :: istr
+  real :: x
+  integer :: i
+  real, dimension(10) :: b
+
+  x = 2.0 * x
+  b(istr:) = 1.0
+
+end subroutine sub
+'''
+    output = fortran_writer(psyir)
+    assert expected in output
+    assert Compile(tmpdir).string_compiles(output)
+
+
 def test_apply_single_return(fortran_reader, fortran_writer, tmpdir):
     '''Check that a call to a routine containing only a return statement
     is removed. '''
@@ -152,6 +202,44 @@ def test_apply_return_then_cb(fortran_reader, fortran_writer, tmpdir):
     assert ("    i = 10\n\n"
             "  end subroutine run_it\n" in output)
     assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_provided_routine(fortran_reader, fortran_writer, tmpdir):
+    ''' Check that the apply() method works also for a provided routine. '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    integer :: i\n"
+        "    real :: a(10)\n"
+        "    do i=1,10\n"
+        "      a(i) = 1.0\n"
+        "      call sub(a(i))\n"
+        "    end do\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(x)\n"
+        "    real, intent(inout) :: x\n"
+        "    x = 2.0*x\n"
+        "  end subroutine sub\n"
+        "  subroutine sub2(x, y)\n"
+        "    real, intent(inout) :: x, y\n"
+        "    x = 2.0*x\n"
+        "  end subroutine sub2\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+
+    call = psyir.walk(Call)[0]
+
+    routine = psyir.walk(Routine)[1]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call, routine)
+
+    routine = psyir.walk(Routine)[2]
+    with pytest.raises(TransformationError) as einfo:
+        inline_trans.apply(call, routine)
+
+    assert "Routine's argument(s) don't match:" in str(einfo.value)
+    assert "Argument 'y' in subroutine 'sub2' not handled" in str(einfo.value)
 
 
 def test_apply_array_arg(fortran_reader, fortran_writer, tmpdir):
@@ -262,6 +350,7 @@ def test_apply_gocean_kern(fortran_reader, fortran_writer, monkeypatch):
     monkeypatch.setattr(Config.get(), '_include_paths', [str(src_dir)])
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(psyir.walk(Call)[0])
     if ("actual argument 'cu_fld' corresponding to an array formal "
@@ -319,6 +408,7 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(routine)
 
@@ -391,6 +481,7 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     calls = psyir.walk(Call)
     # First one should be fine.
     inline_trans.apply(calls[0])
@@ -453,6 +544,7 @@ def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(routine)
     output = fortran_writer(psyir)
@@ -490,6 +582,7 @@ def test_apply_struct_local_limits_caller(fortran_reader, fortran_writer,
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(routine)
     output = fortran_writer(psyir)
@@ -534,6 +627,7 @@ def test_apply_struct_local_limits_caller_decln(fortran_reader, fortran_writer,
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(routine)
     output = fortran_writer(psyir)
@@ -587,6 +681,7 @@ def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(routine)
     output = fortran_writer(psyir)
@@ -641,6 +736,7 @@ end module test_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     acall = psyir.walk(Call, stop_type=Call)[0]
     inline_trans.apply(acall)
     output = fortran_writer(psyir)
@@ -687,6 +783,7 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer):
         )
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         if not isinstance(routine, IntrinsicCall):
             inline_trans.apply(routine)
@@ -747,6 +844,7 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     for call in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(call)
     output = fortran_writer(psyir)
@@ -797,6 +895,7 @@ def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     inline_trans.apply(loops[0].loop_body.children[1])
     inline_trans.apply(loops[1].loop_body.children[1])
     inline_trans.apply(loops[2].loop_body.children[1])
@@ -852,6 +951,7 @@ def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     for call in psyir.walk(Call):
         if not isinstance(call, IntrinsicCall):
             if call.arguments[0].debug_string() == "grid%local%data":
@@ -924,6 +1024,7 @@ def test_apply_struct_array(fortran_reader, fortran_writer, tmpdir,
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     if "use some_mod" in type_decln:
         with pytest.raises(TransformationError) as err:
             inline_trans.apply(psyir.walk(Call)[0])
@@ -969,6 +1070,7 @@ def test_apply_repeated_module_use(fortran_reader, fortran_writer):
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     for call in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(call)
     output = fortran_writer(psyir)
@@ -1616,11 +1718,14 @@ def test_validate_calls_find_routine(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert ("Cannot inline routine 'sub' because its source cannot be found: "
-            "Failed to find the source code of the unresolved routine 'sub' - "
-            "looked at any routines in the same source file and attempted to "
-            "resolve the wildcard imports from ['some_mod']. However, failed "
-            "to find the source for ['some_mod']" in str(err.value))
+    assert (
+        "Cannot inline routine 'sub' because its source cannot be found:\n"
+        "Failed to find the source code of the unresolved routine 'sub' - "
+        "looked at any routines in the same source file and attempted to "
+        "resolve the wildcard imports from ['some_mod']. However, failed "
+        "to find the source for ['some_mod']"
+        in str(err.value)
+    )
 
 
 def test_validate_return_stmt(fortran_reader):
@@ -1673,9 +1778,13 @@ def test_validate_codeblock(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert ("Routine 'sub' contains one or more CodeBlocks and therefore "
-            "cannot be inlined. (If you are confident " in str(err.value))
-    inline_trans.validate(call, options={"force": True})
+    assert (
+        "Routine 'sub' contains one or more CodeBlocks and therefore "
+        "cannot be inlined. (If you are confident "
+        in str(err.value)
+    )
+    inline_trans.set_option(check_inline_codeblocks=False)
+    inline_trans.validate(call)
 
 
 def test_validate_unsupportedtype_argument(fortran_reader):
@@ -1703,9 +1812,19 @@ def test_validate_unsupportedtype_argument(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(routine)
-    assert ("Routine 'sub' cannot be inlined because it contains a Symbol 'x' "
-            "which is an Argument of UnsupportedType: 'REAL, POINTER, "
-            "INTENT(INOUT) :: x'" in str(err.value))
+
+    assert (
+        "Transformation Error: Cannot inline routine 'sub'"
+        " because its source cannot be found:"
+        in str(err.value)
+    )
+    assert (
+        "Argument partial type mismatch of call argument"
+        " 'Reference[name:'ptr']' and routine argument 'x:"
+        " DataSymbol<UnsupportedFortranType('REAL, POINTER, INTENT(INOUT) ::"
+        " x'), Argument(Access.UNKNOWN)>'"
+        in str(err.value)
+    )
 
 
 def test_validate_unknowninterface(fortran_reader, fortran_writer, tmpdir):
@@ -1731,9 +1850,11 @@ def test_validate_unknowninterface(fortran_reader, fortran_writer, tmpdir):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(routine)
-    assert (" Routine 'sub' cannot be inlined because it contains a Symbol "
-            "'x' with an UnknownInterface: 'REAL, POINTER :: x'"
-            in str(err.value))
+    assert (
+        " Routine 'sub' cannot be inlined because it contains a Symbol "
+        "'x' with an UnknownInterface: 'REAL, POINTER :: x'"
+        in str(err.value)
+    )
 
     # But if the interface is known, it has no problem inlining it
     xvar = psyir.walk(Routine)[1].symbol_table.lookup("x")
@@ -1774,8 +1895,11 @@ def test_validate_static_var(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(routine)
-    assert ("Routine 'sub' cannot be inlined because it has a static (Fortran "
-            "SAVE) interface for Symbol 'state'." in str(err.value))
+    assert (
+        "Routine 'sub' cannot be inlined because it has a static (Fortran "
+        "SAVE) interface for Symbol 'state'."
+        in str(err.value)
+    )
 
 
 @pytest.mark.parametrize("code_body", ["idx = idx + 5_i_def",
@@ -1808,9 +1932,12 @@ def test_validate_unresolved_precision_sym(fortran_reader, code_body):
         var_name = "wp"
     else:
         var_name = "i_def"
-    assert (f"Routine 'sub' cannot be inlined because it accesses variable "
-            f"'{var_name}' and this cannot be found in any of the containers "
-            f"directly imported into its symbol table" in str(err.value))
+    assert (
+        "Routine 'sub' cannot be inlined because it accesses variable "
+        f"'{var_name}' and this cannot be found in any of the containers "
+        "directly imported into its symbol table"
+        in str(err.value)
+    )
 
 
 def test_validate_resolved_precision_sym(fortran_reader, monkeypatch,
@@ -1937,9 +2064,18 @@ def test_validate_wrong_number_args(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert ("Cannot inline 'call sub(i, trouble)' because the number of "
-            "arguments supplied to the call (2) does not match the number of "
-            "arguments the routine is declared to have (1)" in str(err.value))
+
+    assert (
+        "Transformation Error: Cannot inline routine 'sub'"
+        " because its source cannot be found:\n"
+        "CallMatchingArgumentsNotFound: Found routines,"
+        " but no routine with matching arguments found"
+        " for 'call sub(i, trouble)':\n"
+        "CallMatchingArgumentsNotFound: More arguments"
+        " in call ('call sub(i, trouble)') than callee"
+        " (routine 'sub')"
+        in str(err.value)
+    )
 
 
 def test_validate_unresolved_import(fortran_reader):
@@ -2023,6 +2159,7 @@ def test_validate_array_reshape(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("Cannot inline routine 's' because it reshapes an argument: actual"
@@ -2055,6 +2192,7 @@ def test_validate_array_arg_expression(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("The call 'call s(a + b, 10)\n' cannot be inlined because actual "
@@ -2081,6 +2219,7 @@ def test_validate_indirect_range(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because argument 'var(indices(:))' "
@@ -2105,6 +2244,7 @@ def test_validate_non_unit_stride_slice(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
+    inline_trans.set_option(check_argument_matching=False)
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because one of its arguments is an "
@@ -2112,12 +2252,30 @@ def test_validate_non_unit_stride_slice(fortran_reader):
             str(err.value))
 
 
-def test_validate_named_arg(fortran_reader):
-    '''Test that the validate method rejects an attempt to inline a routine
-    that has a named argument.'''
-    # In reality, the routine with a named argument would almost certainly
-    # use the 'present' intrinsic but, since that gives a CodeBlock that itself
-    # prevents inlining, our test example omits it.
+def test_set_options(fortran_reader):
+    '''Test that simply sets all options for sake of the coverage test.'''
+
+    inline_trans = InlineTrans()
+    inline_trans.set_option(
+        ignore_missing_modules=False,
+        check_argument_strict_array_datatype=False,
+        check_argument_matching=False,
+
+        check_inline_codeblocks=False,
+        check_diff_container_clashes=False,
+        check_diff_container_clashes_unres_types=False,
+        check_resolve_imports=False,
+        check_static_interface=False,
+        check_array_type=False,
+        check_unsupported_type=False,
+        check_unresolved_symbols=False,
+    )
+
+
+def test_apply_named_arg(fortran_reader):
+    '''Test that the validate method inlines a routine that has a named
+    argument.'''
+
     code = (
         "module test_mod\n"
         "contains\n"
@@ -2127,10 +2285,7 @@ def test_validate_named_arg(fortran_reader):
         "end subroutine main\n"
         "subroutine sub(x, opt)\n"
         "  real, intent(inout) :: x\n"
-        "  real, optional :: opt\n"
-        "  !if( present(opt) )then\n"
-        "  !  x = x + opt\n"
-        "  !end if\n"
+        "  real :: opt\n"
         "  x = x + 1.0\n"
         "end subroutine sub\n"
         "end module test_mod\n"
@@ -2138,10 +2293,194 @@ def test_validate_named_arg(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
-    assert ("Routine 'sub' cannot be inlined because it has a named argument "
-            "'opt' (TODO #924)" in str(err.value))
+
+    inline_trans.apply(call)
+
+
+def test_apply_optional_arg(fortran_reader):
+    '''Test that the validate method inlines a routine
+    that has an optional argument.'''
+
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real :: var = 0.0\n"
+        "  call sub(var)\n"
+        "end subroutine main\n"
+        "subroutine sub(x, opt)\n"
+        "  real, intent(inout) :: x\n"
+        "  real, optional :: opt\n"
+        "  if( present(opt) )then\n"
+        "    x = x + opt\n"
+        "  end if\n"
+        "  x = x + 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+
+
+def test_apply_optional_arg_with_special_cases(fortran_reader):
+    '''Test that the validate method inlines a routine
+    that has an optional argument.
+    This example has an additional if-branching condition
+    `1.0==1.0` which is not directly of type `Literal`
+    '''
+
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real :: var = 0.0\n"
+        "  call sub(var)\n"
+        "end subroutine main\n"
+        "subroutine sub(x, opt)\n"
+        "  real, intent(inout) :: x\n"
+        "  real, optional :: opt\n"
+        "  if( present(opt) )then\n"
+        "    x = x + opt\n"
+        "  end if\n"
+        "  if( 1.0 == 1.0 )then\n"
+        "    x = x\n"
+        "  end if\n"
+        "  x = x + 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+
+
+def test_apply_optional_arg_error(fortran_reader):
+    '''Test that the validate method can't inline a routine
+    where the optional argument is still used.
+    '''
+
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real :: var = 0.0\n"
+        "  call sub(var)\n"
+        "end subroutine main\n"
+        "subroutine sub(x, opt)\n"
+        "  real, intent(inout) :: x\n"
+        "  real, optional :: opt\n"
+        "  if( present(opt) )then\n"
+        "    x = x + opt\n"
+        "  end if\n"
+        "  x = x + opt\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as einfo:
+        inline_trans.apply(call)
+
+    assert ("Subroutine argument 'opt' is not provided by call,"
+            " but used in the subroutine." in str(einfo.value))
+
+
+def test_apply_unsupported_pointer_error(fortran_reader):
+    '''Test that the validate method can't inline a routine
+    where a pointer argument is used.
+    This covers a special code
+    `if ", OPTIONAL" not in sym.datatype.declaration:`
+    which doesn't work that reliably and should be replaced
+    with something more robust.
+    '''
+
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real :: var = 0.0\n"
+        "  call sub(var)\n"
+        "end subroutine main\n"
+        "subroutine sub(x)\n"
+        "  real, intent(inout), pointer :: x\n"
+        "  x = 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as einfo:
+        inline_trans.apply(call)
+
+    assert ("Routine 'sub' cannot be inlined because it contains a Symbol 'x'"
+            " which is an Argument of UnsupportedType:"
+            " 'REAL, INTENT(INOUT), POINTER :: x'." in str(einfo.value))
+
+
+def test_apply_optional_and_named_arg_2(fortran_reader):
+    '''Test that the validate method inlines a routine
+    that has an optional argument.'''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real :: var = 0.0\n"
+        "  call sub(var, 1.0)\n"
+        "  ! Result:\n"
+        "  ! var = var + 2.0 + 1.0\n"
+        "  ! var = var + 4.0 + 1.0\n"
+        "  ! var = var + 5.0 + 1.0\n"
+        "  call sub(var)\n"
+        "  ! Result:\n"
+        "  ! var = var + 3.0\n"
+        "  ! var = var + 6.0\n"
+        "  ! var = var + 7.0\n"
+        "end subroutine main\n"
+        "subroutine sub(x, opt)\n"
+        "  real, intent(inout) :: x\n"
+        "  real, optional :: opt\n"
+        "  if( present(opt) )then\n"
+        "    x = x + 2.0 + opt\n"
+        "  else\n"
+        "    x = x + 3.0\n"
+        "  end if\n"
+        "  if( present(opt) )then\n"
+        "    x = x + 4.0 + opt\n"
+        "    x = x + 5.0 + opt\n"
+        "  else\n"
+        "    x = x + 6.0\n"
+        "    x = x + 7.0\n"
+        "  end if\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir: Node = fortran_reader.psyir_from_source(code)
+
+    inline_trans = InlineTrans()
+
+    routine_main: Routine = psyir.walk(Routine)[0]
+    assert routine_main.name == "main"
+    for call in psyir.walk(Call, stop_type=Call):
+        call: Call
+        if call.routine.name != "sub":
+            continue
+
+        inline_trans.apply(call)
+
+    assert (
+        '''var = var + 2.0 + 1.0
+  var = var + 4.0 + 1.0
+  var = var + 5.0 + 1.0
+  var = var + 3.0
+  var = var + 6.0
+  var = var + 7.0'''
+        in routine_main.debug_string()
+    )
 
 
 CALL_IN_SUB_USE = (
@@ -2194,47 +2533,3 @@ def test_apply_merges_symbol_table_with_routine(fortran_reader):
     inline_trans.apply(routine)
     # The i_1 symbol is the renamed i from the inlined call.
     assert psyir.walk(Routine)[0].symbol_table.get_symbols()['i_1'] is not None
-
-
-def test_apply_argument_clash(fortran_reader, fortran_writer, tmpdir):
-    '''
-    Check that the formal arguments to the inlined routine are not included
-    when checking for clashes (since they will be replaced by the actual
-    arguments to the call).
-    '''
-
-    code_clash = """
-  subroutine sub(Istr)
-    integer :: Istr
-    real :: x
-    x = 2.0*x
-    call sub_sub(Istr)
-  end subroutine sub
-
-  subroutine sub_sub(Istr)
-    integer :: i
-    integer :: Istr
-    real :: b(10)
-
-    b(Istr:10) = 1.0
-  end subroutine sub_sub"""
-
-    psyir = fortran_reader.psyir_from_source(code_clash)
-    call = psyir.walk(Call)[0]
-    inline_trans = InlineTrans()
-    inline_trans.apply(call)
-    expected = '''\
-subroutine sub(istr)
-  integer :: istr
-  real :: x
-  integer :: i
-  real, dimension(10) :: b
-
-  x = 2.0 * x
-  b(istr:) = 1.0
-
-end subroutine sub
-'''
-    output = fortran_writer(psyir)
-    assert expected in output
-    assert Compile(tmpdir).string_compiles(output)
