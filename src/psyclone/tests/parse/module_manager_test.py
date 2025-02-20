@@ -198,7 +198,8 @@ def test_mod_manager_get_module_info():
     mod_info = mod_man.get_module_info("b_mod")
     assert mod_info.filename == "d1/d3/b_mod.F90"
     assert list(mod_man._remaining_search_paths) == ["d2", "d2/d4"]
-    assert set(mod_man._modules.keys()) == set(["a_mod", "b_mod"])
+    assert set(mod_man._modules.keys()) == \
+        set(["a_mod", "b_mod"])
 
     # Then locate the e_mod, which should remove two paths from
     # the search path:
@@ -212,8 +213,8 @@ def test_mod_manager_get_module_info():
                                                       "d2/d4/e_mod.F90",
                                                       "d2/g_mod.F90",
                                                       "d2/error_mod.F90"])
-    assert set(mod_man._modules.keys()) == set(["a_mod", "b_mod",
-                                                "e_mod"])
+    assert set(mod_man._modules.keys()) == \
+        set(["a_mod", "b_mod", "e_mod"])
 
     with pytest.raises(FileNotFoundError) as err:
         mod_man.get_module_info("does_not_exist")
@@ -343,3 +344,253 @@ def test_mod_manager_add_ignore_modules():
     # Just in case verify that other modules are not affected
     mod_info = mod_man.get_module_info("b_mod")
     assert mod_info.filename == "d1/d3/b_mod.F90"
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_mod_manager_add_files_and_more():
+    '''Fixture will create the following files
+
+    d1/a_mod.f90
+    d1/d3/b_mod.F90
+    d1/d3/c_mod.x90
+    d2/d_mod.X90
+    d2/d4/e_mod.F90
+
+    We will check through some further ModuleManager functions.
+    '''
+    mod_man = ModuleManager.get()
+
+    #
+    # Test add_files(...)
+    #
+    mod_man.add_files("d1/a_mod.f90")
+
+    # Add same file again, will be silently ignored
+    mod_man.add_files("d1/a_mod.f90")
+
+    #
+    # Test various other functions
+    #
+    mod_man.load_all_source_codes()
+    mod_man.load_all_fparser_trees()
+    mod_man.load_all_psyir_nodes()
+    mod_man.get_all_file_infos()
+    mod_man.load_all_module_infos(verbose=True)
+    mod_man.get_all_module_infos()
+
+    # Should raise an error that the first module to be processed
+    # was already processed
+    with pytest.raises(KeyError) as einfo:
+        mod_man.load_all_module_infos(verbose=True)
+
+    assert "Module 'a_mod' already processed" in str(einfo.value)
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_mod_manager_load_all_module_infos_trigger_error_module_read_twice():
+    '''
+    Make particular check for load_all_module_infos():
+    - Reading in the same module twice is triggering an error.
+    '''
+    mod_man = ModuleManager.get()
+
+    #
+    # Test add_files(...)
+    #
+    mod_man.add_files("d1/a_mod.f90")
+
+    mod_man.load_all_module_infos(verbose=True)
+
+    # Should raise an error that the first module to be processed
+    # was already processed
+    with pytest.raises(KeyError) as einfo:
+        mod_man.load_all_module_infos(verbose=True)
+
+    assert "Module 'a_mod' already processed" in str(einfo.value)
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
+def test_mod_manager_load_all_module_infos_trigger_error_file_read_twice():
+    '''
+    Make particular check for load_all_module_infos():
+    - Reading in the same file twice is triggering an error.
+    '''
+    mod_man = ModuleManager.get()
+
+    with open("t_mod.f90", "w", encoding="utf-8") as f_out:
+        f_out.write("\n")   # Just an empty file
+
+    mod_man.add_files("t_mod.f90")
+    mod_man.load_all_module_infos(verbose=True)
+
+    # Should raise an error that the file was already processed
+    with pytest.raises(KeyError) as einfo:
+        mod_man.load_all_module_infos(verbose=True)
+
+    assert "File 't_mod.f90' already processed" in str(einfo.value)
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
+def test_mod_manager_get_all_rec_used_mod_infos():
+    '''
+    Make particular check for get_all_recursively_used_module_infos():
+    - Reading in the same file twice is triggering an error.
+    '''
+    mod_man = ModuleManager.get()
+
+    with open("a.f90", "w", encoding="utf-8") as f_out:
+        f_out.write("module a\nend")   # Just an empty file
+
+    with open("b_a.f90", "w", encoding="utf-8") as f_out:
+        f_out.write("module b\nuse a\nend")   # Just an empty file
+
+    with open("c_a.f90", "w", encoding="utf-8") as f_out:
+        f_out.write("module c\nuse a\nend")   # Just an empty file
+
+    with open("d_b.f90", "w", encoding="utf-8") as f_out:
+        f_out.write("module d\nuse b\nend")   # Just an empty file
+
+    mod_man.add_files("a.f90")
+    mod_man.add_files("b_a.f90")
+    mod_man.add_files("c_a.f90")
+    mod_man.add_files("d_b.f90")
+    mod_man.load_all_module_infos(verbose=True)
+
+    for mod_info in mod_man.get_all_module_infos():
+        print(mod_info.name)
+
+    mod_man.get_all_recursively_used_module_infos("d", verbose=True)
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
+def test_mod_manager_get_all_rec_used_mod_infos_missing_a(capsys):
+    '''
+    Make particular check for get_all_recursively_used_module_infos():
+    - Create files for modules 'c' and 'b'
+    - Dependency of modules is c -> b -> a
+    - This will follow some paths in the control flow
+    - It will not complain about a missing 'a'
+    '''
+    mod_man = ModuleManager.get()
+
+    with open("b_a.f90", "w", encoding="utf-8") as f_out:
+        f_out.write("module b\nuse a\nuse z\nend")   # Just an empty file
+
+    with open("c_b.f90", "w", encoding="utf-8") as f_out:
+        f_out.write("module c\nuse z\nuse b\nend")   # Just an empty file
+
+    with open("z.f90", "w", encoding="utf-8") as f_out:
+        f_out.write("module z\nend")   # Just an empty file
+
+    mod_man.add_files("b_a.f90")
+    mod_man.add_files("c_b.f90")
+    mod_man.add_files("z.f90")
+    mod_man.load_all_module_infos(verbose=True)
+
+    # These are soft errors that don't raise Exceptions
+
+    mod_man.get_all_recursively_used_module_infos("c", verbose=True)
+
+    out, _ = capsys.readouterr()
+    assert "Module 'a' not found" in out
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
+def test_mod_manager_get_all_rec_used_mod_infos_missing_a_ver2(capsys):
+    '''
+    Make particular check for get_all_recursively_used_module_infos():
+    - Create files for modules 'c' and 'b'
+    - Dependency of modules is c -> b -> a
+    - This will follow some particular paths in the control flow
+    '''
+    mod_man = ModuleManager.get()
+
+    with open("b_a.f90", "w", encoding="utf-8") as f_out:
+        f_out.write("module b\nuse a\nuse z\nend")   # Just an empty file
+
+    with open("c_b.f90", "w", encoding="utf-8") as f_out:
+        f_out.write("module c\nuse b\nuse z\nend")   # Just an empty file
+
+    with open("z.f90", "w", encoding="utf-8") as f_out:
+        f_out.write("module z\nend")   # Just an empty file
+
+    mod_man.add_files("b_a.f90")
+    mod_man.add_files("c_b.f90")
+    mod_man.add_files("z.f90")
+    mod_man.load_all_module_infos(verbose=True)
+
+    # These are soft errors that don't raise Exceptions
+
+    mod_man.get_all_recursively_used_module_infos("c", verbose=True)
+
+    out, _ = capsys.readouterr()
+    assert "Module 'a' not found" in out
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
+def test_mod_manager_get_all_rec_used_mod_infos_missing_b(capsys):
+    '''
+    Make particular check for get_all_recursively_used_module_infos():
+    - Create files for modules 'c'
+    - Dependency of modules is c -> b
+    - This will follow some paths in the control flow
+    - It will not complain about a missing 'b'
+    '''
+    mod_man = ModuleManager.get()
+
+    with open("c_b.f90", "w", encoding="utf-8") as f_out:
+        f_out.write("module c\nuse b\nend")   # Just an empty file
+
+    mod_man.add_files("c_b.f90")
+    mod_man.load_all_module_infos(verbose=True)
+
+    # These are soft errors that don't raise Exceptions
+    mod_man.get_all_recursively_used_module_infos("c", verbose=True)
+
+    out, _ = capsys.readouterr()
+    assert "Module 'b' not found" in out
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
+def test_mod_manager_get_all_rec_used_mod_infos_missing_first_module(capsys):
+    '''
+    Make particular check for get_all_recursively_used_module_infos():
+    - Create no files for modules
+    - This will trigger one particular execution path for coverage tests
+    '''
+    mod_man = ModuleManager.get()
+
+    # These are soft errors that don't raise Exceptions
+    mod_man.get_all_recursively_used_module_infos("c", verbose=True)
+
+    out, _ = capsys.readouterr()
+    assert "Module 'c' not found" in out
+
+
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
+def test_mod_manager_get_all_rec_used_mod_infos_ignore_module(capsys):
+    '''
+    Make particular check for get_all_recursively_used_module_infos():
+    - This will trigger one particular execution path if
+      `add_ignore_module` is used
+    '''
+    mod_man = ModuleManager.get()
+
+    with open("b.f90", "w", encoding="utf-8") as f_out:
+        f_out.write("module b\nend")   # Just an empty file
+
+    with open("c_b.f90", "w", encoding="utf-8") as f_out:
+        f_out.write("module c\nuse b\nend")   # Just an empty file
+
+    mod_man.add_files("b.f90")
+    mod_man.add_files("c_b.f90")
+    mod_man.add_ignore_module("b")
+    mod_man.load_all_module_infos()
+
+    # These are soft errors that don't raise Exceptions
+    mod_man.get_all_recursively_used_module_infos("c", verbose=True)
+
+    out, _ = capsys.readouterr()
+    assert "Module 'c' found" in out

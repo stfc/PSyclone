@@ -42,10 +42,12 @@ import copy
 from difflib import SequenceMatcher
 import os
 import re
+from typing import List, Iterable, Union
 
 from psyclone.errors import InternalError
 from psyclone.parse.file_info import FileInfo
 from psyclone.parse.module_info import ModuleInfo, ModuleInfoError
+from psyclone.psyir.nodes import Container, Node, Routine
 
 
 class ModuleManager:
@@ -63,9 +65,8 @@ class ModuleManager:
     # of the file.
     _threshold_similarity = 0.7
 
-    # ------------------------------------------------------------------------
     @staticmethod
-    def get(use_caching: bool = None):
+    def get(cache_active: bool = None, cache_path: str = None):
         '''Static function that if necessary creates and returns the singleton
         ModuleManager instance.
 
@@ -76,26 +77,47 @@ class ModuleManager:
             can happen, but this shouldn't lead to wrong results. However,
             that's untested so far.
 
+        :param cache_path: If set, the cache file will be stored in the given
+            path (directory) using a hashsum of the source code to create
+            a unique cache file name. If `None`, a cache file will be created
+            in the same directory as the source file with a new
+            file ending `.psycache`.
+
         '''
         if not ModuleManager._instance:
-            ModuleManager._instance = ModuleManager(use_caching)
+            ModuleManager._instance = ModuleManager(cache_active, cache_path)
 
         return ModuleManager._instance
 
     # ------------------------------------------------------------------------
     def __init__(
-                self,
-                use_caching: bool = None
-            ):
+            self,
+            cache_active: bool = None,
+            cache_path: str = None
+        ):
+        """
+        Set up the module manager. Module manager is actually a singleton
+        and should not be created directly. Use `ModuleManager.get()`
+        instead.
+
+        :param cache_active: Whether to use (`True`) or
+            disable (`False`) caching
+        :param cache_path: Path to the cache directory. If `None`, the
+            cache file will be created in the same directory as the source
+            file with a new file ending `.psycache`.
+        """
 
         if ModuleManager._instance is not None:
             raise InternalError("You need to use 'ModuleManager.get()' "
                                 "to get the singleton instance.")
 
         # Disable caching by default
-        self._use_caching = use_caching if use_caching is not None else False
+        self._cache_active = (
+            cache_active if cache_active is not None else False)
 
-        self._modules = {}
+        # Path to cache
+        self._cache_path: str = cache_path
+
         self._visited_files = {}
 
         # The list of all search paths which have not yet all their files
@@ -103,6 +125,18 @@ class ModuleManager:
         # duplicating entries.
         self._remaining_search_paths = OrderedDict()
         self._original_search_paths = []
+
+        # Ordered dictionary to lookup file info from file path
+        self._filepath_to_file_info: OrderedDict[str, FileInfo] = OrderedDict()
+
+        # Ordered dictionary to lookup ModuleInfo from a file path
+        # Note that there can be multiple modules per file
+        self._filepath_to_module_info: OrderedDict[str, List[ModuleInfo]] = \
+            OrderedDict()
+
+        # Dictionary of ModuleInfo objects, indexed by module name
+        self._modules: OrderedDict[str, ModuleInfo] = \
+            OrderedDict()
 
         self._ignore_modules = set()
 
@@ -166,7 +200,11 @@ class ModuleManager:
                 if full_path in self._visited_files:
                     continue
                 self._visited_files[full_path] = \
-                    FileInfo(full_path, use_caching=self._use_caching)
+                    FileInfo(
+                            full_path,
+                            cache_active=self._cache_active,
+                            cache_path=self._cache_path
+                        )
                 new_files.append(self._visited_files[full_path])
         return new_files
 
@@ -222,21 +260,150 @@ class ModuleManager:
         '''
         return self._ignore_modules
 
-    # ------------------------------------------------------------------------
-    def get_module_info(self, module_name):
-        '''This function returns the ModuleInformation for the specified
+    def add_files(self, filepaths: Union[str, Iterable[str]]) -> None:
+        """Utility to add multiple files to the ModuleManager.
+        Any file already found to be present in the ModuleManager is skipped.
+
+        :param filepaths: Filename or list of filenames
+        """
+
+        if isinstance(filepaths, str):
+            filepaths = [filepaths]
+
+        for filepath in filepaths:
+            if filepath in self._filepath_to_file_info:
+                # Already loaded => skip
+                continue
+
+            self._filepath_to_file_info[filepath] = FileInfo(
+                filepath,
+                cache_active=self._cache_active,
+                cache_path=self._cache_path,
+            )
+
+    def load_all_source_files(self, verbose: bool = False) -> None:
+        """Routine to load the source of all files previously added
+        to the module manager
+
+        :param verbose: If `True`, print verbose information
+        """
+
+        for fileinfo in self._filepath_to_file_info.values():
+            fileinfo: FileInfo
+            fileinfo.get_source_code(verbose=verbose)
+
+    def create_all_fparser_trees(self, verbose: bool = False) -> None:
+        """
+        Routine to load the fparser tree of all files added
+        to the module manager
+
+        :param verbose: If `True`, print verbose information
+        """
+
+        for fileinfo in self._filepath_to_file_info.values():
+            fileinfo: FileInfo
+            fileinfo.get_fparser_tree(verbose=verbose)
+
+    def create_all_psyir_nodes(self, verbose: bool = False) -> None:
+        """
+        Routine to load the psyir nodes of all files added
+        to the module manager
+
+        :param verbose: If `True`, print verbose information
+        """
+
+        for fileinfo in self._filepath_to_file_info.values():
+            fileinfo: FileInfo
+            fileinfo.get_psyir(verbose=verbose)
+
+    def load_all_module_infos(self, verbose: bool = False, indent: str = ""):
+        """Load the module info using psyir nodes for all FileInfo objects
+        in the ModuleManager.
+
+        :param verbose: If `True`, print verbose information
+        :param indent: Prefix used as indentation for each line of
+            verbose output.
+
+        :raises KeyError: If module was already processed
+        """
+
+        # iterate over all file infos and load psyir
+        for file_info in self._filepath_to_file_info.values():
+            file_info: FileInfo
+
+            if verbose:
+                print(
+                    f"{indent}- Loading module information for "
+                    f"file '{file_info._filename}"
+                )
+
+            psyir_node: Node = file_info.get_psyir(
+                verbose=verbose, indent=indent + "  "
+            )
+
+            # Collect all module infos in this list
+            module_info_in_file: List[ModuleInfo] = []
+
+            # Walk over containers and add respective module information
+            for container_node in psyir_node.walk(
+                Container, stop_type=Routine
+            ):
+                if type(container_node) is not Container:
+                    # Sort out types which are not exactly of
+                    # type 'Container', e.g., 'FileContainer'
+                    continue
+
+                container_node: Container
+
+                container_name: str = container_node.name.lower()
+
+                if container_name in self._modules.keys():
+                    raise KeyError(
+                        f"Module '{container_name}' already processed"
+                    )
+
+                module_info = ModuleInfo(
+                    container_name, file_info, container_node
+                )
+                module_info_in_file.append(module_info)
+
+                self._modules[container_name] = module_info
+
+            filepath = file_info.filename
+            if filepath in self._filepath_to_module_info.keys():
+                raise KeyError(f"File '{filepath}' already processed")
+
+            self._filepath_to_module_info[filepath] = module_info_in_file
+
+    def get_all_module_infos(self) -> List[ModuleInfo]:
+        """
+        Return a list of all module infos
+
+        :returns: list of all module infos.
+        """
+        return list(self._modules.values())
+
+    def get_all_file_infos(self) -> List[FileInfo]:
+        """
+        Return a list of all FileInfo objects
+
+        :returns: List of all FileInfo objects.
+        """
+        return list(self._filepath_to_file_info.values())
+
+    def get_module_info(self, module_name: str) -> ModuleInfo:
+        """This function returns the ModuleInfo for the specified
         module.
 
-        :param str module_name: name of the module.
+        :param module_name: Name of the module.
 
         :returns: object describing the requested module or None if the
                   manager has been configured to ignore this module.
-        :rtype: :py:class:`psyclone.parse.ModuleInfo` | None
 
         :raises FileNotFoundError: if the module_name is not found in
             either the cached data nor in the search path.
+        """
 
-        '''
         mod_lower = module_name.lower()
 
         if mod_lower in self._ignore_modules:
@@ -278,16 +445,14 @@ class ModuleManager:
                                 f"command line option.")
 
     # ------------------------------------------------------------------------
-    def get_modules_in_file(self, finfo: FileInfo):
+    def get_modules_in_file(self, finfo: FileInfo) -> List[str]:
         '''
         Uses a regex search to find all modules defined in the file with the
         supplied name.
 
         :param finfo: object holding information on the file to examine.
-        :type finfo: :py:class:`psyclone.parse.FileInfo`
 
         :returns: the names of any modules present in the supplied file.
-        :rtype: list[str]
 
         '''
         # TODO #2597: perhaps use the fparser FortranReader here as this regex
@@ -300,7 +465,108 @@ class ModuleManager:
 
         return [name.lower() for name in mod_names]
 
-    # ------------------------------------------------------------------------
+    def get_all_recursively_used_module_infos_for_module_info_name(
+        self,
+        module_info_name: str,
+        verbose: bool = False,
+        indent: str = "",
+    ) -> List[ModuleInfo]:
+        """This function collects all modules which are recursively used
+        by the specified module bane. It returns a list of module infos in the
+        order of dependencies, i.e. a module which is used by another module
+        is listed before the module which uses it.
+
+        The differences to `get_all_dependencies_recursively` are as follows:
+        - A list of ModuleInfos is returned in the same order as the
+            dependencies are found.
+        - The input is a single module name, not a set of modules.
+        - It is for a specific module info name rather than for all modules.
+
+        :param module_info_name: the module info name for which to collect
+            all recursively used modules.
+        :param verbose: whether to print some information about
+            the modules being processed.
+        :param indent: Prefix used as indentation for each line of
+            verbose output.
+
+        :returns: a list of all modules used by the specified module in
+            order of dependencies.
+
+        """
+
+        # List of module infos which still need to be traversed.
+        # We start with the current module
+        todo_module_name_list: List[str] = [module_info_name]
+
+        # List of modules infos in order of uses.
+        # After a module info was processed from the TODO list,
+        # it's added to the list of modules returned to the caller.
+        ret_module_info_list: List[ModuleInfo] = list()
+
+        while len(todo_module_name_list) > 0:
+            #
+            # Step 1) fetch element from the TODO list
+            #
+
+            # Get first element
+            todo_module_name = todo_module_name_list.pop(0)
+
+            try:
+                todo_module_info = self.get_module_info(
+                    todo_module_name
+                )
+                assert type(todo_module_info) is ModuleInfo
+            except (ModuleNotFoundError, FileNotFoundError):
+                if verbose:
+                    print(f"{indent}- Module '{todo_module_name}' not found")
+                continue
+
+            if verbose:
+                print(f"{indent}- Module '{todo_module_name}' found")
+
+            # Add to return list of modules
+            ret_module_info_list.append(todo_module_info)
+
+            #
+            # Step 2) Determine used modules and iterate over them
+            #
+
+            # Determine list of module names
+            used_module_name_list = todo_module_info.get_used_modules()
+
+            for used_module_name in used_module_name_list:
+                try:
+                    used_module_info: ModuleInfo = self.get_module_info(
+                        used_module_name
+                    )
+
+                    # Could be also in ignore list which then just
+                    # returns 'None'
+                    if used_module_info is None:
+                        continue
+
+                except (ModuleNotFoundError, FileNotFoundError):
+                    if verbose:
+                        print(
+                            f"{indent}- Module '{used_module_name}' not found"
+                        )
+                    continue
+
+                # If module is already in the todo list,
+                # do nothing since it will be processed
+                if used_module_info.name in todo_module_name_list:
+                    continue
+
+                # If module is already in the output list,
+                # do nothing since it has been already processed
+                if used_module_info in ret_module_info_list:
+                    continue
+
+                # It's not yet on any list, hence, add it to the todo list
+                todo_module_name_list.append(used_module_info.name)
+
+        return ret_module_info_list
+
     def get_all_dependencies_recursively(self, all_mods):
         '''This function collects recursively all module dependencies
         for any of the modules in the ``all_mods`` set. I.e. it will
@@ -314,7 +580,7 @@ class ModuleManager:
 
         If a module cannot be found (e.g. its path was not given to the
         ModuleManager, or it might be a system module for which the sources
-        are not available, a message will be printed, and this module will
+        are not available), a message will be printed, and this module will
         be ignored (i.e. not listed in any dependencies).
         # TODO 2120: allow a choice to abort or ignore.
 
