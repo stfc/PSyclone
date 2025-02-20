@@ -91,21 +91,21 @@ class ModuleManager:
 
     # ------------------------------------------------------------------------
     def __init__(
-                self,
-                cache_active: bool = None,
-                cache_path: str = None
-            ):
-            """
-            Set up the module manager. Module manager is actually a singleton
-            and should not be created directly. Use `ModuleManager.get()`
-            instead.
+            self,
+            cache_active: bool = None,
+            cache_path: str = None
+        ):
+        """
+        Set up the module manager. Module manager is actually a singleton
+        and should not be created directly. Use `ModuleManager.get()`
+        instead.
 
-            :param cache_active: Whether to use (`True`) or
-                disable (`False`) caching
-            :param cache_path: Path to the cache directory. If `None`, the
-                cache file will be created in the same directory as the source
-                file with a new file ending `.psycache`.
-            """
+        :param cache_active: Whether to use (`True`) or
+            disable (`False`) caching
+        :param cache_path: Path to the cache directory. If `None`, the
+            cache file will be created in the same directory as the source
+            file with a new file ending `.psycache`.
+        """
 
         if ModuleManager._instance is not None:
             raise InternalError("You need to use 'ModuleManager.get()' "
