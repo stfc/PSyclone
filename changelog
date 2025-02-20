@@ -61,6 +61,18 @@
 	21) PR #2883 for #2875. Fix issues cannonicalising WHEREs with elemental
 	functions.
 
+	22) PR #2890 for #2399. PSyKE: adds support for partially-written
+	fields.`
+
+	23) PR #2901 for #2900. Fixes the LFRic integration tests and updates
+	the versions of LFRic core and apps used therein.
+
+	24) PR #2865 for #2864. Enable split finite-element order and
+	anisotropic quadrature points in the LFRic API.
+
+	25) PR #2859 for #2787. Fixes the NEMO integration tests and updates
+	the version of NVHPC used by them.
+
 release 3.0.0 6th of December 2024
 
 	1) PR #2477 for #2463. Add support for Fortran Namelist statements.

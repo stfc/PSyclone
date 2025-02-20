@@ -64,12 +64,12 @@ NOT_PERFORMANT = [
 ]
 
 # If routine names contain these substrings then we do not profile them
-PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm",
+PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
                     # These are small functions that the addition of profiling
                     # prevents from being in-lined (and then breaks any attempt
                     # to create OpenACC regions with calls to them)
                     "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
-                    "sum", "sign_", "ddpdd", "psyclone_cmp_int",
+                    "sum", "sign_", "ddpdd", "solfrac", "psyclone_cmp_int",
                     "psyclone_cmp_char", "psyclone_cmp_logical"]
 
 # Currently fparser has no way of distinguishing array accesses from
@@ -149,14 +149,16 @@ NEMO_FUNCTIONS = [
 # functions, the following subroutines contains known statement functions
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
-# These files change the results from baseline when psyclone processes them
-PASSTHROUGH_ISSUES = []
-
 # These files change the results from the baseline when psyclone adds
 # parallelisation dirctives
 PARALLELISATION_ISSUES = [
     "ldfc1d_c2d.f90",
     "tramle.f90",
+    "dynspg_ts.f90",
+]
+
+PRIVATISATION_ISSUES = [
+    "ldftra.f90",  # Wrong runtime results
 ]
 
 
