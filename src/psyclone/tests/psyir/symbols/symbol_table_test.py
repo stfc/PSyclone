@@ -43,11 +43,17 @@ import re
 import os
 from collections import OrderedDict
 import pytest
+
+from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
+
 from psyclone.configuration import Config
+from psyclone.core import SingleVariableAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     BinaryOperation, CodeBlock, Container, IntrinsicCall, KernelSchedule,
-    Literal, Reference, Assignment, Routine, Schedule)
+    Literal, Reference, Assignment, Return, Routine, Schedule)
 from psyclone.psyir import symbols
 
 
@@ -642,7 +648,7 @@ def test_remove_case_insensitive(sym_name):
     assert "var1" not in sym_table
 
 
-def test_replace_symbol_refs():
+def test_replace_symbol_refs(parser, monkeypatch):
     '''
     Tests for the _replace_symbol_refs() method.
     '''
@@ -678,9 +684,33 @@ def test_replace_symbol_refs():
     assert (var.initial_value.walk(IntrinsicCall)[0].arguments[0].symbol is
             goldie)
     # Scalar with an initial value given by a CodeBlock.
-    cblock = CodeBlock()
+    reader = FortranStringReader('''
+    subroutine mytest
+      a = 4.0*oldie
+    end subroutine mytest''')
+    prog = parser(reader)
+    assign = walk(prog, Fortran2003.Assignment_Stmt)[0]
+    cblock = CodeBlock([assign.children[2]], CodeBlock.Structure.EXPRESSION)
     cbeebies = symbols.DataSymbol("cbeebies", symbols.REAL_TYPE,
                                   initial_value=cblock)
+    table.add(cbeebies)
+    # Should do nothing as a CodeBlock does not contain Symbols.
+    table._replace_symbol_refs(oldie, goldie)
+    # Now test the internal error for an unhandled type of Node. The easiest
+    # way to do this is to monkeypatch SingleVariableAccessInfo such that
+    # `all_accesses` returns something unexpected.
+
+    class FakeAccess:
+        def __init__(self):
+            self.node = Return()
+
+    monkeypatch.setattr(SingleVariableAccessInfo, "all_accesses",
+                        [FakeAccess()])
+    with pytest.raises(InternalError) as err:
+        table._replace_symbol_refs(oldie, goldie)
+    assert ("Node of type 'Return' not supported in SymbolTable._replace_"
+            "symbol_refs() while looking for accesses of 'oldie'" in
+            str(err.value))
 
 
 def test_swap_symbol():

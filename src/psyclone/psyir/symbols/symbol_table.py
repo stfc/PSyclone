@@ -1179,7 +1179,7 @@ class SymbolTable():
         norm_name = SymbolTable._normalize(old_sym.name)
         from psyclone.core import Signature
         from psyclone.core.variables_access_info import VariablesAccessInfo
-        from psyclone.psyir.nodes import Call, Literal, Reference
+        from psyclone.psyir.nodes import CodeBlock, Literal, Reference
         vai = VariablesAccessInfo()
         self.reference_accesses(vai)
         sig = Signature(norm_name)
@@ -1199,10 +1199,14 @@ class SymbolTable():
                                      new_sym)
                 access.node.replace_with(
                     Literal(access.node.value, newtype))
+            elif isinstance(access.node, CodeBlock):
+                # Nothing to do here as a CodeBlock does not contain
+                # Symbols (just a parse tree).
+                pass
             else:
                 raise InternalError(
                     f"Node of type '{type(access.node).__name__}' not "
-                    f"supported in SymbolTable._replace_symbol() while "
+                    f"supported in SymbolTable._replace_symbol_refs() while "
                     f"looking for accesses of '{old_sym.name}'.")
 
     def _validate_remove_routinesymbol(self, symbol):
