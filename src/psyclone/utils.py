@@ -163,9 +163,6 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                                 f"for class '{cls.__name__}' as the "
                                 f"'{param_name}' arg has no known type."
                             )
-                        #type_doc = "        "
-                        #type_doc += f":type {param_name}: {type_string}"
-                        #added_docs += type_doc + os.linesep
                         # Add the type into the param string
                         param_index = line.index(":param")
                         param_line = (param_line[:param_index+7]
