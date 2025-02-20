@@ -604,7 +604,7 @@ def test_validate_tagged_symbol_clash(fortran_reader):
             str(err.value))
 
 
-def test_apply_2d_allocatable(fortran_reader, fortran_writer, tmpdir):
+def test_apply_with_allocatables(fortran_reader, fortran_writer, tmpdir):
     ''' Test the apply method correctly handles an automatic arrays with
     allocatable attributes and simple allocatable statements. '''
     code = """
