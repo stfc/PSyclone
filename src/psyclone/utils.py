@@ -35,8 +35,9 @@
 
 '''This module provides generic utility functions.'''
 
-import sys
+import os
 import re
+import sys
 from psyclone.errors import InternalError
 
 
@@ -80,13 +81,12 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         else:
             parent_lines = []
         added_docs = ""
-        print(parent_docstring)
         for x, line in enumerate(parent_lines):
             if ":param" in line:
                 param_str = re.search(":[a-zA-Z0-9_\\s]*:", line)
                 if param_str is None or param_str.group() in docs:
                     continue
-                added_docs += line + "\n"
+                added_docs += line + os.linesep
                 z = x+1
                 type_found = False
                 while z < len(parent_lines):
@@ -108,8 +108,6 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                             param_name = param_name[:param_name.index(":")]
                             valid_opts = cls.get_valid_options()
                             if param_name not in valid_opts.keys():
-                                print(param_name)
-                                print(valid_opts.keys())
                                 raise InternalError(
                                     f"Invalid documentation found when "
                                     f"generating inherited documentation "
@@ -125,12 +123,12 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                                 )
                             type_doc = "        "
                             type_doc += f":type {param_name}: {type_string}"
-                            added_docs += type_doc + "\n"
+                            added_docs += type_doc + os.linesep
                         break
                     if ":type" in parent_lines[z]:
                         type_found = True
                     if not parent_lines[z].isspace():
-                        added_docs += parent_lines[z] + "\n"
+                        added_docs += parent_lines[z] + os.linesep
                     z = z + 1
                 else:
                     # If we don't break out of the loop we still need to check
@@ -158,7 +156,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                             )
                         type_doc = "        "
                         type_doc += f":type {param_name}: {type_string}"
-                        added_docs += type_doc + "\n"
+                        added_docs += type_doc + os.linesep
         return added_docs
 
     def update_func_docstring(func, added_parameters):
@@ -181,16 +179,16 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                         break
         new_docs = ""
         for i in range(last_instance+1):
-            new_docs += doc_lines[i] + "\n"
+            new_docs += doc_lines[i] + os.linesep
         # Remove any trailing whitespace, then add a newline
-        new_docs = new_docs.rstrip() + "\n"
-        new_docs += added_parameters + "\n"
+        new_docs = new_docs.rstrip() + os.linesep
+        new_docs += added_parameters + os.linesep
 
         for i in range(last_instance+1, len(doc_lines)):
-            new_docs += doc_lines[i] + "\n"
+            new_docs += doc_lines[i] + os.linesep
 
         # Remove any trailing whitespace, then add a newline
-        new_docs = new_docs.rstrip() + "\n"
+        new_docs = new_docs.rstrip() + os.linesep
         func.__doc__ = new_docs
 
     def wrapper():
