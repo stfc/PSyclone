@@ -366,12 +366,25 @@ class DataSymbol(TypedSymbol):
             self.initial_value.replace_symbols_using(table)
 
         # Ensure any Symbols referenced in the shape are updated.
-        from psyclone.psyir import nodes
         for dim in self.shape:
             if isinstance(dim, ArrayType.Extent):
                 continue
             for bnd in [dim.lower, dim.upper]:
-                if not isinstance(bnd, nodes.Node):
-                    continue
-                for ref in bnd.walk(nodes.Reference):
-                    ref.symbol.replace_symbols_using(table)
+                bnd.replace_symbols_using(table)
+
+    def reference_accesses(self, access_info):
+        '''
+        Update the supplied VariablesAccessInfo with information on the symbols
+        referenced by the definition of this Symbol.
+
+        A generic (untyped) symbol cannot refer to anything else so this base
+        implementation does nothing.
+
+        :param access_info: the object in which to accumulate access
+                            information.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+        '''
+        super().reference_accesses(access_info)
+
+        if self.initial_value:
+            self.initial_value.reference_accesses(access_info)
