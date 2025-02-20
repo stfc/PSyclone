@@ -53,8 +53,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, DataTypeSymbol, GenericInterfaceSymbol,
     ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
-from psyclone.psyir.symbols.datatypes import (
-    ArrayType, ScalarType, StructureType, UnsupportedFortranType)
+from psyclone.psyir.symbols.datatypes import ScalarType
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
@@ -1997,14 +1996,6 @@ class SymbolTable():
         '''
         for sym in self.symbols:
             sym.reference_accesses(access_info)
-
-    @property
-    def interface_symbols(self) -> List[GenericInterfaceSymbol]:
-        '''
-        :returns: the GenericInterfaceSymbols in this table.
-        '''
-        return [sym for sym in self.symbols if
-                isinstance(sym, GenericInterfaceSymbol)]
 
     def wildcard_imports(self) -> List[ContainerSymbol]:
         '''

@@ -270,7 +270,11 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         super().reference_accesses(access_info)
 
         if isinstance(self.datatype, DataTypeSymbol):
-            self.datatype.reference_accesses(access_info)
+            from psyclone.core.signature import Signature
+            from psyclone.core.access_type import AccessType
+            access_info.add_access(
+                Signature(self.datatype.name),
+                AccessType.TYPE_INFO, self)
         else:
             self.datatype.reference_accesses(self, access_info)
 

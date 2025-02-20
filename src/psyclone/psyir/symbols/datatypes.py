@@ -90,14 +90,16 @@ class DataType(metaclass=abc.ABCMeta):
 
         '''
 
-    def reference_accesses(self, sym, access_info):
+    def reference_accesses(self, sym: Symbol, access_info):
         '''
         Get all symbols referenced in this datatype.
 
-        :param sym:
-        :param access_info:
-       
+        :param sym: the Symbol that this datatype is for.
+        :param access_info: instance in which to store access info.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+
         '''
+
 
 class UnresolvedType(DataType):
     # pylint: disable=too-few-public-methods
@@ -299,18 +301,26 @@ class UnsupportedFortranType(UnsupportedType):
             return self.partial_datatype.intrinsic
         return None
 
-    def reference_accesses(self, sym, access_info):
+    def reference_accesses(self, sym: Symbol, access_info):
         '''
         Get all symbols referenced in this datatype.
 
-        :param sym:
-        :param access_info:
-       
+        :param sym: the Symbol that this datatype is for.
+        :param access_info: instance in which to store access info.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+
         '''
         super().reference_accesses(sym, access_info)
 
         if self.partial_datatype:
-            self.partial_datatype.reference_accesses(sym, access_info)
+            if isinstance(self.partial_datatype, DataTypeSymbol):
+                from psyclone.core.signature import Signature
+                from psyclone.core.access_type import AccessType
+                access_info.add_access(
+                    Signature(self.partial_datatype.name),
+                    AccessType.TYPE_INFO, self)
+            else:
+                self.partial_datatype.reference_accesses(sym, access_info)
 
 
 class ScalarType(DataType):
@@ -462,13 +472,12 @@ class ScalarType(DataType):
         '''
         Get all symbols referenced in this datatype.
 
-        :param sym:
-        :param access_info:
-       
+        :param sym: the Symbol that this datatype is for.
+        :param access_info: instance in which to store access info.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+
         '''
         super().reference_accesses(sym, access_info)
-
-        from psyclone.core.signature import Signature
 
         if isinstance(self.precision, Symbol):
             from psyclone.core.signature import Signature
@@ -948,9 +957,10 @@ class ArrayType(DataType):
         '''
         Get all symbols referenced in this datatype.
 
-        :param sym:
-        :param access_info:
-       
+        :param sym: the Symbol that this datatype is for.
+        :param access_info: instance in which to store access info.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+
         '''
         super().reference_accesses(sym, access_info)
 
@@ -1193,15 +1203,19 @@ class StructureType(DataType):
         '''
         Get all symbols referenced in this datatype.
 
-        :param sym:
-        :param access_info:
-       
+        :param sym: the Symbol that this datatype is for.
+        :param access_info: instance in which to store access info.
+        :type access_info: :py:class:`psyclone.core.VariablesAccessInfo`
+
         '''
         super().reference_accesses(sym, access_info)
         for cmpt in self.components.values():
-            # Recurse for members of a StructureType
             if isinstance(cmpt.datatype, DataTypeSymbol):
-                cmpt.datatype.reference_accesses(access_info)
+                from psyclone.core.signature import Signature
+                from psyclone.core.access_type import AccessType
+                access_info.add_access(
+                    Signature(cmpt.datatype.name),
+                    AccessType.TYPE_INFO, sym)
             else:
                 cmpt.datatype.reference_accesses(sym, access_info)
             if cmpt.initial_value:

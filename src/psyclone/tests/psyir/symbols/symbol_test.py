@@ -48,7 +48,8 @@ is not tested here.
 
 import pytest
 
-from psyclone.core import Signature, SingleVariableAccessInfo
+from psyclone.core import (
+    Signature, SingleVariableAccessInfo, VariablesAccessInfo)
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Literal, KernelSchedule
 from psyclone.psyir.symbols import (
@@ -462,3 +463,13 @@ def test_symbol_replace_symbols_using():
     bsym.replace_symbols_using(table)
     assert bsym.interface is not binterf
     assert bsym.interface.container_symbol is cont2
+
+
+def test_symbol_reference_accesses():
+    '''Test that the reference_accesses() method of a Symbol does not add any
+    accesses.'''
+    vai = VariablesAccessInfo()
+    interf = DefaultModuleInterface()
+    asym = Symbol("a", interface=interf)
+    asym.reference_accesses(vai)
+    assert not vai.all_signatures

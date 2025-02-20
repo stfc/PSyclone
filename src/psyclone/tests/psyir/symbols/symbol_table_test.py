@@ -3103,7 +3103,8 @@ def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_resolve_imports_routine_interface(fortran_reader, tmpdir, monkeypatch):
+def test_resolve_imports_routine_interface(fortran_reader, tmpdir,
+                                           monkeypatch):
     ''' Tests the SymbolTable resolve_imports method for a routine interface
     and the routine symbols it references. '''
 
@@ -3148,9 +3149,10 @@ def test_resolve_imports_routine_interface(fortran_reader, tmpdir, monkeypatch):
     symtab.resolve_imports([a_mod])
     woodland = symtab.lookup("woodland")
     assert isinstance(woodland, symbols.GenericInterfaceSymbol)
-    coppice = symtab.lookup("coppice")
-    assert isinstance(coppice, symbols.Symbol)
-    assert coppice.interface.container_symbol is a_mod
+    for name in ["coppice", "dell", "spinney"]:
+        sym = symtab.lookup(name)
+        assert type(sym) is symbols.Symbol
+        assert sym.interface.container_symbol is a_mod
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
