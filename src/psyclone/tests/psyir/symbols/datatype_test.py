@@ -79,6 +79,12 @@ def test_unresolvedtype_str():
     assert str(data_type) == "UnresolvedType"
 
 
+def test_unresolvedtype_is_allocatable():
+    '''Test that the UnresolvedType class' is_allocatable property works.'''
+    data_type = UnresolvedType()
+    assert data_type.is_allocatable is False
+
+
 def test_unresolvedtype_eq():
     '''Test the equality operator of UnresolvedType.'''
     data_type1 = UnresolvedType()
@@ -105,6 +111,13 @@ def test_notype():
     assert str(data_type) == "NoType"
 
 
+def test_notype_is_allocatable():
+    ''' Check that the NoType class is not allocatable'''
+    data_type = NoType()
+    assert isinstance(data_type, NoType)
+    assert data_type.is_allocatable is False
+
+
 def test_notype_eq():
     '''Test the equality operator of NoType.'''
     notype1 = NoType()
@@ -126,7 +139,8 @@ def test_notype_eq():
 def test_scalartype_enum_precision(intrinsic, precision):
     '''Test that the ScalarType class can be created successfully for all
     supported ScalarType intrinsics and all supported enumerated precisions.
-    Also test that two such types are equal.
+    Also test that two such types are equal, and that is_allocatable
+    works as expected.
 
     '''
     scalar_type = ScalarType(intrinsic, precision)
@@ -135,6 +149,7 @@ def test_scalartype_enum_precision(intrinsic, precision):
     assert scalar_type.precision == precision
     scalar_type2 = ScalarType(intrinsic, precision)
     assert scalar_type == scalar_type2
+    assert scalar_type.is_allocatable is False
 
 
 @pytest.mark.parametrize("precision", [1, 8, 16])
@@ -367,7 +382,7 @@ def test_arraytype():
         scalar_type, [ArrayType.Extent.ATTRIBUTE,
                       (2, ArrayType.Extent.ATTRIBUTE)])
     assert array_type.shape[1].upper == ArrayType.Extent.ATTRIBUTE
-    assert not array_type.is_allocatable
+    assert array_type.is_allocatable is False
 
 
 def test_arraytype_invalid_datatype():
@@ -418,7 +433,7 @@ def test_arraytype_unsupportedtype():
     assert utype.partial_datatype is None
     assert utype.intrinsic is None
     # Test the allocatable flag
-    assert not utype.is_allocatable
+    assert utype.is_allocatable is None
 
 
 def test_arraytype_invalid_shape():
@@ -821,7 +836,7 @@ def test_unsupported_fortran_type_eq():
 
 
 def test_unsupported_fortran_type_is_allocatable(fortran_reader):
-    '''Test the copy() method of UnsupportedFortranType.'''
+    '''Test the is_allocatable() method of UnsupportedFortranType.'''
     code = '''
     subroutine test
       use some_mod, only: some_type, start, stop
@@ -835,7 +850,7 @@ def test_unsupported_fortran_type_is_allocatable(fortran_reader):
     vsym = routine.symbol_table.lookup("var")
     # Make sure we do indeed test the UnsupportedFortranType
     assert isinstance(vsym.datatype, UnsupportedFortranType)
-    assert not vsym.datatype.is_allocatable
+    assert vsym.datatype.is_allocatable is False
 
     # Now test an allocatable array in an UnsupportedFortranType:
     vsym_alloc = routine.symbol_table.lookup("var_alloc")
@@ -969,6 +984,7 @@ def test_structure_type():
         stype.add("hello", stype, Symbol.Visibility.PUBLIC, None)
     assert ("attempting to add component 'hello' - a StructureType definition "
             "cannot be recursive" in str(err.value))
+    assert stype.is_allocatable is False
 
 
 def test_create_structuretype():

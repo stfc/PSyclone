@@ -90,6 +90,12 @@ class DataType(metaclass=abc.ABCMeta):
 
         '''
 
+    @property
+    def is_allocatable(self) -> bool:
+        ''':returns: whether this DataType is allocatable. In the base class
+            set this to be always False.'''
+        return False
+
 
 class UnresolvedType(DataType):
     # pylint: disable=too-few-public-methods
@@ -294,17 +300,18 @@ class UnsupportedFortranType(UnsupportedType):
     @property
     def is_allocatable(self) -> bool:
         '''If we have enough information in the partial_datatype,
-        determines if this data type is allocatable, and False otherwise.
+        determines whether this data type is allocatable or not.
+        If it is unknown, it will return None. Note that atm PSyclone
+        only supports allocatable arrays.
         # TODO #2898 If we support non-array allocatable types, the
         test for arrays can be removed
 
         :returns: whether this UnsupportedFortranType is known to be
-            allocatable. Note that atm PSyclone only supports allocatable
-            arrays.'''
+            allocatable.'''
         if (self.partial_datatype and
                 isinstance(self.partial_datatype, ArrayType)):
             return self.partial_datatype.is_allocatable
-        return False
+        return None
 
 
 class ScalarType(DataType):
