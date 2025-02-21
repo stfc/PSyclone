@@ -294,7 +294,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dChar(this, name, value)
 
@@ -336,10 +336,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 1D array of character(*)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dCharNonAlloc(this, name, value)
 
@@ -367,7 +367,7 @@ contains
                             " in rank 1", &
                             " in ReadArray1dCharNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -386,7 +386,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dChar(this, name, value)
 
@@ -432,10 +432,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 2D array of character(*)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dCharNonAlloc(this, name, value)
 
@@ -463,7 +463,7 @@ contains
                             " in rank 1", &
                             " in ReadArray2dCharNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -474,7 +474,7 @@ contains
                             " in rank 2", &
                             " in ReadArray2dCharNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -493,7 +493,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dChar(this, name, value)
 
@@ -543,10 +543,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 3D array of character(*)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dCharNonAlloc(this, name, value)
 
@@ -574,7 +574,7 @@ contains
                             " in rank 1", &
                             " in ReadArray3dCharNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -585,7 +585,7 @@ contains
                             " in rank 2", &
                             " in ReadArray3dCharNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
                                            dim_id))
@@ -596,7 +596,7 @@ contains
                             " in rank 3", &
                             " in ReadArray3dCharNonAlloc."
             write(stderr,*) "Declared as ", size(value,3), &
-                            "in file as", dim_size3
+                            " in file as", dim_size3
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -615,7 +615,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dChar(this, name, value)
 
@@ -669,10 +669,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 4D array of character(*)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dCharNonAlloc(this, name, value)
 
@@ -700,7 +700,7 @@ contains
                             " in rank 1", &
                             " in ReadArray4dCharNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -711,7 +711,7 @@ contains
                             " in rank 2", &
                             " in ReadArray4dCharNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
                                            dim_id))
@@ -722,7 +722,7 @@ contains
                             " in rank 3", &
                             " in ReadArray4dCharNonAlloc."
             write(stderr,*) "Declared as ", size(value,3), &
-                            "in file as", dim_size3
+                            " in file as", dim_size3
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%4"), &
                                            dim_id))
@@ -733,7 +733,7 @@ contains
                             " in rank 4", &
                             " in ReadArray4dCharNonAlloc."
             write(stderr,*) "Declared as ", size(value,4), &
-                            "in file as", dim_size4
+                            " in file as", dim_size4
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -779,7 +779,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dInt(this, name, value)
 
@@ -824,10 +824,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 1D array of integer(kind=int32)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dIntNonAlloc(this, name, value)
 
@@ -855,7 +855,7 @@ contains
                             " in rank 1", &
                             " in ReadArray1dIntNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -877,7 +877,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dInt(this, name, value)
 
@@ -926,10 +926,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 2D array of integer(kind=int32)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dIntNonAlloc(this, name, value)
 
@@ -957,7 +957,7 @@ contains
                             " in rank 1", &
                             " in ReadArray2dIntNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -968,7 +968,7 @@ contains
                             " in rank 2", &
                             " in ReadArray2dIntNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -990,7 +990,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dInt(this, name, value)
 
@@ -1043,10 +1043,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 3D array of integer(kind=int32)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dIntNonAlloc(this, name, value)
 
@@ -1074,7 +1074,7 @@ contains
                             " in rank 1", &
                             " in ReadArray3dIntNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -1085,7 +1085,7 @@ contains
                             " in rank 2", &
                             " in ReadArray3dIntNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
                                            dim_id))
@@ -1096,7 +1096,7 @@ contains
                             " in rank 3", &
                             " in ReadArray3dIntNonAlloc."
             write(stderr,*) "Declared as ", size(value,3), &
-                            "in file as", dim_size3
+                            " in file as", dim_size3
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -1118,7 +1118,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dInt(this, name, value)
 
@@ -1175,10 +1175,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 4D array of integer(kind=int32)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dIntNonAlloc(this, name, value)
 
@@ -1206,7 +1206,7 @@ contains
                             " in rank 1", &
                             " in ReadArray4dIntNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -1217,7 +1217,7 @@ contains
                             " in rank 2", &
                             " in ReadArray4dIntNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
                                            dim_id))
@@ -1228,7 +1228,7 @@ contains
                             " in rank 3", &
                             " in ReadArray4dIntNonAlloc."
             write(stderr,*) "Declared as ", size(value,3), &
-                            "in file as", dim_size3
+                            " in file as", dim_size3
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%4"), &
                                            dim_id))
@@ -1239,7 +1239,7 @@ contains
                             " in rank 4", &
                             " in ReadArray4dIntNonAlloc."
             write(stderr,*) "Declared as ", size(value,4), &
-                            "in file as", dim_size4
+                            " in file as", dim_size4
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -1288,7 +1288,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dLong(this, name, value)
 
@@ -1333,10 +1333,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 1D array of integer(kind=int64)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dLongNonAlloc(this, name, value)
 
@@ -1364,7 +1364,7 @@ contains
                             " in rank 1", &
                             " in ReadArray1dLongNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -1386,7 +1386,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dLong(this, name, value)
 
@@ -1435,10 +1435,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 2D array of integer(kind=int64)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dLongNonAlloc(this, name, value)
 
@@ -1466,7 +1466,7 @@ contains
                             " in rank 1", &
                             " in ReadArray2dLongNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -1477,7 +1477,7 @@ contains
                             " in rank 2", &
                             " in ReadArray2dLongNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -1499,7 +1499,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dLong(this, name, value)
 
@@ -1552,10 +1552,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 3D array of integer(kind=int64)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dLongNonAlloc(this, name, value)
 
@@ -1583,7 +1583,7 @@ contains
                             " in rank 1", &
                             " in ReadArray3dLongNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -1594,7 +1594,7 @@ contains
                             " in rank 2", &
                             " in ReadArray3dLongNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
                                            dim_id))
@@ -1605,7 +1605,7 @@ contains
                             " in rank 3", &
                             " in ReadArray3dLongNonAlloc."
             write(stderr,*) "Declared as ", size(value,3), &
-                            "in file as", dim_size3
+                            " in file as", dim_size3
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -1627,7 +1627,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dLong(this, name, value)
 
@@ -1684,10 +1684,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 4D array of integer(kind=int64)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dLongNonAlloc(this, name, value)
 
@@ -1715,7 +1715,7 @@ contains
                             " in rank 1", &
                             " in ReadArray4dLongNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -1726,7 +1726,7 @@ contains
                             " in rank 2", &
                             " in ReadArray4dLongNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
                                            dim_id))
@@ -1737,7 +1737,7 @@ contains
                             " in rank 3", &
                             " in ReadArray4dLongNonAlloc."
             write(stderr,*) "Declared as ", size(value,3), &
-                            "in file as", dim_size3
+                            " in file as", dim_size3
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%4"), &
                                            dim_id))
@@ -1748,7 +1748,7 @@ contains
                             " in rank 4", &
                             " in ReadArray4dLongNonAlloc."
             write(stderr,*) "Declared as ", size(value,4), &
-                            "in file as", dim_size4
+                            " in file as", dim_size4
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -1799,7 +1799,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dLogical(this, name, value)
 
@@ -1853,10 +1853,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 1D array of Logical(kind=4)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dLogicalNonAlloc(this, name, value)
 
@@ -1885,7 +1885,7 @@ contains
                             " in rank 1", &
                             " in ReadArray1dLogicalNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -1915,7 +1915,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dLogical(this, name, value)
 
@@ -1973,10 +1973,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 2D array of Logical(kind=4)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dLogicalNonAlloc(this, name, value)
 
@@ -2005,7 +2005,7 @@ contains
                             " in rank 1", &
                             " in ReadArray2dLogicalNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -2016,7 +2016,7 @@ contains
                             " in rank 2", &
                             " in ReadArray2dLogicalNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -2046,7 +2046,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dLogical(this, name, value)
 
@@ -2108,10 +2108,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 3D array of Logical(kind=4)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dLogicalNonAlloc(this, name, value)
 
@@ -2140,7 +2140,7 @@ contains
                             " in rank 1", &
                             " in ReadArray3dLogicalNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -2151,7 +2151,7 @@ contains
                             " in rank 2", &
                             " in ReadArray3dLogicalNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
                                            dim_id))
@@ -2162,7 +2162,7 @@ contains
                             " in rank 3", &
                             " in ReadArray3dLogicalNonAlloc."
             write(stderr,*) "Declared as ", size(value,3), &
-                            "in file as", dim_size3
+                            " in file as", dim_size3
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -2192,7 +2192,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dLogical(this, name, value)
 
@@ -2258,10 +2258,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 4D array of Logical(kind=4)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dLogicalNonAlloc(this, name, value)
 
@@ -2290,7 +2290,7 @@ contains
                             " in rank 1", &
                             " in ReadArray4dLogicalNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -2301,7 +2301,7 @@ contains
                             " in rank 2", &
                             " in ReadArray4dLogicalNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
                                            dim_id))
@@ -2312,7 +2312,7 @@ contains
                             " in rank 3", &
                             " in ReadArray4dLogicalNonAlloc."
             write(stderr,*) "Declared as ", size(value,3), &
-                            "in file as", dim_size3
+                            " in file as", dim_size3
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%4"), &
                                            dim_id))
@@ -2323,7 +2323,7 @@ contains
                             " in rank 4", &
                             " in ReadArray4dLogicalNonAlloc."
             write(stderr,*) "Declared as ", size(value,4), &
-                            "in file as", dim_size4
+                            " in file as", dim_size4
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -2380,7 +2380,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dReal(this, name, value)
 
@@ -2425,10 +2425,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 1D array of real(kind=real32)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dRealNonAlloc(this, name, value)
 
@@ -2456,7 +2456,7 @@ contains
                             " in rank 1", &
                             " in ReadArray1dRealNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -2478,7 +2478,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dReal(this, name, value)
 
@@ -2527,10 +2527,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 2D array of real(kind=real32)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dRealNonAlloc(this, name, value)
 
@@ -2558,7 +2558,7 @@ contains
                             " in rank 1", &
                             " in ReadArray2dRealNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -2569,7 +2569,7 @@ contains
                             " in rank 2", &
                             " in ReadArray2dRealNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -2591,7 +2591,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dReal(this, name, value)
 
@@ -2644,10 +2644,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 3D array of real(kind=real32)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dRealNonAlloc(this, name, value)
 
@@ -2675,7 +2675,7 @@ contains
                             " in rank 1", &
                             " in ReadArray3dRealNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -2686,7 +2686,7 @@ contains
                             " in rank 2", &
                             " in ReadArray3dRealNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
                                            dim_id))
@@ -2697,7 +2697,7 @@ contains
                             " in rank 3", &
                             " in ReadArray3dRealNonAlloc."
             write(stderr,*) "Declared as ", size(value,3), &
-                            "in file as", dim_size3
+                            " in file as", dim_size3
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -2719,7 +2719,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dReal(this, name, value)
 
@@ -2776,10 +2776,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 4D array of real(kind=real32)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dRealNonAlloc(this, name, value)
 
@@ -2807,7 +2807,7 @@ contains
                             " in rank 1", &
                             " in ReadArray4dRealNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -2818,7 +2818,7 @@ contains
                             " in rank 2", &
                             " in ReadArray4dRealNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
                                            dim_id))
@@ -2829,7 +2829,7 @@ contains
                             " in rank 3", &
                             " in ReadArray4dRealNonAlloc."
             write(stderr,*) "Declared as ", size(value,3), &
-                            "in file as", dim_size3
+                            " in file as", dim_size3
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%4"), &
                                            dim_id))
@@ -2840,7 +2840,7 @@ contains
                             " in rank 4", &
                             " in ReadArray4dRealNonAlloc."
             write(stderr,*) "Declared as ", size(value,4), &
-                            "in file as", dim_size4
+                            " in file as", dim_size4
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -2889,7 +2889,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dDouble(this, name, value)
 
@@ -2934,10 +2934,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 1D array of real(kind=real64)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dDoubleNonAlloc(this, name, value)
 
@@ -2965,7 +2965,7 @@ contains
                             " in rank 1", &
                             " in ReadArray1dDoubleNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -2987,7 +2987,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dDouble(this, name, value)
 
@@ -3036,10 +3036,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 2D array of real(kind=real64)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dDoubleNonAlloc(this, name, value)
 
@@ -3067,7 +3067,7 @@ contains
                             " in rank 1", &
                             " in ReadArray2dDoubleNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -3078,7 +3078,7 @@ contains
                             " in rank 2", &
                             " in ReadArray2dDoubleNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -3100,7 +3100,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dDouble(this, name, value)
 
@@ -3153,10 +3153,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 3D array of real(kind=real64)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dDoubleNonAlloc(this, name, value)
 
@@ -3184,7 +3184,7 @@ contains
                             " in rank 1", &
                             " in ReadArray3dDoubleNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -3195,7 +3195,7 @@ contains
                             " in rank 2", &
                             " in ReadArray3dDoubleNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
                                            dim_id))
@@ -3206,7 +3206,7 @@ contains
                             " in rank 3", &
                             " in ReadArray3dDoubleNonAlloc."
             write(stderr,*) "Declared as ", size(value,3), &
-                            "in file as", dim_size3
+                            " in file as", dim_size3
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
@@ -3228,7 +3228,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dDouble(this, name, value)
 
@@ -3285,10 +3285,10 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the values of a 4D array of real(kind=real64)
-    !! that is not allocatable (e.g. a fixed size array)
+    !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dDoubleNonAlloc(this, name, value)
 
@@ -3316,7 +3316,7 @@ contains
                             " in rank 1", &
                             " in ReadArray4dDoubleNonAlloc."
             write(stderr,*) "Declared as ", size(value,1), &
-                            "in file as", dim_size1
+                            " in file as", dim_size1
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
                                            dim_id))
@@ -3327,7 +3327,7 @@ contains
                             " in rank 2", &
                             " in ReadArray4dDoubleNonAlloc."
             write(stderr,*) "Declared as ", size(value,2), &
-                            "in file as", dim_size2
+                            " in file as", dim_size2
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
                                            dim_id))
@@ -3338,7 +3338,7 @@ contains
                             " in rank 3", &
                             " in ReadArray4dDoubleNonAlloc."
             write(stderr,*) "Declared as ", size(value,3), &
-                            "in file as", dim_size3
+                            " in file as", dim_size3
         endif
         retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%4"), &
                                            dim_id))
@@ -3349,7 +3349,7 @@ contains
                             " in rank 4", &
                             " in ReadArray4dDoubleNonAlloc."
             write(stderr,*) "Declared as ", size(value,4), &
-                            "in file as", dim_size4
+                            " in file as", dim_size4
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))

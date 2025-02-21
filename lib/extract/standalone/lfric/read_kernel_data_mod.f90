@@ -250,7 +250,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dChar(this, name, value)
 
@@ -289,7 +289,7 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dCharNonAlloc(this, name, value)
 
@@ -330,7 +330,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dChar(this, name, value)
 
@@ -419,7 +419,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dChar(this, name, value)
 
@@ -460,7 +460,7 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dCharNonAlloc(this, name, value)
 
@@ -517,7 +517,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dChar(this, name, value)
 
@@ -559,7 +559,7 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dCharNonAlloc(this, name, value)
 
@@ -648,7 +648,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dInt(this, name, value)
 
@@ -689,7 +689,7 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dIntNonAlloc(this, name, value)
 
@@ -732,7 +732,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dInt(this, name, value)
 
@@ -825,7 +825,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dInt(this, name, value)
 
@@ -868,7 +868,7 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dIntNonAlloc(this, name, value)
 
@@ -927,7 +927,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dInt(this, name, value)
 
@@ -971,7 +971,7 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dIntNonAlloc(this, name, value)
 
@@ -1062,7 +1062,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dLogical(this, name, value)
 
@@ -1101,7 +1101,7 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dLogicalNonAlloc(this, name, value)
 
@@ -1142,7 +1142,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dLogical(this, name, value)
 
@@ -1231,7 +1231,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dLogical(this, name, value)
 
@@ -1272,7 +1272,7 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dLogicalNonAlloc(this, name, value)
 
@@ -1329,7 +1329,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dLogical(this, name, value)
 
@@ -1371,7 +1371,7 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dLogicalNonAlloc(this, name, value)
 
@@ -1460,7 +1460,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dReal(this, name, value)
 
@@ -1501,7 +1501,7 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dRealNonAlloc(this, name, value)
 
@@ -1544,7 +1544,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dReal(this, name, value)
 
@@ -1637,7 +1637,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dReal(this, name, value)
 
@@ -1680,7 +1680,7 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dRealNonAlloc(this, name, value)
 
@@ -1739,7 +1739,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dReal(this, name, value)
 
@@ -1783,7 +1783,7 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dRealNonAlloc(this, name, value)
 
@@ -1874,7 +1874,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dDouble(this, name, value)
 
@@ -1915,7 +1915,7 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 1d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray1dDoubleNonAlloc(this, name, value)
 
@@ -1958,7 +1958,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 2D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray2dDouble(this, name, value)
 
@@ -2051,7 +2051,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dDouble(this, name, value)
 
@@ -2094,7 +2094,7 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 3d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray3dDoubleNonAlloc(this, name, value)
 
@@ -2153,7 +2153,7 @@ contains
     !! array cannot be allocated, the application will be stopped.
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4D-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dDouble(this, name, value)
 
@@ -2197,7 +2197,7 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !! @param[out] value An allocatable, unallocated 4d-double precision array
     !!             which is allocated here and stores the values read.
     subroutine ReadArray4dDoubleNonAlloc(this, name, value)
 
