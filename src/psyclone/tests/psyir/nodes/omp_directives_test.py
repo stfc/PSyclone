@@ -59,7 +59,7 @@ from psyclone.psyir.nodes import (
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause,
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective,
     OMPAtomicDirective, OMPFirstprivateClause, OMPSimdDirective,
-    StructureReference, IfBlock)
+    StructureReference, IfBlock, OMPTeamsLoopDirective)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, SymbolTable, ArrayType, RoutineSymbol,
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, StructureType,
@@ -1555,6 +1555,23 @@ def test_omp_declare_target_directive_validate_global_constraints():
     assert ("A OMPDeclareTargetDirective must be the first child (index 0) of "
             "a Routine but found one as child 1 of a Routine."
             in str(err.value))
+
+
+# Test OMPTeamsLoopDirective
+
+def test_omp_teamsloop_directive_constructor_and_strings():
+    ''' Test the OMPTeamsLoopDirective constructor and its output strings.'''
+    omploop = OMPTeamsLoopDirective()
+    assert omploop.begin_string() == "omp teams loop"
+    assert omploop.end_string() == "omp end teams loop"
+    assert str(omploop) == "OMPTeamsLoopDirective[]"
+    assert omploop.collapse is None
+
+    omploop = OMPTeamsLoopDirective(collapse=4)
+    assert omploop.collapse == 4
+    assert omploop.begin_string() == "omp teams loop collapse(4)"
+    assert omploop.end_string() == "omp end teams loop"
+    assert str(omploop) == "OMPTeamsLoopDirective[collapse=4]"
 
 
 # Test OMPLoopDirective
