@@ -52,7 +52,7 @@ from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
     ImportInterface, RoutineSymbol, Symbol, SymbolError)
 from psyclone.psyir.nodes import (
-    Call, Container, Reference, Routine, ScopingNode,
+    Call, Container, FileContainer, Reference, Routine, ScopingNode,
     Literal, CodeBlock, IntrinsicCall)
 
 
@@ -296,22 +296,27 @@ class KernelModuleInlineTrans(Transformation):
         # pylint: disable=too-many-branches
         source_container = code_to_inline.ancestor(Container)
 
+        vai = VariablesAccessInfo(code_to_inline)
+
         # First make a set with all symbols used inside the subroutine
         all_symbols = set()
-        for scope in code_to_inline.walk(ScopingNode):
-            for symbol in scope.symbol_table.symbols:
-                all_symbols.add(symbol)
-        for reference in code_to_inline.walk(Reference):
-            all_symbols.add(reference.symbol)
-        for literal in code_to_inline.walk(Literal):
-            # Literals may reference symbols in their precision
-            if isinstance(literal.datatype.precision, Symbol):
-                all_symbols.add(literal.datatype.precision)
-        for caller in code_to_inline.walk(Call):
-            all_symbols.add(caller.routine.symbol)
-        for cblock in code_to_inline.walk(CodeBlock):
-            for name in cblock.get_symbol_names():
-                all_symbols.add(cblock.scope.symbol_table.lookup(name))
+        for sig in vai.all_signatures:
+            all_symbols.add(code_to_inline.symbol_table.lookup(sig.var_name))
+
+#        for scope in code_to_inline.walk(ScopingNode):
+#            for symbol in scope.symbol_table.symbols:
+#                all_symbols.add(symbol)
+#        for reference in code_to_inline.walk(Reference):
+#            all_symbols.add(reference.symbol)
+#        for literal in code_to_inline.walk(Literal):
+#            # Literals may reference symbols in their precision
+#            if isinstance(literal.datatype.precision, Symbol):
+#                all_symbols.add(literal.datatype.precision)
+#        for caller in code_to_inline.walk(Call):
+#            all_symbols.add(caller.routine.symbol)
+#        for cblock in code_to_inline.walk(CodeBlock):
+#            for name in cblock.get_symbol_names():
+#                all_symbols.add(cblock.scope.symbol_table.lookup(name))
 
         # Then decide which symbols need to be brought inside the subroutine
         symbols_to_bring_in = set()
@@ -442,7 +447,7 @@ class KernelModuleInlineTrans(Transformation):
             # We need to set the visibility of the routine's symbol to
             # be private.
             code_to_inline.symbol.visibility = Symbol.Visibility.PRIVATE
-            node.ancestor(Container).addchild(code_to_inline.detach())
+            container.addchild(code_to_inline.detach())
         else:
             if existing_symbol.is_import:
                 # The RoutineSymbol is in the table but that is because it is
@@ -458,6 +463,21 @@ class KernelModuleInlineTrans(Transformation):
                 existing_symbol.visibility = Symbol.Visibility.PRIVATE
                 if remove_csym:
                     ctable.remove(csym)
+                code_to_inline = code_to_inline.detach()
+                # Set the routine's symbol to the existing_symbol
+                code_to_inline.symbol = existing_symbol
+                container.addchild(code_to_inline)
+            elif existing_symbol.is_unresolved:
+                # We didn't previously know where it came from.
+                cntr_name = code_to_inline.ancestor(Container).name
+                csym = node.scope.symbol_table.lookup(cntr_name)
+                ctable = csym.find_symbol_table(node)
+                ctable.new_symbol(f"old_{callee_name}",
+                                  symbol_type=RoutineSymbol,
+                                  interface=ImportInterface(
+                                      csym, orig_name=existing_symbol.name))
+                existing_symbol.interface = DefaultModuleInterface()
+                existing_symbol.visibility = Symbol.Visibility.PRIVATE
                 code_to_inline = code_to_inline.detach()
                 # Set the routine's symbol to the existing_symbol
                 code_to_inline.symbol = existing_symbol
@@ -487,7 +507,8 @@ class KernelModuleInlineTrans(Transformation):
             # in the correct symbol table.
             routine_symbol = existing_symbol
             table = routine_symbol.find_symbol_table(node)
-            if table.node is not container:
+            if (not isinstance(container, FileContainer) and
+                    table.node is not container):
                 # Set the visibility of the symbol to always be private.
                 sym = container.symbol_table.lookup(routine_symbol.name)
                 sym.visibility = Symbol.Visibility.PRIVATE

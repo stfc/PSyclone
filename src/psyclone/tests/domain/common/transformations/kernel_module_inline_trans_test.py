@@ -1006,6 +1006,7 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
             in str(err.value))
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
                                  monkeypatch):
     '''
@@ -1050,4 +1051,62 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
     # Now that we've 'privatised' the target of the call, the code can be
     # compiled standalone.
     output = fortran_writer(prog_psyir)
+    assert "use my_mod" not in output
     assert Compile(tmpdir).string_compiles(output)
+
+
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_mod_inline_from_wildcard_import(fortran_reader, fortran_writer,
+                                         tmpdir, monkeypatch):
+    '''
+    Test that we can perform module inlining for the case where the routine
+    is accessed via a wildcard import. This is complicated by the need to
+    preserve the original wildcard import while avoiding a clash with the
+    newly-inlined copy of the routine.
+
+    '''
+    # Create the module containing the subroutine definition, write it to
+    # file and set the search path so that PSyclone can find it.
+    path = str(tmpdir)
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
+
+    with open(os.path.join(path, "my_mod.f90"),
+              "w", encoding="utf-8") as mfile:
+        mfile.write('''\
+    module my_mod
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = 1.0
+      end subroutine my_sub
+    end module my_mod
+    ''')
+
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    program my_prog
+      use my_mod
+      integer :: old_my_sub
+      real, dimension(10) :: a, b
+      call my_sub(a)
+      call my_sub(b)
+    end program my_prog
+    '''
+    prog_psyir = fortran_reader.psyir_from_source(code)
+    calls = prog_psyir.walk(Call)
+    intrans.apply(calls[0])
+    output = fortran_writer(prog_psyir)
+    # Wildcard import is preserved but the original routine is renamed
+    # to avoid a clash. This renaming avoids clashing with any pre-existing
+    # symbols.
+    assert "use my_mod, old_my_sub_1=>my_sub" in output
+    assert "call my_sub" in output
+    assert ('''end program my_prog
+subroutine my_sub(arg)''' in output)
+    # We can't compile this because of the use statement.
+    # Apply the transformation to the second call. This should be rejected
+    # since there is no longer an import of the RoutineSymbol.
+    with pytest.raises(TransformationError) as err:
+        intrans.apply(calls[1])
+    assert ("a Routine with that name is already present in the Container"
+            in str(err.value))
