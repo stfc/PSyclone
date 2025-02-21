@@ -462,11 +462,13 @@ class FortranWriter(LanguageWriter):
 
         # Construct the list of symbol names for the ONLY clause
         only_list = []
+        rename_list = []
         for dsym in symbol_table.symbols_imported_from(symbol):
             if dsym.interface.orig_name:
                 # This variable is renamed on import. Use Fortran's
                 # 'new_name=>orig_name' syntax to reflect this.
                 only_list.append(f"{dsym.name}=>{dsym.interface.orig_name}")
+                rename_list.append(only_list[-1])
             else:
                 # This variable is not renamed.
                 only_list.append(dsym.name)
@@ -485,6 +487,12 @@ class FortranWriter(LanguageWriter):
                     f"only : " +
                     ", ".join(sorted(only_list)) + "\n")
 
+        # We have a wildcard import, however, we still need to list any
+        # symbols that are renamed.
+        if rename_list:
+            renames = ", ".join(sorted(rename_list))
+            return (f"{self._nindent}use{intrinsic_str}{symbol.name}, "
+                    f"{renames}\n")
         return f"{self._nindent}use{intrinsic_str}{symbol.name}\n"
 
     def gen_vardecl(self, symbol, include_visibility=False):

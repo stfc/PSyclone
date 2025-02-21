@@ -578,7 +578,8 @@ def test_fw_gen_use(fortran_writer):
     container_symbol.wildcard_import = True
     result = fortran_writer.gen_use(container_symbol, symbol_table)
     assert "use my_module, only : dummy1=>orig_name, my_sub" not in result
-    assert "use my_module\n" in result
+    # A wildcard import should still preserve any symbol renaming.
+    assert "use my_module, dummy1=>orig_name\n" in result
 
     container_symbol.is_intrinsic = True
     result = fortran_writer.gen_use(container_symbol, symbol_table)
