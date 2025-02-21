@@ -183,6 +183,68 @@ def test_transformation_init_name():
     assert trans.name == "TestTrans"
 
 
+def test_transformation_get_options():
+    ''' Test that the get_option method behaves in the
+    expected way.'''
+    class TestTrans(Transformation):
+        '''Utilty transformation to test methods of the abstract
+        Transformation class.'''
+        def apply(self, node, valid: bool = True):
+            pass  # pragma: no cover
+    trans = TestTrans()
+    assert trans.get_option("valid", valid=True)
+
+    with pytest.raises(ValueError) as excinfo:
+        trans.get_option("invalid")
+    assert ("'TestTrans' failed to get option 'invalid' as it is not "
+            "provided as a keyword argument to the apply method." in
+            str(excinfo.value))
+
+
+def test_transformation_get_valid_options():
+    '''Test that the get_valid_options method behaves in the expected
+    way.'''
+    class TestTrans(Transformation):
+        '''Utilty transformation to test methods of the abstract
+        Transformation class.'''
+        def apply(self, node, valid: bool = True, untyped=False):
+            pass  # pragma: no cover
+
+    options = TestTrans.get_valid_options()
+    assert options['valid']['default']
+    assert options['valid']['type'] is bool
+    assert options['valid']['typename'] == "bool"
+    assert options['untyped']['default'] is False
+    assert options['untyped']['type'] is None
+    assert options['untyped']['typename'] is None
+
+
+def test_transformation_validate_options():
+    '''Test that the validate_options function behaves as expected'''
+    class TestTrans(Transformation):
+        '''Utility transformation to test methods of the abstract
+        Transformation class.'''
+        def apply(self, node, valid: bool = True, options=None):
+            pass  # pragma: no cover
+
+    instance = TestTrans()
+    instance.validate_options(options={})
+    instance.validate_options(valid=False)
+
+    with pytest.raises(TypeError) as excinfo:
+        instance.validate_options(valid=2)
+    assert ("'TestTrans' received options with the wrong types:\n'valid' "
+            "option expects type 'bool' but received '2' of type 'int'.\n"
+            "Please see the documentation and check the provided types."
+            in str(excinfo.value))
+
+    with pytest.raises(ValueError) as excinfo:
+        instance.validate_options(not_valid=True)
+    assert ("'TestTrans' received invalid options ['not_valid']. Please "
+            "see the documentation and check the available options." in
+            str(excinfo.value))
+
+
 # TransInfo class unit tests
 
 def test_new_module():

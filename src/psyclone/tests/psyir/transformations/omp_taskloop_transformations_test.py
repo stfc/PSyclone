@@ -152,7 +152,7 @@ def test_omptaskloop_apply(monkeypatch):
     assert taskloop_node.begin_string() == "omp taskloop"
 
     # Create a fake validate function to throw an exception
-    def validate(self, options):
+    def validate(self, options, **kwargs):
         raise TransformationError("Fake error")
     monkeypatch.setattr(taskloop, "validate", validate)
     # Test that the nogroup attribute isn't permanently changed if validate
