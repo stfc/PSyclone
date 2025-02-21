@@ -399,10 +399,17 @@ class SymbolTable():
             )
         if "interface" in symbol_init_args and available_name != root_name:
             interface = symbol_init_args["interface"]
+
             if isinstance(interface, ImportInterface):
+                # Since the name we're giving the new symbol is not exactly
+                # the specified root name then we have to take care if this
+                # symbol is imported. If it's not already being renamed then
+                # we specify its original name as being the supplied root name.
+                orig_name = (root_name if not interface.orig_name else
+                             interface.orig_name)
                 symbol_init_args["interface"] = ImportInterface(
                     symbol_init_args["interface"].container_symbol,
-                    root_name
+                    orig_name
                 )
         symbol = symbol_type(available_name, **symbol_init_args)
         self.add(symbol, tag)
@@ -1740,16 +1747,18 @@ class SymbolTable():
                 # errors).
                 continue
 
+            imported_names = dict()
             if not c_symbol.wildcard_import:
                 # The import from this Container is for certain, specific
-                # symbols.
-                imported_names = set()
+                # symbols. Make a map holding the name of the symbol in the
+                # source container and its name at the site of the import.
                 for isym in self.symbols_imported_from(c_symbol):
+                    iname = self._normalize(isym.name)
                     if isym.interface.orig_name:
-                        imported_names.add(
-                            self._normalize(isym.interface.orig_name))
+                        imported_names[
+                            self._normalize(isym.interface.orig_name)] = iname
                     else:
-                        imported_names.add(self._normalize(isym.name))
+                        imported_names[iname] = iname
 
             # Examine all Symbols defined within this external container
             for imported_sym in external_container.symbol_table.symbols:
@@ -1771,14 +1780,20 @@ class SymbolTable():
                 norm_name = self._normalize(imported_sym.name)
 
                 if (not c_symbol.wildcard_import and
-                        norm_name not in imported_names):
+                        norm_name not in imported_names.keys()):
                     # This symbol is not being imported.
                     continue
 
-                if norm_name in self:
+                if imported_names and norm_name != imported_names[norm_name]:
+                    orig_name = norm_name
+                    local_name = imported_names[norm_name]
+                else:
+                    orig_name = None
+                    local_name = norm_name
+                if local_name in self:
                     # This Symbol matches the name of a symbol in the current
                     # table
-                    outer_sym = self.lookup(norm_name)
+                    outer_sym = self.lookup(local_name)
                     interface = outer_sym.interface
                     visibility = outer_sym.visibility
 
@@ -1786,15 +1801,16 @@ class SymbolTable():
                     # matching symbol must have the appropriate interface
                     # referring to this c_symbol
                     if not c_symbol.wildcard_import:
-                        if not isinstance(interface, ImportInterface) or \
-                                interface.container_symbol is not c_symbol:
+                        if (not outer_sym.is_import or
+                                interface.container_symbol is not c_symbol):
                             continue  # It doesn't come from this import
 
                     # Found a match, update the interface if necessary or raise
                     # an error if it is an ambiguous match
                     if isinstance(interface, UnresolvedInterface):
                         # Now we know where the symbol is coming from
-                        interface = ImportInterface(c_symbol)
+                        interface = ImportInterface(c_symbol,
+                                                    orig_name=orig_name)
                     elif isinstance(interface, ImportInterface):
                         # If it is already an ImportInterface we don't need
                         # to update the interface information

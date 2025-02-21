@@ -3638,6 +3638,48 @@ def test_resolve_imports_from_child_symtab_with_import(
     assert type(data_symbol) is symbols.DataSymbol
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_resolve_imports_with_renaming(monkeypatch, tmpdir, fortran_reader):
+    '''
+    Test that the resolve_imports() method honours any symbol renaming.
+    '''
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            integer, dimension(5) :: some_var
+            integer :: rau0 = 1
+            integer :: not_used
+        end module a_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        module c_mod
+        contains
+          subroutine my_sub()
+            use a_mod, only: rau0
+            use a_mod, only: new_name => some_var
+            some_var = rau0
+          end subroutine
+        end module c_mod
+        ''')
+    routine = psyir.walk(Routine)[0]
+    routine.symbol_table.resolve_imports()
+    # A symbol not named in the `only` clause should not be present in the
+    # table.
+    assert not routine.symbol_table.lookup("not_used", otherwise=None)
+    rau0 = routine.symbol_table.lookup("rau0")
+    assert rau0.is_import
+    amod = routine.symbol_table.lookup("a_mod")
+    assert rau0.interface.container_symbol is amod
+    newname = routine.symbol_table.lookup("new_name")
+    assert newname.is_import
+    assert newname.interface.orig_name == "some_var"
+    assert isinstance(newname, symbols.DataSymbol)
+    assert isinstance(newname.datatype, symbols.ArrayType)
+
+
 def test_scope():
     ''' Test that the scope property returns the SymbolTable associated with
     the node. '''
