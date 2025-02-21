@@ -371,7 +371,8 @@ class KernCallArgList(ArgOrdering):
                 # If dof kernel, add access to the field by dof ref
                 dof_sym = self._symtab.find_or_create_integer_symbol(
                     "df", tag="dof_loop_idx")
-
+                # TODO #1010 removes the need to declare type and
+                # allows this to be fixed
                 self.append_array_reference(cmpt_sym.name,
                                             [Reference(dof_sym)],
                                             ScalarType.Intrinsic.INTEGER,
@@ -409,6 +410,8 @@ class KernCallArgList(ArgOrdering):
             # If dof kernel, add access to the field by dof ref
             dof_sym = self._symtab.find_or_create_integer_symbol(
                 "df", tag="dof_loop_idx")
+            # TODO #1010 removes the need to declare type and
+            # allows this to be fixed
             self.append_array_reference(sym.name, [Reference(dof_sym)],
                                         ScalarType.Intrinsic.INTEGER,
                                         symbol=sym)
