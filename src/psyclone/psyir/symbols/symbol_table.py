@@ -1740,6 +1740,17 @@ class SymbolTable():
                 # errors).
                 continue
 
+            if not c_symbol.wildcard_import:
+                # The import from this Container is for certain, specific
+                # symbols.
+                imported_names = set()
+                for isym in self.symbols_imported_from(c_symbol):
+                    if isym.interface.orig_name:
+                        imported_names.add(
+                            self._normalize(isym.interface.orig_name))
+                    else:
+                        imported_names.add(self._normalize(isym.name))
+
             # Examine all Symbols defined within this external container
             for imported_sym in external_container.symbol_table.symbols:
                 if imported_sym.visibility == Symbol.Visibility.PRIVATE:
@@ -1758,6 +1769,11 @@ class SymbolTable():
                     continue
 
                 norm_name = self._normalize(imported_sym.name)
+
+                if (not c_symbol.wildcard_import and
+                        norm_name not in imported_names):
+                    # This symbol is not being imported.
+                    continue
 
                 if norm_name in self:
                     # This Symbol matches the name of a symbol in the current
