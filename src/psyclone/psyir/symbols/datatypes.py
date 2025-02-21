@@ -92,7 +92,8 @@ class DataType(metaclass=abc.ABCMeta):
 
     @property
     def is_allocatable(self) -> bool:
-        ''':returns: whether this DataType is allocatable. In the base class
+        '''
+        :returns: whether this DataType is allocatable. In the base class
             set this to be always False.'''
         return False
 
