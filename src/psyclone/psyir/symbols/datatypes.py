@@ -109,7 +109,7 @@ class UnresolvedType(DataType):
     def is_allocatable(self) -> Union[bool, None]:
         '''
         :returns: whether this DataType is allocatable. In case of an
-        UnresolvedType we don't know.'''
+            UnresolvedType we don't know.'''
         return None
 
 
