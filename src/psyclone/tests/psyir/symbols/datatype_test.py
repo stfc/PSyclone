@@ -82,7 +82,7 @@ def test_unresolvedtype_str():
 def test_unresolvedtype_is_allocatable():
     '''Test that the UnresolvedType class' is_allocatable property works.'''
     data_type = UnresolvedType()
-    assert data_type.is_allocatable is False
+    assert data_type.is_allocatable is None
 
 
 def test_unresolvedtype_eq():
@@ -857,6 +857,11 @@ def test_unsupported_fortran_type_is_allocatable(fortran_reader):
     # Make sure we do indeed test the UnsupportedFortranType
     assert isinstance(vsym_alloc.datatype, UnsupportedFortranType)
     assert vsym_alloc.datatype.is_allocatable
+
+    # Check the behaviour if partial_datatype is None
+    unsup_type = UnsupportedFortranType("some_declaration",
+                                        partial_datatype=None)
+    assert unsup_type.is_allocatable is None
 
 
 def test_unsupported_fortran_type_copy(fortran_reader):

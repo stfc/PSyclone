@@ -91,7 +91,7 @@ class DataType(metaclass=abc.ABCMeta):
         '''
 
     @property
-    def is_allocatable(self) -> bool:
+    def is_allocatable(self) -> Union[bool, None]:
         '''
         :returns: whether this DataType is allocatable. In the base class
             set this to be always False.'''
@@ -104,6 +104,13 @@ class UnresolvedType(DataType):
 
     def __str__(self):
         return "UnresolvedType"
+
+    @property
+    def is_allocatable(self) -> Union[bool, None]:
+        '''
+        :returns: whether this DataType is allocatable. In case of an
+        UnresolvedType we don't know.'''
+        return None
 
 
 class NoType(DataType):
@@ -299,11 +306,11 @@ class UnsupportedFortranType(UnsupportedType):
         return None
 
     @property
-    def is_allocatable(self) -> bool:
+    def is_allocatable(self) -> Union[bool, None]:
         '''If we have enough information in the partial_datatype,
         determines whether this data type is allocatable or not.
         If it is unknown, it will return None. Note that atm PSyclone
-        only supports allocatable arrays.
+        only supports the allocatable attribute for **arrays**.
         # TODO #2898 If we support non-array allocatable types, the
         test for arrays can be removed
 
