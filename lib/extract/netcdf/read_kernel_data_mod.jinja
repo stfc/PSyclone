@@ -333,8 +333,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated {{dim}}D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A {{dim}}D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray{{dim}}d{{name}}NonAlloc(this, name, value)
 
         use netcdf

@@ -339,8 +339,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 1D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 1D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray1dCharNonAlloc(this, name, value)
 
         use netcdf
@@ -435,8 +435,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 2D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray2dCharNonAlloc(this, name, value)
 
         use netcdf
@@ -546,8 +546,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 3D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 3D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray3dCharNonAlloc(this, name, value)
 
         use netcdf
@@ -672,8 +672,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 4D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 4D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray4dCharNonAlloc(this, name, value)
 
         use netcdf
@@ -827,8 +827,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 1D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 1D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray1dIntNonAlloc(this, name, value)
 
         use netcdf
@@ -929,8 +929,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 2D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray2dIntNonAlloc(this, name, value)
 
         use netcdf
@@ -1046,8 +1046,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 3D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 3D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray3dIntNonAlloc(this, name, value)
 
         use netcdf
@@ -1178,8 +1178,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 4D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 4D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray4dIntNonAlloc(this, name, value)
 
         use netcdf
@@ -1336,8 +1336,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 1D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 1D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray1dLongNonAlloc(this, name, value)
 
         use netcdf
@@ -1438,8 +1438,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 2D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray2dLongNonAlloc(this, name, value)
 
         use netcdf
@@ -1555,8 +1555,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 3D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 3D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray3dLongNonAlloc(this, name, value)
 
         use netcdf
@@ -1687,8 +1687,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 4D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 4D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray4dLongNonAlloc(this, name, value)
 
         use netcdf
@@ -1856,8 +1856,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 1D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 1D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray1dLogicalNonAlloc(this, name, value)
 
         use netcdf
@@ -1976,8 +1976,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 2D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray2dLogicalNonAlloc(this, name, value)
 
         use netcdf
@@ -2111,8 +2111,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 3D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 3D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray3dLogicalNonAlloc(this, name, value)
 
         use netcdf
@@ -2261,8 +2261,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 4D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 4D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray4dLogicalNonAlloc(this, name, value)
 
         use netcdf
@@ -2428,8 +2428,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 1D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 1D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray1dRealNonAlloc(this, name, value)
 
         use netcdf
@@ -2530,8 +2530,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 2D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray2dRealNonAlloc(this, name, value)
 
         use netcdf
@@ -2647,8 +2647,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 3D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 3D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray3dRealNonAlloc(this, name, value)
 
         use netcdf
@@ -2779,8 +2779,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 4D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 4D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray4dRealNonAlloc(this, name, value)
 
         use netcdf
@@ -2937,8 +2937,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 1D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 1D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray1dDoubleNonAlloc(this, name, value)
 
         use netcdf
@@ -3039,8 +3039,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 2D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 2D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray2dDoubleNonAlloc(this, name, value)
 
         use netcdf
@@ -3156,8 +3156,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 3D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 3D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray3dDoubleNonAlloc(this, name, value)
 
         use netcdf
@@ -3288,8 +3288,8 @@ contains
     !! that is not allocatable (e.g. a fixed size array).
     !! @param[in,out] this The instance of the extract_PsyDataType.
     !! @param[in] name The name of the variable (string).
-    !! @param[out] value An allocatable, unallocated 4D-double precision array
-    !!             which is allocated here and stores the values read.
+    !! @param[out] value A 4D-double precision array into which
+    !!             the values are read.
     subroutine ReadArray4dDoubleNonAlloc(this, name, value)
 
         use netcdf
