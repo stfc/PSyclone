@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author O. Brunt, Met Office
+# Modified A. Pirrie, Met Office
 
 '''
 This module tests metadata validation and code generation of
@@ -130,32 +131,6 @@ def test_dof_kernel_invalid_arg():
             in str(excinfo.value))
 
 
-def test_dof_kernel_invalid_field_vector():
-    '''
-    Check that we raise an exception if we encounter metadata
-    for a dof kernel with a field vector.
-
-    '''
-    # Substitute field for field vector
-    code = CODE.replace(
-        """
-                    (/ arg_type(gh_field, gh_real, gh_write, w1),  &
-                        arg_type(gh_field, gh_real, gh_read, w2)   &
-        """,
-        """
-                   (/ arg_type(gh_field*3, gh_real, gh_write, w1), &
-                      arg_type(gh_scalar, gh_real, gh_read)  &
-        """,
-        1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_dofs_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("Kernel 'testkern_dofs_type' operates on 'dof' but has a vector "
-            "argument 'gh_field*3'. This is not permitted in the LFRic API."
-            in str(excinfo.value))
-
-
 def test_upper_bounds(monkeypatch, annexed, dist_mem, tmpdir):
     '''
     Checks that the correct upper bound is generated for a dof-kernel for all
@@ -209,7 +184,8 @@ def test_indexed_field_args(tmpdir):
     code = str(psy.gen)
 
     expected = ("call testkern_dofs_code(f1_data(df), f2_data(df), "
-                "f3_data(df), f4_data(df), scalar_arg)")
+                "f3_data(df), f4_data(df), field_vec_1_data(df), "
+                "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)")
 
     assert expected in code
     # Check compilation
@@ -293,6 +269,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     type(field_type), intent(in) :: f2
     type(field_type), intent(in) :: f3
     type(field_type), intent(in) :: f4
+    type(field_type), dimension(3), intent(in) :: field_vec
     real(kind=r_def), intent(in) :: scalar_arg
     real(kind=r_def), intent(in) :: a
     type(field_type), intent(in) :: m1
@@ -303,6 +280,9 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     real(kind=r_def), pointer, dimension(:) :: f2_data => null()
     real(kind=r_def), pointer, dimension(:) :: f3_data => null()
     real(kind=r_def), pointer, dimension(:) :: f4_data => null()
+    real(kind=r_def), pointer, dimension(:) :: field_vec_1_data => null()
+    real(kind=r_def), pointer, dimension(:) :: field_vec_2_data => null()
+    real(kind=r_def), pointer, dimension(:) :: field_vec_3_data => null()
     real(kind=r_def), pointer, dimension(:) :: m1_data => null()
     real(kind=r_def), pointer, dimension(:) :: m2_data => null()
     """ in code
@@ -311,7 +291,8 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     output = (
         "    do df = loop0_start, loop0_stop, 1\n"
         "      call testkern_dofs_code(f1_data(df), f2_data(df), "
-        "f3_data(df), f4_data(df), scalar_arg)\n"
+        "f3_data(df), f4_data(df), field_vec_1_data(df), "
+        "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)\n"
         "    enddo\n"
     )
     assert output in code
@@ -324,7 +305,8 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
             output = (
                 "    do df = loop0_start, loop0_stop, 1\n"
                 "      call testkern_dofs_code(f1_data(df), f2_data(df), "
-                "f3_data(df), f4_data(df), scalar_arg)\n"
+                "f3_data(df), f4_data(df), field_vec_1_data(df), "
+                "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)\n"
                 "    enddo\n"
                 "\n"
                 "    ! Set halos dirty/clean for fields modified in the "
@@ -337,7 +319,8 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
             output = (
                 "    do df = loop0_start, loop0_stop, 1\n"
                 "      call testkern_dofs_code(f1_data(df), f2_data(df), "
-                "f3_data(df), f4_data(df), scalar_arg)\n"
+                "f3_data(df), f4_data(df), field_vec_1_data(df), "
+                "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)\n"
                 "    enddo\n"
                 "\n"
                 "    ! Set halos dirty/clean for fields modified in the "
