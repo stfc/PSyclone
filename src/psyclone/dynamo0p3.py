@@ -3976,9 +3976,6 @@ class LFRicHaloExchange(HaloExchange):
         depth_info_list = self._compute_halo_read_depth_info()
         if len(depth_info_list) == 1:
             psyir = depth_info_list[0].psyir_expression()
-        elif len(depth_info_list) == 0:
-            # Thats an error
-            psyir = Literal("10", INTEGER_TYPE)
         else:
             psyir = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.MAX,

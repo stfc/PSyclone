@@ -432,7 +432,6 @@ def test_colour_continuous_writer_intergrid(tmpdir, dist_mem):
     assert ("integer(kind=i_def), allocatable, dimension(:) :: "
             "last_edge_cell_all_colours_field1" in result)
     # Initialisation.
-    print(result)
     assert ("last_edge_cell_all_colours_field1 = mesh_field1%"
             "get_last_edge_cell_all_colours()" in result)
     # Usage. Since there is no need to loop into the halo, the upper loop
@@ -7829,7 +7828,7 @@ mesh%get_last_halo_cell_per_colour_and_tile()""" in code
 (colour,1), 1
         do cell = loop2_start, last_halo_cell_per_colour_and_tile\
 (colour,tile,1), 1
-        """ == code
+        """ in code
 
     # Kernel calls use the tmap to get the cell index
     assert ("call testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, "

@@ -640,22 +640,36 @@ class LFRicLoop(PSyLoop):
             )
             return result
         if self._upper_bound_name == "ntiles_per_colour_halo":
+            if halo_index:
+                depth = halo_index.copy()
+            else:
+                # If no depth is specified then we go to the full halo depth
+                depth = Reference(sym_tab.find_or_create_tag(
+                    f"max_halo_depth_{self._mesh_name}"))
             if Config.get().distributed_memory:
                 result = ArrayReference.create(
                     sym_tab.lookup_with_tag("last_halo_tile_per_colour"),
-                    [Reference(sym_tab.lookup_with_tag("colours_loop_idx"))]
+                    [Reference(sym_tab.lookup_with_tag("colours_loop_idx")),
+                     depth]
                 )
                 return result
             raise GenerationError(
                 "'last_halo_tile_per_colour' is not a valid loop upper bound "
                 "for non-distributed-memory code")
         if self._upper_bound_name == "ncells_per_colour_and_tile_halo":
+            if halo_index:
+                depth = halo_index.copy()
+            else:
+                # If no depth is specified then we go to the full halo depth
+                depth = Reference(sym_tab.find_or_create_tag(
+                    f"max_halo_depth_{self._mesh_name}"))
             if Config.get().distributed_memory:
                 result = ArrayReference.create(
                     sym_tab.lookup_with_tag(
                                     "last_halo_cell_per_colour_and_tile"),
                     [Reference(sym_tab.lookup_with_tag("colours_loop_idx")),
-                     Reference(sym_tab.lookup_with_tag("tile_loop_idx"))]
+                     Reference(sym_tab.lookup_with_tag("tile_loop_idx")),
+                     depth]
                 )
                 return result
             raise GenerationError(
