@@ -649,17 +649,17 @@ def test_lfric_driver_external_symbols():
 
     # Check that const-size arrays are exported:
     expected = [
-      'USE module_with_var_mod, ONLY: const_size_array',
-      'CALL extract_psy_data%PreDeclareVariable("const_size_array@'
+      'use module_with_var_mod, only : const_size_array',
+      'CALL extract_psy_data % PreDeclareVariable("const_size_array@'
       'module_with_var_mod", const_size_array)',
-      'CALL extract_psy_data%PreDeclareVariable("const_size_array_post@'
+      'CALL extract_psy_data % PreDeclareVariable("const_size_array_post@'
       'module_with_var_mod", const_size_array)',
-      'CALL extract_psy_data%ProvideVariable("const_size_array@'
+      'CALL extract_psy_data % ProvideVariable("const_size_array@'
       'module_with_var_mod", const_size_array)',
-      'CALL extract_psy_data%ProvideVariable("const_size_array_post@'
+      'CALL extract_psy_data % ProvideVariable("const_size_array_post@'
       'module_with_var_mod", const_size_array)']
     for line in expected:
-        assert line in code
+        assert line in code, line
 
     filename = "driver-import-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
