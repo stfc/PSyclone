@@ -52,8 +52,7 @@ from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
     ImportInterface, RoutineSymbol, Symbol, SymbolError)
 from psyclone.psyir.nodes import (
-    Call, Container, FileContainer, Reference, Routine, ScopingNode,
-    Literal, CodeBlock, IntrinsicCall)
+    Call, Container, FileContainer, Routine, ScopingNode, IntrinsicCall)
 
 
 class KernelModuleInlineTrans(Transformation):

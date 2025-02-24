@@ -42,7 +42,8 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine, Loop
+from psyclone.psyir.nodes import (
+    Assignment, Call, IntrinsicCall, Reference, Routine, Loop)
 from psyclone.psyir.symbols import (
     AutomaticInterface, DataSymbol, UnresolvedType)
 from psyclone.psyir.transformations import (
@@ -2197,8 +2198,45 @@ def test_validate_call_within_routine(fortran_reader):
             "sub(a)') is not inside a Routine" in str(err.value))
 
 
-def test_apply_merges_symbol_table_with_routine(fortran_reader,
-                                                fortran_writer):
+def test_validate_automatic_array_sized_by_arg(fortran_reader):
+    '''
+    Check that validate raises the expected error if the dimension of an
+    automatic array is passed by argument and is written to before the call
+    (because this means we can't simply move the declaration of the array
+    into the table at the call site.)
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real, dimension(10) :: var = 0.0\n"
+        "  integer :: ndim\n"
+        "  ndim = 5\n"
+        "  call sub(var, ndim)\n"
+        "end subroutine main\n"
+        "subroutine sub(x, ilen)\n"
+        "  real, dimension(ilen), intent(inout) :: x\n"
+        "  integer, intent(in) :: ilen\n"
+        "  real, dimension(ilen*2) :: work\n"
+        "  x(:) = x(:) + 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Cannot inline routine 'sub' because one or more of its "
+            "declarations depends on 'ilen' which is passed by argument and "
+            "is assigned to before the call ('ndim = 5')" in str(err.value))
+    # Without the preceding write to ndim, validate() is happy.
+    assign = psyir.walk(Assignment)[0]
+    assign.detach()
+    inline_trans.validate(call)
+
+
+def test_apply_merges_symbol_table_with_routine(fortran_reader):
     '''
     Check that the apply method merges the inlined function's symbol table to
     the containing Routine when the call node is inside a child ScopingNode.
@@ -2271,4 +2309,46 @@ end subroutine sub
 '''
     output = fortran_writer(psyir)
     assert expected in output
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmpdir):
+    '''
+    Check that any automatic variables have their dimensioning symbols updated
+    when inlined.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main()\n"
+        "  real, dimension(10, 10) :: var = 0.0\n"
+        "  call sub(var, 10)\n"
+        "end subroutine main\n"
+        "subroutine sub(x, ilen)\n"
+        "  integer, intent(in) :: ilen\n"
+        "  real, dimension(ilen, ilen), intent(inout) :: x\n"
+        "  real, dimension(ilen, ilen) :: work\n"
+        "  type nasty\n"
+        "    integer, dimension(ilen+1) :: flag\n"
+        "  end type nasty\n"
+        "  type(nasty) :: oh_deary_me\n"
+        "  work = 2.0\n"
+        "  x(:,:) = x(:,:) + work(:,:)\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    main = psyir.children[0].find_routine_psyir("main")
+    assert "ilen" not in main.symbol_table
+    output = fortran_writer(psyir)
+    assert '''\
+    type :: nasty
+      integer, dimension(10 + 1) :: flag
+    end type nasty''' in output
+    assert "real, dimension(10,10) :: work" in output
+    assert "type(nasty) :: oh_deary_me" in output
     assert Compile(tmpdir).string_compiles(output)

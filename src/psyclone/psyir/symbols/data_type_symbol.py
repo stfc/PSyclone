@@ -139,6 +139,19 @@ class DataTypeSymbol(Symbol):
         super().reference_accesses(access_info)
         self.datatype.reference_accesses(self, access_info)
 
+    def replace_symbols_using(self, table):
+        '''
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        super().replace_symbols_using(table)
+        self.datatype.replace_symbols_using(table)
+
 
 # For automatic documentation generation
 __all__ = ['DataTypeSymbol']

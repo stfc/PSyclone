@@ -37,17 +37,18 @@
 This module contains the InlineTrans transformation.
 
 '''
+from psyclone.core import VariablesAccessInfo
 from psyclone.errors import LazyString, InternalError
-from psyclone.psyGen import Transformation
+from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
-    CodeBlock, Container, IntrinsicCall, Literal, Node, Range, Routine,
+    CodeBlock, Container, IntrinsicCall, Literal, Loop, Node, Range, Routine,
     Reference, Return, ScopingNode, Statement, StructureMember,
     StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArrayType, UnresolvedType, INTEGER_TYPE,
-    SymbolError, UnknownInterface, UnsupportedType)
+    StructureType, SymbolError, UnknownInterface, UnsupportedType)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
@@ -167,7 +168,7 @@ class InlineTrans(Transformation):
             refs.extend(new_stmts[-1].walk(Reference))
 
         # Shallow copy the symbols from the routine into the table at the
-        # call site.
+        # call site. This preserves any references to them.
         try:
             table.merge(routine_table,
                         symbols_to_skip=routine_table.argument_list[:])
@@ -175,7 +176,7 @@ class InlineTrans(Transformation):
             raise InternalError(
                 f"Error copying routine symbols to call site. This should "
                 f"have been caught by the validate() method. Original error "
-                f"was {err}")
+                f"was {err}") from err
 
         # When constructing new references to replace references to formal
         # args, we need to know whether any of the actual arguments are array
@@ -196,6 +197,43 @@ class InlineTrans(Transformation):
         formal_args = routine_table.argument_list
         for ref in refs[:]:
             self._replace_formal_arg(ref, node, formal_args)
+
+        # Ensure any references to Symbols within the shape-specification of
+        # other Symbols are updated. Note, we don't have to worry about
+        # initialisation expressions here as they imply that a variable is
+        # static. We don't support inlining routines with static variables.
+        for sym in table.automatic_datasymbols:
+            if isinstance(sym.datatype, ArrayType):
+                new_shape = []
+                for dim in sym.datatype.shape:
+                    if isinstance(dim, ArrayType.Extent):
+                        continue
+                    lower = self._replace_formal_arg(dim.lower, node,
+                                                     formal_args)
+                    upper = self._replace_formal_arg(dim.upper, node,
+                                                     formal_args)
+                    new_shape.append(ArrayType.ArrayBounds(lower, upper))
+                sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
+
+        for sym in table.datatypesymbols:
+            if not isinstance(sym.datatype, StructureType):
+                continue
+            for name, ctype in sym.datatype.components.items():
+                if isinstance(ctype.datatype, ArrayType):
+                    new_shape = []
+                    for dim in ctype.datatype.shape:
+                        lower = self._replace_formal_arg(dim.lower, node,
+                                                         formal_args)
+                        upper = self._replace_formal_arg(dim.upper, node,
+                                                         formal_args)
+                        new_shape.append(ArrayType.ArrayBounds(lower, upper))
+                    sym.datatype.components[name] = (
+                        StructureType.ComponentType(
+                            name=name,
+                            datatype=ArrayType(ctype.datatype.datatype,
+                                               new_shape),
+                            visibility=ctype.visibility,
+                            initial_value=ctype.initial_value))
 
         # Copy the nodes from the Routine into the call site.
         # TODO #924 - while doing this we should ensure that any References
@@ -613,6 +651,10 @@ class InlineTrans(Transformation):
             container is accessed in the target routine.
         :raises TransformationError: if the shape of an array formal argument
             does not match that of the corresponding actual argument.
+        :raises TransformationError: if one of the declaratoins in the routine
+            depends on an argument that is written to prior to the call.
+        :raises InternalError: if an unhandled Node type is returned by
+            Reference.previous_accesses().
 
         '''
         super().validate(node, options=options)
@@ -772,7 +814,8 @@ class InlineTrans(Transformation):
             formal_rank = 0
             actual_rank = 0
             if isinstance(formal_arg.datatype, ArrayType):
-                formal_rank = len(formal_arg.datatype.shape)
+                formal_shape = formal_arg.datatype.shape
+                formal_rank = len(formal_shape)
             if isinstance(actual_arg.datatype, ArrayType):
                 actual_rank = len(actual_arg.datatype.shape)
             if formal_rank != actual_rank:
@@ -807,6 +850,55 @@ class InlineTrans(Transformation):
                             f"because one of its arguments is an array slice "
                             f"with a non-unit stride: "
                             f"'{actual_arg.debug_string()}' (TODO #1646)"))
+
+            # Check for dependencies within the SymbolTable of the target
+            # routine. If any of these are used to dimension a local
+            # (automatic) array, are passed by argument and are written
+            # to before the call then we can't perform inlining.
+            for asym in routine.symbol_table.automatic_datasymbols:
+                vai = VariablesAccessInfo()
+                asym.reference_accesses(vai)
+                for sig in vai.all_signatures:
+                    sym = routine_table.lookup(sig.var_name)
+                    if sym not in routine_table.argument_list:
+                        # This dependency is not an argument to the routine.
+                        continue
+                    actual_arg = node.arguments[
+                        routine_table.argument_list.index(sym)]
+                    if not isinstance(actual_arg, Reference):
+                        # The corresponding actual argument is not a Reference
+                        # so cannot be modified prior to the call.
+                        continue
+                    # What form does the dependence take?
+                    for prev in actual_arg.previous_accesses():
+                        if prev is node or prev.parent is node:
+                            # Skip the Call itself and any other arguments to
+                            # the call.
+                            continue
+                        exprn = prev.ancestor(Statement, include_self=True)
+                        stmt = exprn.debug_string().strip()
+                        if isinstance(prev, (CodeBlock, Call, Kern, Loop)):
+                            raise TransformationError(
+                                f"Cannot inline routine '{routine.name}' "
+                                f"because one or more of its declarations "
+                                f"depends on '{sym.name}' which is passed by "
+                                f"argument and may be written to before the "
+                                f"call ('{stmt}').")
+                        if isinstance(prev, Reference):
+                            if prev.is_write:
+                                raise TransformationError(
+                                    f"Cannot inline routine '{routine.name}' "
+                                    f"because one or more of its declarations "
+                                    f"depends on '{sym.name}' which is passed "
+                                    f"by argument and is assigned to before "
+                                    f"the call ('{stmt}').")
+                            continue
+
+                        raise InternalError(
+                            f"Unexpected node type ({type(prev).__name__}) "
+                            f"returned from Reference.previous_accesses(). "
+                            f"Expected a Call, CodeBlock, Kern, Loop or "
+                            f"Reference.")
 
 
 # For AutoAPI auto-documentation generation.

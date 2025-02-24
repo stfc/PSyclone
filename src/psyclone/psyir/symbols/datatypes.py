@@ -1018,6 +1018,7 @@ class StructureType(DataType):
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
         '''
         new = StructureType()
+
         for name, component in self.components.items():
             new.add(name, component.datatype, component.visibility,
                     component.initial_value, component.preceding_comment,
@@ -1178,9 +1179,8 @@ class StructureType(DataType):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        # Since ComponentType is a namedtuple it is immutable therefore we
-        # must construct new ones.
-        new_components = OrderedDict()
+        # Since ComponentType is a frozen dataclass it is immutable, therefore
+        # we must construct new ones.
         for component in self.components.values():
             if isinstance(component.datatype, DataTypeSymbol):
                 try:
@@ -1194,10 +1194,10 @@ class StructureType(DataType):
                 component.initial_value.replace_symbols_using(table)
             # Construct the new ComponentType
             key_name = component.name.lower()
-            new_components[key_name] = StructureType.ComponentType(
-                component.name, new_type, component.visibility,
-                component.initial_value)
-        self._components = new_components
+            self.add(key_name, new_type, component.visibility,
+                     component.initial_value,
+                     preceding_comment=component.preceding_comment,
+                     inline_comment=component.inline_comment)
 
     def reference_accesses(self, sym, access_info):
         '''
