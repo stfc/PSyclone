@@ -1946,17 +1946,17 @@ class OMPDoDirective(OMPRegionDirective):
                                  number of nested Loops.
         '''
         if self._collapse:
-            cursor = self.dir_body.children[0]
+            cursor = self.dir_body
             for depth in range(self._collapse):
-                if (len(cursor.parent.children) != 1 or
-                        not isinstance(cursor, Loop)):
+                if (len(cursor.children) != 1 or
+                        not isinstance(cursor.children[0], Loop)):
                     raise GenerationError(
                         f"{type(self).__name__} must have as many immediately "
                         f"nested loops as the collapse clause specifies but "
                         f"'{self}' has a collapse={self._collapse} and the "
                         f"nested body at depth {depth} cannot be "
                         f"collapsed.")
-                cursor = cursor.loop_body.children[0]
+                cursor = cursor.children[0].loop_body
 
     def _validate_single_loop(self):
         '''
@@ -2141,6 +2141,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 class OMPTeamsDistributeParallelDoDirective(OMPParallelDoDirective):
     ''' Class representing the OMP teams distribute parallel do directive. '''
     _directive_string = "teams distribute parallel do"
+
+
+class OMPTeamsLoopDirective(OMPParallelDoDirective):
+    ''' Class representing the OMP teams loop directive. '''
+    _directive_string = "teams loop"
 
 
 class OMPTargetDirective(OMPRegionDirective):

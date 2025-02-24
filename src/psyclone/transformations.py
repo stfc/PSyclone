@@ -2206,9 +2206,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
         Quadrature support is currently limited to XYoZ in ths
         transformation. In the case of XYoZ the number of quadrature
-        points (for horizontal and vertical) are set to the
-        MAX(element_order_h, element_order_v) + 3 in the LFRic infrastructure
-        so their value is derived.
+        points in the horizontal are set to element_order_h+3, and in the
+        vertical to element_order_v+3. These values are set in the LFRic
+        infrastructure, so their value is derived.
 
         :param node: a kernel node.
         :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
@@ -2330,10 +2330,10 @@ class Dynamo0p3KernelConstTrans(Transformation):
             if kernel.eval_shapes == ["gh_quadrature_xyoz"]:
                 make_constant(symbol_table,
                               arg_list_info.nqp_positions[0]["horizontal"],
-                              max(element_order_h, element_order_v)+3)
+                              element_order_h+3)
                 make_constant(symbol_table,
                               arg_list_info.nqp_positions[0]["vertical"],
-                              max(element_order_h, element_order_v)+3)
+                              element_order_v+3)
             else:
                 raise TransformationError(
                     f"Error in Dynamo0p3KernelConstTrans transformation. "
