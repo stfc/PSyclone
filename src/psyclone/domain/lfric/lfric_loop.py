@@ -78,11 +78,16 @@ class LFRicLoop(PSyLoop):
         super().__init__(valid_loop_types=const.VALID_LOOP_TYPES, **kwargs)
         self.loop_type = loop_type
 
+        ischedule = self.ancestor(InvokeSchedule)
+        if not ischedule:
+            raise InternalError(
+                "LFRic loops must be inside an InvokeSchedule, a parent "
+                "argument is mandatory when they are created.")
+
         # Set our variable at initialisation as it might be required
         # by other classes before code generation. A 'null' loop does not
         # have an associated variable.
         if self.loop_type != "null":
-
             if self.loop_type == "colours":
                 tag = "colours_loop_idx"
                 suggested_name = "colour"
@@ -107,16 +112,9 @@ class LFRicLoop(PSyLoop):
                     f"creating loop variable. Supported values are 'colours', "
                     f"'colour', 'dof' or '' (for cell-columns).")
 
-            self.variable = self.scope.symbol_table.find_or_create_tag(
+            self.variable = ischedule.symbol_table.find_or_create_tag(
                 tag, root_name=suggested_name, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-
-        # Initialise loop bounds
-        ischedule = self.ancestor(InvokeSchedule)
-        if not ischedule:
-            raise InternalError(
-                "LFRic loops must be inside an InvokeSchedule, a parent "
-                "argument is mandatory when they are created.")
 
         # The loop bounds names are given by the number of previous LFRic loops
         # already present in the Schedule. Since this are inserted in order it

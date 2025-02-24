@@ -249,6 +249,7 @@ def test_colour_trans(tmpdir, dist_mem):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+
 def test_colour_trans_operator(tmpdir, dist_mem):
     '''test of the colouring transformation of a single loop with an
     operator. We check that the first argument is a colourmap lookup,
@@ -7794,23 +7795,48 @@ def test_colour_trans_tiled_non_intergrid(dist_mem, tmpdir):
 
     # Store the results of applying this code transformation as
     # a string (Fortran is not case sensitive)
-    gen = str(psy.gen).lower()
-    print(gen)
+    code = str(psy.gen).lower()
+
+    # Declare and initialise supporting variables
+    assert "integer(kind=i_def), allocatable, dimension(:,:,:) :: tmap" in code
+    assert "integer(kind=i_def) :: ntilecolours" in code
+    assert """
+    ! get the tiled colourmap
+    ntilecolours = mesh%get_ntilecolours()
+    tmap => mesh%get_coloured_tiling_map()""" in code
+
     if not dist_mem:
+        # Use last-edge version
         assert """
-      do colour = loop0_start, loop0_stop, 1
-        do tile = loop1_start, last_halo_tile_per_colour(colour, 1), 1
-          do cell = loop2_start, last_halo_cell_per_colour_and_tile\
-(colour,tile, 1), 1
-        """ in gen
+    last_edge_tile_per_colour = mesh%get_last_edge_tile_per_colour()
+    last_edge_cell_per_colour_and_tile = \
+mesh%get_last_edge_cell_per_colour_and_tile()""" in code
+        assert """
+    do colour = loop0_start, loop0_stop, 1
+      do tile = loop1_start, last_edge_tile_per_colour(colour), 1
+        do cell = loop2_start, last_edge_cell_per_colour_and_tile\
+(colour,tile), 1
+        """ in code
     else:
+        # Use halo version
         assert """
-      do colour = loop0_start, loop0_stop, 1
-        do tile = loop1_start, mesh%get_last_halo_tile_per_colour\
+    last_halo_tile_per_colour = mesh%get_last_halo_tile_per_colour()
+    last_halo_cell_per_colour_and_tile = \
+mesh%get_last_halo_cell_per_colour_and_tile()""" in code
+        assert """
+    do colour = loop0_start, loop0_stop, 1
+      do tile = loop1_start, last_halo_tile_per_colour\
 (colour,1), 1
-          do cell = loop2_start, mesh%get_last_halo_cell_per_colour_and_tile\
+        do cell = loop2_start, last_halo_cell_per_colour_and_tile\
 (colour,tile,1), 1
-        """ in gen
+        """ == code
+
+    # Kernel calls use the tmap to get the cell index
+    assert ("call testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, "
+            "m2_data, ndf_w1, undf_w1, map_w1(:,tmap(colour,tile,cell)), "
+            "ndf_w2, undf_w2, map_w2(:,tmap(colour,tile,cell)), ndf_w3, "
+            "undf_w3, map_w3(:,tmap(colour,tile,cell)))" in code)
+
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -7865,6 +7891,7 @@ def test_colour_tans_tiled_intergrid(dist_mem, tmpdir):
     assert expected in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
 
 def test_colour_trans_tiled_continuous_writer_intergrid(tmpdir, dist_mem):
     '''
