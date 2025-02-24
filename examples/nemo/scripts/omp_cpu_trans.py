@@ -46,6 +46,7 @@ from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 # TODO Remove
 from psyclone.psyir.transformations import ScalarizationTrans
+from psyclone.psyir.nodes import Loop
 
 # Enable the insertion of profiling hooks during the transformation script
 PROFILING_ENABLED = False
