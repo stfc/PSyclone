@@ -41,7 +41,7 @@ from typing import Optional, Dict, Any, List, Tuple
 from psyclone.core import VariablesAccessInfo, Signature, SymbolicMaths
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Call, CodeBlock, Literal, \
-        Loop, Node, Range, Reference, Routine, StructureReference
+        IfBlock, Loop, Node, Range, Reference, Routine, StructureReference
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 
@@ -174,17 +174,27 @@ class ScalarizationTrans(LoopTrans):
 
     @staticmethod
     def _check_first_access_is_write(signature: Signature,
+                                     loop: Loop,
                                      var_accesses: VariablesAccessInfo) \
             -> bool:
         '''
         :param signature: The signature to check.
+        :param loop: The Loop object being transformed.
         :param var_accesses: The VariableAccessesInfo object containing
                              signature.
         :returns: whether the first access to signature is a write.
         '''
-        if var_accesses[signature].is_written_first():
-            return True
-        return False
+        if not var_accesses[signature].is_written_first():
+            return False
+        # Need to find the first access and check if its in a conditional.
+        accesses = var_accesses[signature].all_accesses
+        first_node = accesses[0].node
+        ifblock = first_node.ancestor(IfBlock)
+        # If the depth of the ifblock is larger than loop then the write
+        # is in a conditional
+        if ifblock and ifblock.depth > loop.depth:
+            return False
+        return True
 
     @staticmethod
     def _get_index_values_from_indices(
@@ -427,6 +437,7 @@ class ScalarizationTrans(LoopTrans):
         potential_targets = filter(
                 lambda sig:
                 ScalarizationTrans._check_first_access_is_write(sig,
+                                                                node,
                                                                 var_accesses),
                 potential_targets)
 
