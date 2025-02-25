@@ -43,7 +43,8 @@ Effectively it provides an alternative to array privatisation.
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    Loop, Routine, CodeBlock)
+    Loop, Routine, CodeBlock, Reference, ArrayReference)
+from psyclone.psyir.symbols import ArrayType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -62,7 +63,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
     ...     integer :: N=10, M=10
     ...     integer :: i, j
     ...     real, dimension(N) :: ztmp
-    ...     do i = 1, M
+    ...     do i = -5, M + 3
     ...         do j = 1, N
     ...             ztmp(j) = 1
     ...         end do
@@ -73,20 +74,22 @@ class IncreaseRankLoopArraysTrans(Transformation):
     ... end program
     ... """)
     >>> psyir = FortranReader().psyir_from_source(code)
-    >>> hoist = IncreaseRankLoopArraysTrans()
-    >>> hoist.apply(psyir.walk(Loop)[0])
+    >>> irla = IncreaseRankLoopArraysTrans()
+    >>> irla.apply(psyir.walk(Loop)[0], options={'arrays':['ztmp']})
     >>> print(FortranWriter()(psyir))
     program test
+      integer, save :: n = 10
+      integer, save :: m = 10
       integer :: i
       integer :: j
-      integer :: n
-      real, dimension(n,n) :: a
-      real :: value
+      real, dimension(n,-5:m + 3) :: ztmp
     <BLANKLINE>
-      value = 1.0
-      do i = 1, n, 1
+      do i = -5, m + 3, 1
         do j = 1, n, 1
-          a(i,j) = value
+          ztmp(j,i) = 1
+        enddo
+        do j = 1, n, 1
+          ztmp(j,i) = ztmp(j,i) + 1
         enddo
       enddo
     <BLANKLINE>
@@ -98,22 +101,11 @@ class IncreaseRankLoopArraysTrans(Transformation):
         return ("Increases the Rank of the supplied arrays by the iteration "
                 "space of the given loop, and update all its references")
 
-    def apply(self, node, options=None):
-        '''Applies the transformation.
+    def validate(self, node, options=None):
+        ''' Checks that the supplied node is a valid target.
 
         :param node: target PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-
-        '''
-        self.validate(node, options)
-
-    def validate(self, node, options=None):
-        '''Checks that the supplied node is a valid target.
-
-        :param node: target PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -133,6 +125,53 @@ class IncreaseRankLoopArraysTrans(Transformation):
             raise TransformationError(
                 "The supplied loop should be inside a routine, and the whole "
                 "routine should have no CodeBlocks.")
+
+        # Each item listed in the array list must be a local Array Symbol or a
+        # string that resolves to it
+        array_list = options.get("arrays", [])
+        if len(array_list) == 0:
+            raise TransformationError(
+                f"{self.name} has a mandatory 'arrays' option that "
+                f"needs to be provided to inform what arrays needs their "
+                f"rank increased.")
+        for array in array_list:
+            if isinstance(array, str):
+                array = node.scope.symbol_table.lookup(array)
+
+            if not array.is_automatic or not array.is_array:
+                raise TransformationError(
+                    f"{self.name} provided 'arrays' must be a local array "
+                    f"symbol, but {array.name} is declared as '"
+                    "'{array.debug_string()}'. ")
+
+            # TODO: What should happen with references outside the loop?
+
+    def apply(self, node, options=None):
+        '''Applies the transformation.
+
+        :param node: target PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+
+        '''
+        self.validate(node, options)
+
+        array_list = options.get("arrays", [])
+
+        for array in array_list:
+            if isinstance(array, str):
+                array = node.scope.symbol_table.lookup(array)
+
+            # TODO: check that the bound expressions are valid as static
+            # expressions in the declarations.
+            array.shape.append(
+                ArrayType.ArrayBounds(node.start_expr, node.stop_expr)
+            )
+
+            for ref in node.walk(ArrayReference):
+                if ref.symbol is array:
+                    ref.addchild(Reference(node.variable))
 
 
 _all__ = ["IncreaseRankLoopArraysTrans"]

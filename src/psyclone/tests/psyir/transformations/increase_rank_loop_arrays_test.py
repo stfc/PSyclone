@@ -51,7 +51,7 @@ def test_trans_name_and_str():
 
 
 def test_irla_validate(fortran_reader):
-    ''' Check that the name and str method works as expected. '''
+    ''' Check that the validate method works as expected. '''
     trans = IncreaseRankLoopArraysTrans()
 
     psyir = fortran_reader.psyir_from_source("""
@@ -78,3 +78,32 @@ def test_irla_validate(fortran_reader):
         trans.apply(psyir.walk(Loop)[0].detach())
     assert ("The supplied loop should be inside a routine, and the whole "
             "routine should have no CodeBlocks." in str(err.value))
+
+
+def test_irla_apply(fortran_reader, fortran_writer):
+    ''' Check that the array rank is increased by the bounds of the loop. '''
+    trans = IncreaseRankLoopArraysTrans()
+
+    psyir = fortran_reader.psyir_from_source("""
+     program test
+         integer :: N=10, M=10
+         integer :: i, j
+         real, dimension(N) :: ztmp
+         do i = -5, M+3
+             do j = 1, N
+                 ztmp(j) = 1
+             end do
+             do j = 1, N
+                 ztmp(j) = ztmp(j) + 1
+             end do
+         end do
+     end program
+    """)
+
+    trans.apply(psyir.walk(Loop)[0], options={'arrays': ['ztmp']})
+    code = fortran_writer(psyir)
+
+    # The declaration and references have been updated
+    assert "real, dimension(n,-5:m + 3) :: ztmp" in code
+    assert "ztmp(j,i) = 1" in code
+    assert "ztmp(j,i) = ztmp(j,i) + 1" in code
