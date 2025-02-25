@@ -47,7 +47,8 @@ from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   CodeBlock, ACCRoutineDirective, Literal,
                                   IntrinsicCall, BinaryOperation, Reference)
 from psyclone.psyir.symbols import (
-    ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol)
+    ArrayType, Symbol, INTEGER_TYPE, DataSymbol, DataTypeSymbol,
+    UnresolvedInterface)
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -340,8 +341,7 @@ then
         '''
         Identify all arrays that are local to the target routine, all their
         bounds/kind/type symbols are also local, do not represent a function's
-        return value, are not constant and do not explicitly use
-        dynamic memory allocation. Also excludes any such arrays that are
+        return value, are not constant. Also excludes any such arrays that are
         accessed within CodeBlocks or RESHAPE intrinsics.
 
         :param node: target PSyIR node.
@@ -351,6 +351,20 @@ then
         :rtype: list[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         '''
+        def dependent_symbol_could_be_local(symbol: Symbol) -> bool:
+            ''' The symbol exists in the local scope, or it is an Unresolved
+            interface symbol but there are no wildcard import that could make
+            it local.
+
+            '''
+            if symbol.name not in node.symbol_table:
+                return False
+            if isinstance(symbol.interface, UnresolvedInterface):
+                if all(container.wildcard_import is False
+                       for container in node.symbol_table.containersymbols):
+                    return False
+            return True
+
         local_arrays = {}
         for sym in node.symbol_table.automatic_datasymbols:
             # Check that the array is not the functions return symbol, or
@@ -358,9 +372,11 @@ then
             if (sym is node.return_symbol or not sym.is_array or
                     sym.is_constant):
                 continue
-            if isinstance(sym.datatype.intrinsic, DataTypeSymbol):
+            if (isinstance(sym.datatype.intrinsic, DataTypeSymbol) and
+                    dependent_symbol_could_be_local(sym.datatype.intrinsic)):
                 continue
-            if isinstance(sym.datatype.precision, DataSymbol):
+            if (isinstance(sym.datatype.precision, DataSymbol) and
+                    dependent_symbol_could_be_local(sym.datatype.precision)):
                 continue
             # Check whether all of the bounds of the array are defined - an
             # allocatable array will have array dimensions of
