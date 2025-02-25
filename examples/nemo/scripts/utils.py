@@ -152,12 +152,10 @@ CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 # These files change the results from the baseline when psyclone adds
 # parallelisation dirctives
 PARALLELISATION_ISSUES = [
-    "ldfc1d_c2d.f90",
-    "tramle.f90",
-    "dynspg_ts.f90",
 ]
 
 PRIVATISATION_ISSUES = [
+    "tramle.f90",  # Wrong runtime results
     "ldftra.f90",  # Wrong runtime results
 ]
 
