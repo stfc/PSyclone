@@ -180,14 +180,17 @@ def test_scalarizationtrans_check_first_access_is_write(fortran_reader):
     # Test a
     assert var_accesses[keys[1]].var_name == "a"
     assert ScalarizationTrans._check_first_access_is_write(keys[1],
+                                                           node,
                                                            var_accesses)
     # Test b (differeing indices)
     assert var_accesses[keys[2]].var_name == "b"
     assert not ScalarizationTrans._check_first_access_is_write(keys[2],
+                                                               node,
                                                                var_accesses)
     # Test c (k is modified)
     assert var_accesses[keys[3]].var_name == "c"
     assert ScalarizationTrans._check_first_access_is_write(keys[3],
+                                                           node,
                                                            var_accesses)
 
     # Test filter behaviour same as used in the transformation
@@ -206,7 +209,7 @@ def test_scalarizationtrans_check_first_access_is_write(fortran_reader):
 
     first_write_arrays = filter(
             lambda sig: ScalarizationTrans._check_first_access_is_write(
-                sig, var_accesses),
+                sig, node, var_accesses),
             unmodified_indices)
     first_write_arrays = list(first_write_arrays)
     assert len(first_write_arrays) == 2
@@ -933,5 +936,32 @@ def test_scalarization_trans_noscalarize(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     strans.apply(loops[0])
+    out = fortran_writer(psyir)
+    assert "arr_scalar" not in out
+
+    code = '''
+    subroutine test
+    use mod
+    integer :: i
+    real, dimension(1:1000) :: arr
+    do i = 1, 1000
+        arr(i) = 0.0
+    end do
+
+    do i = 1, 1000
+      if(zeqn > 0.0) then
+        arr(i) = prev
+      else
+        arr2(i) = prev
+      endif
+        val = sqrt(arr(i))
+        prev = val
+    end do
+    end subroutine
+    '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    strans.apply(loops[1])
     out = fortran_writer(psyir)
     assert "arr_scalar" not in out
