@@ -45,16 +45,18 @@ module compare_variables_mod
     use, intrinsic :: iso_fortran_env, only : real64, stderr => Error_Unit
 
     implicit None
-    integer, parameter :: MAX_ABS_ERROR  = 1
-    integer, parameter :: MAX_REL_ERROR  = 2
-    integer, parameter :: L2_DIFF        = 3
-    integer, parameter :: L2_COS_SIMILAR = 4
-    integer, parameter :: count_0        = 5    ! No error
-    integer, parameter :: count_neg_9    = 6    ! 10^-9 > rel error > 0
-    integer, parameter :: count_neg_6    = 7    ! 10^-6 > rel error >=10^-9
-    integer, parameter :: count_neg_3    = 8    ! 10^-3 > rel error >=10^-6
+    integer, parameter :: COUNT_ALL      = 1
+    integer, parameter :: COUNT_0        = 2    ! No error
+    integer, parameter :: COUNT_NEG_9    = 3    ! 10^-9 > rel error > 0
+    integer, parameter :: COUNT_NEG_6    = 4    ! 10^-6 > rel error >=10^-9
+    integer, parameter :: COUNT_NEG_3    = 5    ! 10^-3 > rel error >=10^-6
+    integer, parameter :: COUNT_LARGER   = 6    ! rel error >=10^-3
+    integer, parameter :: MAX_ABS_ERROR  = 7
+    integer, parameter :: MAX_REL_ERROR  = 8
+    integer, parameter :: L2_DIFF        = 9
+    integer, parameter :: L2_COS_SIMILAR = 10
 
-    integer, parameter :: NUM_RESULTS = 8
+    integer, parameter :: NUM_RESULTS = 10
 
     integer, parameter                                        :: MAX_STRING_LENGTH=512
     character(MAX_STRING_LENGTH), dimension(:),   allocatable :: all_names
@@ -128,14 +130,16 @@ contains
         enddo
 
         write(out_format, "('(A',I0)" ) max_name_len
-        write(*,out_format//",8A13)") "Variable", "max_abs", "max_rel",&
-            "l2_diff", "l2_cos", "identical", "#rel<1E-9", "#rel<1E-6", "#rel<1E-3"
+        write(*,out_format//",10A13)") "Variable", "count", "identical",  &
+            "#rel<1E-9", "#rel<1E-6", "#rel<1E-3", "#rel>=1E-3", &
+            "max_abs", "max_rel", "l2_diff", "l2_cos"
 
-        out_format = trim(out_format)//"' ',8(E12.7,' '))"
+        out_format = trim(out_format)//"' ',6(I12, ' '),4(E12.7,' '))"
 
         ! Then write out the results for each variable:
         do i=1, current_index
-            write(*,out_format) trim(all_names(i)), all_results(i,:)
+            write(*,out_format) trim(all_names(i)), int(all_results(i,1:6)), &
+                                all_results(i,7:)
         enddo
 
     end subroutine compare_summary
@@ -161,6 +165,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index,COUNT_ALL) = 1.0
         if (value == correct_value) then
             ! All other values have already been initialised with 0
             all_results(current_Index, L2_COS_SIMILAR) = 1
@@ -171,7 +176,7 @@ contains
             all_results(current_index, L2_DIFF       ) = 1.0
             all_results(current_index, L2_COS_SIMILAR) = 0.0
             all_results(current_index, MAX_REL_ERROR ) = 1.0
-            all_results(current_Index, COUNT_NEG_3   ) = 1
+            all_results(current_Index, COUNT_LARGER  ) = 1
         endif
 
     end subroutine compare_scalar_Char
@@ -204,6 +209,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -227,7 +233,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -235,13 +241,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_1dChar
@@ -273,6 +282,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -296,7 +306,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -304,13 +314,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_2dChar
@@ -342,6 +355,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -365,7 +379,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -373,13 +387,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_3dChar
@@ -411,6 +428,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -434,7 +452,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -442,13 +460,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_4dChar
@@ -472,6 +493,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index,COUNT_ALL) = 1.0
         if (value == correct_value) then
             ! All other values have already been initialised with 0
             all_results(current_Index, L2_COS_SIMILAR) = 1
@@ -524,6 +546,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -543,7 +566,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -551,13 +574,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_1dInt
@@ -589,6 +615,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -608,7 +635,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -616,13 +643,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_2dInt
@@ -654,6 +684,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -673,7 +704,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -681,13 +712,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_3dInt
@@ -719,6 +753,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -738,7 +773,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -746,13 +781,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_4dInt
@@ -776,6 +814,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index,COUNT_ALL) = 1.0
         if (value .EQV. correct_value) then
             ! All other values have already been initialised with 0
             all_results(current_Index, L2_COS_SIMILAR) = 1
@@ -786,7 +825,7 @@ contains
             all_results(current_index, L2_DIFF       ) = 1.0
             all_results(current_index, L2_COS_SIMILAR) = 0.0
             all_results(current_index, MAX_REL_ERROR ) = 1.0
-            all_results(current_Index, COUNT_NEG_3   ) = 1
+            all_results(current_Index, COUNT_LARGER  ) = 1
         endif
 
     end subroutine compare_scalar_Logical
@@ -819,6 +858,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values .EQV. correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -840,7 +880,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -848,13 +888,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_1dLogical
@@ -886,6 +929,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values .EQV. correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -907,7 +951,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -915,13 +959,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_2dLogical
@@ -953,6 +1000,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values .EQV. correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -974,7 +1022,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -982,13 +1030,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_3dLogical
@@ -1020,6 +1071,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values .EQV. correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -1041,7 +1093,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -1049,13 +1101,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_4dLogical
@@ -1079,6 +1134,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index,COUNT_ALL) = 1.0
         if (value == correct_value) then
             ! All other values have already been initialised with 0
             all_results(current_Index, L2_COS_SIMILAR) = 1
@@ -1130,6 +1186,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -1149,7 +1206,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -1157,13 +1214,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_1dReal
@@ -1195,6 +1255,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -1214,7 +1275,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -1222,13 +1283,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_2dReal
@@ -1260,6 +1324,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -1279,7 +1344,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -1287,13 +1352,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_3dReal
@@ -1325,6 +1393,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -1344,7 +1413,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -1352,13 +1421,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_4dReal
@@ -1382,6 +1454,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index,COUNT_ALL) = 1.0
         if (value == correct_value) then
             ! All other values have already been initialised with 0
             all_results(current_Index, L2_COS_SIMILAR) = 1
@@ -1433,6 +1506,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -1452,7 +1526,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -1460,13 +1534,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_1dDouble
@@ -1498,6 +1575,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -1517,7 +1595,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -1525,13 +1603,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_2dDouble
@@ -1563,6 +1644,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -1582,7 +1664,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -1590,13 +1672,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_3dDouble
@@ -1628,6 +1713,7 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
+        all_results(current_index, COUNT_ALL) = size(values)
         if (all(values == correct_values)) then
             ! All values correct. Notice that all results are already initialised
             ! to 0, so only set the non-zero values here:
@@ -1647,7 +1733,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -1655,13 +1741,16 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
-            ! Count elements >10^-6, and subtract the ones larger than 10^-3
-            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
-                - all_results(current_Index, COUNT_NEG_3)
-            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
-                - all_results(current_Index, COUNT_NEG_6)
-
+            all_results(current_index, COUNT_LARGER) = count(tmp >= 1.0d-3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp < 1.0d-9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_6) = count(tmp < 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp < 1.0d-3) &
+                - all_results(current_Index, COUNT_NEG_9) &
+                - all_results(current_Index, COUNT_NEG_6) &
+                - all_results(current_Index, COUNT_0)
         endif
 
     end subroutine Compare_array_4dDouble
