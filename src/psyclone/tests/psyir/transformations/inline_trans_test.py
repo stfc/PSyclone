@@ -703,6 +703,36 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer):
     # assert Compile(tmpdir).string_compiles(output)
 
 
+def test_validate_allocatable_local_array(fortran_reader):
+    '''
+    Test that we refuse to inline a call to a routine with a local, allocatable
+    array. Currently this would result in errors as the array would no longer
+    be deallocated at the end of the inlined code.
+
+    '''
+    code = '''
+    module my_mod
+    contains
+      subroutine runner()
+        call doit(10)
+      end subroutine runner
+      subroutine doit(npts)
+        integer, intent(in) :: npts
+        real, dimension(:), allocatable :: var
+        allocate(var(npts))
+        var(:) = 1.0
+      end subroutine doit
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    call = psyir.walk(Call)[0]
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("Routine 'doit' contains one or more ALLOCATE statements "
+            "('ALLOCATE(var(1:npts))'). Inlining such a routine is not "
+            "supported." in str(err.value))
+
+
 def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
     '''
     Check that the apply() method works correctly when an array slice is

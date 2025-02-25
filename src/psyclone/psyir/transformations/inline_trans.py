@@ -207,12 +207,13 @@ class InlineTrans(Transformation):
                 new_shape = []
                 for dim in sym.datatype.shape:
                     if isinstance(dim, ArrayType.Extent):
-                        continue
-                    lower = self._replace_formal_arg(dim.lower, node,
-                                                     formal_args)
-                    upper = self._replace_formal_arg(dim.upper, node,
-                                                     formal_args)
-                    new_shape.append(ArrayType.ArrayBounds(lower, upper))
+                        new_shape.append(dim)
+                    else:
+                        lower = self._replace_formal_arg(dim.lower, node,
+                                                         formal_args)
+                        upper = self._replace_formal_arg(dim.upper, node,
+                                                         formal_args)
+                        new_shape.append(ArrayType.ArrayBounds(lower, upper))
                 sym.datatype = ArrayType(sym.datatype.datatype, new_shape)
 
         for sym in table.datatypesymbols:
@@ -632,6 +633,8 @@ class InlineTrans(Transformation):
             that is not the first or last statement.
         :raises TransformationError: if the routine body contains a CodeBlock
             and the 'force' option is not True.
+        :raises TransformationError: if the routine contains an ALLOCATE (as we
+            don't support adding the required DEALLOCATE).
         :raises TransformationError: if the called routine has a named
             argument.
         :raises TransformationError: if the call-site is not within a Routine.
@@ -711,6 +714,17 @@ class InlineTrans(Transformation):
                 f"therefore cannot be inlined. (If you are confident that "
                 f"the code may safely be inlined despite this then use "
                 "`options={'force': True}` to override.)")
+
+        # At the moment, we can't inline a routine that allocates memory as
+        # we don't support adding any deallocates (that the compiler would
+        # add automatically at the end of the routine).
+        intrinsics = routine.walk(IntrinsicCall)
+        for intr in intrinsics:
+            if intr.intrinsic == IntrinsicCall.Intrinsic.ALLOCATE:
+                raise TransformationError(
+                    f"Routine '{name}' contains one or more ALLOCATE "
+                    f"statements ('{intr.debug_string().strip()}'). Inlining "
+                    f"such a routine is not supported.")
 
         # Support for routines with named arguments is not yet implemented.
         # TODO #924.
