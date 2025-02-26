@@ -120,7 +120,8 @@ def test_get_array_ndims():
     '''
 
     fparser_tree = ScalarArrayArgMetadata.create_fparser2(
-      "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, invalid)", Fortran2003.Part_Ref)
+      "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, invalid)",
+      Fortran2003.Part_Ref)
     with pytest.raises(ValueError) as info:
         _ = ScalarArrayArgMetadata.get_array_ndims(fparser_tree)
     assert ("The number of dimensions of a scalar array should be a string "
