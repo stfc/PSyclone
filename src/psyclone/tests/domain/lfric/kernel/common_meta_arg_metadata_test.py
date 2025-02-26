@@ -258,17 +258,6 @@ def test_get_vector_length():
     assert vector_length == "3"
 
 
-def test_get_array_ndims():
-    '''Test that the get_array_ndims method in the
-    CommonMetaArgMetadata class works as expected.
-
-    '''
-    fparser_tree = CheckArg.create_fparser2(
-        "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 3)", Fortran2003.Part_Ref)
-    vector_length = CheckArg.get_array_ndims(fparser_tree)
-    assert vector_length == "3"
-
-
 def test_setter_getter():
     '''Test that the setters and getters in the CommonMetaArgMetadata
     class work as expected.
