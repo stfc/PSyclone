@@ -308,6 +308,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :param bool options["sequential"]: whether this is a sequential loop.
         :param bool options["verbose"]: whether to report the reasons the
             validate and collapse steps have failed.
+        :param bool options["nowait"]: whether to add a nowait clause and a
+            corresponding barrier to enable asynchronous execution.
 
         '''
         if not options:
@@ -319,6 +321,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         ignore_dep_analysis = options.get("force", False)
         list_of_names = options.get("ignore_dependencies_for", [])
         privatise_arrays = options.get("privatise_arrays", False)
+        nowait = options.get("nowait", False)
         list_of_signatures = [Signature(name) for name in list_of_names]
         dtools = DependencyTools()
 
@@ -403,6 +406,10 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         # parent and its children to the node. This calls down to the sub-class
         # to get the type of directive we require.
         directive = self._directive([node.detach()], num_collapsable_loops)
+
+        if nowait:
+            #TODO
+            pass
 
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
