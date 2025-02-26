@@ -113,15 +113,30 @@ def test_check_access():
             in str(info.value))
 
 
-# def test_get_array_ndims():
-#     '''Test that the get_array_ndims method in the
-#     ScalarArrayArgMetadata class works as expected.
+def test_get_array_ndims():
+    '''Test that the get_array_ndims method in the
+    ScalarArrayArgMetadata class works as expected.
 
-#     '''
-#     fparser_tree = ScalarArrayArgMetadata.create_fparser2(
-#       "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 3)", Fortran2003.Part_Ref)
-#     vector_length = ScalarArrayArgMetadata.get_array_ndims(fparser_tree)
-#     assert vector_length == "3"
+    '''
+
+    fparser_tree = ScalarArrayArgMetadata.create_fparser2(
+      "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, invalid)", Fortran2003.Part_Ref)
+    with pytest.raises(ValueError) as info:
+        _ = ScalarArrayArgMetadata.get_array_ndims(fparser_tree)
+    assert ("The number of dimensions of a scalar array should be a string "
+            "containing an integer, but found 'invalid'." in str(info.value))
+
+    fparser_tree = ScalarArrayArgMetadata.create_fparser2(
+      "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 0)", Fortran2003.Part_Ref)
+    with pytest.raises(ValueError) as info:
+        _ = ScalarArrayArgMetadata.get_array_ndims(fparser_tree)
+    assert ("The number of dimensions of a scalar array should be an integer "
+            "greater than or equal to 1 but found 0." in str(info.value))
+
+    fparser_tree = ScalarArrayArgMetadata.create_fparser2(
+      "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 3)", Fortran2003.Part_Ref)
+    vector_length = ScalarArrayArgMetadata.get_array_ndims(fparser_tree)
+    assert vector_length == "3"
 
 
 # def test_array_ndims_setter_getter():
@@ -131,15 +146,6 @@ def test_check_access():
 #     '''
 #     array_arg = ScalarArrayArgMetadata("GH_REAL", "GH_READ", "2")
 
-#     with pytest.raises(ValueError) as info:
-#         array_arg.array_ndims = "invalid"
-#     assert ("The number of dimensions of a scalar array should be a string "
-#             "containing an integer, but found 'invalid'." in str(info.value))
-
-#     with pytest.raises(ValueError) as info:
-#         array_arg.array_ndims = "0"
-#     assert ("The number of dimensions of a scalar array should be an integer"
-#             "greater than or equal to 1 but found 0." in str(info.value))
 
 #     array_arg.array_ndims = "3"
 #     assert array_arg.array_ndims == "3"
