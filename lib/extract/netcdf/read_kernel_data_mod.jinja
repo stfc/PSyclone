@@ -192,14 +192,7 @@ contains
 
     end subroutine OpenReadFilename
 
-{# This defines a mapping of the 'userfriendly' names to the NetCDF data types. #}
-{% set NCDF_TYPE_MAPPING = { "Double": "NF90_DOUBLE",
-                             "Real":   "NF90_REAL",
-                             "Logical":"NF90_INT",
-                             "Int":    "NF90_INT"} -%}
-
 {% for name, type in ALL_TYPES %}
-    {% set NETCDF_TYPE = NCDF_TYPE_MAPPING[name] %}
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine reads the value of a scalar {{type}}
